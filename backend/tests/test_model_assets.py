@@ -7,12 +7,15 @@ from datetime import timezone
 
 import alibabacloud_oss_v2 as oss
 from fastapi.testclient import TestClient
+from fastapi import FastAPI
 
 from app.api.deps import get_current_user
 from app.db.models.user import User
-from app.main import app
-from app.modules.model_assets.router import get_model_asset_service
+from app.modules.model_assets.router import get_model_asset_service, router
 from app.modules.model_assets.service import ModelAssetService
+
+app = FastAPI()
+app.include_router(router, prefix="/api/v1/model-assets")
 
 
 def create_test_model_asset_service() -> ModelAssetService:
@@ -24,16 +27,16 @@ def create_test_model_asset_service() -> ModelAssetService:
     return ModelAssetService(
         bucket="noteverse-model-assets",
         region="cn-shenzhen",
-        object_key="models/bytedance/piano-note/6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5/model.onnx",
         ttl_seconds=3600,
         client=client,
     )
 
 
-def test_model_asset_access_unauthenticated_returns_401(client: TestClient) -> None:
+def test_model_asset_access_unauthenticated_returns_401() -> None:
     """Unauthenticated requests must be rejected with 401."""
-    response = client.get("/api/v1/model-assets/bytedance-note/access")
-    assert response.status_code == 401
+    with TestClient(app) as client:
+        response = client.get("/api/v1/model-assets/practice-acoustic-robust-browser-v1/access")
+        assert response.status_code == 401
 
 
 def test_model_asset_access_authenticated_returns_descriptor() -> None:
@@ -51,7 +54,7 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
 
     try:
         with TestClient(app) as client:
-            response = client.get("/api/v1/model-assets/bytedance-note/access")
+            response = client.get("/api/v1/model-assets/practice-acoustic-robust-browser-v1/access")
             assert response.status_code == 200
 
             body = response.json()
@@ -61,10 +64,10 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
 
             # Exact frozen identity checks
             assert data["schemaVersion"] == 1
-            assert data["assetId"] == "bytedance-piano-transcription-note-model"
-            assert data["assetVersion"] == "CRNN_note_F1_0.9677_pedal_F1_0.9186"
-            assert data["expectedByteSize"] == 98_691_493
-            assert data["sha256"] == "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+            assert data["assetId"] == "practice-acoustic-robust-browser"
+            assert data["assetVersion"] == "v1"
+            assert data["expectedByteSize"] == 98_689_283
+            assert data["sha256"] == "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
             assert data["mediaType"] == "application/octet-stream"
 
             download_url = data["downloadUrl"]
@@ -95,13 +98,13 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
 def test_model_asset_service_unit() -> None:
     """Service directly creates valid signed URLs with OSS SDK V2 Signature V4."""
     service = create_test_model_asset_service()
-    access = service.get_bytedance_note_model_access()
+    access = service.get_practice_acoustic_access()
 
     assert access.schemaVersion == 1
-    assert access.assetId == "bytedance-piano-transcription-note-model"
-    assert access.assetVersion == "CRNN_note_F1_0.9677_pedal_F1_0.9186"
-    assert access.expectedByteSize == 98_691_493
-    assert access.sha256 == "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+    assert access.assetId == "practice-acoustic-robust-browser"
+    assert access.assetVersion == "v1"
+    assert access.expectedByteSize == 98_689_283
+    assert access.sha256 == "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
     assert access.mediaType == "application/octet-stream"
 
     assert access.downloadUrl.startswith("https://noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com/")

@@ -705,34 +705,6 @@ export type ApiResponseMemberRead = {
 };
 
 /**
- * APIResponse[ModelAssetAccessRead]
- */
-export type ApiResponseModelAssetAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ModelAssetAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[NoneType]
  */
 export type ApiResponseNoneType = {
@@ -972,6 +944,34 @@ export type ApiResponsePerformanceTakeUploadAuthorizationRead = {
      * Response payload
      */
     data?: PerformanceTakeUploadAuthorizationRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeAcousticAccessRead]
+ */
+export type ApiResponsePracticeAcousticAccessRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeAcousticAccessRead | null;
     /**
      * Message
      *
@@ -2833,46 +2833,6 @@ export type MetadataRead = {
 export type MetadataStatus = 'PENDING' | 'READY' | 'FAILED';
 
 /**
- * ModelAssetAccessRead
- *
- * Access descriptor for client direct download of model assets.
- */
-export type ModelAssetAccessRead = {
-    /**
-     * Assetid
-     */
-    assetId?: string;
-    /**
-     * Assetversion
-     */
-    assetVersion?: string;
-    /**
-     * Downloadurl
-     */
-    downloadUrl: string;
-    /**
-     * Downloadurlexpiresat
-     */
-    downloadUrlExpiresAt: string;
-    /**
-     * Expectedbytesize
-     */
-    expectedByteSize?: number;
-    /**
-     * Mediatype
-     */
-    mediaType?: 'application/octet-stream';
-    /**
-     * Schemaversion
-     */
-    schemaVersion?: 1;
-    /**
-     * Sha256
-     */
-    sha256?: string;
-};
-
-/**
  * MyScoresSort
  */
 export type MyScoresSort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
@@ -3423,6 +3383,46 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      */
     score_id: string;
     tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PracticeAcousticAccessRead
+ *
+ * The sole immutable browser Practice acoustic deployment.
+ */
+export type PracticeAcousticAccessRead = {
+    /**
+     * Assetid
+     */
+    assetId?: 'practice-acoustic-robust-browser';
+    /**
+     * Assetversion
+     */
+    assetVersion?: 'v1';
+    /**
+     * Downloadurl
+     */
+    downloadUrl: string;
+    /**
+     * Downloadurlexpiresat
+     */
+    downloadUrlExpiresAt: string;
+    /**
+     * Expectedbytesize
+     */
+    expectedByteSize?: 98689283;
+    /**
+     * Mediatype
+     */
+    mediaType?: 'application/octet-stream';
+    /**
+     * Schemaversion
+     */
+    schemaVersion?: 1;
+    /**
+     * Sha256
+     */
+    sha256?: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3';
 };
 
 /**
@@ -6362,30 +6362,30 @@ export type GetStorageUsageApiV1MeStorageUsageGetResponses = {
 
 export type GetStorageUsageApiV1MeStorageUsageGetResponse = GetStorageUsageApiV1MeStorageUsageGetResponses[keyof GetStorageUsageApiV1MeStorageUsageGetResponses];
 
-export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetData = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/model-assets/bytedance-note/access';
+    url: '/api/v1/model-assets/practice-acoustic-robust-browser-v1/access';
 };
 
-export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetError = GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors[keyof GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors];
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetError = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors];
 
-export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseModelAssetAccessRead;
+    200: ApiResponsePracticeAcousticAccessRead;
 };
 
-export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponse = GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses[keyof GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses];
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses];
 
 export type ListMyScoresApiV1MyScoresGetData = {
     body?: never;

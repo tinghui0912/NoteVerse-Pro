@@ -14,8 +14,8 @@ import {
   ModelAssetStorageError,
   ModelAssetStorageUnavailableError,
 } from './types';
-import { byteDanceManifestToModelAssetDescriptor, createOpfsByteDanceModelLoader } from './bytedance-model-loader';
-import { defaultByteDanceModelManifest } from '../practice/acoustic-inference/bytedance-contract';
+import { practiceAcousticModelManifest } from '../practice/acoustic/model/acoustic-model-manifest';
+import { createVerifiedModelAssetLoader } from './verified-model-asset-loader';
 
 class MemoryWritableStream implements FileSystemWritableFileStream {
   readonly locked = false;
@@ -885,41 +885,30 @@ describe('ModelAssetStore OPFS operations', () => {
   });
 });
 
-describe('ByteDance model loader integration with ModelAssetStore', () => {
-  it('derives a valid ModelAssetDescriptor from ByteDanceModelManifest', () => {
-    const manifest = defaultByteDanceModelManifest({
-      modelUrl: 'https://cdn.example.com/bytedance.onnx',
-      expectedByteSize: 98_691_493,
-      sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
-    });
-    const descriptor = byteDanceManifestToModelAssetDescriptor(manifest);
+describe('Shared Practice acoustic model delivery', () => {
+  it('derives the sole exact Robust descriptor', () => {
+    const descriptor = practiceAcousticModelManifest('https://cdn.example.com/model.onnx').asset;
     expect(descriptor.schemaVersion).toBe(1);
-    expect(descriptor.assetId).toBe('bytedance-piano-transcription-note-model');
-    expect(descriptor.assetVersion).toBe('CRNN_note_F1_0.9677_pedal_F1_0.9186');
-    expect(descriptor.expectedByteSize).toBe(98_691_493);
-    expect(descriptor.sha256).toBe('6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5');
+    expect(descriptor.assetId).toBe('practice-acoustic-robust-browser');
+    expect(descriptor.assetVersion).toBe('v1');
+    expect(descriptor.expectedByteSize).toBe(98_689_283);
+    expect(descriptor.sha256).toBe('4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3');
     expect(descriptor.mediaType).toBe('application/octet-stream');
   });
 
-  it('createOpfsByteDanceModelLoader uses ModelAssetStore and returns bytes + diagnostics', async () => {
+  it('verified shared loader uses ModelAssetStore and returns bytes + diagnostics', async () => {
     const root = new MemoryDirectoryHandle('root');
     const sample = await makeTestAsset('bytedance-onnx-bytes-simulated');
-    const manifest = defaultByteDanceModelManifest({
-      modelUrl: sample.descriptor.url,
-      expectedByteSize: sample.descriptor.expectedByteSize,
-      sha256: sample.descriptor.sha256,
-    });
-
     const mockFetch = vi.fn().mockResolvedValue(new Response(sample.bytes, { status: 200 }));
-    const loader = createOpfsByteDanceModelLoader({
+    const loader = createVerifiedModelAssetLoader({
       getDirectory: async () => root.asDirectoryHandle(),
       fetch: mockFetch,
     });
 
-    const loaded = await loader(manifest);
+    const loaded = await loader(sample.descriptor);
     expect(loaded).toMatchObject({
       bytes: sample.bytes,
-      source: 'network',
+      diagnostics: { source: 'network' },
     });
   });
 });

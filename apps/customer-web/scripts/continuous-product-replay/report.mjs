@@ -9,8 +9,8 @@ if(process.argv[2]==='evidence'){
   const verification=await read(path.join(WORK,'verification.json'));
   const engineering=await read(path.join(ROOT,`backend/data/work/continuous_controller/${ID}/browser.json`));
   const musical=await read(path.join(WORK,'musical.json')),scores=await read(path.join(WORK,'scores.json')),truth=await read(path.join(WORK,'truth.json'));
-  const protectedFiles=git('ls-files','apps/customer-web/src/lib/practice/local-core','apps/customer-web/src/lib/practice/acoustic-inference/continuous',
-    'apps/customer-web/public/model-assets/continuous','apps/customer-web/src/lib/practice/input-capability.ts','apps/customer-web/src/hooks/practice/use-step-local-practice.ts').split('\n');
+  const protectedFiles=git('ls-files','apps/customer-web/src/lib/practice/local-core','apps/customer-web/src/lib/practice/acoustic',
+    'apps/customer-web/public/model-assets/practice-acoustic','apps/customer-web/src/lib/practice/input-capability.ts','apps/customer-web/src/hooks/practice/use-step-local-practice.ts').split('\n');
   const changes=git('diff','--name-only',START,'HEAD','--',...protectedFiles);if(changes)throw new Error('PROTECTED_IMPLEMENTATION_CHANGED:'+changes);
   const priorReports=new Set(git('ls-tree','-r','--name-only',START,'backend/research/reports').split('\n'));
   if(git('diff','--name-only',START,'HEAD').split('\n').some(p=>priorReports.has(p)))throw new Error('HISTORICAL_REPORT_CHANGED');

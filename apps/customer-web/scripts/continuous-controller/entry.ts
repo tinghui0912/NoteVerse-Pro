@@ -1,6 +1,6 @@
 import { ContinuousPracticeController } from '../../src/lib/practice/continuous/continuous-practice-controller';
 import { browserContinuousPlatform } from '../../src/lib/practice/continuous/continuous-platform';
-import { ContinuousAcousticWorker } from '../../src/lib/practice/acoustic-inference/continuous/worker-client';
+import { AcousticModelWorker } from '../../src/lib/practice/acoustic/model/worker-client';
 import { evaluatePracticeInputCapabilities } from '../../src/lib/practice/input-capability';
 import fixture from '../../src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '../../src/lib/practice/local-core/artifact';
@@ -16,7 +16,7 @@ declare global { interface Window {
 if (typeof window !== 'undefined') {
 window.controllerAssetsReady = false; window.controllerOfflineReady = false;
 window.runContinuousControllerQualification = async (rate, scenario) => {
-  let root: MediaStream | null = null, context: AudioContext | null = null, client: ContinuousAcousticWorker | null = null;
+  let root: MediaStream | null = null, context: AudioContext | null = null, client: AcousticModelWorker | null = null;
   let acquisitions = 0, nativeAcquisitions = 0, contextsCreated = 0, contextsClosed = 0, workersCreated = 0;
   const nativeGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = constraints => { nativeAcquisitions++; return nativeGetUserMedia(constraints); };
@@ -27,7 +27,7 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
     expectedPracticeGroups: fixture.expectedPracticeGroups.slice(0, 1), practiceAttackSteps: fixture.practiceAttackSteps.slice(0, 1) };
   const platform = { ...browserContinuousPlatform,
     modelUrl: async () => '/model.onnx', workletUrl: '/capture.worklet.js',
-    createWorker: () => { workersCreated++; client = new ContinuousAcousticWorker(new Worker('/worker.js', { type: 'module' })); return client; },
+    createWorker: () => { workersCreated++; client = new AcousticModelWorker(new Worker('/worker.js', { type: 'module' })); return client; },
     createAudioContext: () => {
       contextsCreated++; context = new AudioContext({ sampleRate: rate });
       const close = context.close.bind(context); context.close = () => { contextsClosed++; return close(); }; return context;
@@ -58,7 +58,7 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
   try {
     await controller.start(); assert(controller.snapshot().session === 'ACTIVE', 'PREPARATION_FAILED');
     assert(context !== null && root !== null && client !== null, 'RESOURCE_NOT_CREATED');
-    const audioContext = context as AudioContext, stream = root as MediaStream, worker = client as ContinuousAcousticWorker;
+    const audioContext = context as AudioContext, stream = root as MediaStream, worker = client as AcousticModelWorker;
     assert(audioContext.sampleRate === rate, 'ACTUAL_CONTEXT_RATE_UNAVAILABLE');
     const trackSettings = stream.getAudioTracks()[0].getSettings();
     window.controllerAssetsReady = true; await wait(() => window.controllerOfflineReady);

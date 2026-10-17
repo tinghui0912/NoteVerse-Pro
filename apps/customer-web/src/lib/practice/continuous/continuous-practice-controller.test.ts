@@ -5,7 +5,7 @@ import type { PracticeScoreArtifact } from '../local-core/artifact';
 import { ManualClock } from '../local-core/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-input';
-import type { ContinuousCaptureBridge } from '../acoustic-inference/continuous/capture-bridge';
+import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { PerformanceRecorder } from '../performance-recorder';
 import { completedPerformanceStore } from '../completed-performance';
@@ -51,7 +51,7 @@ function environment(rate = 48000) {
     acquireMicrophone: vi.fn(async () => root.media), createAudioContext: vi.fn(() => context as unknown as AudioContext),
     coefficients: async sourceRate => {
       if (sourceRate !== 44100 && sourceRate !== 48000) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
-      return new Uint8Array(readFileSync(`public/model-assets/continuous/${sourceRate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`));
+      return new Uint8Array(readFileSync(`public/model-assets/practice-acoustic/${sourceRate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`));
     }, workletUrl: '/worklet',
     connectCapture: async options => {
       expect(options.context).toBe(context);

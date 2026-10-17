@@ -11,14 +11,14 @@ const engineering=JSON.parse(await readFile(path.join(ROOT,`backend/data/work/co
 if(engineering.status!=='PASS')throw new Error('ENGINEERING_REGRESSION_NOT_PASS');
 const audio=JSON.parse(await readFile(path.join(ROOT,'backend/data/work/product_completion_replay/v1/audio_only/manifest.json'),'utf8'));
 const esbuild=await import(pathToFileURL(path.join(ROOT,'backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/lib/main.js')).href);
-for(const [entry,out] of [['scripts/continuous-product-replay/entry.ts','entry.js'],['scripts/continuous-product-replay/controller-entry.ts','controller.js'],['src/lib/practice/acoustic-inference/continuous/acoustic-worker.entry.ts','worker.js']]){
+for(const [entry,out] of [['scripts/continuous-product-replay/entry.ts','entry.js'],['scripts/continuous-product-replay/controller-entry.ts','controller.js'],['src/lib/practice/acoustic/model/acoustic-worker.entry.ts','worker.js']]){
   await esbuild.build({entryPoints:[path.join(APP,entry)],outfile:path.join(WORK,out),bundle:true,format:'esm',platform:'browser',target:'es2022',
     define:{'process.env.NODE_ENV':'"production"','process.env':'{}'},plugins:[{name:'ort',setup(b){b.onResolve({filter:/^onnxruntime-web\/webgpu$/},()=>({path:'/ort/ort.webgpu.min.mjs',external:true}));}}],nodePaths:[path.join(APP,'node_modules')]});
 }
 const files=new Map([['/entry.js',path.join(WORK,'entry.js')],['/controller.js',path.join(WORK,'controller.js')],['/worker.js',path.join(WORK,'worker.js')],['/model.onnx',path.join(ROOT,MODEL)],
-  ['/fir-44100.f32',path.join(APP,'public/model-assets/continuous/fir-160-441.f32')],['/fir-48000.f32',path.join(APP,'public/model-assets/continuous/fir-1-3.f32')]]);
-files.set('/model-assets/continuous/fir-160-441.f32',path.join(APP,'public/model-assets/continuous/fir-160-441.f32'));
-files.set('/model-assets/continuous/fir-1-3.f32',path.join(APP,'public/model-assets/continuous/fir-1-3.f32'));
+  ['/fir-44100.f32',path.join(APP,'public/model-assets/practice-acoustic/fir-160-441.f32')],['/fir-48000.f32',path.join(APP,'public/model-assets/practice-acoustic/fir-1-3.f32')]]);
+files.set('/model-assets/practice-acoustic/fir-160-441.f32',path.join(APP,'public/model-assets/practice-acoustic/fir-160-441.f32'));
+files.set('/model-assets/practice-acoustic/fir-1-3.f32',path.join(APP,'public/model-assets/practice-acoustic/fir-1-3.f32'));
 const cells=audio.clips.flatMap(c=>[44100,48000].map(rate=>({id:c.id,rate,durationMs:c.durationMs,url:`/pcm/${c.id}/${rate}`,file:c.pcm[rate].path})));
 for(const rate of [44100,48000]){const file=path.join(WORK,`silence_${rate}.f32`);await writeFile(file,new Uint8Array(Math.round(4.1*rate)*4),{flag:'wx'});cells.push({id:'silence',rate,durationMs:1800,url:`/pcm/silence/${rate}`,file:path.relative(ROOT,file)});}
 for(const c of cells)files.set(c.url,path.join(ROOT,c.file));

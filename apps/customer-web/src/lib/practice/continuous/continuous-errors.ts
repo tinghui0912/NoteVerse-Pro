@@ -1,18 +1,14 @@
+import { acousticFailureCode, type AcousticFailureCode } from '../acoustic/source/microphone-errors';
 export type ContinuousErrorCode =
-  | 'MICROPHONE_PERMISSION_DENIED' | 'MICROPHONE_SOURCE_LOST' | 'AUDIO_CONTEXT_INTERRUPTED'
-  | 'MODEL_ASSET_UNAVAILABLE' | 'WEBGPU_UNAVAILABLE' | 'MODEL_LOAD_FAILED'
+  | Exclude<AcousticFailureCode, 'SOURCE_SAMPLE_RATE_NOT_QUALIFIED' | 'ACOUSTIC_WORKER_CRASH' | 'ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED' | 'ACOUSTIC_CAPTURE_FAILURE'>
   | 'UNQUALIFIED_SOURCE_RATE' | 'ANALYSIS_FAILED' | 'RECORDER_UNAVAILABLE' | 'RESOURCE_CLEANUP_FAILED';
 
 /** Public categories never contain exception messages, URLs or stacks. */
 export function continuousErrorCode(cause: unknown, fallback: ContinuousErrorCode): ContinuousErrorCode {
   const message = cause instanceof Error ? `${cause.name}:${cause.message}` : String(cause);
-  if (/NotAllowedError|PermissionDenied/.test(message)) return 'MICROPHONE_PERMISSION_DENIED';
-  if (/NotFoundError|NotReadableError/.test(message)) return 'MICROPHONE_SOURCE_LOST';
-  if (/MICROPHONE_SOURCE_LOST/.test(message)) return 'MICROPHONE_SOURCE_LOST';
-  if (/AUDIO_CONTEXT_INTERRUPTED/.test(message)) return 'AUDIO_CONTEXT_INTERRUPTED';
-  if (/SOURCE_SAMPLE_RATE|SOURCE_RATE/.test(message)) return 'UNQUALIFIED_SOURCE_RATE';
-  if (/WEBGPU|GPU_UNAVAILABLE|GPU_NOT/.test(message)) return 'WEBGPU_UNAVAILABLE';
-  if (/ASSET|MODEL_IDENTITY|MODEL_HASH|MODEL_BYTE/.test(message)) return 'MODEL_ASSET_UNAVAILABLE';
+  const shared = acousticFailureCode(cause);
+  if (shared === 'SOURCE_SAMPLE_RATE_NOT_QUALIFIED') return 'UNQUALIFIED_SOURCE_RATE';
+  if (shared && !['ACOUSTIC_WORKER_CRASH', 'ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED', 'ACOUSTIC_CAPTURE_FAILURE'].includes(shared)) return shared as ContinuousErrorCode;
   if (/RECORDER|RECORDING/.test(message)) return 'RECORDER_UNAVAILABLE';
   return fallback;
 }

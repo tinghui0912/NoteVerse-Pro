@@ -1,6 +1,6 @@
 import {ContinuousPracticeController} from '../../src/lib/practice/continuous/continuous-practice-controller';
 import {browserContinuousPlatform} from '../../src/lib/practice/continuous/continuous-platform';
-import {ContinuousAcousticWorker} from '../../src/lib/practice/acoustic-inference/continuous/worker-client';
+import {AcousticModelWorker} from '../../src/lib/practice/acoustic/model/worker-client';
 import fixture from '../../src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import type {PracticeScoreArtifact} from '../../src/lib/practice/local-core/artifact';
 declare global { interface Window {runMusicalControllerReplay(urls:Record<string,string>):Promise<unknown>} }
@@ -9,7 +9,7 @@ window.runMusicalControllerReplay=async urls=>{
   if(!Generator)throw new Error('QUALIFICATION_REPLAY_TRACK_UNAVAILABLE');
   const root=new MediaStream([new Generator({kind:'audio'})]);
   const platform={...browserContinuousPlatform,modelUrl:async()=>'/model.onnx',
-    acquireMicrophone:async()=>root,createWorker:()=>new ContinuousAcousticWorker(new Worker('/worker.js',{type:'module'})),
+    acquireMicrophone:async()=>root,createWorker:()=>new AcousticModelWorker(new Worker('/worker.js',{type:'module'})),
     connectCapture:async(options:Parameters<typeof browserContinuousPlatform.connectCapture>[0])=>{
       const {bridge,context}=options,rate=context.sampleRate;
       if(rate!==48000&&rate!==44100)throw new Error('CONTROLLER_REPLAY_UNQUALIFIED_DEFAULT_RATE');

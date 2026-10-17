@@ -251,12 +251,22 @@ Old acoustic scheduling must not be restored as a fallback product path. The dis
 Continuous acoustic implementation has one explicit 600ms half-open ownership planner;
 its cadence is not score following or semantic verdict commit width.
 
-## Disabled Continuous Acoustic Boundary
+## Shared Acoustic Foundation and Continuous Projection
 
-The sole acoustic path is `acoustic-inference/continuous`. It accepts PCM and external
-source/performance segment boundaries, never expected score. It delivers only immutable
+The sole acoustic foundation is `practice/acoustic/{model,source,runtime}`. It accepts
+PCM and source-domain analysis regions only, never score or performance coordinates.
+The `practice/acoustic/continuous` projection owns external source/performance segment
+mapping and BEGIN/PAUSE/TERMINAL scheduling. It delivers only immutable
 `ContinuousEvidencePublication` through `ContinuousPracticeSession.publishAnalysis`.
 The existing finalizer, completion and Review truth are unchanged.
+
+The shared model session, Worker, capture Worklet, FIR, target ring and resource
+guards have no Continuous or STEP ownership. Future STEP bounded-attempt consumption
+is not implemented. Its research-policy/model equivalence blocker remains historical
+evidence, not a reason to create a second model or restore Original ByteDance delivery.
+The sole active model endpoint is `/model-assets/practice-acoustic-robust-browser-v1/access`.
+The existing immutable OSS object is reused; its directory name is storage identity
+only. The historical provider/loader/endpoints have no active aliases or fallback.
 
 Pause closes a half-open performance segment. Paused source PCM may provide real
 context but owns no performance time, observation or coverage. Resume resets semantic

@@ -1,5 +1,5 @@
-import { ContinuousAcousticRuntime } from '../../src/lib/practice/acoustic-inference/continuous/acoustic-runtime';
-import { ContinuousAcousticWorker } from '../../src/lib/practice/acoustic-inference/continuous/worker-client';
+import { ContinuousAcousticProjection } from '../../src/lib/practice/acoustic/continuous/continuous-projection';
+import { AcousticModelWorker } from '../../src/lib/practice/acoustic/model/worker-client';
 import type { ContinuousEvidencePublication } from '../../src/lib/practice/local-core/continuous-evaluation-types';
 import {replayAvailabilityMs} from './replay-clock';
 
@@ -8,13 +8,13 @@ declare global { interface Window { runProductReplay(input: {id:string;rate:numb
 window.runProductReplay=async input=>{
   const source=new Float32Array(await(await fetch(input.url)).arrayBuffer());
   const coefficients=new Uint8Array(await(await fetch(`/fir-${input.rate}.f32`)).arrayBuffer());
-  const worker=new ContinuousAcousticWorker(new Worker('/worker.js',{type:'module'}));
+  const worker=new AcousticModelWorker(new Worker('/worker.js',{type:'module'}));
   const model=await worker.load('/model.onnx');
   const publications:ContinuousEvidencePublication[]=[];
   const start=performance.now();
   const begin=Math.round(input.rate*1.8),end=begin+Math.round(input.rate*input.durationMs/1000);
   let next=0,actualModelRuns=0;
-  const runtime=await ContinuousAcousticRuntime.create({sessionDomainId:input.id,sourceDomainId:input.id+':source',
+  const runtime=await ContinuousAcousticProjection.create({sessionDomainId:input.id,sourceDomainId:input.id+':source',
     sourceSampleRateHz:input.rate,coefficientBytes:coefficients,
     worker:{run:async data=>{const r=await worker.run(data);actualModelRuns=r.actualSessionRunCount;return r;},dispose:()=>worker.dispose()},
     nowAvailabilityMs:()=>replayAvailabilityMs((next-begin)*1000/input.rate,performance.now()-start),onPublication:p=>{publications.push(p);}});

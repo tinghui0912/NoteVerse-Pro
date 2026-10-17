@@ -1,0 +1,107 @@
+{
+  "acousticPublication": {
+    "executorSource": {
+      "bytes": 3277,
+      "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+      "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+    },
+    "publicationReferenceSource": {
+      "bytes": 12936,
+      "path": "backend/research/browser_runtime/xc2_r1_runtime.mjs",
+      "sha256": "72e45a94a245d34a40afba53fd18b0c685efa16f5981c46766a61d0c1aa26ab1"
+    },
+    "scope": "Acoustic semantics only; reference runtime downstream finalizer is explicitly excluded from default. No production wiring.",
+    "semantics": "One session per execution, sequential windows, all-pitch decoder A, half-open ownership, stable observation ID, immutable performanceTimeMs and confidence; availabilityTimeMs uses actual acoustic publication on performance-origin clock; analyzed-through frontier is preceding float64 of ownedEnd. No score, labels, final verdicts or expected pitch in acoustic execution."
+  },
+  "decoder": {
+    "authoritativeSource": {
+      "bytes": 5006,
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts",
+      "sha256": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311"
+    },
+    "default": "A",
+    "frameThreshold": 0.05,
+    "function": "decodeByteDanceRawOutputs",
+    "onsetThreshold": 0.3,
+    "outputFrameRateHz": 100,
+    "researchParitySource": {
+      "bytes": 5477,
+      "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+      "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+    },
+    "semantics": "Contiguous >=onset threshold region; first maximum peak; reject peak if frame support <threshold; confidence=min(onset,frame); piano MIDI21..108; sort by time,pitch,stable ID.",
+    "timeMapping": "inputWindowStartMs + round(peakFrame/100*16000)/16000*1000"
+  },
+  "identityName": "robust-browser-engineering-default-xc4-v1",
+  "input": {
+    "dtype": "float32",
+    "modelInputMs": 1820,
+    "modelInputSamples": 29120,
+    "sampleRateHz": 16000,
+    "shape": [
+      1,
+      29120
+    ]
+  },
+  "model": {
+    "candidateId": "bytedance-robust-augmented-calibrated-v1",
+    "checkpointBytes": 103815845,
+    "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+    "onnxBytes": 98689283,
+    "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "sourceConfigurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce"
+  },
+  "ownership": {
+    "fullWindowPastMs": 1050,
+    "futureContextMs": 170,
+    "input": "inputEnd=ownedEnd+170ms; inputStart=inputEnd-1820ms; exactly29120 real samples; final partial ownership shifts full input without padding.",
+    "ownedMs": 600,
+    "plannerFunction": "planXc2Windows; selected parameters ownedMs=600,futureMs=170; historical common clip guard remains historical, not a new live startup specification.",
+    "plannerSource": {
+      "bytes": 4785,
+      "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+      "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+    },
+    "rule": "[ownedStartMs,ownedEndMs)"
+  },
+  "resampler": {
+    "algorithm": "Frozen SciPy 1.14.1 firwin(8821,1/441,kaiser beta=5); float32 coefficients multiplied by160; float32 products/accumulation.",
+    "boundary": "Preserve state across chunks. Zero only at stream origin or explicit finish; padded finish cannot qualify real-context owned observations.",
+    "coefficients": {
+      "bytes": 35284,
+      "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/fir_160_441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+    },
+    "conservativeReadyLookaheadMs": 0.6349206349206349,
+    "conservativeReadyLookaheadSamples": 28,
+    "default": "BAND_LIMITED",
+    "down": 441,
+    "lookaheadSourceSamples": 27.5625,
+    "source": {
+      "bytes": 2289,
+      "path": "backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs",
+      "sha256": "5f57a366bd3c264bee427caa33f892c1ea69d5954c5074a9c37f5167d3f07583"
+    },
+    "sourceRateHz": 44100,
+    "tapCount": 8821,
+    "targetRateHz": 16000,
+    "timeMapping": "Output m represents source m*441/160; wait for real source floor((m*441+4410)/160). No fitted shift or gain normalization.",
+    "up": 160
+  },
+  "runtime": {
+    "automaticFallback": false,
+    "browserLibrary": {
+      "bytes": 333594,
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort.webgpu.min.js",
+      "sha256": "8443389bf14b34582ea40c590b5007bb652d6ac07dd76829a5bd82d2372e6895"
+    },
+    "graphOptimizationLevel": "disabled",
+    "ortWebVersion": "1.20.1",
+    "packageLock": {
+      "bytes": 6697,
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/package-lock.json",
+      "sha256": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449"
+    },
+    "provider": "webgpu"
+  }
+}

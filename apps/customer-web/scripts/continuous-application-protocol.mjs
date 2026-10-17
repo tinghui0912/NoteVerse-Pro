@@ -43,7 +43,7 @@ export async function inventory() {
   };
   const report = { phase: PHASE, baselineRevision: START, parser: `typescript ${ts.version}`, filesInspected: files.length,
     edges, calls, roots: { hook: reach('apps/customer-web/src/hooks/practice/use-local-practice.ts'),
-      promotedModel: reach('apps/customer-web/src/lib/practice/acoustic-inference/continuous/model-inference.ts') },
+      promotedModel: reach('apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts') },
     executableCandidates: executableCandidates.map(file => ({ file, incoming: edges.filter(e => e.to === file),
       classification: 'ALTERNATE_EXECUTABLE_OR_SUPPORT_REQUIRES_CLEANUP_AFTER_CLOCK_GATE',
       actionBeforeClockGate: 'INVENTORIED_NOT_YET_ARCHIVED_NO_PROMOTION_CLAIM' })),
@@ -62,7 +62,7 @@ export async function freeze() {
     assets: await Promise.all(['backend/data/work/xc6_capture/fake-device.wav',
       'backend/research/reports/continuous_application_import_inventory_2026-10-17.json', ...['package.json', 'dist/ort.webgpu.min.mjs',
       'dist/ort-wasm-simd-threaded.jsep.mjs', 'dist/ort-wasm-simd-threaded.jsep.wasm'].map(p => `apps/customer-web/node_modules/onnxruntime-web/${p}`)].map(fileIdentity)),
-    model: { assetId: 'continuous-robust-browser', assetVersion: 'v1', bytes: 98689283,
+    model: { assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1', bytes: 98689283,
       sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3', ort: '1.20.1', provider: 'webgpu', automaticFallback: false },
     protocol: { method: 'SINGLE_FIXED_AFFINE_GET_OUTPUT_TIMESTAMP_ANCHOR_UNIT_SLOPE', anchor: 'First pair after >=2s real captured context and nonzero output timestamp; no quality-based pair selection.',
       sourceRates: [44100, 48000], witnessDelayMs: [0, 100, 200, 400, 600, 800, 1000, 1200],

@@ -23,8 +23,8 @@ for (const originalPath of paths) {
     archivePath, bytes: bytes.length, sha256: hash(bytes), storage: 'exact working-file bytes; archive -text prevents EOL conversion' });
 }
 for (const [oldPath, newPath] of [
-  ['public/engineering/xc4/fir-160-441.f32', 'public/model-assets/continuous/fir-160-441.f32'],
-  ['public/engineering/xc6/fir-1-3.f32', 'public/model-assets/continuous/fir-1-3.f32'],
+  ['public/engineering/xc4/fir-160-441.f32', 'public/model-assets/practice-acoustic/fir-160-441.f32'],
+  ['public/engineering/xc6/fir-1-3.f32', 'public/model-assets/practice-acoustic/fir-1-3.f32'],
 ]) {
   const target = path.join(root, 'apps/customer-web', newPath);
   await mkdir(path.dirname(target), { recursive: true });

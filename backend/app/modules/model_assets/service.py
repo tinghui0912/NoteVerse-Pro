@@ -9,7 +9,10 @@ from typing import Optional
 import alibabacloud_oss_v2 as oss
 
 from app.core.config import settings
-from app.modules.model_assets.schemas import ContinuousRobustAccessRead, ModelAssetAccessRead
+from app.modules.model_assets.schemas import PracticeAcousticAccessRead
+
+# Immutable storage identity only. Historical directory name is not a mode selector.
+ROBUST_MODEL_STORAGE_KEY = "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx"
 
 
 class ModelAssetService:
@@ -19,13 +22,11 @@ class ModelAssetService:
         self,
         bucket: str | None = None,
         region: str | None = None,
-        object_key: str | None = None,
         ttl_seconds: int | None = None,
         client: oss.Client | None = None,
     ) -> None:
         self.bucket = bucket or settings.ALIYUN_OSS_MODEL_BUCKET
         self.region = region or settings.ALIYUN_OSS_MODEL_REGION
-        self.object_key = object_key or settings.BYTEDANCE_MODEL_OBJECT_KEY
         self.ttl_seconds = (
             ttl_seconds
             if ttl_seconds is not None
@@ -48,43 +49,14 @@ class ModelAssetService:
         self._client = oss.Client(cfg)
         return self._client
 
-    def get_bytedance_note_model_access(self) -> ModelAssetAccessRead:
-        """Generate short-lived presigned GET descriptor for the ByteDance ONNX note model."""
-        request = oss.models.GetObjectRequest(
-            bucket=self.bucket,
-            key=self.object_key,
-        )
-
-        presign_result = self.client.presign(
-            request,
-            expires=timedelta(seconds=self.ttl_seconds),
-        )
-
-        expiration_dt = presign_result.expiration
-        if not isinstance(expiration_dt, datetime):
-            raise RuntimeError(f"Unexpected presign expiration type: {type(expiration_dt)}")
-
-        expires_at = (
-            expiration_dt.astimezone(timezone.utc)
-            .isoformat()
-            .replace("+00:00", "Z")
-        )
-
-        return ModelAssetAccessRead(
-            downloadUrl=presign_result.url,
-            downloadUrlExpiresAt=expires_at,
-        )
-
-    def get_continuous_robust_access(self) -> ContinuousRobustAccessRead:
-        # Never use the configurable historical object key for this deployment.
-        key = "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx"
+    def get_practice_acoustic_access(self) -> PracticeAcousticAccessRead:
         result = self.client.presign(
-            oss.models.GetObjectRequest(bucket=self.bucket, key=key),
+            oss.models.GetObjectRequest(bucket=self.bucket, key=ROBUST_MODEL_STORAGE_KEY),
             expires=timedelta(seconds=self.ttl_seconds),
         )
         if not isinstance(result.expiration, datetime):
             raise RuntimeError("Unexpected model access expiration")
-        return ContinuousRobustAccessRead(
+        return PracticeAcousticAccessRead(
             downloadUrl=result.url,
             downloadUrlExpiresAt=result.expiration.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         )

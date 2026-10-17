@@ -31,7 +31,7 @@ export async function freeze() {
     createdAt: new Date().toISOString(), files: await Promise.all(paths.map(fileIdentity)),
     assets: await Promise.all([MODEL, FIXTURE, ...['package.json', 'dist/ort.webgpu.min.mjs',
       'dist/ort-wasm-simd-threaded.jsep.mjs', 'dist/ort-wasm-simd-threaded.jsep.wasm'].map(p => `apps/customer-web/node_modules/onnxruntime-web/${p}`)].map(fileIdentity)),
-    model: { assetId: 'continuous-robust-browser', assetVersion: 'v1', bytes: 98689283,
+    model: { assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1', bytes: 98689283,
       sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
       ort: '1.20.1', provider: 'webgpu', automaticFallback: false, input: [1, 29120], output: [1, 183, 88],
       decoder: 'A', onset: .30, frame: .05, ownedMs: 600, pastMs: 1050, futureMs: 170 },

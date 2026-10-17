@@ -11,7 +11,7 @@ import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { browserContinuousPlatform } from './continuous-platform';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
-import { watchContinuousInfrastructure } from './continuous-infrastructure';
+import { watchMicrophoneInfrastructure } from '../acoustic/source/microphone-infrastructure';
 
 const DIAGNOSTIC_LIMIT = 32;
 
@@ -97,7 +97,7 @@ export class ContinuousPracticeController {
         if (this.disposed) { stream.getTracks().forEach(track => track.stop()); this.checkAlive(); }
         this.rootStream = stream; this.checkAlive();
         this.context = this.platform.createAudioContext(); await this.context.resume(); this.checkAlive();
-        this.detachInfrastructure = watchContinuousInfrastructure(this.rootStream, this.context, code => { void this.failSession(code); });
+        this.detachInfrastructure = watchMicrophoneInfrastructure(this.rootStream, this.context, code => { void this.failSession(code); });
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
       }

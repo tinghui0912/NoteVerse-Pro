@@ -3,7 +3,7 @@ import ts from 'typescript';
 import { expect, it } from 'vitest';
 
 it('Continuous model construction has no historical manifest/provider/loader dependency', () => {
-  const source = readFileSync('src/lib/practice/acoustic-inference/continuous/model-inference.ts', 'utf8');
+  const source = readFileSync('src/lib/practice/acoustic/model/model-inference.ts', 'utf8');
   const ast = ts.createSourceFile('model-inference.ts', source, ts.ScriptTarget.Latest, true);
   const imports: string[] = [], calls: string[] = [];
   function visit(node: ts.Node) {

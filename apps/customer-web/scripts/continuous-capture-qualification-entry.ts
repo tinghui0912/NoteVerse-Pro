@@ -1,7 +1,7 @@
-import { ContinuousAcousticRuntime } from '../src/lib/practice/acoustic-inference/continuous/acoustic-runtime';
-import { ContinuousCaptureBridge } from '../src/lib/practice/acoustic-inference/continuous/capture-bridge';
-import { ContinuousAcousticCapture } from '../src/lib/practice/acoustic-inference/continuous/capture';
-import { ContinuousAcousticWorker } from '../src/lib/practice/acoustic-inference/continuous/worker-client';
+import { ContinuousAcousticProjection } from '../src/lib/practice/acoustic/continuous/continuous-projection';
+import { ContinuousCaptureBridge } from '../src/lib/practice/acoustic/continuous/capture-bridge';
+import { BrowserAcousticCapture } from '../src/lib/practice/acoustic/source/capture';
+import { AcousticModelWorker } from '../src/lib/practice/acoustic/model/worker-client';
 import { ContinuousPracticeSession } from '../src/lib/practice/local-core/performance-runtime';
 import { ManualClock } from '../src/lib/practice/local-core/timebase';
 import type { PracticeScoreArtifact } from '../src/lib/practice/local-core';
@@ -19,9 +19,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 if (typeof window !== 'undefined') {
 window.continuousAssetsReady = false;
 window.runContinuousCaptureQualification = async rate => {
-  const worker = new ContinuousAcousticWorker(new Worker('/worker.js', { type: 'module' }));
-  let context: AudioContext | null = null, capture: ContinuousAcousticCapture | null = null;
-  let runtime: ContinuousAcousticRuntime | null = null, stream: MediaStream | null = null;
+  const worker = new AcousticModelWorker(new Worker('/worker.js', { type: 'module' }));
+  let context: AudioContext | null = null, capture: BrowserAcousticCapture | null = null;
+  let runtime: ContinuousAcousticProjection | null = null, stream: MediaStream | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
   try {
     const model = await worker.load('/model.onnx');
@@ -34,7 +34,7 @@ window.runContinuousCaptureQualification = async rate => {
     const sink = continuousMicrophoneSink(session);
     const publications: { id: string; frontier: number; availability: number; count: number; sourceSamples: readonly number[] }[] = [];
     let startContextTime = Infinity, inferenceDoesNotChangeClock = true;
-    runtime = await ContinuousAcousticRuntime.create({ sessionDomainId: session.timebase.domainId, sourceDomainId: `fake-capture-${rate}`,
+    runtime = await ContinuousAcousticProjection.create({ sessionDomainId: session.timebase.domainId, sourceDomainId: `fake-capture-${rate}`,
       sourceSampleRateHz: rate, coefficientBytes: coefficients, worker,
       nowAvailabilityMs: () => context!.currentTime * 1000 - startContextTime,
       onPublication: publication => {
@@ -45,7 +45,7 @@ window.runContinuousCaptureQualification = async rate => {
           sourceSamples: publication.observations.map(o => o.provenance!.sourceEventSample) });
       } });
     const bridge = new ContinuousCaptureBridge(runtime, rate);
-    capture = await ContinuousAcousticCapture.connect({ bridge, stream, ownership: 'OWNED_ANALYSIS', context, workletUrl: '/capture.worklet.js' });
+    capture = await BrowserAcousticCapture.connect({ bridge, stream, ownership: 'OWNED_ANALYSIS', context, workletUrl: '/capture.worklet.js' });
     window.continuousAssetsReady = true;
     while (bridge.snapshot().blocks < 2) await sleep(10);
     const origin = bridge.snapshot().audioContextOriginFrame!;

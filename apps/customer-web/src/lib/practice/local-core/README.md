@@ -125,3 +125,10 @@ Continuous snapshots are completion/application records used to build immediate
 Review state. Continuous does not currently expose a production resumable
 runtime restore path; the clock and evaluation state live in the active
 `ContinuousPracticeSession` until completion.
+# Acoustic Dependency Boundary
+
+Shared browser execution lives in `../acoustic/{model,source,runtime}`. It is
+score-blind and source-domain only. `../acoustic/continuous` maps its evidence
+into the immutable Continuous publication contract; this domain core imports
+none of those browser/model modules. Future STEP attempt consumption is not
+implemented. Both microphone capabilities remain disabled.

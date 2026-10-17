@@ -1,8 +1,8 @@
 import { RenderTimelineClock, sourceBoundary } from './latch';
-import { ContinuousAcousticRuntime } from '../../src/lib/practice/acoustic-inference/continuous/acoustic-runtime';
-import { ContinuousCaptureBridge } from '../../src/lib/practice/acoustic-inference/continuous/capture-bridge';
-import { ContinuousAcousticCapture } from '../../src/lib/practice/acoustic-inference/continuous/capture';
-import type { AcousticInferencePort } from '../../src/lib/practice/acoustic-inference/continuous/inference-types';
+import { ContinuousAcousticProjection } from '../../src/lib/practice/acoustic/continuous/continuous-projection';
+import { ContinuousCaptureBridge } from '../../src/lib/practice/acoustic/continuous/capture-bridge';
+import { BrowserAcousticCapture } from '../../src/lib/practice/acoustic/source/capture';
+import type { AcousticInferencePort } from '../../src/lib/practice/acoustic/runtime/inference-types';
 import { PerformanceClockRuntime } from '../../src/lib/practice/local-core/performance-runtime';
 import type { PracticeScoreArtifact } from '../../src/lib/practice/local-core/artifact';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/local-core/practice-tempo';
@@ -22,7 +22,7 @@ async function scenario(rate: number, kind: Kind) {
   const coefficients = new Uint8Array(await (await fetch(`/fir-${rate}.f32`)).arrayBuffer());
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
   const context = new AudioContext({ sampleRate: rate });
-  let capture: ContinuousAcousticCapture | undefined, runtime: ContinuousAcousticRuntime | undefined, metronome: MetronomeController | undefined;
+  let capture: BrowserAcousticCapture | undefined, runtime: ContinuousAcousticProjection | undefined, metronome: MetronomeController | undefined;
   const readings: { sequence: number; contextTime: number; contextFrame: number }[] = [];
   let rawWitnesses: unknown = null;
   try {
@@ -44,7 +44,7 @@ async function scenario(rate: number, kind: Kind) {
       async dispose() {},
     };
     const publications: { frontier: number; availability: number; events: number }[] = [];
-    runtime = await ContinuousAcousticRuntime.create({ sessionDomainId: transport.timebase.domainId,
+    runtime = await ContinuousAcousticProjection.create({ sessionDomainId: transport.timebase.domainId,
       sourceDomainId: `clock-v2-${rate}-${kind}`, sourceSampleRateHz: rate, coefficientBytes: coefficients, worker: port,
       nowAvailabilityMs: () => clock.nowMs(), onPublication: pub => {
         requireCondition(pub.observations.length === 0, 'FAKE_PORT_CREATED_OBSERVATION');
@@ -77,7 +77,7 @@ async function scenario(rate: number, kind: Kind) {
       try { terminal(time); applied.push({ type: 'TERMINAL', sourceSample: analysis.snapshot().nextSourceSampleIndex, performanceTimeMs: time }); }
       finally { terminalInvocation = false; }
     };
-    capture = await ContinuousAcousticCapture.connect({ bridge, stream, ownership: 'OWNED_ANALYSIS', context, workletUrl: '/capture.worklet.js' });
+    capture = await BrowserAcousticCapture.connect({ bridge, stream, ownership: 'OWNED_ANALYSIS', context, workletUrl: '/capture.worklet.js' });
     const check = () => { const error = analysis.snapshot().failureCode; if (error) throw new Error(error); };
     await waitUntil(() => bridge.snapshot().nextSourceSampleIndex >= rate * 1.4, check);
     const origin = bridge.snapshot().audioContextOriginFrame!;

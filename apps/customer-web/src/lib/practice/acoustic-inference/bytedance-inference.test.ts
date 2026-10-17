@@ -16,16 +16,12 @@ import {
   acousticEventsToPerformanceEvidence,
   AcousticEventStreamNormalizer,
   BYTEDANCE_INPUT_DESCRIPTOR,
-  buildByteDanceFixedAnchorWindow,
   decodeByteDanceRawOutputs,
-  defaultByteDanceModelManifest,
-  pcmS16leToFloat32,
-  prepareByteDanceInput,
-  validateByteDanceModelManifest,
-  type ByteDanceModelManifest,
   type ByteDancePcmInferenceRequest,
   type ByteDanceRawOutputs,
 } from './index';
+import { defaultByteDanceModelManifest, validateByteDanceModelManifest, type ByteDanceModelManifest } from './bytedance-contract';
+import { buildByteDanceFixedAnchorWindow, pcmS16leToFloat32, prepareByteDanceInput } from './bytedance-preprocess';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const testTargetVerificationPolicy = {

@@ -1,6 +1,7 @@
-/** Session infrastructure loss invalidates recording and evaluation together. */
-export function watchContinuousInfrastructure(stream: MediaStream, context: AudioContext,
-  onLoss: (code: 'MICROPHONE_SOURCE_LOST' | 'AUDIO_CONTEXT_INTERRUPTED') => void): () => void {
+import type { MicrophoneInfrastructureErrorCode } from './microphone-errors';
+/** Reports facts only; the owning mode decides the product consequence. */
+export function watchMicrophoneInfrastructure(stream: MediaStream, context: AudioContext,
+  onLoss: (code: Exclude<MicrophoneInfrastructureErrorCode, 'MICROPHONE_PERMISSION_DENIED'>) => void): () => void {
   const tracks = stream.getAudioTracks();
   const sourceLost = () => onLoss('MICROPHONE_SOURCE_LOST');
   const contextChanged = () => { if (context.state !== 'running') onLoss('AUDIO_CONTEXT_INTERRUPTED'); };

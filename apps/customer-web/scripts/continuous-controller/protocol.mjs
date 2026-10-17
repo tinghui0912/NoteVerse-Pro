@@ -29,7 +29,7 @@ export async function freeze(id = 'v1') {
       readiness: 'Read-only, covers partial initial windows: real past >= inputMs-futureMs (1650ms) plus existing FIR boundary guard. No changed geometry or zero padding.',
       diagnostics: '32 compact controller records, no observations; existing acoustic resource limits unchanged',
       transientResources: { targetRingBytes: 262144, maxOutstanding: 4, maximumInputPayloadBytes: 465920, workletCredits: 32, maximumBlockSamples: 2048 } },
-    model: { assetId: 'continuous-robust-browser', assetVersion: 'v1', bytes: 98689283,
+    model: { assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1', bytes: 98689283,
       sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3', ort: '1.20.1', provider: 'webgpu', automaticFallback: false,
       input: [1, 29120], decoder: 'A', onset: .30, frame: .05, owned: 600, past: 1050, future: 170 },
     browser: { rates: [44100, 48000], headed: true, realWorker: true,

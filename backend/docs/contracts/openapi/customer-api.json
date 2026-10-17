@@ -1476,65 +1476,6 @@
         "title": "APIResponse[MemberRead]",
         "type": "object"
       },
-      "APIResponse_ModelAssetAccessRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ModelAssetAccessRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ModelAssetAccessRead]",
-        "type": "object"
-      },
       "APIResponse_NoneType_": {
         "examples": [
           {
@@ -2058,6 +1999,65 @@
           "success"
         ],
         "title": "APIResponse[PerformanceTakeUploadAuthorizationRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeAcousticAccessRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeAcousticAccessRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeAcousticAccessRead]",
         "type": "object"
       },
       "APIResponse_PracticeReadyScoreContentRead_": {
@@ -5744,57 +5744,6 @@
         "title": "MetadataStatus",
         "type": "string"
       },
-      "ModelAssetAccessRead": {
-        "description": "Access descriptor for client direct download of model assets.",
-        "properties": {
-          "assetId": {
-            "default": "bytedance-piano-transcription-note-model",
-            "title": "Assetid",
-            "type": "string"
-          },
-          "assetVersion": {
-            "default": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
-            "title": "Assetversion",
-            "type": "string"
-          },
-          "downloadUrl": {
-            "title": "Downloadurl",
-            "type": "string"
-          },
-          "downloadUrlExpiresAt": {
-            "title": "Downloadurlexpiresat",
-            "type": "string"
-          },
-          "expectedByteSize": {
-            "default": 98691493,
-            "title": "Expectedbytesize",
-            "type": "integer"
-          },
-          "mediaType": {
-            "const": "application/octet-stream",
-            "default": "application/octet-stream",
-            "title": "Mediatype",
-            "type": "string"
-          },
-          "schemaVersion": {
-            "const": 1,
-            "default": 1,
-            "title": "Schemaversion",
-            "type": "integer"
-          },
-          "sha256": {
-            "default": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-            "title": "Sha256",
-            "type": "string"
-          }
-        },
-        "required": [
-          "downloadUrl",
-          "downloadUrlExpiresAt"
-        ],
-        "title": "ModelAssetAccessRead",
-        "type": "object"
-      },
       "MyScoresSort": {
         "enum": [
           "updated_desc",
@@ -6805,6 +6754,61 @@
           "recording_timebase"
         ],
         "title": "PerformanceTakeUploadAuthorizationRequest",
+        "type": "object"
+      },
+      "PracticeAcousticAccessRead": {
+        "description": "The sole immutable browser Practice acoustic deployment.",
+        "properties": {
+          "assetId": {
+            "const": "practice-acoustic-robust-browser",
+            "default": "practice-acoustic-robust-browser",
+            "title": "Assetid",
+            "type": "string"
+          },
+          "assetVersion": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Assetversion",
+            "type": "string"
+          },
+          "downloadUrl": {
+            "title": "Downloadurl",
+            "type": "string"
+          },
+          "downloadUrlExpiresAt": {
+            "title": "Downloadurlexpiresat",
+            "type": "string"
+          },
+          "expectedByteSize": {
+            "const": 98689283,
+            "default": 98689283,
+            "title": "Expectedbytesize",
+            "type": "integer"
+          },
+          "mediaType": {
+            "const": "application/octet-stream",
+            "default": "application/octet-stream",
+            "title": "Mediatype",
+            "type": "string"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "default": 1,
+            "title": "Schemaversion",
+            "type": "integer"
+          },
+          "sha256": {
+            "const": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+            "default": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "downloadUrl",
+          "downloadUrlExpiresAt"
+        ],
+        "title": "PracticeAcousticAccessRead",
         "type": "object"
       },
       "PracticeAttackTargetRead": {
@@ -12367,10 +12371,10 @@
         ]
       }
     },
-    "/api/v1/model-assets/bytedance-note/access": {
+    "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access": {
       "get": {
-        "description": "Return model asset descriptor with short-lived presigned download URL for authenticated users.",
-        "operationId": "get_bytedance_note_model_access_api_v1_model_assets_bytedance_note_access_get",
+        "description": "Asset delivery only; no server Practice execution.",
+        "operationId": "get_practice_acoustic_access_api_v1_model_assets_practice_acoustic_robust_browser_v1_access_get",
         "parameters": [
           {
             "in": "cookie",
@@ -12394,7 +12398,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ModelAssetAccessRead_"
+                  "$ref": "#/components/schemas/APIResponse_PracticeAcousticAccessRead_"
                 }
               }
             },
@@ -12411,7 +12415,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get short-lived presigned access for ByteDance note model",
+        "summary": "Get Practice Acoustic Access",
         "tags": [
           "Model Assets"
         ]

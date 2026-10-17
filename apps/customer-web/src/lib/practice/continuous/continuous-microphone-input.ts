@@ -1,11 +1,11 @@
-import { ContinuousAcousticRuntime } from '../acoustic-inference/continuous/acoustic-runtime';
-import { ContinuousCaptureBridge } from '../acoustic-inference/continuous/capture-bridge';
-import { deliverPublication } from '../acoustic-inference/continuous/publication';
+import { ContinuousAcousticProjection } from '../acoustic/continuous/continuous-projection';
+import { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
+import { deliverPublication } from '../acoustic/continuous/publication';
 import type { ContinuousModelWorker, ContinuousPlatform, MicrophoneConnection } from './continuous-input';
 
 export class ContinuousMicrophoneInput {
   private worker: ContinuousModelWorker | null = null;
-  private runtime: ContinuousAcousticRuntime | null = null;
+  private runtime: ContinuousAcousticProjection | null = null;
   private bridge: ContinuousCaptureBridge | null = null;
   private capture: { stop(): void } | null = null;
   private context: AudioContext | null = null;
@@ -25,7 +25,7 @@ export class ContinuousMicrophoneInput {
   async connect(connection: MicrophoneConnection, signal: AbortSignal): Promise<void> {
     this.context = connection.context;
     const coefficients = await this.platform.coefficients(connection.context.sampleRate); this.check(signal);
-    this.runtime = await ContinuousAcousticRuntime.create({ sessionDomainId: connection.sessionDomainId,
+    this.runtime = await ContinuousAcousticProjection.create({ sessionDomainId: connection.sessionDomainId,
       sourceDomainId: `${connection.sessionDomainId}:capture`, sourceSampleRateHz: connection.context.sampleRate,
       coefficientBytes: coefficients, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
       nowAvailabilityMs: () => connection.clock.nowMs(),

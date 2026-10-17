@@ -17,7 +17,7 @@ const esbuild = await import(pathToFileURL(path.join(ROOT, 'backend/data/work/ba
 const bundles = [];
 for (const [entry, output] of [
   ['scripts/continuous-controller/entry.ts', 'entry.js'],
-  ['src/lib/practice/acoustic-inference/continuous/acoustic-worker.entry.ts', 'worker.js'],
+  ['src/lib/practice/acoustic/model/acoustic-worker.entry.ts', 'worker.js'],
 ]) {
   await esbuild.build({ entryPoints: [path.join(APP, entry)], outfile: path.join(work, output), bundle: true,
     format: 'esm', platform: 'browser', target: 'es2022', sourcemap: 'inline', logLevel: 'silent',
@@ -28,9 +28,9 @@ for (const [entry, output] of [
 }
 const requests = [], files = new Map([
   ['/entry.js', path.join(work, 'entry.js')], ['/worker.js', path.join(work, 'worker.js')], ['/model.onnx', path.join(ROOT, MODEL)],
-  ['/capture.worklet.js', path.join(APP, 'src/lib/practice/acoustic-inference/continuous/capture.worklet.js')],
-  ['/model-assets/continuous/fir-160-441.f32', path.join(APP, 'public/model-assets/continuous/fir-160-441.f32')],
-  ['/model-assets/continuous/fir-1-3.f32', path.join(APP, 'public/model-assets/continuous/fir-1-3.f32')],
+  ['/capture.worklet.js', path.join(APP, 'src/lib/practice/acoustic/source/capture.worklet.js')],
+  ['/model-assets/practice-acoustic/fir-160-441.f32', path.join(APP, 'public/model-assets/practice-acoustic/fir-160-441.f32')],
+  ['/model-assets/practice-acoustic/fir-1-3.f32', path.join(APP, 'public/model-assets/practice-acoustic/fir-1-3.f32')],
 ]);
 const server = createServer((req, res) => {
   const url = req.url?.split('?')[0]; requests.push({ url, timestamp: new Date().toISOString() });

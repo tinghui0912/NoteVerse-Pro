@@ -16,7 +16,7 @@ const server = createServer((request, response) => {
   if (request.url === '/') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>Pre-controller clock contract gate</title><script type="module" src="/entry.js"></script>'); return; }
   if (request.url === '/favicon.ico') { response.statusCode = 204; response.end(); return; }
   const file = request.url === '/entry.js' ? path.join(work, 'entry.js') : request.url === '/capture.worklet.js'
-    ? path.join(APP, 'src/lib/practice/acoustic-inference/continuous/capture.worklet.js') : null;
+    ? path.join(APP, 'src/lib/practice/acoustic/source/capture.worklet.js') : null;
   if (!file) { response.statusCode = 403; response.end(); return; }
   response.setHeader('Content-Type', 'text/javascript'); createReadStream(file).pipe(response);
 });

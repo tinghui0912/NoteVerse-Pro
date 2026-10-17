@@ -1,0 +1,56 @@
+{
+  "44100": {
+    "identity": {
+      "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+      "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+      "down": 441,
+      "realSourceLookaheadSamples": 28,
+      "runtimeFeed": "Unchanged XC5 CAPTURE branch and frozen XC4 FIR.",
+      "schemaVersion": 1,
+      "sourceRateHz": 44100,
+      "tapCount": 8821,
+      "targetRateHz": 16000,
+      "up": 160
+    },
+    "identitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+  },
+  "48000": {
+    "identity": {
+      "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+      "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
+      "coefficients": {
+        "bytes": 244,
+        "dtype": "float32-le",
+        "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+      },
+      "down": 3,
+      "firstFullyRealOutputIndex": 10,
+      "firwin": {
+        "cutoff": 0.3333333333333333,
+        "fs": 2,
+        "numtaps": 61,
+        "scale": true,
+        "window": [
+          "kaiser",
+          5
+        ]
+      },
+      "implementation": {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+        "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+      },
+      "precision": "float32 input/coefficients/product/each accumulation",
+      "realSourceLookaheadMs": 0.625,
+      "realSourceLookaheadSamples": 30,
+      "runtimeFeed": "Qualified adapter uses the explicit already16k injection boundary; never assumes physical microphone16k. Outer publications retain original48k source coordinates.",
+      "schemaVersion": 1,
+      "scipyVersion": "1.14.1",
+      "sourceRateHz": 48000,
+      "tapCount": 61,
+      "targetRateHz": 16000,
+      "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
+      "up": 1
+    },
+    "identitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+  }
+}

@@ -3,8 +3,9 @@ import type { LocalClock, PracticeTimebase } from '../local-core/timebase';
 import type { BrowserMidiControllerOptions, BrowserMidiState } from '../midi/browser-midi-controller';
 import type { PerformanceRecorder, PracticeRecordingMode } from '../performance-recorder';
 import type { MetronomeController, MetronomeControllerOptions } from '../metronome/metronome-controller';
-import type { AcousticInferencePort } from '../acoustic-inference/continuous/inference-types';
-import type { ContinuousAcousticCapture } from '../acoustic-inference/continuous/capture';
+import type { AcousticInferencePort } from '../acoustic/runtime/inference-types';
+import type { BrowserAcousticCapture } from '../acoustic/source/capture';
+import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 
 export interface ContinuousModelWorker extends AcousticInferencePort { load(url: string): Promise<unknown>; }
 export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
@@ -19,7 +20,7 @@ export interface ContinuousPlatform {
   createAudioContext(): AudioContext;
   coefficients(rate: number): Promise<Uint8Array>;
   workletUrl: string;
-  connectCapture(options: Parameters<typeof ContinuousAcousticCapture.connect>[0]): Promise<Pick<ContinuousAcousticCapture, 'stop'>>;
+  connectCapture(options: Omit<Parameters<typeof BrowserAcousticCapture.connect>[0], 'bridge'> & { bridge: ContinuousCaptureBridge }): Promise<Pick<BrowserAcousticCapture, 'stop'>>;
   createMidi(options: BrowserMidiControllerOptions): ContinuousMidiPort;
   createRecorder(mode: PracticeRecordingMode): ContinuousRecorderPort;
   createMetronome(options: MetronomeControllerOptions): ContinuousMetronomePort;

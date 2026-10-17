@@ -15,10 +15,9 @@ if (mode === 'evidence') {
     'apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts', 'apps/customer-web/src/lib/practice/local-core/continuous-assignment.ts',
     'apps/customer-web/src/lib/practice/local-core/continuous-evaluation-types.ts', 'apps/customer-web/src/lib/practice/local-core/step-runtime.ts',
     'apps/customer-web/src/lib/practice/local-core/step-evidence-session.ts',
-    ...['model-contract.ts', 'model-inference.ts', 'model-validation.ts', 'acoustic-model-manifest.ts', 'source-adapter.ts', 'source-adapter-identities.json',
-      'resource-policy.ts', 'window-planner.ts', 'worker-client.ts', 'acoustic-worker.entry.ts', 'capture.worklet.js', 'acoustic-core-identity.json'].map(p => `apps/customer-web/src/lib/practice/acoustic-inference/continuous/${p}`),
+    ...git('ls-files', 'apps/customer-web/src/lib/practice/acoustic').split('\n'),
     'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts', 'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-contract.ts',
-    'apps/customer-web/public/model-assets/continuous/fir-160-441.f32', 'apps/customer-web/public/model-assets/continuous/fir-1-3.f32'];
+    'apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32', 'apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32'];
   const protectedChanges = git('diff', '--name-only', START, 'HEAD', '--', ...protectedPaths);
   if (protectedChanges) throw new Error('PROTECTED_SOURCE_CHANGED:' + protectedChanges);
   const changed = git('diff', '--name-only', START, 'HEAD').split('\n');

@@ -52,7 +52,7 @@ export async function freeze() {
         metronome: 'same injected context, non-audible pulse scheduling witness' },
       reporting: ['NOT_STARTED', 'PARTIAL_EXECUTION_BLOCKED', 'PASS'],
       failure: 'STOP without tolerance, normalization, another mapper, or controller integration' },
-    model: { assetId: 'continuous-robust-browser', assetVersion: 'v1', bytes: 98689283,
+    model: { assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1', bytes: 98689283,
       sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3', ort: '1.20.1', provider: 'webgpu', automaticFallback: false,
       input: [1, 29120], output: [1, 183, 88], decoder: 'A', onset: .30, frame: .05, owned: 600, past: 1050, future: 170 },
     testPlan: ['focused numeric anchors, 512 repeated resume pairs and 1024 helper anchors', 'full Vitest with actual file count',
