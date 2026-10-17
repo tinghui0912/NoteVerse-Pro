@@ -11,7 +11,7 @@ from collections import Counter
 import mido
 
 ROOT = Path(__file__).resolve().parents[3]
-WORK = ROOT / 'backend/data/work/fresh_strike/v1'
+WORK = ROOT / 'backend/data/work/fresh_strike/v2'
 START = 'c8de147f819cf5bd971de581192b096ef7b6abb4'
 
 def digest_file(path):

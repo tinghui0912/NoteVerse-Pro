@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { groupEvidence, rawEvidence, DEFINITIONS } from './detectors.mjs';
+import path from 'node:path';
+import { ROOT, portableRelative } from './protocol.mjs';
 const blank = () => new Float32Array(183 * 88);
+test('serialized PCM references are portable Docker POSIX paths',()=>{
+  assert.equal(portableRelative(path.join(ROOT,'backend','data','clip.f32')),'backend/data/clip.f32');
+});
 test('fixed first-anchor grouping does not chain; token has no pitch/target', () => {
   const tokens = groupEvidence([{anchor: 100,available:1000},{anchor:120,available:1100},{anchor:140,available:1200}],1000,'x','rise');
   assert.equal(tokens.length,2); assert.equal(tokens[0].evidenceAvailableThroughSourceSample,1100);

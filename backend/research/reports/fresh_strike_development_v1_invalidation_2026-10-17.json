@@ -1,0 +1,12 @@
+{
+  "phase": "PRACTICE_STEP_FRESH_STRIKE_EVIDENCE_QUALIFICATION_DISABLED",
+  "invalidatedFreezeCommit": "c43cbf56e28ed6606c6a0f0f5cec4f87940b7013",
+  "invalidatedFreezeSha256": "cd161ca3d6143053da7bf2cc2d086da89310e0c7f84620b67ea5b742d7556867",
+  "reason": "Windows path separators in baselinePcm.path are not valid Docker POSIX relative paths",
+  "stage": "historical audio-only baseline; scoring truth was not opened",
+  "actualBrowserModelRuns": 130,
+  "acceptanceEvidenceReusable": false,
+  "candidatePolicyChanged": false,
+  "qualificationStarted": false,
+  "action": "normalize serialized PCM reference to forward slashes; new implementation commit and development freeze; rerun all development execution and static checks"
+}

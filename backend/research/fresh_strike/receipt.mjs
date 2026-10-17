@@ -11,4 +11,4 @@ const receipt={queriedAt:new Date().toISOString(),actualRemoteHead:head,combined
  workflowRuns:runs.workflow_runs,interpretation:!combined.statuses.length&&!runs.workflow_runs.length?'NOT CI PASS':'SEE ACTUAL CHECK RESULTS',
  commitChain:git('log','--reverse','--format=%H %s','c8de147f819cf5bd971de581192b096ef7b6abb4..HEAD').split('\n')};
 if(process.argv[2]==='final')console.log(JSON.stringify(receipt));
-else {await json(path.join(ROOT,'backend/research/reports/fresh_strike_v1/github-receipt.json'),{githubReceipt:receipt});console.log(JSON.stringify(receipt));}
+else {await json(path.join(ROOT,'backend/research/reports/fresh_strike_v2/github-receipt.json'),{githubReceipt:receipt});console.log(JSON.stringify(receipt));}

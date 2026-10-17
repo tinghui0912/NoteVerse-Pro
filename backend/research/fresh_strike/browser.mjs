@@ -4,7 +4,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
-import {ROOT,WORK,MODEL,verify,json,hash} from './protocol.mjs';
+import {ROOT,WORK,MODEL,verify,json,hash,portableRelative} from './protocol.mjs';
 import {RUNTIME_NODE_MODULES,resolveBrandedBrowserExecutable} from '../browser_runtime/xc1_browser_runtime_shared.mjs';
 const developmentExecutionProof=await verify();
 const app=path.join(ROOT,'apps/customer-web');
@@ -40,7 +40,7 @@ try{
     const pcm=new Float32Array(cell.baselinePcm);delete cell.baselinePcm;
     const file=path.join(WORK,`development/audio_only/${cell.id}-${cell.rate}-target.f32`);
     await writeFile(file,new Uint8Array(pcm.buffer),{flag:'wx'});
-    cell.baselinePcm={path:path.relative(ROOT,file),sha256:hash(new Uint8Array(pcm.buffer))};
+    cell.baselinePcm={path:portableRelative(file),sha256:hash(new Uint8Array(pcm.buffer))};
   }
 }catch(error){failure=String(error.stack??error);process.exitCode=1;}
 finally{
@@ -48,7 +48,7 @@ finally{
   const artifact={...developmentExecutionProof,developmentExecutionProof,browserVersion:version,completedAt:new Date().toISOString(),
     status:failure?'BLOCKED':'AUDIO_ONLY_BROWSER_EXECUTION_SEALED',result,requests,diagnostics,failure};
   const file=path.join(WORK,'development/browser.json');await json(file,artifact);
-  await json(path.join(WORK,'development/browser-seal.json'),{...developmentExecutionProof,path:path.relative(ROOT,file),sha256:hash(await readFile(file)),
+  await json(path.join(WORK,'development/browser-seal.json'),{...developmentExecutionProof,path:portableRelative(file),sha256:hash(await readFile(file)),
     sealedAt:new Date().toISOString(),truthOpenedByStageA:false});
   console.log(JSON.stringify({status:artifact.status,actualModelRuns:result?.actualSessionRunCount,failure}));
 }

@@ -8,7 +8,7 @@ const staticResult=await read(path.join(WORK,'static.json'));
 const freeze=await read(path.join(ROOT,FREEZE));
 const browser=await read(path.join(WORK,'development/browser.json'));
 const truth=await read(path.join(WORK,'development/truth.json'));
-const reportRoot=path.join(ROOT,'backend/research/reports/fresh_strike_v1');
+const reportRoot=path.join(ROOT,'backend/research/reports/fresh_strike_v2');
 await mkdir(reportRoot,{recursive:true});
 const copies=[['local_dataset_audit.json','dataset-audit.json'],['development/truth.json','development-manifest.json'],
  ['development/audio_only/jobs.json','audio-jobs.json'],['development/browser.json','browser.json'],
@@ -46,9 +46,9 @@ await json(path.join(reportRoot,'final.json'),{
    metrics:scores.metrics,sourceRateParity:scores.sourceRateParity,
    candidateStreamSealSha256:scores.candidateStreamSealSha256},
  model:freeze.model,browser:{version:browser.browserVersion,gpu:browser.result.gpu,provider:browser.result.provider,ort:browser.result.ort,automaticFallback:browser.result.automaticFallback},
- actualNeuralRuns:{development:browser.result.actualSessionRunCount,qualification:0,total:browser.result.actualSessionRunCount},
+ actualNeuralRuns:{acceptedDevelopment:browser.result.actualSessionRunCount,invalidatedDevelopmentV1:130,qualification:0,total:browser.result.actualSessionRunCount+130},
  dspOnlyAccounting:{sourceAdapterTransactions:browser.result.results.length,historicalDetectorTransactions:browser.result.results.length,
-   sourceRates:[44100,48000],qualification:0,unitSyntheticFixtures:'4 Node tests; 4 Docker Python tests, reported separately'},
+   sourceRates:[44100,48000],qualification:0,unitSyntheticFixtures:'5 Node tests; 4 Docker Python tests, reported separately'},
  sourceAdapterIdentities:Object.fromEntries(browser.result.results.map(c=>[c.rate,c.sourceAdapterIdentity])),
  protectedProductSourceDiff:git('diff',START,'HEAD','--','apps/customer-web','backend/app'),
  verification:staticResult.results.map(r=>({name:r.name,status:r.status,counts:r.counts,messages:r.messages})),
