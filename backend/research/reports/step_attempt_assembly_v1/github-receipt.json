@@ -1,0 +1,10 @@
+{
+  "queriedAt": "2026-10-17T20:24:43.048Z",
+  "evidenceHead": "c65ef50187b6cbb2affb8a362f23018b2aaadef6",
+  "remoteHead": "c65ef50187b6cbb2affb8a362f23018b2aaadef6",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS",
+  "receiptCommit": "Commit containing this receipt; identified by Git history, not a self-referential hash"
+}
