@@ -7,7 +7,7 @@ export const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../
 export const APP=path.join(ROOT,'apps/customer-web');
 export const START='b2abd8937dbaf282bf69d607f6a197129612a251';
 export const WORK=path.join(ROOT,'backend/data/work/step_decoded_sufficiency/v1-final');
-export const FREEZE='backend/research/reports/step_decoded_sufficiency_freeze_v1_2026-10-17.json';
+export const FREEZE='backend/research/reports/step_decoded_sufficiency_freeze_v2_2026-10-18.json';
 export const MODEL='backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx';
 export const PROTECTED=['apps/customer-web/src/lib/practice/acoustic','apps/customer-web/public/model-assets/practice-acoustic',
  'backend/app','apps/customer-web/src/lib/practice/continuous','apps/customer-web/src/lib/practice/local-core/continuous-*',

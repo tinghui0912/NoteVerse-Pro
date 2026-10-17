@@ -139,7 +139,7 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('Transitive connected-component waiting is');
     expect(content).toContain('Reservations do not recursively expand.');
     expect(content).toContain('Expected score is available only to the downstream deterministic product evaluator.');
-    expect(content).toContain('there is exactly one Continuous evaluator');
+    expect(content).toContain('There is exactly one Continuous evaluator');
     expect(content).toContain('Availability is never interpreted as attack time.');
     expect(content).toContain('Analysis PCM capture is a source timeline, not a performance clock.');
     expect(content).toContain('one monotonic source-sample identity domain');
