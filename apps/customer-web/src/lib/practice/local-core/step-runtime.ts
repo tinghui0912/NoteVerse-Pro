@@ -56,7 +56,9 @@ export class StepPracticeRuntime {
     const target = this.currentTarget();
     if (!target || this.attemptState !== 'READY') return null;
     this.validateTime(start);
-    if (start.ms < this.boundary.ms) return null;
+    // Activation is exclusive: an event at the prior gesture end cannot be
+    // rebound to a fresh attempt depending on timer/message callback order.
+    if (start.ms <= this.boundary.ms) return null;
     this.assertHistoryRoom();
     this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
       localSessionId: this.localSessionId, stepId: target.stepId, activationGeneration: this.generation,

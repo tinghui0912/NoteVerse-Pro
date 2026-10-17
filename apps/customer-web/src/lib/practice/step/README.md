@@ -14,6 +14,10 @@ performance clock, streaming evidence store, or transitive finalizer.
   reads elapsed presentation time.
 
 The attempt identity binds session, target, activation, source and attack time.
+Activation boundaries are exclusive: attempt start must be strictly later than
+the initial/resume/skip boundary or the prior finalized capture end. An event at
+the exact gesture end is ignored regardless of whether it precedes or follows
+the close callback; there is no timestamp adjustment, deferral or queued retry.
 CAPTURING -> ANALYZING -> RESET -> READY permits at most one active attempt.
 MISMATCH and RETRY preserve the target, recording complete immutable history.
 MATCH advances once. Skip is a separate user action. Pause/Skip/Finish/Dispose

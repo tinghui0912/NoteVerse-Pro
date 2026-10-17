@@ -131,6 +131,10 @@ score-blind fresh-strike detector remain unavailable, not implemented product pa
 snapshot/runtime contract contains immutable MATCH, MISMATCH or RETRY attempt
 records; WAIT is not a finalized attempt. Skip actions are separate history.
 Each attempt binds attempt/session/step/activation/source/capture-start identity.
+Activation boundaries are exclusive: attempt start must be strictly later than
+the prior finalized capture end or the current initial/resume/skip boundary.
+The MIDI gesture owns [start,end); an event at exact end is ignored independently
+of callback ordering, never queued or shifted into the next attempt.
 There is one active attempt and no queue. Generic evidence becomes correctness
 only inside this pure domain's exact physical attack pitch-set comparison.
 

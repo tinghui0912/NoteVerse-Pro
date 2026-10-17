@@ -20,6 +20,9 @@ pending acoustic store, cross-target scan or partial-pitch accumulation exists.
 One active attempt maximum. Pause/Skip/Finish invalidate it. Resume uses a fresh
 generation. Restart is a fresh session, not restoration of old snapshots. Late
 results cannot cross session, target, generation or attempt identity.
+The activation boundary is exclusive (`attemptStart > activationBoundary`). All
+verdicts set the next boundary to the finalized capture end. Equality is rejected
+by the domain, including after Resume and Skip; MIDI gesture ownership is [start,end).
 
 The clean-break v2 STEP schema is `step-bounded-attempt-v2`; no older STEP snapshot
 parser remains. Full attempt/Skip history stops explicitly at 100,000 records,

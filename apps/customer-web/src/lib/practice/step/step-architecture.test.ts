@@ -60,6 +60,19 @@ it('one executable model, worker and PCM worklet; one StepPracticeRuntime', () =
   expect(files.filter(p => /registerProcessor\(/.test(read(p)))).toHaveLength(1);
   expect(files.filter(p => /export class StepPracticeRuntime\b/.test(read(p)))).toHaveLength(1);
 });
+it('only the domain owns the exclusive activation predicate; MIDI gesture remains half-open', () => {
+  const file=path.join(practice,'local-core/step-runtime.ts'),ast=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true);
+  const runtime=ast.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='StepPracticeRuntime') as ts.ClassDeclaration;
+  const open=runtime.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(ast)==='openAttempt')!;
+  const comparisons: string[]=[];
+  const visit=(node: ts.Node)=>{
+    if(ts.isBinaryExpression(node)&&node.left.getText(ast)==='start.ms'&&node.right.getText(ast)==='this.boundary.ms') comparisons.push(node.operatorToken.getText(ast));
+    ts.forEachChild(node,visit);
+  };
+  visit(open); expect(comparisons).toEqual(['<=']);
+  expect(read(path.join(__dirname,'step-midi-attempt-input.ts'))).toContain('note.sessionTime.ms >= this.active.end.ms');
+  for(const p of ['step-midi-attempt-input.ts','step-practice-controller.ts']) expect(read(path.join(__dirname,p))).not.toContain('activationBoundary');
+});
 it('Robust decoder has no historical defaults, padding, or Original model contract', () => {
   for (const p of ['raw-output-contract.ts','robust-piano-decoder.ts','model-inference.ts']) {
     const source = read(path.join(practice,'acoustic/model',p));

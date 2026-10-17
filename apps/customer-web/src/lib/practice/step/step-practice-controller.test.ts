@@ -35,11 +35,28 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
+  it.each(['C4','D4'])('exact end note is ignored before or after close (%s), strictly later note starts fresh', async pitch => {
+    const run = async (order: 'BEFORE' | 'AFTER') => {
+      const s = setup(); await s.controller.start(); s.clock.set(200); s.note(pitch);
+      if (order === 'BEFORE') s.note('C4','NOTE_ON',235);
+      s.close();
+      if (order === 'AFTER') s.note('C4','NOTE_ON',235);
+      const step = s.controller.snapshot().sessionSnapshot!.step;
+      expect(step.attempts).toHaveLength(1); expect(step.activeAttempt).toBeNull(); expect(s.timers).toHaveLength(1);
+      s.clock.set(236); s.note('C4'); const later = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
+      expect(later.attemptStartSessionTime.ms).toBe(236);
+      const semantic = {index:step.currentIndex,records:step.attempts.map(r=>({verdict:r.verdict,stepId:r.stepId,
+        generation:r.activationGeneration,pitches:r.observedAttackPitches,start:r.attemptStartSessionTime.ms,end:r.captureEndSessionTime.ms})),
+        laterGeneration:later.activationGeneration,laterStep:later.stepId};
+      s.controller.dispose(); return semantic;
+    };
+    expect(await run('BEFORE')).toEqual(await run('AFTER'));
+  });
   it.each([
     [0, ['C4'], 'MATCH'], [0, ['C#4'], 'MISMATCH'], [0, ['C5'], 'MISMATCH'],
     [3, ['A4', 'C5'], 'MATCH'], [3, ['A4'], 'MISMATCH'], [3, ['A4', 'C5', 'D5'], 'MISMATCH'],
   ] as const)('target %s closes full gesture %j before %s', async (index, pitches, verdict) => {
-    const s = setup(index); await s.controller.start();
+    const s = setup(index); await s.controller.start(); s.clock.set(101);
     pitches.forEach(p => s.note(p));
     expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
     expect(s.controller.snapshot().sessionSnapshot?.step.attemptState).toBe('CAPTURING');
@@ -52,39 +69,39 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.controller.dispose();
   });
   it('near-simultaneous extra pitch cannot follow an early correct chord acceptance', async () => {
-    const s = setup(3); await s.controller.start(); s.note('A4'); s.note('C5', 'NOTE_ON', 110);
+    const s = setup(3); await s.controller.start(); s.clock.set(101); s.note('A4'); s.note('C5', 'NOTE_ON', 110);
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(3);
     s.note('D5', 'NOTE_ON', 134); s.close();
     expect(s.controller.snapshot().sessionSnapshot?.step.attempts[0].verdict).toBe('MISMATCH');
     s.controller.dispose();
   });
   it('fixed first-note window is not extended by later notes or delayed timers', async () => {
-    const s = setup(3); await s.controller.start(); s.note('A4'); s.note('C5', 'NOTE_ON', 135); s.note('D5', 'NOTE_ON', 500);
+    const s = setup(3); await s.controller.start(); s.clock.set(101); s.note('A4'); s.note('C5', 'NOTE_ON', 136); s.note('D5', 'NOTE_ON', 500);
     expect(s.timers).toHaveLength(1); s.close();
     expect(s.controller.snapshot().sessionSnapshot?.step.attempts[0].observedAttackPitches).toEqual(['A4']);
     expect(s.controller.snapshot().inputDiagnostics?.ignoredNotes).toBe(2); s.controller.dispose();
   });
   it('multiple wrong attempts then correct each close separately; metronome target changes only after MATCH', async () => {
-    const s = setup(); await s.controller.start();
+    const s = setup(); await s.controller.start(); s.clock.set(101);
     const contexts = s.metronome.setStepContext.mock.calls.length;
-    for (const p of ['C#4', 'C5', 'C4']) { s.note(p); s.close(); }
+    for (const p of ['C#4', 'C5', 'C4']) { s.clock.advance(1); s.note(p); s.close(); }
     expect(s.controller.snapshot().sessionSnapshot?.step.attempts.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
     expect(s.metronome.setStepContext.mock.calls.length).toBe(contexts + 1); s.controller.dispose();
   });
   it('partial then later full chord does not reuse the previous gesture', async () => {
-    const s = setup(3); await s.controller.start(); s.note('A4'); s.close(); s.note('C5'); s.close();
+    const s = setup(3); await s.controller.start(); s.clock.set(101); s.note('A4'); s.close(); s.clock.advance(1); s.note('C5'); s.close();
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(3);
-    s.note('A4'); s.note('C5'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(4);
+    s.clock.advance(1); s.note('A4'); s.note('C5'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(4);
     s.controller.dispose();
   });
   it('held note cannot advance next repeated target, fresh NOTE_ON can', async () => {
-    const s = setup(); await s.controller.start(); s.note('C4'); s.close();
+    const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); s.close();
     s.note('C4', 'NOTE_OFF'); expect(s.timers).toHaveLength(1);
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
-    s.note('C4'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2); s.controller.dispose();
+    s.clock.advance(1); s.note('C4'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2); s.controller.dispose();
   });
   it.each(['pause', 'skip', 'finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
-    const s = setup(); await s.controller.start(); s.note('C4'); const callback = s.timers[0].callback;
+    const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const callback = s.timers[0].callback;
     if (command === 'disconnect') s.disconnect(); else s.controller[command]();
     const after = s.controller.snapshot(); callback();
     expect(s.controller.snapshot().sessionSnapshot?.step).toEqual(after.sessionSnapshot?.step);
@@ -93,15 +110,15 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.controller.dispose();
   });
   it('resume creates new generation; cancelled callback cannot consume new attempt', async () => {
-    const s = setup(); await s.controller.start(); s.note('C4'); const first = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
-    s.controller.pause(); await s.controller.resume(); s.note('C4');
+    const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const first = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
+    s.controller.pause(); await s.controller.resume(); s.clock.advance(1); s.note('C4');
     const next = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
     expect(next.activationGeneration).toBeGreaterThan(first.activationGeneration);
     s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
     s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1); s.controller.dispose();
   });
   it('ANALYZING/RESET input is ignored, never queued for the next target', async () => {
-    const s = setup(); await s.controller.start();
+    const s = setup(); await s.controller.start(); s.clock.set(101);
     const states: string[] = [];
     s.controller.subscribe(() => {
       const state = s.controller.snapshot().sessionSnapshot?.step.attemptState;
@@ -113,7 +130,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot().inputDiagnostics?.ignoredNotes).toBe(2); s.controller.dispose();
   });
   it('finish and disposal release resources exactly once, before completion notification', async () => {
-    const s = setup(4); await s.controller.start(); s.note('D5'); s.close();
+    const s = setup(4); await s.controller.start(); s.clock.set(101); s.note('D5'); s.close();
     expect(s.controller.snapshot().state).toBe('ENDED'); expect(s.completion).toHaveBeenCalledTimes(1);
     expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
     s.controller.finish(); s.controller.dispose(); s.controller.dispose();
@@ -125,7 +142,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.midi.dispose).toHaveBeenCalledTimes(1);
   });
   it('fresh owner uses a fresh session and no old timer can advance it', async () => {
-    const s = setup(); await s.controller.start(); s.note('C4'); const old = s.controller.snapshot().sessionSnapshot!;
+    const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const old = s.controller.snapshot().sessionSnapshot!;
     s.controller.dispose(); const fresh = s.create(); await fresh.start(); s.timers[0].callback();
     expect(fresh.snapshot().sessionSnapshot?.localSessionId).not.toBe(old.localSessionId);
     expect(fresh.snapshot().sessionSnapshot?.step.currentIndex).toBe(0); fresh.dispose();
