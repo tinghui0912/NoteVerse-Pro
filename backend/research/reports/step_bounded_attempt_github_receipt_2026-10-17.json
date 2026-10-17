@@ -1,0 +1,9 @@
+{
+  "phase": "PRACTICE_STEP_MICROPHONE_BOUNDED_ATTEMPT_PRODUCT_INTEGRATION_DISABLED",
+  "queriedAt": "2026-10-17T07:27:17.056Z",
+  "remoteHead": "134d68e211a6cb6b94bb64a1ba0f2bee5a7d4bfa",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflowRuns": [],
+  "interpretation": "NOT CI PASS"
+}
