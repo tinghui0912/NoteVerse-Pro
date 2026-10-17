@@ -1,0 +1,17 @@
+{
+  "githubReceipt": {
+    "queriedAt": "2026-10-17T13:29:31.538Z",
+    "actualRemoteHead": "065333a0ca10a10cae810d8bcccdb1d103157f63",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflowRuns": [],
+    "interpretation": "NOT CI PASS",
+    "commitChain": [
+      "c9e7519c2a45c430f708b483d8f2a09d761e3234 research: bound fresh-strike candidate budget and isolated development tooling",
+      "c43cbf56e28ed6606c6a0f0f5cec4f87940b7013 research: freeze fresh-strike development candidates and audio-only execution plan",
+      "32153658ff87aee9d99b765d7c1890c112efd6e9 research: invalidate development v1 and repair portable sealed PCM references",
+      "6ef3b08e048b177adc8e3cbf3c269695a1aed4c1 research: freeze portable fresh-strike development execution v2",
+      "065333a0ca10a10cae810d8bcccdb1d103157f63 research: record fresh-strike development safety blocker and unchanged product regression"
+    ]
+  }
+}
