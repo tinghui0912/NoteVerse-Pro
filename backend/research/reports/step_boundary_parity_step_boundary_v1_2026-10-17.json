@@ -1,0 +1,65 @@
+{
+  "freezeCommit": "f0704c0a3b99ed42341f249e5968f84b5c06ffed",
+  "remoteHead": "f0704c0a3b99ed42341f249e5968f84b5c06ffed",
+  "freezeSha256": "ea446a3255fd408822280d5d7191cba0d9d37a2078b6b65aeff73d3fba79fcd9",
+  "remoteVerifiedAt": "2026-10-17T12:50:06.881Z",
+  "executionStartedAt": "2026-10-17T12:50:07.359Z",
+  "cells": [
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 44100,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 39
+    },
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 48000,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 39
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 44100,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 9
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 48000,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 9
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 44100,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 67
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 48000,
+      "status": "PASS",
+      "publications": 11,
+      "observations": 67
+    },
+    {
+      "id": "silence",
+      "rate": 44100,
+      "status": "PASS",
+      "publications": 4,
+      "observations": 0
+    },
+    {
+      "id": "silence",
+      "rate": 48000,
+      "status": "PASS",
+      "publications": 4,
+      "observations": 0
+    }
+  ]
+}
