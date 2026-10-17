@@ -1,0 +1,1648 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_PERFORMANCE_TIME_IDENTITY_REPAIR_AND_CLOCK_GATE_V3",
+  "disposition": "CONTINUOUS_AUDIO_CONTEXT_CLOCK_CONTRACT_READY_FOR_CONTROLLER_INTEGRATION",
+  "startingHead": "d67adf0f9a25af540abccc3fdb2e68a81fa06592",
+  "implementationCommit": "1b1aac3c24646682059e709338ba928310487e07",
+  "proof": {
+    "freezeCommit": "09bf1869deadc8db642da5f10bdef181d2f2655b",
+    "freezeSha256": "a45eb2a61aee57b6449046baa33750ee2db08b608e2e30e00349ba7ccc3672aa",
+    "remoteHead": "09bf1869deadc8db642da5f10bdef181d2f2655b",
+    "remoteVerifiedAt": "2026-10-17T01:13:55.708Z"
+  },
+  "executionStartedAt": "2026-10-17T01:13:55.800Z",
+  "receipts": [
+    {
+      "path": "backend/research/reports/continuous_audio_context_clock_v3_verification_2026-10-17.json",
+      "sha256": "94719dd8ef43dc7054d6d698eb1a8abc184e3142ca556c44a7e6c2dee87f0c2c"
+    },
+    {
+      "path": "backend/research/reports/continuous_audio_context_clock_v3_execution_2026-10-17.json",
+      "sha256": "293eac2114be3cf35a9c2d27b9405819c8a5c619b4399f85f910d6341b92097d"
+    }
+  ],
+  "numericRepair": {
+    "forwardHelper": "activeElapsedStartMs + (sessionTimeMs - clockStartMs)",
+    "inverseHelper": "clockStartMs + (activeElapsedMs - activeElapsedStartMs)",
+    "changedExpressions": [
+      {
+        "location": "activeElapsedAt current segment",
+        "before": "activeElapsedStartMs + nowMs - clockStartMs",
+        "after": "activeElapsedAtSessionTime(segment, nowMs)"
+      },
+      {
+        "location": "activeElapsedForCapture list branch",
+        "before": "activeElapsedStartMs + captureTimeMs - clockStartMs",
+        "after": "activeElapsedAtSessionTime(segment, captureTimeMs)"
+      },
+      {
+        "location": "activeElapsedForCapture explicit current branch",
+        "before": "activeElapsedStartMs + captureTimeMs - clockStartMs",
+        "after": "activeElapsedAtSessionTime(currentSegment, captureTimeMs)"
+      },
+      {
+        "location": "sessionMsForActiveElapsed closed segment end",
+        "before": "activeElapsedStartMs + clockEndMs - clockStartMs",
+        "after": "activeElapsedAtSessionTime(segment, clockEndMs)"
+      },
+      {
+        "location": "sessionMsForActiveElapsed inverse mapping",
+        "before": "clockStartMs + activeElapsedMs - activeElapsedStartMs",
+        "after": "sessionTimeAtActiveElapsed(segment, activeElapsedMs)"
+      }
+    ],
+    "unchangedSubtractions": [
+      "count-in remaining/duration fractions",
+      "scope nominal end minus start",
+      "performance elapsed minus count-in",
+      "timebase runtime origin subtraction (already one-domain delta)",
+      "MIDI grace subtraction outside PerformanceClock"
+    ],
+    "noSearchOrderOrLifecycleChange": true
+  },
+  "dedicatedNumericTests": {
+    "testCases": 10,
+    "repeatedPauseResumePairs": 512,
+    "forwardAndInverseHelperAnchors": 1024,
+    "exactV2Numbers": true,
+    "countIn": true,
+    "manualStop": true,
+    "naturalCompletion": true,
+    "captureMapping": true,
+    "epsilonOrRoundingWorkaround": false
+  },
+  "gate1": {
+    "status": "PASS",
+    "cells": [
+      {
+        "rate": 44100,
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:13:56.177Z",
+        "completedAt": "2026-10-17T01:14:02.249Z",
+        "offlineAt": "2026-10-17T01:13:57.895Z",
+        "capture": {
+          "nextSourceSampleIndex": 159232,
+          "nextSequence": 1244,
+          "audioContextOriginFrame": 0,
+          "blocks": 1244,
+          "chunkSizes": {
+            "128": 1244
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 2,
+          "windowsStarted": 2,
+          "windowsPublished": 2,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 2,
+          "segmentsDrained": 2,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 1200,
+        "model": {
+          "source": "network",
+          "downloadMs": 618.3199999332428,
+          "cacheReadMs": 45.8950001001358,
+          "verificationMs": 84.93999993801117,
+          "totalLoadMs": 757.7400000095367,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "continuous-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 844.9299999475479,
+          "sessionCreateMs": 497.1950000524521,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "inferenceDoesNotChangeClock": true
+      },
+      {
+        "rate": 48000,
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:02.262Z",
+        "completedAt": "2026-10-17T01:14:08.070Z",
+        "offlineAt": "2026-10-17T01:14:04.132Z",
+        "capture": {
+          "nextSourceSampleIndex": 172416,
+          "nextSequence": 1347,
+          "audioContextOriginFrame": 0,
+          "blocks": 1347,
+          "chunkSizes": {
+            "128": 1347
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 2,
+          "windowsStarted": 2,
+          "windowsPublished": 2,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 2,
+          "segmentsDrained": 2,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 1200,
+        "model": {
+          "source": "network",
+          "downloadMs": 746.375,
+          "cacheReadMs": 45.704999923706055,
+          "verificationMs": 83.60000002384186,
+          "totalLoadMs": 889.1100000143051,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "continuous-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 975.9649999141693,
+          "sessionCreateMs": 487.2450000047684,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "inferenceDoesNotChangeClock": true
+      }
+    ]
+  },
+  "gate2": {
+    "status": "PASS",
+    "cells": [
+      {
+        "rate": 44100,
+        "scenario": "A",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:08.081Z",
+        "completedAt": "2026-10-17T01:14:11.417Z",
+        "boundaries": [
+          {
+            "contextTime": 1.401904761904762,
+            "unroundedFrame": 61824,
+            "contextFrame": 61824,
+            "fractionalFrameError": 0,
+            "sourceSample": 61824,
+            "nextSource": 61824,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2.0027210884353743,
+            "unroundedFrame": 88320.00000000001,
+            "contextFrame": 88320,
+            "fractionalFrameError": 1.4551915228366852e-11,
+            "sourceSample": 88320,
+            "nextSource": 88320,
+            "leadSamples": 0,
+            "type": "PAUSE",
+            "performanceTimeMs": 600.8163265306125,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 2.211700680272109,
+            "unroundedFrame": 97536,
+            "contextFrame": 97536,
+            "fractionalFrameError": 0,
+            "sourceSample": 97536,
+            "nextSource": 97152,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 600.8163265306125,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2.812517006802721,
+            "unroundedFrame": 124032,
+            "contextFrame": 124032,
+            "fractionalFrameError": 0,
+            "sourceSample": 124032,
+            "nextSource": 124032,
+            "leadSamples": 0,
+            "type": "TERMINAL",
+            "performanceTimeMs": 1201.632653061225,
+            "transportState": "ENDED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 600.8163265306125,
+            "sourceStartSample": 61824,
+            "sourceEndSample": 88320,
+            "expectedSourceDurationSamples": 26496.00000000001,
+            "actualSourceDurationSamples": 26496,
+            "durationMismatchSamples": -1.0913936421275139e-11
+          },
+          {
+            "performanceStartMs": 600.8163265306125,
+            "performanceEndMs": 1201.632653061225,
+            "sourceStartSample": 97536,
+            "sourceEndSample": 124032,
+            "expectedSourceDurationSamples": 26496.00000000001,
+            "actualSourceDurationSamples": 26496,
+            "durationMismatchSamples": -1.0913936421275139e-11
+          }
+        ],
+        "pauseWitnesses": [
+          {
+            "pausedPerformanceTimeMs": 600.8163265306125,
+            "afterPausePerformanceTimeMs": 600.8163265306125,
+            "resumePerformanceTimeMs": 600.8163265306125,
+            "deltaMs": 0,
+            "beforeSource": 88320,
+            "afterSource": 97152,
+            "beforeFrontier": null,
+            "afterFrontier": 600.8163265306124,
+            "publicationsDuringPause": 2
+          }
+        ],
+        "futureBoundaryWitness": null,
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 1.0913936421275139e-11,
+        "capture": {
+          "nextSourceSampleIndex": 131968,
+          "nextSequence": 1031,
+          "audioContextOriginFrame": 0,
+          "blocks": 1031,
+          "chunkSizes": {
+            "128": 1031
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 4,
+          "windowsStarted": 4,
+          "windowsPublished": 4,
+          "observationsPublished": 0,
+          "peakOutstanding": 2,
+          "backpressureFailures": 0,
+          "segmentsStarted": 2,
+          "segmentsDrained": 2,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 1201.632653061225,
+        "metronomePulseCount": 3
+      },
+      {
+        "rate": 44100,
+        "scenario": "B",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:11.431Z",
+        "completedAt": "2026-10-17T01:14:23.560Z",
+        "boundaries": [
+          {
+            "contextTime": 1.401904761904762,
+            "unroundedFrame": 61824,
+            "contextFrame": 61824,
+            "fractionalFrameError": 0,
+            "sourceSample": 61824,
+            "nextSource": 61824,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 3.201451247165533,
+            "unroundedFrame": 141184,
+            "contextFrame": 141184,
+            "fractionalFrameError": 0,
+            "sourceSample": 141184,
+            "nextSource": 141184,
+            "leadSamples": 0,
+            "type": "PAUSE",
+            "performanceTimeMs": 1799.546485260771,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 3.500408163265306,
+            "unroundedFrame": 154368,
+            "contextFrame": 154368,
+            "fractionalFrameError": 0,
+            "sourceSample": 154368,
+            "nextSource": 154368,
+            "leadSamples": 0,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 1799.546485260771,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 5.31156462585034,
+            "unroundedFrame": 234240,
+            "contextFrame": 234240,
+            "fractionalFrameError": 0,
+            "sourceSample": 234240,
+            "nextSource": 233984,
+            "leadSamples": 256,
+            "type": "PAUSE",
+            "performanceTimeMs": 3610.7029478458053,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 5.622131519274377,
+            "unroundedFrame": 247936.00000000003,
+            "contextFrame": 247936,
+            "fractionalFrameError": 2.9103830456733704e-11,
+            "sourceSample": 247936,
+            "nextSource": 247552,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 3610.7029478458053,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 7.421678004535147,
+            "unroundedFrame": 327296,
+            "contextFrame": 327296,
+            "fractionalFrameError": 0,
+            "sourceSample": 327296,
+            "nextSource": 326912,
+            "leadSamples": 384,
+            "type": "PAUSE",
+            "performanceTimeMs": 5410.249433106575,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 7.732244897959184,
+            "unroundedFrame": 340992,
+            "contextFrame": 340992,
+            "fractionalFrameError": 0,
+            "sourceSample": 340992,
+            "nextSource": 340608,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 5410.249433106575,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 9.531791383219955,
+            "unroundedFrame": 420352.00000000006,
+            "contextFrame": 420352,
+            "fractionalFrameError": 5.820766091346741e-11,
+            "sourceSample": 420352,
+            "nextSource": 420352,
+            "leadSamples": 0,
+            "type": "PAUSE",
+            "performanceTimeMs": 7209.795918367347,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 9.84235827664399,
+            "unroundedFrame": 434048,
+            "contextFrame": 434048,
+            "fractionalFrameError": 0,
+            "sourceSample": 434048,
+            "nextSource": 433664,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 7209.795918367347,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 11.641904761904762,
+            "unroundedFrame": 513408,
+            "contextFrame": 513408,
+            "fractionalFrameError": 0,
+            "sourceSample": 513408,
+            "nextSource": 513408,
+            "leadSamples": 0,
+            "type": "TERMINAL",
+            "performanceTimeMs": 9009.342403628118,
+            "transportState": "ENDED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 1799.546485260771,
+            "sourceStartSample": 61824,
+            "sourceEndSample": 141184,
+            "expectedSourceDurationSamples": 79360,
+            "actualSourceDurationSamples": 79360,
+            "durationMismatchSamples": 0
+          },
+          {
+            "performanceStartMs": 1799.546485260771,
+            "performanceEndMs": 3610.7029478458053,
+            "sourceStartSample": 154368,
+            "sourceEndSample": 234240,
+            "expectedSourceDurationSamples": 79872.00000000001,
+            "actualSourceDurationSamples": 79872,
+            "durationMismatchSamples": -1.4551915228366852e-11
+          },
+          {
+            "performanceStartMs": 3610.7029478458053,
+            "performanceEndMs": 5410.249433106575,
+            "sourceStartSample": 247936,
+            "sourceEndSample": 327296,
+            "expectedSourceDurationSamples": 79359.99999999997,
+            "actualSourceDurationSamples": 79360,
+            "durationMismatchSamples": 2.9103830456733704e-11
+          },
+          {
+            "performanceStartMs": 5410.249433106575,
+            "performanceEndMs": 7209.795918367347,
+            "sourceStartSample": 340992,
+            "sourceEndSample": 420352,
+            "expectedSourceDurationSamples": 79360.00000000004,
+            "actualSourceDurationSamples": 79360,
+            "durationMismatchSamples": -4.3655745685100555e-11
+          },
+          {
+            "performanceStartMs": 7209.795918367347,
+            "performanceEndMs": 9009.342403628118,
+            "sourceStartSample": 434048,
+            "sourceEndSample": 513408,
+            "expectedSourceDurationSamples": 79359.99999999997,
+            "actualSourceDurationSamples": 79360,
+            "durationMismatchSamples": 2.9103830456733704e-11
+          }
+        ],
+        "pauseWitnesses": [
+          {
+            "pausedPerformanceTimeMs": 1799.546485260771,
+            "afterPausePerformanceTimeMs": 1799.546485260771,
+            "resumePerformanceTimeMs": 1799.546485260771,
+            "deltaMs": 0,
+            "beforeSource": 141184,
+            "afterSource": 154368,
+            "beforeFrontier": 1199.9999999999998,
+            "afterFrontier": 1799.5464852607709,
+            "publicationsDuringPause": 1
+          },
+          {
+            "pausedPerformanceTimeMs": 3610.7029478458053,
+            "afterPausePerformanceTimeMs": 3610.7029478458053,
+            "resumePerformanceTimeMs": 3610.7029478458053,
+            "deltaMs": 0,
+            "beforeSource": 234240,
+            "afterSource": 247552,
+            "beforeFrontier": 2999.5464852607706,
+            "afterFrontier": 3610.702947845805,
+            "publicationsDuringPause": 2
+          },
+          {
+            "pausedPerformanceTimeMs": 5410.249433106575,
+            "afterPausePerformanceTimeMs": 5410.249433106575,
+            "resumePerformanceTimeMs": 5410.249433106575,
+            "deltaMs": 0,
+            "beforeSource": 327296,
+            "afterSource": 340608,
+            "beforeFrontier": 4810.702947845804,
+            "afterFrontier": 5410.2494331065745,
+            "publicationsDuringPause": 1
+          },
+          {
+            "pausedPerformanceTimeMs": 7209.795918367347,
+            "afterPausePerformanceTimeMs": 7209.795918367347,
+            "resumePerformanceTimeMs": 7209.795918367347,
+            "deltaMs": 0,
+            "beforeSource": 420352,
+            "afterSource": 433664,
+            "beforeFrontier": 6610.2494331065745,
+            "afterFrontier": 7209.7959183673465,
+            "publicationsDuringPause": 1
+          }
+        ],
+        "futureBoundaryWitness": null,
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 4.3655745685100555e-11,
+        "capture": {
+          "nextSourceSampleIndex": 521344,
+          "nextSequence": 4073,
+          "audioContextOriginFrame": 0,
+          "blocks": 4073,
+          "chunkSizes": {
+            "128": 4073
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 16,
+          "windowsStarted": 16,
+          "windowsPublished": 16,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 5,
+          "segmentsDrained": 5,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 9009.342403628118,
+        "metronomePulseCount": 36
+      },
+      {
+        "rate": 44100,
+        "scenario": "C",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:23.579Z",
+        "completedAt": "2026-10-17T01:14:26.020Z",
+        "boundaries": [
+          {
+            "contextTime": 1.401904761904762,
+            "unroundedFrame": 61824,
+            "contextFrame": 61824,
+            "fractionalFrameError": 0,
+            "sourceSample": 61824,
+            "nextSource": 61824,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2.001904761904762,
+            "unroundedFrame": 88284.00000000001,
+            "contextFrame": 88284,
+            "fractionalFrameError": 1.4551915228366852e-11,
+            "sourceSample": 88284,
+            "nextSource": 61824,
+            "leadSamples": 26460,
+            "type": "TERMINAL",
+            "performanceTimeMs": 600,
+            "transportState": "FUTURE_SCOPE_COMPLETED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 600,
+            "sourceStartSample": 61824,
+            "sourceEndSample": 88284,
+            "expectedSourceDurationSamples": 26460,
+            "actualSourceDurationSamples": 26460,
+            "durationMismatchSamples": 0
+          }
+        ],
+        "pauseWitnesses": [],
+        "futureBoundaryWitness": {
+          "startContextTime": 1.401904761904762,
+          "durationMs": 600,
+          "futureContextTime": 2.001904761904762,
+          "completionSessionMs": 2001.904761904762,
+          "completionSourceSample": 88284,
+          "registeredSourceSample": 88284,
+          "transport": {
+            "state": "ENDED",
+            "nowMs": 2002.7210884353744,
+            "musicalBeat": 1.2,
+            "performanceTimeMs": 600,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": true,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 1.2,
+            "completionReason": "SCOPE_COMPLETED"
+          },
+          "timerRole": "OBSERVATION_ONLY_NOT_TRANSITION_AUTHORITY"
+        },
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 0,
+        "capture": {
+          "nextSourceSampleIndex": 96256,
+          "nextSequence": 752,
+          "audioContextOriginFrame": 0,
+          "blocks": 752,
+          "chunkSizes": {
+            "128": 752
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 1,
+          "windowsStarted": 1,
+          "windowsPublished": 1,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 1,
+          "segmentsDrained": 1,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 600,
+        "metronomePulseCount": 2
+      },
+      {
+        "rate": 44100,
+        "scenario": "D",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:26.035Z",
+        "completedAt": "2026-10-17T01:14:29.147Z",
+        "boundaries": [
+          {
+            "contextTime": 1.401904761904762,
+            "unroundedFrame": 61824,
+            "contextFrame": 61824,
+            "fractionalFrameError": 0,
+            "sourceSample": 61824,
+            "nextSource": 61824,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          }
+        ],
+        "segments": [],
+        "pauseWitnesses": [],
+        "futureBoundaryWitness": null,
+        "failureWitness": {
+          "before": {
+            "contextTime": 2.2523356009070294,
+            "transport": {
+              "state": "RUNNING",
+              "nowMs": 2252.3356009070294,
+              "musicalBeat": 1.700862,
+              "performanceTimeMs": 850.4308390022675,
+              "countInTotalMs": 0,
+              "countInRemainingMs": 0,
+              "countInBeats": 0,
+              "countInPulses": 3,
+              "countInPulse": 1,
+              "scopeCompleted": false,
+              "scopeStartBeat": 0,
+              "scopeTerminalBeat": 120,
+              "completionReason": null
+            },
+            "publications": 1,
+            "analysis": {
+              "state": "FAILED",
+              "failureCode": "QUALIFICATION_ANALYSIS_ONLY_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 99328,
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "outstanding": 0,
+              "analyzedThroughPerformanceMs": 599.9999999999999,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "segmentsStarted": 1,
+                "segmentsDrained": 0,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "segmentIndex": 0,
+                  "ownedStartMs": 0,
+                  "ownedEndMs": 600,
+                  "inputStartSample": 5630,
+                  "inputEndSample": 34750,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 0,
+                  "decodeMs": 0,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1,
+                  "sourceSegmentStartSample": 61824,
+                  "sourceSegmentEndSample": null,
+                  "performanceSegmentStartMs": 0,
+                  "performanceSegmentEndMs": null
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              }
+            }
+          },
+          "after": {
+            "contextTime": 2.812517006802721,
+            "transport": {
+              "state": "RUNNING",
+              "nowMs": 2812.5170068027214,
+              "musicalBeat": 2.821224,
+              "performanceTimeMs": 1410.6122448979595,
+              "countInTotalMs": 0,
+              "countInRemainingMs": 0,
+              "countInBeats": 0,
+              "countInPulses": 3,
+              "countInPulse": 1,
+              "scopeCompleted": false,
+              "scopeStartBeat": 0,
+              "scopeTerminalBeat": 120,
+              "completionReason": null
+            },
+            "publications": 1,
+            "analysis": {
+              "state": "FAILED",
+              "failureCode": "QUALIFICATION_ANALYSIS_ONLY_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 99328,
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "outstanding": 0,
+              "analyzedThroughPerformanceMs": 599.9999999999999,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "segmentsStarted": 1,
+                "segmentsDrained": 0,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "segmentIndex": 0,
+                  "ownedStartMs": 0,
+                  "ownedEndMs": 600,
+                  "inputStartSample": 5630,
+                  "inputEndSample": 34750,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 0,
+                  "decodeMs": 0,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1,
+                  "sourceSegmentStartSample": 61824,
+                  "sourceSegmentEndSample": null,
+                  "performanceSegmentStartMs": 0,
+                  "performanceSegmentEndMs": null
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              }
+            }
+          },
+          "contextState": "running",
+          "ownsContext": "HARNESS_SESSION_NOT_ANALYSIS"
+        },
+        "maximumDurationMismatchSamples": 0,
+        "capture": {
+          "nextSourceSampleIndex": 99328,
+          "nextSequence": 776,
+          "audioContextOriginFrame": 0,
+          "blocks": 776,
+          "chunkSizes": {
+            "128": 776
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 1,
+          "windowsStarted": 1,
+          "windowsPublished": 1,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 1,
+          "segmentsDrained": 0,
+          "terminalPublications": 0
+        },
+        "outstanding": 0,
+        "analysisState": "FAILED",
+        "terminalFrontier": 599.9999999999999,
+        "metronomePulseCount": 3
+      },
+      {
+        "rate": 48000,
+        "scenario": "A",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:29.157Z",
+        "completedAt": "2026-10-17T01:14:32.550Z",
+        "boundaries": [
+          {
+            "contextTime": 1.4,
+            "unroundedFrame": 67200,
+            "contextFrame": 67200,
+            "fractionalFrameError": 0,
+            "sourceSample": 67200,
+            "nextSource": 67200,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2.002666666666667,
+            "unroundedFrame": 96128,
+            "contextFrame": 96128,
+            "fractionalFrameError": 0,
+            "sourceSample": 96128,
+            "nextSource": 96000,
+            "leadSamples": 128,
+            "type": "PAUSE",
+            "performanceTimeMs": 602.6666666666667,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 2.2213333333333334,
+            "unroundedFrame": 106624,
+            "contextFrame": 106624,
+            "fractionalFrameError": 0,
+            "sourceSample": 106624,
+            "nextSource": 106240,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 602.6666666666667,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2.8213333333333335,
+            "unroundedFrame": 135424,
+            "contextFrame": 135424,
+            "fractionalFrameError": 0,
+            "sourceSample": 135424,
+            "nextSource": 135424,
+            "leadSamples": 0,
+            "type": "TERMINAL",
+            "performanceTimeMs": 1202.6666666666667,
+            "transportState": "ENDED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 602.6666666666667,
+            "sourceStartSample": 67200,
+            "sourceEndSample": 96128,
+            "expectedSourceDurationSamples": 28928.000000000004,
+            "actualSourceDurationSamples": 28928,
+            "durationMismatchSamples": -3.637978807091713e-12
+          },
+          {
+            "performanceStartMs": 602.6666666666667,
+            "performanceEndMs": 1202.6666666666667,
+            "sourceStartSample": 106624,
+            "sourceEndSample": 135424,
+            "expectedSourceDurationSamples": 28800,
+            "actualSourceDurationSamples": 28800,
+            "durationMismatchSamples": 0
+          }
+        ],
+        "pauseWitnesses": [
+          {
+            "pausedPerformanceTimeMs": 602.6666666666667,
+            "afterPausePerformanceTimeMs": 602.6666666666667,
+            "resumePerformanceTimeMs": 602.6666666666667,
+            "deltaMs": 0,
+            "beforeSource": 96512,
+            "afterSource": 106240,
+            "beforeFrontier": null,
+            "afterFrontier": 602.6666666666666,
+            "publicationsDuringPause": 2
+          }
+        ],
+        "futureBoundaryWitness": null,
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 3.637978807091713e-12,
+        "capture": {
+          "nextSourceSampleIndex": 143616,
+          "nextSequence": 1122,
+          "audioContextOriginFrame": 0,
+          "blocks": 1122,
+          "chunkSizes": {
+            "128": 1122
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 3,
+          "windowsStarted": 3,
+          "windowsPublished": 3,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 2,
+          "segmentsDrained": 2,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 1202.6666666666667,
+        "metronomePulseCount": 3
+      },
+      {
+        "rate": 48000,
+        "scenario": "B",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:32.562Z",
+        "completedAt": "2026-10-17T01:14:44.650Z",
+        "boundaries": [
+          {
+            "contextTime": 1.4,
+            "unroundedFrame": 67200,
+            "contextFrame": 67200,
+            "fractionalFrameError": 0,
+            "sourceSample": 67200,
+            "nextSource": 67200,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 3.2106666666666666,
+            "unroundedFrame": 154112,
+            "contextFrame": 154112,
+            "fractionalFrameError": 0,
+            "sourceSample": 154112,
+            "nextSource": 153728,
+            "leadSamples": 384,
+            "type": "PAUSE",
+            "performanceTimeMs": 1810.6666666666665,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 3.52,
+            "unroundedFrame": 168960,
+            "contextFrame": 168960,
+            "fractionalFrameError": 0,
+            "sourceSample": 168960,
+            "nextSource": 168704,
+            "leadSamples": 256,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 1810.6666666666665,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 5.32,
+            "unroundedFrame": 255360,
+            "contextFrame": 255360,
+            "fractionalFrameError": 0,
+            "sourceSample": 255360,
+            "nextSource": 255360,
+            "leadSamples": 0,
+            "type": "PAUSE",
+            "performanceTimeMs": 3610.6666666666665,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 5.632,
+            "unroundedFrame": 270336,
+            "contextFrame": 270336,
+            "fractionalFrameError": 0,
+            "sourceSample": 270336,
+            "nextSource": 269952,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 3610.6666666666665,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 7.432,
+            "unroundedFrame": 356736,
+            "contextFrame": 356736,
+            "fractionalFrameError": 0,
+            "sourceSample": 356736,
+            "nextSource": 356736,
+            "leadSamples": 0,
+            "type": "PAUSE",
+            "performanceTimeMs": 5410.666666666666,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 7.741333333333333,
+            "unroundedFrame": 371584,
+            "contextFrame": 371584,
+            "fractionalFrameError": 0,
+            "sourceSample": 371584,
+            "nextSource": 371200,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 5410.666666666666,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 9.541333333333334,
+            "unroundedFrame": 457984.00000000006,
+            "contextFrame": 457984,
+            "fractionalFrameError": 5.820766091346741e-11,
+            "sourceSample": 457984,
+            "nextSource": 457600,
+            "leadSamples": 384,
+            "type": "PAUSE",
+            "performanceTimeMs": 7210.666666666667,
+            "transportState": "PAUSED"
+          },
+          {
+            "contextTime": 9.850666666666667,
+            "unroundedFrame": 472832,
+            "contextFrame": 472832,
+            "fractionalFrameError": 0,
+            "sourceSample": 472832,
+            "nextSource": 472448,
+            "leadSamples": 384,
+            "type": "RESUME-BEGIN",
+            "performanceTimeMs": 7210.666666666667,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 11.650666666666666,
+            "unroundedFrame": 559232,
+            "contextFrame": 559232,
+            "fractionalFrameError": 0,
+            "sourceSample": 559232,
+            "nextSource": 559232,
+            "leadSamples": 0,
+            "type": "TERMINAL",
+            "performanceTimeMs": 9010.666666666664,
+            "transportState": "ENDED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 1810.6666666666665,
+            "sourceStartSample": 67200,
+            "sourceEndSample": 154112,
+            "expectedSourceDurationSamples": 86912,
+            "actualSourceDurationSamples": 86912,
+            "durationMismatchSamples": 0
+          },
+          {
+            "performanceStartMs": 1810.6666666666665,
+            "performanceEndMs": 3610.6666666666665,
+            "sourceStartSample": 168960,
+            "sourceEndSample": 255360,
+            "expectedSourceDurationSamples": 86400,
+            "actualSourceDurationSamples": 86400,
+            "durationMismatchSamples": 0
+          },
+          {
+            "performanceStartMs": 3610.6666666666665,
+            "performanceEndMs": 5410.666666666666,
+            "sourceStartSample": 270336,
+            "sourceEndSample": 356736,
+            "expectedSourceDurationSamples": 86399.99999999999,
+            "actualSourceDurationSamples": 86400,
+            "durationMismatchSamples": 1.4551915228366852e-11
+          },
+          {
+            "performanceStartMs": 5410.666666666666,
+            "performanceEndMs": 7210.666666666667,
+            "sourceStartSample": 371584,
+            "sourceEndSample": 457984,
+            "expectedSourceDurationSamples": 86400.00000000004,
+            "actualSourceDurationSamples": 86400,
+            "durationMismatchSamples": -4.3655745685100555e-11
+          },
+          {
+            "performanceStartMs": 7210.666666666667,
+            "performanceEndMs": 9010.666666666664,
+            "sourceStartSample": 472832,
+            "sourceEndSample": 559232,
+            "expectedSourceDurationSamples": 86399.99999999987,
+            "actualSourceDurationSamples": 86400,
+            "durationMismatchSamples": 1.3096723705530167e-10
+          }
+        ],
+        "pauseWitnesses": [
+          {
+            "pausedPerformanceTimeMs": 1810.6666666666665,
+            "afterPausePerformanceTimeMs": 1810.6666666666665,
+            "resumePerformanceTimeMs": 1810.6666666666665,
+            "deltaMs": 0,
+            "beforeSource": 154112,
+            "afterSource": 168704,
+            "beforeFrontier": 1199.9999999999998,
+            "afterFrontier": 1810.6666666666663,
+            "publicationsDuringPause": 2
+          },
+          {
+            "pausedPerformanceTimeMs": 3610.6666666666665,
+            "afterPausePerformanceTimeMs": 3610.6666666666665,
+            "resumePerformanceTimeMs": 3610.6666666666665,
+            "deltaMs": 0,
+            "beforeSource": 255360,
+            "afterSource": 269952,
+            "beforeFrontier": 3010.666666666666,
+            "afterFrontier": 3610.666666666666,
+            "publicationsDuringPause": 1
+          },
+          {
+            "pausedPerformanceTimeMs": 5410.666666666666,
+            "afterPausePerformanceTimeMs": 5410.666666666666,
+            "resumePerformanceTimeMs": 5410.666666666666,
+            "deltaMs": 0,
+            "beforeSource": 356736,
+            "afterSource": 371200,
+            "beforeFrontier": 4810.666666666665,
+            "afterFrontier": 5410.666666666665,
+            "publicationsDuringPause": 1
+          },
+          {
+            "pausedPerformanceTimeMs": 7210.666666666667,
+            "afterPausePerformanceTimeMs": 7210.666666666667,
+            "resumePerformanceTimeMs": 7210.666666666667,
+            "deltaMs": 0,
+            "beforeSource": 457984,
+            "afterSource": 472448,
+            "beforeFrontier": 6610.666666666665,
+            "afterFrontier": 7210.666666666666,
+            "publicationsDuringPause": 2
+          }
+        ],
+        "futureBoundaryWitness": null,
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 1.3096723705530167e-10,
+        "capture": {
+          "nextSourceSampleIndex": 567424,
+          "nextSequence": 4433,
+          "audioContextOriginFrame": 0,
+          "blocks": 4433,
+          "chunkSizes": {
+            "128": 4433
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 17,
+          "windowsStarted": 17,
+          "windowsPublished": 17,
+          "observationsPublished": 0,
+          "peakOutstanding": 2,
+          "backpressureFailures": 0,
+          "segmentsStarted": 5,
+          "segmentsDrained": 5,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 9010.666666666664,
+        "metronomePulseCount": 36
+      },
+      {
+        "rate": 48000,
+        "scenario": "C",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:44.662Z",
+        "completedAt": "2026-10-17T01:14:47.126Z",
+        "boundaries": [
+          {
+            "contextTime": 1.4,
+            "unroundedFrame": 67200,
+            "contextFrame": 67200,
+            "fractionalFrameError": 0,
+            "sourceSample": 67200,
+            "nextSource": 67200,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          },
+          {
+            "contextTime": 2,
+            "unroundedFrame": 96000,
+            "contextFrame": 96000,
+            "fractionalFrameError": 0,
+            "sourceSample": 96000,
+            "nextSource": 67200,
+            "leadSamples": 28800,
+            "type": "TERMINAL",
+            "performanceTimeMs": 600,
+            "transportState": "FUTURE_SCOPE_COMPLETED"
+          }
+        ],
+        "segments": [
+          {
+            "performanceStartMs": 0,
+            "performanceEndMs": 600,
+            "sourceStartSample": 67200,
+            "sourceEndSample": 96000,
+            "expectedSourceDurationSamples": 28800,
+            "actualSourceDurationSamples": 28800,
+            "durationMismatchSamples": 0
+          }
+        ],
+        "pauseWitnesses": [],
+        "futureBoundaryWitness": {
+          "startContextTime": 1.4,
+          "durationMs": 600,
+          "futureContextTime": 2,
+          "completionSessionMs": 2000,
+          "completionSourceSample": 96000,
+          "registeredSourceSample": 96000,
+          "transport": {
+            "state": "ENDED",
+            "nowMs": 2000,
+            "musicalBeat": 1.2,
+            "performanceTimeMs": 600,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": true,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 1.2,
+            "completionReason": "SCOPE_COMPLETED"
+          },
+          "timerRole": "OBSERVATION_ONLY_NOT_TRANSITION_AUTHORITY"
+        },
+        "failureWitness": null,
+        "maximumDurationMismatchSamples": 0,
+        "capture": {
+          "nextSourceSampleIndex": 104192,
+          "nextSequence": 814,
+          "audioContextOriginFrame": 0,
+          "blocks": 814,
+          "chunkSizes": {
+            "128": 814
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 1,
+          "windowsStarted": 1,
+          "windowsPublished": 1,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 1,
+          "segmentsDrained": 1,
+          "terminalPublications": 1
+        },
+        "outstanding": 0,
+        "analysisState": "SEALED",
+        "terminalFrontier": 600,
+        "metronomePulseCount": 2
+      },
+      {
+        "rate": 48000,
+        "scenario": "D",
+        "state": "PASS",
+        "startedAt": "2026-10-17T01:14:47.141Z",
+        "completedAt": "2026-10-17T01:14:50.208Z",
+        "boundaries": [
+          {
+            "contextTime": 1.4,
+            "unroundedFrame": 67200,
+            "contextFrame": 67200,
+            "fractionalFrameError": 0,
+            "sourceSample": 67200,
+            "nextSource": 67200,
+            "leadSamples": 0,
+            "type": "BEGIN",
+            "performanceTimeMs": 0,
+            "transportState": "RUNNING"
+          }
+        ],
+        "segments": [],
+        "pauseWitnesses": [],
+        "futureBoundaryWitness": null,
+        "failureWitness": {
+          "before": {
+            "contextTime": 2.2506666666666666,
+            "transport": {
+              "state": "RUNNING",
+              "nowMs": 2250.6666666666665,
+              "musicalBeat": 1.701333,
+              "performanceTimeMs": 850.6666666666665,
+              "countInTotalMs": 0,
+              "countInRemainingMs": 0,
+              "countInBeats": 0,
+              "countInPulses": 3,
+              "countInPulse": 1,
+              "scopeCompleted": false,
+              "scopeStartBeat": 0,
+              "scopeTerminalBeat": 120,
+              "completionReason": null
+            },
+            "publications": 1,
+            "analysis": {
+              "state": "FAILED",
+              "failureCode": "QUALIFICATION_ANALYSIS_ONLY_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 108032,
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "outstanding": 0,
+              "analyzedThroughPerformanceMs": 599.9999999999999,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "segmentsStarted": 1,
+                "segmentsDrained": 0,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "segmentIndex": 0,
+                  "ownedStartMs": 0,
+                  "ownedEndMs": 600,
+                  "inputStartSample": 5600,
+                  "inputEndSample": 34720,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 0,
+                  "decodeMs": 0,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1,
+                  "sourceSegmentStartSample": 67200,
+                  "sourceSegmentEndSample": null,
+                  "performanceSegmentStartMs": 0,
+                  "performanceSegmentEndMs": null
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              }
+            }
+          },
+          "after": {
+            "contextTime": 2.8213333333333335,
+            "transport": {
+              "state": "RUNNING",
+              "nowMs": 2821.3333333333335,
+              "musicalBeat": 2.842667,
+              "performanceTimeMs": 1421.3333333333335,
+              "countInTotalMs": 0,
+              "countInRemainingMs": 0,
+              "countInBeats": 0,
+              "countInPulses": 3,
+              "countInPulse": 1,
+              "scopeCompleted": false,
+              "scopeStartBeat": 0,
+              "scopeTerminalBeat": 120,
+              "completionReason": null
+            },
+            "publications": 1,
+            "analysis": {
+              "state": "FAILED",
+              "failureCode": "QUALIFICATION_ANALYSIS_ONLY_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 108032,
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "outstanding": 0,
+              "analyzedThroughPerformanceMs": 599.9999999999999,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "segmentsStarted": 1,
+                "segmentsDrained": 0,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "segmentIndex": 0,
+                  "ownedStartMs": 0,
+                  "ownedEndMs": 600,
+                  "inputStartSample": 5600,
+                  "inputEndSample": 34720,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 0,
+                  "decodeMs": 0,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1,
+                  "sourceSegmentStartSample": 67200,
+                  "sourceSegmentEndSample": null,
+                  "performanceSegmentStartMs": 0,
+                  "performanceSegmentEndMs": null
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              }
+            }
+          },
+          "contextState": "running",
+          "ownsContext": "HARNESS_SESSION_NOT_ANALYSIS"
+        },
+        "maximumDurationMismatchSamples": 0,
+        "capture": {
+          "nextSourceSampleIndex": 108032,
+          "nextSequence": 844,
+          "audioContextOriginFrame": 0,
+          "blocks": 844,
+          "chunkSizes": {
+            "128": 844
+          },
+          "failed": false
+        },
+        "counts": {
+          "windowsQueued": 1,
+          "windowsStarted": 1,
+          "windowsPublished": 1,
+          "observationsPublished": 0,
+          "peakOutstanding": 1,
+          "backpressureFailures": 0,
+          "segmentsStarted": 1,
+          "segmentsDrained": 0,
+          "terminalPublications": 0
+        },
+        "outstanding": 0,
+        "analysisState": "FAILED",
+        "terminalFrontier": 599.9999999999999,
+        "metronomePulseCount": 4
+      }
+    ]
+  },
+  "verification": [
+    {
+      "name": "report-state-tests",
+      "exitCode": 0,
+      "output": "✔ untouched gate is NOT_STARTED (0.5146ms)\n✔ partial failure is never reported as NOT_STARTED (0.097ms)\n✔ PASS requires every cell (0.0857ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 68.5741\n"
+    },
+    {
+      "name": "vitest",
+      "exitCode": 0,
+      "counts": {
+        "totalTests": 998,
+        "passedTests": 998,
+        "failedTests": 0,
+        "testFiles": 132,
+        "runnerSuiteCount": 289,
+        "success": true
+      }
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "messages": []
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "Docker backend asset unittest",
+      "exitCode": 0,
+      "output": "test_delivery_is_pinned_and_ignores_historical_object_key (tests.test_continuous_model_asset.ContinuousModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_schema_rejects_the_old_export (tests.test_continuous_model_asset.ContinuousModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK\n"
+    }
+  ],
+  "sourceAudit": {
+    "productChanges": [
+      "apps/customer-web/src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+      "apps/customer-web/src/lib/practice/local-core/performance-runtime.ts"
+    ],
+    "changedPaths": [
+      "apps/customer-web/scripts/audio-context-clock-v3/README.md",
+      "apps/customer-web/scripts/audio-context-clock-v3/browser.mjs",
+      "apps/customer-web/scripts/audio-context-clock-v3/protocol.mjs",
+      "apps/customer-web/scripts/audio-context-clock-v3/report-state.test.mjs",
+      "apps/customer-web/scripts/audio-context-clock-v3/report.mjs",
+      "apps/customer-web/scripts/audio-context-clock-v3/verify.mjs",
+      "apps/customer-web/scripts/audio-context-clock/entry.ts",
+      "apps/customer-web/src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+      "apps/customer-web/src/lib/practice/local-core/performance-runtime.ts",
+      "backend/research/reports/continuous_audio_context_clock_v3_freeze_2026-10-17.json"
+    ],
+    "historicalReportsChanged": [],
+    "historicalV1ArchiveChanged": false,
+    "acousticImplementationChanged": false,
+    "finalizerChanged": false,
+    "FIRChanged": false,
+    "resourcePolicyChanged": false,
+    "hookChanged": false,
+    "STEPChanged": false,
+    "capabilityChanged": false,
+    "v1SynchronizerNotRestored": true,
+    "noClockStrategiesOrFallbackAdded": true
+  },
+  "actualModelRuns": 4,
+  "modelRunCountComplete": true,
+  "newDatasets": 0,
+  "newScientificBenchmarks": 0,
+  "realDeviceProbes": 0,
+  "capabilities": {
+    "continuous": "MODEL_NOT_VALIDATED",
+    "step": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "interpretation": "Only internal same-AudioContext render-timeline consistency. Not hardware latency, natural piano accuracy, UX latency, commercial or real-device qualification.",
+  "protections": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "phase9GB": "STATISTICAL_TIE",
+    "winner": null,
+    "acousticCoreSha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+    "commercialQualification": "NOT_PERFORMED",
+    "productLatencySlo": "NOT_YET_FROZEN",
+    "ViennaP15P22InferenceIncrease": 0
+  }
+}
