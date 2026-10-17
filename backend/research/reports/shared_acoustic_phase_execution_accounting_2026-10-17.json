@@ -1,0 +1,30 @@
+{
+  "phase": "PRACTICE_SHARED_ACOUSTIC_FOUNDATION_CLEAN_BREAK_REFACTOR",
+  "definition": "Actual JavaScript ONNX InferenceSession.run calls, excluding fake ports, DSP tests, model loads and graph compilation.",
+  "acceptedFreeze": "27d937930a0d9b9b6aac2682064ea3fadeca4f6e",
+  "acceptedV4": {"controller": 18, "musicalIncludingProductionControllerReplay": 76, "total": 94},
+  "invalidatedTrials": {
+    "v1": {"modelRuns": 0, "reason": "Static verification failed before browser start"},
+    "v2": {"modelRuns": 0, "reason": "Static verification failed before browser start"},
+    "v3": {
+      "successfulCellsReportedRuns": 14,
+      "failedCellRuns": 0,
+      "total": 14,
+      "rawHarnessCountComplete": false,
+      "causalCompletionOfCount": "The failed cell rejected its very first INFER at ACOUSTIC_WORKER_WINDOW_MISMATCH, which precedes runs++ and session.run in the frozen model source. The remaining cell was NOT_STARTED. This zero is source/witness-derived, not a counter serialized by the failed Worker."
+    }
+  },
+  "phaseTotalModelRunsIncludingInvalidatedTrials": 108,
+  "newExternalDatasetDownloads": 0,
+  "newScientificAcousticStudies": 0,
+  "realMicrophoneProbes": 0,
+  "sources": [
+    "shared_acoustic_final_shared_acoustic_v4_2026-10-17.json",
+    "shared_acoustic_engineering_shared_acoustic_v4_2026-10-17.json",
+    "shared_acoustic_musical_shared_acoustic_v4_2026-10-17.json",
+    "shared_acoustic_invalidation_v1_2026-10-17.json",
+    "shared_acoustic_invalidation_v2_2026-10-17.json",
+    "shared_acoustic_invalidation_v3_2026-10-17.json",
+    "shared_acoustic_invalid_browser_v3_2026-10-17.json"
+  ]
+}
