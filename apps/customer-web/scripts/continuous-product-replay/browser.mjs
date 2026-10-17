@@ -17,6 +17,8 @@ for(const [entry,out] of [['scripts/continuous-product-replay/entry.ts','entry.j
 }
 const files=new Map([['/entry.js',path.join(WORK,'entry.js')],['/controller.js',path.join(WORK,'controller.js')],['/worker.js',path.join(WORK,'worker.js')],['/model.onnx',path.join(ROOT,MODEL)],
   ['/fir-44100.f32',path.join(APP,'public/model-assets/continuous/fir-160-441.f32')],['/fir-48000.f32',path.join(APP,'public/model-assets/continuous/fir-1-3.f32')]]);
+files.set('/model-assets/continuous/fir-160-441.f32',path.join(APP,'public/model-assets/continuous/fir-160-441.f32'));
+files.set('/model-assets/continuous/fir-1-3.f32',path.join(APP,'public/model-assets/continuous/fir-1-3.f32'));
 const cells=audio.clips.flatMap(c=>[44100,48000].map(rate=>({id:c.id,rate,durationMs:c.durationMs,url:`/pcm/${c.id}/${rate}`,file:c.pcm[rate].path})));
 for(const rate of [44100,48000]){const file=path.join(WORK,`silence_${rate}.f32`);await writeFile(file,new Uint8Array(Math.round(4.1*rate)*4),{flag:'wx'});cells.push({id:'silence',rate,durationMs:1800,url:`/pcm/silence/${rate}`,file:path.relative(ROOT,file)});}
 for(const c of cells)files.set(c.url,path.join(ROOT,c.file));

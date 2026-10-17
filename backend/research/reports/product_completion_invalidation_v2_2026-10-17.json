@@ -1,0 +1,21 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_MICROPHONE_PRODUCT_COMPLETION_REPLAY_QUALIFICATION",
+  "invalidatedFreezeCommit": "79c2891a598044e15d5642bb324f096735431a81",
+  "invalidatedFreezeSha256": "491f4cdf4cdaad761739c625a6b924e23c23db7faf47264750477dc66e30bc9e",
+  "classification": "engineering/runtime bug in qualification-only immutable asset server",
+  "cause": "Direct replay used /fir-48000.f32, but unchanged browserContinuousPlatform requests /model-assets/continuous/fir-1-3.f32. Harness allowlist omitted production FIR paths, returning 403; controller failed before transport with MODEL_ASSET_UNAVAILABLE.",
+  "causalProof": "Raw request log contains missing production FIR URL. ContinuousMicrophoneInput.connect awaits coefficients before constructing runtime/capture or starting a segment; transport=null. Worker LOAD completed but controller inference count=0.",
+  "acceptanceEvidenceInvalidated": true,
+  "engineeringCellsPassed": 8,
+  "engineeringModelRuns": 18,
+  "primaryMusicalCellsPassed": 8,
+  "primaryMusicalModelRuns": 66,
+  "controllerModelRuns": 0,
+  "knownTotalInvalidatedRuns": 84,
+  "rawRunnerCountCompleteFalsePreserved": true,
+  "midiTruthOpened": false,
+  "modelResultsUsedForTuning": false,
+  "requiredChange": "Add exact existing FIR files at their unchanged production URL paths; no production code change, no alternate FIR, no fallback.",
+  "requiredRequalification": "New tooling commit/freeze/remote proof; full static verification, eight engineering cells and all musical cells/controller rerun.",
+  "productionMicrophone": false
+}

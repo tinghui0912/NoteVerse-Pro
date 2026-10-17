@@ -4,10 +4,10 @@ import {fileURLToPath} from 'node:url';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson,freeze as engineeringFreeze} from '../continuous-controller/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
 export const START='b402dda20dbc9304e5488ceefc32dc995bd76674';
-export const ID='product_replay_v2';
-export const WORK=path.join(ROOT,'backend/data/work/product_completion_replay/v2');
+export const ID='product_replay_v3';
+export const WORK=path.join(ROOT,'backend/data/work/product_completion_replay/v3');
 export const CORPUS='backend/research/reports/product_completion_corpus_v1_2026-10-17.json';
-export const FREEZE='backend/research/reports/product_completion_freeze_v2_2026-10-17.json';
+export const FREEZE='backend/research/reports/product_completion_freeze_v3_2026-10-17.json';
 export const PHASE='PRACTICE_CONTINUOUS_MICROPHONE_PRODUCT_COMPLETION_REPLAY_QUALIFICATION';
 export const SUCCESS='CONTINUOUS_MICROPHONE_PRODUCT_FUNCTIONALITY_COMPLETE_HARDWARE_GATE_DEFERRED';
 export const BLOCKED='CONTINUOUS_MICROPHONE_PRODUCT_COMPLETION_BLOCKED';
@@ -27,6 +27,8 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     files.push(MODEL,FIXTURE,`backend/research/reports/continuous_controller_freeze_${ID}_2026-10-17.json`,
       'backend/research/reports/product_completion_invalidation_v1_2026-10-17.json',
       'backend/research/reports/product_completion_musical_invalid_v1_2026-10-17.json',
+      'backend/research/reports/product_completion_invalidation_v2_2026-10-17.json',
+      'backend/research/reports/product_completion_musical_invalid_v2_2026-10-17.json',
       ...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
       ...['package.json','dist/ort.webgpu.min.mjs','dist/ort-wasm-simd-threaded.jsep.mjs','dist/ort-wasm-simd-threaded.jsep.wasm'].map(p=>'apps/customer-web/node_modules/onnxruntime-web/'+p));
     await newJson(path.join(ROOT,FREEZE),{phase:PHASE,startingHead:START,implementationCommit:git('log','-1','--format=%H','--','apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts'),toolingCommit:git('rev-parse','HEAD'),createdAt:new Date().toISOString(),
