@@ -1,0 +1,789 @@
+{
+  "proof": {
+    "freezeCommit": "2ca8b2baeb859787ac980a41f2f86288fc968aca",
+    "remoteHead": "2ca8b2baeb859787ac980a41f2f86288fc968aca",
+    "freezeSha256": "c6d801c59cd52807868cc203343a9661b908b6120dcedff9d8d44bd882aacd81",
+    "remoteVerifiedAt": "2026-10-17T06:53:09.502Z"
+  },
+  "results": [
+    {
+      "name": "execution-accounting-tests",
+      "args": [
+        "--test",
+        "scripts/continuous-controller/execution-accounting.test.mjs"
+      ],
+      "startedAt": "2026-10-17T06:53:12.028Z",
+      "completedAt": "2026-10-17T06:53:12.154Z",
+      "exitCode": 0,
+      "stdoutSha256": "5c9e0efe9a1e74c532e4af0671b273aeec6a0de84968aa7960091a6f738bf67a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "✔ failed-cell JSON witness is retained instead of discarding completed real executions (0.9993ms)\n✔ unobserved in-flight execution is explicitly incomplete, never guessed (0.1285ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 71.2122\n"
+    },
+    {
+      "name": "vitest",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\continuous_controller\\product_replay_v4\\vitest.json"
+      ],
+      "startedAt": "2026-10-17T06:53:12.155Z",
+      "completedAt": "2026-10-17T06:53:34.235Z",
+      "exitCode": 0,
+      "stdoutSha256": "8a8830c97f357bd080ad95702dce0b5d6c23a294ffbee58ccc0169f70d54a7ab",
+      "stderrSha256": "0b75c7d72ac76c07cd62ed874e4a75b07cd4ebd7e38234ebb49ea942c6ba24da",
+      "counts": {
+        "totalTests": 1047,
+        "passedTests": 1047,
+        "failedTests": 0,
+        "testFiles": 137,
+        "runnerSuiteCount": 296,
+        "success": true
+      },
+      "testFiles": [
+        {
+          "path": "src/contexts/editor-state-context.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/architecture/continuous-model-identity.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "tests/architecture/practice-no-legacy-realtime.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "tests/unit/api-client.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/audio-context-render-clock.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/auth-return-url.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/billing-settings-panel.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/editor-preview-metadata-placeholders.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/editor-preview-selection-highlight.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/editor-preview-track-visibility.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/event-inspector-connections.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/event-inspector-event-model.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "tests/unit/event-score-inspector.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/import-job-upload-contract.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "tests/unit/library-folder-tree.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/musicxml-core.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/musicxml-domain-boundaries.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/musicxml-generic-render-ids.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/musicxml-parser.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/musicxml-tempo.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/musicxml-transformations.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/my-scores-views.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/notification-date-groups.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/notification-queries.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/notification-target.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/product-replay-scenarios.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/query-client.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/realtime-events.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/route-shell-groups.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "tests/unit/score-collaboration.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/score-domain-contract.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/score-lookup.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/score-preview-playback.test.tsx",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "tests/unit/score-share.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/score-workspace-routes.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/upload-workflow.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/verovio-playback.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/verovio-score.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/verovio-surface-migration.test.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "src/components/editor/editor-preview-panel-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/editor/editor-sidebar-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-adapter.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-save.test.tsx",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-view-model.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/components/editor/event-inspector-editable-event.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/editor/event-inspector-event-model.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/performance-replay-player.test.tsx",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/components/practice/practice-completion-dialog.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/components/practice/practice-controls.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/practice/practice-score-viewer.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/practice-settings-panel.test.tsx",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/components/practice/practice-skip-control.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/practice-status.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/components/practice/practice-tempo-popover.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/practice/share-video-studio.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/score-preview/verovio-score-viewer.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/components/ui/pagination-controls.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/hooks/editor/use-connection-operations.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/hooks/editor/use-editing-domain-event.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-document.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-edit.test.tsx",
+          "status": "passed",
+          "tests": 20
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-render-anchors.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/editor/use-entity-editor-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/queries/use-performance-take-queries.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/hooks/practice/use-local-practice.test.tsx",
+          "status": "passed",
+          "tests": 19
+        },
+        {
+          "path": "src/hooks/practice/use-practice-score-artifact.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/api/continuous-model-asset.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/api/model-assets.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/editor/connection-target.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/editor/domain-selection-companion.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor/measure-status.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/editor/measure-timeline.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor/rhythmic-insert-placement.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/editor/staff-pitch-resolver.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor/tracks.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/lib/editor/verovio-entity-map.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor/verovio-geometry.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/architecture-boundaries.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/editor-domain/commands.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "src/lib/editor-domain/inspector-drafts.test.ts",
+          "status": "passed",
+          "tests": 16
+        },
+        {
+          "path": "src/lib/editor-domain/inspector-view-model.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/lib/editor-domain/model.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-exporter.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-importer.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-roundtrip.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor-domain/notation-model.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/note-atom-identity.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/editor-domain/render-anchors.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/rhythmic-input.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/lib/editor-domain/rhythmic-layout-map.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor-domain/selection-adapter.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/editor-domain/source-lookup.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/source-render-anchors.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/musicxml/automatic-beams.test.ts",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/lib/musicxml/generic-render-ids.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/musicxml/notated-duration.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/musicxml/validator.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/model-assets/model-asset-store.test.ts",
+          "status": "passed",
+          "tests": 40
+        },
+        {
+          "path": "src/lib/model-assets/verified-model-asset-loader.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/completed-performance.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/lib/practice/cursor-scope.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/floating-score-svg.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/input-capability.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/performance-annotation-controller.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/performance-playhead-controller.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/practice/performance-recorder.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/practice-architecture-boundaries.test.ts",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/lib/practice/practice-render-identity-contract.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/range-selection.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/practice/share-video-export.test.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "src/lib/practice/share-video-preview.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/share-video-session.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/share-video-templates.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/step-playhead-controller.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/verovio-adapter.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/editor/entity-editor/add-mode-command.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/hooks/editor/entity-editor/add-mode-domain-insert.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/acoustic-inference/bytedance-inference.test.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "src/lib/practice/continuous/audio-context-performance-clock.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-architecture.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-practice-controller.test.ts",
+          "status": "passed",
+          "tests": 41
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-presentation.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/metronome/metronome-controller.test.ts",
+          "status": "passed",
+          "tests": 13
+        },
+        {
+          "path": "src/lib/practice/metronome/metronome-pulse-planner.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/lib/practice/local-core/continuous-evaluation-session.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/local-core/continuous-finalizer.test.ts",
+          "status": "passed",
+          "tests": 35
+        },
+        {
+          "path": "src/lib/practice/local-core/local-practice-core.test.ts",
+          "status": "passed",
+          "tests": 51
+        },
+        {
+          "path": "src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/local-core/practice-tempo.test.ts",
+          "status": "passed",
+          "tests": 13
+        },
+        {
+          "path": "src/lib/practice/midi/browser-midi-controller.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/app/[locale]/(app)/my-performances/my-performances-page.test.tsx",
+          "status": "passed",
+          "tests": 23
+        },
+        {
+          "path": "src/lib/practice/acoustic-inference/continuous/capture.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/acoustic-inference/continuous/dsp-parity.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/acoustic-inference/continuous/inference.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/acoustic-inference/continuous/runtime.test.ts",
+          "status": "passed",
+          "tests": 33
+        },
+        {
+          "path": "src/lib/practice/audio-analysis/capture/performance-pcm-timeline.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "src/app/[locale]/(workspace)/score/[id]/practice/review/practice-review-page.test.tsx",
+          "status": "passed",
+          "tests": 16
+        }
+      ]
+    },
+    {
+      "name": "typecheck",
+      "args": [
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "startedAt": "2026-10-17T06:53:34.238Z",
+      "completedAt": "2026-10-17T06:53:36.584Z",
+      "exitCode": 0,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lint",
+      "args": [
+        "node_modules/eslint/bin/eslint.js",
+        ".",
+        "--format=json"
+      ],
+      "startedAt": "2026-10-17T06:53:36.584Z",
+      "completedAt": "2026-10-17T06:53:50.605Z",
+      "exitCode": 0,
+      "stdoutSha256": "ebbf9f06ad67d749f1329d3842f71d3bb963a62f7f8867ebef8d601de02bf073",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "messages": []
+    },
+    {
+      "name": "build",
+      "args": [
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "startedAt": "2026-10-17T06:53:50.605Z",
+      "completedAt": "2026-10-17T06:54:11.077Z",
+      "exitCode": 0,
+      "stdoutSha256": "9950c5b873a15d9642b9ef490c4f95da4158374ab5c2b9755455d70c5e8eb17e",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "Docker backend asset unittest",
+      "exitCode": 0,
+      "output": "test_delivery_is_pinned_and_ignores_historical_object_key (tests.test_continuous_model_asset.ContinuousModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_schema_rejects_the_old_export (tests.test_continuous_model_asset.ContinuousModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK\n"
+    }
+  ],
+  "dockerReceiptPathTests": {
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": "test_cross_platform_same_identity (backend.research.qualification.test_product_replay_prepare.ReceiptPaths.test_cross_platform_same_identity) ... ok\ntest_unsafe_paths_fail_closed (backend.research.qualification.test_product_replay_prepare.ReceiptPaths.test_unsafe_paths_fail_closed) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.009s\n\nOK\n"
+  },
+  "truthMatchingTests": {
+    "exitCode": 0,
+    "stdout": "✔ inclusive endpoints, stable identity, same pitch and one-to-one (1.5944ms)\n✔ max cardinality before minimum error, duplicates cannot reuse (0.1696ms)\n✔ silence and out-of-window evidence are explicit (0.6651ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 67.2129\n",
+    "stderr": ""
+  },
+  "status": "PASS"
+}
