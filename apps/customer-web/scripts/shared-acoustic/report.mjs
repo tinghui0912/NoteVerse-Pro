@@ -46,7 +46,7 @@ if(process.argv[2]==='evidence'){
   const file=`${reports}/shared_acoustic_${name}_${ID}_2026-10-17.json`;await newJson(path.join(ROOT,file),value);artifacts.push(await fileIdentity(file));
  }
  await newJson(path.join(ROOT,`${reports}/shared_acoustic_final_${ID}_2026-10-17.json`),{
-  phase:PHASE,disposition:pass?SUCCESS:BLOCKED,startingHead:START,implementationCommit:plan.implementationCommit,proof,
+  phase:PHASE,disposition:pass?SUCCESS:BLOCKED,startingHead:START,implementationCommit:plan.productImplementationCommit,toolingCommit:plan.implementationCommit,proof,
   engineeringExecutionStartedAt:engineering.executionStartedAt,musicalExecutionStartedAt:musical.startedAt,
   artifacts,pathsChanged:changed,archiveManifest:'backend/research/history/shared-acoustic-before-clean-break/manifest.json',archivedFiles:archive.files,
   responsibilityMap:{model:'One exact Robust asset, ORT session and Worker; raw tensors transaction-local',source:'FIR/capture/chronology/infrastructure facts only',runtime:'Absolute source/target sample regions and bounded work',continuous:'External transport boundaries, performance mapping, product IDs, exact terminal-T'},

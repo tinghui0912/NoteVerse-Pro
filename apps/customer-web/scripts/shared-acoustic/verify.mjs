@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ROOT, APP, paths, newJson, verify, hash } from './protocol.mjs';
-const id = 'shared_acoustic_v1', proof = await verify(id), work = paths(id).work;
+const id = 'shared_acoustic_v2', proof = await verify(id), work = paths(id).work;
 await mkdir(work, { recursive: true });
 const results = [];
 for (const [name, args] of [
@@ -30,10 +30,10 @@ for (const [name, args] of [
   results.push(row); console.log('END', name, result.status, row.counts ?? row.messages ?? '');
 }
 const backend = spawnSync('docker', ['run', '--rm', '--env-file', path.join(ROOT, 'backend/.env.docker'), '--mount', `type=bind,source=${ROOT},target=/workspace`,
-  '-w', '/workspace/backend', '--entrypoint', 'python', 'noteverse-backend-api:dev', '-m', 'unittest', 'tests.test_continuous_model_asset', '-v'], { encoding: 'utf8' });
+  '-w', '/workspace/backend', '--entrypoint', 'python', 'noteverse-practice-acoustic-qualification:local', '-m', 'unittest', 'tests.test_continuous_model_asset', '-v'], { encoding: 'utf8' });
 results.push({ name: 'Docker backend asset unittest', exitCode: backend.status, output: (backend.stdout ?? '') + (backend.stderr ?? '') });
 const routes = spawnSync('docker', ['run', '--rm', '--env-file', path.join(ROOT, 'backend/.env.docker'), '--mount', `type=bind,source=${ROOT},target=/workspace`,
-  '-w', '/workspace/backend', '--entrypoint', 'python', 'noteverse-backend-api:dev', '-m', 'pytest', 'tests/test_model_assets.py', '-q'], { encoding: 'utf8' });
+  '-w', '/workspace/backend', '--entrypoint', 'python', 'noteverse-practice-acoustic-qualification:local', '-m', 'pytest', 'tests/test_model_assets.py', '-q'], { encoding: 'utf8' });
 results.push({ name: 'Docker backend model asset route tests', exitCode: routes.status, output: (routes.stdout ?? '') + (routes.stderr ?? '') });
 await newJson(path.join(work, 'verification.json'), { proof, results, status: results.every(r => r.exitCode === 0) ? 'PASS' : 'FAIL' });
 if (results.some(r => r.exitCode !== 0)) process.exitCode = 1;
