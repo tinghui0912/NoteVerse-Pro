@@ -11,14 +11,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, StepPracticeLifecycle } from '@/lib/practice/local-core/session';
 import type { TempoSegment } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
-interface PracticeControlsProps {
-  lifecycle: LocalPracticeLifecycle;
+interface PracticeControlSurfaceProps {
+  lifecycle: ContinuousPracticeLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -35,14 +35,30 @@ interface PracticeControlsProps {
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
   onStart: () => void;
-  onPause: () => void;
-  onResume: () => void;
+  transportControl?: React.ReactNode;
   onFinish: () => void;
   onOpenSettings: () => void;
   onToggleRangeSelection: () => void;
 }
 
-export function PracticeControls({
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepPracticeLifecycle }) {
+  return <PracticeControlSurface {...props} />;
+}
+
+export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl'> & {
+  onPause(): void; onResume(): void;
+}) {
+  const t = useTranslations('practice');
+  const paused = props.lifecycle === 'PAUSED';
+  return <PracticeControlSurface {...props} transportControl={
+    <Button type="button" onClick={paused ? onResume : onPause} size="lg" variant="outline" className="h-11 w-32 bg-white">
+      {paused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+      {t(paused ? 'resume' : 'pause')}
+    </Button>
+  } />;
+}
+
+function PracticeControlSurface({
   lifecycle,
   isLoading,
   isPreparingSession,
@@ -60,15 +76,13 @@ export function PracticeControls({
   metronomeEnabled = false,
   onMetronomeEnabledChange,
   onStart,
-  onPause,
-  onResume,
+  transportControl,
   onFinish,
   onOpenSettings,
   onToggleRangeSelection,
-}: PracticeControlsProps) {
+}: PracticeControlSurfaceProps) {
   const t = useTranslations('practice');
   const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
-  const isPaused = lifecycle === 'PAUSED';
   const isSelectedInputReady = selectedInputCapability
     ? selectedInputCapability.supported
     : (selectedInputSupported ?? audioWorkletSupported ?? true);
@@ -83,18 +97,7 @@ export function PracticeControls({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex shrink-0 items-center gap-2">
-        {isActive ? (
-          <Button
-            type="button"
-            onClick={isPaused ? onResume : onPause}
-            size="lg"
-            variant="outline"
-            className={cn('bg-white', actionButtonClass)}
-          >
-            {isPaused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-            {t(isPaused ? 'resume' : 'pause')}
-          </Button>
-        ) : (
+        {isActive ? transportControl : (
           <Button
             type="button"
             onClick={onStart}

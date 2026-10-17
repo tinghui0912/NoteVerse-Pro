@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
-import type { LocalPracticeInputState, LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { LocalPracticeInputState, StepPracticeLifecycle } from '@/lib/practice/local-core/session';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
@@ -44,19 +44,17 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     }
     setPreparationError(null); await owner.current.start();
   }, [options, tempoPlan, setPreparationError, setSnapshot]);
-  const pause = useCallback(async () => { owner.current?.pause(); }, []);
-  const resume = useCallback(async () => { await owner.current?.resume(); }, []);
   const finish = useCallback(async () => { owner.current?.finish(); }, []);
   const skip = useCallback(() => { owner.current?.skip(); }, []);
   const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
   const state = snapshot?.state ?? 'READY';
-  const lifecycle: LocalPracticeLifecycle = state === 'ACTIVE' || state === 'PAUSED' ? state : state === 'ENDED' || state === 'DISPOSED' ? 'ENDED' : 'READY';
+  const lifecycle: StepPracticeLifecycle = state === 'ACTIVE' ? state : state === 'ENDED' || state === 'DISPOSED' ? 'ENDED' : 'READY';
   const inputError = preparationError ?? snapshot?.error ?? null;
   const inputState: LocalPracticeInputState = inputError ? 'ERROR' : state === 'PREPARING' ? 'STARTING' : state === 'ACTIVE' ? 'RUNNING' : 'IDLE';
-  return { lifecycle, inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
+  return { mode: 'STEP_BY_STEP' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
     performanceClock: null, performanceEvaluation: null, elapsedSeconds: snapshot?.elapsedSeconds ?? 0,
     completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: false, isFinalizingPerformance: false,
-    start, pause, resume, skip, finish, restart, setMetronomeEnabled };
+    start, skip, finish, restart, setMetronomeEnabled };
 }

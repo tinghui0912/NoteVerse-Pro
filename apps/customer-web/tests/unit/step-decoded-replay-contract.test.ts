@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DecodedGestureAssembler, type DecodedPublication } from '../../../../backend/research/step_decoded_sufficiency/acoustic-gestures';
-import { replayScenario } from '../../../../backend/research/step_decoded_sufficiency/product-replay';
+import { replayScenario } from '../../../../backend/research/step_waiting/product-replay';
 
 const publication = (index: number, frontierMs: number, events: readonly [number, string][]): DecodedPublication => ({
   publicationId: `p:${index}`, frontierMs, availabilityMs: frontierMs + 170,
@@ -11,13 +11,15 @@ const publication = (index: number, frontierMs: number, events: readonly [number
 it('one publication contributes at most one attempt; no same-publication replay', () => {
   const result = replayScenario('one', { name: 'repeat', targets: [[60], [60], [60]] }, [publication(0, 600, [[100,'C4'],[300,'C4'],[500,'C4']])], 0);
   expect(result.outcomes).toHaveLength(1); expect(result.outcomes[0].verdict).toBe('MATCH');
-  expect(result.outcomes[0].rearmWatermarkMs).toBe(600);
+  expect(result.outcomes[0].rearmWatermarkMs).toBe(770);
+  expect(result.outcomes[0].analysisFrontierMs).toBe(600);
 });
 it('busy publication is discarded and late source evidence cannot open a later attempt', () => {
   const result = replayScenario('busy', { name: 'busy', targets: [[60],[60]], holdPublications: 1, lateReplay: true }, [
     publication(0,600,[[100,'C4']]),publication(1,1200,[[800,'C4']]),publication(2,1800,[]),publication(3,2400,[])],0);
   expect(result.outcomes).toHaveLength(1); expect(result.outcomes[0].verdict).toBe('MATCH');
-  expect(result.outcomes[0].verdictMs).toBe(1370); expect(result.outcomes[0].rearmWatermarkMs).toBe(1200);
+  expect(result.outcomes[0].verdictMs).toBe(1370); expect(result.outcomes[0].rearmWatermarkMs).toBe(1370);
+  expect(result.outcomes[0].captureWitness.capturedThroughSourceSample).toBe(65760);
   expect(result.receipts.filter(r=>r.late).every(r=>r.opened===0)).toBe(true);
 });
 it('score-blind coherence spans publication boundaries without extending transitively', () => {
@@ -49,7 +51,7 @@ it('the domain does not pretend an acoustic echo after its watermark proves a ne
 it('Stage A and gesture acquisition cannot read truth or a STEP target; Stage B verifies the seal first', () => {
   const dir = path.resolve(__dirname,'../../../../backend/research/step_decoded_sufficiency');
   for(const file of ['browser-entry.ts','acoustic-gestures.ts']) {
-    expect(readFileSync(path.join(dir,file),'utf8')).not.toMatch(/StepPracticeRuntime|StepTarget|expectedPitch|activationGeneration|truth\.json|verdict/);
+    expect(readFileSync(path.join(dir,file),'utf8')).not.toMatch(/StepPracticeRuntime|StepTarget|expectedPitch|targetGeneration|truth\.json|verdict/);
   }
   const scorer = readFileSync(path.join(dir,'score.mjs'),'utf8');
   expect(scorer.indexOf('hash(acousticBytes)!==seal.sha256')).toBeLessThan(scorer.indexOf("WORK,'truth.json'"));

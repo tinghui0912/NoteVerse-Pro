@@ -229,36 +229,14 @@ describe('useLocalPractice', () => {
     expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
   });
 
-  it('allows pause and resume, properly stopping and restarting input', async () => {
-    const { result } = renderHook(() =>
-      useLocalPractice({
-        artifact,
-        mode: 'STEP_BY_STEP',
-        inputSource: 'MIDI',
-        scope: { kind: 'FULL' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.start();
-    });
-    expect(result.current.lifecycle).toBe('ACTIVE');
-    expect(result.current.inputState).toBe('RUNNING');
-
-    await act(async () => {
-      await result.current.pause();
-    });
-    expect(result.current.lifecycle).toBe('PAUSED');
-    expect(result.current.inputState).toBe('IDLE');
-
-    await act(async () => {
-      await result.current.resume();
-    });
-    expect(result.current.lifecycle).toBe('ACTIVE');
-    expect(result.current.inputState).toBe('RUNNING');
+  it('STEP exposes waiting commands, never transport commands', () => {
+    const { result } = renderHook(() => useLocalPractice({ artifact, mode: 'STEP_BY_STEP', inputSource: 'MIDI', scope: { kind: 'FULL' } }));
+    expect(result.current).not.toHaveProperty('pause');
+    expect(result.current).not.toHaveProperty('resume');
+    expect(result.current.mode).toBe('STEP_BY_STEP');
   });
 
-  it('handles MIDI disconnect by transitioning to PAUSED and ERROR while preserving progress', async () => {
+  it('handles MIDI disconnect by remaining ACTIVE and ERROR while preserving progress', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -283,7 +261,7 @@ describe('useLocalPractice', () => {
       });
     });
 
-    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
     expect(result.current.activeStepGroup?.groupId).toBe(
@@ -292,7 +270,7 @@ describe('useLocalPractice', () => {
 
     midiMock.connectedInputCount = 1;
     await act(async () => {
-      await result.current.resume();
+      midiMock.onStateChange?.({ isSupported: true, hasPermission: true, connectedInputCount: 1, isRunning: true });
     });
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
@@ -607,40 +585,6 @@ describe('useLocalPractice', () => {
     });
 
     expect(result.current.lifecycle).toBe('ACTIVE');
-  });
-
-  it('records STEP paused MIDI disconnect as device error without a second domain transition', async () => {
-    const { result } = renderHook(() =>
-      useLocalPractice({
-        artifact,
-        mode: 'STEP_BY_STEP',
-        inputSource: 'MIDI',
-        scope: { kind: 'FULL' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.start();
-    });
-    await act(async () => {
-      await result.current.pause();
-    });
-
-    expect(() => {
-      act(() => {
-        midiMock.connectedInputCount = 0;
-        midiMock.onStateChange?.({
-          isSupported: true,
-          hasPermission: true,
-          connectedInputCount: 0,
-          isRunning: true,
-        });
-      });
-    }).not.toThrow();
-
-    expect(result.current.lifecycle).toBe('PAUSED');
-    expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
   });
 
   it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {

@@ -1,9 +1,9 @@
 import type { ContinuousControllerSnapshot } from './continuous-practice-controller';
-import type { LocalPracticeInputState, LocalPracticeLifecycle } from '../local-core/session';
+import type { LocalPracticeInputState, ContinuousPracticeLifecycle } from '../local-core/session';
 
 /** Presentation only: never advances transport or infers completion from clock alone. */
 export function continuousControllerView(snapshot: ContinuousControllerSnapshot | null): {
-  lifecycle: LocalPracticeLifecycle; inputState: LocalPracticeInputState; inputError: string | null;
+  lifecycle: ContinuousPracticeLifecycle; inputState: LocalPracticeInputState; inputError: string | null;
 } {
   if (!snapshot || snapshot.session === 'DISPOSED') return { lifecycle: 'READY', inputState: 'IDLE', inputError: null };
   const inputError = snapshot.inputError ?? snapshot.analysisError;

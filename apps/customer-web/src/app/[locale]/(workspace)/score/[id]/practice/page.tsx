@@ -9,7 +9,7 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
-import { PracticeControls } from '@/components/practice/practice-controls';
+import { StepPracticeControls, ContinuousPracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeSettingsPanel } from '@/components/practice/practice-settings-panel';
 import { PracticeStatus } from '@/components/practice/practice-status';
@@ -454,34 +454,33 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return t('sectionSelectingEnd');
   }, [hasCompletedRange, isSelectingRange, rangeSelection, selectedRangeGroups, t]);
 
-  const practiceControls = (
-    <PracticeControls
-      lifecycle={localPractice.lifecycle}
-      isLoading={isLoadingXml}
-      isPreparingSession={localPractice.inputState === 'STARTING'}
-      canPrepareSession={canPreparePractice}
-      selectedInputCapability={selectedInputCapability}
-      selectedInputSupported={selectedInputCapability.supported}
-      rangeSelectionActive={isSelectingRange || hasCompletedRange}
-      canSelectRange={!isActive}
-      tempoSelection={tempoSelection}
-      scoreTempoSegments={artifact?.scoreTempoSegments}
-      scopeStartBeat={scopeStartBeat}
-      tempoLocked={isActive}
-      onTempoSelectionChange={setTempoSelection}
-      metronomeEnabled={metronomeEnabled}
-      onMetronomeEnabledChange={handleMetronomeEnabledChange}
-      onStart={() => void localPractice.start()}
-      onPause={() => void localPractice.pause()}
-      onResume={() => void localPractice.resume()}
-      onFinish={() => {
+  const controlSurfaceProps = {
+      isLoading: isLoadingXml,
+      isPreparingSession: localPractice.inputState === 'STARTING',
+      canPrepareSession: canPreparePractice,
+      selectedInputCapability,
+      selectedInputSupported: selectedInputCapability.supported,
+      rangeSelectionActive: isSelectingRange || hasCompletedRange,
+      canSelectRange: !isActive,
+      tempoSelection,
+      scoreTempoSegments: artifact?.scoreTempoSegments,
+      scopeStartBeat,
+      tempoLocked: isActive,
+      onTempoSelectionChange: setTempoSelection,
+      metronomeEnabled,
+      onMetronomeEnabledChange: handleMetronomeEnabledChange,
+      onStart: () => void localPractice.start(),
+      onFinish: () => {
         void localPractice.finish();
         setIsCompletionDialogOpen(true);
-      }}
-      onOpenSettings={() => setIsSettingsOpen(true)}
-      onToggleRangeSelection={handleToggleRangeSelection}
-    />
-  );
+      },
+      onOpenSettings: () => setIsSettingsOpen(true),
+      onToggleRangeSelection: handleToggleRangeSelection,
+  };
+  const practiceControls = localPractice.mode === 'STEP_BY_STEP'
+    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} />
+    : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
+        onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
 
   const practiceSessionStatus = (
     <PracticeStatus
@@ -567,11 +566,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   />
                 </ClientOnly>
 
-                {isStepMode && isActive ? (
+                {localPractice.mode === 'STEP_BY_STEP' && isActive ? (
                   <div className="pointer-events-none absolute bottom-24 right-6 z-30">
                     <PracticeSkipControl
                       visible={true}
-                      disabled={localPractice.lifecycle === 'PAUSED'}
+                      disabled={false}
                       onSkip={localPractice.skip}
                     />
                   </div>

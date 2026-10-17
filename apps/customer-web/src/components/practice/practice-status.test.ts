@@ -57,7 +57,7 @@ describe('resolvePracticeStatusView', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'PAUSED',
-        sessionMode: 'STEP_BY_STEP',
+        sessionMode: 'CONTINUOUS_PLAY',
       })
     ).toMatchObject({
       messageKey: 'settingStatusPaused',

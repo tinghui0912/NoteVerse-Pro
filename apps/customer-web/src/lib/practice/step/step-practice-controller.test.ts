@@ -16,7 +16,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const midi = { start: vi.fn(async () => { if (delayed) await new Promise<void>(resolve => { resolveStart = resolve; }); running = true; }),
     stop: vi.fn(() => { running = false; }), dispose: vi.fn(() => { running = false; }),
     getState: () => ({ isSupported: true, hasPermission: true, connectedInputCount: connected, isRunning: running }) };
-  const metronome = { start: vi.fn(), pause: vi.fn(), resume: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
+  const metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
   const platform: StepPlatform = { clock, timer: {
     schedule: (callback, delay) => { const task = { callback, delay, cancelled: false }; timers.push(task); return task; },
     cancel: handle => { (handle as typeof timers[number]).cancelled = true; },
@@ -31,7 +31,8 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   };
   const close = () => { const task = timers.at(-1)!; clock.advance(35); if (!task.cancelled) task.callback(); };
   const disconnect = () => { connected = 0; options.onStateChange?.(midi.getState()); };
-  return { controller, create, clock, timers, midi, metronome, completion, note, close, disconnect,
+  const reconnect = () => { connected = 1; options.onStateChange?.(midi.getState()); };
+  return { controller, create, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
@@ -46,8 +47,8 @@ describe('STEP application owner / bounded MIDI gesture', () => {
       s.clock.set(236); s.note('C4'); const later = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
       expect(later.attemptStartSessionTime.ms).toBe(236);
       const semantic = {index:step.currentIndex,records:step.attempts.map(r=>({verdict:r.verdict,stepId:r.stepId,
-        generation:r.activationGeneration,pitches:r.observedAttackPitches,start:r.attemptStartSessionTime.ms,end:r.captureEndSessionTime.ms})),
-        laterGeneration:later.activationGeneration,laterStep:later.stepId};
+        generation:r.targetGeneration,pitches:r.observedAttackPitches,start:r.attemptStartSessionTime.ms,end:r.captureEndSessionTime.ms})),
+        laterGeneration:later.targetGeneration,laterStep:later.stepId};
       s.controller.dispose(); return semantic;
     };
     expect(await run('BEFORE')).toEqual(await run('AFTER'));
@@ -100,20 +101,26 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
     s.clock.advance(1); s.note('C4'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2); s.controller.dispose();
   });
-  it.each(['pause', 'skip', 'finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
+  it.each(['skip', 'finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
     const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const callback = s.timers[0].callback;
     if (command === 'disconnect') s.disconnect(); else s.controller[command]();
     const after = s.controller.snapshot(); callback();
     expect(s.controller.snapshot().sessionSnapshot?.step).toEqual(after.sessionSnapshot?.step);
     expect(after.sessionSnapshot?.step.attempts).toHaveLength(0);
-    if (command === 'disconnect') expect(after).toMatchObject({ state: 'PAUSED', error: 'NO_CONNECTED_INPUT' });
+    if (command === 'disconnect') expect(after).toMatchObject({ state: 'ACTIVE', error: 'NO_CONNECTED_INPUT' });
     s.controller.dispose();
   });
-  it('resume creates new generation; cancelled callback cannot consume new attempt', async () => {
+  it('reconnect waits on the same target, rejects stale/equal input and cancelled callback', async () => {
     const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const first = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
-    s.controller.pause(); await s.controller.resume(); s.clock.advance(1); s.note('C4');
+    s.disconnect(); s.clock.set(200); s.note('C4');
+    expect(s.controller.snapshot().sessionSnapshot!.step.activeAttempt).toBeNull();
+    s.reconnect(); s.note('C4', 'NOTE_ON', 101); s.note('C4');
+    expect(s.controller.snapshot().sessionSnapshot!.step.activeAttempt).toBeNull();
+    s.clock.advance(1); s.note('C4');
     const next = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
-    expect(next.activationGeneration).toBeGreaterThan(first.activationGeneration);
+    expect(next.targetGeneration).toBe(first.targetGeneration);
+    expect(next.stepId).toBe(first.stepId); expect(next.attemptId).not.toBe(first.attemptId);
+    expect(s.midi.stop).not.toHaveBeenCalled(); expect(s.midi.start).toHaveBeenCalledTimes(1);
     s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
     s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1); s.controller.dispose();
   });
@@ -128,6 +135,27 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(states).toEqual(['ANALYZING', 'RESET']);
     expect(s.timers).toHaveLength(1); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
     expect(s.controller.snapshot().inputDiagnostics?.ignoredNotes).toBe(2); s.controller.dispose();
+  });
+  it('readiness retires input buffered during asynchronous preparation', async () => {
+    const s = setup(0, 'MIDI', true), pending = s.controller.start();
+    s.clock.set(500); s.resolveStart(); await pending;
+    for (const ms of [100, 499, 500]) s.note('C4', 'NOTE_ON', ms);
+    expect(s.timers).toHaveLength(0);
+    expect(s.controller.snapshot().sessionSnapshot!.step.inputEligibleAfter.ms).toBe(500);
+    s.note('C4', 'NOTE_ON', 501); expect(s.timers).toHaveLength(1); s.controller.dispose();
+  });
+  it('disconnect while waiting keeps target/session and automatically returns to waiting', async () => {
+    const s = setup(); await s.controller.start(); const original = s.controller.snapshot().sessionSnapshot!;
+    s.disconnect(); s.note('C4', 'NOTE_ON', 150);
+    expect(s.timers).toHaveLength(0); expect(s.controller.snapshot().state).toBe('ACTIVE');
+    s.clock.set(300); s.reconnect(); s.note('C4', 'NOTE_ON', 299); s.note('C4', 'NOTE_ON', 300);
+    expect(s.timers).toHaveLength(0);
+    const current = s.controller.snapshot().sessionSnapshot!;
+    expect(current.localSessionId).toBe(original.localSessionId);
+    expect(current.step.targetGeneration).toBe(original.step.targetGeneration);
+    expect(current.step.attempts).toHaveLength(0);
+    expect(s.controller.snapshot().error).toBeNull();
+    s.note('C4', 'NOTE_ON', 301); expect(s.timers).toHaveLength(1); s.controller.dispose();
   });
   it('finish and disposal release resources exactly once, before completion notification', async () => {
     const s = setup(4); await s.controller.start(); s.clock.set(101); s.note('D5'); s.close();

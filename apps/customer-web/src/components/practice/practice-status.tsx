@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
@@ -41,7 +41,7 @@ export type PracticeStatusView = {
 
 export type PracticeStatusProps = {
   className?: string;
-  lifecycle: LocalPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -68,7 +68,7 @@ export function resolvePracticeStatusView({
   sessionMode,
   performanceClock,
 }: {
-  lifecycle: LocalPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -126,7 +126,7 @@ export function resolvePracticeStatusView({
     };
   }
 
-  if (lifecycle === 'PAUSED') {
+  if (sessionMode === 'CONTINUOUS_PLAY' && lifecycle === 'PAUSED') {
     return {
       messageKey: 'settingStatusPaused',
       pending: false,

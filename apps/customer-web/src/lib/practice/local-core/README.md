@@ -10,25 +10,27 @@ the browser does not parse MusicXML independently for active Practice authority.
 ## STEP
 
 One target / one bounded attempt / one verdict. `step-attempt.ts` defines the
-immutable target activation, attempt identity, generic finalized evidence, retry
+immutable target generation, attempt identity, generic finalized evidence, retry
 reason, finalized record and separate user Skip action. `StepPracticeRuntime`
 alone compares exact physical attack pitch sets, excluding continuation pitches.
 
 READY -> CAPTURING -> ANALYZING -> MATCH / MISMATCH / RETRY -> RESET -> READY.
 Only MATCH advances; MISMATCH and RETRY record/stay. No WAIT verdict, rolling
 pending acoustic store, cross-target scan or partial-pitch accumulation exists.
-One active attempt maximum. Pause/Skip/Finish invalidate it. Resume uses a fresh
-generation. Restart is a fresh session, not restoration of old snapshots. Late
+One active attempt maximum. STEP waits and has no Pause/Resume. Input loss,
+Skip and Finish invalidate unfinished attempts without verdicts. Restart is a fresh session. Late
 results cannot cross session, target, generation or attempt identity.
-The activation boundary is exclusive (`attemptStart > activationBoundary`). All
+The input boundary is exclusive (`attemptStart > inputEligibleAfter`). All
 verdicts set the initial reset boundary to the finalized capture end. Explicit
 `rearm(acceptAfterSessionTime)` advances it monotonically from ACTIVE/RESET only;
 the caller supplies finite same-session input coverage, never implicit now.
-MIDI uses capture end. Future microphone callers must cover the entire busy
-analysis frontier; no busy audio is replayed after reset. Equality is rejected
-by the domain, including after Resume and Skip; MIDI gesture ownership is [start,end).
+MIDI uses capture end. Future microphone callers must supply authoritative
+physical capture/session time through which input has occurred while busy,
+not an analysis frontier or publication time. No busy audio is replayed after
+reset. Equality is rejected, including readiness/reconnect/Skip boundaries.
+MIDI gesture ownership is [start,end); its 35ms is not acoustic grouping policy.
 
-The clean-break v2 STEP schema is `step-bounded-attempt-v2`; no older STEP snapshot
+The clean-break v3 STEP schema is `step-waiting-attempt-v3`; no older STEP snapshot
 parser remains. Full attempt/Skip history stops explicitly at 100,000 records,
 never silently evicts. See `../step/README.md` for application resource policy.
 

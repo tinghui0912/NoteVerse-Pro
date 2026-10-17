@@ -1,9 +1,9 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
 import type { PracticeTempoSelection, ResolvedPracticeTempoPlan } from './practice-tempo';
-import type { RuntimeVersionIdentity } from './timebase';
+import type { RuntimeVersionIdentity, SessionTime } from './timebase';
 import type { StepAttemptIdentity, StepAttemptRecord, StepAttemptState, StepSkipRecord } from './step-attempt';
 
-export type LocalPracticeLifecycle =
+export type ContinuousPracticeLifecycle =
   | 'READY'
   | 'ACTIVE'
   | 'PAUSED'
@@ -15,7 +15,7 @@ export type LocalPracticeInputState =
   | 'RUNNING'
   | 'ERROR';
 
-export type PracticeLifecycleState = LocalPracticeLifecycle;
+export type StepPracticeLifecycle = 'READY' | 'ACTIVE' | 'ENDED';
 export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 type LocalPracticeSessionBase = {
@@ -28,7 +28,6 @@ type LocalPracticeSessionBase = {
   practiceScope: PracticeScope;
   tempoSelection: PracticeTempoSelection;
   metronomeEnabled: boolean;
-  lifecycleState: LocalPracticeLifecycle;
   completionReason: LocalPracticeCompletionReason | null;
   version: RuntimeVersionIdentity;
   createdAtMs: number;
@@ -37,9 +36,12 @@ type LocalPracticeSessionBase = {
 
 export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
   mode: 'STEP_BY_STEP';
+  lifecycleState: StepPracticeLifecycle;
   step: {
     currentIndex: number;
-    activationGeneration: number;
+    targetGeneration: number;
+    inputEligibleAfter: Readonly<SessionTime>;
+    inputAvailable: boolean;
     completed: boolean;
     attemptState: StepAttemptState;
     activeAttempt: StepAttemptIdentity | null;
@@ -50,6 +52,7 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
 
 export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
   mode: 'CONTINUOUS_PLAY';
+  lifecycleState: ContinuousPracticeLifecycle;
   performance: {
     state: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
     stateBeforePause: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';

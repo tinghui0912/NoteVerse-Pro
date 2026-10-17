@@ -34,7 +34,7 @@ it('React STEP constructs only its application owner; no lifecycle or gesture ti
 });
 it('generic MIDI has neither target knowledge nor acoustic dependencies', () => {
   const midi = path.join(practice,'midi/browser-midi-controller.ts');
-  for (const token of ['StepTarget','StepPracticeRuntime','activationGeneration','expected','getCurrentStepTarget','onStepObservation','setTargetGetter']) expect(read(midi)).not.toContain(token);
+  for (const token of ['StepTarget','StepPracticeRuntime','targetGeneration','expected','getCurrentStepTarget','onStepObservation','setTargetGetter']) expect(read(midi)).not.toContain(token);
   expect(reach(midi).filter(p => /[\\/]acoustic[\\/]|step-runtime/.test(p))).toEqual([]);
 });
 it('STEP MIDI reachability is entirely independent of acoustic/Continuous execution', () => {
@@ -71,7 +71,7 @@ it('only the domain owns the exclusive activation predicate; MIDI gesture remain
   };
   visit(open); expect(comparisons).toEqual(['<=']);
   expect(read(path.join(__dirname,'step-midi-attempt-input.ts'))).toContain('note.sessionTime.ms >= this.active.end.ms');
-  for(const p of ['step-midi-attempt-input.ts','step-practice-controller.ts']) expect(read(path.join(__dirname,p))).not.toContain('activationBoundary');
+  for(const p of ['step-midi-attempt-input.ts','step-practice-controller.ts']) expect(read(path.join(__dirname,p))).not.toContain('inputEligibleAfter');
 });
 it('Robust decoder has no historical defaults, padding, or Original model contract', () => {
   for (const p of ['raw-output-contract.ts','robust-piano-decoder.ts','model-inference.ts']) {
@@ -79,4 +79,24 @@ it('Robust decoder has no historical defaults, padding, or Original model contra
     expect(source).not.toMatch(/acoustic-inference|0\.2\b|1600\b|220\b|fixed.anchor|Original|StepTarget/);
   }
   expect(read(path.join(practice,'acoustic/continuous/publication.ts'))).not.toMatch(/\*\s*600|\+\s*600/);
+});
+it('STEP has one waiting lifecycle, no transport commands or obsolete activation API', () => {
+  for (const p of [path.join(practice,'local-core/step-runtime.ts'),path.join(__dirname,'step-practice-controller.ts')]) {
+    const ast=ts.createSourceFile(p,read(p),ts.ScriptTarget.Latest,true);
+    for(const node of ast.statements) if(ts.isClassDeclaration(node)) {
+      const methods=node.members.filter(ts.isMethodDeclaration).map(n=>n.name.getText(ast));
+      expect(methods).not.toContain('pause'); expect(methods).not.toContain('resume');
+    }
+    expect(read(p)).not.toMatch(/PAUSED|activationGeneration|activationBoundary/);
+  }
+  const hook=read(path.join(src,'hooks/practice/use-step-local-practice.ts'));
+  expect(hook).not.toMatch(/\bpause\b|\bresume\b|PAUSED/);
+  expect(read(path.join(__dirname,'step-platform.ts'))).not.toMatch(/'pause'|'resume'/);
+  expect(read(path.join(practice,'continuous/continuous-practice-controller.ts'))).toMatch(/\bpause\(/);
+  const controls=read(path.join(src,'components/practice/practice-controls.tsx'));
+  expect(controls).toContain('export function StepPracticeControls');
+  expect(controls).toContain('export function ContinuousPracticeControls');
+  for (const file of productionFiles(path.join(practice,'acoustic'))) {
+    expect(read(file)).not.toContain('STEP_MIDI_CHORD_COHERENCE_MS');
+  }
 });

@@ -3,7 +3,7 @@ import { attackPitchesForStep, assertPracticeScoreArtifact, continuationPitchesF
 import { normalizePitchSet, pitchSetsEqual } from './evidence';
 import { PracticeTimebase, type LocalClock, type DurableClock, type SessionTime } from './timebase';
 import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalStepSessionSnapshot,
-  type PracticeLifecycleState } from './session';
+  type StepPracticeLifecycle } from './session';
 import type { PracticeTempoSelection } from './practice-tempo';
 import { MAX_STEP_HISTORY_RECORDS, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence,
   type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget } from './step-attempt';
@@ -26,12 +26,13 @@ export class StepPracticeRuntime {
   private currentIndex: number;
   private generation = 1;
   private boundary: Readonly<SessionTime>;
-  private lifecycle: PracticeLifecycleState = 'ACTIVE';
+  private lifecycle: StepPracticeLifecycle = 'ACTIVE';
   private completed = false;
   private completionReason: LocalPracticeCompletionReason | null = null;
   private attemptState: StepAttemptState = 'READY';
   private active: StepAttemptIdentity | null = null;
   private sequence = 0;
+  private inputAvailable = true;
   private readonly attempts: StepAttemptRecord[] = [];
   private readonly skips: StepSkipRecord[] = [];
   private metronomeEnabled: boolean;
@@ -49,19 +50,19 @@ export class StepPracticeRuntime {
   currentTarget(): StepTarget | null {
     const step = this.artifact.practiceAttackSteps[this.currentIndex];
     if (!step || this.completed || this.lifecycle !== 'ACTIVE') return null;
-    return Object.freeze({ stepId: step.stepId, activationGeneration: this.generation, activationBoundary: this.boundary,
+    return Object.freeze({ stepId: step.stepId, targetGeneration: this.generation, inputEligibleAfter: this.boundary,
       attackPitches: Object.freeze(attackPitchesForStep(step)), continuationPitches: Object.freeze(continuationPitchesForStep(step)) });
   }
   openAttempt(start: SessionTime): StepAttemptIdentity | null {
     const target = this.currentTarget();
-    if (!target || this.attemptState !== 'READY') return null;
+    if (!target || !this.inputAvailable || this.attemptState !== 'READY') return null;
     this.validateTime(start);
-    // Activation is exclusive: an event at the prior gesture end cannot be
+    // Input eligibility is exclusive: an event at the prior gesture end cannot be
     // rebound to a fresh attempt depending on timer/message callback order.
     if (start.ms <= this.boundary.ms) return null;
     this.assertHistoryRoom();
     this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
-      localSessionId: this.localSessionId, stepId: target.stepId, activationGeneration: this.generation,
+      localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,
       inputSource: this.options.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
     this.attemptState = 'CAPTURING'; return this.active;
   }
@@ -92,29 +93,29 @@ export class StepPracticeRuntime {
     if (this.lifecycle !== 'ACTIVE' || this.attemptState !== 'RESET') throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
     this.validateTime(acceptAfterSessionTime);
     if (acceptAfterSessionTime.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
-    // The caller owns input coverage. Busy-period source evidence cannot be
+    // The caller owns physical capture coverage, not model analysis coverage.
+    // Busy-period source evidence cannot be
     // rebound merely because its publication arrives after this transition.
     this.boundary = Object.freeze({ ...acceptAfterSessionTime });
     this.attemptState = 'READY';
   }
   cancelAttempt(): void { this.active = null; this.attemptState = 'READY'; }
-  pause(): void {
+  setInputUnavailable(): void {
     if (this.lifecycle !== 'ACTIVE') return;
-    this.cancelAttempt(); this.lifecycle = 'PAUSED'; this.generation++;
+    this.cancelAttempt(); this.inputAvailable = false;
   }
-  resume(): void {
-    if (this.lifecycle !== 'PAUSED') return;
-    const resumedAt = this.now();
-    // A transport command cannot make explicitly retired input eligible again.
-    if (resumedAt.ms > this.boundary.ms) this.boundary = resumedAt;
-    this.lifecycle = 'ACTIVE'; this.generation++; this.attemptState = 'READY';
+  acceptInputAfter(capturedThrough: SessionTime): void {
+    if (this.lifecycle !== 'ACTIVE' || this.active || this.attemptState !== 'READY') throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    this.validateTime(capturedThrough);
+    if (capturedThrough.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    this.boundary = Object.freeze({ ...capturedThrough }); this.inputAvailable = true;
   }
   skip(): boolean {
     const target = this.currentTarget(); if (!target) return false;
     this.assertHistoryRoom(); this.cancelAttempt();
     const skippedAt = this.now();
     if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
-    this.skips.push(Object.freeze({ stepId: target.stepId, activationGeneration: this.generation, sessionTime: skippedAt }));
+    this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));
     this.advance(); return true;
   }
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
@@ -127,14 +128,15 @@ export class StepPracticeRuntime {
       practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
       metronomeEnabled: this.metronomeEnabled, lifecycleState: this.lifecycle, completionReason: this.completionReason,
       version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
-      step: Object.freeze({ currentIndex: this.currentIndex, activationGeneration: this.generation, completed: this.completed,
+      step: Object.freeze({ currentIndex: this.currentIndex, targetGeneration: this.generation,
+        inputEligibleAfter: this.boundary, inputAvailable: this.inputAvailable, completed: this.completed,
         attemptState: this.attemptState, activeAttempt: this.active, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
   }
   setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
   get currentStepIndex(): number { return this.currentIndex; }
   get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
   get isCompleted(): boolean { return this.completed; }
-  get state(): PracticeLifecycleState { return this.lifecycle; }
+  get state(): StepPracticeLifecycle { return this.lifecycle; }
   private advance(): void {
     this.currentIndex++; this.generation++;
     if (this.currentIndex > this.resolvedScope.endIndex) { this.completed = true; this.end('SCOPE_COMPLETED'); }
@@ -142,7 +144,7 @@ export class StepPracticeRuntime {
   private owns(identity: StepAttemptIdentity): boolean {
     return this.lifecycle === 'ACTIVE' && this.active !== null && identity.attemptId === this.active.attemptId
       && identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId
-      && identity.activationGeneration === this.generation && identity.inputSource === this.options.inputSource
+      && identity.targetGeneration === this.generation && identity.inputSource === this.options.inputSource
       && identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId
       && identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;
   }

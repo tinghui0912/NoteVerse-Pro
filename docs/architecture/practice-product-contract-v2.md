@@ -127,23 +127,29 @@ score-blind fresh-strike detector remain unavailable, not implemented product pa
 
 ### Implemented Bounded Attempt Domain
 
-`StepPracticeRuntime` is one target / one bounded attempt / one verdict. The v2
+STEP waits for user input and has no Pause/Resume lifecycle. Not playing is
+already the waiting state. Input unavailability is not Pause. ANALYZING is
+backpressure, not transport pause. Continuous alone has Pause/Resume.
+
+`StepPracticeRuntime` is one target / one bounded attempt / one verdict. The v3
 snapshot/runtime contract contains immutable MATCH, MISMATCH or RETRY attempt
 records; WAIT is not a finalized attempt. Skip actions are separate history.
-Each attempt binds attempt/session/step/activation/source/capture-start identity.
-Activation boundaries are exclusive: attempt start must be strictly later than
-the accepted-input watermark or the current initial/resume/skip boundary.
+Each attempt binds attempt/session/step/targetGeneration/source/capture-start identity.
+Input eligibility is exclusive: attempt start must be strictly later than
+`inputEligibleAfter`, including initial readiness, reconnect and Skip boundaries.
 `rearm(acceptAfterSessionTime)` is explicit, ACTIVE/RESET-only, finite,
 same-session, and cannot move that boundary backwards. The domain never obtains
 an implicit current time during re-arm. Equality remains ineligible permanently.
-Resume and Skip cannot lower an already retired input watermark; Skip history
+Reconnect and Skip cannot lower an already retired input watermark; Skip history
 still records the actual command time, not a substituted future event time.
 For MIDI, the caller immediately re-arms at the finalized gesture capture end.
 For future microphone consumption, the caller must instead use the latest
-source/session analysis frontier covered while the prior attempt was busy,
+authoritative physical capture/session time through which input has occurred,
 including CAPTURING, ANALYZING and RESET. Busy-period audio is never queued for a
 later target merely because its Worker publication arrives late. A publication
-may contribute to at most one semantic attempt; the rest is discarded.
+may contribute to at most one semantic attempt; the rest is discarded. The
+watermark is NOT an analysis frontier, Worker completion time or publication
+availability. The capture owner supplies it explicitly at readiness/re-arm.
 The MIDI gesture owns [start,end); an event at exact end is ignored independently
 of callback ordering, never queued or shifted into the next attempt.
 There is one active attempt and no queue. Generic evidence becomes correctness
@@ -151,7 +157,8 @@ only inside this pure domain's exact physical attack pitch-set comparison.
 
 `StepMidiAttemptInput` owns a first-NOTE_ON-anchored 35ms gesture, not correctness.
 `STEP_MIDI_CHORD_COHERENCE_MS` defines [start,start+35ms), not a physical acoustic
-strike detector. Native Web MIDI event.timeStamp passes through the single
+strike detector, acoustic coherence policy or Robust timing tolerance. No
+acoustic grouping constant is qualified. Native Web MIDI event.timeStamp passes through the single
 PracticeTimebase.runtimeToSessionTime mapping; callback scheduling is not attack
 time. Velocity-zero NOTE_ON remains NOTE_OFF.
 CEG is accepted only after the gesture closes; partial CE or extra CEGA is MISMATCH.
@@ -160,9 +167,16 @@ without a new NOTE_ON. Busy input is ignored, never reassigned to a later target
 
 `StepPracticeController` owns runtime, MIDI, timers, metronome, cancellation and
 cleanup. MATCH/Skip advance once and update metronome context; MISMATCH/RETRY stay.
-Pause, Skip, Finish and disposal invalidate active identity and timers. Resume
-creates a fresh activation. Restart constructs a fresh controller/session, without
+MIDI loss cancels the active attempt without a verdict and reports NO_CONNECTED_INPUT.
+The MIDIAccess owner remains alive. Reconnection establishes a fresh exclusive
+capture-time boundary for the same target/session without a user Resume command.
+Skip, Finish and disposal invalidate active identity and timers. Restart constructs a fresh controller/session, without
 snapshot compatibility restore. Late results are rejected, not rebound.
+
+The prior decoded-acoustic sufficiency result remains
+STEP_DECODED_ACOUSTIC_ATTEMPT_SAFETY_NOT_ESTABLISHED. Its Bach 35ms research
+gesture split remains an acoustic assembler blocker; input-eligibility repair
+does not qualify acoustic gesture assembly or enable microphone STEP.
 
 Full user-visible attempt/skip history has a deliberate 100,000-record session
 ceiling, over 138 hours at one gesture per five seconds. Reaching it fails explicitly

@@ -14,12 +14,13 @@ export type StepControllerOptions = Readonly<{
   tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
   onCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
 }>;
-export type StepControllerState = 'READY' | 'PREPARING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'DISPOSED';
+export type StepControllerState = 'READY' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
 
 /** The sole STEP application owner. Restart means constructing a fresh owner. */
 export class StepPracticeController {
   private readonly platform: StepPlatform;
   private runtime: StepPracticeRuntime | null = null;
+  private timebase: PracticeTimebase | null = null;
   private midi: StepMidiPort | null = null;
   private metronome: StepMetronomePort | null = null;
   private input: StepMidiAttemptInput | null = null;
@@ -49,7 +50,9 @@ export class StepPracticeController {
     const generation = ++this.generation; this.state = 'PREPARING'; this.error = null; this.emit();
     try {
       const localSessionId = createLocalSessionId('step'), timebase = new PracticeTimebase({ domainId: localSessionId });
+      this.timebase = timebase;
       const runtime = new StepPracticeRuntime({ ...this.options, clock: this.platform.clock, timebase, localSessionId });
+      runtime.setInputUnavailable();
       this.runtime = runtime;
       const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
       this.metronome = this.platform.createMetronome({ artifact: this.options.artifact,
@@ -68,6 +71,7 @@ export class StepPracticeController {
           const result = runtime.completeAttempt(identity, evidence);
           if (result.kind === 'REJECTED') return;
           this.emit();
+          if (this.state !== 'ACTIVE' || runtime.snapshot().step.attemptState !== 'RESET') return;
           if (runtime.isCompleted) this.complete();
           else { runtime.rearm(result.record.captureEndSessionTime); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit(); }
         },
@@ -76,30 +80,16 @@ export class StepPracticeController {
       this.midi = this.platform.createMidi({ timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
       await this.midi.start();
       if (generation !== this.generation) return;
+      if (this.midi.getState().connectedInputCount > 0) {
+        runtime.acceptInputAfter(timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
+        this.error = null;
+      } else this.error = 'NO_CONNECTED_INPUT';
       this.state = 'ACTIVE'; this.activeAt = this.platform.clock.nowMs(); this.updateTarget();
       this.metronome?.start(runtime.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
       this.error = stepApplicationError(error); this.cleanup(); this.runtime = null; this.state = 'READY'; this.emit();
     }
-  }
-  pause(): void {
-    if (this.state !== 'ACTIVE') return;
-    this.holdElapsed(); this.input?.cancel(); this.runtime?.pause(); this.state = 'PAUSED';
-    this.suppressInputState = true;
-    try { this.midi?.stop(); this.metronome?.pause(); } catch { this.error = 'STEP_MIDI_UNAVAILABLE'; }
-    finally { this.suppressInputState = false; }
-    this.emit();
-  }
-  async resume(): Promise<void> {
-    if (this.state !== 'PAUSED' || !this.midi) return;
-    const generation = ++this.generation; this.error = null;
-    try {
-      if (this.midi.getState().connectedInputCount === 0) throw new Error('NO_CONNECTED_INPUT');
-      await this.midi.start(); if (generation !== this.generation || this.state !== 'PAUSED') return;
-      this.runtime?.resume(); this.state = 'ACTIVE'; this.activeAt = this.platform.clock.nowMs();
-      this.metronome?.resume(this.runtime!.currentOnsetBeat); this.emit();
-    } catch (error) { if (generation === this.generation) { this.error = stepApplicationError(error); this.emit(); } }
   }
   skip(): void {
     if (this.state !== 'ACTIVE') return;
@@ -135,15 +125,21 @@ export class StepPracticeController {
   private inputState(state: BrowserMidiState): void {
     if (this.suppressInputState || this.state === 'DISPOSED' || this.state === 'ENDED') return;
     if (state.connectedInputCount > 0) {
-      if (this.error === 'NO_CONNECTED_INPUT') { this.error = null; this.emit(); } return;
+      if (this.state === 'ACTIVE' && this.error === 'NO_CONNECTED_INPUT' && this.runtime && this.timebase) {
+        this.runtime.acceptInputAfter(this.timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
+        this.error = null; this.emit();
+      }
+      return;
     }
-    if (this.state === 'ACTIVE') this.pause();
-    if (this.state === 'PAUSED') { this.error = 'NO_CONNECTED_INPUT'; this.emit(); }
+    if (this.state === 'ACTIVE') {
+      this.input?.cancel(); this.runtime?.setInputUnavailable();
+      this.error = 'NO_CONNECTED_INPUT'; this.emit();
+    }
   }
   private failAttempt(error: unknown): void {
-    this.pause(); this.input?.cancel(); this.runtime?.cancelAttempt();
+    this.input?.cancel(); this.runtime?.end(); this.holdElapsed();
     this.error = error instanceof Error && error.message === 'STEP_HISTORY_LIMIT_EXCEEDED' ? 'STEP_HISTORY_LIMIT_EXCEEDED' : 'STEP_ATTEMPT_FAILED';
-    if (this.error === 'STEP_HISTORY_LIMIT_EXCEEDED') { this.cleanup(); this.state = 'ENDED'; }
+    this.cleanup(); this.state = 'ENDED';
     this.emit();
   }
   private cleanup(): void {

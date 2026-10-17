@@ -3,8 +3,8 @@ import { MetronomeController, type MetronomeControllerOptions } from '../metrono
 import type { LocalClock } from '../local-core/timebase';
 import type { StepGestureTimer } from './step-midi-attempt-input';
 
-export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'stop' | 'dispose' | 'getState'>;
-export type StepMetronomePort = Pick<MetronomeController, 'start' | 'pause' | 'resume' | 'destroy' | 'setEnabled' | 'setStepContext'>;
+export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'dispose' | 'getState'>;
+export type StepMetronomePort = Pick<MetronomeController, 'start' | 'destroy' | 'setEnabled' | 'setStepContext'>;
 export interface StepPlatform {
   clock: LocalClock;
   timer: StepGestureTimer;

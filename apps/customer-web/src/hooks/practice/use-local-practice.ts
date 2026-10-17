@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PracticeInputSource, PracticeMode, PracticeScope, PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import type { LocalPracticeLifecycle, LocalPracticeInputState, LocalPracticeSessionSnapshot } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, LocalPracticeInputState, LocalPracticeSessionSnapshot } from '@/lib/practice/local-core/session';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
@@ -11,7 +11,7 @@ import { ContinuousPracticeController, type ContinuousControllerSnapshot } from 
 import { useStepLocalPractice } from './use-step-local-practice';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 
-export type { LocalPracticeLifecycle, LocalPracticeInputState };
+export type { ContinuousPracticeLifecycle, LocalPracticeInputState };
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined; mode: PracticeMode; inputSource: PracticeInputSource;
   scope: PracticeScope | null; tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
@@ -19,7 +19,15 @@ export type UseLocalPracticeOptions = {
   onCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
 
-export function useLocalPractice(options: UseLocalPracticeOptions) {
+type PracticeBinding = ReturnType<typeof usePracticeModeBinding>;
+export function useLocalPractice(options: UseLocalPracticeOptions & { mode: 'STEP_BY_STEP' }): Extract<PracticeBinding, { mode: 'STEP_BY_STEP' }>;
+export function useLocalPractice(options: UseLocalPracticeOptions & { mode: 'CONTINUOUS_PLAY' }): Extract<PracticeBinding, { mode: 'CONTINUOUS_PLAY' }>;
+export function useLocalPractice(options: UseLocalPracticeOptions): PracticeBinding;
+export function useLocalPractice(options: UseLocalPracticeOptions): PracticeBinding {
+  return usePracticeModeBinding(options);
+}
+
+function usePracticeModeBinding(options: UseLocalPracticeOptions) {
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
   const tempoPlan = useMemo(() => options.artifact ? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' }) : null,
     [options.artifact, options.tempoSelection]);
@@ -61,16 +69,15 @@ export function useLocalPractice(options: UseLocalPracticeOptions) {
   const resume = useCallback(async () => { controller.current?.resume(); }, []);
   const finish = useCallback(async () => { await controller.current?.finish(); }, []);
   const setMetronomeEnabled = useCallback((enabled: boolean) => controller.current?.setMetronomeEnabled(enabled), []);
-  const skip = useCallback(() => {}, []);
   if (options.mode === 'STEP_BY_STEP') return step;
   const transport = snapshot?.transport;
   const view = continuousControllerView(snapshot), lifecycle = view.lifecycle;
   const inputError = error ?? view.inputError;
   const inputState: LocalPracticeInputState = inputError ? 'ERROR' : view.inputState;
-  return { lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
+  return { mode: 'CONTINUOUS_PLAY' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
     elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: snapshot?.session === 'FINALIZING', isFinalizingPerformance: snapshot?.session === 'FINALIZING',
-    setMetronomeEnabled, start, pause, resume, finish, skip, restart };
+    setMetronomeEnabled, start, pause, resume, finish, restart };
 }

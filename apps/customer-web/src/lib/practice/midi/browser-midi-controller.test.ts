@@ -147,4 +147,21 @@ describe('browser MIDI controller', () => {
       expect(note.mock.calls.map(c => [c[0].type, c[0].sessionTime.ms])).toEqual([['NOTE_ON', 100], ['NOTE_ON', 112], ['NOTE_OFF', 120]]);
     } finally { controller.dispose(); now.mockRestore(); vi.unstubAllGlobals(); }
   });
+  it('MIDIAccess stays subscribed across disconnect/reconnect without restarting the owner', async () => {
+    const input={state:'connected',onmidimessage:null};
+    const access:{inputs:Map<string,typeof input>;onstatechange:(()=>void)|null}={inputs:new Map([['one',input]]),onstatechange:null};
+    const request=vi.fn(async()=>access),states=vi.fn();
+    vi.stubGlobal('navigator',{requestMIDIAccess:request});
+    const controller=new BrowserMidiController({timebase:new PracticeTimebase({domainId:'reconnect'}),onStateChange:states});
+    try {
+      await controller.start(); const listener=access.onstatechange;
+      input.state='disconnected'; access.onstatechange!();
+      expect(controller.getState().connectedInputCount).toBe(0); expect(input.onmidimessage).toBeNull();
+      expect(access.onstatechange).toBe(listener);
+      input.state='connected'; access.onstatechange!();
+      expect(controller.getState().connectedInputCount).toBe(1); expect(input.onmidimessage).toBeTypeOf('function');
+      expect(request).toHaveBeenCalledOnce(); expect(controller.getState().isRunning).toBe(true);
+      controller.dispose(); expect(access.onstatechange).toBeNull(); expect(input.onmidimessage).toBeNull();
+    } finally {controller.dispose();vi.unstubAllGlobals();}
+  });
 });

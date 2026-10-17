@@ -26,9 +26,9 @@ describe('explicit STEP accepted-input watermark', () => {
     expect(s.runtime.snapshot().step.attemptState).toBe('RESET');
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
     const watermark = s.time(700); s.runtime.rearm(watermark); watermark.ms = 1;
-    expect(s.runtime.currentTarget()!.activationBoundary.ms).toBe(700);
+    expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
     for (const stale of [100, 135, 500, 700]) expect(s.runtime.openAttempt(s.time(stale))).toBeNull();
-    expect(s.runtime.openAttempt(s.time(701))!.activationGeneration).toBe(verdict === 'MATCH' ? 2 : 1);
+    expect(s.runtime.openAttempt(s.time(701))!.targetGeneration).toBe(verdict === 'MATCH' ? 2 : 1);
     expect(s.runtime.currentStepIndex).toBe(verdict === 'MATCH' ? 1 : 0);
     expect(s.runtime.snapshot().step.attempts).toHaveLength(1);
   });
@@ -44,17 +44,18 @@ describe('explicit STEP accepted-input watermark', () => {
   it('requires RESET and ACTIVE, never reads implicit now to re-arm', () => {
     const s = harness(); expect(() => s.runtime.rearm(s.time(0))).toThrow('STEP_ATTEMPT_STATE_INVALID');
     s.finish('MISMATCH'); s.clock.set(9000); s.runtime.rearm(s.time(500));
-    expect(s.runtime.currentTarget()!.activationBoundary.ms).toBe(500);
-    s.runtime.pause(); expect(() => s.runtime.rearm(s.time(9000))).toThrow('STEP_ATTEMPT_STATE_INVALID');
+    expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(500);
     s.runtime.end(); expect(() => s.runtime.rearm(s.time(9000))).toThrow('STEP_ATTEMPT_STATE_INVALID');
   });
-  it('resume and skip cannot revive input already retired by an explicit watermark', () => {
+  it('reconnect and skip cannot revive input already retired by an explicit watermark', () => {
     const s = harness(); s.finish('MISMATCH'); s.runtime.rearm(s.time(700));
-    s.clock.set(400); s.runtime.pause(); s.runtime.resume();
-    expect(s.runtime.currentTarget()!.activationBoundary.ms).toBe(700);
+    s.clock.set(400); s.runtime.setInputUnavailable();
+    expect(() => s.runtime.acceptInputAfter(s.time(400))).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+    s.runtime.acceptInputAfter(s.time(700));
+    expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
     s.clock.set(500); s.runtime.skip();
     expect(s.runtime.snapshot().step.skips[0].sessionTime.ms).toBe(500);
-    expect(s.runtime.currentTarget()!.activationBoundary.ms).toBe(700);
+    expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
     expect(s.runtime.openAttempt(s.time(701))).not.toBeNull();
   });

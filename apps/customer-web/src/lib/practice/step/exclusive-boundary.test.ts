@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accumulationWitness, lifecycleWitnesses, raceWitness } from '../../../../scripts/step-boundary/witnesses';
+import { accumulationWitness, lifecycleWitnesses, raceWitness } from '../../../../scripts/step-waiting/witnesses';
 
 describe('exclusive STEP activation boundary', () => {
   it.each(['MATCH','MISMATCH','RETRY'] as const)('%s is callback-order independent and accepts only strictly later input', verdict => {
@@ -8,7 +8,7 @@ describe('exclusive STEP activation boundary', () => {
     expect(before.laterAttempt).toEqual(after.laterAttempt);
     expect(before.laterAttempt.attemptStartSessionTime.ms).toBe(236);
   });
-  it('resume/skip boundaries reject equality; old identity and timer cannot act', () => {
+  it('reconnect/skip boundaries reject equality; old identity and timer cannot act', () => {
     expect(lifecycleWitnesses().every(w=>w.status==='PASS')).toBe(true);
   });
   it('partial attempts cannot accumulate across attempt/target ownership', () => {

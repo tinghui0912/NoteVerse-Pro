@@ -6,15 +6,15 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
-import { PracticeControls } from './practice-controls';
+import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 
 function renderControls(
   rangeSelectionActive: boolean,
-  overrides: Partial<ComponentProps<typeof PracticeControls>> = {}
+  overrides: Partial<ComponentProps<typeof ContinuousPracticeControls>> = {}
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-      <PracticeControls
+      <ContinuousPracticeControls
         lifecycle="READY"
         isLoading={false}
         isPreparingSession={false}
@@ -34,7 +34,17 @@ function renderControls(
   );
 }
 
-describe('PracticeControls', () => {
+describe('ContinuousPracticeControls', () => {
+  it('STEP active waiting renders Finish but never Pause or Resume', () => {
+    const finish = vi.fn();
+    render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+      <StepPracticeControls lifecycle="ACTIVE" isLoading={false} isPreparingSession={false} canPrepareSession
+        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onFinish={finish}
+        onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
+    </NextIntlClientProvider>);
+    expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /finish/i })); expect(finish).toHaveBeenCalledOnce();
+  });
   it('keeps the section button label stable while active', () => {
     renderControls(true);
 
@@ -55,7 +65,7 @@ describe('PracticeControls', () => {
 
     const { rerender } = render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeControls
+        <ContinuousPracticeControls
           lifecycle="ACTIVE"
           isLoading={false}
           isPreparingSession={false}
@@ -80,7 +90,7 @@ describe('PracticeControls', () => {
 
     rerender(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeControls
+        <ContinuousPracticeControls
           lifecycle="PAUSED"
           isLoading={false}
           isPreparingSession={false}
@@ -124,7 +134,7 @@ describe('PracticeControls', () => {
 
     rerender(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeControls
+        <ContinuousPracticeControls
           lifecycle="ACTIVE"
           isLoading={false}
           isPreparingSession={false}
@@ -177,7 +187,7 @@ describe('PracticeControls', () => {
     // When microphone is selected but not supported, start is disabled
     rerender(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeControls
+        <ContinuousPracticeControls
           lifecycle="READY"
           isLoading={false}
           isPreparingSession={false}
@@ -213,7 +223,7 @@ describe('PracticeControls', () => {
 
     rerender(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeControls
+        <ContinuousPracticeControls
           lifecycle="READY"
           isLoading={false}
           isPreparingSession={false}
