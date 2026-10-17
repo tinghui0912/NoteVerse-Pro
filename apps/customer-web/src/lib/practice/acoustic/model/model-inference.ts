@@ -4,7 +4,7 @@ import { type ByteDanceRawOutputs } from '../../acoustic-inference/bytedance-con
 import { decodeByteDanceRawOutputs } from '../../acoustic-inference/bytedance-decoder';
 import { ACOUSTIC_MODEL as M, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
-import { assertModelNames, checkedOutput } from './model-validation';
+import { assertModelNames, assertWindowGeometry, checkedOutput } from './model-validation';
 import { practiceAcousticModelManifest } from './acoustic-model-manifest';
 
 export function decodeAcousticOutputs(raw: ByteDanceRawOutputs, input: AcousticInferenceInput) {
@@ -63,10 +63,9 @@ export class AcousticModelSession implements AcousticInferencePort {
     if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');
     if (this.state !== 'READY' || !this.session) fail('ACOUSTIC_WORKER_NOT_READY');
     const w = input.window;
-    if (w.jobIndex !== this.nextJob || w.ownedEndTarget <= w.ownedStartTarget || w.ownedEndTarget - w.ownedStartTarget > M.ownedMs * 16
-      || !(input.pcm instanceof Float32Array) || input.pcm.length !== M.inputSamples || input.pcm.some(v => !Number.isFinite(v))
-      || w.endSample - w.startSample !== M.inputSamples
-      || Math.abs(w.endSample - w.ownedEndTarget - M.futureMs * 16) > 1) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');
+    assertWindowGeometry(w);
+    if (w.jobIndex !== this.nextJob || !(input.pcm instanceof Float32Array) || input.pcm.length !== M.inputSamples
+      || input.pcm.some(v => !Number.isFinite(v))) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');
     this.busy = true;
     try {
       const started = performance.now();

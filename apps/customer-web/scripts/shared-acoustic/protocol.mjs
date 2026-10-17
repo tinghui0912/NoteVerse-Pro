@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson} from '../audio-context-clock/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
-export const ID='shared_acoustic_v3';
+export const ID='shared_acoustic_v4';
 export const START='21e9b67b71ab156fd0140290c3a7a857b1ee493d';
 export const PHASE='PRACTICE_SHARED_ACOUSTIC_FOUNDATION_CLEAN_BREAK_REFACTOR';
 export const SUCCESS='PRACTICE_SHARED_ACOUSTIC_FOUNDATION_REFACTORED_CONTINUOUS_PARITY_PRESERVED';
@@ -27,6 +27,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   const files=git('ls-files','apps/customer-web','docker/research/Dockerfile.practice-acoustic-qualification','backend/docs/contracts/openapi/customer-api.json','backend/app/modules/model_assets','backend/app/core/settings/model_asset_delivery.py','backend/tests/test_model_assets.py','backend/tests/test_continuous_model_asset.py','backend/research/history/shared-acoustic-before-clean-break','backend/research/qualification/shared_acoustic_relocation.mjs','docs/architecture/practice-product-contract-v2.md','backend/research/reports/shared_acoustic_invalidation_v1_2026-10-17.json').split('\n').filter(Boolean);
   files.push(MODEL,FIXTURE,...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
    'backend/research/reports/product_completion_corpus_v1_2026-10-17.json','backend/research/reports/shared_acoustic_invalidation_v2_2026-10-17.json',
+   'backend/research/reports/shared_acoustic_invalidation_v3_2026-10-17.json','backend/research/reports/shared_acoustic_invalid_browser_v3_2026-10-17.json',
    'backend/data/work/product_completion_replay/v4/musical.json','backend/data/work/product_completion_replay/v4/scores.json','backend/data/work/product_completion_replay/v4/truth.json',
    'backend/data/work/product_completion_replay/v1/audio_only/manifest.json',
    ...['package.json','dist/ort.webgpu.min.mjs','dist/ort-wasm-simd-threaded.jsep.mjs','dist/ort-wasm-simd-threaded.jsep.wasm'].map(p=>'apps/customer-web/node_modules/onnxruntime-web/'+p));

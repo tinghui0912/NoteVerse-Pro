@@ -9,7 +9,7 @@ import { resolveBrandedBrowserExecutable, RUNTIME_NODE_MODULES, collectWebGpuAda
 import { classifyRuntimeDiagnostic } from '../continuous-runtime-diagnostics.mjs';
 import { failedCellWitness, modelRunAccounting } from '../continuous-controller/execution-accounting.mjs';
 
-const id = 'shared_acoustic_v3', proof = await verify(id), work = paths(id).work;
+const id = 'shared_acoustic_v4', proof = await verify(id), work = paths(id).work;
 const verification = JSON.parse(await readFile(path.join(work, 'verification.json'), 'utf8'));
 if (verification.status !== 'PASS' || verification.proof.freezeCommit !== proof.freezeCommit) throw new Error('PRE_BROWSER_VERIFICATION_NOT_PASS');
 await mkdir(work, { recursive: true });
