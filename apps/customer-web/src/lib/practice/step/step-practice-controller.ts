@@ -71,9 +71,11 @@ export class StepPracticeController {
           const result = runtime.completeAttempt(identity, evidence);
           if (result.kind === 'REJECTED') return;
           this.emit();
-          if (this.state !== 'ACTIVE' || runtime.snapshot().step.attemptState !== 'RESET') return;
+          if (this.state !== 'ACTIVE') return;
           if (runtime.isCompleted) this.complete();
-          else { runtime.rearm(result.record.captureEndSessionTime); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit(); }
+          else if (runtime.snapshot().step.attemptState === 'RESET') {
+            runtime.rearm(result.record.captureEndSessionTime); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit();
+          }
         },
         failure: error => this.failAttempt(error),
       }, this.platform.timer);

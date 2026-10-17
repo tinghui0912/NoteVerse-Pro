@@ -43,7 +43,7 @@ describe('ContinuousPracticeControls', () => {
         onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
     </NextIntlClientProvider>);
     expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /finish/i })); expect(finish).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: messages.finish })); expect(finish).toHaveBeenCalledOnce();
   });
   it('keeps the section button label stable while active', () => {
     renderControls(true);

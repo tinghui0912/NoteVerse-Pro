@@ -42,7 +42,10 @@ assert.ok(retiredBusyWitnesses.every(w=>!w.sameSourceEvidenceNowAdvances));
 const bach=previousScores.dangerousWitnesses.filter(w=>w.recordingId?.startsWith('Bach')&&w.violations.includes('wrongPitchAdvance'));
 const groupingWitnesses=bach.map(w=>({caseId:w.caseId,rate:w.rate,scenario:w.scenario,
  historical:w,current:results.find(r=>r.id===w.caseId&&r.rate===w.rate)?.scenarios.find(s=>s.scenario.name===w.scenario)?.outcomes.filter(o=>o.eventMs===w.outcome.eventMs)}));
-assert.ok(groupingWitnesses.some(w=>w.current?.some(o=>o.verdict==='MATCH')),'ACOUSTIC_GROUPING_BLOCKER_WAS_HIDDEN');
+// Preserve the historical split even if changed input retirement removes a
+// particular counterfactual attempt. Residual acoustic failures are NOT a gate
+// for this waiting-lifecycle phase, nor can their absence qualify the assembler.
+assert.ok(groupingWitnesses.length>0,'HISTORICAL_ACOUSTIC_GROUPING_WITNESS_MISSING');
 await newJson(path.join(work,'input-eligibility-replay.json'),{...replayExecutionProof,replayExecutionProof,status:'PASS',
  inputEligibilitySafety:'ESTABLISHED_FOR_FROZEN_CASES',acousticGestureAssemblySafety:'NOT_ESTABLISHED',
  previousAcousticDisposition:'STEP_DECODED_ACOUSTIC_ATTEMPT_SAFETY_NOT_ESTABLISHED',

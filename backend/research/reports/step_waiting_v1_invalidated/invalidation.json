@@ -1,0 +1,15 @@
+{
+  "freezeCommit": "5566c0a7260b2013a532a92291dd9d4323d231d8",
+  "remoteHead": "5566c0a7260b2013a532a92291dd9d4323d231d8",
+  "freezeSha256": "74e73489f245bb978253a5ae0522010a0c4b61609e616ceabe68cbcc294a9dfd",
+  "remoteVerifiedAt": "2026-10-17T19:53:35.192Z",
+  "executionStartedAt": "2026-10-17T19:53:35.505Z",
+  "status": "INVALIDATED_NOT_ACCEPTANCE_EVIDENCE",
+  "invalidatedAt": "2026-10-17T19:55:36.581Z",
+  "reason": [
+    "Final MATCH guard checked RESET before scope completion, preventing application cleanup/ENDED.",
+    "New UI assertion used Finish instead of existing translated End label."
+  ],
+  "actualNeuralModelRuns": 0,
+  "nextFreeze": "step_waiting_v2"
+}
