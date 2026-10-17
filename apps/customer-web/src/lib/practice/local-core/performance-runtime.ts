@@ -308,7 +308,7 @@ export class PerformanceClockRuntime {
     if (!this.currentSegment || this.state === 'PAUSED' || this.state === 'ENDED') {
       return this.activeElapsedMs;
     }
-    return Math.max(0, this.currentSegment.activeElapsedStartMs + nowMs - this.currentSegment.clockStartMs);
+    return Math.max(0, this.activeElapsedAtSessionTime(this.currentSegment, nowMs));
   }
 
   private activeElapsedForCapture(captureTimeMs: number): number | null {
@@ -317,13 +317,13 @@ export class PerformanceClockRuntime {
         this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
       );
       if (segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
-        return Math.max(0, segment.activeElapsedStartMs + captureTimeMs - segment.clockStartMs);
+        return Math.max(0, this.activeElapsedAtSessionTime(segment, captureTimeMs));
       }
     }
     if (this.currentSegment
       && this.currentSegment.clockStartMs <= captureTimeMs
       && captureTimeMs <= this.nowSessionMs()) {
-      return Math.max(0, this.currentSegment.activeElapsedStartMs + captureTimeMs - this.currentSegment.clockStartMs);
+      return Math.max(0, this.activeElapsedAtSessionTime(this.currentSegment, captureTimeMs));
     }
     return null;
   }
@@ -332,15 +332,25 @@ export class PerformanceClockRuntime {
     for (const segment of this.clockSegments) {
       const segmentEndActiveElapsed = segment.clockEndMs === undefined
         ? this.activeElapsedAt(this.nowSessionMs())
-        : segment.activeElapsedStartMs + segment.clockEndMs - segment.clockStartMs;
+        : this.activeElapsedAtSessionTime(segment, segment.clockEndMs);
       if (
         segment.activeElapsedStartMs <= activeElapsedMs &&
         activeElapsedMs <= segmentEndActiveElapsed
       ) {
-        return segment.clockStartMs + activeElapsedMs - segment.activeElapsedStartMs;
+        return this.sessionTimeAtActiveElapsed(segment, activeElapsedMs);
       }
     }
     return this.nowSessionMs();
+  }
+
+  // Subtract in one time domain before adding the other domain's anchor. In
+  // particular, a zero segment delta must preserve pause/resume identity exactly.
+  private activeElapsedAtSessionTime(segment: ClockSegment, sessionTimeMs: number): number {
+    return segment.activeElapsedStartMs + (sessionTimeMs - segment.clockStartMs);
+  }
+
+  private sessionTimeAtActiveElapsed(segment: ClockSegment, activeElapsedMs: number): number {
+    return segment.clockStartMs + (activeElapsedMs - segment.activeElapsedStartMs);
   }
 
   private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {

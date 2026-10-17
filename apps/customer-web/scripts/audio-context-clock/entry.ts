@@ -104,9 +104,10 @@ async function scenario(rate: number, kind: Kind) {
     }
     const first = transition('BEGIN');
     await waitUntil(() => bridge.snapshot().nextSourceSampleIndex >= first.sourceSample, check);
-    const pauseWitnesses: { pausedPerformanceTimeMs: number; afterPausePerformanceTimeMs: number; resumePerformanceTimeMs: number;
+    const pauseWitnesses: { pausedPerformanceTimeMs: number; afterPausePerformanceTimeMs: number; resumePerformanceTimeMs: number; deltaMs: number;
       beforeSource: number; afterSource: number; beforeFrontier: number; afterFrontier: number; publicationsDuringPause: number }[] = [];
     let failureWitness: unknown = null;
+    let futureBoundaryWitness: unknown = null;
     if (kind === 'C') {
       const D = transport.scopeDurationMs();
       requireCondition(D === 600, 'FUTURE_SCOPE_DURATION_NOT_600');
@@ -115,6 +116,12 @@ async function scenario(rate: number, kind: Kind) {
       bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: mapped.sourceSample, performanceTimeMs: D });
       boundaries.push({ ...mapped, type: 'TERMINAL', performanceTimeMs: D, transportState: 'FUTURE_SCOPE_COMPLETED' });
       await waitUntil(() => context.currentTime >= futureC && transport.snapshot().state === 'ENDED', check);
+      const completionSessionMs = transport.completionCaptureTime().ms;
+      const completionSourceSample = Math.round(completionSessionMs / 1000 * rate) - origin;
+      requireCondition(completionSourceSample === mapped.sourceSample, 'FUTURE_CLOCK_SOURCE_BOUNDARY_MISMATCH');
+      futureBoundaryWitness = { startContextTime: first.contextTime, durationMs: D, futureContextTime: futureC,
+        completionSessionMs, completionSourceSample, registeredSourceSample: mapped.sourceSample,
+        transport: transport.snapshot(), timerRole: 'OBSERVATION_ONLY_NOT_TRANSITION_AUTHORITY' };
     } else if (kind === 'D') {
       await sleep(850); check();
       analysis.failAnalysis(new Error('QUALIFICATION_ANALYSIS_ONLY_FAILURE'));
@@ -141,7 +148,8 @@ async function scenario(rate: number, kind: Kind) {
         const resumed = transition('RESUME-BEGIN');
         requireCondition(resumed.snapshot.performanceTimeMs === paused.snapshot.performanceTimeMs, 'RESUME_PERFORMANCE_GAP');
         pauseWitnesses.push({ pausedPerformanceTimeMs: paused.snapshot.performanceTimeMs, afterPausePerformanceTimeMs: after.performanceTimeMs,
-          resumePerformanceTimeMs: resumed.snapshot.performanceTimeMs, beforeSource: before.nextSourceSampleIndex,
+          resumePerformanceTimeMs: resumed.snapshot.performanceTimeMs, deltaMs: resumed.snapshot.performanceTimeMs - paused.snapshot.performanceTimeMs,
+          beforeSource: before.nextSourceSampleIndex,
           afterSource: afterAnalysis.nextSourceSampleIndex, beforeFrontier: before.analyzedThroughPerformanceMs,
           afterFrontier: afterAnalysis.analyzedThroughPerformanceMs, publicationsDuringPause: publications.length - beforePubs });
       }
@@ -163,7 +171,7 @@ async function scenario(rate: number, kind: Kind) {
     const capabilities = evaluatePracticeInputCapabilities();
     requireCondition(capabilities.acousticAnalysis.continuous.status === 'MODEL_NOT_VALIDATED'
       && capabilities.acousticAnalysis.step.status === 'ATTEMPT_ANALYZER_NOT_VALIDATED', 'CAPABILITY_CHANGED');
-    return { status: 'PASS', rate, scenario: kind, readings, boundaries, applied, segments, pauseWitnesses, failureWitness,
+    return { status: 'PASS', rate, scenario: kind, readings, boundaries, applied, segments, pauseWitnesses, failureWitness, futureBoundaryWitness,
       maximumDurationMismatchSamples: Math.max(0, ...segments.map(s => Math.abs(s.durationMismatchSamples))),
       fractionalFrameErrors: boundaries.map(b => b.fractionalFrameError), capture: bridge.snapshot(), snapshot: analysis.snapshot(),
       publications, transport: transport.snapshot(), metronome: { sameContext: true, audible: false, pulses },
