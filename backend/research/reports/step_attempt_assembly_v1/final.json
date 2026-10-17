@@ -1,0 +1,1845 @@
+{
+  "phase": "PRACTICE_STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_ENGINEERING_QUALIFICATION_DISABLED",
+  "disposition": "STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_NOT_ESTABLISHED",
+  "startingHead": "1d738d8b8053899d5e52c29fb417736b1bc47b28",
+  "implementationCommit": "6ebf4ec6c0003361a565f520ffdb26e7e236a738",
+  "freezeCommit": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+  "freezeSha256": "ff26d58a169802b6b33d57edfa7b18e1ac15ba78107fdefd9ffb33c4d1148991",
+  "freezeStage": "DEVELOPMENT_BUDGET_AND_REGRESSION_FREEZE_NOT_SELECTED_CANDIDATE_QUALIFICATION",
+  "commitChain": [
+    "6ebf4ec6c0003361a565f520ffdb26e7e236a738 research(step): predeclare bounded acoustic assembly development budget and tooling",
+    "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74 freeze(step): acoustic assembly development plan before scoring"
+  ],
+  "executionProofs": {
+    "development": {
+      "freezeCommit": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "remoteHead": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "freezeSha256": "ff26d58a169802b6b33d57edfa7b18e1ac15ba78107fdefd9ffb33c4d1148991",
+      "remoteVerifiedAt": "2026-10-17T20:17:35.596Z",
+      "executionStartedAt": "2026-10-17T20:17:35.898Z"
+    },
+    "static": {
+      "freezeCommit": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "remoteHead": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "freezeSha256": "ff26d58a169802b6b33d57edfa7b18e1ac15ba78107fdefd9ffb33c4d1148991",
+      "remoteVerifiedAt": "2026-10-17T20:18:06.678Z",
+      "executionStartedAt": "2026-10-17T20:18:07.032Z"
+    },
+    "continuousEngineering": {
+      "freezeCommit": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "remoteHead": "6a21a62232054eb45ac1da9e387dd8dd0e0d4a74",
+      "freezeSha256": "ff26d58a169802b6b33d57edfa7b18e1ac15ba78107fdefd9ffb33c4d1148991",
+      "remoteVerifiedAt": "2026-10-17T20:19:59.468Z",
+      "executionStartedAt": "2026-10-17T20:19:59.886Z"
+    }
+  },
+  "developmentPlan": {
+    "phase": "PRACTICE_STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_ENGINEERING_QUALIFICATION_DISABLED",
+    "startingHead": "1d738d8b8053899d5e52c29fb417736b1bc47b28",
+    "baselineMs": 35,
+    "candidateHsMs": [
+      50,
+      70,
+      90,
+      120
+    ],
+    "maximumNonBaselineCandidates": 4,
+    "geometry": "fixed first eligible source/event anchor [T,T+H); never extended; seal only when analyzed frontier covers T+H",
+    "rationale": "50ms includes the exposed 40ms decoded Bach chord spread without putting its second note at an exclusive endpoint. 70/90/120ms are a small bounded increasing assembly family, not decoder thresholds. No candidate beyond these four is authorized.",
+    "selectionLexicographic": [
+      "Non-baseline only: all declared dangerous advancement counters must equal zero at BOTH source rates on ALL development scenarios. Boundary-confounded witnesses remain counted and separately attributed; no output-dependent exclusion.",
+      "Maximize total one-to-one physically corroborated intended-attempt acceptances across both rates.",
+      "Choose the shorter H on ties."
+    ],
+    "ifNoneEligible": "STOP: STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_NOT_ESTABLISHED. No holdout execution, replacement candidate, detector or tuning.",
+    "developmentEvidence": "backend/research/reports/step_decoded_sufficiency_v1/{acoustic.json,acoustic-seal.json,truth.json}; already exposed; both rates; 17 selected overlapping clips per rate, 3 SMD recordings",
+    "developmentSources": [
+      "Bach_BWV849-01_001_20090916-SMD",
+      "Bartok_SZ080-01_002_20110315-SMD",
+      "Beethoven_Op027No1-01_003_20090916-SMD"
+    ],
+    "mandatoryBachProbe": "In addition to unmodified complete development cells, replay every sealed s00-05 observation in fixed source interval [4250,4400)ms, retaining ALL pitches/IDs, readiness at 4250ms, target E4. E4@4260 plus G#4@4300 must not produce MATCH. This already-exposed causal probe contributes no extra usability denominator.",
+    "requiredDevelopmentFamilies": [
+      "single",
+      "chord",
+      "same_note_retrigger",
+      "soft_after_loud",
+      "rapid_retrigger",
+      "repeated_chord",
+      "held",
+      "pedal_sustain",
+      "extra_note_in_gesture",
+      "partial_chord",
+      "busy_period_input",
+      "late_busy_publication"
+    ],
+    "safetyCounters": [
+      "unsupportedMatch",
+      "subsetPhysicalChordMatch",
+      "doubleAdvanceFromOneTruthGesture",
+      "busyPeriodCarryoverAdvance",
+      "latePublicationCarryoverAdvance",
+      "crossAttemptObservationReuse",
+      "heldPedalAdvance",
+      "samePitchSustainAdvance",
+      "sameChordSustainAdvance",
+      "staleEqualWatermarkAdvance"
+    ],
+    "truthMatching": "Existing first-anchor 35ms MIDI ground-truth grouping (not acoustic policy); one-to-one exact full physical pitch set within inclusive 100ms, maximize cardinality then minimize absolute anchor error. Also separately detect strict subset MATCH against nearest physical gesture within 100ms; never use target pitch to shift truth.",
+    "busyScenario": "For busy_period_input and late_busy_publication only: deterministic 500ms post-seal analysis hold, a test-side busy interval not candidate geometry. All physical capture continues. No second attempt queue. Other scenarios finalize immediately when H is covered.",
+    "captureTimeline": "Independent continuously advancing integer source-sample clock in replay, sampled when READY reopens. Publication availability schedules delivery only; it is not the semantic event timestamp or analysis-frontier watermark. Report captured-through source sample and session time separately.",
+    "holdoutSelectionRule": {
+      "when": "Only after exactly one H is selected and frozen; MIDI metadata first; no candidate output access.",
+      "sources": "Already-local SMD-piano_v2 paired recordings, lexical recordingId order, excluding ALL development recording IDs and audio/MIDI hashes. Not globally blind: previously used in AMT/Continuous work; engineering qualification only.",
+      "occurrences": "For each required family select its first MIDI-eligible occurrence across lexical eligible source IDs; no replacement. Duplicate source ranges may be merged using metadata only.",
+      "families": [
+        "single",
+        "chord",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "repeated_chord",
+        "soft_after_loud",
+        "rapid_retrigger",
+        "held",
+        "pedal_sustain",
+        "extra_note_chord",
+        "missing_note_chord",
+        "busy_period_input",
+        "late_publication"
+      ],
+      "caseRules": "Existing MIDI tags for repeat/soft/rapid/guards. close_spread_chord = >=2 distinct note-ons with first-to-last spread in (0,35]ms. Extra/missing chord scenarios use the first real multi-note chord and a predeclared removed/added target pitch; no synthetic audio. Busy/late uses first consecutive truth groups <=600ms apart. Missing any family BLOCKS.",
+      "context": "3.6s owned region centered with selected gesture 1.2s inside it, plus >=1.2s genuine source pre-roll and >=200ms genuine tail; require source bounds available and target >=600ms away from either owned edge. No padding or output-dependent shifting.",
+      "rates": [
+        44100,
+        48000
+      ],
+      "truthIsolation": "Stage A exposes only PCM/model/FIR/ORT/source chronology, one sequential production Worker/session. Complete acoustic output SHA256 seal before Stage B opens MIDI/targets."
+    },
+    "usability": "Report intended acceptance and latency separately. Safety-only zero obtained with zero corroborated singles or zero corroborated chords is SAFE_BUT_PRODUCT_USABILITY_NOT_ESTABLISHED, not promotion. No UX SLO claim.",
+    "productChangesAllowed": false,
+    "newDatasetDownloads": 0,
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "inputs": [
+    {
+      "path": "backend/research/reports/step_decoded_sufficiency_v1/acoustic.json",
+      "bytes": 488366,
+      "sha256": "2b63d13fd580fd390c6deabdceddca7208cef06b57807af35ac5fa0fabfe04dc"
+    },
+    {
+      "path": "backend/research/reports/step_decoded_sufficiency_v1/acoustic-seal.json",
+      "bytes": 549,
+      "sha256": "11e5030ea4e0d4f0f70c9d63fa31e0d04279a2476d0240ae1c4ecc45641211ab"
+    },
+    {
+      "path": "backend/research/reports/step_decoded_sufficiency_v1/truth.json",
+      "bytes": 401644,
+      "sha256": "f5cf003e1e788e02f4911196d3b90807c84e0e3a7f48ce4c83e9f4943f46dd3c"
+    },
+    {
+      "path": "backend/research/reports/step_decoded_sufficiency_v1/inventory.json",
+      "bytes": 38204,
+      "sha256": "32379ba0d757e255717df88497aefc0d312c7e88043fd4092b87ebeee67a3525"
+    },
+    {
+      "path": "backend/research/step_attempt_assembly/development-plan.json",
+      "bytes": 5525,
+      "sha256": "ae374faf3290aca6c128b121b2f0b5332a774f70ab437c7f9bfdf827caf73a1e"
+    },
+    {
+      "path": "backend/data/work/step_attempt_assembly/development-v1/development-output.json",
+      "bytes": 28471804,
+      "sha256": "8da0c51f75c75b7d83b0c53bf7f72a317d16a54f2d33327275d30592ff114653"
+    }
+  ],
+  "developmentCorpus": [
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Bach_BWV849-01_001_20090916-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Bach_BWV849-01_001_20090916-SMD.wav",
+      "midiMember": "midi/Bach_BWV849-01_001_20090916-SMD.mid",
+      "audioSha256": "a539240eb5544ab007475d73f2bf8ffeeea88c6d96f8601f08bdf276f11cf284",
+      "midiSha256": "95bdfd46cfa37637d18db809d8a586608e3b18aa64ec0206b491e2de9d115fab",
+      "audioBytes": 27694844,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 6923700,
+        "durationSeconds": 157
+      },
+      "midi": {
+        "noteOnCount": 724,
+        "midiEndSeconds": 156.5458333333304,
+        "controls": {
+          "64": 4026,
+          "67": 10
+        },
+        "sustainCc64Count": 4026,
+        "lastNoteOnSeconds": 152.72916666666356
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    },
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Bartok_SZ080-01_002_20110315-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Bartok_SZ080-01_002_20110315-SMD.wav",
+      "midiMember": "midi/Bartok_SZ080-01_002_20110315-SMD.mid",
+      "audioSha256": "5f4d3aeab3937ad81f04cf4df73e18d67e43f06863a9f7a5131c545ec32343ec",
+      "midiSha256": "a6f86e5b7fe52fc2b5469a4408ac0a2cce8e1af37f54a941417dfcbb575bc44e",
+      "audioBytes": 50242292,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 12560562,
+        "durationSeconds": 284.82
+      },
+      "midi": {
+        "noteOnCount": 3941,
+        "midiEndSeconds": 282.932291666671,
+        "controls": {
+          "64": 4121
+        },
+        "sustainCc64Count": 4121,
+        "lastNoteOnSeconds": 282.42500000000445
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    },
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Beethoven_Op027No1-01_003_20090916-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Beethoven_Op027No1-01_003_20090916-SMD.wav",
+      "midiMember": "midi/Beethoven_Op027No1-01_003_20090916-SMD.mid",
+      "audioSha256": "e0d173478761777750d1763a37d6b5dfc6c0aba379a28c35393dd42cd518c513",
+      "midiSha256": "ae31451905e6ecf684bca9d736497a3c7085e64b42be649422e339d3e40cb90e",
+      "audioBytes": 76028444,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 19007100,
+        "durationSeconds": 431
+      },
+      "midi": {
+        "noteOnCount": 3520,
+        "midiEndSeconds": 430.95208333332863,
+        "controls": {
+          "64": 11401
+        },
+        "sustainCc64Count": 11401,
+        "lastNoteOnSeconds": 423.31458333332955
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    }
+  ],
+  "developmentCells": 34,
+  "sourceRates": [
+    44100,
+    48000
+  ],
+  "selectedHMs": null,
+  "selectionReason": "No declared non-baseline candidate satisfies every zero-danger development gate",
+  "candidates": [
+    {
+      "widthMs": 35,
+      "baselineOnly": true,
+      "eligible": false,
+      "safety": {
+        "unsupportedMatch": 9,
+        "subsetPhysicalChordMatch": 9,
+        "doubleAdvanceFromOneTruthGesture": 0,
+        "busyPeriodCarryoverAdvance": 0,
+        "latePublicationCarryoverAdvance": 0,
+        "crossAttemptObservationReuse": 0,
+        "heldPedalAdvance": 0,
+        "samePitchSustainAdvance": 0,
+        "sameChordSustainAdvance": 0,
+        "staleEqualWatermarkAdvance": 0
+      },
+      "assemblySafetyByRate": {
+        "44100": {
+          "unsupportedMatch": 5,
+          "subsetPhysicalChordMatch": 5,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        },
+        "48000": {
+          "unsupportedMatch": 4,
+          "subsetPhysicalChordMatch": 4,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        }
+      },
+      "mandatoryBachUnsafe": true,
+      "corroboratedIntendedAcceptances": 185,
+      "usabilityByRate": {
+        "44100": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 5
+          },
+          "scenarioCells": 222,
+          "attempts": 883,
+          "matches": 104,
+          "supportedMatches": 99,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 92,
+          "acceptedAttemptRecall": 0.11485642946317104,
+          "recallByFamily": {
+            "single": {
+              "accepted": 34,
+              "total": 464,
+              "recall": 0.07327586206896551
+            },
+            "chord": {
+              "accepted": 58,
+              "total": 337,
+              "recall": 0.17210682492581603
+            },
+            "same_note_retrigger": {
+              "accepted": 82,
+              "total": 656,
+              "recall": 0.125
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 779,
+            "truthSupportedCorrectRejection": 749,
+            "falseMismatch": 30,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 883,
+              "median": 571.4399207016777,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToLockMs": {
+              "count": 883,
+              "median": 571.4399207016777,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToVerdictMs": {
+              "count": 883,
+              "median": 589.5099206349205,
+              "p95": 1157.5649207016777,
+              "max": 1603.6199206492256
+            },
+            "lockToVerdictMs": {
+              "count": 883,
+              "median": 0,
+              "p95": 500,
+              "max": 1099.570000052452
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 883,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1716
+        },
+        "48000": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 4
+          },
+          "scenarioCells": 222,
+          "attempts": 892,
+          "matches": 106,
+          "supportedMatches": 102,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 93,
+          "acceptedAttemptRecall": 0.11610486891385768,
+          "recallByFamily": {
+            "single": {
+              "accepted": 35,
+              "total": 464,
+              "recall": 0.07543103448275862
+            },
+            "chord": {
+              "accepted": 58,
+              "total": 337,
+              "recall": 0.17210682492581603
+            },
+            "same_note_retrigger": {
+              "accepted": 83,
+              "total": 656,
+              "recall": 0.12652439024390244
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 786,
+            "truthSupportedCorrectRejection": 756,
+            "falseMismatch": 30,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 892,
+              "median": 568.6749999523163,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToLockMs": {
+              "count": 892,
+              "median": 568.6749999523163,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToVerdictMs": {
+              "count": 892,
+              "median": 586.6424999833107,
+              "p95": 1156.420000076294,
+              "max": 1456.414999961853
+            },
+            "lockToVerdictMs": {
+              "count": 892,
+              "median": 0,
+              "p95": 500,
+              "max": 1099.4199999570847
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 892,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1678
+        }
+      },
+      "extraObservationsPerAttempt": {
+        "count": 1775,
+        "median": 0,
+        "p95": 1,
+        "max": 2
+      }
+    },
+    {
+      "widthMs": 50,
+      "baselineOnly": false,
+      "eligible": false,
+      "safety": {
+        "unsupportedMatch": 2,
+        "subsetPhysicalChordMatch": 2,
+        "doubleAdvanceFromOneTruthGesture": 0,
+        "busyPeriodCarryoverAdvance": 0,
+        "latePublicationCarryoverAdvance": 0,
+        "crossAttemptObservationReuse": 0,
+        "heldPedalAdvance": 0,
+        "samePitchSustainAdvance": 0,
+        "sameChordSustainAdvance": 0,
+        "staleEqualWatermarkAdvance": 0
+      },
+      "assemblySafetyByRate": {
+        "44100": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        },
+        "48000": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        }
+      },
+      "mandatoryBachUnsafe": false,
+      "corroboratedIntendedAcceptances": 179,
+      "usabilityByRate": {
+        "44100": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 881,
+          "matches": 97,
+          "supportedMatches": 96,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 89,
+          "acceptedAttemptRecall": 0.1111111111111111,
+          "recallByFamily": {
+            "single": {
+              "accepted": 34,
+              "total": 464,
+              "recall": 0.07327586206896551
+            },
+            "chord": {
+              "accepted": 55,
+              "total": 337,
+              "recall": 0.1632047477744807
+            },
+            "same_note_retrigger": {
+              "accepted": 79,
+              "total": 656,
+              "recall": 0.12042682926829268
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 784,
+            "truthSupportedCorrectRejection": 753,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 881,
+              "median": 571.654920615847,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToLockMs": {
+              "count": 881,
+              "median": 571.654920615847,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToVerdictMs": {
+              "count": 881,
+              "median": 594.7649206301521,
+              "p95": 1157.5649207016777,
+              "max": 1603.6199206492256
+            },
+            "lockToVerdictMs": {
+              "count": 881,
+              "median": 0,
+              "p95": 591.7900000810623,
+              "max": 1099.570000052452
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 881,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1707
+        },
+        "48000": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 888,
+          "matches": 100,
+          "supportedMatches": 99,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 90,
+          "acceptedAttemptRecall": 0.11235955056179775,
+          "recallByFamily": {
+            "single": {
+              "accepted": 35,
+              "total": 464,
+              "recall": 0.07543103448275862
+            },
+            "chord": {
+              "accepted": 55,
+              "total": 337,
+              "recall": 0.1632047477744807
+            },
+            "same_note_retrigger": {
+              "accepted": 80,
+              "total": 656,
+              "recall": 0.12195121951219512
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 788,
+            "truthSupportedCorrectRejection": 757,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 888,
+              "median": 568.8599999547005,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToLockMs": {
+              "count": 888,
+              "median": 568.8599999547005,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToVerdictMs": {
+              "count": 888,
+              "median": 591.8150000572205,
+              "p95": 1156.420000076294,
+              "max": 1456.414999961853
+            },
+            "lockToVerdictMs": {
+              "count": 888,
+              "median": 0,
+              "p95": 590.9800001382828,
+              "max": 1099.4199999570847
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 888,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1667
+        }
+      },
+      "extraObservationsPerAttempt": {
+        "count": 1769,
+        "median": 0,
+        "p95": 1,
+        "max": 2
+      }
+    },
+    {
+      "widthMs": 70,
+      "baselineOnly": false,
+      "eligible": false,
+      "safety": {
+        "unsupportedMatch": 2,
+        "subsetPhysicalChordMatch": 2,
+        "doubleAdvanceFromOneTruthGesture": 0,
+        "busyPeriodCarryoverAdvance": 0,
+        "latePublicationCarryoverAdvance": 0,
+        "crossAttemptObservationReuse": 0,
+        "heldPedalAdvance": 0,
+        "samePitchSustainAdvance": 0,
+        "sameChordSustainAdvance": 0,
+        "staleEqualWatermarkAdvance": 0
+      },
+      "assemblySafetyByRate": {
+        "44100": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        },
+        "48000": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        }
+      },
+      "mandatoryBachUnsafe": false,
+      "corroboratedIntendedAcceptances": 179,
+      "usabilityByRate": {
+        "44100": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 861,
+          "matches": 97,
+          "supportedMatches": 96,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 89,
+          "acceptedAttemptRecall": 0.1111111111111111,
+          "recallByFamily": {
+            "single": {
+              "accepted": 34,
+              "total": 464,
+              "recall": 0.07327586206896551
+            },
+            "chord": {
+              "accepted": 55,
+              "total": 337,
+              "recall": 0.1632047477744807
+            },
+            "same_note_retrigger": {
+              "accepted": 79,
+              "total": 656,
+              "recall": 0.12042682926829268
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 764,
+            "truthSupportedCorrectRejection": 733,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 861,
+              "median": 573.3949206253837,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToLockMs": {
+              "count": 861,
+              "median": 573.3949206253837,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToVerdictMs": {
+              "count": 861,
+              "median": 600.8549206635362,
+              "p95": 1168.2999205967717,
+              "max": 1603.6199206492256
+            },
+            "lockToVerdictMs": {
+              "count": 861,
+              "median": 0,
+              "p95": 591.7900000810623,
+              "max": 1099.570000052452
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 861,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1707
+        },
+        "48000": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 868,
+          "matches": 100,
+          "supportedMatches": 99,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 90,
+          "acceptedAttemptRecall": 0.11235955056179775,
+          "recallByFamily": {
+            "single": {
+              "accepted": 35,
+              "total": 464,
+              "recall": 0.07543103448275862
+            },
+            "chord": {
+              "accepted": 55,
+              "total": 337,
+              "recall": 0.1632047477744807
+            },
+            "same_note_retrigger": {
+              "accepted": 80,
+              "total": 656,
+              "recall": 0.12195121951219512
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 768,
+            "truthSupportedCorrectRejection": 737,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 868,
+              "median": 570.3849999904633,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToLockMs": {
+              "count": 868,
+              "median": 570.3849999904633,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToVerdictMs": {
+              "count": 868,
+              "median": 592.5349999666214,
+              "p95": 1157.8045000731945,
+              "max": 1456.414999961853
+            },
+            "lockToVerdictMs": {
+              "count": 868,
+              "median": 0,
+              "p95": 596.4660000205038,
+              "max": 1099.4199999570847
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 868,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1667
+        }
+      },
+      "extraObservationsPerAttempt": {
+        "count": 1729,
+        "median": 0,
+        "p95": 1,
+        "max": 2
+      }
+    },
+    {
+      "widthMs": 90,
+      "baselineOnly": false,
+      "eligible": false,
+      "safety": {
+        "unsupportedMatch": 2,
+        "subsetPhysicalChordMatch": 2,
+        "doubleAdvanceFromOneTruthGesture": 0,
+        "busyPeriodCarryoverAdvance": 0,
+        "latePublicationCarryoverAdvance": 0,
+        "crossAttemptObservationReuse": 0,
+        "heldPedalAdvance": 0,
+        "samePitchSustainAdvance": 0,
+        "sameChordSustainAdvance": 0,
+        "staleEqualWatermarkAdvance": 0
+      },
+      "assemblySafetyByRate": {
+        "44100": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        },
+        "48000": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        }
+      },
+      "mandatoryBachUnsafe": false,
+      "corroboratedIntendedAcceptances": 177,
+      "usabilityByRate": {
+        "44100": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 833,
+          "matches": 96,
+          "supportedMatches": 95,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 88,
+          "acceptedAttemptRecall": 0.10986267166042447,
+          "recallByFamily": {
+            "single": {
+              "accepted": 34,
+              "total": 464,
+              "recall": 0.07327586206896551
+            },
+            "chord": {
+              "accepted": 54,
+              "total": 337,
+              "recall": 0.16023738872403562
+            },
+            "same_note_retrigger": {
+              "accepted": 78,
+              "total": 656,
+              "recall": 0.11890243902439024
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 737,
+            "truthSupportedCorrectRejection": 706,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 833,
+              "median": 578.2749206206154,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToLockMs": {
+              "count": 833,
+              "median": 578.2749206206154,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToVerdictMs": {
+              "count": 833,
+              "median": 652.989920653994,
+              "p95": 1170.563920631101,
+              "max": 1603.6199206492256
+            },
+            "lockToVerdictMs": {
+              "count": 833,
+              "median": 0,
+              "p95": 602.2800000905991,
+              "max": 1099.570000052452
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 833,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1631
+        },
+        "48000": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 840,
+          "matches": 99,
+          "supportedMatches": 98,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 89,
+          "acceptedAttemptRecall": 0.1111111111111111,
+          "recallByFamily": {
+            "single": {
+              "accepted": 35,
+              "total": 464,
+              "recall": 0.07543103448275862
+            },
+            "chord": {
+              "accepted": 54,
+              "total": 337,
+              "recall": 0.16023738872403562
+            },
+            "same_note_retrigger": {
+              "accepted": 79,
+              "total": 656,
+              "recall": 0.12042682926829268
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 741,
+            "truthSupportedCorrectRejection": 710,
+            "falseMismatch": 31,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 840,
+              "median": 571.7250000238419,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToLockMs": {
+              "count": 840,
+              "median": 571.7250000238419,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToVerdictMs": {
+              "count": 840,
+              "median": 648.495000064373,
+              "p95": 1159.0237500667567,
+              "max": 1456.414999961853
+            },
+            "lockToVerdictMs": {
+              "count": 840,
+              "median": 0,
+              "p95": 602.7949999570847,
+              "max": 1099.4199999570847
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 840,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1591
+        }
+      },
+      "extraObservationsPerAttempt": {
+        "count": 1673,
+        "median": 0,
+        "p95": 1,
+        "max": 2
+      }
+    },
+    {
+      "widthMs": 120,
+      "baselineOnly": false,
+      "eligible": false,
+      "safety": {
+        "unsupportedMatch": 2,
+        "subsetPhysicalChordMatch": 2,
+        "doubleAdvanceFromOneTruthGesture": 0,
+        "busyPeriodCarryoverAdvance": 0,
+        "latePublicationCarryoverAdvance": 0,
+        "crossAttemptObservationReuse": 0,
+        "heldPedalAdvance": 0,
+        "samePitchSustainAdvance": 0,
+        "sameChordSustainAdvance": 0,
+        "staleEqualWatermarkAdvance": 0
+      },
+      "assemblySafetyByRate": {
+        "44100": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        },
+        "48000": {
+          "unsupportedMatch": 1,
+          "subsetPhysicalChordMatch": 1,
+          "doubleAdvanceFromOneTruthGesture": 0,
+          "busyPeriodCarryoverAdvance": 0,
+          "latePublicationCarryoverAdvance": 0,
+          "crossAttemptObservationReuse": 0,
+          "heldPedalAdvance": 0,
+          "samePitchSustainAdvance": 0,
+          "sameChordSustainAdvance": 0,
+          "staleEqualWatermarkAdvance": 0
+        }
+      },
+      "mandatoryBachUnsafe": false,
+      "corroboratedIntendedAcceptances": 151,
+      "usabilityByRate": {
+        "44100": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 806,
+          "matches": 83,
+          "supportedMatches": 82,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 75,
+          "acceptedAttemptRecall": 0.09363295880149813,
+          "recallByFamily": {
+            "single": {
+              "accepted": 28,
+              "total": 464,
+              "recall": 0.0603448275862069
+            },
+            "chord": {
+              "accepted": 47,
+              "total": 337,
+              "recall": 0.1394658753709199
+            },
+            "same_note_retrigger": {
+              "accepted": 65,
+              "total": 656,
+              "recall": 0.09908536585365854
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 723,
+            "truthSupportedCorrectRejection": 679,
+            "falseMismatch": 44,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 806,
+              "median": 578.904920615847,
+              "p95": 928.3049205920051,
+              "max": 1103.6199206492256
+            },
+            "eventToLockMs": {
+              "count": 806,
+              "median": 578.2749206206154,
+              "p95": 924.9149206063103,
+              "max": 1103.6199206492256
+            },
+            "eventToVerdictMs": {
+              "count": 806,
+              "median": 673.9599206825951,
+              "p95": 1179.574920692141,
+              "max": 1603.6199206492256
+            },
+            "lockToVerdictMs": {
+              "count": 806,
+              "median": 0,
+              "p95": 602.2800000905991,
+              "max": 1099.570000052452
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 806,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1627
+        },
+        "48000": {
+          "safety": {
+            "falseAdvanceWithoutNewTruthGesture": 0,
+            "doubleAdvanceFromOneTruthGesture": 0,
+            "busyPeriodCarryoverAdvance": 0,
+            "latePublicationCarryoverAdvance": 0,
+            "samePitchSustainAdvance": 0,
+            "sameChordSustainAdvance": 0,
+            "crossAttemptEvidenceReuse": 0,
+            "wrongPitchAdvance": 1
+          },
+          "scenarioCells": 222,
+          "attempts": 811,
+          "matches": 86,
+          "supportedMatches": 85,
+          "intendedAttempts": 801,
+          "acceptedIntendedAttempts": 76,
+          "acceptedAttemptRecall": 0.09488139825218476,
+          "recallByFamily": {
+            "single": {
+              "accepted": 29,
+              "total": 464,
+              "recall": 0.0625
+            },
+            "chord": {
+              "accepted": 47,
+              "total": 337,
+              "recall": 0.1394658753709199
+            },
+            "same_note_retrigger": {
+              "accepted": 66,
+              "total": 656,
+              "recall": 0.10060975609756098
+            },
+            "soft_after_loud": {
+              "accepted": 0,
+              "total": 31,
+              "recall": 0
+            },
+            "rapid_retrigger": {
+              "accepted": 3,
+              "total": 158,
+              "recall": 0.0189873417721519
+            },
+            "repeated_chord": {
+              "accepted": 6,
+              "total": 10,
+              "recall": 0.6
+            }
+          },
+          "mismatch": {
+            "total": 725,
+            "truthSupportedCorrectRejection": 681,
+            "falseMismatch": 44,
+            "noNearbyTruth": 0
+          },
+          "retryCount": 0,
+          "retryRate": 0,
+          "latencies": {
+            "eventToEvidenceMs": {
+              "count": 811,
+              "median": 575.1999999284744,
+              "p95": 913.6949999332428,
+              "max": 971.829999923706
+            },
+            "eventToLockMs": {
+              "count": 811,
+              "median": 573.6100000143051,
+              "p95": 898.0400000810623,
+              "max": 940.7050000429153
+            },
+            "eventToVerdictMs": {
+              "count": 811,
+              "median": 668.0249999761581,
+              "p95": 1182.7849999666214,
+              "max": 1545.2250000238419
+            },
+            "lockToVerdictMs": {
+              "count": 811,
+              "median": 0,
+              "p95": 605.6850000619888,
+              "max": 1102.6899999380112
+            },
+            "additionalTruthGesturesBeforeLock": {
+              "count": 811,
+              "median": 2,
+              "p95": 5,
+              "max": 7
+            }
+          },
+          "preLockAdditionalTruthGestures": 1585
+        }
+      },
+      "extraObservationsPerAttempt": {
+        "count": 1617,
+        "median": 0,
+        "p95": 2,
+        "max": 5
+      }
+    }
+  ],
+  "dangerousWitnesses": "development.json contains every witness, original observations IDs, physical truth and boundary attribution",
+  "qualification": {
+    "status": "NOT_STARTED_NO_ELIGIBLE_DEVELOPMENT_CANDIDATE",
+    "sourceIds": [],
+    "candidateFreezeCommit": null,
+    "acousticSealSha256": null,
+    "truthIsolation": "No new qualification Stage A or B executed; old exposed development acoustic seal verified before truth read."
+  },
+  "model": {
+    "assetId": "practice-acoustic-robust-browser",
+    "version": "v1",
+    "bytes": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "ort": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false,
+    "onset": 0.3,
+    "frame": 0.05,
+    "inputSamples": 29120,
+    "ownedMs": 600,
+    "futureMs": 170,
+    "pastMs": 1050
+  },
+  "protectedSourceDiff": "",
+  "continuousRegression": {
+    "status": "PARTIAL_EXECUTION_BLOCKED",
+    "cells": [
+      {
+        "rate": 44100,
+        "scenario": "natural_recording_offline",
+        "state": "PASS"
+      },
+      {
+        "rate": 44100,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "FAILED"
+      },
+      {
+        "rate": 44100,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 44100,
+        "scenario": "recording_analysis_failure_running",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "natural_recording_offline",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "recording_analysis_failure_running",
+        "state": "NOT_STARTED"
+      }
+    ],
+    "failure": "page.evaluate: Error: {\"reason\":\"Error: PREPARATION_FAILED\",\"rate\":44100,\"scenario\":\"count_in_cancel_multiple_pause_manual_stop\",\"snapshot\":{\"session\":\"FAILED_BEFORE_START\",\"transport\":null,\"analysis\":\"FAILED\",\"analysisError\":\"ANALYSIS_FAILED\",\"inputError\":\"MODEL_LOAD_FAILED\",\"recording\":null,\"evaluation\":{\"sessionDomainId\":\"local-practice:f4e94e73-2437-4600-bb7f-e4dfd5610e54\",\"analyzedThroughPerformanceMs\":null,\"groups\":[{\"groupId\":\"entry-0.0-05162c611506\",\"performanceTimeMs\":0,\"verdict\":\"PENDING\",\"strikes\":[{\"strikeId\":\"entry-0.0-05162c611506:strike:C4\",\"groupId\":\"entry-0.0-05162c611506\",\"pitch\":\"C4\",\"expectedPerformanceTimeMs\":0,\"renderNoteIds\":[\"n1\"],\"state\":\"PENDING\"}],\"wrongObservations\":[],\"evidenceObservationIds\":[],\"finality\":null}],\"extras\":[],\"observationOwnership\":[],\"reservedObservationIds\":[],\"completion\":null},\"completed\":null,\"sessionSnapshot\":null},\"engineering\":{\"microphone\":{\"model\":{\"source\":\"network\",\"downloadMs\":1327.844999909401,\"cacheReadMs\":43.9449999332428,\"verificationMs\":83.71000003814697,\"totalLoadMs\":1465.295000076294,\"byteSize\":98689283,\"sha256\":\"4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3\",\"persistentStorageGranted\":null,\"assetId\":\"practice-acoustic-robust-browser\",\"assetVersion\":\"v1\",\"modelByteSize\":98689283,\"modelSha256\":\"4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3\",\"executionProvider\":\"webgpu\",\"modelFetchAndVerifyMs\":1554.344999909401,\"sessionCreateMs\":652.4550000429153,\"acousticCoreIdentitySha256\":\"93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443\",\"ortWebVersion\":\"1.20.1\",\"automaticFallback\":false,\"actualSessionLoadCount\":1,\"inputDescriptor\":{\"name\":\"audio\",\"dtype\":\"float32\",\"shape\":[1,29120]},\"outputDescriptors\":{\"reg_onset_output\":[1,183,88],\"frame_output\":[1,183,88]}},\"publications\":0,\"failure\":\"CAPTURE_CHRONOLOGY_VIOLATION\",\"runtime\":{\"state\":\"DISPOSED\",\"failureCode\":\"CAPTURE_CHRONOLOGY_VIOLATION\",\"acousticCoreIdentitySha256\":\"93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443\",\"sourceAdapterIdentitySha256\":\"32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5\",\"sourceRateHz\":44100,\"sourceBase\":0,\"nextSourceSampleIndex\":128,\"activeRegion\":null,\"pendingRegions\":0,\"outstanding\":0,\"counts\":{\"windowsQueued\":0,\"windowsStarted\":0,\"windowsPublished\":0,\"observationsPublished\":0,\"peakOutstanding\":0,\"backpressureFailures\":0,\"regionsStarted\":0,\"regionsDrained\":0,\"segmentsStarted\":0,\"segmentsDrained\":0,\"terminalPublications\":0},\"diagnostics\":[],\"resources\":{\"sessionPcmBytes\":0,\"sourceAdapterBytes\":35796,\"targetRingBytes\":262144,\"outstandingInputBytes\":0,\"maximumOutstandingInputBytes\":465920,\"retainedPublicationEvents\":0,\"diagnosticWindowLimit\":32,\"compactDiagnosticsPlanningBytes\":16384},\"activeSegment\":null,\"pendingSegments\":0,\"analyzedThroughPerformanceMs\":null},\"capture\":{\"nextSourceSampleIndex\":128,\"nextSequence\":1,\"audioContextOriginFrame\":0,\"blocks\":1,\"chunkSizes\":{\"128\":1},\"failed\":true,\"pendingBoundaryCount\":0,\"boundaryDiagnostics\":[]}},\"diagnostics\":[{\"action\":\"ANALYSIS_FAILED\",\"state\":\"PREPARING\",\"performanceTimeMs\":0,\"detail\":\"CAPTURE_CHRONOLOGY_VIOLATION\"},{\"action\":\"PREPARATION_FAILED\",\"state\":\"PREPARING\",\"performanceTimeMs\":0,\"detail\":\"Error: CAPTURE_CHRONOLOGY_VIOLATION\"}],\"diagnosticLimit\":32,\"diagnosticPlanningBytes\":32768,\"rootTrackStates\":[],\"audioContextState\":\"closed\",\"audioContextRate\":44100},\"resumeWitnesses\":[],\"acquisitions\":1,\"contextsCreated\":1,\"contextsClosed\":1,\"workersCreated\":1}\n    at window.runContinuousControllerQualification (http://127.0.0.1:54189/entry.js:5820:13)\n    at async <anonymous>:260:30\n    at C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\step-assembly\\controller-browser.mjs:71:28",
+    "failureWitness": {
+      "reason": "Error: PREPARATION_FAILED",
+      "rate": 44100,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "snapshot": {
+        "session": "FAILED_BEFORE_START",
+        "transport": null,
+        "analysis": "FAILED",
+        "analysisError": "ANALYSIS_FAILED",
+        "inputError": "MODEL_LOAD_FAILED",
+        "recording": null,
+        "evaluation": {
+          "sessionDomainId": "local-practice:f4e94e73-2437-4600-bb7f-e4dfd5610e54",
+          "analyzedThroughPerformanceMs": null,
+          "groups": [
+            {
+              "groupId": "entry-0.0-05162c611506",
+              "performanceTimeMs": 0,
+              "verdict": "PENDING",
+              "strikes": [
+                {
+                  "strikeId": "entry-0.0-05162c611506:strike:C4",
+                  "groupId": "entry-0.0-05162c611506",
+                  "pitch": "C4",
+                  "expectedPerformanceTimeMs": 0,
+                  "renderNoteIds": [
+                    "n1"
+                  ],
+                  "state": "PENDING"
+                }
+              ],
+              "wrongObservations": [],
+              "evidenceObservationIds": [],
+              "finality": null
+            }
+          ],
+          "extras": [],
+          "observationOwnership": [],
+          "reservedObservationIds": [],
+          "completion": null
+        },
+        "completed": null,
+        "sessionSnapshot": null
+      },
+      "engineering": {
+        "microphone": {
+          "model": {
+            "source": "network",
+            "downloadMs": 1327.844999909401,
+            "cacheReadMs": 43.9449999332428,
+            "verificationMs": 83.71000003814697,
+            "totalLoadMs": 1465.295000076294,
+            "byteSize": 98689283,
+            "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+            "persistentStorageGranted": null,
+            "assetId": "practice-acoustic-robust-browser",
+            "assetVersion": "v1",
+            "modelByteSize": 98689283,
+            "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+            "executionProvider": "webgpu",
+            "modelFetchAndVerifyMs": 1554.344999909401,
+            "sessionCreateMs": 652.4550000429153,
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "ortWebVersion": "1.20.1",
+            "automaticFallback": false,
+            "actualSessionLoadCount": 1,
+            "inputDescriptor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputDescriptors": {
+              "reg_onset_output": [
+                1,
+                183,
+                88
+              ],
+              "frame_output": [
+                1,
+                183,
+                88
+              ]
+            }
+          },
+          "publications": 0,
+          "failure": "CAPTURE_CHRONOLOGY_VIOLATION",
+          "runtime": {
+            "state": "DISPOSED",
+            "failureCode": "CAPTURE_CHRONOLOGY_VIOLATION",
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+            "sourceRateHz": 44100,
+            "sourceBase": 0,
+            "nextSourceSampleIndex": 128,
+            "activeRegion": null,
+            "pendingRegions": 0,
+            "outstanding": 0,
+            "counts": {
+              "windowsQueued": 0,
+              "windowsStarted": 0,
+              "windowsPublished": 0,
+              "observationsPublished": 0,
+              "peakOutstanding": 0,
+              "backpressureFailures": 0,
+              "regionsStarted": 0,
+              "regionsDrained": 0,
+              "segmentsStarted": 0,
+              "segmentsDrained": 0,
+              "terminalPublications": 0
+            },
+            "diagnostics": [],
+            "resources": {
+              "sessionPcmBytes": 0,
+              "sourceAdapterBytes": 35796,
+              "targetRingBytes": 262144,
+              "outstandingInputBytes": 0,
+              "maximumOutstandingInputBytes": 465920,
+              "retainedPublicationEvents": 0,
+              "diagnosticWindowLimit": 32,
+              "compactDiagnosticsPlanningBytes": 16384
+            },
+            "activeSegment": null,
+            "pendingSegments": 0,
+            "analyzedThroughPerformanceMs": null
+          },
+          "capture": {
+            "nextSourceSampleIndex": 128,
+            "nextSequence": 1,
+            "audioContextOriginFrame": 0,
+            "blocks": 1,
+            "chunkSizes": {
+              "128": 1
+            },
+            "failed": true,
+            "pendingBoundaryCount": 0,
+            "boundaryDiagnostics": []
+          }
+        },
+        "diagnostics": [
+          {
+            "action": "ANALYSIS_FAILED",
+            "state": "PREPARING",
+            "performanceTimeMs": 0,
+            "detail": "CAPTURE_CHRONOLOGY_VIOLATION"
+          },
+          {
+            "action": "PREPARATION_FAILED",
+            "state": "PREPARING",
+            "performanceTimeMs": 0,
+            "detail": "Error: CAPTURE_CHRONOLOGY_VIOLATION"
+          }
+        ],
+        "diagnosticLimit": 32,
+        "diagnosticPlanningBytes": 32768,
+        "rootTrackStates": [],
+        "audioContextState": "closed",
+        "audioContextRate": 44100
+      },
+      "resumeWitnesses": [],
+      "acquisitions": 1,
+      "contextsCreated": 1,
+      "contextsClosed": 1,
+      "workersCreated": 1
+    },
+    "musicalReplay": "NOT_STARTED_ENGINEERING_PREREQUISITE_FAILED",
+    "productionControllerReplay": "NOT_STARTED_ENGINEERING_PREREQUISITE_FAILED",
+    "semanticParity": "NOT_ESTABLISHED_THIS_RUN"
+  },
+  "failureAttribution": {
+    "capture": "SourceChronology.accept compound validation rejected a chunk after exactly one accepted 128-sample block; exact failing field/predicate not retained, cannot prove gap vs overlap vs rate/time mismatch.",
+    "model": "Exact bytes/hash verified; ONNX session was created, zero INFER runs in failed cell. MODEL_LOAD_FAILED is outer preparation error presentation, not evidence of wrong model.",
+    "dependency": "ORT CPU shape-operation warnings do not establish WASM provider fallback.",
+    "bartok": "Owned-start boundary confound preserved; subset product MATCH remains observed, neural non-detection NOT established."
+  },
+  "modelRuns": {
+    "newStepInference": 0,
+    "continuousEngineering": 2,
+    "countComplete": true,
+    "continuousMusical": 0,
+    "total": 2
+  },
+  "staticVerification": [
+    {
+      "name": "execution-accounting-tests",
+      "exitCode": 0,
+      "output": "✔ failed-cell JSON witness is retained instead of discarding completed real executions (1.0474ms)\n✔ unobserved in-flight execution is explicitly incomplete, never guessed (0.1276ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 70.9353\n"
+    },
+    {
+      "name": "vitest",
+      "exitCode": 0,
+      "counts": {
+        "totalTests": 1113,
+        "passedTests": 1113,
+        "failedTests": 0,
+        "testFiles": 149,
+        "runnerSuiteCount": 307,
+        "success": true
+      }
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "messages": [
+        {
+          "path": "scripts/step-boundary/prepare-tooling.mjs",
+          "rule": "prefer-const",
+          "message": "'text' is never reassigned. Use 'const' instead.",
+          "severity": 1,
+          "line": 3,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "Docker backend asset unittest",
+      "exitCode": 0,
+      "output": "test_authenticated_delivery_over_http_without_practice_or_database (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_authenticated_delivery_over_http_without_practice_or_database) ... ok\ntest_delivery_is_pinned_and_ignores_historical_object_key (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_only_shared_endpoint_is_registered (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_only_shared_endpoint_is_registered) ... ok\ntest_schema_rejects_the_old_export (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.026s\n\nOK\n"
+    },
+    {
+      "name": "Docker backend model asset route tests",
+      "exitCode": 0,
+      "output": "...                                                                      [100%]\n=============================== warnings summary ===============================\n../../usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n3 passed, 1 warning in 2.48s\n"
+    }
+  ],
+  "focusedSubsetsFromFullVitest": {
+    "researchAssembly": {
+      "testFiles": 1,
+      "tests": 12,
+      "allFilesPass": true,
+      "files": [
+        {
+          "path": "tests/unit/step-acoustic-assembly.test.ts",
+          "status": "passed",
+          "tests": 12
+        }
+      ]
+    },
+    "step": {
+      "testFiles": 7,
+      "tests": 72,
+      "allFilesPass": true,
+      "files": [
+        {
+          "path": "src/lib/practice/local-core/step-attempt.test.ts",
+          "status": "passed",
+          "tests": 20
+        },
+        {
+          "path": "src/lib/practice/local-core/step-rearm-watermark.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/practice/step/exclusive-boundary.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/step/input-time-contract.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/step/step-architecture.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/step/step-practice-controller.test.ts",
+          "status": "passed",
+          "tests": 25
+        },
+        {
+          "path": "src/lib/practice/step/waiting-contract.test.ts",
+          "status": "passed",
+          "tests": 4
+        }
+      ]
+    },
+    "browserMidi": {
+      "testFiles": 1,
+      "tests": 8,
+      "allFilesPass": true,
+      "files": [
+        {
+          "path": "src/lib/practice/midi/browser-midi-controller.test.ts",
+          "status": "passed",
+          "tests": 8
+        }
+      ]
+    },
+    "continuousControllerAndMidi": {
+      "testFiles": 1,
+      "tests": 41,
+      "allFilesPass": true,
+      "files": [
+        {
+          "path": "src/lib/practice/continuous/continuous-practice-controller.test.ts",
+          "status": "passed",
+          "tests": 41
+        }
+      ]
+    },
+    "subsetCountsAreNotAdditionalTests": true
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "newDatasetDownloads": 0,
+  "productionIntegration": false,
+  "secondProductModel": false,
+  "noAdditionalCandidateAfterFailure": true,
+  "limitations": [
+    "No independent qualification holdout was selected or executed because all predeclared non-baseline candidates failed development safety.",
+    "Boundary-confounded development failures cannot identify a neural defect or prove every possible bounded assembler unsafe.",
+    "Dense free-running, overlapping clips and counterfactual target scenarios repeat diagnostic opportunities; acceptance ratios are not natural waiting-user UX or scientific accuracy.",
+    "Replay physical capture watermark is an independent continuously advancing source-sample simulation, not hardware measurement.",
+    "Continuous regression failed independently of the STEP experiment; no retry, source repair, fallback or inherited PASS. Musical regression not executed.",
+    "No real-device, commercial, perfect-strike-detector or UX latency qualification."
+  ],
+  "evidenceGeneratedAt": "2026-10-17T20:24:19.737Z"
+}
