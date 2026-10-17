@@ -70,7 +70,8 @@ export class ContinuousPracticeController {
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
       analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.recorder?.snapshot() ?? null,
-      evaluation: this.session?.evaluationSnapshot ?? null, completed: this.completed, sessionSnapshot: this.finalSession });
+      evaluation: this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
+      sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
   engineeringSnapshot() { return Object.freeze({ microphone: this.microphone?.snapshot() ?? null,
     diagnostics: Object.freeze([...this.diagnostics]), diagnosticLimit: DIAGNOSTIC_LIMIT,
@@ -223,8 +224,9 @@ export class ContinuousPracticeController {
           scope: resolvePracticeScope(this.options.artifact, this.options.scope), tempoPlan: this.tempoPlan,
           inputSource: this.options.inputSource, activeElapsedMs: this.finalSession.performance.activeElapsedMs,
           evaluation, media: media.media, recordingTimebase: media.timebase, completedAt: new Date().toISOString() });
-        completedPerformanceStore.setPerformance(this.completed); this.state = 'COMPLETE'; this.record('COMPLETE');
-        await this.cleanup(); if (!this.disposed) { this.notify(); this.options.onCompletion?.(this.finalSession); }
+        await this.cleanup(); this.checkAlive();
+        this.state = 'COMPLETE'; completedPerformanceStore.setPerformance(this.completed); this.record('COMPLETE');
+        this.notify(); this.options.onCompletion?.(this.finalSession);
       } catch (error) {
         if (!this.disposed) { this.inputError = (error as Error).message.slice(0, 256); this.state = 'FAILED'; await this.cleanup(); this.notify(); }
       } finally { if (this.disposed) await this.cleanup(); }

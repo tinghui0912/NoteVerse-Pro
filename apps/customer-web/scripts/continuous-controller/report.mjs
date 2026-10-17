@@ -32,8 +32,10 @@ if (mode === 'evidence') {
     receipts.push({ path: path.relative(ROOT, file).replaceAll('\\', '/'), sha256: hash(await readFile(file)) });
   }
   const disposition = verification.status === 'PASS' && browser?.disposition === SUCCESS ? SUCCESS : BLOCKED;
+  const priorInvalidation = id === 'v1' ? null : await read(path.join(reportDir, 'continuous_controller_invalidation_v1_2026-10-17.json'));
   await newJson(path.join(reportDir, `continuous_controller_final_${id}_2026-10-17.json`), {
     phase: PHASE, disposition, startingHead: START, productImplementationCommit: plan.productImplementationCommit,
+    initialProductImplementationCommit: git('log', '--reverse', '--format=%H', `${START}..HEAD`, '--', 'apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts').split('\n')[0],
     qualificationToolingCommit: plan.qualificationToolingCommit, proof: browser?.proof ?? verification.proof,
     executionStartedAt: browser?.executionStartedAt, receipts, changedFiles: changed,
     moduleResponsibilities: {
@@ -60,7 +62,11 @@ if (mode === 'evidence') {
           resumeWitnesses: c.result.resumeWitnesses, resources: c.result.resources, transport: c.result.transport,
           completed: c.result.completed, engineering: c.result.engineering } : {}) })) } : { status: 'NOT_STARTED' },
     currentCapabilities: { continuous: 'MODEL_NOT_VALIDATED', step: 'ATTEMPT_ANALYZER_NOT_VALIDATED', productionMicrophone: false, D4: false },
-    counters: { actualModelRuns: browser?.actualModelRuns ?? 0, newExternalDatasets: 0, newScientificAccuracyBenchmarks: 0, realDeviceProbes: 0 },
+    counters: { actualModelRuns: browser?.actualModelRuns ?? 0, modelRunCountComplete: browser?.modelRunCountComplete ?? true,
+      previousInvalidatedModelRuns: priorInvalidation?.actualInvalidatedModelRuns ?? 0,
+      totalPhaseModelRuns: (browser?.actualModelRuns ?? 0) + (priorInvalidation?.actualInvalidatedModelRuns ?? 0),
+      newExternalDatasets: 0, newScientificAccuracyBenchmarks: 0, realDeviceProbes: 0 },
+    invalidatedPriorFreeze: priorInvalidation,
     limitations: ['Fake-device track native rate is not the AudioContext rate and neither proves native hardware qualification',
       'Acoustic fixture may produce zero onsets; deterministic product publication tests supply verdict semantics, not natural piano accuracy',
       'MediaRecorder logical segment mapping is qualified; physical input latency, recording start latency, actual media duration and subjective UX are not',

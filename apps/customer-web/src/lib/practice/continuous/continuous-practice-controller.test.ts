@@ -149,10 +149,11 @@ describe('Continuous application owner', () => {
     const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
     const promise = controller.finish(); await f.feed(50); await promise;
     expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(0);
-    expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(0); await controller.dispose();
+    expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(0);
     const evaluation = controller.snapshot().completed?.evaluation;
     expect(evaluation?.status).toBe('COMPLETE');
     if (evaluation?.status === 'COMPLETE') expect(evaluation.groups.every(group => group.verdict === 'NOT_REACHED')).toBe(true);
+    await controller.dispose();
   });
   for (const paused of [false, true]) it(`analysis failure ${paused ? 'PAUSED' : 'RUNNING'} does not stop clock/root/recording`, async () => {
     const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(300);
@@ -174,6 +175,17 @@ describe('Continuous application owner', () => {
     expect(completed.recordingTimebase.activeSegments[0].perfEndMs).toBe(T);
     expect(completed.recordingTimebase.activeSegments[1].perfStartMs).toBe(T);
     expect(f.platform.acquireMicrophone).toHaveBeenCalledTimes(1); await controller.dispose();
+  });
+  it('does not expose COMPLETE or completed truth while Worker cleanup is still pending', async () => {
+    const f = environment(); let release: () => void = () => {};
+    f.worker.dispose = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
+    const controller = f.create(); await controller.start(); await f.feed(400);
+    const completion = controller.finish(); await f.feed(400);
+    expect(controller.snapshot().session).toBe('FINALIZING'); expect(controller.snapshot().completed).toBeNull();
+    expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.context.close).not.toHaveBeenCalled();
+    release(); await completion;
+    expect(controller.snapshot().session).toBe('COMPLETE'); expect(f.root.audio.stop).toHaveBeenCalledTimes(1);
+    expect(f.context.close).toHaveBeenCalledTimes(1); await controller.dispose();
   });
   it('pre-start model failure never begins transport or acquires microphone', async () => {
     const f = environment(); f.platform.modelUrl = async () => { throw new Error('ASSET_FAILURE'); };

@@ -6,6 +6,7 @@ const id = process.argv[2] ?? 'v1', proof = await verify(id), work = paths(id).w
 await mkdir(work, { recursive: true });
 const results = [];
 for (const [name, args] of [
+  ['execution-accounting-tests', ['--test', 'scripts/continuous-controller/execution-accounting.test.mjs']],
   ['vitest', ['node_modules/vitest/vitest.mjs', 'run', '--reporter=json', '--outputFile=' + path.join(work, 'vitest.json')]],
   ['typecheck', ['node_modules/typescript/bin/tsc', '--noEmit', '--pretty', 'false']],
   ['lint', ['node_modules/eslint/bin/eslint.js', '.', '--format=json']],
@@ -17,6 +18,7 @@ for (const [name, args] of [
   await writeFile(path.join(work, name + '.stdout.txt'), result.stdout ?? ''); await writeFile(path.join(work, name + '.stderr.txt'), result.stderr ?? '');
   const row = { name, args, startedAt, completedAt: new Date().toISOString(), exitCode: result.status,
     stdoutSha256: hash(result.stdout ?? ''), stderrSha256: hash(result.stderr ?? '') };
+  if (name === 'execution-accounting-tests') row.output = result.stdout;
   if (name === 'lint') row.messages = JSON.parse(result.stdout).flatMap(file => file.messages.map(m => ({
     path: path.relative(APP, file.filePath).replaceAll('\\', '/'), rule: m.ruleId, message: m.message, severity: m.severity, line: m.line, column: m.column })));
   if (name === 'vitest') {

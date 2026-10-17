@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, APP, MODEL, FIXTURE, paths, newJson, verify, fileIdentity, SUCCESS, BLOCKED } from './protocol.mjs';
 import { resolveBrandedBrowserExecutable, RUNTIME_NODE_MODULES, collectWebGpuAdapter } from '../../../../backend/research/browser_runtime/xc1_browser_runtime_shared.mjs';
 import { classifyRuntimeDiagnostic } from '../continuous-runtime-diagnostics.mjs';
+import { failedCellWitness, modelRunAccounting } from './execution-accounting.mjs';
 
 const id = process.argv[2] ?? 'v1', proof = await verify(id), work = paths(id).work;
 const verification = JSON.parse(await readFile(path.join(work, 'verification.json'), 'utf8'));
@@ -79,15 +80,14 @@ try {
     } finally { await context.close(); }
   }
 } catch (error) {
-  failure = String(error.stack ?? error); if (activeCell) { activeCell.state = 'FAILED'; activeCell.error = failure; }
+  failure = String(error.stack ?? error); if (activeCell) { activeCell.state = 'FAILED'; activeCell.error = failure; activeCell.failureWitness = failedCellWitness(failure); }
   console.error(BLOCKED, failure); process.exitCode = 1;
 } finally {
   await browser?.close(); await new Promise(resolve => server.close(resolve));
   const disposition = cells.every(c => c.state === 'PASS') ? SUCCESS : BLOCKED;
   await newJson(path.join(work, 'browser.json'), { proof, executionStartedAt, completedAt: at(), browser: browserIdentity, disposition,
     status: cells.every(c => c.state === 'PASS') ? 'PASS' : 'PARTIAL_EXECUTION_BLOCKED', cells, diagnostics, failure, requests, bundles,
-    actualModelRuns: cells.reduce((n, c) => n + (c.result?.actualModelRuns ?? 0), 0),
-    modelRunCountComplete: cells.filter(c => c.state !== 'NOT_STARTED').every(c => Boolean(c.result)),
+    ...modelRunAccounting(cells),
     model: await fileIdentity(MODEL), fixture: await fileIdentity(FIXTURE), productionMicrophone: false, realDevice: 'NOT_PERFORMED' });
   console.log(disposition);
 }
