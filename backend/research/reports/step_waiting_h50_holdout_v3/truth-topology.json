@@ -1,0 +1,766 @@
+{
+  "freezeCommit": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
+  "remoteHead": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
+  "freezeCanonicalSha256": "8b78b3f4f74db5ab4e104323e94cc94828777c3fde58585330bcbae882178caf",
+  "remoteVerifiedAt": "2026-10-18T05:42:54.236026+00:00",
+  "candidateMidiEventsParsed": true,
+  "role": "SELECTOR_ONLY_PRE_MIDI_REMOTE_PROOF_NOT_ACOUSTIC_QUALIFICATION",
+  "executionStartedAt": "2026-10-18T05:43:05.293103+00:00",
+  "executionKind": "TRUTH_ONLY_TOPOLOGY_NOT_ACOUSTIC_QUALIFICATION",
+  "completedAt": "2026-10-18T05:43:07.041350+00:00",
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0,
+  "invalidatedNeuralRuns": 0,
+  "HMs": 50,
+  "primaryEligibleRecordingCount": 25,
+  "perSourceCounts": [
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_06_WAV.wav",
+      "audioSha256": "0a1fb5140985bf2673c10a4cd720b530acec0179eeb08d8c8b7820eca3682b68",
+      "midiSha256": "1325bc94a14f3a5f0132e9b9b9c64e108cc824ead1bb508d9cdcc81a39ee5697",
+      "noteOnCount": 1052,
+      "gestureCount": 721,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p01",
+      "audioSha256": "660d8ebd492206340e5efb436722fc8cd721488b4d61ad608af063c0f759d029",
+      "midiSha256": "747bcb5c91a60d26ce6d22800e210137afd9cd3e78d54ba30f0ab89f81ef187a",
+      "noteOnCount": 451,
+      "gestureCount": 228,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioSha256": "4171005671699df29f58a2a29ea9685b56956e20b270d91a4e22f9aa28eedcba",
+      "midiSha256": "ed5366a4ddb078188af7b68a7bc37663687a9a7a3f2f11e8277c8984f1cf96ad",
+      "noteOnCount": 448,
+      "gestureCount": 183,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p03",
+      "audioSha256": "1edfc6b493b600d4220fe8e933be9a0ca95baeb26bd2d86f8c39f862101a7f0c",
+      "midiSha256": "1f186d042b01f734644e64e41b3953991574c8a53b0f6de87f391ae8b77b7c9c",
+      "noteOnCount": 452,
+      "gestureCount": 271,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p04",
+      "audioSha256": "7cd38b05cf7c55cc6ea42ec1e662544fee1ac035c879bdbe9e2eefef33eccf7c",
+      "midiSha256": "34412020936a25c01d5ce547891db56ca6b78d1725faaadf0f7fc4c2f444b43c",
+      "noteOnCount": 450,
+      "gestureCount": 220,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p05",
+      "audioSha256": "8fc04bc52cc3d4ae5bb4d03eb188cf0df9a01579884bbaa14bcc0138c5d3bab4",
+      "midiSha256": "4a91514b185f6f959839685676d9f1e5b307e7b3dcdaf4b34580a2f82ec6c974",
+      "noteOnCount": 450,
+      "gestureCount": 219,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p06",
+      "audioSha256": "54214ebc6b93a17a7f4ea0d829219a73a691ba68c6bd24eaf317300242c3b363",
+      "midiSha256": "e663aaa185bf4b4224c040a2487c5f2509f1767ae9afa6958d11b77fcc6e0718",
+      "noteOnCount": 451,
+      "gestureCount": 252,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p07",
+      "audioSha256": "e06948bb239ef97f687b3e5273e8877b65e29a87c927096b09df4604805db625",
+      "midiSha256": "432d15c034e799b626ed545f1f09205e93effd281f88e045e94e5a97cf1141ee",
+      "noteOnCount": 451,
+      "gestureCount": 186,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p09",
+      "audioSha256": "9c3f49ff216ad49c119dead8803c23a0224850202df77b86f91ba437ffdcb7ee",
+      "midiSha256": "f9179022fd5839c10b9e78a8773922bce09e3774f3b815c94b73ee301e030baa",
+      "noteOnCount": 436,
+      "gestureCount": 181,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p10",
+      "audioSha256": "c1e2bfad146b2372e92fac1557d74bc8026f33a8cd4c19e879201ba312b6f559",
+      "midiSha256": "5d3bc6639e1087eeb86004a586ed22f4bb46970393ea8a05f3e187de50388bac",
+      "noteOnCount": 447,
+      "gestureCount": 236,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p11",
+      "audioSha256": "ad366e0c0c0557d79cb3f2f17f6f6e951537f1745d6c81c5588a711b940bbf48",
+      "midiSha256": "6ae0e79d57dbed6aca30918e21b4a2787dbbf8c2b8beb9990cd0cfbe23dee05a",
+      "noteOnCount": 450,
+      "gestureCount": 202,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p12",
+      "audioSha256": "a3b63b2b354646ea92fdf6a6608aa0227a250c7f0b5aa03150d290e1a163a106",
+      "midiSha256": "1535e66a9eb1faad16a7b8cb51b542cbc3057c7d11a3c029d2ba3a1cc63c2053",
+      "noteOnCount": 453,
+      "gestureCount": 182,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p13",
+      "audioSha256": "eba4cbda2b846357a37c3b3dd838b8566456324b263da068beda576d62ba1199",
+      "midiSha256": "d9f6395f197a50c82c12b4b45afb20adcb1c702e871ebd41aff827243fb0ac08",
+      "noteOnCount": 452,
+      "gestureCount": 218,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p14",
+      "audioSha256": "07e295186ca3bacfe2f8893d2958b51af1def83eaa9b26bf9f09d0a02170e1cf",
+      "midiSha256": "3b1b27d9808b24b0dfeec6dbb406f3ab0c908bc993aa5de5afaa311c2db0c7db",
+      "noteOnCount": 450,
+      "gestureCount": 238,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p15",
+      "audioSha256": "e236aa34d94b969e6617c9d4a9f587247f03331ea760c3ba7e3036a490f5b6da",
+      "midiSha256": "0ac14e779c1497bfb8cb771ab2d01a8805d6a99d6a3e2a4e7e0275187dc1f8a6",
+      "noteOnCount": 449,
+      "gestureCount": 224,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p16",
+      "audioSha256": "437f3487726f287640d7391c98d27a7c4b14fe741439e892cd897ab3d5d5ee8a",
+      "midiSha256": "dc20422ac6d70dfb849058fc4ea08c54fce5833c9f95d73bc39c9cc01ee535eb",
+      "noteOnCount": 448,
+      "gestureCount": 195,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p17",
+      "audioSha256": "206d2d836f57250df337f71e63f5683f2f53d56b67ec9679bc57dc908abe4e16",
+      "midiSha256": "434ea90d94ce56062e925ca4189bd1dba5d226dc6a3ef8983c0204fcf02649da",
+      "noteOnCount": 451,
+      "gestureCount": 212,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p19",
+      "audioSha256": "3d72dba90b83c6dec90e35b87c202812f1ad35873db1f1616378fe6b46ae453b",
+      "midiSha256": "21851216a296770549b50b81052e574a3b6f4d1ff6944e94928d59f695957697",
+      "noteOnCount": 452,
+      "gestureCount": 193,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p20",
+      "audioSha256": "04f4c603c838b628299a5da620200cef3a21b728b13121970cc1eaf4f4e06ea5",
+      "midiSha256": "aa641d69281eb7b7a2057424eb05daadd805f657ef0831ba22c29065ee95f57c",
+      "noteOnCount": 447,
+      "gestureCount": 248,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p21",
+      "audioSha256": "713c04bca4d0445587f50e5013de0160c8dc01eeb85a97021b9c9b77dad9c993",
+      "midiSha256": "cb90e86b3b4723abe78afc2d029a28e14040cacb8e35c045a4a4f6b6fa6ed12c",
+      "noteOnCount": 451,
+      "gestureCount": 256,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 2,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p22",
+      "audioSha256": "e065870cebadf7237d0d43774a5108ee2afceb251761e1b779991cc906797676",
+      "midiSha256": "cf8e18f9dad256f562a4577f54b9bd48edd8d3989c6cc45e24d67142f4479153",
+      "noteOnCount": 452,
+      "gestureCount": 202,
+      "availableOccurrenceCounts": {
+        "correct_single": 1,
+        "correct_chord": 2,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 1,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Schubert_D783_no15_p01",
+      "audioSha256": "f294e7cf4e0e03494bd5a38f7786b327f3ef7bf665e938353e29dbcd37d3b333",
+      "midiSha256": "9edbbcf32dc7d1bbd089b5af7fccdc16991baff69f4b616af7b70cc00331317f",
+      "noteOnCount": 316,
+      "gestureCount": 133,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Schubert_D783_no15_p04",
+      "audioSha256": "c81572aee71cc04661f244800edb62dddef66d1e55b87a6a790a5e2f185d707e",
+      "midiSha256": "cea29552bb8ecbf1e131cfe0054dc61c6f44b03331ee0369eeed8cc71d116b92",
+      "noteOnCount": 328,
+      "gestureCount": 142,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 2,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 0,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Schubert_D783_no15_p18",
+      "audioSha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46",
+      "midiSha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a",
+      "noteOnCount": 330,
+      "gestureCount": 133,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 0,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 1,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    },
+    {
+      "dataset": "vienna-4x22",
+      "recordingId": "Schubert_D783_no15_p22",
+      "audioSha256": "21a5158bb9826e77eb4f70ead3c760e115bae6542996958cf0fd73bd17ed64e5",
+      "midiSha256": "b33d8609989b3df48f8b8e41eab21be0952f44b04838ea01cf29b183414a39e3",
+      "noteOnCount": 325,
+      "gestureCount": 145,
+      "availableOccurrenceCounts": {
+        "correct_single": 0,
+        "correct_chord": 1,
+        "same_pitch_sustain": 0,
+        "same_chord_sustain": 0,
+        "single_busy_retrigger": 0,
+        "chord_busy_retrigger": 1,
+        "post_ready_repeat": 0,
+        "multiple_wrong_then_correct": 0,
+        "partial_then_full": 0
+      }
+    }
+  ],
+  "selected": {
+    "correct_chord": {
+      "family": "correct_chord",
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_06_WAV.wav",
+      "audioSha256": "0a1fb5140985bf2673c10a4cd720b530acec0179eeb08d8c8b7820eca3682b68",
+      "midiSha256": "1325bc94a14f3a5f0132e9b9b9c64e108cc824ead1bb508d9cdcc81a39ee5697",
+      "gestures": [
+        {
+          "gestureId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_06_WAV.wav:g:1032",
+          "sourceSeconds": 126.35546874999955,
+          "onsetMs": 126355.46874999955,
+          "notes": [
+            {
+              "pitch": 73,
+              "onsetMs": 126355.46874999955,
+              "offsetMs": 127781.24999999952,
+              "sourceSeconds": 126.35546874999955
+            },
+            {
+              "pitch": 57,
+              "onsetMs": 126365.88541666622,
+              "offsetMs": 129117.18749999958,
+              "sourceSeconds": 126.36588541666622
+            },
+            {
+              "pitch": 63,
+              "onsetMs": 126376.30208333289,
+              "offsetMs": 127819.01041666619,
+              "sourceSeconds": 126.37630208333289
+            },
+            {
+              "pitch": 67,
+              "onsetMs": 126384.11458333289,
+              "offsetMs": 127670.57291666619,
+              "sourceSeconds": 126.38411458333289
+            }
+          ],
+          "normalizedPitchSet": [
+            57,
+            63,
+            67,
+            73
+          ]
+        }
+      ]
+    },
+    "correct_single": {
+      "family": "correct_single",
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_06_WAV.wav",
+      "audioSha256": "0a1fb5140985bf2673c10a4cd720b530acec0179eeb08d8c8b7820eca3682b68",
+      "midiSha256": "1325bc94a14f3a5f0132e9b9b9c64e108cc824ead1bb508d9cdcc81a39ee5697",
+      "gestures": [
+        {
+          "gestureId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_06_WAV.wav:g:1051",
+          "sourceSeconds": 133.11067708333294,
+          "onsetMs": 133110.67708333294,
+          "notes": [
+            {
+              "pitch": 79,
+              "onsetMs": 133110.67708333294,
+              "offsetMs": 138391.9270833331,
+              "sourceSeconds": 133.11067708333294
+            }
+          ],
+          "normalizedPitchSet": [
+            79
+          ]
+        }
+      ]
+    },
+    "same_chord_sustain": {
+      "family": "same_chord_sustain",
+      "dataset": "vienna-4x22",
+      "recordingId": "Chopin_op10_no3_p22",
+      "audioSha256": "e065870cebadf7237d0d43774a5108ee2afceb251761e1b779991cc906797676",
+      "midiSha256": "cf8e18f9dad256f562a4577f54b9bd48edd8d3989c6cc45e24d67142f4479153",
+      "gestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p22:g:446",
+          "sourceSeconds": 75.04479166666681,
+          "onsetMs": 75044.79166666682,
+          "notes": [
+            {
+              "pitch": 47,
+              "onsetMs": 75044.79166666682,
+              "offsetMs": 80671.87500000022,
+              "sourceSeconds": 75.04479166666681
+            },
+            {
+              "pitch": 59,
+              "onsetMs": 75060.41666666682,
+              "offsetMs": 75155.20833333347,
+              "sourceSeconds": 75.06041666666681
+            }
+          ],
+          "normalizedPitchSet": [
+            47,
+            59
+          ]
+        }
+      ],
+      "guard": {
+        "startMs": 75260.41666666682,
+        "endMs": 76727.08333333346,
+        "durationMs": 1466.6666666666424,
+        "allPitchNoteOnFree": true,
+        "held": false,
+        "pedal": true
+      }
+    },
+    "chord_busy_retrigger": {
+      "family": "chord_busy_retrigger",
+      "dataset": "vienna-4x22",
+      "recordingId": "Schubert_D783_no15_p18",
+      "audioSha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46",
+      "midiSha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a",
+      "gestures": [
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:253",
+          "sourceSeconds": 25.73750000000003,
+          "onsetMs": 25737.50000000003,
+          "notes": [
+            {
+              "pitch": 65,
+              "onsetMs": 25737.50000000003,
+              "offsetMs": 25772.9166666667,
+              "sourceSeconds": 25.73750000000003
+            },
+            {
+              "pitch": 56,
+              "onsetMs": 25747.916666666697,
+              "offsetMs": 25780.208333333365,
+              "sourceSeconds": 25.747916666666697
+            },
+            {
+              "pitch": 53,
+              "onsetMs": 25750.000000000033,
+              "offsetMs": 25805.208333333365,
+              "sourceSeconds": 25.750000000000032
+            },
+            {
+              "pitch": 48,
+              "onsetMs": 25753.125000000033,
+              "offsetMs": 25804.1666666667,
+              "sourceSeconds": 25.753125000000033
+            }
+          ],
+          "normalizedPitchSet": [
+            48,
+            53,
+            56,
+            65
+          ]
+        },
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:257",
+          "sourceSeconds": 25.984375000000032,
+          "onsetMs": 25984.375000000033,
+          "notes": [
+            {
+              "pitch": 53,
+              "onsetMs": 25984.375000000033,
+              "offsetMs": 26034.375000000033,
+              "sourceSeconds": 25.984375000000032
+            },
+            {
+              "pitch": 56,
+              "onsetMs": 25986.45833333337,
+              "offsetMs": 26029.1666666667,
+              "sourceSeconds": 25.986458333333367
+            },
+            {
+              "pitch": 65,
+              "onsetMs": 26002.08333333337,
+              "offsetMs": 26078.125000000033,
+              "sourceSeconds": 26.002083333333367
+            },
+            {
+              "pitch": 48,
+              "onsetMs": 26002.08333333337,
+              "offsetMs": 26052.08333333337,
+              "sourceSeconds": 26.002083333333367
+            }
+          ],
+          "normalizedPitchSet": [
+            48,
+            53,
+            56,
+            65
+          ]
+        }
+      ],
+      "pair": {
+        "recordingId": "Schubert_D783_no15_p18",
+        "audioSha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46",
+        "midiSha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a",
+        "firstGestureId": "Schubert_D783_no15_p18:g:253",
+        "firstOnsetMs": 25737.50000000003,
+        "firstNormalizedPitchSet": [
+          48,
+          53,
+          56,
+          65
+        ],
+        "secondGestureId": "Schubert_D783_no15_p18:g:257",
+        "secondOnsetMs": 25984.375000000033,
+        "secondNormalizedPitchSet": [
+          48,
+          53,
+          56,
+          65
+        ],
+        "gapMs": 246.87500000000364,
+        "pairKind": "EXACT_REPEATED_CHORD",
+        "pairId": "d52bd175ec222d8c50af80fef9adc5d89d565db42646cd9189128b31a3e13703",
+        "singleBusyTopologyEligible": false,
+        "chordBusyTopologyEligible": true
+      }
+    }
+  },
+  "availableOccurrenceCounts": {
+    "correct_single": 9,
+    "correct_chord": 18,
+    "same_pitch_sustain": 0,
+    "same_chord_sustain": 1,
+    "single_busy_retrigger": 0,
+    "chord_busy_retrigger": 2,
+    "post_ready_repeat": 0,
+    "multiple_wrong_then_correct": 0,
+    "partial_then_full": 0
+  },
+  "missingMandatoryFamilies": [
+    "same_pitch_sustain",
+    "single_busy_retrigger",
+    "post_ready_repeat",
+    "multiple_wrong_then_correct",
+    "partial_then_full"
+  ],
+  "selectedRapidSinglePair": null,
+  "selectedRepeatedChordPair": {
+    "recordingId": "Schubert_D783_no15_p18",
+    "audioSha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46",
+    "midiSha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a",
+    "firstGestureId": "Schubert_D783_no15_p18:g:253",
+    "firstOnsetMs": 25737.50000000003,
+    "firstNormalizedPitchSet": [
+      48,
+      53,
+      56,
+      65
+    ],
+    "secondGestureId": "Schubert_D783_no15_p18:g:257",
+    "secondOnsetMs": 25984.375000000033,
+    "secondNormalizedPitchSet": [
+      48,
+      53,
+      56,
+      65
+    ],
+    "gapMs": 246.87500000000364,
+    "pairKind": "EXACT_REPEATED_CHORD",
+    "pairId": "d52bd175ec222d8c50af80fef9adc5d89d565db42646cd9189128b31a3e13703",
+    "singleBusyTopologyEligible": false,
+    "chordBusyTopologyEligible": true
+  },
+  "repeatedChordBusyCoverage": "TRUTH_TOPOLOGY_AVAILABLE_CAUSAL_BUSY_NOT_YET_EXECUTED",
+  "disposition": "STEP_WAITING_H50_PRIMARY_HOLDOUT_TOPOLOGY_NOT_ESTABLISHED",
+  "safetyCounters": "NOT_MEASURED",
+  "usabilityMetrics": "NOT_MEASURED",
+  "stageA": "NOT_STARTED",
+  "stageB": "NOT_STARTED"
+}

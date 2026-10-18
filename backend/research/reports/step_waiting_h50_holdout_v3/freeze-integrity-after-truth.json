@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-18T05:45:34.887Z",
+  "selectorContractFreezeCommit": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
+  "postExecutionRemoteHead": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
+  "preExecutionRemoteProofFile": "backend/research/reports/step_waiting_h50_holdout_v3/selector-remote-proof.json",
+  "sourceToolingMutations": [],
+  "frozenFilesChecked": 18,
+  "productionDiff": ""
+}
