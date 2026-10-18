@@ -7,6 +7,7 @@ import {pathToFileURL} from "node:url";
 import {resolveBrandedBrowserExecutable,RUNTIME_NODE_MODULES,collectWebGpuAdapter} from "../../../../backend/research/browser_runtime/xc1_browser_runtime_shared.mjs";
 import {classifyRuntimeDiagnostic} from "../continuous-runtime-diagnostics.mjs";
 import {failedCellWitness,modelRunAccounting} from "../continuous-controller/execution-accounting.mjs";
+import {instrumentWorklet} from './worklet-diagnostics.mjs';
 export async function runEngineering(protocol){
 const {ROOT,APP,MODEL,FIXTURE,WORK,paths,newJson,verify,fileIdentity,hash,SUCCESS,BLOCKED}=protocol;
 const proof = await verify(), work = paths().work;
@@ -32,11 +33,13 @@ const requests = [], files = new Map([
   ['/model-assets/practice-acoustic/fir-160-441.f32', path.join(APP, 'public/model-assets/practice-acoustic/fir-160-441.f32')],
   ['/model-assets/practice-acoustic/fir-1-3.f32', path.join(APP, 'public/model-assets/practice-acoustic/fir-1-3.f32')],
 ]);
+const instrumentedWorklet = instrumentWorklet(await readFile(files.get('/capture.worklet.js'), 'utf8'));
 const server = createServer((req, res) => {
   const url = req.url?.split('?')[0]; requests.push({ url, timestamp: new Date().toISOString() });
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin'); res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   if (url === '/') { res.setHeader('Content-Type', 'text/html'); res.end('<!doctype html><title>Disabled Continuous controller qualification</title><script type="module" src="/entry.js"></script>'); return; }
   if (url === '/favicon.ico') { res.statusCode = 204; res.end(); return; }
+  if (url === '/capture.worklet.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(instrumentedWorklet); return; }
   const file = files.get(url) ?? (/^\/ort\/[\w.-]+\.(mjs|wasm)$/.test(url) ? path.join(APP, 'node_modules/onnxruntime-web/dist', path.basename(url)) : null);
   if (!file) { res.statusCode = 403; res.end('ASSET_ONLY'); return; }
   res.setHeader('Content-Type', file.endsWith('.wasm') ? 'application/wasm' : /\.(js|mjs)$/.test(file) ? 'text/javascript' : 'application/octet-stream');
@@ -77,7 +80,7 @@ try {
       if (cell.result.status !== 'PASS' || rows.some(r => r.classification === 'BLOCKING_DIAGNOSTIC')
         || !rows.some(r => r.type === 'worker-created' && r.url.endsWith('/worker.js'))) throw new Error('CONTROLLER_OR_BROWSER_DIAGNOSTIC_FAILED');
       cell.state = 'PASS'; cell.completedAt = at(); console.log('PASS', cell.rate, cell.scenario, 'model runs', cell.result.actualModelRuns);
-    } finally { cell.chronologyFailures = await page.evaluate(() => window.qualificationChronologyFailures ?? []).catch(() => []); await context.close(); }
+    } finally { cell.transportDiagnostics = await page.evaluate(() => window.qualificationTransportDiagnostics?.()).catch(() => null); cell.chronologyFailures = await page.evaluate(() => window.qualificationChronologyFailures ?? []).catch(() => []); await context.close(); }
   }
 } catch (error) {
   failure = String(error.stack ?? error); if (activeCell) { activeCell.state = 'FAILED'; activeCell.error = failure; activeCell.failureWitness = failedCellWitness(failure); }
