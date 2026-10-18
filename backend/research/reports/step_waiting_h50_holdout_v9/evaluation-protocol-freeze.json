@@ -1,0 +1,276 @@
+{
+  "role": "STAGE_B_EVALUATION_PROTOCOL_FREEZE",
+  "startingRemoteHead": "c5f7dfa5457eff141e74fefcb9f22db920e37d48",
+  "implementationCommit": "68f97eda86e15079fc26243a29c5f68db48a37a5",
+  "createdAt": "2026-10-18T17:01:34.623156+00:00",
+  "pathSchema": "REPO_RELATIVE_POSIX_V1",
+  "HMs": 50,
+  "capacity": 1,
+  "acceptedIdentities": {
+    "primaryFiles": 254,
+    "executionFiles": 1457,
+    "hashMismatches": 0,
+    "v7AcousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+    "v7AcousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+    "v7EvidenceCommit": "5c3f62de73646e81d01ef8b6acbd647cc6d8046a",
+    "v8TaxonomyFreezeSha256": "ef8524f3575dcd59d7582ff3e4696e4db90a16ea3545f8ae5f41851df573bb4e",
+    "v8DownstreamSealSha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c",
+    "truthBindingHashesVerified": 4
+  },
+  "truthOpenedAt": "2026-10-18T16:52:22.879166+00:00",
+  "acousticPublicationPayloadOpened": false,
+  "newNeuralRuns": 0,
+  "StageB": "NOT_STARTED",
+  "executionPolicy": "ONE_EXECUTION_NO_TUNING_NO_RERUN",
+  "files": [
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+    },
+    {
+      "path": "apps/customer-web/scripts/qualification/continuous-regression.mjs",
+      "sha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "sha256": "ad77507066e9e163aa36eeca8006b42ceb2601050744c0bcf55938aa9c5b26a8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "30d1e46f06c6cbd8da317d9c23011645838aa33658c5252ade598b2ca97bfbb4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "acf7f8776e9fcf3eff3c21ad65884193e3c9cbfbaa5a3fdddf69728fcd271d56"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/jobs.json",
+      "sha256": "42bd0dcb1ed9bf2e7fa2328e18ab4f6064767d2728d7d29a8adca91af1dbfd02"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v9/bundle-graphs.json",
+      "sha256": "6a68bd52b56706db80c9b0af8e42c0209b23ba49407d1db6a0e0408e6726084f"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v9/evaluate.mjs",
+      "sha256": "2056a03cb03abdf107002827138854c9b637b26f9b21b24573bab4d00a42fd05"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v9/prepare.mjs",
+      "sha256": "1040e30e1c4e8f26a484fab411f1c9ed4dbd730a6ad897bc6d526fb17a3dd06f"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v9/tests.mjs",
+      "sha256": "bb2357db369ceb67694a5ce8b8e2e589ff47e1ddb2c57c3153afcd760e388943"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/audio-bound-cases.json",
+      "sha256": "745152c3cd7b7fc746a427398914b3eebcc19c9d99d768ac530199293c141b8e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+      "sha256": "27d80f956f207366f3739d8277f559f98b7ba85f4f51df7a75b7dd57da2e2c51"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/primary-acoustic-qualification-freeze.json",
+      "sha256": "63600aaacada78e42c2081628ed398f92b5d50d7beff14af11d3ab02e013f319"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+      "sha256": "fe91b48802b3c1d27e412e90dd27a4e20ebc90e8ef011a0ccee90838434c2d55"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/execution-protocol-freeze.json",
+      "sha256": "f63caa855c543c666c160e1da3e2b3cd4a6aaea2150b432530f4ebca157af37f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic-seal.json",
+      "sha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic.json",
+      "sha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/downstream-eligibility-seal.json",
+      "sha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/downstream-remote-proof.json",
+      "sha256": "0562d7c17daea8bbacce4c63eb5fbb32eb2dda30b87bfef7c288f754e25b7437"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/worker-taxonomy-freeze.json",
+      "sha256": "b12c825b2fa23187c039cecfe365005cf5eefaceb6f3f5dd60cc8b0dad4870f2"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/accepted-identities.json",
+      "sha256": "cc125373f19af940bd4be6c15cf6967d3c32652ce09be7bc56ed494c47bd8be1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/counter-denominator-contract.json",
+      "sha256": "4ce3877898177a0b39ec9af94518d4cbd1791fd443f68c708239517575782a43"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/stage-a-capture-watermark-reconstruction.json",
+      "sha256": "685ebbeca8fd4e15c9df5825c770b53662578b0e4686e5281596a0d0d6a01baf"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/starting-gate.json",
+      "sha256": "7fa69036b2e16595f04defbab981f84232e46e92cf2d7b43f73bf42cdc3c35ba"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/synthetic-tests-development.json",
+      "sha256": "305cc2d20cab4524460af40da253cf830f08e229e2dc8e87a5d0303d991c2150"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/synthetic-tests.json",
+      "sha256": "6c9b54de61d37b3539807a03abb00d09ab306473d403d4064cd260bf6cea2274"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/truth-opening-boundary.json",
+      "sha256": "da9ffafc0ccdd47b09006c70944d53f22ed2b7f4315f4e1d61921ca0abb99ef1"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/dry-runtime.ts",
+      "sha256": "c8ded5636006feb32c2a3b9f741ad9e653199c405c3b01b45d1f04bc505be7f2"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/entry.ts",
+      "sha256": "c1996ebad7c8b1c81fda654f2f208111668a72ba6cabd562d19fd03c05ff220a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/source-execution.ts",
+      "sha256": "da0ff98a78a1adaaffb758e828e56396163b3e683bd6303f83f80ec5c10b7351"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/stage-a-runner.mjs",
+      "sha256": "3c91e155660669d127072722a413e97b46c81f41914386ce8808e9ca8c505049"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/adjudicate.py",
+      "sha256": "2b18d20769e72e354eb8a6b5c621f50be586c23cce31fb81da4d7d89f98a95f8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/projection.py",
+      "sha256": "1e68d70c8076554e527cda51b8abb24c7ee1ba1c8290344dbc2cb786d64f7fb0"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/protocol.py",
+      "sha256": "e5f599b2666a419e08c0d18c4fd7145d683f236a0e7376d34a83af9a9d47851c"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/receipt.py",
+      "sha256": "0396755bcb3a042ab01abd100f2f1b10b8eb87ad2303c9b8f4b90bd3ca33661a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/security.py",
+      "sha256": "8a129316d0065249f51b1a997b40feb70af4ba92fa4e7e7ddead82482e6e461b"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/taxonomy.py",
+      "sha256": "b818c0ba672e694182d2cad45b37ee3e01ca22a8d80699004092ec4fac6fa525"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/test_audit.py",
+      "sha256": "8cb787b071e7a063d3a400c79b73025e22918ec4fdb2c5d4799e41df2c23eb08"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/worker-taxonomy-contract.json",
+      "sha256": "e7e6a1df1420e056462edad17ea75c00ca7b72f4a409d4d5a94e24fb51c684d7"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/build.mjs",
+      "sha256": "0eefdabb03ae23fc2ceb38b22f3f202697dcaf9b5726401aeab99aee42109e05"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/domain.ts",
+      "sha256": "4514cdd7e6a56c38b06d6fb94c27cc3948464ef00233288f8ce273f54869e842"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/evaluate.ts",
+      "sha256": "f63afffb123ed22954da88b6fc4ee7db95efd265f0586bce24c61ce98089d73c"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/evaluation-contract.json",
+      "sha256": "a4734a7aa29a008e7933ea63ccc8933703ed16acf267602b7c967cf18977823b"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/geometry.ts",
+      "sha256": "5f469fc243b9e43773049df6dcbb018ad84e0d663505a177f07c75673dd7b66f"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/io.ts",
+      "sha256": "5bcd30978e5e8a712a05b06ff8ac0ca3a0194f49d84bd3477730140474ff1f39"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/prepare.ts",
+      "sha256": "c541d825267b55dd335b67992c6511eb512feef6fb894ca0c1d04ffd6c06238e"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/protocol.py",
+      "sha256": "441b2b748ab4fc4eac77a8e47f4fe0feabe95d3a174e001106f700e2a45a8aa2"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v9/tests.ts",
+      "sha256": "64c6d6d8930bdffaf0ea2dba31609d65c94d766521a2ca9c50d8d6b3bee3b47c"
+    },
+    {
+      "path": "backend/research/step_waiting_topology_v3/assembly.ts",
+      "sha256": "dc9ab2c70758320893401cfd2b203515c6ab9a3bff85e8af0027d54abf7bbf93"
+    }
+  ],
+  "freezeCanonicalSha256": "28931c1efbd59f2edc9242c18bf40fd4736354201a60f078fc7cf792820d563c"
+}
