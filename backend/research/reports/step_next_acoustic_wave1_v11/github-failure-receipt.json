@@ -1,0 +1,73 @@
+{
+  "evidenceCommit": "471a4991c717164bcc5d0b61dea9030c72466bdd",
+  "endingRemoteHead": "471a4991c717164bcc5d0b61dea9030c72466bdd",
+  "remoteVerifiedAt": "2026-10-18T17:46:20.365313+00:00",
+  "completeCommitChain": [
+    "471a4991c717164bcc5d0b61dea9030c72466bdd research: preserve Wave1 prefreeze Windows ESM harness blocker without neural execution"
+  ],
+  "files": [
+    {
+      "path": "backend/research/reports/step_next_acoustic_wave1_v11/assessment.json",
+      "sha256": "56f60a1fe3f8d4a59d284021b0c1961b86f4ae12619577f53516279136793c1d"
+    },
+    {
+      "path": "backend/research/reports/step_next_acoustic_wave1_v11/assessment.md",
+      "sha256": "6949e40dc6e75bf32534e284d9e5b263467b76685e14a811e0af5f5bf2674f82"
+    },
+    {
+      "path": "backend/research/reports/step_next_acoustic_wave1_v11/pre-freeze-harness-failure.json",
+      "sha256": "8db0ee2d2abccf19b6a5cd3caf46a01e13d4a188a2c22f15a244569ea982b0ae"
+    },
+    {
+      "path": "backend/research/reports/step_next_acoustic_wave1_v11/preflight.json",
+      "sha256": "421f7dce0ced23f0ddb70fe77ee1f8cc27d0c352db47aa37eeea4c449bac2b6a"
+    },
+    {
+      "path": "backend/research/reports/step_next_acoustic_wave1_v11/starting-gate.json",
+      "sha256": "0ab488777c2386b7ca50d209fc81d902d7e1cc33588cc52e4fa06deee203fe7f"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/candidate-contract.json",
+      "sha256": "0ff8eca72ca92a49847a1460a4d2bfd5084c03767f9461b1decbde7025ff72b1"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/core.mjs",
+      "sha256": "09bcd9e848c83118a0e9ba75124cdfd7364f37f6851b6e4e8050c8d54e23c608"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/entry.ts",
+      "sha256": "2bb4b314b2d0932be53e9a5117f52a67594930d20ac1642a7ac3b0cd47e0e55b"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/prepare.mjs",
+      "sha256": "c1c68b3cb17310255871e4570105d6dd1eea6e5c3bc969b394508dd04847c065"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/protocol.py",
+      "sha256": "81e7ba9f0f8872bc1e8257ffb3069618e1f47ceb43c65b7e77afb4b9ea04a12a"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/receipt.py",
+      "sha256": "3c706b3cdcf2edf1121516db1bf2a7fa4ba996014c18e03e751661f7d0392657"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/tests.ts",
+      "sha256": "828659877fe0eb34be19a526ef362101db9dc20141faf1a7144eddebe3211c9c"
+    },
+    {
+      "path": "backend/research/step_next_acoustic_wave1_v11/worker.ts",
+      "sha256": "f1a384f498611f63295736551ce4d9ee65876163205951f559d8976fb43362c6"
+    }
+  ],
+  "github": {
+    "head": "471a4991c717164bcc5d0b61dea9030c72466bdd",
+    "queriedAt": "2026-10-18T17:46:24.129054+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "newNeuralRuns": 0,
+  "disposition": "EVALUATION_INTEGRITY_BLOCKED"
+}
