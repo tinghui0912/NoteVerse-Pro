@@ -1,0 +1,920 @@
+{
+  "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+  "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+  "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+  "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+  "executionStartedAt": "2026-10-18T02:30:07.631Z",
+  "staticExecutionProof": {
+    "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+    "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+    "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+    "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+    "executionStartedAt": "2026-10-18T02:30:07.631Z"
+  },
+  "results": [
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:30:07.632Z",
+      "name": "execution-accounting-tests",
+      "args": [
+        "--test",
+        "scripts/continuous-controller/execution-accounting.test.mjs",
+        "scripts/capture-aggregation/research.test.mjs"
+      ],
+      "startedAt": "2026-10-18T02:30:07.632Z",
+      "completedAt": "2026-10-18T02:30:07.999Z",
+      "exitCode": 0,
+      "stdoutSha256": "5acd2903cabc56e083ba3bb8f02963067a6c26d55a7045fee4a9539bd4ad6227",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "✔ instrumented production class is byte/sample/message equivalent; diagnostics bounded (226.3244ms)\n✔ fixed supported envelope and independent cold trials are prospective, STEP forbidden (0.8889ms)\n✔ failed-cell JSON witness is retained instead of discarding completed real executions (1.0642ms)\n✔ unobserved in-flight execution is explicitly incomplete, never guessed (0.1226ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 294.982\n"
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:30:07.999Z",
+      "name": "vitest",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\capture_transport\\capture_aggregation_v1\\controller\\vitest.json"
+      ],
+      "startedAt": "2026-10-18T02:30:07.999Z",
+      "completedAt": "2026-10-18T02:30:28.833Z",
+      "exitCode": 1,
+      "stdoutSha256": "b42d0723f26f2b4404ed481bdf139c17f774e2c9486f52515ccea051c6980ceb",
+      "stderrSha256": "31c1f67f2893ee3fa50bf78e6c10eb9ea7ca4c0823c7aac80daa907e9874d8fd",
+      "counts": {
+        "totalTests": 1150,
+        "passedTests": 1148,
+        "failedTests": 2,
+        "testFiles": 154,
+        "runnerSuiteCount": 312,
+        "success": false
+      },
+      "testFiles": [
+        {
+          "path": "src/contexts/editor-state-context.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/architecture/continuous-model-identity.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "tests/architecture/practice-no-legacy-realtime.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "tests/architecture/shared-acoustic-foundation.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/api-client.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/audio-context-render-clock.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/auth-return-url.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/billing-settings-panel.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/editor-preview-metadata-placeholders.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/editor-preview-selection-highlight.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "tests/unit/editor-preview-track-visibility.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/event-inspector-connections.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/event-inspector-event-model.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "tests/unit/event-score-inspector.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/import-job-upload-contract.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "tests/unit/library-folder-tree.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/musicxml-core.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "tests/unit/musicxml-domain-boundaries.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/musicxml-generic-render-ids.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/musicxml-parser.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/musicxml-tempo.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/musicxml-transformations.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/my-scores-views.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/notification-date-groups.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/notification-queries.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/notification-target.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/product-replay-scenarios.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/query-client.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/realtime-events.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/route-shell-groups.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "tests/unit/score-collaboration.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/score-domain-contract.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "tests/unit/score-lookup.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/score-preview-playback.test.tsx",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "tests/unit/score-share.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "tests/unit/score-workspace-routes.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/step-acoustic-assembly.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "tests/unit/step-decoded-replay-contract.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/upload-workflow.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/verovio-playback.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "tests/unit/verovio-score.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "tests/unit/verovio-surface-migration.test.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "tests/unit/waiting-attempt-v2.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "tests/unit/waiting-topology-v3.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/components/editor/editor-preview-panel-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/editor/editor-sidebar-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-adapter.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-save.test.tsx",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/components/editor/event-inspector-domain-view-model.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/components/editor/event-inspector-editable-event.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/editor/event-inspector-event-model.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/performance-replay-player.test.tsx",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/components/practice/practice-completion-dialog.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/components/practice/practice-controls.test.tsx",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/components/practice/practice-score-viewer.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/practice-settings-panel.test.tsx",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/components/practice/practice-skip-control.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/practice/practice-status.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/components/practice/practice-tempo-popover.test.tsx",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/components/practice/share-video-studio.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/components/score-preview/verovio-score-viewer.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/components/ui/pagination-controls.test.tsx",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/hooks/practice/use-local-practice.test.tsx",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "src/hooks/practice/use-practice-score-artifact.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/queries/use-performance-take-queries.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/hooks/editor/use-connection-operations.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/hooks/editor/use-editing-domain-event.test.tsx",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-document.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-edit.test.tsx",
+          "status": "passed",
+          "tests": 20
+        },
+        {
+          "path": "src/hooks/editor/use-editor-domain-render-anchors.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/editor/use-entity-editor-add-mode.test.tsx",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/api/practice-acoustic-model-asset.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/api/practice-acoustic-model-identity.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/editor/connection-target.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/editor/domain-selection-companion.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor/measure-status.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/editor/measure-timeline.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor/rhythmic-insert-placement.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/editor/staff-pitch-resolver.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor/tracks.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/lib/editor/verovio-entity-map.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor/verovio-geometry.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/architecture-boundaries.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/editor-domain/commands.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "src/lib/editor-domain/inspector-drafts.test.ts",
+          "status": "passed",
+          "tests": 16
+        },
+        {
+          "path": "src/lib/editor-domain/inspector-view-model.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/lib/editor-domain/model.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-exporter.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-importer.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/editor-domain/musicxml-roundtrip.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor-domain/notation-model.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/note-atom-identity.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/editor-domain/render-anchors.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/rhythmic-input.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/lib/editor-domain/rhythmic-layout-map.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/editor-domain/selection-adapter.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/editor-domain/source-lookup.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/editor-domain/source-render-anchors.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/model-assets/model-asset-store.test.ts",
+          "status": "passed",
+          "tests": 40
+        },
+        {
+          "path": "src/lib/model-assets/verified-model-asset-loader.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/musicxml/automatic-beams.test.ts",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/lib/musicxml/generic-render-ids.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/musicxml/notated-duration.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/musicxml/validator.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/practice/completed-performance.test.ts",
+          "status": "passed",
+          "tests": 7
+        },
+        {
+          "path": "src/lib/practice/cursor-scope.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/floating-score-svg.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/input-capability.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/performance-annotation-controller.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/performance-playhead-controller.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/lib/practice/performance-recorder.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/practice-architecture-boundaries.test.ts",
+          "status": "passed",
+          "tests": 15
+        },
+        {
+          "path": "src/lib/practice/practice-render-identity-contract.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/range-selection.test.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/lib/practice/share-video-export.test.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "src/lib/practice/share-video-preview.test.tsx",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/share-video-session.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/share-video-templates.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/step-playhead-controller.test.ts",
+          "status": "passed",
+          "tests": 1
+        },
+        {
+          "path": "src/lib/practice/verovio-adapter.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/hooks/editor/entity-editor/add-mode-command.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/hooks/editor/entity-editor/add-mode-domain-insert.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/continuous/audio-context-performance-clock.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-architecture.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-practice-controller.test.ts",
+          "status": "passed",
+          "tests": 41
+        },
+        {
+          "path": "src/lib/practice/continuous/continuous-presentation.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/metronome/metronome-controller.test.ts",
+          "status": "passed",
+          "tests": 13
+        },
+        {
+          "path": "src/lib/practice/metronome/metronome-pulse-planner.test.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/lib/practice/midi/browser-midi-controller.test.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/lib/practice/local-core/continuous-evaluation-session.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/local-core/continuous-finalizer.test.ts",
+          "status": "passed",
+          "tests": 35
+        },
+        {
+          "path": "src/lib/practice/local-core/local-practice-core.test.ts",
+          "status": "passed",
+          "tests": 33
+        },
+        {
+          "path": "src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/local-core/practice-tempo.test.ts",
+          "status": "passed",
+          "tests": 13
+        },
+        {
+          "path": "src/lib/practice/local-core/step-attempt.test.ts",
+          "status": "passed",
+          "tests": 20
+        },
+        {
+          "path": "src/lib/practice/local-core/step-rearm-watermark.test.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/lib/practice/step/exclusive-boundary.test.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/lib/practice/step/input-time-contract.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/step/step-architecture.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/step/step-practice-controller.test.ts",
+          "status": "passed",
+          "tests": 25
+        },
+        {
+          "path": "src/lib/practice/step/waiting-contract.test.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/app/[locale]/(app)/my-performances/my-performances-page.test.tsx",
+          "status": "passed",
+          "tests": 23
+        },
+        {
+          "path": "src/lib/practice/acoustic/continuous/capture.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/acoustic/continuous/runtime.test.ts",
+          "status": "passed",
+          "tests": 33
+        },
+        {
+          "path": "src/lib/practice/acoustic/model/decoder.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/acoustic/model/inference.test.ts",
+          "status": "passed",
+          "tests": 9
+        },
+        {
+          "path": "src/lib/practice/acoustic/model/window-geometry.test.ts",
+          "status": "passed",
+          "tests": 3
+        },
+        {
+          "path": "src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/acoustic/source/capture-architecture.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/acoustic/source/capture-parity.test.ts",
+          "status": "failed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/acoustic/source/capture-transport.test.ts",
+          "status": "passed",
+          "tests": 10
+        },
+        {
+          "path": "src/lib/practice/acoustic/source/dsp-parity.test.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/lib/practice/audio-analysis/capture/performance-pcm-timeline.test.ts",
+          "status": "passed",
+          "tests": 18
+        },
+        {
+          "path": "src/app/[locale]/(workspace)/score/[id]/practice/review/practice-review-page.test.tsx",
+          "status": "passed",
+          "tests": 16
+        }
+      ]
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:30:28.840Z",
+      "name": "typecheck",
+      "args": [
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "startedAt": "2026-10-18T02:30:28.840Z",
+      "completedAt": "2026-10-18T02:30:30.915Z",
+      "exitCode": 0,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:30:30.915Z",
+      "name": "lint",
+      "args": [
+        "node_modules/eslint/bin/eslint.js",
+        ".",
+        "--format=json"
+      ],
+      "startedAt": "2026-10-18T02:30:30.915Z",
+      "completedAt": "2026-10-18T02:30:44.961Z",
+      "exitCode": 0,
+      "stdoutSha256": "00294deaf913f3a69af8b1aaf79c2a538bc0833b1742406b26d207f3f1dc70f3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "messages": [
+        {
+          "path": "scripts/step-boundary/prepare-tooling.mjs",
+          "rule": "prefer-const",
+          "message": "'text' is never reassigned. Use 'const' instead.",
+          "severity": 1,
+          "line": 3,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:30:44.963Z",
+      "name": "build",
+      "args": [
+        "node_modules/next/dist/bin/next",
+        "build",
+        "--webpack"
+      ],
+      "startedAt": "2026-10-18T02:30:44.963Z",
+      "completedAt": "2026-10-18T02:31:05.153Z",
+      "exitCode": 0,
+      "stdoutSha256": "7e8a44f1ff325f282a0547862b8eeb6986406b58f3154da489bedc4695d64c38",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:31:05.153Z",
+      "name": "Docker backend asset unittest",
+      "exitCode": 0,
+      "output": "test_authenticated_delivery_over_http_without_practice_or_database (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_authenticated_delivery_over_http_without_practice_or_database) ... ok\ntest_delivery_is_pinned_and_ignores_historical_object_key (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_only_shared_endpoint_is_registered (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_only_shared_endpoint_is_registered) ... ok\ntest_schema_rejects_the_old_export (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.024s\n\nOK\n"
+    },
+    {
+      "freezeCommit": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "remoteHead": "5b13887c3904d87e3387799f63e56197fa2bd6b3",
+      "freezeSha256": "ab27766be63b2ea1cfc98e01274181ce226f72eb10cbeba9bb481b6dc5c032ce",
+      "remoteVerifiedAt": "2026-10-18T02:30:07.318Z",
+      "executionStartedAt": "2026-10-18T02:31:12.022Z",
+      "name": "Docker backend model asset route tests",
+      "exitCode": 0,
+      "output": "...                                                                      [100%]\n=============================== warnings summary ===============================\n../../usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n3 passed, 1 warning in 2.15s\n"
+    }
+  ],
+  "status": "FAIL"
+}

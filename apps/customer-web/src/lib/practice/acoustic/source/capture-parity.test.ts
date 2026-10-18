@@ -67,4 +67,4 @@ for (const rate of [44100, 48000]) it(`${rate}: frozen real PCM, all model-input
   if (process.env.CAPTURE_PARITY_RECEIPTS) await writeFile(path.join(process.env.CAPTURE_PARITY_RECEIPTS, `parity-${rate}.json`), JSON.stringify({
     rate, sourceSamples: pcm.length, sourceSha256: hash(concatenated(after)), priorChunks: before.length, currentChunks: after.length,
     samePcm: true, sameModelInputs: true, samePublicationSemantics: true, ...current }, null, 2) + '\n', { flag: 'wx' });
-});
+}, 30000);

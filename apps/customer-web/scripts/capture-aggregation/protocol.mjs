@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson} from '../audio-context-clock/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
 export const START='15b8f0da94555af91c7d88eb28f151f566e75ff5';
-export const ID='capture_aggregation_v1';
+export const ID='capture_aggregation_v2';
 export const FREEZE=`backend/research/reports/${ID}_freeze.json`;
 export const BASE='backend/data/work/step_domain/step_domain_v2/musical';
 export const WORK=path.join(ROOT,'backend/data/work/capture_transport',ID,'musical');
