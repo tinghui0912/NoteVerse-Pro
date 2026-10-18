@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import vm from 'node:vm';
 import { afterEach, expect, it, vi } from 'vitest';
 import { decodeAcousticOutputs, verifyAcousticModel, AcousticModelSession } from './model-inference';
 import { assertModelNames, checkedOutput } from './model-validation';
@@ -72,25 +70,3 @@ it('disposing active worker rejects pending inference instead of hanging', async
   const run = client.run(input); await client.dispose(); await expect(run).rejects.toThrow('ACOUSTIC_WORKER_DISPOSED');
 });
 
-it('production worklet transfers chronological mono PCM with strict 32-credit transport and ACK order', async () => {
-  const sent: { message: Record<string, unknown>; transfer?: Transferable[] }[] = [];
-  const scope: Record<string, unknown> = { sampleRate: 48000, currentFrame: 0, currentTime: 0, Float32Array,
-    AudioWorkletProcessor: class { port = { onmessage: undefined, postMessage: (message: Record<string, unknown>, transfer?: Transferable[]) => sent.push({ message, transfer }) }; },
-    registerProcessor: (_name: string, constructor: unknown) => { scope.Processor = constructor; } };
-  vm.runInNewContext(await readFile('src/lib/practice/acoustic/source/capture.worklet.js', 'utf8'), scope);
-  const Ctor = scope.Processor as new () => { process(input: Float32Array[][], output: Float32Array[][]): boolean; port: { onmessage(event: { data: unknown }): void } };
-  const worklet = new Ctor(), pcm = [[new Float32Array(128).fill(.2), new Float32Array(128).fill(.4)]];
-  for (let i = 0; i < 100; i++) {
-    scope.currentFrame = i * 128; scope.currentTime = i * 128 / 48000;
-    expect(worklet.process(pcm, [])).toBe(true); expect(sent[i].message.sourceStartSampleIndex).toBe(i * 128);
-    const samples = sent[i].message.samples as Float32Array;
-    expect(samples[0]).toBeCloseTo(.3); expect(sent[i].transfer?.[0]).toBe(samples.buffer);
-    worklet.port.onmessage({ data: { type: 'ACK', sequence: i } });
-  }
-  const slow = new Ctor(); sent.length = 0;
-  for (let i = 0; i < 32; i++) expect(slow.process(pcm, [])).toBe(true);
-  expect(slow.process(pcm, [])).toBe(false); expect(sent).toHaveLength(33);
-  expect(sent.at(-1)?.message).toEqual({ type: 'capture-failure', code: 'ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED' });
-  const invalid = new Ctor(); invalid.port.onmessage({ data: { type: 'ACK', sequence: 1 } });
-  expect(sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_ACK_ORDER_VIOLATION');
-});

@@ -40,6 +40,14 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
   const controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE',
     countInBeats: failureCase || scenario === 'pause_near_terminal_resume_natural' ? 0 : 1,
     tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recording ? 'AUDIO' : 'OFF' }, platform);
+  const lifecycleTimings: { state: string; wallTimeMs: number; contextTime: number | null; performanceTimeMs: number | null }[] = [];
+  const detachTimings = controller.subscribe(() => {
+    const snapshot = controller.snapshot();
+    if (snapshot.session === lifecycleTimings.at(-1)?.state) return;
+    lifecycleTimings.push({ state: snapshot.session, wallTimeMs: performance.now(),
+      contextTime: context?.currentTime ?? null, performanceTimeMs: snapshot.transport?.performanceTimeMs ?? null });
+    if (lifecycleTimings.length > 32) lifecycleTimings.shift();
+  });
   async function wait(test: () => boolean, allowFailure = false) {
     const deadline = performance.now() + 45000;
     while (!test()) {
@@ -115,6 +123,8 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
       && capabilities.acousticAnalysis.step.status === 'ATTEMPT_ANALYZER_NOT_VALIDATED', 'CAPABILITY_ENABLED');
     return { status: 'PASS', rate, scenario, trackSettings, nativeHardwareRateQualification: false, offlineWitness, resumeWitnesses,
       failureWitness, engineering, model: engineering.microphone!.model, transport: result.transport,
+      lifecycleTimings: [...lifecycleTimings],
+      terminalFinalizationDelayMs: lifecycleTimings.find(t => t.state === 'COMPLETE')!.wallTimeMs - lifecycleTimings.find(t => t.state === 'FINALIZING')!.wallTimeMs,
       completed: { evaluation: completion.evaluation, mediaStatus: completion.media.status,
         mediaBytes: completion.media.status === 'READY' ? completion.media.blob.size : 0, recordingTimebase: completion.recordingTimebase },
       resources: { acquisitions, nativeAcquisitions, contextsCreated, contextsClosed, workersCreated, clonedStreams: clones.length,
@@ -123,6 +133,6 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
   } catch (error) {
     throw new Error(JSON.stringify({ reason: String(error), rate, scenario, snapshot: controller.snapshot(), engineering: controller.engineeringSnapshot(),
       resumeWitnesses, acquisitions, contextsCreated, contextsClosed, workersCreated }), { cause: error });
-  } finally { await controller.dispose(); navigator.mediaDevices.getUserMedia = nativeGetUserMedia; }
+  } finally { detachTimings(); await controller.dispose(); navigator.mediaDevices.getUserMedia = nativeGetUserMedia; }
 };
 }

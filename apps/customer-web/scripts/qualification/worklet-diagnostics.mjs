@@ -13,6 +13,14 @@ globalThis.registerProcessor = (name, Base) => originalRegister(name, class exte
     audioContextStartFrame: message.audioContextStartFrame, captureTimeSeconds: message.captureTimeSeconds,
     sourceStartSampleIndex: message.sourceStartSampleIndex,
     sourceEndSampleIndex: message.sourceEndSampleIndex };
+   row.state = this.state; row.originFrame = this.originFrame;
+   row.stabilizationRestarts = this.stabilizationRestarts ?? 0;
+   if (message.samples) {
+    let checksum = 2166136261;
+    for (const byte of new Uint8Array(message.samples.buffer, message.samples.byteOffset, message.samples.byteLength)) checksum = Math.imul(checksum ^ byte, 16777619) >>> 0;
+    row.checksum = checksum;
+    row.blockFillMs = (currentFrame + this.diagnosticQuantum - message.audioContextStartFrame) / sampleRate * 1000;
+   }
    this.diagnosticRows.push(row); if (this.diagnosticRows.length > 64) this.diagnosticRows.shift();
    message.__qualificationTransport = message.type === 'capture-failure' || message.sequence < 2
     ? { ...row, workletRows: [...this.diagnosticRows], processRows: [...this.diagnosticProcesses] } : row;
