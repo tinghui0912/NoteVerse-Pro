@@ -1,0 +1,17 @@
+{
+  "testFiles": 1,
+  "tests": 26,
+  "passed": 26,
+  "failed": 0,
+  "errors": 0,
+  "scope": "Metadata/diagnostic arithmetic/design invariants only, no Stage B replay",
+  "output": "test_both_rates_latency_labels_confirmed_without_replay (__main__.ClosureAuditTests.test_both_rates_latency_labels_confirmed_without_replay) ... ok\ntest_busy_grid_geometry_not_guessed_gap_or_output (__main__.ClosureAuditTests.test_busy_grid_geometry_not_guessed_gap_or_output) ... ok\ntest_candidate_not_selected (__main__.ClosureAuditTests.test_candidate_not_selected) ... ok\ntest_capabilities_closed (__main__.ClosureAuditTests.test_capabilities_closed) ... ok\ntest_child_execution_denied (__main__.ClosureAuditTests.test_child_execution_denied) ... ok\ntest_dangerous_heuristics_prohibited (__main__.ClosureAuditTests.test_dangerous_heuristics_prohibited) ... ok\ntest_diagnostics_do_not_mutate_cells (__main__.ClosureAuditTests.test_diagnostics_do_not_mutate_cells) ... ok\ntest_h_and_thresholds_not_retuned (__main__.ClosureAuditTests.test_h_and_thresholds_not_retuned) ... ok\ntest_high_confidence_and_octave_findings_not_heuristic_fix (__main__.ClosureAuditTests.test_high_confidence_and_octave_findings_not_heuristic_fix) ... ok\ntest_immutable_chain (__main__.ClosureAuditTests.test_immutable_chain) ... ok\ntest_late_requires_distinct_publication_and_retired_rearm (__main__.ClosureAuditTests.test_late_requires_distinct_publication_and_retired_rearm) ... ok\ntest_no_audio_decoder_import (__main__.ClosureAuditTests.test_no_audio_decoder_import) ... ok\ntest_no_browser_import (__main__.ClosureAuditTests.test_no_browser_import) ... ok\ntest_no_fresh_strike_detector_authorized (__main__.ClosureAuditTests.test_no_fresh_strike_detector_authorized) ... ok\ntest_no_future_holdout_recording_selected (__main__.ClosureAuditTests.test_no_future_holdout_recording_selected) ... ok\ntest_no_neural_import (__main__.ClosureAuditTests.test_no_neural_import) ... ok\ntest_no_stage_a_payload_parse (__main__.ClosureAuditTests.test_no_stage_a_payload_parse) ... ok\ntest_physical_and_decoded_anchor_metrics_are_distinct (__main__.ClosureAuditTests.test_physical_and_decoded_anchor_metrics_are_distinct) ... ok\ntest_production_and_v3_v9_unchanged (__main__.ClosureAuditTests.test_production_and_v3_v9_unchanged) ... ok\ntest_selected_pcm_not_semantically_read (__main__.ClosureAuditTests.test_selected_pcm_not_semantically_read) ... ok\ntest_starting_remote_identity (__main__.ClosureAuditTests.test_starting_remote_identity) ... ok\ntest_stored_failure_mechanisms (__main__.ClosureAuditTests.test_stored_failure_mechanisms) ... ok\ntest_summaries_use_nearest_rank_and_preserve_empty (__main__.ClosureAuditTests.test_summaries_use_nearest_rank_and_preserve_empty) ... ok\ntest_two_independent_stored_blockers (__main__.ClosureAuditTests.test_two_independent_stored_blockers) ... ok\ntest_v9_disposition_remains_not_qualified (__main__.ClosureAuditTests.test_v9_disposition_remains_not_qualified) ... ok\ntest_zero_over_zero_and_functional_blockers_separate (__main__.ClosureAuditTests.test_zero_over_zero_and_functional_blockers_separate) ... ok\n\n----------------------------------------------------------------------\nRan 26 tests in 4.100s\n\nOK\n",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}

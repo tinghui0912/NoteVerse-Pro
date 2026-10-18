@@ -1,0 +1,31 @@
+{
+  "classification": "NON_GATING_REPORT_LABEL_ERROR",
+  "v9Modified": false,
+  "scope": "Per-attempt timing.sourceEventTo... fields in immutable v9 cell traces. Do not relabel already physical-based top-level sourceReplayLatency as decoded-based.",
+  "fields": {
+    "sourceEventToAttemptOpenCaptureProgressMs": "Actually (openCaptureSource-attempt.anchor)*1000/rate: decoded acoustic event, not physical truth onset.",
+    "sourceEventToVerdictCaptureProgressMs": "Actually (verdictCaptureSource-attempt.anchor)*1000/rate: decoded acoustic event, not physical truth onset."
+  },
+  "correctedDiagnostics": "corrected-source-domain-diagnostics.json",
+  "doesNotAffect": [
+    "attempt assembly",
+    "product verdict",
+    "truth attribution",
+    "denominator",
+    "safety counters",
+    "functional classifications",
+    "v9 disposition"
+  ],
+  "aggregateNuance": "v9 sourceReplayLatency aggregates already subtract timing.physicalSourceMs. The original per-attempt and aggregate same-named fields used different anchors.",
+  "interpretation": "NOT_PHYSICAL_DEVICE_UX_LATENCY",
+  "crossPerformanceNowAlignmentCreated": false,
+  "attemptRows": 44,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}

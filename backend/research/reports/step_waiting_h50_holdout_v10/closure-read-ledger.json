@@ -1,0 +1,213 @@
+{
+  "reads": [
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/evaluation-protocol-freeze.json",
+      "sha256": "45e4e3392c5ca44b33ba2e1f408b6e158863a6f54dfd011e5e0cf86153b7ee7b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/stage-b-results.json",
+      "sha256": "637773dcae08b425efcec0fddabcea2603c4cec1308e083015ac3007790cd50f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/stage-b-results.json",
+      "sha256": "637773dcae08b425efcec0fddabcea2603c4cec1308e083015ac3007790cd50f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/busy_period_physical_input-44100.json",
+      "sha256": "478cea81f2483a0a2203e018789f30b58d6d0b2724df48624b07101a079d422d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/busy_period_physical_input-48000.json",
+      "sha256": "c69a45f98db3eceab9cfdaf9ea227486c87c96c3612c8216e55f884a7506daa6"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/chord_busy_retrigger-44100.json",
+      "sha256": "2f88313eaa62b3929d0114498f878fbd11f8c00ebf6da95c4566d8554d95f130"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/chord_busy_retrigger-48000.json",
+      "sha256": "b7bdfb81d5d0e3580b7a98b7ea89d2cc61bbad7e65e89104f64c5f3046f94be8"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_chord-44100.json",
+      "sha256": "53c307d8689319fa59cfa41a9b64aa2cc0d14609c2a66bb41189510f6cc1991c"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_chord-48000.json",
+      "sha256": "0fb0736d7d9cca8da489a312cf0fabb476b45a8d462bd1032c9aca146408d1c1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_single-44100.json",
+      "sha256": "03c83f6c81c39d3bd16220e03334e72cb9eaf35d6c14f879cf46e646aef14505"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_single-48000.json",
+      "sha256": "c3abf94adec26f5c7e9c2bf0465781c9f9a9be1d35210e2827143962a26a834e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/extra_chord_tone-44100.json",
+      "sha256": "69382ee8019e69f745391bb476522b84ab316a41d46e118065ad9cfdd3cda2a5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/extra_chord_tone-48000.json",
+      "sha256": "506aa5934449e525b8e4e5bd781bae962054f36816943ee1d927b811068836f3"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/late_publication-44100.json",
+      "sha256": "b4fd6bb3cfe1fa09880128ed0816a9e9b28dbf512348fd76c33e4ca185be5026"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/late_publication-48000.json",
+      "sha256": "125f2493af96a9a5fe847452d6109a1086730b844e0c061a9564b0b0ccff3132"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/match_followed_by_next_target-44100.json",
+      "sha256": "ee5d7b13205a6faa83c253e176d0d90d7fbe0849f4cbe1a01a5c899a94da21e9"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/match_followed_by_next_target-48000.json",
+      "sha256": "d26e88b3bc64445ebc2a35a367339d7a33bfeb14736bba8bb0f5b044c67076b1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/mismatch_same_target_rearm-44100.json",
+      "sha256": "4c90620ee845903f6de66b43849863f02128a1dd0de4dda2b347605c3b300f6f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/mismatch_same_target_rearm-48000.json",
+      "sha256": "ca0604c14952dd5b3e6e7cd8fd146bf3aa22b16e11aa272f1fa870837d8b8c80"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/missing_chord_tone-44100.json",
+      "sha256": "bce311cb8146094659f2be268fd801edcdc435e0a9f80d53d356273a5e694006"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/missing_chord_tone-48000.json",
+      "sha256": "7bffacc2a4d630e383e52169df7b29e6d17ed5168da9747d6254dbc69f4bdf19"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/multiple_wrong_then_correct-44100.json",
+      "sha256": "28f31d7c3c48a65822de0da6cf0f749fbfec828c9f84a870aa351c31c061f4e1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/multiple_wrong_then_correct-48000.json",
+      "sha256": "812fccc43536d5d29b905b3b7bd58597c9260cbde753c666013a0a25567f9e8b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/partial_then_full-44100.json",
+      "sha256": "c75f5e214a587baa98bcb46accd4f189b3a300959ebe1e592d1939c0e9cbaf2b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/partial_then_full-48000.json",
+      "sha256": "5181d74ad1a2e4c012169085a207bdc4fe979fb10f096eda0e45d45d2dc61ee3"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_eligible-44100.json",
+      "sha256": "0365732e37ba0a9e7bc7c1d9222a316520dc9f08447fcae4860c2af1041ca486"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_eligible-48000.json",
+      "sha256": "34321765f79638d9c5678fad2b9c55e8254a7ef55ef1ee53631c8a9a9b65db2a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_repeat-44100.json",
+      "sha256": "eaf1e4873aabdd1ff003137902d39836450172b09eefe2967acd89c3b7b3063e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_repeat-48000.json",
+      "sha256": "4d109ec8c87b2a61e5ec100a4a0a9f2fb68b12a8b5b0521e71b455ec4e91c5d8"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/pre_ready_ignored-44100.json",
+      "sha256": "961e33b0636f7fe1c30cd4da81845894b8e405063ddcc0f18d974a89bb8e433e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/pre_ready_ignored-48000.json",
+      "sha256": "59fd5038e137d1ba5c18b25aea2c15d7a8b33c17951b1df300b5e643dab85777"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/rearm_equality-44100.json",
+      "sha256": "d3babdf6319a3c31f9aa010087c27634ac3178cfe5e81c831b221cc86a32595d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/rearm_equality-48000.json",
+      "sha256": "8f185a522ac20abbb6024b6db482a32120aaa51af8374b7c3cd84ed46742f93e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_chord_sustain-44100.json",
+      "sha256": "75769d6c23419f96b7cc5679539e8f9f0fc6581195f7958bb00b784e27fcd752"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_chord_sustain-48000.json",
+      "sha256": "331b0da912e3ae9e7a49889d4d74920d6e59c6f990c1beb445e2623bc377155e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_pitch_sustain-44100.json",
+      "sha256": "4a5fec54dd2306afe16905097c9b8bfecd4e7390bee912c03373d98629e1954a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_pitch_sustain-48000.json",
+      "sha256": "7a7edfdc6475ea82c0e3e6999390704bf297fa0f947ded4909064e8031d3ae99"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/single_busy_retrigger-44100.json",
+      "sha256": "4ea8fe236810c46b22acd1f5bb43a829af54be1b01093431691744109ae9c24e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/single_busy_retrigger-48000.json",
+      "sha256": "c1075a8aaaee968e33bcb781afca5adbb46bd3943d9a6819512569cb026feece"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_octave-44100.json",
+      "sha256": "86197dd6c4e935989fefba62aa69dabeb59cf31e83d1ac3b58cd28b33474040d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_octave-48000.json",
+      "sha256": "c79f5416f9bf860bac81e68669cd9559eee84ad3e731cf0f5e756a18a4c8a0c8"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_semitone-44100.json",
+      "sha256": "0ea06cf983abbafb4dbc83ce02d8e54cb31c192341cab576729cf7704d88f0a6"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_semitone-48000.json",
+      "sha256": "e3e9750a336c035a67b31c4caddec359768ea46653858f2145add7478d3f15e7"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a32_final_candidate_registry_2026-10-10.json",
+      "sha256": "b24bf0e686579ec5725c7e723a68561a5ddda68ab80e4b52f604751735789d1b"
+    },
+    {
+      "path": "backend/research/reports/phase9g_d3_browser_candidate_role_registry_2026-10-13.json",
+      "sha256": "c7ddcbff3492da48d75ae8773b17f6cd5894aba266bd31865f196a486b1cc1c8"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-15.json",
+      "sha256": "3dea54e8d94e7f5042594e9c9dd87cf80d459757b4648ea4c154d44ad7574505"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_runtime_report_2026-10-15.json",
+      "sha256": "3676948ca3a0a688f66daceee8d675191569f76bd943d2c8312cddb6b944240e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc4_engineering_default_final_2026-10-16.json",
+      "sha256": "dc478d511855b68b10a2884055f771d77c187cdc809182e93eb7016737b39fc0"
+    },
+    {
+      "path": "backend/research/reports/phase9g_dr3_complete_grouped_browser_runtime_and_close_online_amt_2026-10-13.json",
+      "sha256": "62d0bcf63c904badca9b64162c47e5b05d3f1a7e4165731e13c81415be252665"
+    },
+    {
+      "path": "backend/data/work/basic_pitch_browser_feasibility/node_modules/@spotify/basic-pitch/package.json",
+      "sha256": "6bd53a50f0e39ae7901a9e0822021be6361cc3fbfcd5d7ae59fd84bf2ee5084a"
+    }
+  ],
+  "operation": "STATIC_METADATA_AND_TRACE_ARITHMETIC_ONLY_NO_SCORER_PRODUCT_OR_ACOUSTIC_EXECUTION",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}

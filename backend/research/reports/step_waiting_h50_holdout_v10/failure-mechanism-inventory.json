@@ -1,0 +1,654 @@
+{
+  "source": "IMMUTABLE_V9_TRACES_NO_EVALUATOR_EXECUTION",
+  "correctChord": [
+    {
+      "cell": "correct_chord-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "truth": [
+        56,
+        64
+      ],
+      "target": [
+        56,
+        64
+      ],
+      "verdict": "MISMATCH",
+      "observations": [
+        {
+          "observationId": "j-345e4955170302c450281935:r0:w5:p52:f70240",
+          "pitch": "E3",
+          "midiPitch": 52,
+          "confidence": 0.8632820248603821,
+          "sourceDomainId": "j-345e4955170302c450281935",
+          "sourceSampleRateHz": 44100,
+          "sourceEventSample": 3142125,
+          "targetSample": 70240
+        },
+        {
+          "observationId": "j-345e4955170302c450281935:r0:w5:p64:f70400",
+          "pitch": "E4",
+          "midiPitch": 64,
+          "confidence": 0.8283321261405945,
+          "sourceDomainId": "j-345e4955170302c450281935",
+          "sourceSampleRateHz": 44100,
+          "sourceEventSample": 3142566,
+          "targetSample": 70400
+        },
+        {
+          "observationId": "j-345e4955170302c450281935:r0:w5:p68:f70560",
+          "pitch": "G#4",
+          "midiPitch": 68,
+          "confidence": 0.7813975214958191,
+          "sourceDomainId": "j-345e4955170302c450281935",
+          "sourceSampleRateHz": 44100,
+          "sourceEventSample": 3143007,
+          "targetSample": 70560
+        },
+        {
+          "observationId": "j-345e4955170302c450281935:r0:w5:p56:f70720",
+          "pitch": "G#3",
+          "midiPitch": 56,
+          "confidence": 0.3733293116092682,
+          "sourceDomainId": "j-345e4955170302c450281935",
+          "sourceSampleRateHz": 44100,
+          "sourceEventSample": 3143448,
+          "targetSample": 70720
+        }
+      ],
+      "classification": "SIMPLE_HIGHER_CONFIDENCE_FILTER_NOT_SUPPORTED",
+      "reason": "A cutoff retaining low-confidence true G#3 would also retain higher-confidence false octave events; no threshold selected or tested."
+    },
+    {
+      "cell": "correct_chord-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "truth": [
+        56,
+        64
+      ],
+      "target": [
+        56,
+        64
+      ],
+      "verdict": "MISMATCH",
+      "observations": [
+        {
+          "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+          "pitch": "E3",
+          "midiPitch": 52,
+          "confidence": 0.8645728230476379,
+          "sourceDomainId": "j-5c9651201c93bc9e4a5a8b9c",
+          "sourceSampleRateHz": 48000,
+          "sourceEventSample": 3420000,
+          "targetSample": 70240
+        },
+        {
+          "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+          "pitch": "E4",
+          "midiPitch": 64,
+          "confidence": 0.8231516480445862,
+          "sourceDomainId": "j-5c9651201c93bc9e4a5a8b9c",
+          "sourceSampleRateHz": 48000,
+          "sourceEventSample": 3420480,
+          "targetSample": 70400
+        },
+        {
+          "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+          "pitch": "G#4",
+          "midiPitch": 68,
+          "confidence": 0.7818601727485657,
+          "sourceDomainId": "j-5c9651201c93bc9e4a5a8b9c",
+          "sourceSampleRateHz": 48000,
+          "sourceEventSample": 3420960,
+          "targetSample": 70560
+        },
+        {
+          "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720",
+          "pitch": "G#3",
+          "midiPitch": 56,
+          "confidence": 0.3733627498149872,
+          "sourceDomainId": "j-5c9651201c93bc9e4a5a8b9c",
+          "sourceSampleRateHz": 48000,
+          "sourceEventSample": 3421440,
+          "targetSample": 70720
+        }
+      ],
+      "classification": "SIMPLE_HIGHER_CONFIDENCE_FILTER_NOT_SUPPORTED",
+      "reason": "A cutoff retaining low-confidence true G#3 would also retain higher-confidence false octave events; no threshold selected or tested."
+    }
+  ],
+  "postReadyRepeat": [
+    {
+      "cell": "post_ready_repeat-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "truth": [
+        [
+          46,
+          58
+        ],
+        [
+          46,
+          58
+        ]
+      ],
+      "targets": [
+        [
+          46,
+          58
+        ],
+        [
+          46,
+          58
+        ]
+      ],
+      "attempts": [
+        {
+          "attemptId": "post_ready_repeat:44100:attempt:1",
+          "truthGesture": "kv281_1:g:801",
+          "verdict": "MISMATCH",
+          "observations": [
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+              "pitch": "D5",
+              "midiPitch": 74,
+              "confidence": 0.8524208664894104,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3422601,
+              "targetSample": 68960
+            },
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+              "pitch": "A#4",
+              "midiPitch": 70,
+              "confidence": 0.6484909057617188,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3423042,
+              "targetSample": 69120
+            },
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+              "pitch": "A#2",
+              "midiPitch": 46,
+              "confidence": 0.8561397790908813,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3424365,
+              "targetSample": 69600
+            },
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600",
+              "pitch": "A#3",
+              "midiPitch": 58,
+              "confidence": 0.7968447208404541,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3424365,
+              "targetSample": 69600
+            }
+          ]
+        },
+        {
+          "attemptId": "post_ready_repeat:44100:attempt:2",
+          "truthGesture": "kv281_1:g:803",
+          "verdict": "MISMATCH",
+          "observations": [
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+              "pitch": "A#3",
+              "midiPitch": 58,
+              "confidence": 0.4623524248600006,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3495366,
+              "targetSample": 95360
+            },
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+              "pitch": "A#2",
+              "midiPitch": 46,
+              "confidence": 0.8127476572990417,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3496689,
+              "targetSample": 95840
+            },
+            {
+              "observationId": "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000",
+              "pitch": "D3",
+              "midiPitch": 50,
+              "confidence": 0.8410094976425171,
+              "sourceDomainId": "j-32e68eca71c65e1452252e5f",
+              "sourceSampleRateHz": 44100,
+              "sourceEventSample": 3497130,
+              "targetSample": 96000
+            }
+          ]
+        }
+      ],
+      "classification": "SIMPLE_GLOBAL_OCTAVE_COLLAPSE_NOT_SUPPORTED",
+      "reason": "The legitimate target contains both A#2 and A#3; D5/D3 errors have high confidence and are not repaired by deleting octave identity."
+    },
+    {
+      "cell": "post_ready_repeat-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "truth": [
+        [
+          46,
+          58
+        ],
+        [
+          46,
+          58
+        ]
+      ],
+      "targets": [
+        [
+          46,
+          58
+        ],
+        [
+          46,
+          58
+        ]
+      ],
+      "attempts": [
+        {
+          "attemptId": "post_ready_repeat:48000:attempt:1",
+          "truthGesture": "kv281_1:g:801",
+          "verdict": "MISMATCH",
+          "observations": [
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+              "pitch": "D5",
+              "midiPitch": 74,
+              "confidence": 0.8527759313583374,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3725280,
+              "targetSample": 68960
+            },
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+              "pitch": "A#4",
+              "midiPitch": 70,
+              "confidence": 0.6535189151763916,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3725760,
+              "targetSample": 69120
+            },
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+              "pitch": "A#2",
+              "midiPitch": 46,
+              "confidence": 0.8555639982223511,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3727200,
+              "targetSample": 69600
+            },
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600",
+              "pitch": "A#3",
+              "midiPitch": 58,
+              "confidence": 0.7958649396896362,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3727200,
+              "targetSample": 69600
+            }
+          ]
+        },
+        {
+          "attemptId": "post_ready_repeat:48000:attempt:2",
+          "truthGesture": "kv281_1:g:803",
+          "verdict": "MISMATCH",
+          "observations": [
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+              "pitch": "A#3",
+              "midiPitch": 58,
+              "confidence": 0.4623098075389862,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3804480,
+              "targetSample": 95360
+            },
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+              "pitch": "A#2",
+              "midiPitch": 46,
+              "confidence": 0.8131825923919678,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3805920,
+              "targetSample": 95840
+            },
+            {
+              "observationId": "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000",
+              "pitch": "D3",
+              "midiPitch": 50,
+              "confidence": 0.8410748243331909,
+              "sourceDomainId": "j-800323ad4631df7d7b814c83",
+              "sourceSampleRateHz": 48000,
+              "sourceEventSample": 3806400,
+              "targetSample": 96000
+            }
+          ]
+        }
+      ],
+      "classification": "SIMPLE_GLOBAL_OCTAVE_COLLAPSE_NOT_SUPPORTED",
+      "reason": "The legitimate target contains both A#2 and A#3; D5/D3 errors have high confidence and are not repaired by deleting octave identity."
+    }
+  ],
+  "busy": [
+    {
+      "cell": "busy_period_physical_input-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-981acf2c9183ecf2d7e21648",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 893162.8125000006,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 902625.9375000007,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 214.58333333333576,
+      "firstAttemptOpenCaptureProgressMs": 20908.072562358277,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    },
+    {
+      "cell": "busy_period_physical_input-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-b12396b9f8784b14c92a97c9",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 972150.0000000007,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 982450.0000000008,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 214.58333333333576,
+      "firstAttemptOpenCaptureProgressMs": 20897.333333333332,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    },
+    {
+      "cell": "chord_busy_retrigger-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-a8b8ef76b7bf61ae456b2142",
+      "audioBoundCaseId": "594632795489a2000cdc8beff17d465ea2ae9a689d9dbbf8b5f6dedd7ca6bfa4",
+      "physical": [
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:253",
+          "physicalSourceMs": 25737.50000000003,
+          "sourceSample": 1135023.7500000012,
+          "state": "READY",
+          "inputEligibleAfter": 1128408.7500000012,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:257",
+          "physicalSourceMs": 25984.375000000033,
+          "sourceSample": 1145910.9375000014,
+          "state": "READY",
+          "inputEligibleAfter": 1128408.7500000012,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 246.87500000000364,
+      "firstAttemptOpenCaptureProgressMs": 26388.072562358277,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    },
+    {
+      "cell": "chord_busy_retrigger-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-43634d2c02fe5f9c2aab7915",
+      "audioBoundCaseId": "594632795489a2000cdc8beff17d465ea2ae9a689d9dbbf8b5f6dedd7ca6bfa4",
+      "physical": [
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:253",
+          "physicalSourceMs": 25737.50000000003,
+          "sourceSample": 1235400.0000000014,
+          "state": "READY",
+          "inputEligibleAfter": 1228200.0000000014,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "Schubert_D783_no15_p18:g:257",
+          "physicalSourceMs": 25984.375000000033,
+          "sourceSample": 1247250.0000000016,
+          "state": "READY",
+          "inputEligibleAfter": 1228200.0000000014,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 246.87500000000364,
+      "firstAttemptOpenCaptureProgressMs": 26377.333333333332,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    },
+    {
+      "cell": "single_busy_retrigger-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-981acf2c9183ecf2d7e21648",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 893162.8125000006,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 902625.9375000007,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 214.58333333333576,
+      "firstAttemptOpenCaptureProgressMs": 20908.072562358277,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    },
+    {
+      "cell": "single_busy_retrigger-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-b12396b9f8784b14c92a97c9",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 972150.0000000007,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 982450.0000000008,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        }
+      ],
+      "gapMs": 214.58333333333576,
+      "firstAttemptOpenCaptureProgressMs": 20897.333333333332,
+      "firstVerdict": "MATCH",
+      "classification": "RAPID_PHYSICAL_PAIR_NOT_CAUSALLY_BUSY_UNDER_CURRENT_ACOUSTIC_PUBLICATION_GEOMETRY",
+      "recognitionMissIsNotEstablishedCause": true,
+      "actualValidCausalDenominator": 0
+    }
+  ],
+  "late": [
+    {
+      "cell": "late_publication-44100",
+      "sourceRateHz": 44100,
+      "jobId": "j-981acf2c9183ecf2d7e21648",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "delayedWindow": 5,
+      "delayedReceipt": {
+        "windowIndex": 5,
+        "originalPhysicalCapturedThrough": 922046,
+        "deliveredCapturedThrough": 966146,
+        "originalPublicationAvailabilityMs": 24031.129999998957,
+        "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+        "late": true,
+        "stateBefore": "READY",
+        "stateAfter": "ANALYZING",
+        "observationIds": [
+          "j-981acf2c9183ecf2d7e21648:r0:w5:p74:f69600",
+          "j-981acf2c9183ecf2d7e21648:r0:w5:p74:f72800",
+          "j-981acf2c9183ecf2d7e21648:r0:w5:p74:f76160"
+        ],
+        "sourceEvents": [
+          893025,
+          901845,
+          911106
+        ]
+      },
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 893162.8125000006,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 902625.9375000007,
+          "state": "READY",
+          "inputEligibleAfter": 886547.8125000006,
+          "strictlyEligible": true
+        }
+      ],
+      "firstAttemptOpenCaptureSource": 966146,
+      "classification": "DELAYED_OPENING_PUBLICATION_CANNOT_ESTABLISH_RETIRED_LATE_DENOMINATOR",
+      "actualValidCausalDenominator": 0,
+      "storedReasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED",
+        "NOT_EVALUABLE_LATE_PUBLICATION_NOT_RETIRED_BEFORE_READY"
+      ]
+    },
+    {
+      "cell": "late_publication-48000",
+      "sourceRateHz": 48000,
+      "jobId": "j-b12396b9f8784b14c92a97c9",
+      "audioBoundCaseId": "30a0e5a2630b23af85faa2440dcb23bec4844b41eceddd24f993d7f7bd9316c2",
+      "delayedWindow": 5,
+      "delayedReceipt": {
+        "windowIndex": 5,
+        "originalPhysicalCapturedThrough": 1003072,
+        "deliveredCapturedThrough": 1051072,
+        "originalPublicationAvailabilityMs": 25851.890000000596,
+        "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+        "late": true,
+        "stateBefore": "READY",
+        "stateAfter": "ANALYZING",
+        "observationIds": [
+          "j-b12396b9f8784b14c92a97c9:r0:w5:p74:f69600",
+          "j-b12396b9f8784b14c92a97c9:r0:w5:p74:f72800",
+          "j-b12396b9f8784b14c92a97c9:r0:w5:p74:f76160"
+        ],
+        "sourceEvents": [
+          972000,
+          981600,
+          991680
+        ]
+      },
+      "physical": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "physicalSourceMs": 20253.125000000015,
+          "sourceSample": 972150.0000000007,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "physicalSourceMs": 20467.70833333335,
+          "sourceSample": 982450.0000000008,
+          "state": "READY",
+          "inputEligibleAfter": 964950.0000000007,
+          "strictlyEligible": true
+        }
+      ],
+      "firstAttemptOpenCaptureSource": 1051072,
+      "classification": "DELAYED_OPENING_PUBLICATION_CANNOT_ESTABLISH_RETIRED_LATE_DENOMINATOR",
+      "actualValidCausalDenominator": 0,
+      "storedReasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED",
+        "NOT_EVALUABLE_LATE_PUBLICATION_NOT_RETIRED_BEFORE_READY"
+      ]
+    }
+  ],
+  "HWidthRootCauseEstablished": false,
+  "HMs": 50,
+  "HRetuned": false,
+  "HRequalified": false,
+  "reason": "Extra decoded pitch contamination and unavailable causal busy/late topology are distinct. Neither establishes H50 width as the root cause.",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}

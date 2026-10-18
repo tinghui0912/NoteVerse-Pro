@@ -1,0 +1,106 @@
+{
+  "status": "EXPOSED_DEVELOPMENT_ONLY_FOR_ANY_FUTURE_CHANGED_CANDIDATE",
+  "effectiveAt": "2026-10-18T17:22:46.703308+00:00",
+  "reason": "Acoustic publications/pitches/confidences and Stage B outcomes have been inspected. Historical blind claims remain historical, never retroactively invalidated.",
+  "phaseTrees": [
+    {
+      "phase": "v3",
+      "path": "backend/research/step_waiting_h50_holdout_v3",
+      "gitTreeAtClosureStart": "9265650ae83990dc6690b06ef6b4e6adb857cf07"
+    },
+    {
+      "phase": "v3",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3",
+      "gitTreeAtClosureStart": "98177475210fd41da174008852f89c30ed90decd"
+    },
+    {
+      "phase": "v4",
+      "path": "backend/research/step_waiting_h50_holdout_v4",
+      "gitTreeAtClosureStart": "fbe6c713f82f0d2ccdd69df062d24ad0e5b2b4d5"
+    },
+    {
+      "phase": "v4",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4",
+      "gitTreeAtClosureStart": "3f7978685b55044a3fc5c7c280d1f7d7a8729593"
+    },
+    {
+      "phase": "v5",
+      "path": "backend/research/step_waiting_h50_holdout_v5",
+      "gitTreeAtClosureStart": "a045c0290bfb22890c01b31ceeee7bfee3791a89"
+    },
+    {
+      "phase": "v5",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5",
+      "gitTreeAtClosureStart": "d27e87fb07d874cc34169b7f002eb8c0033d6a99"
+    },
+    {
+      "phase": "v6",
+      "path": "backend/research/step_waiting_h50_holdout_v6",
+      "gitTreeAtClosureStart": "bfc70ad83ed1e6fd66be72e401aa2440868f1d6a"
+    },
+    {
+      "phase": "v6",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6",
+      "gitTreeAtClosureStart": "6165e1f7b2e93a94f176f1641775347f2cb74b6b"
+    },
+    {
+      "phase": "v7",
+      "path": "backend/research/step_waiting_h50_holdout_v7",
+      "gitTreeAtClosureStart": "3e6a93c5a6547aaf4357c761dc9536862f94d735"
+    },
+    {
+      "phase": "v7",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7",
+      "gitTreeAtClosureStart": "ec1da2f4c3e6c9b6b25f6a22a154dbff7b8b67d3"
+    },
+    {
+      "phase": "v8",
+      "path": "backend/research/step_waiting_h50_holdout_v8",
+      "gitTreeAtClosureStart": "596991bcf67f6f3078abb86c926e5c40a5a7beca"
+    },
+    {
+      "phase": "v8",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8",
+      "gitTreeAtClosureStart": "422f11e1ccd35f968495fc34b8dcfa578f59816e"
+    },
+    {
+      "phase": "v9",
+      "path": "backend/research/step_waiting_h50_holdout_v9",
+      "gitTreeAtClosureStart": "b410f0b16c2508766b0d8ed62a49cd971eb7e1db"
+    },
+    {
+      "phase": "v9",
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9",
+      "gitTreeAtClosureStart": "9c48346b39515b8e9bf721a4a4ecf6bd2b53a45c"
+    }
+  ],
+  "appliesToChanges": [
+    "new model",
+    "new decoder",
+    "new postprocessor",
+    "new threshold",
+    "new assembly",
+    "new verdict semantics",
+    "new H"
+  ],
+  "futureRole": "EXPOSED DEVELOPMENT / DIAGNOSTIC CORPUS",
+  "allowedFutureUses": [
+    "failure reproduction",
+    "candidate debugging",
+    "engineering comparison"
+  ],
+  "requiredResultLabel": "DEVELOPMENT_ONLY_NOT_QUALIFICATION",
+  "prohibitedFutureClaims": [
+    "fresh primary holdout",
+    "independent qualification holdout"
+  ],
+  "futureFreshCorpus": "Must exclude these exposed sources/byte identities; build full recording/hash/history provenance and separately freeze candidate-unexecuted new sources.",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}

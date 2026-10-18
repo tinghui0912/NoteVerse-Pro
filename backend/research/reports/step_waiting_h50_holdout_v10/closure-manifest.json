@@ -1,0 +1,354 @@
+{
+  "role": "PRIMARY_QUALIFICATION_CLOSURE_AND_NEXT_CANDIDATE_DESIGN_NO_EXECUTION",
+  "createdAt": "2026-10-18T17:22:55.219910+00:00",
+  "upstream": {
+    "verifiedAt": "2026-10-18T17:22:46.355835+00:00",
+    "olderIntegrity": {
+      "primaryFiles": 254,
+      "executionFiles": 1457,
+      "hashMismatches": 0,
+      "v7AcousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+      "v7AcousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+      "v7EvidenceCommit": "5c3f62de73646e81d01ef8b6acbd647cc6d8046a"
+    },
+    "v9StageBFreezeIdentity": {
+      "commit": "1b67d9e44d6a052bc785348192b812a84a60ab8c",
+      "canonicalSha256": "28931c1efbd59f2edc9242c18bf40fd4736354201a60f078fc7cf792820d563c",
+      "boundFiles": 62
+    },
+    "v9ResultIdentity": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v9/stage-b-results.json",
+      "sha256": "637773dcae08b425efcec0fddabcea2603c4cec1308e083015ac3007790cd50f",
+      "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+      "exactGitBytes": true
+    },
+    "v9CellIdentities": [
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/busy_period_physical_input-44100.json",
+        "sha256": "478cea81f2483a0a2203e018789f30b58d6d0b2724df48624b07101a079d422d",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/busy_period_physical_input-48000.json",
+        "sha256": "c69a45f98db3eceab9cfdaf9ea227486c87c96c3612c8216e55f884a7506daa6",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/chord_busy_retrigger-44100.json",
+        "sha256": "2f88313eaa62b3929d0114498f878fbd11f8c00ebf6da95c4566d8554d95f130",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/chord_busy_retrigger-48000.json",
+        "sha256": "b7bdfb81d5d0e3580b7a98b7ea89d2cc61bbad7e65e89104f64c5f3046f94be8",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_chord-44100.json",
+        "sha256": "53c307d8689319fa59cfa41a9b64aa2cc0d14609c2a66bb41189510f6cc1991c",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_chord-48000.json",
+        "sha256": "0fb0736d7d9cca8da489a312cf0fabb476b45a8d462bd1032c9aca146408d1c1",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_single-44100.json",
+        "sha256": "03c83f6c81c39d3bd16220e03334e72cb9eaf35d6c14f879cf46e646aef14505",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/correct_single-48000.json",
+        "sha256": "c3abf94adec26f5c7e9c2bf0465781c9f9a9be1d35210e2827143962a26a834e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/extra_chord_tone-44100.json",
+        "sha256": "69382ee8019e69f745391bb476522b84ab316a41d46e118065ad9cfdd3cda2a5",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/extra_chord_tone-48000.json",
+        "sha256": "506aa5934449e525b8e4e5bd781bae962054f36816943ee1d927b811068836f3",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/late_publication-44100.json",
+        "sha256": "b4fd6bb3cfe1fa09880128ed0816a9e9b28dbf512348fd76c33e4ca185be5026",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/late_publication-48000.json",
+        "sha256": "125f2493af96a9a5fe847452d6109a1086730b844e0c061a9564b0b0ccff3132",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/match_followed_by_next_target-44100.json",
+        "sha256": "ee5d7b13205a6faa83c253e176d0d90d7fbe0849f4cbe1a01a5c899a94da21e9",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/match_followed_by_next_target-48000.json",
+        "sha256": "d26e88b3bc64445ebc2a35a367339d7a33bfeb14736bba8bb0f5b044c67076b1",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/mismatch_same_target_rearm-44100.json",
+        "sha256": "4c90620ee845903f6de66b43849863f02128a1dd0de4dda2b347605c3b300f6f",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/mismatch_same_target_rearm-48000.json",
+        "sha256": "ca0604c14952dd5b3e6e7cd8fd146bf3aa22b16e11aa272f1fa870837d8b8c80",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/missing_chord_tone-44100.json",
+        "sha256": "bce311cb8146094659f2be268fd801edcdc435e0a9f80d53d356273a5e694006",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/missing_chord_tone-48000.json",
+        "sha256": "7bffacc2a4d630e383e52169df7b29e6d17ed5168da9747d6254dbc69f4bdf19",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/multiple_wrong_then_correct-44100.json",
+        "sha256": "28f31d7c3c48a65822de0da6cf0f749fbfec828c9f84a870aa351c31c061f4e1",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/multiple_wrong_then_correct-48000.json",
+        "sha256": "812fccc43536d5d29b905b3b7bd58597c9260cbde753c666013a0a25567f9e8b",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/partial_then_full-44100.json",
+        "sha256": "c75f5e214a587baa98bcb46accd4f189b3a300959ebe1e592d1939c0e9cbaf2b",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/partial_then_full-48000.json",
+        "sha256": "5181d74ad1a2e4c012169085a207bdc4fe979fb10f096eda0e45d45d2dc61ee3",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_eligible-44100.json",
+        "sha256": "0365732e37ba0a9e7bc7c1d9222a316520dc9f08447fcae4860c2af1041ca486",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_eligible-48000.json",
+        "sha256": "34321765f79638d9c5678fad2b9c55e8254a7ef55ef1ee53631c8a9a9b65db2a",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_repeat-44100.json",
+        "sha256": "eaf1e4873aabdd1ff003137902d39836450172b09eefe2967acd89c3b7b3063e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/post_ready_repeat-48000.json",
+        "sha256": "4d109ec8c87b2a61e5ec100a4a0a9f2fb68b12a8b5b0521e71b455ec4e91c5d8",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/pre_ready_ignored-44100.json",
+        "sha256": "961e33b0636f7fe1c30cd4da81845894b8e405063ddcc0f18d974a89bb8e433e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/pre_ready_ignored-48000.json",
+        "sha256": "59fd5038e137d1ba5c18b25aea2c15d7a8b33c17951b1df300b5e643dab85777",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/rearm_equality-44100.json",
+        "sha256": "d3babdf6319a3c31f9aa010087c27634ac3178cfe5e81c831b221cc86a32595d",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/rearm_equality-48000.json",
+        "sha256": "8f185a522ac20abbb6024b6db482a32120aaa51af8374b7c3cd84ed46742f93e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_chord_sustain-44100.json",
+        "sha256": "75769d6c23419f96b7cc5679539e8f9f0fc6581195f7958bb00b784e27fcd752",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_chord_sustain-48000.json",
+        "sha256": "331b0da912e3ae9e7a49889d4d74920d6e59c6f990c1beb445e2623bc377155e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_pitch_sustain-44100.json",
+        "sha256": "4a5fec54dd2306afe16905097c9b8bfecd4e7390bee912c03373d98629e1954a",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/same_pitch_sustain-48000.json",
+        "sha256": "7a7edfdc6475ea82c0e3e6999390704bf297fa0f947ded4909064e8031d3ae99",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/single_busy_retrigger-44100.json",
+        "sha256": "4ea8fe236810c46b22acd1f5bb43a829af54be1b01093431691744109ae9c24e",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/single_busy_retrigger-48000.json",
+        "sha256": "c1075a8aaaee968e33bcb781afca5adbb46bd3943d9a6819512569cb026feece",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_octave-44100.json",
+        "sha256": "86197dd6c4e935989fefba62aa69dabeb59cf31e83d1ac3b58cd28b33474040d",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_octave-48000.json",
+        "sha256": "c79f5416f9bf860bac81e68669cd9559eee84ad3e731cf0f5e756a18a4c8a0c8",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_semitone-44100.json",
+        "sha256": "0ea06cf983abbafb4dbc83ce02d8e54cb31c192341cab576729cf7704d88f0a6",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      },
+      {
+        "path": "backend/research/reports/step_waiting_h50_holdout_v9/cells/wrong_semitone-48000.json",
+        "sha256": "e3e9750a336c035a67b31c4caddec359768ea46653858f2145add7478d3f15e7",
+        "commit": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+        "exactGitBytes": true
+      }
+    ],
+    "v9Disposition": "STEP_WAITING_H50_PRIMARY_STAGE_B_QUALIFICATION_NOT_ESTABLISHED_CAUSAL_DENOMINATOR_MISSING",
+    "acousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+    "acousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+    "downstreamSealSha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c",
+    "hashMismatches": 0
+  },
+  "files": [
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/accepted-identities.json",
+      "sha256": "437e57b03a4b4ff7fbf3d9336f3d25d42bfa10acdfc60822678725c2d5c7d835"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/closure-read-ledger.json",
+      "sha256": "d298b544efbefd35562079a8cbbd2181590390690854e3be7d0bf158af728f2b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/corrected-source-domain-diagnostics.json",
+      "sha256": "7f19fa3fdfedfe8b64d37ee96e99769bf78e6250523104d4b80c7d944fecc30f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/existing-acoustic-candidate-inventory.json",
+      "sha256": "763179991f8a9b0a52792bd7632506c1262d70654d0e67790e164f3c4658b3ad"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/exposure-transition.json",
+      "sha256": "069f5d88f447cdb79cd52543248d2f9237e24982ef1b6c7391948916604c6709"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/failure-mechanism-inventory.json",
+      "sha256": "fb26f3dfe66f40bab51e589f4ad29420f544b45c971d4e75ba52cb97a0212705"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/fresh-holdout-design.json",
+      "sha256": "c2b8a57d7a3de20a893c2619085c9b780f21532b01c66265684dab9dd40053fd"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/next-candidate-requirements.json",
+      "sha256": "534dcd0f4679cab95a346ec586a902d1d4b66c8a0a14ae576a5893655f6cb17d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/primary-qualification-closure.json",
+      "sha256": "b4c515739109d73f50aaee4d0c759362499ee24b88bf1be2dbf83098161f586f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/starting-gate.json",
+      "sha256": "d9b701948a2062d2978ec3e23cbb0d86bbe8732c2ffe62541f8f61db8b2fc375"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/tests.json",
+      "sha256": "55d4a78adcbab78a2a42e52774a0f2760f5b00956096bc716671f208a4ff8c3f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v10/v9-latency-reporting-erratum.json",
+      "sha256": "3d220d183a32b0f13ef67a80f65bc55ace457ed3184135412966f75ba3b2c2cd"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v10/closure.py",
+      "sha256": "287526177a4fa0dc45cd3c4ad16b7a21ee6f8ef32f0021a8ca7061634da8bb98"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v10/fresh-holdout-design.json",
+      "sha256": "6ee79becfba3fa9fb69adc42fb4b54e497ea985cb35fdc90a4317df09dcaaab9"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v10/next-candidate-requirements.json",
+      "sha256": "8b81a2c915b389e2973d03d53a3fc0198eb625f820f1b14c35d756140291cb16"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v10/test_closure.py",
+      "sha256": "57717824081315b04e9ea5439a9a8d37298313fb5eb320effa8f298da3dae819"
+    }
+  ],
+  "disposition": "STEP_H50_PRIMARY_QUALIFICATION_CLOSED_CURRENT_CANDIDATE_NOT_QUALIFIED_NEXT_CANDIDATE_AND_FRESH_HOLDOUT_DESIGN_READY",
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "InferenceSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "StageAReruns": 0,
+  "StageBReruns": 0,
+  "ContinuousReruns": 0,
+  "selectedPcmDecoded": false
+}
