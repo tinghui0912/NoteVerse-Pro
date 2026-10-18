@@ -1,0 +1,2 @@
+# Preserve the archived Git blob bytes across Windows checkouts.
+capture.worklet.js -text
