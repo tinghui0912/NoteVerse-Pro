@@ -1,0 +1,19 @@
+{
+  "queriedAt": "2026-10-18T02:40:35.378Z",
+  "remoteHead": "51476f3fed3a90c318d8711738af959500e85467",
+  "evidenceCommit": "51476f3fed3a90c318d8711738af959500e85467",
+  "acceptedFreeze": "a399051d4007b57144e0d06b0606df7c53f770a7",
+  "commitChain": [
+    "64f5d20b3f41013c1ef377c488ab30ffbbd10b37\tfix: establish bounded 2048-sample capture with pre-domain stabilization and explicit readiness",
+    "4f1f7ac38c49aab77bf93101550cae7ff1679ee1\tresearch: preserve exact archived transport blob bytes on Windows checkout",
+    "5b13887c3904d87e3387799f63e56197fa2bd6b3\tresearch: prospective freeze of fixed capture aggregation and stabilization qualification",
+    "bc9a463fc66e876d09648fb16de09666a97f7090\tresearch: invalidate pre-browser v1 and bound heavy parity test execution explicitly",
+    "a399051d4007b57144e0d06b0606df7c53f770a7\tresearch: prospective v2 capture transport freeze before complete rerun",
+    "51476f3fed3a90c318d8711738af959500e85467\tresearch: accept bounded capture transport repair with full Continuous parity evidence"
+  ],
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS",
+  "disposition": "PRACTICE_SHARED_ACOUSTIC_CAPTURE_TRANSPORT_STABILITY_REPAIRED_CONTINUOUS_PARITY_REESTABLISHED"
+}
