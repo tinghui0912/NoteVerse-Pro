@@ -1,0 +1,22 @@
+{
+  "freezeCommit": "570114cbe1f11983d6b07956078b4a655275b976",
+  "remoteHead": "570114cbe1f11983d6b07956078b4a655275b976",
+  "freezeSha256": "4a0264d06939fab1c12f1199be1903bc089cbe9fa0f0bf06f1456c4faf298b57",
+  "remoteVerifiedAt": "2026-10-18T10:21:17.991859+00:00",
+  "pathSchema": "REPO_RELATIVE_POSIX_V1",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "startedAt": "2026-10-18T10:21:20.476930+00:00",
+  "completedAt": "2026-10-18T10:21:21.512982+00:00",
+  "pathsChecked": 254,
+  "hashMismatches": 0,
+  "status": "PASS",
+  "backslashManifestPaths": 0,
+  "selectedRawAudioObjectsChecked": 4,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "repositoryRoot": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro",
+  "containerImage": null,
+  "network": "NO_NETWORK_IO_IN_PREFLIGHT",
+  "selectedAudioDecoded": false,
+  "verificationAlgorithm": "validate_portable_freeze_manifest + raw SHA256/Git blob; imports standard library only"
+}
