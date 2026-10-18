@@ -1,0 +1,15 @@
+{
+  "phase": "PRACTICE_STEP_WAITING_USER_H50_ACOUSTIC_ATTEMPT_QUALIFICATION_AFTER_CAPTURE_REPAIR",
+  "startingHead": "9d257acbd799f23fdb928a8e9ae323c1449ed15a",
+  "status": "UNFROZEN_PREFLIGHT_ONLY_NOT_AN_ACCEPTANCE_CONTRACT",
+  "gestureWidthMs": 50,
+  "productionChangesAllowed": false,
+  "membership": "Retain all 28 original v00..v27 slots and both source rates from step_waiting_topology_v3/corpus-v4. No replacement after inference.",
+  "phases": [{"id":"interior","eventOffsetMs":150},{"id":"near_start","eventOffsetMs":10},{"id":"near_end","eventOffsetMs":590}],
+  "warmup": "Prepend at least six seconds, in exact source-rate rational-FIR phase units. No warmup sample may enter a scored event model input. Compare every event model input against the unshifted source-local reference BEFORE neural execution.",
+  "reference": "For each predeclared ownership phase, compute the reference from the unshifted fixed source-local PCM before any inference. Compare the warmup-translated input to that phase-specific reference. Different ownership phases legitimately select different real context; do not claim cross-phase input identity.",
+  "sourceTime": "Source samples are authoritative. Worker availability never rewrites event time. READY must precede the intended gesture strictly. Re-arm retires all input already physically captured, not just analyzed input.",
+  "stopOnInvalidInput": true,
+  "rapidRetrigger": "Human clarification: same pitch or same chord re-strike. Existing metadata selection spacing is 200..250ms; two different pitch sets with no shared pitch do not establish this topology.",
+  "capabilities": {"Continuous":"MODEL_NOT_VALIDATED","STEP":"ATTEMPT_ANALYZER_NOT_VALIDATED","productionMicrophone":false,"D4":false}
+}

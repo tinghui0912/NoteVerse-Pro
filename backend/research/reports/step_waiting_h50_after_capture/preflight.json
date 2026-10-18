@@ -1,0 +1,1404 @@
+{
+  "phase": "PRACTICE_STEP_WAITING_USER_H50_ACOUSTIC_ATTEMPT_QUALIFICATION_AFTER_CAPTURE_REPAIR",
+  "disposition": "STEP_WAITING_USER_PRODUCT_TOPOLOGY_NOT_ESTABLISHED",
+  "startingHead": "9d257acbd799f23fdb928a8e9ae323c1449ed15a",
+  "executionKind": "PRE_FREEZE_METADATA_ONLY_FEASIBILITY_AUDIT_NOT_ACOUSTIC_QUALIFICATION",
+  "startedAt": "2026-10-18T03:11:00.572Z",
+  "completedAt": "2026-10-18T03:11:00.619Z",
+  "fixedMembership": {
+    "caseSlots": 28,
+    "rateJobs": 56,
+    "rates": [
+      44100,
+      48000
+    ],
+    "independentRecordings": 10,
+    "physicalOccurrences": 24
+  },
+  "manifests": [
+    {
+      "path": "backend/data/work/step_waiting_topology_v3/corpus-v4/truth.json",
+      "bytes": 333828,
+      "sha256": "6fb6ac75988941a2f89df152e1a585bec9511623920be74ecbe10a3a0045c797"
+    },
+    {
+      "path": "backend/data/work/step_waiting_topology_v3/corpus-v4/audio_only/jobs.json",
+      "bytes": 30750,
+      "sha256": "30b3a23a0dcc2cdfb2d616c83d30f29dca04b77eaf4d07b1a654238f8f97be70"
+    },
+    {
+      "path": "backend/research/step_waiting_topology_v3/contract.json",
+      "bytes": 5495,
+      "sha256": "b1e55cdbd6a4be97328d4efbc6633f3987047c4b54ab39cd7b334c5afc54dfb6"
+    }
+  ],
+  "userClarification": "rapid_retrigger requires the same pitch or the same chord to be struck again; a fast different-pitch gesture is insufficient.",
+  "spacingProvenance": "Existing frozen rapid_not_ready metadata rule is 200..250ms; no new acoustic threshold is introduced.",
+  "selectedOccurrences": [
+    {
+      "id": "v00",
+      "topology": "single",
+      "recordingId": "Bach_BWV871-01_002_20090916-SMD",
+      "audioSha256": "708284e0a670990ed368881bd8bdc57c22504bc6b69e90e10cb028e6cd76b5dd",
+      "midiSha256": "72be1500a0c726778dbcd28e50a50490bdba7853dd9319cfa72deb941c476f39",
+      "intended": {
+        "time": 136.6552083333332,
+        "pitches": [
+          60
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 60,
+            "time": 136.6552083333332,
+            "priorTime": 132.66666666666657,
+            "gapSeconds": 3.9885416666666345
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v01",
+      "topology": "single",
+      "recordingId": "Bach_BWV888-01_008_20110315-SMD",
+      "audioSha256": "a06dcc04692f4e8f53789f753997fd2df664296af0243d4c6ada6f2656281e92",
+      "midiSha256": "7c8999d762a08048d02bc071b6b3012ab139974707e2ba477d0fadb1ce90fe7e",
+      "intended": {
+        "time": 130.56354166666617,
+        "pitches": [
+          57
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 57,
+            "time": 130.56354166666617,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v02",
+      "topology": "chord",
+      "recordingId": "Bach_BWV875-01_002_20090916-SMD",
+      "audioSha256": "5e9eb90ef90d7f0a2fe8113a14aeeff6bda691f410d979de67d3744debb9ff6a",
+      "midiSha256": "68378d189bae2fdf307222e805c3292f707889c8b289ba817cde3b92af53fa0a",
+      "intended": {
+        "time": 97.41354166666628,
+        "pitches": [
+          50,
+          54,
+          57,
+          62
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 62,
+            "time": 97.41354166666628,
+            "priorTime": 95.33437499999965,
+            "gapSeconds": 2.079166666666623
+          },
+          {
+            "pitch": 57,
+            "time": 97.42708333333294,
+            "priorTime": 95.20937499999965,
+            "gapSeconds": 2.2177083333332916
+          },
+          {
+            "pitch": 50,
+            "time": 97.43124999999961,
+            "priorTime": 96.58958333333297,
+            "gapSeconds": 0.8416666666666401
+          },
+          {
+            "pitch": 54,
+            "time": 97.43645833333294,
+            "priorTime": 93.12812499999964,
+            "gapSeconds": 4.3083333333332945
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v03",
+      "topology": "chord",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": {
+        "time": 15.09999999999998,
+        "pitches": [
+          32,
+          44
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 44,
+            "time": 15.09999999999998,
+            "priorTime": 13.824999999999978,
+            "gapSeconds": 1.2750000000000021
+          },
+          {
+            "pitch": 32,
+            "time": 15.117708333333313,
+            "priorTime": 13.828124999999979,
+            "gapSeconds": 1.2895833333333346
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v04",
+      "topology": "close_spread_chord",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": {
+        "time": 22.899999999999903,
+        "pitches": [
+          44,
+          48,
+          56,
+          63
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 63,
+            "time": 22.899999999999903,
+            "priorTime": 22.538541666666568,
+            "gapSeconds": 0.361458333333335
+          },
+          {
+            "pitch": 48,
+            "time": 22.912499999999905,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 44,
+            "time": 22.916666666666572,
+            "priorTime": 21.784374999999912,
+            "gapSeconds": 1.13229166666666
+          },
+          {
+            "pitch": 56,
+            "time": 22.92916666666657,
+            "priorTime": 20.732291666666587,
+            "gapSeconds": 2.1968749999999844
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v05",
+      "topology": "close_spread_chord",
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "intended": {
+        "time": 242.78854166666662,
+        "pitches": [
+          34,
+          46,
+          77,
+          80,
+          89
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 46,
+            "time": 242.78854166666662,
+            "priorTime": 240.42916666666648,
+            "gapSeconds": 2.359375000000142
+          },
+          {
+            "pitch": 89,
+            "time": 242.79062499999995,
+            "priorTime": 242.43645833333323,
+            "gapSeconds": 0.35416666666671404
+          },
+          {
+            "pitch": 80,
+            "time": 242.79270833333328,
+            "priorTime": 242.25937499999992,
+            "gapSeconds": 0.5333333333333599
+          },
+          {
+            "pitch": 77,
+            "time": 242.7947916666666,
+            "priorTime": 242.26354166666658,
+            "gapSeconds": 0.5312500000000284
+          },
+          {
+            "pitch": 34,
+            "time": 242.79895833333327,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v06",
+      "topology": "same_pitch_after_ready",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": {
+        "time": 166.74583333333018,
+        "pitches": [
+          70
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 70,
+            "time": 166.74583333333018,
+            "priorTime": 164.56979166666355,
+            "gapSeconds": 2.1760416666666345
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v07",
+      "topology": "same_pitch_after_ready",
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "intended": {
+        "time": 317.42083333332823,
+        "pitches": [
+          58
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 58,
+            "time": 317.42083333332823,
+            "priorTime": 316.0062499999949,
+            "gapSeconds": 1.4145833333333258
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v08",
+      "topology": "repeated_chord_after_ready",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": {
+        "time": 144.59270833332985,
+        "pitches": [
+          44,
+          48
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 44,
+            "time": 144.59270833332985,
+            "priorTime": 143.26562499999648,
+            "gapSeconds": 1.327083333333377
+          },
+          {
+            "pitch": 48,
+            "time": 144.59583333332986,
+            "priorTime": 143.2677083333298,
+            "gapSeconds": 1.3281250000000568
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v09",
+      "topology": "repeated_chord_after_ready",
+      "recordingId": "Beethoven_Op031No2-01_002_20090916-SMD",
+      "audioSha256": "3d257c53c26cfbb243a371e536932d36f54928e1db46b6841350cdfb57734624",
+      "midiSha256": "bde168ae9cea1bd539f91be05cf4067cfad9982336e8e00d63e6eec3a3f3c821",
+      "intended": {
+        "time": 124.97916666666372,
+        "pitches": [
+          33,
+          45,
+          57
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 33,
+            "time": 124.97916666666372,
+            "priorTime": 124.22604166666379,
+            "gapSeconds": 0.7531249999999261
+          },
+          {
+            "pitch": 57,
+            "time": 124.98229166666371,
+            "priorTime": 124.21249999999714,
+            "gapSeconds": 0.7697916666665776
+          },
+          {
+            "pitch": 45,
+            "time": 124.98645833333038,
+            "priorTime": 124.22083333333046,
+            "gapSeconds": 0.7656249999999147
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v10",
+      "topology": "soft_after_loud_after_ready",
+      "recordingId": "Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD",
+      "audioSha256": "918d8ae6e49e22c8a4b9b071d33bd6728a1c5914abc9eb1fea897bd4cffe0cd2",
+      "midiSha256": "e68ee2158e0ae1d63573e1de8876169e08e1469b7b3c6f17b88ece768addda71",
+      "intended": {
+        "time": 80.73854166666604,
+        "pitches": [
+          49
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 49,
+            "time": 80.73854166666604,
+            "priorTime": 79.29895833333289,
+            "gapSeconds": 1.4395833333331467
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v11",
+      "topology": "soft_after_loud_after_ready",
+      "recordingId": "Mozart_KV265_006_20110315-SMD",
+      "audioSha256": "4124a267f60fd57f10c8fea7a4da6995893b01c0c8713be1f446286544e12c37",
+      "midiSha256": "522ddf75f7897e8adcff8d1a103beba0583bd59337311b4d8ad6a9f6023e0917",
+      "intended": {
+        "time": 149.0927083333317,
+        "pitches": [
+          48
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 48,
+            "time": 149.0927083333317,
+            "priorTime": 146.93749999999824,
+            "gapSeconds": 2.155208333333462
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v12",
+      "topology": "held_note",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": null,
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v13",
+      "topology": "held_note",
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "intended": null,
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v14",
+      "topology": "pedal_sustain",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": null,
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v15",
+      "topology": "pedal_sustain",
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "intended": null,
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v16",
+      "topology": "pre_ready",
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "intended": {
+        "time": 26.162499999999884,
+        "pitches": [
+          44,
+          48,
+          51,
+          56,
+          60,
+          63
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 63,
+            "time": 26.162499999999884,
+            "priorTime": 25.186458333333224,
+            "gapSeconds": 0.97604166666666
+          },
+          {
+            "pitch": 56,
+            "time": 26.170833333333217,
+            "priorTime": 24.16145833333323,
+            "gapSeconds": 2.009374999999988
+          },
+          {
+            "pitch": 48,
+            "time": 26.173958333333218,
+            "priorTime": 24.16666666666656,
+            "gapSeconds": 2.0072916666666565
+          },
+          {
+            "pitch": 51,
+            "time": 26.176041666666553,
+            "priorTime": 25.18437499999989,
+            "gapSeconds": 0.9916666666666636
+          },
+          {
+            "pitch": 60,
+            "time": 26.18020833333322,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 44,
+            "time": 26.19687499999989,
+            "priorTime": 22.916666666666572,
+            "gapSeconds": 3.2802083333333165
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v17",
+      "topology": "pre_ready",
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "intended": {
+        "time": 262.0749999999998,
+        "pitches": [
+          39,
+          51
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 39,
+            "time": 262.0749999999998,
+            "priorTime": 260.9520833333333,
+            "gapSeconds": 1.1229166666665265
+          },
+          {
+            "pitch": 51,
+            "time": 262.08124999999984,
+            "priorTime": 260.94791666666663,
+            "gapSeconds": 1.133333333333212
+          }
+        ]
+      },
+      "second": null,
+      "selectedPair": null,
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v18",
+      "topology": "capturing_outside",
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "intended": {
+        "time": 5.182291666666665,
+        "pitches": [
+          62
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 62,
+            "time": 5.182291666666665,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": {
+        "time": 5.536458333333331,
+        "pitches": [
+          63
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 63,
+            "time": 5.536458333333331,
+            "priorTime": 4.888541666666666,
+            "gapSeconds": 0.6479166666666654
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 5.182291666666665,
+        "secondTime": 5.536458333333331,
+        "gapSeconds": 0.3541666666666661,
+        "firstPitches": [
+          62
+        ],
+        "secondPitches": [
+          63
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v19",
+      "topology": "capturing_outside",
+      "recordingId": "Bach_BWV888-01_008_20110315-SMD",
+      "audioSha256": "a06dcc04692f4e8f53789f753997fd2df664296af0243d4c6ada6f2656281e92",
+      "midiSha256": "7c8999d762a08048d02bc071b6b3012ab139974707e2ba477d0fadb1ce90fe7e",
+      "intended": {
+        "time": 5.521875000000003,
+        "pitches": [
+          71
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 71,
+            "time": 5.521875000000003,
+            "priorTime": 2.9333333333333345,
+            "gapSeconds": 2.5885416666666687
+          }
+        ]
+      },
+      "second": {
+        "time": 5.828125000000003,
+        "pitches": [
+          40,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 69,
+            "time": 5.828125000000003,
+            "priorTime": 2.304166666666667,
+            "gapSeconds": 3.5239583333333355
+          },
+          {
+            "pitch": 40,
+            "time": 5.835416666666669,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 5.521875000000003,
+        "secondTime": 5.828125000000003,
+        "gapSeconds": 0.30624999999999947,
+        "firstPitches": [
+          71
+        ],
+        "secondPitches": [
+          40,
+          69
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v20",
+      "topology": "analyzing",
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "intended": {
+        "time": 119.21354166666642,
+        "pitches": [
+          55
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 55,
+            "time": 119.21354166666642,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": {
+        "time": 120.11041666666642,
+        "pitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 71,
+            "time": 120.11041666666642,
+            "priorTime": 115.90416666666643,
+            "gapSeconds": 4.206249999999997
+          },
+          {
+            "pitch": 62,
+            "time": 120.11666666666642,
+            "priorTime": 117.24374999999975,
+            "gapSeconds": 2.8729166666666686
+          },
+          {
+            "pitch": 65,
+            "time": 120.12187499999975,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 43,
+            "time": 120.12395833333308,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 67,
+            "time": 120.12604166666641,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 119.21354166666642,
+        "secondTime": 120.11041666666642,
+        "gapSeconds": 0.8968750000000085,
+        "firstPitches": [
+          55
+        ],
+        "secondPitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v21",
+      "topology": "analyzing",
+      "recordingId": "Bach_BWV888-02_008_20110315-SMD",
+      "audioSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "midiSha256": "75875b713ae88d4f25f167e078a5fcf2326b24de9d28c1763775e23f82cf4885",
+      "intended": {
+        "time": 70.74374999999984,
+        "pitches": [
+          59,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 59,
+            "time": 70.74374999999984,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 69,
+            "time": 70.75833333333317,
+            "priorTime": 69.96458333333315,
+            "gapSeconds": 0.793750000000017
+          }
+        ]
+      },
+      "second": {
+        "time": 71.5885416666665,
+        "pitches": [
+          45,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 69,
+            "time": 71.5885416666665,
+            "priorTime": 70.75833333333317,
+            "gapSeconds": 0.8302083333333314
+          },
+          {
+            "pitch": 45,
+            "time": 71.6135416666665,
+            "priorTime": 69.09791666666649,
+            "gapSeconds": 2.515625000000014
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 70.74374999999984,
+        "secondTime": 71.5885416666665,
+        "gapSeconds": 0.8447916666666657,
+        "firstPitches": [
+          59,
+          69
+        ],
+        "secondPitches": [
+          45,
+          69
+        ],
+        "sharedPitches": [
+          69
+        ],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v22",
+      "topology": "reset",
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "intended": {
+        "time": 119.21354166666642,
+        "pitches": [
+          55
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 55,
+            "time": 119.21354166666642,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": {
+        "time": 120.11041666666642,
+        "pitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 71,
+            "time": 120.11041666666642,
+            "priorTime": 115.90416666666643,
+            "gapSeconds": 4.206249999999997
+          },
+          {
+            "pitch": 62,
+            "time": 120.11666666666642,
+            "priorTime": 117.24374999999975,
+            "gapSeconds": 2.8729166666666686
+          },
+          {
+            "pitch": 65,
+            "time": 120.12187499999975,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 43,
+            "time": 120.12395833333308,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 67,
+            "time": 120.12604166666641,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 119.21354166666642,
+        "secondTime": 120.11041666666642,
+        "gapSeconds": 0.8968750000000085,
+        "firstPitches": [
+          55
+        ],
+        "secondPitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v23",
+      "topology": "reset",
+      "recordingId": "Bach_BWV888-02_008_20110315-SMD",
+      "audioSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "midiSha256": "75875b713ae88d4f25f167e078a5fcf2326b24de9d28c1763775e23f82cf4885",
+      "intended": {
+        "time": 70.74374999999984,
+        "pitches": [
+          59,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 59,
+            "time": 70.74374999999984,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 69,
+            "time": 70.75833333333317,
+            "priorTime": 69.96458333333315,
+            "gapSeconds": 0.793750000000017
+          }
+        ]
+      },
+      "second": {
+        "time": 71.5885416666665,
+        "pitches": [
+          45,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 69,
+            "time": 71.5885416666665,
+            "priorTime": 70.75833333333317,
+            "gapSeconds": 0.8302083333333314
+          },
+          {
+            "pitch": 45,
+            "time": 71.6135416666665,
+            "priorTime": 69.09791666666649,
+            "gapSeconds": 2.515625000000014
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 70.74374999999984,
+        "secondTime": 71.5885416666665,
+        "gapSeconds": 0.8447916666666657,
+        "firstPitches": [
+          59,
+          69
+        ],
+        "secondPitches": [
+          45,
+          69
+        ],
+        "sharedPitches": [
+          69
+        ],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v24",
+      "topology": "late_publication",
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "intended": {
+        "time": 119.21354166666642,
+        "pitches": [
+          55
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 55,
+            "time": 119.21354166666642,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": {
+        "time": 120.11041666666642,
+        "pitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 71,
+            "time": 120.11041666666642,
+            "priorTime": 115.90416666666643,
+            "gapSeconds": 4.206249999999997
+          },
+          {
+            "pitch": 62,
+            "time": 120.11666666666642,
+            "priorTime": 117.24374999999975,
+            "gapSeconds": 2.8729166666666686
+          },
+          {
+            "pitch": 65,
+            "time": 120.12187499999975,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 43,
+            "time": 120.12395833333308,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 67,
+            "time": 120.12604166666641,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 119.21354166666642,
+        "secondTime": 120.11041666666642,
+        "gapSeconds": 0.8968750000000085,
+        "firstPitches": [
+          55
+        ],
+        "secondPitches": [
+          43,
+          62,
+          65,
+          67,
+          71
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v25",
+      "topology": "late_publication",
+      "recordingId": "Bach_BWV888-02_008_20110315-SMD",
+      "audioSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "midiSha256": "75875b713ae88d4f25f167e078a5fcf2326b24de9d28c1763775e23f82cf4885",
+      "intended": {
+        "time": 70.74374999999984,
+        "pitches": [
+          59,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 59,
+            "time": 70.74374999999984,
+            "priorTime": null,
+            "gapSeconds": null
+          },
+          {
+            "pitch": 69,
+            "time": 70.75833333333317,
+            "priorTime": 69.96458333333315,
+            "gapSeconds": 0.793750000000017
+          }
+        ]
+      },
+      "second": {
+        "time": 71.5885416666665,
+        "pitches": [
+          45,
+          69
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 69,
+            "time": 71.5885416666665,
+            "priorTime": 70.75833333333317,
+            "gapSeconds": 0.8302083333333314
+          },
+          {
+            "pitch": 45,
+            "time": 71.6135416666665,
+            "priorTime": 69.09791666666649,
+            "gapSeconds": 2.515625000000014
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 70.74374999999984,
+        "secondTime": 71.5885416666665,
+        "gapSeconds": 0.8447916666666657,
+        "firstPitches": [
+          59,
+          69
+        ],
+        "secondPitches": [
+          45,
+          69
+        ],
+        "sharedPitches": [
+          69
+        ],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v26",
+      "topology": "rapid_not_ready",
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "intended": {
+        "time": 9.358333333333329,
+        "pitches": [
+          58,
+          72
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 72,
+            "time": 9.358333333333329,
+            "priorTime": 7.469791666666664,
+            "gapSeconds": 1.888541666666665
+          },
+          {
+            "pitch": 58,
+            "time": 9.360416666666662,
+            "priorTime": 8.126041666666664,
+            "gapSeconds": 1.2343749999999982
+          }
+        ]
+      },
+      "second": {
+        "time": 9.593749999999995,
+        "pitches": [
+          57
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 57,
+            "time": 9.593749999999995,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 9.358333333333329,
+        "secondTime": 9.593749999999995,
+        "gapSeconds": 0.23541666666666572,
+        "firstPitches": [
+          58,
+          72
+        ],
+        "secondPitches": [
+          57
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    },
+    {
+      "id": "v27",
+      "topology": "rapid_not_ready",
+      "recordingId": "Bach_BWV875-01_002_20090916-SMD",
+      "audioSha256": "5e9eb90ef90d7f0a2fe8113a14aeeff6bda691f410d979de67d3744debb9ff6a",
+      "midiSha256": "68378d189bae2fdf307222e805c3292f707889c8b289ba817cde3b92af53fa0a",
+      "intended": {
+        "time": 87.2552083333331,
+        "pitches": [
+          49
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 49,
+            "time": 87.2552083333331,
+            "priorTime": null,
+            "gapSeconds": null
+          }
+        ]
+      },
+      "second": {
+        "time": 87.48437499999976,
+        "pitches": [
+          70
+        ],
+        "samePitchGaps": [
+          {
+            "pitch": 70,
+            "time": 87.48437499999976,
+            "priorTime": 85.5124999999998,
+            "gapSeconds": 1.9718749999999545
+          }
+        ]
+      },
+      "selectedPair": {
+        "firstTime": 87.2552083333331,
+        "secondTime": 87.48437499999976,
+        "gapSeconds": 0.2291666666666572,
+        "firstPitches": [
+          49
+        ],
+        "secondPitches": [
+          70
+        ],
+        "sharedPitches": [],
+        "exactRepeatedChord": false,
+        "eligibleRapidSamePitchOrChord": false
+      },
+      "intendedContainsRapidSamePitch": false
+    }
+  ],
+  "existingQualifyingOccurrences": [],
+  "otherRapidOccurrencesInFixedSlices": [
+    {
+      "id": "v05",
+      "pitch": 58,
+      "priorTime": 238.79479166666644,
+      "time": 239.0447916666664,
+      "gapSeconds": 0.24999999999997158,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 62,
+      "priorTime": 238.90937499999976,
+      "time": 239.14374999999973,
+      "gapSeconds": 0.23437499999997158,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 70,
+      "priorTime": 238.95520833333308,
+      "time": 239.16458333333307,
+      "gapSeconds": 0.20937499999999432,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 239.0677083333331,
+      "time": 239.28645833333306,
+      "gapSeconds": 0.21874999999997158,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 58,
+      "priorTime": 239.46458333333305,
+      "time": 239.68958333333305,
+      "gapSeconds": 0.22499999999999432,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 239.48229166666638,
+      "time": 239.70624999999973,
+      "gapSeconds": 0.2239583333333428,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 58,
+      "priorTime": 239.68958333333305,
+      "time": 239.89270833333305,
+      "gapSeconds": 0.203125,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 239.70624999999973,
+      "time": 239.92604166666638,
+      "gapSeconds": 0.2197916666666515,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 239.92604166666638,
+      "time": 240.14374999999973,
+      "gapSeconds": 0.2177083333333485,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 240.14374999999973,
+      "time": 240.37916666666646,
+      "gapSeconds": 0.23541666666673677,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 240.37916666666646,
+      "time": 240.62083333333314,
+      "gapSeconds": 0.24166666666667425,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 240.62083333333314,
+      "time": 240.83958333333314,
+      "gapSeconds": 0.21875,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 74,
+      "priorTime": 240.70937499999982,
+      "time": 240.9322916666665,
+      "gapSeconds": 0.22291666666666288,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 70,
+      "priorTime": 240.70520833333316,
+      "time": 240.9416666666665,
+      "gapSeconds": 0.23645833333333144,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v05",
+      "pitch": 82,
+      "priorTime": 240.83958333333314,
+      "time": 241.0510416666665,
+      "gapSeconds": 0.21145833333335418,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v11",
+      "pitch": 48,
+      "priorTime": 145.47499999999826,
+      "time": 145.6947916666649,
+      "gapSeconds": 0.2197916666666515,
+      "selectedIntendedOccurrence": false
+    },
+    {
+      "id": "v27",
+      "pitch": 60,
+      "priorTime": 83.06666666666646,
+      "time": 83.3124999999998,
+      "gapSeconds": 0.24583333333333712,
+      "selectedIntendedOccurrence": false
+    }
+  ],
+  "missingContract": "A preselected intended same-pitch/same-chord rapid re-strike occurrence in the fixed case manifest. Warmup/arming can move readiness before an existing event but cannot change its pitch identity or internal spacing. Choosing a different earlier occurrence would change the fixed intended event rather than repair replay topology.",
+  "notClaimed": "The complete fixed PCM slices do contain other rapid same-pitch events. This report does not claim the source recordings lack such material.",
+  "forbiddenRemediesNotTaken": [
+    "replace intended occurrence",
+    "replace corpus case",
+    "change H",
+    "tune decoder",
+    "alter source waveform/timestamps",
+    "count different-pitch fast pair as same-pitch retrigger"
+  ],
+  "qualification": {
+    "freezeCommit": null,
+    "freezeSha256": null,
+    "qualificationExecutionProof": null,
+    "staticVerification": "NOT_STARTED_NO_ACCEPTANCE_FREEZE",
+    "continuousRegression": "NOT_STARTED",
+    "stageA": "NOT_STARTED",
+    "acousticSeal": null,
+    "stageB": "NOT_STARTED",
+    "safetyCounters": null,
+    "usabilityMetrics": null,
+    "latencyMetrics": null,
+    "actualNeuralRuns": 0,
+    "invalidatedNeuralRuns": 0
+  },
+  "preflightDspReceipt": {
+    "path": "backend/data/work/step_waiting_h50_after_capture/preflight/input-preservation.json",
+    "bytes": 124938,
+    "sha256": "01ce0d21a97a15f9e4c9f81825a547b45d3a5274763a7e95d42a14d26d0fe38c"
+  },
+  "productionDiff": "",
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "historicalEvidenceModified": false,
+  "newDatasetDownloads": 0,
+  "classification": "QUALIFICATION_TOPOLOGY_MISSING_EVIDENCE_NOT_ACOUSTIC_MODEL_SAFETY_FAILURE"
+}

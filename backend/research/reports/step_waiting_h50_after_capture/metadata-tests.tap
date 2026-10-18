@@ -1,0 +1,34 @@
+TAP version 13
+# Subtest: rapid different pitches do not establish a same-pitch retrigger
+ok 1 - rapid different pitches do not establish a same-pitch retrigger
+  ---
+  duration_ms: 0.6346
+  type: 'test'
+  ...
+# Subtest: same pitch and repeated chord are detected from MIDI metadata alone
+ok 2 - same pitch and repeated chord are detected from MIDI metadata alone
+  ---
+  duration_ms: 0.1201
+  type: 'test'
+  ...
+# Subtest: an unrelated context occurrence cannot be relabeled as the selected intended occurrence
+ok 3 - an unrelated context occurrence cannot be relabeled as the selected intended occurrence
+  ---
+  duration_ms: 0.3565
+  type: 'test'
+  ...
+# Subtest: fixed corpus contains fast different-pitch pairs but no selected rapid same-pitch opportunity
+ok 4 - fixed corpus contains fast different-pitch pairs but no selected rapid same-pitch opportunity
+  ---
+  duration_ms: 2.3336
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 75.5556
