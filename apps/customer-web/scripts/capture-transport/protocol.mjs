@@ -6,7 +6,7 @@ export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
 export const START='b3468c3938d0074163605360f84bb47af3eb899d';
 export const STAGE=process.env.CAPTURE_STAGE??'diagnostic';
 if(!['diagnostic','acceptance'].includes(STAGE))throw Error('INVALID_STAGE');
-export const ID=`capture_transport_${STAGE}_v1`;
+export const ID=`capture_transport_${STAGE}_v${STAGE==='diagnostic'?2:1}`;
 export const FREEZE=`backend/research/reports/${ID}_freeze.json`;
 export const BASE='backend/data/work/step_domain/step_domain_v2/musical';
 export const WORK=path.join(ROOT,'backend/data/work/capture_transport',ID,'musical');

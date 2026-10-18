@@ -16,6 +16,8 @@ window.runTransportStress = async (rate, stallMs) => {
   let capture: BrowserAcousticCapture | null = null;
   try {
     await context.resume();
+    // Mirror session preparation, before analysis capture owns any samples.
+    await sleep(500);
     capture = await BrowserAcousticCapture.connect({ bridge, context, stream, ownership: 'BORROWED_SESSION_STREAM', workletUrl: '/capture.worklet.js' });
     await sleep(600);
     const before = { wallTime: performance.now(), contextTime: context.currentTime, capture: bridge.snapshot() };
