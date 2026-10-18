@@ -1,0 +1,155 @@
+{
+  "role": "WORKER_ACCOUNTING_TAXONOMY_CORRECTION_FREEZE",
+  "pathSchema": "REPO_RELATIVE_POSIX_V1",
+  "startingHead": "888b957864b704a3536a1dd10235e188a46ac6fe",
+  "implementationCommit": "d5dc09c2ae03e28c3e454a19968bbdcdb096862e",
+  "createdAt": "2026-10-18T11:49:59.221706+00:00",
+  "files": [
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758"
+    },
+    {
+      "path": "apps/customer-web/scripts/qualification/continuous-regression.mjs",
+      "sha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/jobs.json",
+      "sha256": "42bd0dcb1ed9bf2e7fa2328e18ab4f6064767d2728d7d29a8adca91af1dbfd02"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v7/stage-a/bundle-inputs.json",
+      "sha256": "f4d00300b36a04e1b76ff463fad028ebd63fd7ae75eec7fd64a0c5856fd29761"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v7/stage-a/worker.js",
+      "sha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/primary-acoustic-qualification-freeze.json",
+      "sha256": "63600aaacada78e42c2081628ed398f92b5d50d7beff14af11d3ab02e013f319"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/continuous-gate.json",
+      "sha256": "95c22fa89a1adb3110d23c4780d55f6f0282b7716782d08a50e6bbc51e716a43"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/continuous-musical.json",
+      "sha256": "71a120574760a7dde5ab4956a6a0918d1199bb3f7afc788f9c1b67052944bc1e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/execution-protocol-freeze.json",
+      "sha256": "f63caa855c543c666c160e1da3e2b3cd4a6aaea2150b432530f4ebca157af37f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic-seal.json",
+      "sha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic.json",
+      "sha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/accepted-identities.json",
+      "sha256": "d5b9478fdd423dd4e51938aa3e2098ca555e36a9fb09e04032b360891bbfb391"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/continuous-taxonomy-witness.json",
+      "sha256": "44a651a7c65b048a4cdf181148d4f20a8eba49741b6ebce30d41de78c641bab2"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/pre-freeze-builder-path-witness.json",
+      "sha256": "33c826f59ddcec094c2ec24c7ae2fa202991500069066d381ca94a41ff4cd72b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/pre-freeze-development-notes.json",
+      "sha256": "39bb13168266a74b3eaaafcb88c2d7149948b018842a78330650165166ff9d2e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/pre-freeze-read-ledger.json",
+      "sha256": "ca97ebaf148685703d1abd0e80926e9f4b3c69a044460f2ee5629074f0613ea3"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/starting-gate.json",
+      "sha256": "08e0310572df24cf60aefd2e3d41daecaaf77ff151b1ecd316d14db74fb6fd4f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/static-architecture.json",
+      "sha256": "9c7568cc989bffd17478cd67c95e4aa58592755c8fd030d172b4dfee8b5d1660"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/synthetic-tests-development.json",
+      "sha256": "b909fa8c51f1a9b49fd2c8559e1e270b3a0b2ca111719ddc681b107a5b08875f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v8/synthetic-tests.json",
+      "sha256": "d2b0d2c092b227cbb0ae9d15db6c5ab9d2f473855e06b7a190c626d9820cba31"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/dry-runtime.ts",
+      "sha256": "c8ded5636006feb32c2a3b9f741ad9e653199c405c3b01b45d1f04bc505be7f2"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/entry.ts",
+      "sha256": "c1996ebad7c8b1c81fda654f2f208111668a72ba6cabd562d19fd03c05ff220a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/execution-contract.json",
+      "sha256": "37d779195f3891fbf8dadfd12f4f1cd260340c807fbffec503450cc612ecaa7f"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/stage-a-assets.json",
+      "sha256": "0e46b68c5b68e438f8dac84ad6e2f806356dada5aac709f5de866e7b3ef3aff8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v7/stage-a-runner.mjs",
+      "sha256": "3c91e155660669d127072722a413e97b46c81f41914386ce8808e9ca8c505049"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/adjudicate.py",
+      "sha256": "2b18d20769e72e354eb8a6b5c621f50be586c23cce31fb81da4d7d89f98a95f8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/projection.py",
+      "sha256": "1e68d70c8076554e527cda51b8abb24c7ee1ba1c8290344dbc2cb786d64f7fb0"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/protocol.py",
+      "sha256": "e5f599b2666a419e08c0d18c4fd7145d683f236a0e7376d34a83af9a9d47851c"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/receipt.py",
+      "sha256": "0396755bcb3a042ab01abd100f2f1b10b8eb87ad2303c9b8f4b90bd3ca33661a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/security.py",
+      "sha256": "8a129316d0065249f51b1a997b40feb70af4ba92fa4e7e7ddead82482e6e461b"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/taxonomy.py",
+      "sha256": "b818c0ba672e694182d2cad45b37ee3e01ca22a8d80699004092ec4fac6fa525"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/test_audit.py",
+      "sha256": "8cb787b071e7a063d3a400c79b73025e22918ec4fdb2c5d4799e41df2c23eb08"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v8/worker-taxonomy-contract.json",
+      "sha256": "e7e6a1df1420e056462edad17ea75c00ca7b72f4a409d4d5a94e24fb51c684d7"
+    }
+  ],
+  "taxonomyContractSha256": "e7e6a1df1420e056462edad17ea75c00ca7b72f4a409d4d5a94e24fb51c684d7",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "originalV7GateOutcome": "FAIL",
+  "StageB": "NOT_STARTED",
+  "freezeCanonicalSha256": "ef8524f3575dcd59d7582ff3e4696e4db90a16ea3545f8ae5f41851df573bb4e"
+}
