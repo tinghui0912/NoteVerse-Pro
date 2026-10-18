@@ -1,0 +1,150 @@
+{
+  "role": "SELECTED_AUDIO_ACQUISITION_PROTOCOL_FREEZE",
+  "upstreamRepository": "pymatchmaker/matchmaker-benchmark-data",
+  "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+  "selected": {
+    "Chopin_op10_no3_p01": {
+      "recordingId": "Chopin_op10_no3_p01",
+      "dataset": "vienna-4x22",
+      "audio": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p01.wav",
+        "sha256": "660d8ebd492206340e5efb436722fc8cd721488b4d61ad608af063c0f759d029",
+        "bytes": 15103876,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "frames": 3775958,
+        "durationSeconds": 85.62263038548753
+      },
+      "midi": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/vienna4x22-metadata/midi/Chopin_op10_no3_p01.mid",
+        "sha256": "747bcb5c91a60d26ce6d22800e210137afd9cd3e78d54ba30f0ab89f81ef187a",
+        "bytes": 14124
+      },
+      "midiSha256": "747bcb5c91a60d26ce6d22800e210137afd9cd3e78d54ba30f0ab89f81ef187a"
+    },
+    "Chopin_op10_no3_p02": {
+      "recordingId": "Chopin_op10_no3_p02",
+      "dataset": "vienna-4x22",
+      "audio": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p02.wav",
+        "sha256": "4171005671699df29f58a2a29ea9685b56956e20b270d91a4e22f9aa28eedcba",
+        "bytes": 13293808,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "frames": 3323441,
+        "durationSeconds": 75.36147392290249
+      },
+      "midi": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/vienna4x22-metadata/midi/Chopin_op10_no3_p02.mid",
+        "sha256": "ed5366a4ddb078188af7b68a7bc37663687a9a7a3f2f11e8277c8984f1cf96ad",
+        "bytes": 12360
+      },
+      "midiSha256": "ed5366a4ddb078188af7b68a7bc37663687a9a7a3f2f11e8277c8984f1cf96ad"
+    },
+    "Chopin_op10_no3_p22": {
+      "recordingId": "Chopin_op10_no3_p22",
+      "dataset": "vienna-4x22",
+      "audio": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p22.wav",
+        "sha256": "e065870cebadf7237d0d43774a5108ee2afceb251761e1b779991cc906797676",
+        "bytes": 14382540,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "frames": 3595624,
+        "durationSeconds": 81.53342403628118
+      },
+      "midi": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/vienna4x22-metadata/midi/Chopin_op10_no3_p22.mid",
+        "sha256": "cf8e18f9dad256f562a4577f54b9bd48edd8d3989c6cc45e24d67142f4479153",
+        "bytes": 7721
+      },
+      "midiSha256": "cf8e18f9dad256f562a4577f54b9bd48edd8d3989c6cc45e24d67142f4479153"
+    },
+    "Schubert_D783_no15_p18": {
+      "recordingId": "Schubert_D783_no15_p18",
+      "dataset": "vienna-4x22",
+      "audio": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Schubert/Schubert_D783_no15_p18.wav",
+        "sha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46",
+        "bytes": 5940228,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "frames": 1485046,
+        "durationSeconds": 33.674512471655326
+      },
+      "midi": {
+        "path": "backend/data/work/public_proxy/vienna-4x22/vienna4x22-metadata/midi/Schubert_D783_no15_p18.mid",
+        "sha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a",
+        "bytes": 6911
+      },
+      "midiSha256": "59c4e1dfb9cd86486ae9145853b411d66b9bbeea36b5a05670a87da460c6049a"
+    },
+    "kv282_1": {
+      "recordingId": "kv282_1",
+      "dataset": "batik",
+      "path": "batik/audio/k282_1.mp3",
+      "expectedGitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "midiSha256": "58a1a7d96bbe9dfccde2a9c3e0167414f148afdd7dd050523e1d6c59d920befd"
+    },
+    "kv279_3": {
+      "recordingId": "kv279_3",
+      "dataset": "batik",
+      "path": "batik/audio/k279_3.mp3",
+      "expectedGitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "midiSha256": "b85dc037e9e15e2a0108860b398de800b28a78fa214926c2d80323cecf274e57"
+    },
+    "kv281_1": {
+      "recordingId": "kv281_1",
+      "dataset": "batik",
+      "path": "batik/audio/k281_1.mp3",
+      "expectedGitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "midiSha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe"
+    },
+    "kv279_2": {
+      "recordingId": "kv279_2",
+      "dataset": "batik",
+      "path": "batik/audio/k279_2.mp3",
+      "expectedGitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "midiSha256": "96b26d7776858d8937f089ae8bac62dbcb0662c7944edb6cef96841d563270c5"
+    }
+  },
+  "externalAudioObjectCount": 4,
+  "allOtherExternalAudioRequests": "REJECT",
+  "publisherSynchronizationEvidenceSha256": "37d4c1f62982cfdd3609e7d870da4707408feed6636f5aa0d88e0371b79854f6",
+  "publisherFileSha256": "31690d9353709c92a997f50434befe69b307f25f31e5aefa58600057da0abd31",
+  "v4TruthTopologySealSha256": "6023fc0cdb5a9bf36769b5f33a4ff1fce8ce220f9d968516bfaf6cfb5f32ee18",
+  "v3Dependencies": [
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/eligibility.py",
+      "sha256": "6fcf0c56b9175a7453d1cb8da92381d066e9088b0876e042f250f7111452d559"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/pair_identity.py",
+      "sha256": "29b9710dcbacbb74b43226c557553ccbe2d60a9045cc32a809547beeabb1617a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/select_truth.py",
+      "sha256": "8e405b7f46f74d1ff7f315f2031b0bdc7503df92065195d77831e50a02b77454"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector-contract.json",
+      "sha256": "8e6700de83ae10cdb5e0da29cd1ff6fbac7f1cad6082cced11bdbccd9b074077"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector.py",
+      "sha256": "0a8b52e31c329fb956db6b213354f46a9b18349930b1a17120c6bf76f67e0496"
+    }
+  ],
+  "HMs": 50,
+  "noNeuralExecution": true,
+  "noReselection": true,
+  "commercialScope": "NONCOMMERCIAL_ENGINEERING_QUALIFICATION_SOURCE"
+}

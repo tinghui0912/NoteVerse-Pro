@@ -1,0 +1,57 @@
+{
+  "inspectedAt": "2026-10-18T09:27:53.958247+00:00",
+  "containerImage": "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+  "python": "3.11.10 (main, Dec  3 2024, 02:25:00) [GCC 12.2.0]",
+  "implementation": "python-soundfile/libsndfile; no alternate decoder",
+  "soundfile": "0.12.1",
+  "libsndfile": "1.2.0",
+  "numpy": "1.26.4",
+  "scipy": "1.14.1",
+  "formats": {
+    "AIFF": "AIFF (Apple/SGI)",
+    "AU": "AU (Sun/NeXT)",
+    "AVR": "AVR (Audio Visual Research)",
+    "CAF": "CAF (Apple Core Audio File)",
+    "FLAC": "FLAC (Free Lossless Audio Codec)",
+    "HTK": "HTK (HMM Tool Kit)",
+    "SVX": "IFF (Amiga IFF/SVX8/SV16)",
+    "MAT4": "MAT4 (GNU Octave 2.0 / Matlab 4.2)",
+    "MAT5": "MAT5 (GNU Octave 2.1 / Matlab 5.0)",
+    "MPC2K": "MPC (Akai MPC 2k)",
+    "MP3": "MPEG-1/2 Audio",
+    "OGG": "OGG (OGG Container format)",
+    "PAF": "PAF (Ensoniq PARIS)",
+    "PVF": "PVF (Portable Voice Format)",
+    "RAW": "RAW (header-less)",
+    "RF64": "RF64 (RIFF 64)",
+    "SD2": "SD2 (Sound Designer II)",
+    "SDS": "SDS (Midi Sample Dump Standard)",
+    "IRCAM": "SF (Berkeley/IRCAM/CARL)",
+    "VOC": "VOC (Creative Labs)",
+    "W64": "W64 (SoundFoundry WAVE 64)",
+    "WAV": "WAV (Microsoft)",
+    "NIST": "WAV (NIST Sphere)",
+    "WAVEX": "WAVEX (Microsoft)",
+    "WVE": "WVE (Psion Series 3)",
+    "XI": "XI (FastTracker 2)"
+  },
+  "mp3Subtypes": {
+    "MPEG_LAYER_I": "MPEG Layer I",
+    "MPEG_LAYER_II": "MPEG Layer II",
+    "MPEG_LAYER_III": "MPEG Layer III"
+  },
+  "libraries": [
+    {
+      "path": "/usr/local/lib/python3.11/site-packages/_soundfile_data/libsndfile_x86_64.so",
+      "sha256": "1c265077c2fff814919884222825d0d40cbea783d414796dea028e05ad811ed3"
+    }
+  ],
+  "packageVersions": [
+    "libmpg123-0:amd64\t1.31.2-1+deb12u1",
+    "libsndfile1:amd64\t1.2.0-1+deb12u1"
+  ],
+  "selectedAudioBytesAvailableToInspection": false,
+  "selectedAudioDecoded": false,
+  "decoderCandidatesTriedOnAudio": 0,
+  "newNeuralRuns": 0
+}
