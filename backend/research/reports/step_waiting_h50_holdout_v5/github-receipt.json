@@ -1,0 +1,19 @@
+{
+  "evidenceCommit": "03003e3ae4c06fd7ff9f7beedbd8b0b8cbc3ecd6",
+  "remoteHead": "03003e3ae4c06fd7ff9f7beedbd8b0b8cbc3ecd6",
+  "startingRemoteHead": "c2cbbcd3d7d27b1e8243238142a85aba75d8ee94",
+  "completeCommitChain": [
+    "971b7b4ec6247f8700080bb21a0b92bfec1d8c26 research: define selected H50 audio acquisition and DSP preservation protocols",
+    "986fa74e1f0aedbdd9b320843c8f41f27d6f506c research: SELECTED_AUDIO_ACQUISITION_PROTOCOL_FREEZE for H50 v5",
+    "03003e3ae4c06fd7ff9f7beedbd8b0b8cbc3ecd6 research: preserve selected audio identities and pre-decode portability blocker"
+  ],
+  "github": {
+    "queriedAt": "2026-10-18T09:43:51.580797+00:00",
+    "head": "03003e3ae4c06fd7ff9f7beedbd8b0b8cbc3ecd6",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  }
+}
