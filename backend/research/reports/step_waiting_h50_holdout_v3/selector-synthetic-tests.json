@@ -1,0 +1,13 @@
+{
+  "role": "PRE_MIDI_SYNTHETIC_CONTRACT_TESTS",
+  "startedAt": "2026-10-18T05:42:03.502Z",
+  "completedAt": "2026-10-18T05:42:03.597Z",
+  "testFiles": 2,
+  "total": 27,
+  "passed": 27,
+  "failed": 0,
+  "exitCode": 0,
+  "outputSha256": "4a147cc5468c51d1e9a1d68ba5e70d5f2b34f64b9fb95d603c58074dbaa7aaed",
+  "candidateMidiEventsParsed": false,
+  "newNeuralRuns": 0
+}

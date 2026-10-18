@@ -1,0 +1,14 @@
+{
+  "verifiedAt": "2026-10-18T05:26:15.207Z",
+  "expectedStartingHead": "4a2e2e15c266d4b3bd6f23006cefe59d8e16e313",
+  "localHead": "4a2e2e15c266d4b3bd6f23006cefe59d8e16e313",
+  "remoteHead": "4a2e2e15c266d4b3bd6f23006cefe59d8e16e313",
+  "mergeBase": "4a2e2e15c266d4b3bd6f23006cefe59d8e16e313",
+  "aheadBehind": "0\t0",
+  "interveningCommits": [],
+  "productionDiff": "",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS"
+}
