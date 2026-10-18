@@ -1,0 +1,13 @@
+{
+  "downstreamEligibilitySealCommit": "80574f39c6608503a478ee7d8488181ada891408",
+  "remoteHead": "80574f39c6608503a478ee7d8488181ada891408",
+  "downstreamEligibilitySealSha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c",
+  "downstreamEligibilityRemoteVerifiedAt": "2026-10-18T11:52:54.767759+00:00",
+  "v7AcousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+  "v7AcousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+  "v7AcousticOutputModified": false,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "StageB": "NOT_STARTED",
+  "truthOpened": false
+}
