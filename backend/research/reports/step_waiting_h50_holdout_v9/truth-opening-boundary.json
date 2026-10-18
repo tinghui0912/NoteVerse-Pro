@@ -1,0 +1,24 @@
+{
+  "truthOpenedAt": "2026-10-18T16:52:22.879166+00:00",
+  "authority": "v8 downstream eligibility seal verified before opening frozen v6 truth",
+  "truthFiles": [
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/audio-bound-cases.json",
+      "sha256": "745152c3cd7b7fc746a427398914b3eebcc19c9d99d768ac530199293c141b8e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+      "sha256": "fe91b48802b3c1d27e412e90dd27a4e20ebc90e8ef011a0ccee90838434c2d55"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+      "sha256": "27d80f956f207366f3739d8277f559f98b7ba85f4f51df7a75b7dd57da2e2c51"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    }
+  ],
+  "acousticPayloadOpened": false,
+  "newNeuralRuns": 0
+}
