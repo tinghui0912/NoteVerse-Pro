@@ -1,0 +1,27 @@
+{
+  "HMs": 50,
+  "rates": [
+    44100,
+    48000
+  ],
+  "sourcePreparation": "Full recording float32 mono, native rate direct; otherwise existing scipy1.14.1 resample_poly(up=rate/gcd,down=native/gcd), default Kaiser5, float32 output, no gain.",
+  "existingPreparationReference": "backend/research/step_waiting_topology_v3/prepare_pcm.py",
+  "clipStart": "floor((first frozen gesture onsetMs - 4350)/20)*20 ms, original recording coordinates",
+  "clipEnd": "ceil((max(last frozen note onsetMs, guard endMs if any)+3000)/20)*20 ms; never clamp or replace",
+  "minimumOnsetMs": 5000,
+  "minimumRemainingRealAudioMs": 3000,
+  "realPrefixMs": 4350,
+  "regionStartAfterClipMs": 1200,
+  "firstCompleteOwnedCoverageAvailableAfterClipMs": 1970,
+  "readiness": "Source-only real-preroll sufficiency. Actual browser/Worker READY availability is not measured and must be verified next phase, never invented from timeout.",
+  "adapter": "Import production QualifiedSourceAdapter; no FIR copy",
+  "windowPlanner": "Import production planWindow; 29120 samples,600/1050/170 geometry unchanged",
+  "identities": {
+    "44100": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+    "48000": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+  },
+  "reference": "Adapter from full recording source origin 0 through needed context; compare every full model window against same absolute window from real-context clip. Exact float32 bytes/SHA, no tolerance.",
+  "scheduling": "Same clip/model input for all causal product schedules; target/READY/publication rules do not enter DSP.",
+  "sampleCoordinates": "Keep original float MIDI times. Integer fixture coordinates floor(time*rate+0.5), never rewrite MIDI time.",
+  "neuralExecution": false
+}

@@ -1,0 +1,12 @@
+{
+  "executionStartedAt": "2026-10-18T10:15:29.412886+00:00",
+  "completedAt": "2026-10-18T10:15:33.340403+00:00",
+  "testFiles": 2,
+  "tests": 53,
+  "passed": 53,
+  "failed": 0,
+  "errors": 0,
+  "outputSha256": "c8ce827797f44131e3c607e6c6bb64d4fba1d1aac89ce1c836a4f6b330c2d9a3",
+  "newNeuralRuns": 0,
+  "selectedAudioDecoded": false
+}

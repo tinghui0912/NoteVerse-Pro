@@ -1,0 +1,13 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=path.resolve(import.meta.dirname,'../../..');
+const esbuild=await import(pathToFileURL(path.join(root,'backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/lib/main.js')).href);
+const folder=path.join(root,'backend/data/work/step_waiting_h50_holdout_v6/unit');await mkdir(folder,{recursive:true});
+const entry=path.join(folder,'test.mjs');
+await esbuild.build({entryPoints:[path.join(root,'backend/research/step_waiting_h50_holdout_v6/node-tests.ts')],outfile:entry,bundle:true,platform:'node',format:'esm',target:'node24'});
+const started=new Date().toISOString();const stdout=execFileSync(process.execPath,[entry],{cwd:root,encoding:'utf8'});const result=JSON.parse(stdout);
+await writeFile(path.join(root,'backend/research/reports/step_waiting_h50_holdout_v6/node-tests.json'),JSON.stringify({...result,executionStartedAt:started,completedAt:new Date().toISOString(),testFiles:1,node:process.version,esbuild:esbuild.version,bundleSha256:createHash('sha256').update(await readFile(entry)).digest('hex')},null,2)+'\n',{flag:'wx'});
+console.log(stdout);

@@ -1,0 +1,66 @@
+{
+  "freezeCommit": "986fa74e1f0aedbdd9b320843c8f41f27d6f506c",
+  "remoteHead": "986fa74e1f0aedbdd9b320843c8f41f27d6f506c",
+  "freezeSha256": "0f669a76c9b2661b2577300d641e195feeee33018081e510b58498b35f75b2fe",
+  "remoteVerifiedAt": "2026-10-18T09:40:27.755836+00:00",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "executionStartedAt": "2026-10-18T09:40:31.755640+00:00",
+  "completedAt": "2026-10-18T09:41:08.490832+00:00",
+  "selectedBatikAudioCount": 4,
+  "objects": [
+    {
+      "recordingId": "kv279_2",
+      "path": "batik/audio/k279_2.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+      "actualGitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+      "audioSha256": "54cd1cd718f49c74945672b6e579999817b5c53a6f3b6502a2e804b6b1e13591",
+      "bytes": 7307709,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k279_2.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_2.mp3",
+      "downloadedAt": "2026-10-18T09:40:42.159524+00:00"
+    },
+    {
+      "recordingId": "kv279_3",
+      "path": "batik/audio/k279_3.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+      "actualGitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+      "audioSha256": "85f31239ee48faf5f482106881347a7cdcc887766858eb08b994f1cac0dcb081",
+      "bytes": 4876581,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k279_3.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_3.mp3",
+      "downloadedAt": "2026-10-18T09:40:52.013175+00:00"
+    },
+    {
+      "recordingId": "kv281_1",
+      "path": "batik/audio/k281_1.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+      "actualGitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+      "audioSha256": "34210e8bbb1d46b3d7b3126235a2715cd811d8d4384e04a282afac4ee39a0f4a",
+      "bytes": 4934407,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k281_1.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv281_1.mp3",
+      "downloadedAt": "2026-10-18T09:41:02.250299+00:00"
+    },
+    {
+      "recordingId": "kv282_1",
+      "path": "batik/audio/k282_1.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+      "actualGitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+      "audioSha256": "33a7c6724e360822367aa682e212b2f263dfd79135a2144c86916f632a471fe0",
+      "bytes": 8267950,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k282_1.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv282_1.mp3",
+      "downloadedAt": "2026-10-18T09:41:08.490818+00:00"
+    }
+  ],
+  "otherAudioDownloaded": false,
+  "audioPcmDecoded": false,
+  "v6ExactByteReverifiedAt": "2026-10-18T10:13:24.907821+00:00",
+  "newAudioDownloaded": false,
+  "reuseAuthority": "Immutable v5 exact acquisition; no new selection or download"
+}
