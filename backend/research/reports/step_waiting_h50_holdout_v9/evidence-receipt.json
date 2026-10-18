@@ -1,0 +1,1752 @@
+{
+  "phase": "PRACTICE_STEP_H50_FROZEN_STAGE_B_PRODUCT_CAUSAL_QUALIFICATION_NO_NEURAL_NO_TUNING",
+  "completedAt": "2026-10-18T17:02:05.376Z",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "AcousticModelWorkerRuns": 0,
+  "InferenceSessionRuns": 0,
+  "StageAReruns": 0,
+  "ContinuousReruns": 0,
+  "scenarioRateCellsExecuted": 40,
+  "empiricalCellsExpected": 38,
+  "actualValidEmpiricalCells": 30,
+  "equalityWitnessesExpected": 2,
+  "equalityWitnessesPass": 2,
+  "safetyCounters": {
+    "advanceWithoutNewTruthGesture": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 30,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "doubleAdvanceFromOneTruthGesture": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 30,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "busyPeriodCarryoverAdvance": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 0,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 0
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 0
+        }
+      },
+      "witnesses": [],
+      "status": "NOT_EVALUABLE"
+    },
+    "latePublicationCarryoverAdvance": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 0,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 0
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 0
+        }
+      },
+      "witnesses": [],
+      "status": "NOT_EVALUABLE"
+    },
+    "crossAttemptObservationReuse": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 30,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "matchWithoutFullTruthPitchSet": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 30,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 15
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "samePitchSustainAdvance": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 2,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "sameChordSustainAdvance": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 2,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "extraToneFalseMatch": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 2,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 1
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "incompleteChordFalseMatch": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 4,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 2
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 2
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    },
+    "wrongPitchFalseMatch": {
+      "dangerousCount": 0,
+      "validCausalDenominator": 4,
+      "byRate": {
+        "44100": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 2
+        },
+        "48000": {
+          "dangerousCount": 0,
+          "validCausalDenominator": 2
+        }
+      },
+      "witnesses": [],
+      "status": "ZERO_OBSERVED_ON_VALID_TRIALS"
+    }
+  },
+  "dangerousWitnesses": [],
+  "notEvaluableCells": [
+    {
+      "scenario": "single_busy_retrigger",
+      "rate": 44100,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "single_busy_retrigger",
+      "rate": 48000,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "chord_busy_retrigger",
+      "rate": 44100,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "chord_busy_retrigger",
+      "rate": 48000,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "busy_period_physical_input",
+      "rate": 44100,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "busy_period_physical_input",
+      "rate": 48000,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED"
+      ]
+    },
+    {
+      "scenario": "late_publication",
+      "rate": 44100,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED",
+        "NOT_EVALUABLE_LATE_PUBLICATION_NOT_RETIRED_BEFORE_READY"
+      ]
+    },
+    {
+      "scenario": "late_publication",
+      "rate": 48000,
+      "reasons": [
+        "NOT_EVALUABLE_BUSY_TOPOLOGY_NOT_ACTUALLY_ESTABLISHED",
+        "NOT_EVALUABLE_LATE_PUBLICATION_NOT_RETIRED_BEFORE_READY"
+      ]
+    }
+  ],
+  "functionalFailures": [
+    {
+      "scenario": "correct_chord",
+      "rate": 44100,
+      "actual": [
+        "MISMATCH"
+      ]
+    },
+    {
+      "scenario": "correct_chord",
+      "rate": 48000,
+      "actual": [
+        "MISMATCH"
+      ]
+    },
+    {
+      "scenario": "post_ready_repeat",
+      "rate": 44100,
+      "actual": [
+        "MISMATCH",
+        "MISMATCH"
+      ]
+    },
+    {
+      "scenario": "post_ready_repeat",
+      "rate": 48000,
+      "actual": [
+        "MISMATCH",
+        "MISMATCH"
+      ]
+    },
+    {
+      "scenario": "match_followed_by_next_target",
+      "rate": 44100,
+      "actual": [
+        "MISMATCH",
+        "MISMATCH"
+      ]
+    },
+    {
+      "scenario": "match_followed_by_next_target",
+      "rate": 48000,
+      "actual": [
+        "MISMATCH",
+        "MISMATCH"
+      ]
+    }
+  ],
+  "ambiguousCells": [],
+  "usabilityMetrics": [
+    {
+      "rate": 44100,
+      "correctAttemptAcceptance": {
+        "numerator": 4,
+        "denominator": 9
+      },
+      "falseMismatch": {
+        "numerator": 5,
+        "denominator": 9
+      },
+      "legitimatePostReadyRepeatAcceptance": {
+        "numerator": 0,
+        "denominator": 2
+      },
+      "retryRate": "NOT_MEASURED",
+      "retryVerdictCount": 0
+    },
+    {
+      "rate": 48000,
+      "correctAttemptAcceptance": {
+        "numerator": 4,
+        "denominator": 9
+      },
+      "falseMismatch": {
+        "numerator": 5,
+        "denominator": 9
+      },
+      "legitimatePostReadyRepeatAcceptance": {
+        "numerator": 0,
+        "denominator": 2
+      },
+      "retryRate": "NOT_MEASURED",
+      "retryVerdictCount": 0
+    }
+  ],
+  "sourceReplayLatency": [
+    {
+      "rate": 44100,
+      "sourceEventToAttemptOpenCaptureProgressMs": {
+        "count": 18,
+        "p50": 639.9475623593462,
+        "p95": 728.0498866163689,
+        "max": 728.0498866163689
+      },
+      "sourceEventToVerdictCaptureProgressMs": {
+        "count": 18,
+        "p50": 642.655895689968,
+        "p95": 801.9557823137729,
+        "max": 801.9557823137729
+      },
+      "interpretation": "OFFLINE_CAUSAL_REPLAY_NOT_PHYSICAL_DEVICE_UX_LATENCY"
+    },
+    {
+      "rate": 48000,
+      "sourceEventToAttemptOpenCaptureProgressMs": {
+        "count": 18,
+        "p50": 629.2083333343908,
+        "p95": 712.6666666617239,
+        "max": 712.6666666617239
+      },
+      "sourceEventToVerdictCaptureProgressMs": {
+        "count": 18,
+        "p50": 631.9166666650126,
+        "p95": 818.500000000844,
+        "max": 818.500000000844
+      },
+      "interpretation": "OFFLINE_CAUSAL_REPLAY_NOT_PHYSICAL_DEVICE_UX_LATENCY"
+    }
+  ],
+  "latencyDomainInterpretation": {
+    "eventToFirstAvailability": "NOT_COMPARABLE_ACROSS_CLOCK_DOMAINS",
+    "deviceUXLatency": "NOT_MEASURED",
+    "sourceReplayDurations": "OFFLINE_CAUSAL_REPLAY_NOT_PHYSICAL_DEVICE_UX_LATENCY"
+  },
+  "observationOwnership": {
+    "scope": "Each counterfactual scenario-rate is a separate product session. One global map records original observationId -> scenario-rate session -> attempt owner; no reuse inside any session, cross-counterfactual reuse explicitly reported, not pooled into one live session.",
+    "rows": [
+      {
+        "observationId": "j-3ea18cb7ffbe8add3120531f:r0:w5:p64:f70240",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_single:44100",
+            "attemptId": "correct_single:44100:attempt:1"
+          },
+          {
+            "session": "post_ready_eligible:44100",
+            "attemptId": "post_ready_eligible:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-a1987006cc63fcdaef5ce98a:r0:w5:p64:f70240",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_single:48000",
+            "attemptId": "correct_single:48000:attempt:1"
+          },
+          {
+            "session": "post_ready_eligible:48000",
+            "attemptId": "post_ready_eligible:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:44100",
+            "attemptId": "correct_chord:44100:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:44100",
+            "attemptId": "wrong_semitone:44100:attempt:1"
+          },
+          {
+            "session": "wrong_octave:44100",
+            "attemptId": "wrong_octave:44100:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:44100",
+            "attemptId": "missing_chord_tone:44100:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:44100",
+            "attemptId": "extra_chord_tone:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:44100",
+            "attemptId": "correct_chord:44100:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:44100",
+            "attemptId": "wrong_semitone:44100:attempt:1"
+          },
+          {
+            "session": "wrong_octave:44100",
+            "attemptId": "wrong_octave:44100:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:44100",
+            "attemptId": "missing_chord_tone:44100:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:44100",
+            "attemptId": "extra_chord_tone:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:44100",
+            "attemptId": "correct_chord:44100:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:44100",
+            "attemptId": "wrong_semitone:44100:attempt:1"
+          },
+          {
+            "session": "wrong_octave:44100",
+            "attemptId": "wrong_octave:44100:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:44100",
+            "attemptId": "missing_chord_tone:44100:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:44100",
+            "attemptId": "extra_chord_tone:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-345e4955170302c450281935:r0:w5:p56:f70720",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:44100",
+            "attemptId": "correct_chord:44100:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:44100",
+            "attemptId": "wrong_semitone:44100:attempt:1"
+          },
+          {
+            "session": "wrong_octave:44100",
+            "attemptId": "wrong_octave:44100:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:44100",
+            "attemptId": "missing_chord_tone:44100:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:44100",
+            "attemptId": "extra_chord_tone:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:48000",
+            "attemptId": "correct_chord:48000:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:48000",
+            "attemptId": "wrong_semitone:48000:attempt:1"
+          },
+          {
+            "session": "wrong_octave:48000",
+            "attemptId": "wrong_octave:48000:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:48000",
+            "attemptId": "missing_chord_tone:48000:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:48000",
+            "attemptId": "extra_chord_tone:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:48000",
+            "attemptId": "correct_chord:48000:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:48000",
+            "attemptId": "wrong_semitone:48000:attempt:1"
+          },
+          {
+            "session": "wrong_octave:48000",
+            "attemptId": "wrong_octave:48000:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:48000",
+            "attemptId": "missing_chord_tone:48000:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:48000",
+            "attemptId": "extra_chord_tone:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:48000",
+            "attemptId": "correct_chord:48000:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:48000",
+            "attemptId": "wrong_semitone:48000:attempt:1"
+          },
+          {
+            "session": "wrong_octave:48000",
+            "attemptId": "wrong_octave:48000:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:48000",
+            "attemptId": "missing_chord_tone:48000:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:48000",
+            "attemptId": "extra_chord_tone:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720",
+        "independentScenarioSessions": [
+          {
+            "session": "correct_chord:48000",
+            "attemptId": "correct_chord:48000:attempt:1"
+          },
+          {
+            "session": "wrong_semitone:48000",
+            "attemptId": "wrong_semitone:48000:attempt:1"
+          },
+          {
+            "session": "wrong_octave:48000",
+            "attemptId": "wrong_octave:48000:attempt:1"
+          },
+          {
+            "session": "missing_chord_tone:48000",
+            "attemptId": "missing_chord_tone:48000:attempt:1"
+          },
+          {
+            "session": "extra_chord_tone:48000",
+            "attemptId": "extra_chord_tone:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-981acf2c9183ecf2d7e21648:r0:w5:p74:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "single_busy_retrigger:44100",
+            "attemptId": "single_busy_retrigger:44100:attempt:1"
+          },
+          {
+            "session": "busy_period_physical_input:44100",
+            "attemptId": "busy_period_physical_input:44100:attempt:1"
+          },
+          {
+            "session": "late_publication:44100",
+            "attemptId": "late_publication:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b12396b9f8784b14c92a97c9:r0:w5:p74:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "single_busy_retrigger:48000",
+            "attemptId": "single_busy_retrigger:48000:attempt:1"
+          },
+          {
+            "session": "busy_period_physical_input:48000",
+            "attemptId": "busy_period_physical_input:48000:attempt:1"
+          },
+          {
+            "session": "late_publication:48000",
+            "attemptId": "late_publication:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-a8b8ef76b7bf61ae456b2142:r0:w5:p56:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:44100",
+            "attemptId": "chord_busy_retrigger:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-a8b8ef76b7bf61ae456b2142:r0:w5:p65:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:44100",
+            "attemptId": "chord_busy_retrigger:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-a8b8ef76b7bf61ae456b2142:r0:w5:p48:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:44100",
+            "attemptId": "chord_busy_retrigger:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-a8b8ef76b7bf61ae456b2142:r0:w5:p53:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:44100",
+            "attemptId": "chord_busy_retrigger:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-43634d2c02fe5f9c2aab7915:r0:w5:p56:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:48000",
+            "attemptId": "chord_busy_retrigger:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-43634d2c02fe5f9c2aab7915:r0:w5:p65:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:48000",
+            "attemptId": "chord_busy_retrigger:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-43634d2c02fe5f9c2aab7915:r0:w5:p48:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:48000",
+            "attemptId": "chord_busy_retrigger:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-43634d2c02fe5f9c2aab7915:r0:w5:p53:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "chord_busy_retrigger:48000",
+            "attemptId": "chord_busy_retrigger:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:44100",
+            "attemptId": "post_ready_repeat:44100:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:44100",
+            "attemptId": "match_followed_by_next_target:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:1"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000",
+        "independentScenarioSessions": [
+          {
+            "session": "post_ready_repeat:48000",
+            "attemptId": "post_ready_repeat:48000:attempt:2"
+          },
+          {
+            "session": "match_followed_by_next_target:48000",
+            "attemptId": "match_followed_by_next_target:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p53:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p59:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p62:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p36:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p48:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w5:p55:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w9:p52:f115040",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w9:p60:f115040",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w10:p55:f115520",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-c29d502d44aedb4aa68d6dc6:r0:w13:p65:f144960",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:44100",
+            "attemptId": "multiple_wrong_then_correct:44100:attempt:3"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p53:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p59:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p62:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p36:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p48:f69920",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w5:p55:f70080",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w9:p52:f115040",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w9:p60:f115040",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w10:p55:f115520",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-b38ff68d7141a55f2a977892:r0:w13:p65:f144960",
+        "independentScenarioSessions": [
+          {
+            "session": "multiple_wrong_then_correct:48000",
+            "attemptId": "multiple_wrong_then_correct:48000:attempt:3"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p74:f69120",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p70:f69280",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p46:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p58:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p46:f94720",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p58:f94880",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p50:f95360",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:44100",
+            "attemptId": "partial_then_full:44100:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:44100",
+            "attemptId": "mismatch_same_target_rearm:44100:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:1"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:1"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:2"
+          }
+        ]
+      },
+      {
+        "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360",
+        "independentScenarioSessions": [
+          {
+            "session": "partial_then_full:48000",
+            "attemptId": "partial_then_full:48000:attempt:2"
+          },
+          {
+            "session": "mismatch_same_target_rearm:48000",
+            "attemptId": "mismatch_same_target_rearm:48000:attempt:2"
+          }
+        ]
+      }
+    ],
+    "crossCounterfactualReuses": 40
+  },
+  "cells": [
+    {
+      "scenario": "correct_single",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/correct_single-44100.json"
+    },
+    {
+      "scenario": "correct_single",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/correct_single-48000.json"
+    },
+    {
+      "scenario": "correct_chord",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/correct_chord-44100.json"
+    },
+    {
+      "scenario": "correct_chord",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/correct_chord-48000.json"
+    },
+    {
+      "scenario": "wrong_semitone",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/wrong_semitone-44100.json"
+    },
+    {
+      "scenario": "wrong_semitone",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/wrong_semitone-48000.json"
+    },
+    {
+      "scenario": "wrong_octave",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/wrong_octave-44100.json"
+    },
+    {
+      "scenario": "wrong_octave",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/wrong_octave-48000.json"
+    },
+    {
+      "scenario": "missing_chord_tone",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/missing_chord_tone-44100.json"
+    },
+    {
+      "scenario": "missing_chord_tone",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/missing_chord_tone-48000.json"
+    },
+    {
+      "scenario": "extra_chord_tone",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/extra_chord_tone-44100.json"
+    },
+    {
+      "scenario": "extra_chord_tone",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/extra_chord_tone-48000.json"
+    },
+    {
+      "scenario": "same_pitch_sustain",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/same_pitch_sustain-44100.json"
+    },
+    {
+      "scenario": "same_pitch_sustain",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/same_pitch_sustain-48000.json"
+    },
+    {
+      "scenario": "same_chord_sustain",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/same_chord_sustain-44100.json"
+    },
+    {
+      "scenario": "same_chord_sustain",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/same_chord_sustain-48000.json"
+    },
+    {
+      "scenario": "single_busy_retrigger",
+      "rate": 44100,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/single_busy_retrigger-44100.json"
+    },
+    {
+      "scenario": "single_busy_retrigger",
+      "rate": 48000,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/single_busy_retrigger-48000.json"
+    },
+    {
+      "scenario": "chord_busy_retrigger",
+      "rate": 44100,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/chord_busy_retrigger-44100.json"
+    },
+    {
+      "scenario": "chord_busy_retrigger",
+      "rate": 48000,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/chord_busy_retrigger-48000.json"
+    },
+    {
+      "scenario": "post_ready_repeat",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/post_ready_repeat-44100.json"
+    },
+    {
+      "scenario": "post_ready_repeat",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/post_ready_repeat-48000.json"
+    },
+    {
+      "scenario": "match_followed_by_next_target",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/match_followed_by_next_target-44100.json"
+    },
+    {
+      "scenario": "match_followed_by_next_target",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "FUNCTIONAL_RECOGNITION_FAILURE",
+      "traceFile": "cells/match_followed_by_next_target-48000.json"
+    },
+    {
+      "scenario": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/multiple_wrong_then_correct-44100.json"
+    },
+    {
+      "scenario": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/multiple_wrong_then_correct-48000.json"
+    },
+    {
+      "scenario": "partial_then_full",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/partial_then_full-44100.json"
+    },
+    {
+      "scenario": "partial_then_full",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/partial_then_full-48000.json"
+    },
+    {
+      "scenario": "mismatch_same_target_rearm",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/mismatch_same_target_rearm-44100.json"
+    },
+    {
+      "scenario": "mismatch_same_target_rearm",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/mismatch_same_target_rearm-48000.json"
+    },
+    {
+      "scenario": "busy_period_physical_input",
+      "rate": 44100,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/busy_period_physical_input-44100.json"
+    },
+    {
+      "scenario": "busy_period_physical_input",
+      "rate": 48000,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/busy_period_physical_input-48000.json"
+    },
+    {
+      "scenario": "late_publication",
+      "rate": 44100,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/late_publication-44100.json"
+    },
+    {
+      "scenario": "late_publication",
+      "rate": 48000,
+      "valid": 0,
+      "classification": "NOT_EVALUABLE",
+      "traceFile": "cells/late_publication-48000.json"
+    },
+    {
+      "scenario": "rearm_equality",
+      "rate": 44100,
+      "valid": null,
+      "classification": "ARCHITECTURE_ONLY_PASS",
+      "traceFile": "cells/rearm_equality-44100.json"
+    },
+    {
+      "scenario": "rearm_equality",
+      "rate": 48000,
+      "valid": null,
+      "classification": "ARCHITECTURE_ONLY_PASS",
+      "traceFile": "cells/rearm_equality-48000.json"
+    },
+    {
+      "scenario": "pre_ready_ignored",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/pre_ready_ignored-44100.json"
+    },
+    {
+      "scenario": "pre_ready_ignored",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/pre_ready_ignored-48000.json"
+    },
+    {
+      "scenario": "post_ready_eligible",
+      "rate": 44100,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/post_ready_eligible-44100.json"
+    },
+    {
+      "scenario": "post_ready_eligible",
+      "rate": 48000,
+      "valid": 1,
+      "classification": "PASS",
+      "traceFile": "cells/post_ready_eligible-48000.json"
+    }
+  ],
+  "StageAOutputUnchanged": true,
+  "productMicrophoneIntegrated": false,
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "commercialQualification": "NOT_PERFORMED",
+  "physicalMicrophoneQualification": "NOT_PERFORMED",
+  "realDeviceQualification": "NOT_PERFORMED",
+  "uxSloQualification": "NOT_PERFORMED",
+  "scientificWinner": "NOT_CLAIMED",
+  "disposition": "STEP_WAITING_H50_PRIMARY_STAGE_B_QUALIFICATION_NOT_ESTABLISHED_CAUSAL_DENOMINATOR_MISSING",
+  "nextAllowedPhase": "STOP_FOR_INDEPENDENT_AUDIT_NO_MICROPHONE_INTEGRATION",
+  "startingRemoteHead": "c5f7dfa5457eff141e74fefcb9f22db920e37d48",
+  "endingRemoteHead": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+  "completeCommitChain": [
+    "68f97eda86e15079fc26243a29c5f68db48a37a5 research: define frozen H50 Stage B causal evaluation without neural rerun or acoustic payload access",
+    "1b67d9e44d6a052bc785348192b812a84a60ab8c research: STAGE_B_EVALUATION_PROTOCOL_FREEZE before opening sealed H50 publications",
+    "f4c277e1f06695f8247122f011b6d6f35ff60516 research: seal one-shot H50 Stage B missing causal denominators and separate recognition failures"
+  ],
+  "productionDiff": [],
+  "historicalDiffs": {
+    "v3": [],
+    "v4": [],
+    "v5": [],
+    "v6": [],
+    "v7": [],
+    "v8": []
+  },
+  "allAcceptedIdentities": {
+    "primaryFiles": 254,
+    "executionFiles": 1457,
+    "hashMismatches": 0,
+    "v7AcousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+    "v7AcousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+    "v7EvidenceCommit": "5c3f62de73646e81d01ef8b6acbd647cc6d8046a",
+    "v8TaxonomyFreezeSha256": "ef8524f3575dcd59d7582ff3e4696e4db90a16ea3545f8ae5f41851df573bb4e",
+    "v8DownstreamSealSha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c",
+    "truthBindingHashesVerified": 4
+  },
+  "upstreamFreezeSealIdentities": {
+    "primaryFreeze": {
+      "commit": "570114cbe1f11983d6b07956078b4a655275b976",
+      "canonicalSha256": "4a0264d06939fab1c12f1199be1903bc089cbe9fa0f0bf06f1456c4faf298b57"
+    },
+    "executionFreeze": {
+      "commit": "9406d68acab9f4f66aac6d38feb7473aeecc5ac1",
+      "canonicalSha256": "86d3b68d2a0dd405769e4cd2317fa8b70d6a42247de99d37ca1ad0c55d2512ed"
+    },
+    "acousticEvidenceCommit": "5c3f62de73646e81d01ef8b6acbd647cc6d8046a",
+    "acousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+    "acousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+    "taxonomyFreeze": {
+      "commit": "39b137850103d2226376a170a60155e55250b823",
+      "canonicalSha256": "ef8524f3575dcd59d7582ff3e4696e4db90a16ea3545f8ae5f41851df573bb4e"
+    },
+    "downstreamEligibilitySeal": {
+      "commit": "80574f39c6608503a478ee7d8488181ada891408",
+      "sha256": "7256b87d1716cc4eab27e90e0b7746cff138d10acad281dc90ad574d43cc798c"
+    }
+  },
+  "evaluationFreeze": {
+    "freezeCommit": "1b67d9e44d6a052bc785348192b812a84a60ab8c",
+    "remoteHead": "1b67d9e44d6a052bc785348192b812a84a60ab8c",
+    "freezeSha256": "28931c1efbd59f2edc9242c18bf40fd4736354201a60f078fc7cf792820d563c",
+    "freezeFileSha256": "45e4e3392c5ca44b33ba2e1f408b6e158863a6f54dfd011e5e0cf86153b7ee7b",
+    "evaluationRemoteVerifiedAt": "2026-10-18T17:01:57.998829+00:00",
+    "acousticPublicationPayloadOpened": false,
+    "newNeuralRuns": 0
+  },
+  "truthOpenedAt": "2026-10-18T16:52:22.879166+00:00",
+  "openingBoundary": {
+    "acousticPayloadOpenedAt": "2026-10-18T17:02:05.303Z",
+    "evaluationRemoteVerifiedAt": "2026-10-18T17:01:57.998829+00:00",
+    "prospectiveOrder": true,
+    "newNeuralRuns": 0,
+    "acousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1"
+  },
+  "syntheticTests": {
+    "tests": 27,
+    "passed": 27,
+    "failed": 0,
+    "results": [
+      {
+        "name": "strict equality ignored by actual runtime",
+        "status": "PASS"
+      },
+      {
+        "name": "strict post boundary accepted by actual runtime",
+        "status": "PASS"
+      },
+      {
+        "name": "H remains exactly 50",
+        "status": "PASS"
+      },
+      {
+        "name": "half open H50 right edge excluded",
+        "status": "PASS"
+      },
+      {
+        "name": "no extension for later event",
+        "status": "PASS"
+      },
+      {
+        "name": "no early target driven close and extra pitch retained",
+        "status": "PASS"
+      },
+      {
+        "name": "second attempt while busy rejected and not queued",
+        "status": "PASS"
+      },
+      {
+        "name": "late publication retains old event and is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "MISMATCH retains target generation",
+        "status": "PASS"
+      },
+      {
+        "name": "MATCH advances exactly once",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh rearm creates distinct attempt identity",
+        "status": "PASS"
+      },
+      {
+        "name": "observation reuse across attempts detected",
+        "status": "PASS"
+      },
+      {
+        "name": "one truth gesture cannot double advance",
+        "status": "PASS"
+      },
+      {
+        "name": "exact full physical truth equality required",
+        "status": "PASS"
+      },
+      {
+        "name": "truth attribution ignores target pitches",
+        "status": "PASS"
+      },
+      {
+        "name": "truth farther than 100ms rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "100ms attribution included exactly",
+        "status": "PASS"
+      },
+      {
+        "name": "ambiguous equal distance is not evaluable",
+        "status": "PASS"
+      },
+      {
+        "name": "zero over zero cannot be empirical PASS",
+        "status": "PASS"
+      },
+      {
+        "name": "rearm equality has no empirical denominator",
+        "status": "PASS"
+      },
+      {
+        "name": "no invented RETRY",
+        "status": "PASS"
+      },
+      {
+        "name": "content blind unique late selector",
+        "status": "PASS"
+      },
+      {
+        "name": "geometry only capture reconstruction 44100 independent of sample values",
+        "status": "PASS"
+      },
+      {
+        "name": "geometry only capture reconstruction 48000 independent of sample values",
+        "status": "PASS"
+      },
+      {
+        "name": "frozen truth and scenarios exact identities",
+        "status": "PASS"
+      },
+      {
+        "name": "no acoustic payload opened during synthetic testing",
+        "status": "PASS"
+      },
+      {
+        "name": "payload gate rejects execution without remote freeze proof",
+        "status": "PASS"
+      }
+    ],
+    "newNeuralRuns": 0,
+    "acousticPayloadOpened": false
+  },
+  "github": {
+    "head": "f4c277e1f06695f8247122f011b6d6f35ff60516",
+    "queriedAt": "2026-10-18T17:04:12.728419+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "v7OriginalDisposition": "STEP_WAITING_H50_STAGE_A_ACOUSTIC_EXECUTION_BLOCKED",
+  "originalV7GateOutcome": "FAIL",
+  "acousticOutputUnchanged": true,
+  "finalVerifiedAt": "2026-10-18T17:04:12.728467+00:00"
+}
