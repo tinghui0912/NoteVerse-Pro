@@ -1,0 +1,344 @@
+{
+  "phase": "PRACTICE_SHARED_ACOUSTIC_CAPTURE_TRANSPORT_STABILITY_ROOT_CAUSE_AND_REPAIR",
+  "disposition": "PRACTICE_SHARED_ACOUSTIC_CAPTURE_TRANSPORT_STABILITY_NOT_ESTABLISHED",
+  "startingHead": "b3468c3938d0074163605360f84bb47af3eb899d",
+  "headAtReportGeneration": "eca53e21dc1c5481486455cb66db69e6492f5262",
+  "sourceAndDiagnosticCommitChain": [
+    "056f312c8e6cb0a67f1deb430faacd3619a6558a\tresearch: freeze capture transport diagnostic contract and bounded witnesses",
+    "b8e642b9a81db6fde7c3ee8dad1e18b6f2d24a26\tresearch: prospectively freeze transport diagnostics before execution",
+    "00076db9e6dcc6bc012b4c58990b1b72260e8b49\tresearch: preserve ACK starvation witness and isolate stress startup chronology",
+    "eca53e21dc1c5481486455cb66db69e6492f5262\tresearch: prospectively freeze follow-up transport startup diagnostics"
+  ],
+  "reportCreatedAt": "2026-10-18T01:59:24.434Z",
+  "acceptanceFreeze": null,
+  "productionRepair": null,
+  "executionProofs": {
+    "diagnosticEngineering": {
+      "freezeCommit": "b8e642b9a81db6fde7c3ee8dad1e18b6f2d24a26",
+      "remoteHead": "b8e642b9a81db6fde7c3ee8dad1e18b6f2d24a26",
+      "freezeSha256": "1cd9711fbe6ee7c3395a227aa722acd3df2d66b0245c1d504276f4d6c58493d9",
+      "remoteVerifiedAt": "2026-10-18T01:53:45.584Z",
+      "executionStartedAt": "2026-10-18T01:53:45.972Z"
+    },
+    "followupStress": {
+      "freezeCommit": "eca53e21dc1c5481486455cb66db69e6492f5262",
+      "remoteHead": "eca53e21dc1c5481486455cb66db69e6492f5262",
+      "freezeSha256": "766d1521051c3860dee3cb39dcd14b94b554327c53c0bec3241dbb85cde2d9e7",
+      "remoteVerifiedAt": "2026-10-18T01:55:55.443Z",
+      "executionStartedAt": "2026-10-18T01:55:55.742Z"
+    },
+    "followupStatic": {
+      "freezeCommit": "eca53e21dc1c5481486455cb66db69e6492f5262",
+      "remoteHead": "eca53e21dc1c5481486455cb66db69e6492f5262",
+      "freezeSha256": "766d1521051c3860dee3cb39dcd14b94b554327c53c0bec3241dbb85cde2d9e7",
+      "remoteVerifiedAt": "2026-10-18T01:57:17.451Z",
+      "executionStartedAt": "2026-10-18T01:57:17.758Z"
+    }
+  },
+  "rootCause": {
+    "immediateCreditMechanism": "128-sample render messages exhaust 32 credits while ACK delivery is stalled",
+    "browserOrOsOriginOf1244msGap": "UNRESOLVED",
+    "synchronousConsumerAsLongGapCause": "NOT_SUPPORTED_BY_MEASUREMENTS",
+    "startupCallbackDiscontinuity": "REPRODUCED_BEFORE_STALL; GRAPH/RENDER_ORIGIN_UNRESOLVED",
+    "batchingSufficiency": "NOT_ESTABLISHED; no PCM may be synthesized/discarded to conceal missing render frames"
+  },
+  "supportedStressEnvelope": "NOT_ESTABLISHED",
+  "diagnosticMatrix": [
+    {
+      "rate": 44100,
+      "stallMs": 0,
+      "failure": "AcousticAnalysisError: CAPTURE_CHRONOLOGY_VIOLATION",
+      "acceptedSamples": 128,
+      "nextSource": 128,
+      "totals": {
+        "messages": 2,
+        "samples": 256,
+        "acknowledgements": 1,
+        "peakUnacked": 2,
+        "maximumReceiveMs": 0.36500000953674316,
+        "maximumArrivalGapMs": 0.28999996185302734,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 44100,
+      "stallMs": 50,
+      "failure": null,
+      "acceptedSamples": 72320,
+      "nextSource": 72320,
+      "totals": {
+        "messages": 565,
+        "samples": 72320,
+        "acknowledgements": 565,
+        "peakUnacked": 20,
+        "maximumReceiveMs": 0.2549999952316284,
+        "maximumArrivalGapMs": 50.8050000667572,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 44100,
+      "stallMs": 100,
+      "failure": "Error: ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED",
+      "acceptedSamples": 30208,
+      "nextSource": 30208,
+      "totals": {
+        "messages": 236,
+        "samples": 30208,
+        "acknowledgements": 236,
+        "peakUnacked": 32,
+        "maximumReceiveMs": 0.2650001049041748,
+        "maximumArrivalGapMs": 100.73500001430511,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 44100,
+      "stallMs": 250,
+      "failure": "AcousticAnalysisError: CAPTURE_CHRONOLOGY_VIOLATION",
+      "acceptedSamples": 128,
+      "nextSource": 128,
+      "totals": {
+        "messages": 2,
+        "samples": 256,
+        "acknowledgements": 1,
+        "peakUnacked": 2,
+        "maximumReceiveMs": 0.3700000047683716,
+        "maximumArrivalGapMs": 0.32499992847442627,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "stallMs": 0,
+      "failure": null,
+      "acceptedSamples": 76288,
+      "nextSource": 76288,
+      "totals": {
+        "messages": 596,
+        "samples": 76288,
+        "acknowledgements": 596,
+        "peakUnacked": 4,
+        "maximumReceiveMs": 0.41999995708465576,
+        "maximumArrivalGapMs": 11.134999990463257,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "stallMs": 50,
+      "failure": null,
+      "acceptedSamples": 78208,
+      "nextSource": 78208,
+      "totals": {
+        "messages": 611,
+        "samples": 78208,
+        "acknowledgements": 611,
+        "peakUnacked": 21,
+        "maximumReceiveMs": 0.44499993324279785,
+        "maximumArrivalGapMs": 50.625,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "stallMs": 100,
+      "failure": "Error: ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED",
+      "acceptedSamples": 32128,
+      "nextSource": 32128,
+      "totals": {
+        "messages": 251,
+        "samples": 32128,
+        "acknowledgements": 251,
+        "peakUnacked": 32,
+        "maximumReceiveMs": 0.2849999666213989,
+        "maximumArrivalGapMs": 100.50500011444092,
+        "ackOrderViolations": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "stallMs": 250,
+      "failure": "AcousticAnalysisError: CAPTURE_CHRONOLOGY_VIOLATION",
+      "acceptedSamples": 128,
+      "nextSource": 128,
+      "totals": {
+        "messages": 2,
+        "samples": 256,
+        "acknowledgements": 1,
+        "peakUnacked": 2,
+        "maximumReceiveMs": 0.375,
+        "maximumArrivalGapMs": 0.2749999761581421,
+        "ackOrderViolations": 0
+      }
+    }
+  ],
+  "browser": {
+    "version": "155.0.8059.39",
+    "headed": true,
+    "fakeMedia": true,
+    "physicalDevices": 0
+  },
+  "model": {
+    "assetId": "practice-acoustic-robust-browser",
+    "version": "v1",
+    "bytes": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "ort": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false,
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170
+  },
+  "modelRunAccounting": {
+    "confirmedCompletedRuns": 11,
+    "countComplete": false,
+    "unresolvedInferenceRequests": 1,
+    "exactTotal": null,
+    "transportStressNeuralRuns": 0,
+    "stepNeuralRuns": 0
+  },
+  "continuousEngineering": {
+    "status": "PARTIAL_EXECUTION_BLOCKED",
+    "cells": [
+      {
+        "rate": 44100,
+        "scenario": "natural_recording_offline",
+        "state": "PASS"
+      },
+      {
+        "rate": 44100,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "PASS"
+      },
+      {
+        "rate": 44100,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "PASS"
+      },
+      {
+        "rate": 44100,
+        "scenario": "recording_analysis_failure_running",
+        "state": "PASS"
+      },
+      {
+        "rate": 48000,
+        "scenario": "natural_recording_offline",
+        "state": "PASS"
+      },
+      {
+        "rate": 48000,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "FAILED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "NOT_STARTED"
+      },
+      {
+        "rate": 48000,
+        "scenario": "recording_analysis_failure_running",
+        "state": "NOT_STARTED"
+      }
+    ]
+  },
+  "continuousMusicalReplay": "NOT_EXECUTED",
+  "productionControllerMusicalReplay": "NOT_EXECUTED",
+  "modelInputShaParity": "NOT_EXECUTED",
+  "finalAcceptanceSemanticParity": "NOT_ESTABLISHED",
+  "protectedSourceDiff": "",
+  "productionSourceChanged": false,
+  "staticVerification": {
+    "status": "PASS",
+    "results": [
+      {
+        "name": "execution-accounting-tests",
+        "exitCode": 0,
+        "output": "✔ instrumentation preserves every production sample and message field (29.1906ms)\n✔ stress matrix and disabled STEP are frozen, not chosen from results (0.4322ms)\n✔ failed-cell JSON witness is retained instead of discarding completed real executions (1.0589ms)\n✔ unobserved in-flight execution is explicitly incomplete, never guessed (0.1284ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 104.4507\n"
+      },
+      {
+        "name": "vitest",
+        "exitCode": 0,
+        "counts": {
+          "totalTests": 1131,
+          "passedTests": 1131,
+          "failedTests": 0,
+          "testFiles": 151,
+          "runnerSuiteCount": 309,
+          "success": true
+        }
+      },
+      {
+        "name": "typecheck",
+        "exitCode": 0
+      },
+      {
+        "name": "lint",
+        "exitCode": 0,
+        "messages": [
+          {
+            "path": "scripts/step-boundary/prepare-tooling.mjs",
+            "rule": "prefer-const",
+            "message": "'text' is never reassigned. Use 'const' instead.",
+            "severity": 1,
+            "line": 3,
+            "column": 6
+          }
+        ]
+      },
+      {
+        "name": "build",
+        "exitCode": 0
+      },
+      {
+        "name": "Docker backend asset unittest",
+        "exitCode": 0,
+        "output": "test_authenticated_delivery_over_http_without_practice_or_database (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_authenticated_delivery_over_http_without_practice_or_database) ... ok\ntest_delivery_is_pinned_and_ignores_historical_object_key (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_only_shared_endpoint_is_registered (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_only_shared_endpoint_is_registered) ... ok\ntest_schema_rejects_the_old_export (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.023s\n\nOK\n"
+      },
+      {
+        "name": "Docker backend model asset route tests",
+        "exitCode": 0,
+        "output": "...                                                                      [100%]\n=============================== warnings summary ===============================\n../../usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n3 passed, 1 warning in 1.89s\n"
+      }
+    ]
+  },
+  "resourceCeilings": {
+    "maxUnacked": 32,
+    "maxSourceBlockSamples": 2048,
+    "actualBlockSamples": 128,
+    "actualOutstandingPcmBytes": 16384,
+    "maximumPolicyTransportPcmBytes": 262144,
+    "targetRingFloatSamples": 65536,
+    "maxOutstandingWindows": 4,
+    "compactDiagnostics": 32,
+    "continuousBoundaries": 8,
+    "transportAccumulatorBytes": 0,
+    "totalJsOrtGpuHeapBound": "NOT_MEASURED"
+  },
+  "secondActiveAcousticPath": false,
+  "compatibilityLayer": false,
+  "fallbackPath": false,
+  "step": {
+    "executed": false,
+    "gestureWidthMs": 50,
+    "gestureStatus": "NOT_QUALIFIED",
+    "freshStrikeCandidate": null
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "githubReceipt": "github-receipt.json; query follows evidence push",
+  "limitations": [
+    "No complete root attribution for native scheduler or initial render-frame discontinuity",
+    "No accepted repair/stress envelope or complete Continuous parity run",
+    "No STEP continuation",
+    "No real-device or commercial claim"
+  ]
+}
