@@ -174,7 +174,7 @@ def freeze():
     if own_json(OUT/'synthetic-tests.json')['failed']:raise ValueError('SYNTHETIC_TESTS_FAILED')
     identities();static_architecture();continuous_witness()
     paths=git('ls-files','--',local(HERE),local(OUT)).splitlines()
-    paths += list(SOURCES.values())+[ORT_PATH,V7+'execution-contract.json',V7+'execution-protocol-freeze.json',
+    paths += list(SOURCES.values())+[ORT_PATH,'backend/research/step_waiting_h50_holdout_v7/execution-contract.json',V7+'execution-protocol-freeze.json',
         V7+'continuous-musical.json',V7+'continuous-gate.json',ACOUSTIC,SEAL,
         'backend/research/reports/step_waiting_h50_holdout_v6/primary-acoustic-qualification-freeze.json',
         'backend/data/work/step_waiting_h50_holdout_v7/stage-a/worker.js',

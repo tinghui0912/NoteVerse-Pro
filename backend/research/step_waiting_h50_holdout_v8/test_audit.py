@@ -56,6 +56,9 @@ class AuditIsolation(unittest.TestCase):
         with self.assertRaisesRegex(PermissionError,'RUNTIME_IMPORT_DENIED'):__import__('soundfile')
     def test_historical_and_product_unchanged(self):self.assertIsNone(p.unchanged())
     def test_ort_asset_exact(self):self.assertEqual(p.digest(p.raw(p.ORT_PATH)),p.ORT_SHA)
+    def test_execution_contract_dependency_is_tooling_path(self):
+        self.assertTrue((p.ROOT/'backend/research/step_waiting_h50_holdout_v7/execution-contract.json').is_file())
+        self.assertFalse((p.ROOT/(p.V7+'execution-contract.json')).exists())
 
 
 if __name__=='__main__':
