@@ -1,0 +1,840 @@
+{
+  "role": "PORTABLE_PREDECODE_PROTOCOL_FREEZE",
+  "pathSchema": "REPO_RELATIVE_POSIX_V1",
+  "startingHead": "63d33bf85d3c71d4a06fce326dbb49a5ba38b8b2",
+  "implementationCommit": "e8da9f6e84d093e992f1cc8214f9b9af7e8699ee",
+  "files": [
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/.gitattributes",
+      "sha256": "a0bfabe6be259c8e72c087f83050ee9c9bf63a60e4acbae1d0a3dbb16f50aded"
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/README.md",
+      "sha256": "4f031c5952d5f2dce0bcc4181945fd1268b78b8e06b04f0d72f9a68a317d1220"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts",
+      "sha256": "6d1126d528da72a8251a63ff7d2d65176d7adc0efcad77a5af89330864501df5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts",
+      "sha256": "bc0561f01a6fd18b0cc7b87590e1ecbfa5a8fa74537c97cd287787941274b72c"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts",
+      "sha256": "11b0a44be5138de4ef32ed01818a8e967aaa43d8380bffb43ad2a7621530cf1d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/publication.ts",
+      "sha256": "8ebadaadda772bb39b7c32bdfba2a16da5c4ea1dd80ef3c4e8e8bba21ce46068"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/runtime.test.ts",
+      "sha256": "cb28f73eec16f6237cc103e22226597c9f4db94fc5f350567a15504933b7d9f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/decoder.test.ts",
+      "sha256": "def278782f5300862254f16761f60fcd116057605821d52a9b5ba36e7477291a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "sha256": "afa6a41b9449ad759df22205be98293519bdb1164e92e31009dfe3ca22976c7f"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/window-geometry.test.ts",
+      "sha256": "e37e1b4caca3de72f0f49c9e3f6bf8c6826c032ca79fcb8ea2cc5b60c64727a4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/inference-types.ts",
+      "sha256": "80dbe50620191795a19a255f0070614e1c600da141d6285aee0a440040202b0e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts",
+      "sha256": "f7440917cfaa9a87d8dafb667e7334d3849ab0cb498244d326b206edc5fe32f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "sha256": "8bf881713a3ac510e385c5ebc92db350861f9ed630934ca0b25fd5427197e975"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-architecture.test.ts",
+      "sha256": "cbababfa167d9f89f99857a28d7ee2a206cfab47eb8494cce70d588528179659"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-parity.test.ts",
+      "sha256": "6bb2bdd3a36e63cf451708b486ad398d469a994434947fd387795d9138f2b6f8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "sha256": "e93d784efc58f6b90b4a79a2df230d074c2c82e8178753f4aae5ce3ce1027211"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts",
+      "sha256": "a8eadfe0f4b8e4e7bf795a68edd12e84cf14f9c5a121f9628abd0cce0e8256f6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-types.ts",
+      "sha256": "f130ce409374cc99f2a6511217f42255b1e6552a4a9b7c7fb340c805482a5c4a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "sha256": "6d31409bca8f2210bcf7573f7c0ae6d53e0706252796eb1c73fa0892bbcf9c2b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "sha256": "8fb151efdca3c6aff0a06c5843543aa2b493a0e6dca591bf053ac671c705f34e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/dsp-parity.test.ts",
+      "sha256": "9410643d03cf18edf99f2ba362c11f23f73f69cd197aa237bcf3b9cf85859bff"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-errors.ts",
+      "sha256": "f7811d5ed12c07d7c2f1212bd66e6426abb461c82d4187916ef8b537d2691813"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "sha256": "5e53a616150666ef16760f6cc3672556c83ffe6ffcce7e5dad2dce73df14d886"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "sha256": "956871490adc449af9964c7e4b1ff084890ebef98e85139e12f01dc94d5248f8"
+    },
+    {
+      "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p01.wav",
+      "sha256": "660d8ebd492206340e5efb436722fc8cd721488b4d61ad608af063c0f759d029"
+    },
+    {
+      "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p02.wav",
+      "sha256": "4171005671699df29f58a2a29ea9685b56956e20b270d91a4e22f9aa28eedcba"
+    },
+    {
+      "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Etude/Chopin_op10_no3_p22.wav",
+      "sha256": "e065870cebadf7237d0d43774a5108ee2afceb251761e1b779991cc906797676"
+    },
+    {
+      "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Schubert/Schubert_D783_no15_p18.wav",
+      "sha256": "891de1d5745b34cc383a6ac3f2d771f6626c57139b159b9976b4add892fa4e46"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_2.mp3",
+      "sha256": "54cd1cd718f49c74945672b6e579999817b5c53a6f3b6502a2e804b6b1e13591"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_3.mp3",
+      "sha256": "85f31239ee48faf5f482106881347a7cdcc887766858eb08b994f1cac0dcb081"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv281_1.mp3",
+      "sha256": "34210e8bbb1d46b3d7b3126235a2715cd811d8d4384e04a282afac4ee39a0f4a"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv282_1.mp3",
+      "sha256": "33a7c6724e360822367aa682e212b2f263dfd79135a2144c86916f632a471fe0"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/assessment.json",
+      "sha256": "f759c07b605ec0cb9806f53aa5da00e2469bb8ec4df6f2614946c171f20a43b5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/assessment.md",
+      "sha256": "4c3c54ddd09440e851cdcd3f04d9c4e513766b773d51a75b3c9b6a67a72869a4"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/exposure-audit-completion.json",
+      "sha256": "4c2659404faac674415111037d648a4d6893b31e831afe28540ae80dbc5c067c"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/freeze-integrity-after-truth.json",
+      "sha256": "8b82a5ae52b08a4fc1be344615d75b5fe8fd5703a19c681a5c4fe07379a3801b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/github-receipt.json",
+      "sha256": "7a6ee14e277473178ff79fa7bc329cf0cd584d0278b7a53583ec5c2d449e2b26"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/prior-reference-index.json",
+      "sha256": "de8b3a56b150ac3572e85ad8b4065ea28c4bd3d447c2c8e60ecaae884800f4e6"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/selector-freeze.json",
+      "sha256": "21553b69885d113adc1a3ad819f5ea3b22038aa9907c1cc21c2d3a9c12ca814d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/selector-remote-proof.json",
+      "sha256": "19fb0aa22dc3f3f0fa2f74da9a6fa9e5ebb2f340443c548b4b0e7d6db24332be"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/selector-synthetic-tests.json",
+      "sha256": "5507892e8d7ff5e5ce5b1bd35bbce3856dc3072e003746675630b64e1618e6f7"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/selector-synthetic-tests.txt",
+      "sha256": "4a147cc5468c51d1e9a1d68ba5e70d5f2b34f64b9fb95d603c58074dbaa7aaed"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/source-inventory.json",
+      "sha256": "f502dc20355eb18506cff7f9564ca0eef2a7d1e0d3f4d7d9dbf109fc51321738"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/starting-gate.json",
+      "sha256": "8302cca4e75b5cdfbcd91798131cffadf1bc28d8cc0aa4ef4f339fe572e95adc"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/truth-topology.json",
+      "sha256": "34b3ff4ee74c6ff6bbc0cda56ca1c7719682dff423d8918a548b105b8930f7a0"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/assessment.json",
+      "sha256": "b3ac77cff4b9eecb860850856f803871a9d296ea22687cb0b40533edaff06c57"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/assessment.md",
+      "sha256": "bdfcb3e2a614220542cd0219aeff4376103711918ee38e20d1ea936103b0ed3d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/audit-correction.md",
+      "sha256": "cd9e2daa740c775d70880f7a95ec1a09e3cb871ff590add472b5eb5e599f3afa"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/batik-byte-manifest.json",
+      "sha256": "0db4cb68401cd2b523b6f0d829fd1f41dd15ff10cd4d056a1b8e385b4dd91da1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/batik-truth-topology.json",
+      "sha256": "91a985b0ca9d2a886324797e4b15cf783fefc797e782b14c96cf536fe3b9fc8e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/combined-truth-topology.json",
+      "sha256": "bbae21a06f0b56f486234936cfbef7484bc2f0c9d833662a6ab8d0cf6afd564b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/corrected-baseline.json",
+      "sha256": "6f5ec901511e6211dce29ac37caf9162c31522a23da47fc8f65c91fe1a86d2da"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-complete.json",
+      "sha256": "538850a36cfbcdedc7df293b083741d17f91ac8429dec3cbd8f991af26fd1a5a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-complete.txt",
+      "sha256": "58ddc14b57f2c1c9fccf84c594f4faff0efefa00db9fc4cab290146874ec5da9"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-discovery.json",
+      "sha256": "bc6a56d678bc80d21080fea2c3e170aac784d1f406d4a536a2e4edd86af16c18"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-discovery.txt",
+      "sha256": "5be7b8bfb9ab55f6fc21de649c5f63d26fb675067b1a15a78c92f371c41dee2f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-final.json",
+      "sha256": "3746a2338a3666d3a60d33870dac69758b59cd43566b15618644759fcac4d4b6"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-final.txt",
+      "sha256": "60e39ad11a3bea027422c2305c0b66d0faf6237bbff0f4325a0680e601d00106"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-freeze.json",
+      "sha256": "e7b1e64d7d544daaf0c0ee1b7b95164633b1ba9068932ff1e80fd4cbe4d4e691"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-freeze.txt",
+      "sha256": "cef9d6268f2eac175b91112b2c8c1033745b31f7ba2755185d96500711cf8470"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-review.json",
+      "sha256": "ccbd9b708eef0fa8b7408169c604239fff7970a4b3532ae64742fe95b187f2c1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-review.txt",
+      "sha256": "cde63b06c17e2da5a9b6784b5041e1db9513d1147b15b08831316502612763d3"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-scope.json",
+      "sha256": "86d7e54dcfc341b11550082048f7891dd18da5e1f6ba799132887ac454602e4f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests-scope.txt",
+      "sha256": "5be7b8bfb9ab55f6fc21de649c5f63d26fb675067b1a15a78c92f371c41dee2f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests.json",
+      "sha256": "dc89b778120a4e59a0066c42721401e7ab6e618fef65ad1679f8c11da0612628"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/focused-tests.txt",
+      "sha256": "cf34182c7d2dcafc0bad1d5557b3bdc3ad5a06f53efa4ee6c1501be9061d8ea1"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/github-receipt.json",
+      "sha256": "8369d85d816f66b626746d1eb5da3e02657bf2a8cd8bad142794305101a12343"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-identity-review.json",
+      "sha256": "1d4ad5cd2a3bf59959b557b95ddca23658fec3bc19569dac75feb98c85c7181e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-probe-prefreeze-attempt-2.json",
+      "sha256": "84c930464d7cb51e8edcf71516096075b5d0d6a9178c3f1a10e328026149ee12"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-probe-prefreeze-attempt-3.json",
+      "sha256": "96a3cb8f123cb647798b42e1de157683c51d1535f5b9a81f446c6b716932a931"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-probe-prefreeze-attempt-4.json",
+      "sha256": "4712183d47dfa886cb810303a16ded036514079769c9c77a73beaa602502b7b4"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-probe-prefreeze-attempt.json",
+      "sha256": "71afe0c4223976e09e1118721e6a55026fac4d3a60e04eec5da9f1d5521d9f67"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/history-probe.json",
+      "sha256": "d667a601352d5036956ff44b466b1a1daecdb7603c836bc844c598300dac4e74"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/selected-gap-fill-index.json",
+      "sha256": "801eb92b8c101f4ff0b3fb91162ccb9cc1d8d9a14d8ed68acec8703bf74f660c"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/source-authorization-ledger.json",
+      "sha256": "690db43b72019e373ea0475d94f650c0784a900a80e5fbe02530402c9b0d0a54"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/source-discovery-freeze.json",
+      "sha256": "6bf12841253c9c4cc665f4085ff6b064dba7cfc5541471020e949e9eb5854a18"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/source-discovery-remote-proof.json",
+      "sha256": "9161086208e709012a9c687b20cedb873218f67958c1591ac6ef7d9da134eea0"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/starting-gate.json",
+      "sha256": "6c8564798558b744471e783d2c44357ce1f7b9793b52ba7eb3a0362391691500"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/truth-topology-seal.json",
+      "sha256": "6023fc0cdb5a9bf36769b5f33a4ff1fce8ce220f9d968516bfaf6cfb5f32ee18"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/assessment.md",
+      "sha256": "9f6cf5e341ab91b49e3195eed370dd81234d4dfb2a6ed1e6e7bdc06ea81e6fc0"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/audio-acquisition-protocol-freeze.json",
+      "sha256": "f1a1a0564ab835079f17a4ae37d9f0ca1b179f43ef4aedcbc9413ca2cd8719da"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/audio-acquisition.json",
+      "sha256": "44b80f58a23fa8de9d55fd7e4d008f0218559b3d787b6d2e458afc657fd24a19"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/blocked-assessment.json",
+      "sha256": "8794278d5abf04c5da28f659849cda4003fdf78a6eed8e0e5d46a72426e0d3db"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/decoder-environment.json",
+      "sha256": "8f34922a7cb1a7b9e1fcf5b93f16b41439828050c9120e6fb5040496fc8857c4"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/exact-byte-exposure-audit.json",
+      "sha256": "2057e4bcbbe496c7bba8e98281349961e23f611458982b208de763baa57f18f2"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/focused-tests.json",
+      "sha256": "9ad89d3b3c829a40e6a5641d54ac723675b5e3975ab01f3d5bdfc058158dc516"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/focused-tests.txt",
+      "sha256": "17b2ae4d4b70fc0f5b85992c2dabf3914b16958a86e78275b03899f67f9ac4cc"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/github-receipt.json",
+      "sha256": "76b447b6177a48d36e1805090ed685f3b840b068e54fabbe9490c8b1f1ca3f8a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/node-tests.json",
+      "sha256": "334337146bb0e968c5b717f8162d18f9db8343ef81fa5480f76adfc10a271c2e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/pre-audio-remote-proof.json",
+      "sha256": "f68160afb28102b0f09bab50589ac54698a9b55a976d9f38db1f619febf0f211"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/pre-decode-failure.txt",
+      "sha256": "09503a77e4a854f4832b15fd8830d59238cadf2b7a0abb835bbbe5f947e0d606"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/publisher-sync-evidence.json",
+      "sha256": "ba0b8b702d951f3f6256bb2d971ce641924666e1b68e51a18705b4d97b3cf9e5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/selected-truth-and-sources.json",
+      "sha256": "27dc909d77dea1f7d1a227680c0b8a419a7a7abf96639cbdb5efe0df2a486e9f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/starting-gate.json",
+      "sha256": "75a6040fd79bad64871c412edfcd09b4e2b0fbc0e3ac1c43dd83987a8534b722"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/audio-acquisition.json",
+      "sha256": "f1376f3e9341f8c57678df99c1bb6fc829fa7139b005c1a3132dc78a5bf81c5c"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/decoder-environment.json",
+      "sha256": "8f34922a7cb1a7b9e1fcf5b93f16b41439828050c9120e6fb5040496fc8857c4"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/focused-tests.json",
+      "sha256": "6a940597e8be57698858b0d0a58f0225f1a391db4797501ed3bd2a8987bd64ef"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/focused-tests.txt",
+      "sha256": "c8ce827797f44131e3c607e6c6bb64d4fba1d1aac89ce1c836a4f6b330c2d9a3"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/node-tests.json",
+      "sha256": "f4039aaf00a7ae85a8b4b419ad943b5a0440906ee280832b57dc9584011ed84e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/pre-freeze-test-attempt-1/environment-cause.json",
+      "sha256": "c0147f07d238f150fb133c78d967834b1747221c7e61d2ab8c6711acb6080748"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/pre-freeze-test-attempt-1/focused-tests.json",
+      "sha256": "5a3d393cc7e73a95388db26052c1a5088ff9b2181f37d68b8733513d1593842b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/pre-freeze-test-attempt-1/focused-tests.txt",
+      "sha256": "5a8033852f1f36eab2ded3c9fa312c9261af3417ffca73819675e61f242b5a8a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/publisher-sync-evidence.json",
+      "sha256": "ba0b8b702d951f3f6256bb2d971ce641924666e1b68e51a18705b4d97b3cf9e5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/selected-truth-and-sources.json",
+      "sha256": "27dc909d77dea1f7d1a227680c0b8a419a7a7abf96639cbdb5efe0df2a486e9f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/starting-gate.json",
+      "sha256": "3e536c5a626f6338f7444663234bf37078f2920dd3ed6dfa5a39be7ed5e0c1d0"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/v5-to-v6-intended-diff.json",
+      "sha256": "5c7e6694b94a52e263346f9e5457f9cb867a508ec4dc4ed4622cc49ad11de706"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/dependencies.json",
+      "sha256": "379d497071046385b188ec83cab41941b321abff9bc633940d305b9f0017ce3d"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/eligibility.py",
+      "sha256": "6fcf0c56b9175a7453d1cb8da92381d066e9088b0876e042f250f7111452d559"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/pair_identity.py",
+      "sha256": "29b9710dcbacbb74b43226c557553ccbe2d60a9045cc32a809547beeabb1617a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/reference_probe.py",
+      "sha256": "961c523cc1ff9b7cafacee4049a9173843cbc1190d1ed448120da7cbbce1a33a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/select_truth.py",
+      "sha256": "8e405b7f46f74d1ff7f315f2031b0bdc7503df92065195d77831e50a02b77454"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector-contract.json",
+      "sha256": "8e6700de83ae10cdb5e0da29cd1ff6fbac7f1cad6082cced11bdbccd9b074077"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector.py",
+      "sha256": "0a8b52e31c329fb956db6b213354f46a9b18349930b1a17120c6bf76f67e0496"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector_freeze.py",
+      "sha256": "7781cdd0e70c6ac7a0aa8e50668592fb619af5e8c33a961a8abc5c2ef9d431f2"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/source_inventory.py",
+      "sha256": "dadf13365c3a69fc396e545a997e498040ca4cc06283b2cd369ef054d7854987"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/test_contracts.py",
+      "sha256": "3b4eec085f93b29006adc39e76351be71097bec13f14d4b5324870befe24228c"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/test_selector.py",
+      "sha256": "62b67f03e8749b8349af5af3570f3dfd72318ce6d179d8870414bd76d00c7f97"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/authorize.py",
+      "sha256": "1ef919f23d69dc74511bf7b23a0afa4e1c27671f5c9323529286a3765972fb6b"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/baseline.py",
+      "sha256": "e28920cd353def4ee72173a8a000b0cc35394afaa137079be4cd2685f429460c"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/contracts.py",
+      "sha256": "f99e661390035157c0bf9f1016987fe5eab0039ea5478f5929143be020061948"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/discover_truth.py",
+      "sha256": "99a3a460e4f687e87483f9dc46b0651b739ec33fbff6b6968a09c0e0b383c233"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/discovery-contract.json",
+      "sha256": "c6218039e01ba37521b4e57fbfe782982d26bb3396e24e02c5fccee02e75de54"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/freeze.py",
+      "sha256": "968bcf3180c125c56df6aed7cf6ef9f8f5a33aaa896c1455b7b3d9671e91a295"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/history_probe.py",
+      "sha256": "a35faba3250b73eec9d631ef0c6b78fa65b54fd5d39986b1c7255327e0d8ac5d"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/intake.py",
+      "sha256": "f65918014391a781fefbce56024a95cfc3e4d692258ef5c151d6e6bbdea3bea2"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/report.py",
+      "sha256": "c7d81cde76f2ae03b87dc76bd3707fe7807b61bcaaffd11fb50f46e625719df5"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/review_history.py",
+      "sha256": "aa2501f580b91edb586d0ebfc71e3e6838164bf7520a173656e0bc194738a65d"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/run_tests.py",
+      "sha256": "847bb67607e5f3cbfb051ee611f8bcc26deba682470dbb1ebd350c58e60ab47e"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/source-policy.json",
+      "sha256": "dd84287af429c4c8c589b2413553514fffbae70dfe1d13117e225a3d76bec0a8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/test_architecture.py",
+      "sha256": "e883a8e2c6003926e6f3666e63f81c9cb0c2af055264409c5a507b85d07f8816"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v4/test_contracts.py",
+      "sha256": "9733a1d1fadfb7ca4945a1b6ad256eee1cf3037b5cd4bdc18b462364630104d3"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/acquire.py",
+      "sha256": "ad7e6d8af177987c2742561b652832fae48d44580b54a59dcb5e8e9bd5167552"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/contracts.py",
+      "sha256": "27973d9e2a0517bcd6235e60099c184cb13bc098ef3f8b1d2c4f8507fb9b5cb8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/decode.py",
+      "sha256": "5a63d19fb3ad4f32d7cedae820042913fb2c0549e876d391da86c9afabbb4157"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/decoder-contract.json",
+      "sha256": "aa4afd635467d3c46736b98c7c3e3ddf3c836f6deb0f7e05cadfe270ccef8eb0"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/dsp.ts",
+      "sha256": "b2a5babc2a4a4f81dd31b0ee367ea2c85311731d43deabcc0be1537f1faf23de"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/environment.py",
+      "sha256": "5fe9e3e60e2f817baba297561e00005e3298a3e615a4a968827b21ee82780700"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/exposure.py",
+      "sha256": "841cd3b4d1e9c90b7fa59e6364aa84817d2e45dba4e814a982b50099e97ab05f"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/input-preservation-contract.json",
+      "sha256": "bcbfc057101405a0fccbcf84afa693c71f1544b8ec6c816282cbac7c282c36ae"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/input-preservation.mjs",
+      "sha256": "3c85aa853ba36ffb538fa2388b7206e9a65bca283a98b81bea8267f5213179b1"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/node-tests.mjs",
+      "sha256": "0eda9bd82f26b54180a5c903fde46d92613dc25fe66e97e2ea661dd161166ae5"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/node-tests.ts",
+      "sha256": "4b9e44d3980ca78ef2674c6d9c232657c2a3430d26893e4c38853de404745209"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/prepare.py",
+      "sha256": "8c3d90ece6a47e31d18f3abdd9d934f38d73466b4b47b498e19bba650a979136"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/protocol.py",
+      "sha256": "c67ae1aab06efc9b50b297ff602718a85b4bf917501eff3cb3ed82e36265a75e"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/report.py",
+      "sha256": "ab341ada931285e79affcfb99bbb42e1cd6eea6ee6eb7fabef2ec2a7526b5661"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/run_tests.py",
+      "sha256": "b3ba803b5ec7a84e007c8282c2995d3555478087e44f1a1f8860b47233cc3339"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/scenarios.py",
+      "sha256": "76d23cb6ebe21a9f369eeb8a4fd50ed6a335d24e4351212180f0c3db67f08d57"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/selected-audio-acquisition-contract.json",
+      "sha256": "cdbae1bbf00257b843d847c21239a0098cb54c092bf3f69b4ef8c13b62b33779"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/test_contracts.py",
+      "sha256": "2bfeffb94274167caad76d7ab2338e2867cfaf5678e89c5862b4d889eb20f1fe"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/contracts.py",
+      "sha256": "9cd7f7e138b1e38734bcd35c846c7134ed186fa3d6d7b5909d3a74785acacad6"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/decode.py",
+      "sha256": "717cd102c354213af0e743cb0110e20c489f30c44743b42e0bb3d53797ea5a20"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/decoder-contract.json",
+      "sha256": "aa4afd635467d3c46736b98c7c3e3ddf3c836f6deb0f7e05cadfe270ccef8eb0"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/dsp.ts",
+      "sha256": "b2a5babc2a4a4f81dd31b0ee367ea2c85311731d43deabcc0be1537f1faf23de"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/exposure.py",
+      "sha256": "2ecdd0c59281655aa2a365b983403ed5212805d7baa603c0c23e25343d1eb89b"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/input-preservation-contract.json",
+      "sha256": "bcbfc057101405a0fccbcf84afa693c71f1544b8ec6c816282cbac7c282c36ae"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/input-preservation.mjs",
+      "sha256": "81b4186bf635959a51256c43e10b5df21bc26a6d5b2290fce360b1191998fb04"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/node-tests.mjs",
+      "sha256": "052b9071bbf13853c550c8f178cdbd6dad2d58deb7d9f9e23b2d5c2bbb90feb3"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/node-tests.ts",
+      "sha256": "4b9e44d3980ca78ef2674c6d9c232657c2a3430d26893e4c38853de404745209"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/portable.py",
+      "sha256": "41c1fface97b08b982d632415e5e34e0114aa8a25044b5ba796c59cf44899d6a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/preflight.py",
+      "sha256": "9b32393fa7e185f99754107bae9442405a18c9987bbbfc660fe30ba3f40596ad"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/prepare.py",
+      "sha256": "8c3d90ece6a47e31d18f3abdd9d934f38d73466b4b47b498e19bba650a979136"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/protocol.py",
+      "sha256": "c9d03ebd6b5bfc386b290a9a0a27858f59c163148b6230500a37a9469ea64b06"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/report.py",
+      "sha256": "e8de058b60e4145b10eb9885604eceb9a6b186c09e622def851289a434b8b3f6"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/run_tests.py",
+      "sha256": "f5ee795ce03ceba5bf8cf2b310b4f979d11a5b798776bc1b88015c8e60fbf9a4"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/scenarios.py",
+      "sha256": "76d23cb6ebe21a9f369eeb8a4fd50ed6a335d24e4351212180f0c3db67f08d57"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/test_contracts.py",
+      "sha256": "2bfeffb94274167caad76d7ab2338e2867cfaf5678e89c5862b4d889eb20f1fe"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v6/test_portable.py",
+      "sha256": "a6dd9f9731c9c97ba18f61817ba2ce2202702cb4db1da6d04b17876a98926ba1"
+    }
+  ],
+  "bindings": {
+    "v3SelectorFreeze": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v3/selector-freeze.json",
+      "sha256": "21553b69885d113adc1a3ad819f5ea3b22038aa9907c1cc21c2d3a9c12ca814d"
+    },
+    "v3Scorer": {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    },
+    "v4TruthTopologySeal": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v4/truth-topology-seal.json",
+      "sha256": "6023fc0cdb5a9bf36769b5f33a4ff1fce8ce220f9d968516bfaf6cfb5f32ee18"
+    },
+    "v5BlockedAssessment": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/blocked-assessment.json",
+      "sha256": "8794278d5abf04c5da28f659849cda4003fdf78a6eed8e0e5d46a72426e0d3db"
+    },
+    "v5OldAcquisitionFreeze": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/audio-acquisition-protocol-freeze.json",
+      "sha256": "f1a1a0564ab835079f17a4ae37d9f0ca1b179f43ef4aedcbc9413ca2cd8719da"
+    },
+    "v5Acquisition": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/audio-acquisition.json",
+      "sha256": "44b80f58a23fa8de9d55fd7e4d008f0218559b3d787b6d2e458afc657fd24a19"
+    },
+    "v5Exposure": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/exact-byte-exposure-audit.json",
+      "sha256": "2057e4bcbbe496c7bba8e98281349961e23f611458982b208de763baa57f18f2"
+    },
+    "v5Publisher": {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/publisher-sync-evidence.json",
+      "sha256": "ba0b8b702d951f3f6256bb2d971ce641924666e1b68e51a18705b4d97b3cf9e5"
+    },
+    "decoderContract": {
+      "path": "backend/research/step_waiting_h50_holdout_v5/decoder-contract.json",
+      "sha256": "aa4afd635467d3c46736b98c7c3e3ddf3c836f6deb0f7e05cadfe270ccef8eb0"
+    },
+    "inputPreservationContract": {
+      "path": "backend/research/step_waiting_h50_holdout_v5/input-preservation-contract.json",
+      "sha256": "bcbfc057101405a0fccbcf84afa693c71f1544b8ec6c816282cbac7c282c36ae"
+    }
+  },
+  "selectedAudioObjects": [
+    {
+      "recordingId": "kv279_2",
+      "path": "batik/audio/k279_2.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+      "actualGitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+      "audioSha256": "54cd1cd718f49c74945672b6e579999817b5c53a6f3b6502a2e804b6b1e13591",
+      "bytes": 7307709,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k279_2.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_2.mp3",
+      "downloadedAt": "2026-10-18T09:40:42.159524+00:00"
+    },
+    {
+      "recordingId": "kv279_3",
+      "path": "batik/audio/k279_3.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+      "actualGitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+      "audioSha256": "85f31239ee48faf5f482106881347a7cdcc887766858eb08b994f1cac0dcb081",
+      "bytes": 4876581,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k279_3.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv279_3.mp3",
+      "downloadedAt": "2026-10-18T09:40:52.013175+00:00"
+    },
+    {
+      "recordingId": "kv281_1",
+      "path": "batik/audio/k281_1.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+      "actualGitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+      "audioSha256": "34210e8bbb1d46b3d7b3126235a2715cd811d8d4384e04a282afac4ee39a0f4a",
+      "bytes": 4934407,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k281_1.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv281_1.mp3",
+      "downloadedAt": "2026-10-18T09:41:02.250299+00:00"
+    },
+    {
+      "recordingId": "kv282_1",
+      "path": "batik/audio/k282_1.mp3",
+      "upstreamCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "expectedGitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+      "actualGitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+      "audioSha256": "33a7c6724e360822367aa682e212b2f263dfd79135a2144c86916f632a471fe0",
+      "bytes": 8267950,
+      "url": "https://raw.githubusercontent.com/pymatchmaker/matchmaker-benchmark-data/fd1c78749b08182e8c078993fcf0645cd4a0a22e/batik/audio/k282_1.mp3",
+      "localPath": "backend/data/work/step_waiting_h50_holdout_v5/audio/kv282_1.mp3",
+      "downloadedAt": "2026-10-18T09:41:08.490818+00:00"
+    }
+  ],
+  "HMs": 50,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "freezeCanonicalSha256": "605de88236966b31e23af41fc312bca96f64c7eadc1318e693a5ef379f933242"
+}
