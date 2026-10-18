@@ -1,0 +1,18 @@
+{
+  "queriedAt": "2026-10-18T04:01:02.476Z",
+  "startingHead": "2722e5b2a4dda1d412d37689b4974214f9621dcf",
+  "evidenceCommit": "a9844771dce9ed178263d39138fe130c64956ea4",
+  "remoteHead": "a9844771dce9ed178263d39138fe130c64956ea4",
+  "commitChain": [
+    "a9844771dce9ed178263d39138fe130c64956ea4 research: enforce exact repeated-gesture pairs and audit exhausted SMD primary holdout"
+  ],
+  "freezeCommit": null,
+  "freezeSha256": null,
+  "qualificationExecuted": false,
+  "disposition": "STEP_WAITING_H50_HOLDOUT_TOPOLOGY_NOT_ESTABLISHED",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS",
+  "productionDiff": ""
+}
