@@ -1,0 +1,13 @@
+{
+  "role": "PREFREEZE_METADATA_TOOLING_ATTEMPT_NOT_ACCEPTED_HISTORY_PROOF",
+  "startedAtLocal": "2026-10-18T16:51:33+08:00",
+  "processId": 15208,
+  "termination": "INTENTIONAL_ADDITION_OF_SOUND_IDENTITY_PREFIX_GUARD_BEFORE_DISCOVERY_FREEZE",
+  "bytesReadAtLastRecordedSnapshot": 2290399613,
+  "cause": "Repeated full-token searches in large numeric output files. Add a sound prefilter that must match every identity token; it cannot remove any true identity hit. Full exact-token matching and complete scan scope remain unchanged. Rerun complete history and current-file scan, not a resumed partial proof.",
+  "batikMidiEventsParsed": false,
+  "audioDownloaded": false,
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0,
+  "acceptedForExposureLedger": false
+}

@@ -1,0 +1,13 @@
+{
+  "executionStartedAt": "2026-10-18T08:58:12.204943+00:00",
+  "completedAt": "2026-10-18T08:58:12.514839+00:00",
+  "testFiles": 2,
+  "tests": 31,
+  "passed": 31,
+  "failed": 0,
+  "errors": 0,
+  "outputSha256": "60e39ad11a3bea027422c2305c0b66d0faf6237bbff0f4325a0680e601d00106",
+  "batikMidiEventsParsed": false,
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0
+}

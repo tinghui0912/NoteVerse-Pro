@@ -1,0 +1,12 @@
+{
+  "role": "PREFREEZE_METADATA_TOOLING_ATTEMPT_NOT_ACCEPTED_HISTORY_PROOF",
+  "startedAtLocal": "2026-10-18T17:02:06+08:00",
+  "processId": 25376,
+  "termination": "INTENTIONAL_METADATA_TOKEN_EXTRACTION_EFFICIENCY_REPAIR_BEFORE_DISCOVERY_FREEZE",
+  "cause": "Full-scope rg filenames search found work-label K331_1 in legacy Vienna artifacts. Python rescanning these large files was unnecessary. Canonical runner now uses rg --only-matching to return exact identity tokens and filenames, never model values, while preserving full Git object and MIDI byte-hash scope. K331_1 collisions require independent provenance review, not automatic exposure or freshness.",
+  "batikMidiEventsParsed": false,
+  "audioDownloaded": false,
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0,
+  "acceptedForExposureLedger": false
+}

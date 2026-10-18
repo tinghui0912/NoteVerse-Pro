@@ -1,0 +1,21 @@
+{
+  "startingRemoteHead": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "localHead": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "remoteHead": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "mergeBase": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "ahead": 0,
+  "behind": 0,
+  "interveningCommits": [],
+  "productionDiff": "",
+  "github": {
+    "queriedAt": "2026-10-18T08:41:12.569070+00:00",
+    "head": "d240ea220d900d805d17e4731ec602d1e914efd6",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0
+}

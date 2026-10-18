@@ -1,0 +1,12 @@
+{
+  "role": "PREFREEZE_METADATA_TOOLING_ATTEMPT_NOT_ACCEPTED_HISTORY_PROOF",
+  "startedAtLocal": "2026-10-18T16:58:12+08:00",
+  "processId": 21284,
+  "termination": "INTENTIONAL_USE_OF_RG_FOR_COMPLETE_CURRENT_METADATA_SCOPE_BEFORE_DISCOVERY_FREEZE",
+  "cause": "Metadata-only size census found 2800 work JSON files totaling 17381169540 bytes. Replace Python scanning of every current text byte with full-scope rg fixed-string identity search (filenames-only), followed by exact identity extraction from matched files. Full Git historical object scan and binary MIDI hash scan remain. No scope reduction or fallback on errors.",
+  "batikMidiEventsParsed": false,
+  "audioDownloaded": false,
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0,
+  "acceptedForExposureLedger": false
+}
