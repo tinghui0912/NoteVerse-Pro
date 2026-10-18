@@ -1,0 +1,751 @@
+{
+  "phase": "PRACTICE_SHARED_ACOUSTIC_CAPTURE_TRANSPORT_BOUNDED_AGGREGATION_STABILIZATION_REPAIR",
+  "disposition": "PRACTICE_SHARED_ACOUSTIC_CAPTURE_TRANSPORT_STABILITY_REPAIRED_CONTINUOUS_PARITY_REESTABLISHED",
+  "startingHead": "15b8f0da94555af91c7d88eb28f151f566e75ff5",
+  "implementationCommit": "64f5d20b3f41013c1ef377c488ab30ffbbd10b37",
+  "toolingCommit": "bc9a463fc66e876d09648fb16de09666a97f7090",
+  "acceptedFreezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+  "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+  "freezeProof": {
+    "staticExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:32:00.600Z",
+      "executionStartedAt": "2026-10-18T02:32:00.900Z"
+    },
+    "transportStressExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:33:32.250Z",
+      "executionStartedAt": "2026-10-18T02:33:32.561Z"
+    },
+    "coldStartExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:34:19.652Z",
+      "executionStartedAt": "2026-10-18T02:34:19.964Z"
+    },
+    "engineeringExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:34:53.094Z",
+      "executionStartedAt": "2026-10-18T02:34:53.470Z"
+    },
+    "musicalExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:35:51.416Z",
+      "executionStartedAt": "2026-10-18T02:35:51.981Z"
+    },
+    "semanticParityExecutionProof": {
+      "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+      "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+      "remoteVerifiedAt": "2026-10-18T02:36:45.035Z",
+      "executionStartedAt": "2026-10-18T02:36:45.332Z"
+    }
+  },
+  "reportHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+  "commitChainThroughFreeze": [
+    "64f5d20b3f41013c1ef377c488ab30ffbbd10b37\tfix: establish bounded 2048-sample capture with pre-domain stabilization and explicit readiness",
+    "4f1f7ac38c49aab77bf93101550cae7ff1679ee1\tresearch: preserve exact archived transport blob bytes on Windows checkout",
+    "5b13887c3904d87e3387799f63e56197fa2bd6b3\tresearch: prospective freeze of fixed capture aggregation and stabilization qualification",
+    "bc9a463fc66e876d09648fb16de09666a97f7090\tresearch: invalidate pre-browser v1 and bound heavy parity test execution explicitly",
+    "a399051d4007b57144e0d06b0606df7c53f770a7\tresearch: prospective v2 capture transport freeze before complete rerun"
+  ],
+  "evidenceAndReceiptCommits": "Resolved by github-receipt.json and final remote-HEAD query",
+  "generatedAt": "2026-10-18T02:39:11.408Z",
+  "productionChangedPaths": [
+    "apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture-architecture.test.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture-parity.test.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js"
+  ],
+  "protectedStepDiff": "",
+  "protectedContinuousDiff": "",
+  "transport": {
+    "blockSamples": 2048,
+    "creditCeiling": 32,
+    "maximumOutstandingPcmBytes": 262144,
+    "accumulatorBytes": 8192,
+    "targetRingFloats": 65536,
+    "maxModelWindows": 4,
+    "compactDiagnostics": 32,
+    "maxContinuousBoundaries": 8,
+    "states": [
+      "STABILIZING",
+      "ACTIVE",
+      "FAILED",
+      "STOPPED"
+    ],
+    "ack": "AFTER_SYNCHRONOUS_CONSUMER_ACCEPTANCE",
+    "readiness": "FIRST_AUTHORITATIVE_BLOCK_ACCEPTED_AND_ACK_POSTED",
+    "sourceRateSupport": [
+      44100,
+      48000
+    ],
+    "supportedStallsMs": [
+      0,
+      50,
+      100,
+      250,
+      1000
+    ],
+    "unsupportedStallMs": 1700,
+    "stressStatus": "PASS",
+    "stressCells": [
+      {
+        "rate": 44100,
+        "stallMs": 0,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 36,
+          "samples": 73728,
+          "acknowledgements": 36,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 0.36500000953674316,
+          "maximumArrivalGapMs": 50.69500005245209,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 8.707482993197317,
+          "maximumAckAfterArrivalMs": 0.6949999332427979,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "stallMs": 50,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 36,
+          "samples": 73728,
+          "acknowledgements": 36,
+          "peakUnacked": 2,
+          "maximumReceiveMs": 0.28999996185302734,
+          "maximumArrivalGapMs": 97.48000001907349,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 46.43990929705217,
+          "maximumAckAfterArrivalMs": 0.6749999523162842,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "stallMs": 100,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 38,
+          "samples": 77824,
+          "acknowledgements": 38,
+          "peakUnacked": 2,
+          "maximumReceiveMs": 0.6649999618530273,
+          "maximumArrivalGapMs": 116.43500006198883,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 63.85487528344663,
+          "maximumAckAfterArrivalMs": 1.2949999570846558,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "stallMs": 250,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 41,
+          "samples": 83968,
+          "acknowledgements": 41,
+          "peakUnacked": 5,
+          "maximumReceiveMs": 0.33000004291534424,
+          "maximumArrivalGapMs": 262.4850000143051,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 211.88208616780048,
+          "maximumAckAfterArrivalMs": 0.7250000238418579,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "stallMs": 1000,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 57,
+          "samples": 116736,
+          "acknowledgements": 57,
+          "peakUnacked": 21,
+          "maximumReceiveMs": 0.684999942779541,
+          "maximumArrivalGapMs": 1000.5499999523163,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 960.7256235827665,
+          "maximumAckAfterArrivalMs": 1.459999918937683,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "stallMs": 1700,
+        "state": "PASS",
+        "failure": "Error: ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED",
+        "totals": {
+          "messages": 46,
+          "samples": 94208,
+          "acknowledgements": 46,
+          "peakUnacked": 32,
+          "maximumReceiveMs": 1.0700000524520874,
+          "maximumArrivalGapMs": 1700.6449999809265,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 1660.2267573696145,
+          "maximumAckAfterArrivalMs": 2.3450000286102295,
+          "captureFailures": 1
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 0,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 38,
+          "samples": 77824,
+          "acknowledgements": 38,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 0.375,
+          "maximumArrivalGapMs": 50.674999952316284,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 8,
+          "maximumAckAfterArrivalMs": 0.6549999713897705,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 50,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 40,
+          "samples": 81920,
+          "acknowledgements": 40,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 0.3349999189376831,
+          "maximumArrivalGapMs": 56.169999957084656,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 13.333333333333371,
+          "maximumAckAfterArrivalMs": 0.7599999904632568,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 100,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 41,
+          "samples": 83968,
+          "acknowledgements": 41,
+          "peakUnacked": 2,
+          "maximumReceiveMs": 0.31499993801116943,
+          "maximumArrivalGapMs": 115.55999994277954,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 74.66666666666663,
+          "maximumAckAfterArrivalMs": 0.7649999856948853,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 250,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 44,
+          "samples": 90112,
+          "acknowledgements": 44,
+          "peakUnacked": 6,
+          "maximumReceiveMs": 0.7150000333786011,
+          "maximumArrivalGapMs": 261.3899999856949,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 224,
+          "maximumAckAfterArrivalMs": 1.1700000762939453,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 1000,
+        "state": "PASS",
+        "failure": null,
+        "totals": {
+          "messages": 62,
+          "samples": 126976,
+          "acknowledgements": 62,
+          "peakUnacked": 23,
+          "maximumReceiveMs": 0.28999996185302734,
+          "maximumArrivalGapMs": 1013.9450000524521,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 967.9999999999999,
+          "maximumAckAfterArrivalMs": 0.7100000381469727,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "stallMs": 1700,
+        "state": "PASS",
+        "failure": "Error: ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED",
+        "totals": {
+          "messages": 47,
+          "samples": 96256,
+          "acknowledgements": 47,
+          "peakUnacked": 32,
+          "maximumReceiveMs": 0.3500000238418579,
+          "maximumArrivalGapMs": 1709.9899998903275,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 1674.6666666666665,
+          "maximumAckAfterArrivalMs": 0.6650000810623169,
+          "captureFailures": 1
+        }
+      }
+    ],
+    "coldStart": {
+      "trials": 10,
+      "passed": 10,
+      "provisionalRestarts": 2,
+      "postActiveGaps": 0,
+      "trialsByRate": [
+        {
+          "rate": 44100,
+          "count": 5
+        },
+        {
+          "rate": 48000,
+          "count": 5
+        }
+      ],
+      "readyMs": {
+        "count": 10,
+        "min": 65.52499997615814,
+        "median": 74.87999999523163,
+        "p95": 77.82000005245209,
+        "max": 77.82000005245209
+      },
+      "allFirstAuthoritativeSourceSamplesZero": true
+    }
+  },
+  "continuous": {
+    "engineeringCells": [
+      {
+        "rate": 44100,
+        "scenario": "natural_recording_offline",
+        "state": "PASS",
+        "actualModelRuns": 2,
+        "terminalFinalizationDelayMs": 339.15499997138977,
+        "captureTimings": {
+          "messages": 77,
+          "samples": 157696,
+          "acknowledgements": 77,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 3.225000023841858,
+          "maximumArrivalGapMs": 50.6599999666214,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 8.707482993197345,
+          "maximumAckAfterArrivalMs": 3.2300000190734863,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "PASS",
+        "actualModelRuns": 3,
+        "terminalFinalizationDelayMs": 426.2699999809265,
+        "captureTimings": {
+          "messages": 85,
+          "samples": 174080,
+          "acknowledgements": 85,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 3.805000066757202,
+          "maximumArrivalGapMs": 50.894999980926514,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 8.707482993197345,
+          "maximumAckAfterArrivalMs": 3.9850000143051147,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "PASS",
+        "actualModelRuns": 3,
+        "terminalFinalizationDelayMs": 420.1999999284744,
+        "captureTimings": {
+          "messages": 71,
+          "samples": 145408,
+          "acknowledgements": 71,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 3.180000066757202,
+          "maximumArrivalGapMs": 50.68500006198883,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 8.707482993197345,
+          "maximumAckAfterArrivalMs": 3.3000000715255737,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 44100,
+        "scenario": "recording_analysis_failure_running",
+        "state": "PASS",
+        "actualModelRuns": 1,
+        "terminalFinalizationDelayMs": 1.309999942779541,
+        "captureTimings": {
+          "messages": 64,
+          "samples": 131072,
+          "acknowledgements": 64,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 2.975000023841858,
+          "maximumArrivalGapMs": 50.63499999046326,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 46.439909297052154,
+          "maximumArrivalAfterBlockEndMs": 8.707482993197345,
+          "maximumAckAfterArrivalMs": 3.0200001001358032,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "scenario": "natural_recording_offline",
+        "state": "PASS",
+        "actualModelRuns": 2,
+        "terminalFinalizationDelayMs": 457.34499990940094,
+        "captureTimings": {
+          "messages": 84,
+          "samples": 172032,
+          "acknowledgements": 84,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 2.4600000381469727,
+          "maximumArrivalGapMs": 50.54000008106232,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 8,
+          "maximumAckAfterArrivalMs": 2.865000009536743,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "state": "PASS",
+        "actualModelRuns": 3,
+        "terminalFinalizationDelayMs": 386.97000002861023,
+        "captureTimings": {
+          "messages": 92,
+          "samples": 188416,
+          "acknowledgements": 92,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 4.194999933242798,
+          "maximumArrivalGapMs": 50.7849999666214,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 8,
+          "maximumAckAfterArrivalMs": 4.245000004768372,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "scenario": "pause_near_terminal_resume_natural",
+        "state": "PASS",
+        "actualModelRuns": 3,
+        "terminalFinalizationDelayMs": 423.95500004291534,
+        "captureTimings": {
+          "messages": 78,
+          "samples": 159744,
+          "acknowledgements": 78,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 3.3100000619888306,
+          "maximumArrivalGapMs": 50.67999994754791,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 8,
+          "maximumAckAfterArrivalMs": 3.2450000047683716,
+          "captureFailures": 0
+        }
+      },
+      {
+        "rate": 48000,
+        "scenario": "recording_analysis_failure_running",
+        "state": "PASS",
+        "actualModelRuns": 1,
+        "terminalFinalizationDelayMs": 4.480000019073486,
+        "captureTimings": {
+          "messages": 68,
+          "samples": 139264,
+          "acknowledgements": 68,
+          "peakUnacked": 1,
+          "maximumReceiveMs": 3.6649999618530273,
+          "maximumArrivalGapMs": 50.41499996185303,
+          "ackOrderViolations": 0,
+          "checksumMismatches": 0,
+          "maximumBlockFillMs": 42.666666666666664,
+          "maximumArrivalAfterBlockEndMs": 8,
+          "maximumAckAfterArrivalMs": 3.75,
+          "captureFailures": 0
+        }
+      }
+    ],
+    "musicalCells": [
+      {
+        "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+        "rate": 44100,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+        "rate": 48000,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+        "rate": 44100,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+        "rate": 48000,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+        "rate": 44100,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+        "rate": 48000,
+        "status": "PASS",
+        "actualModelRuns": 10
+      },
+      {
+        "id": "silence",
+        "rate": 44100,
+        "status": "PASS",
+        "actualModelRuns": 3
+      },
+      {
+        "id": "silence",
+        "rate": 48000,
+        "status": "PASS",
+        "actualModelRuns": 3
+      }
+    ],
+    "controllerReplay": "PASS",
+    "semanticParity": "PASS",
+    "semanticDiffs": [],
+    "nonsemanticExcluded": [
+      "availabilityTimeMs",
+      "finalizedAtMs",
+      "finalizationTimeMs"
+    ],
+    "availabilityProcessingDeltaMs": {
+      "count": 74,
+      "min": -1985.2799999713898,
+      "median": -1021.9499999284744,
+      "p95": -419.414999961853,
+      "max": -369.22000002861023
+    },
+    "eventToAvailabilityMs": {
+      "count": 230,
+      "min": 836.0384581118756,
+      "median": 1684.0466666618977,
+      "p95": 2304.1191156891737,
+      "max": 2499.3116666475935
+    },
+    "timingInterpretation": "Backpressured replay processing is not causal live transport/device/UX latency; full per-publication timing changes retained"
+  },
+  "exactModelRunAccounting": {
+    "acceptedEngineering": 18,
+    "acceptedMusical": 66,
+    "acceptedControllerReplay": 10,
+    "totalAccepted": 94,
+    "complete": true,
+    "transportAndColdNeuralRuns": 0,
+    "invalidatedV1NeuralRuns": 0,
+    "invalidatedV1BrowserCells": 0
+  },
+  "static": {
+    "vitest": {
+      "totalTests": 1150,
+      "passedTests": 1150,
+      "failedTests": 0,
+      "testFiles": 154,
+      "runnerSuiteCount": 312,
+      "success": true
+    },
+    "nodeTests": 4,
+    "lintErrors": 0,
+    "lintWarnings": 1,
+    "lintMessages": [
+      {
+        "path": "scripts/step-boundary/prepare-tooling.mjs",
+        "rule": "prefer-const",
+        "message": "'text' is never reassigned. Use 'const' instead.",
+        "severity": 1,
+        "line": 3,
+        "column": 6
+      }
+    ],
+    "typecheck": "PASS",
+    "webpackBuild": "PASS",
+    "dockerAssetUnittest": 4,
+    "dockerRouteTests": 3,
+    "dockerWarning": "PytestConfigWarning: Unknown config option: asyncio_mode",
+    "vitestWarnings": "Existing jsdom navigation/media not-implemented stderr persisted separately"
+  },
+  "archive": {
+    "originalPath": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+    "sourceCommit": "15b8f0da94555af91c7d88eb28f151f566e75ff5",
+    "gitBlob": "2b9b608a525a7674f1031e9c0555e20ac75d80a0",
+    "bytes": 2055,
+    "sha256": "f987d9a892f104381391a36d8ca2e610f8b95728aa5348ed28b65b960bd14225",
+    "purpose": "Immutable qualification-only pre-repair PCM parity reference; never product-importable"
+  },
+  "evidenceFiles": [
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/verification.json",
+      "bytes": 30036,
+      "sha256": "5c784eacab47e435b98ce48645b0b90b50cdd48a752883e682c0bf8460bc2fbf"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/transport-stress.json",
+      "bytes": 1279541,
+      "sha256": "e21e2a29d85ce0be1c5813b8502fadaa46d58fa8d22e8df114013978f715555c"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/cold-start.json",
+      "bytes": 397361,
+      "sha256": "11c4309c35f7d2c2d9bc0a62820ccebb7c1467bfa7be366ff48df0d82d5e448c"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/browser.json",
+      "bytes": 1084054,
+      "sha256": "419e4f9ff3436442c07b20a95f84a0bc5a6e47a5c6fff5f29e6095556cfa9174"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/musical.json",
+      "bytes": 331039,
+      "sha256": "8e8ba8072f2c0cda00903db626061fc9f50ae1c48a4cf4a3008db0bd37dd0ea9"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/acoustic_seal.json",
+      "bytes": 717,
+      "sha256": "53c11e55ecb74dc44a8eec32d11e1392a4311cc6c01d84b8b20e8459fe4cfc2e"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/parity.json",
+      "bytes": 3997141,
+      "sha256": "6087b8ff7e09c18071ed44671bab86c28605e8b8ea5e0b59663bb65bd8dbea9e"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/source-parity/parity-44100.json",
+      "bytes": 3459,
+      "sha256": "5899058636683a2f923695728bef3afe2ab2e39adf2cd7f72fc2a48b6fb5c048"
+    },
+    {
+      "path": "backend/research/reports/capture_aggregation/accepted-v2/source-parity/parity-48000.json",
+      "bytes": 3438,
+      "sha256": "cb483f32f51a8750dba94a1430ee3e9fb3c424e7836ed04f4081a1f60f03f414"
+    }
+  ],
+  "model": {
+    "assetId": "practice-acoustic-robust-browser",
+    "version": "v1",
+    "bytes": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "ort": "1.20.1",
+    "provider": "WebGPU",
+    "automaticFallback": false,
+    "onset": 0.3,
+    "frame": 0.05,
+    "inputSamples": 29120,
+    "sampleRate": 16000,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170
+  },
+  "compatibilityLayer": false,
+  "fallbackPath": false,
+  "secondCapturePath": false,
+  "zeroFillRecovery": false,
+  "postActiveChronologyReset": false,
+  "step": {
+    "executed": false,
+    "H": 50,
+    "qualification": "NOT_QUALIFIED",
+    "freshStrikeCandidate": null
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "limitations": [
+    "Finite engineering stress/cold coverage, not arbitrary stall immunity",
+    "Post-ACTIVE discontinuity remains fatal",
+    "No measured total JS/ORT/GPU heap bound",
+    "No real-device, physical latency, UX SLO or commercial qualification",
+    "No STEP qualification or microphone enablement"
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "rate": 48000,
+  "sourceSamples": 397312,
+  "sourceSha256": "9ffc4dd935f9d435d6a2aa1f74b1fa1afa8a33546a5a4717f7f535641fabc7d2",
+  "priorChunks": 3104,
+  "currentChunks": 194,
+  "samePcm": true,
+  "sameModelInputs": true,
+  "samePublicationSemantics": true,
+  "inputs": [
+    {
+      "window": {
+        "jobIndex": 0,
+        "regionIndex": 0,
+        "windowIndex": 0,
+        "ownedStartTarget": 28812.333333333332,
+        "ownedEndTarget": 38412.33333333333,
+        "startSample": 12012,
+        "endSample": 41132
+      },
+      "sha256": "5e76296efc90b3ecf91b89d76e7ae32f809634f0caff08e00df742120ba28667"
+    },
+    {
+      "window": {
+        "jobIndex": 1,
+        "regionIndex": 0,
+        "windowIndex": 1,
+        "ownedStartTarget": 38412.33333333333,
+        "ownedEndTarget": 38414,
+        "startSample": 12014,
+        "endSample": 41134
+      },
+      "sha256": "51d71793bef664f9d9253cb274e2a3d33747a54dd1d26ff871279e4e6524e86c"
+    },
+    {
+      "window": {
+        "jobIndex": 2,
+        "regionIndex": 1,
+        "windowIndex": 0,
+        "ownedStartTarget": 38426.333333333336,
+        "ownedEndTarget": 48026.333333333336,
+        "startSample": 21626,
+        "endSample": 50746
+      },
+      "sha256": "5900e9f485b89305493c1f0f96fe1f02a84fcbb83cbd9740be391b54779c01e2"
+    },
+    {
+      "window": {
+        "jobIndex": 3,
+        "regionIndex": 1,
+        "windowIndex": 1,
+        "ownedStartTarget": 48026.333333333336,
+        "ownedEndTarget": 48028.66666666667,
+        "startSample": 21629,
+        "endSample": 50749
+      },
+      "sha256": "3851a951738922a1ef7d7e9e9c38ed75515e32af225d97e85950c557f84199d3"
+    }
+  ],
+  "publications": [
+    {
+      "publicationId": "parity:source:window:0",
+      "sessionDomainId": "parity",
+      "analyzedThroughPerformanceMs": 599.9999999999999,
+      "availabilityTimeMs": 10000000,
+      "observations": []
+    },
+    {
+      "publicationId": "parity:source:window:1",
+      "sessionDomainId": "parity",
+      "analyzedThroughPerformanceMs": 600.1041666666665,
+      "availabilityTimeMs": 10000000,
+      "observations": []
+    },
+    {
+      "publicationId": "parity:source:window:2",
+      "sessionDomainId": "parity",
+      "analyzedThroughPerformanceMs": 1200.1041666666663,
+      "availabilityTimeMs": 10000000,
+      "observations": []
+    },
+    {
+      "publicationId": "parity:source:window:3",
+      "sessionDomainId": "parity",
+      "analyzedThroughPerformanceMs": 1200.2499999999998,
+      "availabilityTimeMs": 10000000,
+      "observations": []
+    },
+    {
+      "publicationId": "parity:source:terminal",
+      "sessionDomainId": "parity",
+      "analyzedThroughPerformanceMs": 1200.25,
+      "availabilityTimeMs": 10000000,
+      "observations": []
+    }
+  ],
+  "boundaries": [
+    {
+      "type": "BEGIN",
+      "source": 86437,
+      "appliedAt": 86437
+    },
+    {
+      "type": "PAUSE",
+      "source": 115242,
+      "appliedAt": 115242
+    },
+    {
+      "type": "BEGIN",
+      "source": 115279,
+      "appliedAt": 115279
+    },
+    {
+      "type": "TERMINAL",
+      "source": 144086,
+      "appliedAt": 144086
+    }
+  ],
+  "freezeCommit": "a399051d4007b57144e0d06b0606df7c53f770a7",
+  "remoteHead": "a399051d4007b57144e0d06b0606df7c53f770a7",
+  "freezeSha256": "3f24728b4043be0eecba4ddc3774d1ff89fc5d068bf1a44bb09324106941326f",
+  "remoteVerifiedAt": "2026-10-18T02:32:00.600Z",
+  "executionStartedAt": "2026-10-18T02:32:01.251Z"
+}

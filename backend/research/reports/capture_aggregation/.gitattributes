@@ -1,0 +1,2 @@
+# Preserve sealed evidence bytes across Windows checkouts.
+*.json -text
