@@ -1,0 +1,20 @@
+{
+  "evidenceCommit": "1bfacd0a0590284516b4b1bacbac4d7b968db07f",
+  "remoteHead": "1bfacd0a0590284516b4b1bacbac4d7b968db07f",
+  "completeCommitChain": [
+    "e8da9f6e84d093e992f1cc8214f9b9af7e8699ee research: define strict portable H50 predecode protocol and dual-environment gates",
+    "0f504d9ebf7eff8292c4a39d9608edaa16401709 research: PORTABLE_PREDECODE_PROTOCOL_FREEZE for unchanged H50 inputs",
+    "4317ae36a90ddb7e3e4f2b94ea6a63f8bf99b4d5 research: seal deterministic H50 PCM preparation and exact 18-job input preservation",
+    "570114cbe1f11983d6b07956078b4a655275b976 research: PRIMARY_ACOUSTIC_QUALIFICATION_FREEZE for portable H50 selected inputs",
+    "1bfacd0a0590284516b4b1bacbac4d7b968db07f research: record dual-environment primary H50 input freeze evidence without neural execution"
+  ],
+  "github": {
+    "queriedAt": "2026-10-18T10:22:48.000532+00:00",
+    "head": "1bfacd0a0590284516b4b1bacbac4d7b968db07f",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  }
+}
