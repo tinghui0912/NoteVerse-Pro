@@ -1,0 +1,62 @@
+{
+  "role": "STAGE_A_DOWNSTREAM_ELIGIBILITY_SEAL",
+  "status": "SEALED_BLIND_STAGE_A_OUTPUT_ELIGIBLE_FOR_FROZEN_STAGE_B_AFTER_ACCOUNTING_ADJUDICATION",
+  "sealedAt": "2026-10-18T11:50:44.366701+00:00",
+  "bindings": {
+    "v6PrimaryFreezeCommit": "570114cbe1f11983d6b07956078b4a655275b976",
+    "v6PrimaryFreezeSha256": "4a0264d06939fab1c12f1199be1903bc089cbe9fa0f0bf06f1456c4faf298b57",
+    "v7ExecutionFreezeCommit": "9406d68acab9f4f66aac6d38feb7473aeecc5ac1",
+    "v7ExecutionFreezeSha256": "86d3b68d2a0dd405769e4cd2317fa8b70d6a42247de99d37ca1ad0c55d2512ed",
+    "v7AcousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+    "v7AcousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+    "v7EvidenceCommit": "5c3f62de73646e81d01ef8b6acbd647cc6d8046a",
+    "workerTaxonomyFreezeCommit": "39b137850103d2226376a170a60155e55250b823",
+    "workerTaxonomyFreezeSha256": "ef8524f3575dcd59d7582ff3e4696e4db90a16ea3545f8ae5f41851df573bb4e",
+    "productionWorkerSessionSourceHashes": {
+      "entry": {
+        "path": "backend/research/step_waiting_h50_holdout_v7/entry.ts",
+        "sha256": "c1996ebad7c8b1c81fda654f2f208111668a72ba6cabd562d19fd03c05ff220a"
+      },
+      "worker": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+        "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+      },
+      "session": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+        "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+      },
+      "canonical": {
+        "path": "apps/customer-web/scripts/qualification/continuous-regression.mjs",
+        "sha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804"
+      },
+      "dry": {
+        "path": "backend/research/step_waiting_h50_holdout_v7/dry-runtime.ts",
+        "sha256": "c8ded5636006feb32c2a3b9f741ad9e653199c405c3b01b45d1f04bc505be7f2"
+      },
+      "runner": {
+        "path": "backend/research/step_waiting_h50_holdout_v7/stage-a-runner.mjs",
+        "sha256": "3c91e155660669d127072722a413e97b46c81f41914386ce8808e9ca8c505049"
+      }
+    },
+    "canonicalContinuousRunnerSha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804",
+    "v7FreshContinuousGateSha256": "95c22fa89a1adb3110d23c4780d55f6f0282b7716782d08a50e6bbc51e716a43",
+    "adjudicationSha256": "844c58d1f0fe1d9014e8884c3190a891a65db130cb6162d833890cf1719e1d62"
+  },
+  "originalV7Disposition": "STEP_WAITING_H50_STAGE_A_ACOUSTIC_EXECUTION_BLOCKED",
+  "originalV7SealStatus": "BLOCKED_AUDIO_OUTPUT_SEALED",
+  "originalFrozenGateOutcome": "FAIL",
+  "correctedProductOwnershipEvaluation": {
+    "productAcousticOwnership": "PASS",
+    "modelSessionOwnership": "PASS",
+    "acousticExecutionCompleteness": "PASS",
+    "frozenInputIntegrity": "PASS",
+    "truthIsolation": "PASS"
+  },
+  "v8NewNeuralRuns": 0,
+  "v8RobustRuns": 0,
+  "acousticOutputReused": true,
+  "acousticOutputModified": false,
+  "acousticOutputRerun": false,
+  "truthOpened": false,
+  "StageB": "NOT_STARTED"
+}
