@@ -1,0 +1,22 @@
+{
+  "evidenceCommit": "6fbe6f03dd464f7848cc735740217eaeebf1c83a",
+  "remoteHead": "6fbe6f03dd464f7848cc735740217eaeebf1c83a",
+  "startingRemoteHead": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "completeCommitChain": [
+    "013cf01b05c3f984ed7256ef8d6e6bc31fbffd05 research: correct H50 source-purpose governance and prepare Batik-only truth discovery",
+    "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857 research: EXTERNAL_TRUTH_SOURCE_DISCOVERY_FREEZE for Batik H50 gaps before MIDI events",
+    "6fbe6f03dd464f7848cc735740217eaeebf1c83a research: seal complete H50 Vienna plus Batik truth topology without audio acquisition"
+  ],
+  "productionDiff": "",
+  "v3HistoricalDiff": "",
+  "github": {
+    "queriedAt": "2026-10-18T09:12:49.846746+00:00",
+    "head": "6fbe6f03dd464f7848cc735740217eaeebf1c83a",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "disposition": "STEP_WAITING_H50_EXTERNAL_TRUTH_TOPOLOGY_COMPLETE_AUDIO_ACQUISITION_NOT_STARTED"
+}
