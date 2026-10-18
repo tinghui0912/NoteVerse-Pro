@@ -1,0 +1,2367 @@
+{
+  "scenarioId": "mismatch_same_target_rearm",
+  "family": "partial_then_full",
+  "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+  "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+  "sourceRateHz": 48000,
+  "architectureOnly": false,
+  "prospectiveEmpiricalTrial": true,
+  "inputEligibleAfterSourceSample": 9676500.000000022,
+  "semanticEndSourceSample": 9763901,
+  "scoringScope": "Frozen guard, otherwise first exclusive READY through last selected physical gesture + frozen 100ms attribution horizon; later publications may finish an already opened attempt, never open outside source-event scope.",
+  "latePublicationWindowIndex": null,
+  "publicationDelayMs": 0,
+  "analysisHoldMs": 0,
+  "physicalGestureIds": [
+    "kv281_1:g:2081",
+    "kv281_1:g:2083"
+  ],
+  "causalGate": "EACH_SELECTED_PHYSICAL_GESTURE_ACTUALLY_READY_EXCLUSIVE",
+  "physicalTruthGestureIds": [
+    "kv281_1:g:2081",
+    "kv281_1:g:2083"
+  ],
+  "physicalTruthTimes": [
+    201743.75000000047,
+    203314.58333333378
+  ],
+  "physicalTruthPitchSets": [
+    [
+      46,
+      58
+    ],
+    [
+      46,
+      50,
+      58
+    ]
+  ],
+  "targetPitchSets": [
+    [
+      46,
+      50,
+      58
+    ],
+    [
+      46,
+      50,
+      58
+    ]
+  ],
+  "inputEligibleAfter": 9676500.000000022,
+  "acousticPrerollEstablished": true,
+  "publicationDeliveryTrace": [
+    {
+      "windowIndex": 0,
+      "originalPhysicalCapturedThrough": 9570752,
+      "deliveredCapturedThrough": 9570752,
+      "originalPublicationAvailabilityMs": 33642.08999999985,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "UNAVAILABLE",
+      "stateAfter": "UNAVAILABLE",
+      "observationIds": [],
+      "sourceEvents": []
+    },
+    {
+      "windowIndex": 1,
+      "originalPhysicalCapturedThrough": 9599424,
+      "deliveredCapturedThrough": 9599424,
+      "originalPublicationAvailabilityMs": 33824.609999999404,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "UNAVAILABLE",
+      "stateAfter": "UNAVAILABLE",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p70:f29440",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p75:f30400",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p51:f31360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p63:f31360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p79:f31360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w1:p70:f37600"
+      ],
+      "sourceEvents": [
+        9562560,
+        9565440,
+        9568320,
+        9568320,
+        9568320,
+        9587040
+      ]
+    },
+    {
+      "windowIndex": 2,
+      "originalPhysicalCapturedThrough": 9628096,
+      "deliveredCapturedThrough": 9628096,
+      "originalPublicationAvailabilityMs": 33999.87999999896,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "UNAVAILABLE",
+      "stateAfter": "UNAVAILABLE",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w2:p74:f38560",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w2:p77:f39200",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w2:p46:f39360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w2:p58:f39360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w2:p77:f46400"
+      ],
+      "sourceEvents": [
+        9589920,
+        9591840,
+        9592320,
+        9592320,
+        9613440
+      ]
+    },
+    {
+      "windowIndex": 3,
+      "originalPhysicalCapturedThrough": 9656768,
+      "deliveredCapturedThrough": 9656768,
+      "originalPublicationAvailabilityMs": 34178.085000000894,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "UNAVAILABLE",
+      "stateAfter": "UNAVAILABLE",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p82:f48160",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p81:f49760",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p82:f51360",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p86:f52960",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p82:f54560",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w3:p81:f55680"
+      ],
+      "sourceEvents": [
+        9618720,
+        9623520,
+        9628320,
+        9633120,
+        9637920,
+        9641280
+      ]
+    },
+    {
+      "windowIndex": 4,
+      "originalPhysicalCapturedThrough": 9685440,
+      "deliveredCapturedThrough": 9685440,
+      "originalPublicationAvailabilityMs": 34346.275000002235,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p82:f57600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p74:f60480",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p77:f60480",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p41:f60800",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p53:f60960",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p72:f65120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w4:p75:f65120"
+      ],
+      "sourceEvents": [
+        9647040,
+        9655680,
+        9655680,
+        9656640,
+        9657120,
+        9669600,
+        9669600
+      ]
+    },
+    {
+      "windowIndex": 5,
+      "originalPhysicalCapturedThrough": 9714112,
+      "deliveredCapturedThrough": 9714112,
+      "originalPublicationAvailabilityMs": 34511.990000002086,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600"
+      ],
+      "sourceEvents": [
+        9681600,
+        9682080,
+        9683040,
+        9683040
+      ]
+    },
+    {
+      "windowIndex": 6,
+      "originalPhysicalCapturedThrough": 9742784,
+      "deliveredCapturedThrough": 9742784,
+      "originalPublicationAvailabilityMs": 34678.925000000745,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [],
+      "sourceEvents": []
+    },
+    {
+      "windowIndex": 7,
+      "originalPhysicalCapturedThrough": 9771456,
+      "deliveredCapturedThrough": 9771456,
+      "originalPublicationAvailabilityMs": 34839.365000002086,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360"
+      ],
+      "sourceEvents": [
+        9758400,
+        9758880,
+        9760320
+      ]
+    },
+    {
+      "windowIndex": 8,
+      "originalPhysicalCapturedThrough": 9800128,
+      "deliveredCapturedThrough": 9800128,
+      "originalPublicationAvailabilityMs": 35005.89499999955,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w8:p60:f96640",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w8:p58:f98400",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w8:p60:f99680",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w8:p58:f101280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w8:p60:f103200"
+      ],
+      "sourceEvents": [
+        9764160,
+        9769440,
+        9773280,
+        9778080,
+        9783840
+      ]
+    },
+    {
+      "windowIndex": 9,
+      "originalPhysicalCapturedThrough": 9828800,
+      "deliveredCapturedThrough": 9828800,
+      "originalPublicationAvailabilityMs": 35171.14499999955,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p60:f106080",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p62:f107680",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p58:f109600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p48:f109760",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p51:f109760",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p57:f111680",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w9:p60:f114080"
+      ],
+      "sourceEvents": [
+        9792480,
+        9797280,
+        9803040,
+        9803520,
+        9803520,
+        9809280,
+        9816480
+      ]
+    },
+    {
+      "windowIndex": 10,
+      "originalPhysicalCapturedThrough": 9857472,
+      "deliveredCapturedThrough": 9857472,
+      "originalPublicationAvailabilityMs": 35331.984999999404,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p58:f116000",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p57:f118240",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p63:f120480",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p50:f122880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p53:f122880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w10:p60:f122880"
+      ],
+      "sourceEvents": [
+        9822240,
+        9828960,
+        9835680,
+        9842880,
+        9842880,
+        9842880
+      ]
+    },
+    {
+      "windowIndex": 11,
+      "originalPhysicalCapturedThrough": 9886144,
+      "deliveredCapturedThrough": 9886144,
+      "originalPublicationAvailabilityMs": 35496.710000000894,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w11:p58:f125120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w11:p62:f127520",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w11:p60:f129760",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w11:p58:f132000"
+      ],
+      "sourceEvents": [
+        9849600,
+        9856800,
+        9863520,
+        9870240
+      ]
+    },
+    {
+      "windowIndex": 12,
+      "originalPhysicalCapturedThrough": 9905280,
+      "deliveredCapturedThrough": 9905280,
+      "originalPublicationAvailabilityMs": 35659.13500000164,
+      "deliveryClock": "SOURCE_CAPTURE_PROGRESS_NOT_PERFORMANCE_NOW",
+      "late": false,
+      "stateBefore": "READY",
+      "stateAfter": "READY",
+      "observationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w12:p62:f137270"
+      ],
+      "sourceEvents": [
+        9886050
+      ]
+    }
+  ],
+  "capturedThroughTrace": [
+    {
+      "sourceSample": 9476288,
+      "sourceMs": 197422.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9478336,
+      "sourceMs": 197465.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9480384,
+      "sourceMs": 197508,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9482432,
+      "sourceMs": 197550.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9484480,
+      "sourceMs": 197593.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9486528,
+      "sourceMs": 197636,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9488576,
+      "sourceMs": 197678.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9490624,
+      "sourceMs": 197721.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9492672,
+      "sourceMs": 197764,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9494720,
+      "sourceMs": 197806.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9496768,
+      "sourceMs": 197849.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9498816,
+      "sourceMs": 197892,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9500864,
+      "sourceMs": 197934.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9502912,
+      "sourceMs": 197977.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9504960,
+      "sourceMs": 198020,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9507008,
+      "sourceMs": 198062.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9509056,
+      "sourceMs": 198105.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9511104,
+      "sourceMs": 198148,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9513152,
+      "sourceMs": 198190.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9515200,
+      "sourceMs": 198233.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9517248,
+      "sourceMs": 198276,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9519296,
+      "sourceMs": 198318.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9521344,
+      "sourceMs": 198361.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9523392,
+      "sourceMs": 198404,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9525440,
+      "sourceMs": 198446.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9527488,
+      "sourceMs": 198489.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9529536,
+      "sourceMs": 198532,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9531584,
+      "sourceMs": 198574.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9531840,
+      "sourceMs": 198580,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9533888,
+      "sourceMs": 198622.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9535936,
+      "sourceMs": 198665.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9537984,
+      "sourceMs": 198708,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9540032,
+      "sourceMs": 198750.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9542080,
+      "sourceMs": 198793.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9544128,
+      "sourceMs": 198836,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9546176,
+      "sourceMs": 198878.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9548224,
+      "sourceMs": 198921.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9550272,
+      "sourceMs": 198964,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9552320,
+      "sourceMs": 199006.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9554368,
+      "sourceMs": 199049.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9556416,
+      "sourceMs": 199092,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9558464,
+      "sourceMs": 199134.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9560512,
+      "sourceMs": 199177.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9562560,
+      "sourceMs": 199220,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9564608,
+      "sourceMs": 199262.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9566656,
+      "sourceMs": 199305.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9568704,
+      "sourceMs": 199348,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9570752,
+      "sourceMs": 199390.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9572800,
+      "sourceMs": 199433.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9574848,
+      "sourceMs": 199476,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9576896,
+      "sourceMs": 199518.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9578944,
+      "sourceMs": 199561.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9580992,
+      "sourceMs": 199604,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9583040,
+      "sourceMs": 199646.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9585088,
+      "sourceMs": 199689.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9587136,
+      "sourceMs": 199732,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9589184,
+      "sourceMs": 199774.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9591232,
+      "sourceMs": 199817.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9593280,
+      "sourceMs": 199860,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9595328,
+      "sourceMs": 199902.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9597376,
+      "sourceMs": 199945.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9599424,
+      "sourceMs": 199988,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9601472,
+      "sourceMs": 200030.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9603520,
+      "sourceMs": 200073.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9605568,
+      "sourceMs": 200116,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9607616,
+      "sourceMs": 200158.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9609664,
+      "sourceMs": 200201.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9611712,
+      "sourceMs": 200244,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9613760,
+      "sourceMs": 200286.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9615808,
+      "sourceMs": 200329.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9617856,
+      "sourceMs": 200372,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9619904,
+      "sourceMs": 200414.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9621952,
+      "sourceMs": 200457.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9624000,
+      "sourceMs": 200500,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9626048,
+      "sourceMs": 200542.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9628096,
+      "sourceMs": 200585.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9630144,
+      "sourceMs": 200628,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9632192,
+      "sourceMs": 200670.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9634240,
+      "sourceMs": 200713.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9636288,
+      "sourceMs": 200756,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9638336,
+      "sourceMs": 200798.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9640384,
+      "sourceMs": 200841.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9642432,
+      "sourceMs": 200884,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9644480,
+      "sourceMs": 200926.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9646528,
+      "sourceMs": 200969.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9648576,
+      "sourceMs": 201012,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9650624,
+      "sourceMs": 201054.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9652672,
+      "sourceMs": 201097.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9654720,
+      "sourceMs": 201140,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9656768,
+      "sourceMs": 201182.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9658816,
+      "sourceMs": 201225.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9660864,
+      "sourceMs": 201268,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9662912,
+      "sourceMs": 201310.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9664960,
+      "sourceMs": 201353.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9667008,
+      "sourceMs": 201396,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9669056,
+      "sourceMs": 201438.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9671104,
+      "sourceMs": 201481.33333333334,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9673152,
+      "sourceMs": 201524,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9675200,
+      "sourceMs": 201566.66666666666,
+      "state": "UNAVAILABLE",
+      "inputEligibleAfter": 9474240,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9676500.000000022,
+      "sourceMs": 201593.75000000047,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": false
+    },
+    {
+      "sourceSample": 9677248,
+      "sourceMs": 201609.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9679296,
+      "sourceMs": 201652,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9681344,
+      "sourceMs": 201694.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9683392,
+      "sourceMs": 201737.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9683700.000000022,
+      "sourceMs": 201743.75000000047,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": false
+    },
+    {
+      "sourceSample": 9685440,
+      "sourceMs": 201780,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9687488,
+      "sourceMs": 201822.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9689536,
+      "sourceMs": 201865.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9691584,
+      "sourceMs": 201908,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9693632,
+      "sourceMs": 201950.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9695680,
+      "sourceMs": 201993.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9697728,
+      "sourceMs": 202036,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9699776,
+      "sourceMs": 202078.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9701824,
+      "sourceMs": 202121.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9703872,
+      "sourceMs": 202164,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9705920,
+      "sourceMs": 202206.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9707968,
+      "sourceMs": 202249.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9710016,
+      "sourceMs": 202292,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9712064,
+      "sourceMs": 202334.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9714112,
+      "sourceMs": 202377.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9716160,
+      "sourceMs": 202420,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9718208,
+      "sourceMs": 202462.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9720256,
+      "sourceMs": 202505.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9722304,
+      "sourceMs": 202548,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9724352,
+      "sourceMs": 202590.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9726400,
+      "sourceMs": 202633.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9728448,
+      "sourceMs": 202676,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9730496,
+      "sourceMs": 202718.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9732544,
+      "sourceMs": 202761.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9734592,
+      "sourceMs": 202804,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9736640,
+      "sourceMs": 202846.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9738688,
+      "sourceMs": 202889.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9740736,
+      "sourceMs": 202932,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9742784,
+      "sourceMs": 202974.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9744832,
+      "sourceMs": 203017.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9746880,
+      "sourceMs": 203060,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9748928,
+      "sourceMs": 203102.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9750976,
+      "sourceMs": 203145.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9753024,
+      "sourceMs": 203188,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9755072,
+      "sourceMs": 203230.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9757120,
+      "sourceMs": 203273.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9759100.00000002,
+      "sourceMs": 203314.58333333378,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": false
+    },
+    {
+      "sourceSample": 9759168,
+      "sourceMs": 203316,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9761216,
+      "sourceMs": 203358.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9763264,
+      "sourceMs": 203401.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9765312,
+      "sourceMs": 203444,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9767360,
+      "sourceMs": 203486.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9769408,
+      "sourceMs": 203529.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9771456,
+      "sourceMs": 203572,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9773504,
+      "sourceMs": 203614.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9775552,
+      "sourceMs": 203657.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9777600,
+      "sourceMs": 203700,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9779648,
+      "sourceMs": 203742.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9781696,
+      "sourceMs": 203785.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9783744,
+      "sourceMs": 203828,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9785792,
+      "sourceMs": 203870.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9787840,
+      "sourceMs": 203913.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9789888,
+      "sourceMs": 203956,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9791936,
+      "sourceMs": 203998.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9793984,
+      "sourceMs": 204041.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9796032,
+      "sourceMs": 204084,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9798080,
+      "sourceMs": 204126.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9800128,
+      "sourceMs": 204169.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9802176,
+      "sourceMs": 204212,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9804224,
+      "sourceMs": 204254.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9806272,
+      "sourceMs": 204297.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9808320,
+      "sourceMs": 204340,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9810368,
+      "sourceMs": 204382.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9812416,
+      "sourceMs": 204425.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9814464,
+      "sourceMs": 204468,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9816512,
+      "sourceMs": 204510.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9818560,
+      "sourceMs": 204553.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9820608,
+      "sourceMs": 204596,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9822656,
+      "sourceMs": 204638.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9824704,
+      "sourceMs": 204681.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9826752,
+      "sourceMs": 204724,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9828800,
+      "sourceMs": 204766.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9830848,
+      "sourceMs": 204809.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9832896,
+      "sourceMs": 204852,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9834944,
+      "sourceMs": 204894.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9836992,
+      "sourceMs": 204937.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9839040,
+      "sourceMs": 204980,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9841088,
+      "sourceMs": 205022.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9843136,
+      "sourceMs": 205065.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9845184,
+      "sourceMs": 205108,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9847232,
+      "sourceMs": 205150.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9849280,
+      "sourceMs": 205193.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9851328,
+      "sourceMs": 205236,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9853376,
+      "sourceMs": 205278.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9855424,
+      "sourceMs": 205321.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9857472,
+      "sourceMs": 205364,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9859520,
+      "sourceMs": 205406.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9861568,
+      "sourceMs": 205449.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9863616,
+      "sourceMs": 205492,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9865664,
+      "sourceMs": 205534.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9867712,
+      "sourceMs": 205577.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9869760,
+      "sourceMs": 205620,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9871808,
+      "sourceMs": 205662.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9873856,
+      "sourceMs": 205705.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9875904,
+      "sourceMs": 205748,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9877952,
+      "sourceMs": 205790.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9880000,
+      "sourceMs": 205833.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9882048,
+      "sourceMs": 205876,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9884096,
+      "sourceMs": 205918.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9886144,
+      "sourceMs": 205961.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9888192,
+      "sourceMs": 206004,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9890240,
+      "sourceMs": 206046.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9892288,
+      "sourceMs": 206089.33333333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9894336,
+      "sourceMs": 206132,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9896384,
+      "sourceMs": 206174.66666666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9897090,
+      "sourceMs": 206189.375,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9899138,
+      "sourceMs": 206232.04166666666,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9901186,
+      "sourceMs": 206274.70833333334,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9903234,
+      "sourceMs": 206317.375,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    },
+    {
+      "sourceSample": 9905280,
+      "sourceMs": 206360,
+      "state": "READY",
+      "inputEligibleAfter": 9771456,
+      "sourceBlockEndpoint": true
+    }
+  ],
+  "physicalCaptureStates": [
+    {
+      "gestureId": "kv281_1:g:2081",
+      "physicalSourceMs": 201743.75000000047,
+      "sourceSample": 9683700.000000022,
+      "state": "READY",
+      "inputEligibleAfter": 9676500.000000022,
+      "strictlyEligible": true
+    },
+    {
+      "gestureId": "kv281_1:g:2083",
+      "physicalSourceMs": 203314.58333333378,
+      "sourceSample": 9759100.00000002,
+      "state": "READY",
+      "inputEligibleAfter": 9714112,
+      "strictlyEligible": true
+    }
+  ],
+  "guardStates": [],
+  "guardDurationMs": null,
+  "attempts": [
+    {
+      "identity": {
+        "attemptId": "mismatch_same_target_rearm:48000:attempt:1",
+        "localSessionId": "mismatch_same_target_rearm:48000",
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputSource": "MICROPHONE",
+        "attemptStartSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 201700,
+          "sampleIndex": 9681600
+        }
+      },
+      "target": {
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputEligibleAfter": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 201593.75000000047,
+          "sampleIndex": 9676500.000000022
+        },
+        "attackPitches": [
+          "A#2",
+          "D3",
+          "A#3"
+        ],
+        "continuationPitches": []
+      },
+      "openCaptureSource": 9714112,
+      "anchor": 9681600,
+      "eligibleAfter": 9676500.000000022,
+      "attempt": {
+        "id": "mismatch_same_target_rearm:48000:a:9681600",
+        "anchor": 9681600,
+        "end": 9684000,
+        "observations": [
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+            "pitch": "D5",
+            "midiPitch": 74,
+            "confidence": 0.6750898361206055,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9681600,
+            "targetSample": 69120
+          },
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+            "pitch": "A#4",
+            "midiPitch": 70,
+            "confidence": 0.6786381006240845,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9682080,
+            "targetSample": 69280
+          },
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+            "pitch": "A#2",
+            "midiPitch": 46,
+            "confidence": 0.7477825880050659,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9683040,
+            "targetSample": 69600
+          },
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600",
+            "pitch": "A#3",
+            "midiPitch": 58,
+            "confidence": 0.7174236178398132,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9683040,
+            "targetSample": 69600
+          }
+        ],
+        "pitches": [
+          "A#2",
+          "A#3",
+          "A#4",
+          "D5"
+        ],
+        "confidence": 0.6750898361206055,
+        "lockWallMs": 202377.33333333334,
+        "sealWallMs": 202377.33333333334,
+        "eligibleAfter": 9676500.000000022,
+        "frontier": 9704640,
+        "capturedThrough": 9714112
+      },
+      "analysisCaptureSource": 9714112,
+      "record": {
+        "attemptId": "mismatch_same_target_rearm:48000:attempt:1",
+        "localSessionId": "mismatch_same_target_rearm:48000",
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputSource": "MICROPHONE",
+        "attemptStartSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 201700,
+          "sampleIndex": 9681600
+        },
+        "verdict": "MISMATCH",
+        "observedAttackPitches": [
+          "A#2",
+          "A#3",
+          "A#4",
+          "D5"
+        ],
+        "confidence": 0.6750898361206055,
+        "captureEndSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 201750,
+          "sampleIndex": 9684000
+        },
+        "retryReason": null
+      },
+      "verdictCaptureSource": 9714112,
+      "nextTargetGeneration": 1,
+      "rearmPhysicalWatermark": 9714112,
+      "nextReadySource": 9714112,
+      "truthAttribution": {
+        "status": "ATTRIBUTED",
+        "gesture": {
+          "gestureId": "kv281_1:g:2081",
+          "sourceSeconds": 201.74375000000046,
+          "onsetMs": 201743.75000000047,
+          "notes": [
+            {
+              "pitch": 46,
+              "onsetMs": 201743.75000000047,
+              "offsetMs": 201836.45833333378,
+              "sourceSeconds": 201.74375000000046
+            },
+            {
+              "pitch": 58,
+              "onsetMs": 201745.83333333378,
+              "offsetMs": 201814.58333333378,
+              "sourceSeconds": 201.7458333333338
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            58
+          ]
+        },
+        "distanceMs": 43.75000000046566
+      },
+      "physicalGestureEligible": true,
+      "fullPhysicalSupport": false,
+      "targetPitchSet": [
+        46,
+        50,
+        58
+      ],
+      "timing": {
+        "physicalSourceMs": 201743.75000000047,
+        "decodedSourceMs": 201700,
+        "publicationAvailabilityMs": 34511.990000002086,
+        "captureReadyMs": 197422.66666666666,
+        "acousticPrerollReadyMs": 198580,
+        "targetWaitingMs": 201593.75000000047,
+        "inputEligibleAfterMs": 201593.75000000047,
+        "attemptOpenMs": 202377.33333333334,
+        "captureEndMs": 201750,
+        "analysisEntryMs": 202377.33333333334,
+        "verdictMs": 202377.33333333334,
+        "rearmPhysicalWatermarkMs": 202377.33333333334,
+        "nextReadyMs": 202377.33333333334,
+        "sourceEventToAttemptOpenCaptureProgressMs": 677.3333333333334,
+        "sourceEventToVerdictCaptureProgressMs": 677.3333333333334,
+        "interpretation": "OFFLINE_CAUSAL_REPLAY_NOT_PHYSICAL_DEVICE_UX_LATENCY"
+      }
+    },
+    {
+      "identity": {
+        "attemptId": "mismatch_same_target_rearm:48000:attempt:2",
+        "localSessionId": "mismatch_same_target_rearm:48000",
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputSource": "MICROPHONE",
+        "attemptStartSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 203300,
+          "sampleIndex": 9758400
+        }
+      },
+      "target": {
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputEligibleAfter": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 202377.33333333334,
+          "sampleIndex": 9714112
+        },
+        "attackPitches": [
+          "A#2",
+          "D3",
+          "A#3"
+        ],
+        "continuationPitches": []
+      },
+      "openCaptureSource": 9771456,
+      "anchor": 9758400,
+      "eligibleAfter": 9714112,
+      "attempt": {
+        "id": "mismatch_same_target_rearm:48000:a:9758400",
+        "anchor": 9758400,
+        "end": 9760800,
+        "observations": [
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+            "pitch": "A#2",
+            "midiPitch": 46,
+            "confidence": 0.4459129869937897,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9758400,
+            "targetSample": 94720
+          },
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+            "pitch": "A#3",
+            "midiPitch": 58,
+            "confidence": 0.8651081323623657,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9758880,
+            "targetSample": 94880
+          },
+          {
+            "observationId": "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360",
+            "pitch": "D3",
+            "midiPitch": 50,
+            "confidence": 0.808292031288147,
+            "sourceDomainId": "j-ffb0e106dac8cfc6c92a7f0c",
+            "sourceSampleRateHz": 48000,
+            "sourceEventSample": 9760320,
+            "targetSample": 95360
+          }
+        ],
+        "pitches": [
+          "A#2",
+          "A#3",
+          "D3"
+        ],
+        "confidence": 0.4459129869937897,
+        "lockWallMs": 203572,
+        "sealWallMs": 203572,
+        "eligibleAfter": 9714112,
+        "frontier": 9762240,
+        "capturedThrough": 9771456
+      },
+      "analysisCaptureSource": 9771456,
+      "record": {
+        "attemptId": "mismatch_same_target_rearm:48000:attempt:2",
+        "localSessionId": "mismatch_same_target_rearm:48000",
+        "stepId": "s0",
+        "targetGeneration": 1,
+        "inputSource": "MICROPHONE",
+        "attemptStartSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 203300,
+          "sampleIndex": 9758400
+        },
+        "verdict": "MATCH",
+        "observedAttackPitches": [
+          "A#2",
+          "A#3",
+          "D3"
+        ],
+        "confidence": 0.4459129869937897,
+        "captureEndSessionTime": {
+          "domainId": "mismatch_same_target_rearm:48000",
+          "ms": 203350,
+          "sampleIndex": 9760800
+        },
+        "retryReason": null
+      },
+      "verdictCaptureSource": 9771456,
+      "nextTargetGeneration": 2,
+      "rearmPhysicalWatermark": 9771456,
+      "nextReadySource": 9771456,
+      "truthAttribution": {
+        "status": "ATTRIBUTED",
+        "gesture": {
+          "gestureId": "kv281_1:g:2083",
+          "sourceSeconds": 203.3145833333338,
+          "onsetMs": 203314.58333333378,
+          "notes": [
+            {
+              "pitch": 58,
+              "onsetMs": 203314.58333333378,
+              "offsetMs": 203371.87500000044,
+              "sourceSeconds": 203.3145833333338
+            },
+            {
+              "pitch": 46,
+              "onsetMs": 203314.58333333378,
+              "offsetMs": 204189.58333333384,
+              "sourceSeconds": 203.3145833333338
+            },
+            {
+              "pitch": 50,
+              "onsetMs": 203347.91666666712,
+              "offsetMs": 203495.83333333378,
+              "sourceSeconds": 203.34791666666712
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            50,
+            58
+          ]
+        },
+        "distanceMs": 14.583333333779592
+      },
+      "physicalGestureEligible": true,
+      "fullPhysicalSupport": true,
+      "targetPitchSet": [
+        46,
+        50,
+        58
+      ],
+      "timing": {
+        "physicalSourceMs": 203314.58333333378,
+        "decodedSourceMs": 203300,
+        "publicationAvailabilityMs": 34839.365000002086,
+        "captureReadyMs": 197422.66666666666,
+        "acousticPrerollReadyMs": 198580,
+        "targetWaitingMs": 201593.75000000047,
+        "inputEligibleAfterMs": 202377.33333333334,
+        "attemptOpenMs": 203572,
+        "captureEndMs": 203350,
+        "analysisEntryMs": 203572,
+        "verdictMs": 203572,
+        "rearmPhysicalWatermarkMs": 203572,
+        "nextReadyMs": 203572,
+        "sourceEventToAttemptOpenCaptureProgressMs": 272,
+        "sourceEventToVerdictCaptureProgressMs": 272,
+        "interpretation": "OFFLINE_CAUSAL_REPLAY_NOT_PHYSICAL_DEVICE_UX_LATENCY"
+      }
+    }
+  ],
+  "productTrace": [
+    {
+      "action": "ARM",
+      "sourceSample": 9676500.000000022,
+      "targetGeneration": 1,
+      "attemptState": "READY",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 201593.75000000047,
+        "sampleIndex": 9676500.000000022
+      }
+    },
+    {
+      "action": "OPEN",
+      "sourceSample": 9714112,
+      "targetGeneration": 1,
+      "attemptState": "CAPTURING",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 201593.75000000047,
+        "sampleIndex": 9676500.000000022
+      }
+    },
+    {
+      "action": "SEAL",
+      "sourceSample": 9714112,
+      "targetGeneration": 1,
+      "attemptState": "ANALYZING",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 201593.75000000047,
+        "sampleIndex": 9676500.000000022
+      }
+    },
+    {
+      "action": "VERDICT_READY",
+      "sourceSample": 9714112,
+      "targetGeneration": 1,
+      "attemptState": "RESET",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 201750,
+        "sampleIndex": 9684000
+      }
+    },
+    {
+      "action": "RESET",
+      "sourceSample": 9714112,
+      "targetGeneration": 1,
+      "attemptState": "RESET",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 201750,
+        "sampleIndex": 9684000
+      }
+    },
+    {
+      "action": "READY",
+      "sourceSample": 9714112,
+      "targetGeneration": 1,
+      "attemptState": "READY",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 202377.33333333334,
+        "sampleIndex": 9714112
+      }
+    },
+    {
+      "action": "OPEN",
+      "sourceSample": 9771456,
+      "targetGeneration": 1,
+      "attemptState": "CAPTURING",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 202377.33333333334,
+        "sampleIndex": 9714112
+      }
+    },
+    {
+      "action": "SEAL",
+      "sourceSample": 9771456,
+      "targetGeneration": 1,
+      "attemptState": "ANALYZING",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 202377.33333333334,
+        "sampleIndex": 9714112
+      }
+    },
+    {
+      "action": "VERDICT_READY",
+      "sourceSample": 9771456,
+      "targetGeneration": 2,
+      "attemptState": "RESET",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 203350,
+        "sampleIndex": 9760800
+      }
+    },
+    {
+      "action": "RESET",
+      "sourceSample": 9771456,
+      "targetGeneration": 2,
+      "attemptState": "RESET",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 203350,
+        "sampleIndex": 9760800
+      }
+    },
+    {
+      "action": "READY",
+      "sourceSample": 9771456,
+      "targetGeneration": 2,
+      "attemptState": "READY",
+      "lifecycle": "ACTIVE",
+      "inputEligibleAfter": {
+        "domainId": "mismatch_same_target_rearm:48000",
+        "ms": 203572,
+        "sampleIndex": 9771456
+      }
+    }
+  ],
+  "unresolvedAttempt": null,
+  "actualValidCausalDenominator": 1,
+  "notEvaluableReasons": [],
+  "expectedBehaviorSatisfied": true,
+  "safetyContributions": {
+    "advanceWithoutNewTruthGesture": 0,
+    "doubleAdvanceFromOneTruthGesture": 0,
+    "busyPeriodCarryoverAdvance": 0,
+    "latePublicationCarryoverAdvance": 0,
+    "crossAttemptObservationReuse": 0,
+    "matchWithoutFullTruthPitchSet": 0,
+    "samePitchSustainAdvance": 0,
+    "sameChordSustainAdvance": 0,
+    "extraToneFalseMatch": 0,
+    "incompleteChordFalseMatch": 0,
+    "wrongPitchFalseMatch": 0
+  },
+  "ambiguous": [],
+  "unsupported": [],
+  "classification": "PASS"
+}
