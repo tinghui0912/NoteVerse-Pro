@@ -1,0 +1,22 @@
+{
+  "freezeCommit": "0f504d9ebf7eff8292c4a39d9608edaa16401709",
+  "remoteHead": "0f504d9ebf7eff8292c4a39d9608edaa16401709",
+  "freezeSha256": "605de88236966b31e23af41fc312bca96f64c7eadc1318e693a5ef379f933242",
+  "remoteVerifiedAt": "2026-10-18T10:16:45.051996+00:00",
+  "pathSchema": "REPO_RELATIVE_POSIX_V1",
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "startedAt": "2026-10-18T10:16:50.209193+00:00",
+  "completedAt": "2026-10-18T10:16:54.521330+00:00",
+  "pathsChecked": 184,
+  "hashMismatches": 0,
+  "status": "PASS",
+  "backslashManifestPaths": 0,
+  "selectedRawAudioObjectsChecked": 4,
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "repositoryRoot": "/workspace",
+  "containerImage": "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+  "network": "none",
+  "selectedAudioDecoded": false,
+  "verificationAlgorithm": "validate_portable_freeze_manifest + raw SHA256/Git blob; imports standard library only"
+}
