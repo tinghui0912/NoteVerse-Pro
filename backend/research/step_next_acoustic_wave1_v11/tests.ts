@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {ProductAdapter,WaitingTopologyGate,GESTURE_WIDTH_MS} from '../step_waiting_h50_holdout_v9/domain';
+const root=process.cwd(),out='backend/research/reports/step_next_acoustic_wave1_v11';
+const hash=(b:any)=>createHash('sha256').update(b).digest('hex');
+const read=async(p:string)=>readFile(root+'/'+p);
+const load=async(p:string)=>JSON.parse((await read(p)).toString());
+const tests:any[]=[];
+async function test(name:string,fn:()=>unknown){await fn();tests.push({name,status:'PASS'});}
+const d='backend/research/step_next_acoustic_wave1_v11';
+await test('starting HEAD exact',async()=>assert.equal((await load(out+'/starting-gate.json')).remoteHead,'8e7762122b924f265ec0c8ebe615c9930439c6d6'));
+await test('candidate budget exactly two challengers',async()=>assert.equal((await load(d+'/candidate-contract.json')).challengers.length,2));
+await test('Original asset identity exact',async()=>assert.equal(hash(await read('backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx')),'6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5'));
+await test('decoder B exact source',async()=>assert.equal(hash(await read('backend/research/browser_runtime/xc2_decoders.mjs')),'4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf'));
+await test('A and Original use actual production score-blind decoder',async()=>assert.match((await read(d+'/worker.ts')).toString(),/decodeRobustPiano\(\{reg_onset_output/));
+await test('A B share a single session.run and same tensors',async()=>{const s=(await read(d+'/worker.ts')).toString();assert.equal((s.match(/await session\.run\(/g)??[]).length,1);assert.match(s,/upstreamOnsetProjection\(\{regData:onset,frameData:frame/);});
+await test('one Worker per model and one session create site',async()=>{assert.equal(((await read(d+'/entry.ts')).toString().match(/new Worker\(/g)??[]).length,1);assert.equal(((await read(d+'/worker.ts')).toString().match(/InferenceSession\.create\(/g)??[]).length,1);});
+await test('no fallback pinned ORT WebGPU disabled graph optimization',async()=>{const s=(await read(d+'/worker.ts')).toString();assert.match(s,/executionProviders:\['webgpu'\],graphOptimizationLevel:'disabled'/);assert.match(s,/automaticFallback:false/);assert.doesNotMatch(s,/wasm\.numThreads|executionProviders:.*cpu/);});
+await test('H remains 50 and equality ignored by product runtime',()=>{assert.equal(GESTURE_WIDTH_MS,50);const p=new ProductAdapter(48000,'synthetic',0,10000,[[60]],0);p.arm(0);assert.equal(p.runtime.openAttempt(p.time(0)),null);assert.ok(p.runtime.openAttempt(p.time(1)));});
+await test('half open H right boundary excluded',()=>{const g=new WaitingTopologyGate(48000,'s',0,10000,0,0);g.arm(0,0);g.captureThrough(3000,0);const obs=(s:number,id:string)=>({sourceEventSample:s,observationId:id,pitch:'C4',midiPitch:60,confidence:.8,sourceDomainId:'s',sourceSampleRateHz:48000 as const,targetSample:s/3});g.accept({publicationId:'p',frontier:3000,wallMs:0,capturedThrough:3000,observations:[obs(100,'a'),obs(2500,'edge')]});assert.equal(g.actions.find(a=>a.type==='SEAL')!.attempt!.observations.length,1);});
+await test('Layer A 18 exact jobs and 228 windows',async()=>{const m=await load('backend/data/work/step_next_acoustic_wave1_v11/audio-jobs.json'),a=m.jobs.filter((j:any)=>j.layer==='A');assert.equal(a.length,18);assert.equal(a.reduce((n:number,j:any)=>n+j.expectedModelInputs.length,0),228);});
+await test('Layer B 50 exact takes and deterministic common interiors',async()=>{const a=await load(out+'/layer-b-common-interiors.json'),b=await load('backend/research/reports/phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_2026-10-15.json');assert.equal(a.takes.length,50);assert.deepEqual(a.takes.map((t:any)=>t.takeId),b.takes.map((t:any)=>t.takeId));assert.ok(a.takes.every((t:any)=>t.commonInterior.startMs>=1050&&t.commonInterior.endMs<=t.historicalInterior.endMs));});
+await test('browser bundle import graphs exclude truth and targets',async()=>{const graphs=await load('backend/data/work/step_next_acoustic_wave1_v11/bundle-graphs.json');for(const g of graphs.filter((g:any)=>g.output.endsWith('.js')))assert.ok(g.inputs.every((p:string)=>!/step-runtime|step-attempt|step-practice-controller|WaitingTopologyGate|selector|scorer|scenario|midi-parser/.test(p)));});
+await test('candidate cannot modify membership or thresholds',async()=>{const c=await load(d+'/candidate-contract.json');assert.equal(c.HMs,50);assert.equal(c.control.role,'NON_SELECTABLE_PARITY_CONTROL');assert.deepEqual(c.challengers.map((r:any)=>r.thresholds),[{onset:.3,frame:.05},{onset:.2,frame:.1}]);assert.equal(c.postFreezeChangesAllowed,false);});
+await test('fresh holdout remains untouched',async()=>{const h=await load('backend/research/reports/step_waiting_h50_holdout_v10/fresh-holdout-design.json');assert.deepEqual(h.recordingsSelected,[]);assert.equal(h.candidateChosen,false);assert.equal(h.futureExecution,'NOT_STARTED');});
+await writeFile(root+'/'+out+'/tests.json',JSON.stringify({tests:tests.length,passed:tests.length,failed:0,results:tests,newNeuralRuns:0},null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify({tests:tests.length,passed:tests.length,newNeuralRuns:0}));

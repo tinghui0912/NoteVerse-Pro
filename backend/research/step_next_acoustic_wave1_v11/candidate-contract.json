@@ -1,0 +1,24 @@
+{
+ "label":"DEVELOPMENT_ONLY_NOT_QUALIFICATION",
+ "control":{"identity":"robust-browser-engineering-default-xc4-v1","role":"NON_SELECTABLE_PARITY_CONTROL","decoder":"PRODUCTION_DECODER_A"},
+ "challengers":[
+  {"identity":"robust-xc4-decoder-b-wave1-dev-v1","model":"ROBUST_RAW","decoder":"EXACT_xc2_decoders.upstreamOnsetProjection","thresholds":{"onset":0.30,"frame":0.05},"note":"Frozen decoder B's frame threshold affects offsets, not onset proposal generation. No new frame filter is added. Fractional source event coordinates preserve its interpolation without rounding."},
+  {"identity":"bytedance-original-fixed1820-historical-thresholds-wave1-dev-v1","model":"BYTEDANCE_ORIGINAL_FIXED1820","decoder":"PRODUCTION_decodeRobustPiano_with_historical_thresholds","thresholds":{"onset":0.20,"frame":0.10},"classification":"HISTORICAL_THRESHOLDS_ENGINEERING_BRIDGE_NOT_RECALIBRATED"}
+ ],
+ "inputSamples":29120,"sampleRateHz":16000,"ownedMs":600,"pastMs":1050,"futureMs":170,"HMs":50,
+ "runtime":{"ORT":"1.20.1","provider":"webgpu","graphOptimization":"disabled","automaticFallback":false,"productWorkersPerModel":1,"modelSessionsPerModel":1},
+ "executionOrder":["ROBUST_RAW","BYTEDANCE_ORIGINAL_FIXED1820"],
+ "postFreezeChangesAllowed":false,
+ "rawIdentity":"One sequential raw tensor stream per model. Each 183x88 onset/frame pair has immutable SHA256, raw index and local byte journal offset. Robust A/B decode the exact same arrays before release, with no extra inference.",
+ "LayerA":"Exact exposed v6/v7 18 jobs; same production source adapter/FIR/geometry. All 20 scenarios at both rates, real production StepPracticeRuntime and frozen v9 scorer via I/O-only adapter, no alternate verdict semantics.",
+ "LayerB":"50 historical exposed 16k canonical PCM takes; retain historical preprocessing identity, no resampling or new WAV decoding; common interior max(old start,1050), min(old end,duration-170) fixed before output. Not device-rate qualification.",
+ "parity":"Robust A Layer A publication job/window/source coordinates, observation order/pitch/midiPitch/sourceEventSample/targetSample/confidence exact. Exclude only availabilityTimeMs and runtime wall-clock diagnostics; no tolerance.",
+ "broadMetrics":{"reuse":"Exact Phase9G xc1_scientific_bakeoff.score_take onset matching at50ms; report onset recall, precision, F1, false positives/min and timing errors with Robust A deltas, not a weighted winner score.","requestedProductMetrics":"expected strike recall, verdict agreement, chord exact completeness, false complete chord acceptance, extra precision/recall are NOT_COMPARABLE to Phase9GB score/scenario-based product definitions on full-take onset-only SMD truth. Do not rename note recall as product strike recall; provide exact comparable F5 onset diagnostic separately."},
+ "survivor":"Challengers only: static and execution/ownership/blindness PASS, no fallback, all three known blocker repair sequences correct at both rates, mandatory prior positive regressions unchanged, zero dangerous counts on valid cells. Busy/late 0/0 stays NOT_EVALUABLE. Broad metrics must be complete but are not a post-hoc ranking threshold.",
+ "repairScenarios":["correct_chord","post_ready_repeat","match_followed_by_next_target"],
+ "requiredPositiveRegressions":["correct_single","multiple_wrong_then_correct","partial_then_full","mismatch_same_target_rearm"],
+ "staticReferencesNotExecuted":{"Online-AMT K8":"Historical K8/K1 fallback two-session topology incompatible with current single-session/no-fallback contract.","Basic Pitch":"Historical TFJS WebGL is not the pinned ORT/WebGPU stack.","Transkun":"Whole-recording offline reference, browser latency boundary unqualified.","Aria-AMT":"License and offline latency limitations.","RTT":"Sequential safety handoff stopped, causal browser runtime unestablished.","D3RM":"Execution/license provenance blocked.","Robust decoder C":"Not in authorized challenger budget."},
+ "failurePolicy":"No repair/rerun after freeze. Seal partial runtime failures. Any harness/parity failure blocks all ranking. Original runtime failure is ORIGINAL_FIXED1820_RUNTIME_BLOCKED. No automatic candidate unlocking.",
+ "winnerSelected":false,"freshHoldoutSelected":false,"qualificationStarted":false,
+ "capabilities":{"Continuous":"MODEL_NOT_VALIDATED","STEP":"ATTEMPT_ANALYZER_NOT_VALIDATED","productionMicrophone":false,"D4":false}
+}
