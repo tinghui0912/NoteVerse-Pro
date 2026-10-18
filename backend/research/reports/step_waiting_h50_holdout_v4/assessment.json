@@ -1,0 +1,820 @@
+{
+  "phase": "PRACTICE_STEP_H50_EXTERNAL_TRUTH_TOPOLOGY_GAP_FILL_DISCOVERY_DISABLED",
+  "startingRemoteHead": "d240ea220d900d805d17e4731ec602d1e914efd6",
+  "remoteHeadAtAssessment": "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857",
+  "commitChainThroughDiscoveryFreeze": [
+    "013cf01b05c3f984ed7256ef8d6e6bc31fbffd05 research: correct H50 source-purpose governance and prepare Batik-only truth discovery",
+    "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857 research: EXTERNAL_TRUTH_SOURCE_DISCOVERY_FREEZE for Batik H50 gaps before MIDI events"
+  ],
+  "productionDiff": "",
+  "v3HistoricalDiff": "",
+  "v3HistoricalDisposition": "STEP_WAITING_H50_PRIMARY_HOLDOUT_TOPOLOGY_NOT_ESTABLISHED",
+  "v3ReportedPrimaryCandidateCount": 25,
+  "correctedPrimaryCandidateCount": 24,
+  "maestroPrimaryDisposition": "NOT_PRIMARY_ELIGIBLE_DEVELOPMENT_ONLY",
+  "maestroTrainingOverlapDisposition": "KNOWN_TRAINING_DOMAIN_OVERLAP",
+  "maestroAllowedRole": "DEVELOPMENT_ADAPTER_VALIDATION_ONNX_PARITY_PIPELINE_DEBUGGING_ONLY",
+  "viennaOnlyTopologyCounts": {
+    "correct_single": 8,
+    "correct_chord": 17,
+    "same_pitch_sustain": 0,
+    "same_chord_sustain": 1,
+    "single_busy_retrigger": 0,
+    "chord_busy_retrigger": 2,
+    "post_ready_repeat": 0,
+    "multiple_wrong_then_correct": 0,
+    "partial_then_full": 0
+  },
+  "externalDataset": "Batik",
+  "externalRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+  "license": "CC BY-NC-SA 4.0",
+  "licenseScope": "NONCOMMERCIAL_RESEARCH_ONLY_NOT_COMMERCIAL_QUALIFICATION",
+  "attribution": "Hu, Patricia and Widmer, Gerhard. The Batik-plays-Mozart Corpus: Linking Performance to Score to Musicological Annotations. ISMIR 2023. Benchmark JKU Disklavier audio provenance documented by pymatchmaker.",
+  "derivedTruthArtifactLicense": "CC BY-NC-SA 4.0; software is a separate work, not a relicensing of product code.",
+  "pairingProvenance": "Publisher metadata binds 36 performance MIDI/audio pairs; JKU Disklavier replay of Roland Batik human MIDI timing/dynamics, not the commercial recording. Audio alignment and codec PCM not independently measured.",
+  "trainingOverlapEvidence": {
+    "url": "https://raw.githubusercontent.com/bytedance/piano_transcription/1ade7dcd4348add669a67c6e6282456c8c6633bd/README.md",
+    "commit": "1ade7dcd4348add669a67c6e6282456c8c6633bd",
+    "sha256": "f935b29d80d5388377cc83c913238eeb99f72269b2b35b6b1ed5edb9b845bfa1",
+    "localPath": "backend/data/work/step_waiting_h50_holdout_v4/upstream-training-README.md",
+    "declaration": "MAESTRO dataset V2.0.0",
+    "batik": "NO_DOCUMENTED_TRAINING_OVERLAP_IN_INSPECTED_UPSTREAM_DECLARATION",
+    "limitation": "Upstream published declaration plus local Robust lineage evidence; not a proof of exclusion from all training."
+  },
+  "historyProbeScope": "All reachable --all Git objects including deleted/renamed text and MIDI; current reports and project data/work only, excluding newly generated v4. Identity-only output, no model values.",
+  "historyProbeDeletedGitEvidenceChecked": true,
+  "historyProbeSummary": {
+    "gitReachableCommitCount": 1150,
+    "gitHistoricalBlobCount": 10688,
+    "gitHistoricalBytesScanned": 417251832,
+    "currentFilesScanned": 4829,
+    "currentBytesScanned": 17717577028,
+    "historyCompleteness": "COMPLETE_FOR_REACHABLE_REPOSITORY_REFS_AND_SCOPED_CURRENT_FILES"
+  },
+  "historyProbeLimitation": "All reachable repository refs and scoped project files, not unreachable/pruned or external execution. Future audio byte duplicate check pending acquisition.",
+  "sourceDiscoveryFreezeCommit": "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857",
+  "sourceDiscoveryFreezeSha256": "5baaa6cfa0cc49a5432c9dfaffac008a575bf2407444cea2bdfc44ddeb7dc49c",
+  "remoteVerifiedAt": "2026-10-18T09:10:33.089260+00:00",
+  "midiParseStartedAt": "2026-10-18T09:10:47.752805+00:00",
+  "remoteProofProspective": true,
+  "batikMidiFileCount": 36,
+  "batikMidiShaManifest": [
+    {
+      "recordingId": "kv279_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv279_1.mid",
+      "upstreamPath": "batik/midi/kv279_1.mid",
+      "sha256": "617a32f68c9907341e2fc8d099ac6832c42aaa5ddf6ef1d527eab72281af8650",
+      "bytes": 47985,
+      "gitBlobSha1": "f95ba164c8ac83c7a7e3a0c1515fbb85ca41c006"
+    },
+    {
+      "recordingId": "kv279_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv279_2.mid",
+      "upstreamPath": "batik/midi/kv279_2.mid",
+      "sha256": "96b26d7776858d8937f089ae8bac62dbcb0662c7944edb6cef96841d563270c5",
+      "bytes": 60320,
+      "gitBlobSha1": "5ff002c74bde0e9b29af1f07e3d5ed39fc1d2c00"
+    },
+    {
+      "recordingId": "kv279_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv279_3.mid",
+      "upstreamPath": "batik/midi/kv279_3.mid",
+      "sha256": "b85dc037e9e15e2a0108860b398de800b28a78fa214926c2d80323cecf274e57",
+      "bytes": 36503,
+      "gitBlobSha1": "28633f424429af27c8d01690fd3a428c9bb84f96"
+    },
+    {
+      "recordingId": "kv280_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv280_1.mid",
+      "upstreamPath": "batik/midi/kv280_1.mid",
+      "sha256": "2469953dc5ad0a2e9b2e4f2e25cdf938606dfa823609b7ce99f8e3b9acf43d3f",
+      "bytes": 42352,
+      "gitBlobSha1": "d4209064011ac9fe3b6b1216a95f7b138013988d"
+    },
+    {
+      "recordingId": "kv280_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv280_2.mid",
+      "upstreamPath": "batik/midi/kv280_2.mid",
+      "sha256": "0149ed9f3cd444651073bd9c0eed102319b996c2bff492dada7b97e998e56bf3",
+      "bytes": 40136,
+      "gitBlobSha1": "01c6d431a18c3eb3b66988254dbe62fa8d579d1f"
+    },
+    {
+      "recordingId": "kv280_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv280_3.mid",
+      "upstreamPath": "batik/midi/kv280_3.mid",
+      "sha256": "31a10c4841c2bb3ae4e40aacf3f46f29fbbefbeb4385ccff69bc5ba92363670f",
+      "bytes": 70751,
+      "gitBlobSha1": "f0248f536c70e73b4e725e36f98b6e829358cd72"
+    },
+    {
+      "recordingId": "kv281_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv281_1.mid",
+      "upstreamPath": "batik/midi/kv281_1.mid",
+      "sha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe",
+      "bytes": 44894,
+      "gitBlobSha1": "69089e291d9279e0a7116f94be6f9dec789a4a01"
+    },
+    {
+      "recordingId": "kv281_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv281_2.mid",
+      "upstreamPath": "batik/midi/kv281_2.mid",
+      "sha256": "a7db7929d271580ab17bacce24ae63e25fc92d0d0828d3aee1de6a2bcbd765f9",
+      "bytes": 44824,
+      "gitBlobSha1": "e1791230c19b0b2c21e3395893096edf5a5c6fe1"
+    },
+    {
+      "recordingId": "kv281_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv281_3.mid",
+      "upstreamPath": "batik/midi/kv281_3.mid",
+      "sha256": "43954ea4c74e33134f35af7839fa250296d2c5dba99481340985fe8f1b04b3b8",
+      "bytes": 46761,
+      "gitBlobSha1": "0e1b93b7ddb717a93c9eec7917851e113c308eb7"
+    },
+    {
+      "recordingId": "kv282_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv282_1.mid",
+      "upstreamPath": "batik/midi/kv282_1.mid",
+      "sha256": "58a1a7d96bbe9dfccde2a9c3e0167414f148afdd7dd050523e1d6c59d920befd",
+      "bytes": 72328,
+      "gitBlobSha1": "969c99c932881843d7067bb57c9a51ef8636813e"
+    },
+    {
+      "recordingId": "kv282_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv282_2.mid",
+      "upstreamPath": "batik/midi/kv282_2.mid",
+      "sha256": "b5c7c312ab702b490cff19f6526d11dfcfa808c33da92896cf6e90c861dbff93",
+      "bytes": 34105,
+      "gitBlobSha1": "9baf0a165bb2e6a9efed07b42815d47a0e9f7bfe"
+    },
+    {
+      "recordingId": "kv282_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv282_3.mid",
+      "upstreamPath": "batik/midi/kv282_3.mid",
+      "sha256": "fe2ba4e09799324267a32c2406dc1563debf1179deb27e95c1a21bb8e23a58bb",
+      "bytes": 29425,
+      "gitBlobSha1": "3f58a4b192c682b3687117aecd0709654482834c"
+    },
+    {
+      "recordingId": "kv283_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv283_1.mid",
+      "upstreamPath": "batik/midi/kv283_1.mid",
+      "sha256": "2f4c4c6f65eed68fa04425b5c7d90d65f1d89c51ac83c6b5e1d9d6865a183de7",
+      "bytes": 45640,
+      "gitBlobSha1": "56e7978b654f9fae5080695ac6940f77c29c4d19"
+    },
+    {
+      "recordingId": "kv283_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv283_2.mid",
+      "upstreamPath": "batik/midi/kv283_2.mid",
+      "sha256": "85faee595526ec18f988265715645d7b3c6b2a87702afd83c3c93a3b01f39f9e",
+      "bytes": 69265,
+      "gitBlobSha1": "883586454c499bd133c96fcccc26e6be26aeec32"
+    },
+    {
+      "recordingId": "kv283_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv283_3.mid",
+      "upstreamPath": "batik/midi/kv283_3.mid",
+      "sha256": "8b9e59ae5a5a24939072a3a51d880794d660bb54727c41b407cf0b65753e5cdf",
+      "bytes": 38904,
+      "gitBlobSha1": "3fb4eca7382f73da7ac5d07ab6a64e4b6620d874"
+    },
+    {
+      "recordingId": "kv284_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv284_1.mid",
+      "upstreamPath": "batik/midi/kv284_1.mid",
+      "sha256": "71179a0d01644eb377abe9132945d79d5b5898dd6b29ff5c7fb1d3f06e05b251",
+      "bytes": 64734,
+      "gitBlobSha1": "1cd76627689d9c397c7fe0c64062181e72cfc2b8"
+    },
+    {
+      "recordingId": "kv284_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv284_2.mid",
+      "upstreamPath": "batik/midi/kv284_2.mid",
+      "sha256": "7473acebb862ba34ece32b575543dc520609ff67735d230976c9d6c56bef25f1",
+      "bytes": 51670,
+      "gitBlobSha1": "853e5a624dadc6b138cb2792e46c1a6092ab4938"
+    },
+    {
+      "recordingId": "kv284_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv284_3.mid",
+      "upstreamPath": "batik/midi/kv284_3.mid",
+      "sha256": "999d3cb62452cf33e38bfba8a4b11e9f1965618db21da9129376f778c05ead42",
+      "bytes": 180739,
+      "gitBlobSha1": "227e5d6f7dd55e059bd4ac194a32adf21f11d60e"
+    },
+    {
+      "recordingId": "kv330_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv330_1.mid",
+      "upstreamPath": "batik/midi/kv330_1.mid",
+      "sha256": "33a54aba571e90dd5ab0e2b7a75fdb67508766f27d07c9c606789d94e0a22814",
+      "bytes": 65736,
+      "gitBlobSha1": "71d0b66df51c6411c1c54b5c3206ec91aea730e2"
+    },
+    {
+      "recordingId": "kv330_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv330_2.mid",
+      "upstreamPath": "batik/midi/kv330_2.mid",
+      "sha256": "9529d5a4e6d5bb410471d916169e89d11a4ce928ce9f1c853e911fdedff1a30f",
+      "bytes": 46415,
+      "gitBlobSha1": "907f70c284fabf0de1b836060b0a56cb0abc8951"
+    },
+    {
+      "recordingId": "kv330_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv330_3.mid",
+      "upstreamPath": "batik/midi/kv330_3.mid",
+      "sha256": "b25fd1553f7f33fbd55a88d543ec6f208cbeaab9a1e0ba685b5d966d78a251fe",
+      "bytes": 52184,
+      "gitBlobSha1": "6477d95067816eeb9858796356ed67ddb2a54a1d"
+    },
+    {
+      "recordingId": "kv331_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv331_1.mid",
+      "upstreamPath": "batik/midi/kv331_1.mid",
+      "sha256": "1efcef55407a19a4295170053b9e84c3bff07bbf170dff052911b73cf24c0c77",
+      "bytes": 135954,
+      "gitBlobSha1": "780e369ce9ef4dd032eb421b18be816680a7665d"
+    },
+    {
+      "recordingId": "kv331_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv331_2.mid",
+      "upstreamPath": "batik/midi/kv331_2.mid",
+      "sha256": "ac4457bfc948c70689f8d0a175d450b96a5efbc4d0d45a92ba43180f1f0b4c5b",
+      "bytes": 59510,
+      "gitBlobSha1": "725de4b11e27465ad644dd4e634952fa762332c9"
+    },
+    {
+      "recordingId": "kv331_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv331_3.mid",
+      "upstreamPath": "batik/midi/kv331_3.mid",
+      "sha256": "14819108b082b8d5fa3e888d003742640891559eb6fc7823f31b12e0e720f828",
+      "bytes": 31388,
+      "gitBlobSha1": "48c44b286a33772f868618a8c367e3b8dbab25c1"
+    },
+    {
+      "recordingId": "kv332_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv332_1.mid",
+      "upstreamPath": "batik/midi/kv332_1.mid",
+      "sha256": "dcefcacf2f262431f56af80c6db20be17818fab476fe749b3e154ebd6c548e36",
+      "bytes": 65797,
+      "gitBlobSha1": "d396812f3e2aaf45208434b6db5689646f5fdb71"
+    },
+    {
+      "recordingId": "kv332_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv332_2.mid",
+      "upstreamPath": "batik/midi/kv332_2.mid",
+      "sha256": "d11ed8ed6c256fc9b34fb9cca98a65f8791d9d3278b012337988345359521f11",
+      "bytes": 50593,
+      "gitBlobSha1": "2cf986d3fcffc9d0344dd1104cf4299ef37cf3bf"
+    },
+    {
+      "recordingId": "kv332_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv332_3.mid",
+      "upstreamPath": "batik/midi/kv332_3.mid",
+      "sha256": "8246f7db788bf998f6edfa059df942ad29a61e03dccd34b774b089bb057537d6",
+      "bytes": 77989,
+      "gitBlobSha1": "0001861a05f2046d2534e7305a971f4a398e071d"
+    },
+    {
+      "recordingId": "kv333_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv333_1.mid",
+      "upstreamPath": "batik/midi/kv333_1.mid",
+      "sha256": "ac37be75672f7fc596882d4c5b17561db6f1a2245db932086349ee1fc02f54e0",
+      "bytes": 73843,
+      "gitBlobSha1": "e5c5ab4eccfcbd086d8a6fbe8d5fccde3fbae750"
+    },
+    {
+      "recordingId": "kv333_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv333_2.mid",
+      "upstreamPath": "batik/midi/kv333_2.mid",
+      "sha256": "e7b6129861678bace4d7f9e27bb50d47c31806ff6cd8ea65a73f6069b8836dcd",
+      "bytes": 65765,
+      "gitBlobSha1": "3a3315f7b110a4ebaea226b5a01559894d708628"
+    },
+    {
+      "recordingId": "kv333_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv333_3.mid",
+      "upstreamPath": "batik/midi/kv333_3.mid",
+      "sha256": "dcb0deed7dc4cae72577603ae847ec3085eca73762af908aeb6d54037ba41ce8",
+      "bytes": 68733,
+      "gitBlobSha1": "c66182e8fd3bf4c31fbdcd297040de51d6920a40"
+    },
+    {
+      "recordingId": "kv457_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv457_1.mid",
+      "upstreamPath": "batik/midi/kv457_1.mid",
+      "sha256": "a45f7e80d96566f22aed2d88769ea1e729983b2321b18198a0070adb86755698",
+      "bytes": 55324,
+      "gitBlobSha1": "4ebd276ae7732ef9cccca13096de5c35153af880"
+    },
+    {
+      "recordingId": "kv457_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv457_2.mid",
+      "upstreamPath": "batik/midi/kv457_2.mid",
+      "sha256": "209652d267ba79789f972806cbca594e459c0506ae05116dbada34f554565ef8",
+      "bytes": 63544,
+      "gitBlobSha1": "eb8e9bb0aaf2f99e88b6ffc2d091f790ac2fff41"
+    },
+    {
+      "recordingId": "kv457_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv457_3.mid",
+      "upstreamPath": "batik/midi/kv457_3.mid",
+      "sha256": "dc47d67318a3c3283a16ff7aec294ff4bc8183965275961e3e380a24eb971f66",
+      "bytes": 43624,
+      "gitBlobSha1": "4bca74df403e5d5d1329605b4d0d30f0327a1a70"
+    },
+    {
+      "recordingId": "kv533_1",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv533_1.mid",
+      "upstreamPath": "batik/midi/kv533_1.mid",
+      "sha256": "5847733bfc2f3c9e786f99faa50d5fef3f487dce0df18c232a820ee2682606a8",
+      "bytes": 99720,
+      "gitBlobSha1": "af66fb56dbb6ccd5a3704437b05cfba2131d2c0c"
+    },
+    {
+      "recordingId": "kv533_2",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv533_2.mid",
+      "upstreamPath": "batik/midi/kv533_2.mid",
+      "sha256": "1fb44562e069d989cdc765637933f523e3c1283bf3366fe8d4fca0b1e3df8f6b",
+      "bytes": 52183,
+      "gitBlobSha1": "49b16d2640c06c907b36e445ff4fec4f56ff7aba"
+    },
+    {
+      "recordingId": "kv533_3",
+      "path": "backend/data/work/step_waiting_h50_holdout_v4/upstream/batik/midi/kv533_3.mid",
+      "upstreamPath": "batik/midi/kv533_3.mid",
+      "sha256": "7771d45a95cec80b44932b494bc324e39b8ad8c216c1164261c1160d10632a67",
+      "bytes": 66735,
+      "gitBlobSha1": "13c60e518d50d1e41ecbae66229e565a46c95790"
+    }
+  ],
+  "batikTopologyCounts": {
+    "same_pitch_sustain": 5,
+    "single_busy_retrigger": 408,
+    "post_ready_repeat": 5,
+    "multiple_wrong_then_correct": 27,
+    "partial_then_full": 2
+  },
+  "batikDiagnosticOnlyCounts": {
+    "same_chord_sustain": 9,
+    "chord_busy_retrigger": 261
+  },
+  "selectedGapFillCases": {
+    "same_pitch_sustain": {
+      "family": "same_pitch_sustain",
+      "dataset": "batik",
+      "recordingId": "kv282_1",
+      "audioSha256": null,
+      "midiSha256": "58a1a7d96bbe9dfccde2a9c3e0167414f148afdd7dd050523e1d6c59d920befd",
+      "gestures": [
+        {
+          "gestureId": "kv282_1:g:23",
+          "sourceSeconds": 8.507291666666696,
+          "onsetMs": 8507.291666666695,
+          "notes": [
+            {
+              "pitch": 58,
+              "onsetMs": 8507.291666666695,
+              "offsetMs": 10972.916666666684,
+              "sourceSeconds": 8.507291666666696
+            }
+          ],
+          "normalizedPitchSet": [
+            58
+          ]
+        }
+      ],
+      "guard": {
+        "startMs": 8707.291666666695,
+        "endMs": 9911.458333333356,
+        "durationMs": 1204.1666666666606,
+        "allPitchNoteOnFree": true,
+        "held": true,
+        "pedal": false
+      },
+      "sourceRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "metadataRowIndex": 10,
+      "metadataRowSha256": "ce0cd60a55a352c09bdbe4131c87a73192fad850df2ae05d5c4bd277276a35b7",
+      "sourceAudioIdentity": {
+        "path": "batik/audio/k282_1.mp3",
+        "sha256": null,
+        "gitBlobSha1": "671220bf04d3bb2fa7061051e9a8bbc437d469c5",
+        "upstreamBytes": 8267950,
+        "downloaded": false,
+        "identityRole": "FUTURE_COMPRESSED_AUDIO_OBJECT_NOT_PCM_IDENTITY"
+      },
+      "audioAlignmentAndInputPreservation": "NOT_MEASURED_AUDIO_NOT_ACQUIRED"
+    },
+    "single_busy_retrigger": {
+      "family": "single_busy_retrigger",
+      "dataset": "batik",
+      "recordingId": "kv279_3",
+      "audioSha256": null,
+      "midiSha256": "b85dc037e9e15e2a0108860b398de800b28a78fa214926c2d80323cecf274e57",
+      "gestures": [
+        {
+          "gestureId": "kv279_3:g:232",
+          "sourceSeconds": 20.253125000000015,
+          "onsetMs": 20253.125000000015,
+          "notes": [
+            {
+              "pitch": 74,
+              "onsetMs": 20253.125000000015,
+              "offsetMs": 20298.95833333335,
+              "sourceSeconds": 20.253125000000015
+            }
+          ],
+          "normalizedPitchSet": [
+            74
+          ]
+        },
+        {
+          "gestureId": "kv279_3:g:233",
+          "sourceSeconds": 20.46770833333335,
+          "onsetMs": 20467.70833333335,
+          "notes": [
+            {
+              "pitch": 74,
+              "onsetMs": 20467.70833333335,
+              "offsetMs": 20514.58333333335,
+              "sourceSeconds": 20.46770833333335
+            }
+          ],
+          "normalizedPitchSet": [
+            74
+          ]
+        }
+      ],
+      "pair": {
+        "recordingId": "kv279_3",
+        "audioSha256": null,
+        "midiSha256": "b85dc037e9e15e2a0108860b398de800b28a78fa214926c2d80323cecf274e57",
+        "firstGestureId": "kv279_3:g:232",
+        "firstOnsetMs": 20253.125000000015,
+        "firstNormalizedPitchSet": [
+          74
+        ],
+        "secondGestureId": "kv279_3:g:233",
+        "secondOnsetMs": 20467.70833333335,
+        "secondNormalizedPitchSet": [
+          74
+        ],
+        "gapMs": 214.58333333333576,
+        "pairKind": "SINGLE_SAME_PITCH_RETRIGGER",
+        "pairId": "7ee0a810b91ba58b5c72383b67f99d744623e4957efeab2e4102a6b4b8fccec2",
+        "singleBusyTopologyEligible": true,
+        "chordBusyTopologyEligible": false
+      },
+      "sourceRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "metadataRowIndex": 3,
+      "metadataRowSha256": "fefae62686a13684487176c08bc92e0c140f3e822acefc00ca1c1d43fa9a1aef",
+      "sourceAudioIdentity": {
+        "path": "batik/audio/k279_3.mp3",
+        "sha256": null,
+        "gitBlobSha1": "0abf27cc2147a3d74b06a2402ec0e74a4235bf6a",
+        "upstreamBytes": 4876581,
+        "downloaded": false,
+        "identityRole": "FUTURE_COMPRESSED_AUDIO_OBJECT_NOT_PCM_IDENTITY"
+      },
+      "audioAlignmentAndInputPreservation": "NOT_MEASURED_AUDIO_NOT_ACQUIRED"
+    },
+    "post_ready_repeat": {
+      "family": "post_ready_repeat",
+      "dataset": "batik",
+      "recordingId": "kv281_1",
+      "audioSha256": null,
+      "midiSha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe",
+      "gestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "sourceSeconds": 77.65624999999908,
+          "onsetMs": 77656.24999999908,
+          "notes": [
+            {
+              "pitch": 46,
+              "onsetMs": 77656.24999999908,
+              "offsetMs": 77889.58333333247,
+              "sourceSeconds": 77.65624999999908
+            },
+            {
+              "pitch": 58,
+              "onsetMs": 77665.62499999908,
+              "offsetMs": 77767.70833333241,
+              "sourceSeconds": 77.66562499999908
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            58
+          ]
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "sourceSeconds": 79.27083333333249,
+          "onsetMs": 79270.83333333248,
+          "notes": [
+            {
+              "pitch": 58,
+              "onsetMs": 79270.83333333248,
+              "offsetMs": 79442.70833333253,
+              "sourceSeconds": 79.27083333333249
+            },
+            {
+              "pitch": 46,
+              "onsetMs": 79295.8333333325,
+              "offsetMs": 80238.541666666,
+              "sourceSeconds": 79.2958333333325
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            58
+          ]
+        }
+      ],
+      "pair": {
+        "recordingId": "kv281_1",
+        "audioSha256": null,
+        "midiSha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe",
+        "firstGestureId": "kv281_1:g:801",
+        "firstOnsetMs": 77656.24999999908,
+        "firstNormalizedPitchSet": [
+          46,
+          58
+        ],
+        "secondGestureId": "kv281_1:g:803",
+        "secondOnsetMs": 79270.83333333248,
+        "secondNormalizedPitchSet": [
+          46,
+          58
+        ],
+        "gapMs": 1614.5833333334012,
+        "pairKind": "EXACT_REPEATED_CHORD",
+        "pairId": "101f391b962bd5a867043fa09f6fcd1a1d9a63b722edf0827824a358c305a9b8",
+        "singleBusyTopologyEligible": false,
+        "chordBusyTopologyEligible": false
+      },
+      "sourceRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "metadataRowIndex": 7,
+      "metadataRowSha256": "9beb33e71f2fa3d399a0d388978dfc3f6c7e2ba859419cb2f5680c028cb93c06",
+      "sourceAudioIdentity": {
+        "path": "batik/audio/k281_1.mp3",
+        "sha256": null,
+        "gitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+        "upstreamBytes": 4934407,
+        "downloaded": false,
+        "identityRole": "FUTURE_COMPRESSED_AUDIO_OBJECT_NOT_PCM_IDENTITY"
+      },
+      "audioAlignmentAndInputPreservation": "NOT_MEASURED_AUDIO_NOT_ACQUIRED"
+    },
+    "multiple_wrong_then_correct": {
+      "family": "multiple_wrong_then_correct",
+      "dataset": "batik",
+      "recordingId": "kv279_2",
+      "audioSha256": null,
+      "midiSha256": "96b26d7776858d8937f089ae8bac62dbcb0662c7944edb6cef96841d563270c5",
+      "gestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "sourceSeconds": 109.07291666667095,
+          "onsetMs": 109072.91666667095,
+          "notes": [
+            {
+              "pitch": 59,
+              "onsetMs": 109072.91666667095,
+              "offsetMs": 110237.50000000461,
+              "sourceSeconds": 109.07291666667095
+            },
+            {
+              "pitch": 62,
+              "onsetMs": 109078.12500000428,
+              "offsetMs": 110638.54166667128,
+              "sourceSeconds": 109.07812500000428
+            },
+            {
+              "pitch": 53,
+              "onsetMs": 109081.25000000428,
+              "offsetMs": 110682.29166667128,
+              "sourceSeconds": 109.08125000000427
+            },
+            {
+              "pitch": 36,
+              "onsetMs": 109104.16666667095,
+              "offsetMs": 112597.91666667144,
+              "sourceSeconds": 109.10416666667095
+            }
+          ],
+          "normalizedPitchSet": [
+            36,
+            53,
+            59,
+            62
+          ]
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "sourceSeconds": 111.9260416666713,
+          "onsetMs": 111926.0416666713,
+          "notes": [
+            {
+              "pitch": 52,
+              "onsetMs": 111926.0416666713,
+              "offsetMs": 112452.08333333809,
+              "sourceSeconds": 111.9260416666713
+            },
+            {
+              "pitch": 60,
+              "onsetMs": 111930.20833333796,
+              "offsetMs": 112714.5833333381,
+              "sourceSeconds": 111.93020833333796
+            },
+            {
+              "pitch": 55,
+              "onsetMs": 111948.95833333796,
+              "offsetMs": 112576.04166667144,
+              "sourceSeconds": 111.94895833333796
+            }
+          ],
+          "normalizedPitchSet": [
+            52,
+            55,
+            60
+          ]
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "sourceSeconds": 113.78333333333828,
+          "onsetMs": 113783.33333333828,
+          "notes": [
+            {
+              "pitch": 65,
+              "onsetMs": 113783.33333333828,
+              "offsetMs": 113964.58333333836,
+              "sourceSeconds": 113.78333333333828
+            }
+          ],
+          "normalizedPitchSet": [
+            65
+          ]
+        }
+      ],
+      "sourceRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "metadataRowIndex": 2,
+      "metadataRowSha256": "f7f46f01ba60c94370fc6756ba1a3584440a42637fae6fbb5dcd3f8ce1bf6c53",
+      "sourceAudioIdentity": {
+        "path": "batik/audio/k279_2.mp3",
+        "sha256": null,
+        "gitBlobSha1": "3cd133fc5e0916e47be35313baf955c138202d99",
+        "upstreamBytes": 7307709,
+        "downloaded": false,
+        "identityRole": "FUTURE_COMPRESSED_AUDIO_OBJECT_NOT_PCM_IDENTITY"
+      },
+      "audioAlignmentAndInputPreservation": "NOT_MEASURED_AUDIO_NOT_ACQUIRED"
+    },
+    "partial_then_full": {
+      "family": "partial_then_full",
+      "dataset": "batik",
+      "recordingId": "kv281_1",
+      "audioSha256": null,
+      "midiSha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe",
+      "gestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "sourceSeconds": 201.74375000000046,
+          "onsetMs": 201743.75000000047,
+          "notes": [
+            {
+              "pitch": 46,
+              "onsetMs": 201743.75000000047,
+              "offsetMs": 201836.45833333378,
+              "sourceSeconds": 201.74375000000046
+            },
+            {
+              "pitch": 58,
+              "onsetMs": 201745.83333333378,
+              "offsetMs": 201814.58333333378,
+              "sourceSeconds": 201.7458333333338
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            58
+          ]
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "sourceSeconds": 203.3145833333338,
+          "onsetMs": 203314.58333333378,
+          "notes": [
+            {
+              "pitch": 58,
+              "onsetMs": 203314.58333333378,
+              "offsetMs": 203371.87500000044,
+              "sourceSeconds": 203.3145833333338
+            },
+            {
+              "pitch": 46,
+              "onsetMs": 203314.58333333378,
+              "offsetMs": 204189.58333333384,
+              "sourceSeconds": 203.3145833333338
+            },
+            {
+              "pitch": 50,
+              "onsetMs": 203347.91666666712,
+              "offsetMs": 203495.83333333378,
+              "sourceSeconds": 203.34791666666712
+            }
+          ],
+          "normalizedPitchSet": [
+            46,
+            50,
+            58
+          ]
+        }
+      ],
+      "pair": {
+        "recordingId": "kv281_1",
+        "audioSha256": null,
+        "midiSha256": "e73bc74c0b429d9636a110593b00a9745c3f936e752ec94aaa8ecf4389d0ecbe",
+        "firstGestureId": "kv281_1:g:2081",
+        "firstOnsetMs": 201743.75000000047,
+        "firstNormalizedPitchSet": [
+          46,
+          58
+        ],
+        "secondGestureId": "kv281_1:g:2083",
+        "secondOnsetMs": 203314.58333333378,
+        "secondNormalizedPitchSet": [
+          46,
+          50,
+          58
+        ],
+        "gapMs": 1570.833333333314,
+        "pairKind": null,
+        "pairId": "bb9d7f0eda71eaedb3a19c468effa45ec8be8b897038da0f5a8f3c2c348b2cdc",
+        "singleBusyTopologyEligible": false,
+        "chordBusyTopologyEligible": false
+      },
+      "sourceRepositoryCommit": "fd1c78749b08182e8c078993fcf0645cd4a0a22e",
+      "metadataRowIndex": 7,
+      "metadataRowSha256": "9beb33e71f2fa3d399a0d388978dfc3f6c7e2ba859419cb2f5680c028cb93c06",
+      "sourceAudioIdentity": {
+        "path": "batik/audio/k281_1.mp3",
+        "sha256": null,
+        "gitBlobSha1": "e1ea552e0e16397268484f47dab9dc57a45417c7",
+        "upstreamBytes": 4934407,
+        "downloaded": false,
+        "identityRole": "FUTURE_COMPRESSED_AUDIO_OBJECT_NOT_PCM_IDENTITY"
+      },
+      "audioAlignmentAndInputPreservation": "NOT_MEASURED_AUDIO_NOT_ACQUIRED"
+    }
+  },
+  "remainingMandatoryFamilies": [],
+  "audioDownloaded": false,
+  "audioPcmDecoded": false,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "primaryQualificationFreeze": "NOT_CREATED",
+  "ContinuousRegression": {
+    "engineering": "NOT_STARTED",
+    "musicalReplay": "NOT_STARTED",
+    "controllerReplay": "NOT_STARTED",
+    "semanticParity": "NOT_STARTED"
+  },
+  "StageA": "NOT_STARTED",
+  "StageB": "NOT_STARTED",
+  "safetyCounters": "NOT_MEASURED",
+  "usabilityMetrics": "NOT_MEASURED",
+  "HMs": 50,
+  "HStatus": "CANDIDATE_NOT_QUALIFIED",
+  "frozenFileChanges": [],
+  "focusedTests": {
+    "executionStartedAt": "2026-10-18T09:10:03.298036+00:00",
+    "completedAt": "2026-10-18T09:10:03.647629+00:00",
+    "testFiles": 2,
+    "tests": 33,
+    "passed": 33,
+    "failed": 0,
+    "errors": 0,
+    "outputSha256": "cde63b06c17e2da5a9b6784b5041e1db9513d1147b15b08831316502612763d3",
+    "batikMidiEventsParsed": false,
+    "audioPcmDecoded": false,
+    "newNeuralRuns": 0
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "githubStatusAuthority": "github-receipt.json at evidence commit plus independent final-head-github.json query after receipt push; local tests are not CI",
+  "disposition": "STEP_WAITING_H50_EXTERNAL_TRUTH_TOPOLOGY_COMPLETE_AUDIO_ACQUISITION_NOT_STARTED",
+  "nextAllowedPhase": "INDEPENDENT_AUDIT_THEN_SEPARATELY_AUTHORIZED_AUDIO_SOURCE_CODEC_PCM_PROVENANCE_PROTOCOL",
+  "limitations": [
+    "Metadata opportunities are not causal READY/BUSY or acoustic success.",
+    "MIDI end-of-track is symbolic extent, not measured audio duration.",
+    "Audio SHA256, alignment, codec PCM identity and exact input preservation not measured.",
+    "No model-independent absence-from-training proof; only no documented overlap in inspected declaration.",
+    "No universal strike safety, microphone/hardware, UX SLO or commercial qualification."
+  ]
+}
