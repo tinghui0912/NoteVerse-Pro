@@ -1,0 +1,43 @@
+{
+  "classification": "QUALIFICATION_WORKER_ACCOUNTING_GATE_FAILURE",
+  "disposition": "STEP_WAITING_H50_STAGE_A_ACOUSTIC_EXECUTION_BLOCKED",
+  "frozenAcceptance": "stage-a-runner.mjs requires raw Playwright page worker-created count === 1",
+  "observedBrowserWorkerEvents": 4,
+  "productionAcousticModelWorkerConstructionsFromTrace": 1,
+  "productionModelSessionLoadsFromTrace": 1,
+  "workerEvents": [
+    {"url":"http://127.0.0.1:54267/worker.js","at":"2026-10-18T11:02:53.756Z"},
+    {"url":"http://127.0.0.1:54267/ort/ort-wasm-simd-threaded.jsep.mjs","at":"2026-10-18T11:02:54.410Z"},
+    {"url":"http://127.0.0.1:54267/ort/ort-wasm-simd-threaded.jsep.mjs","at":"2026-10-18T11:02:54.411Z"},
+    {"url":"http://127.0.0.1:54267/ort/ort-wasm-simd-threaded.jsep.mjs","at":"2026-10-18T11:02:54.415Z"}
+  ],
+  "interpretation": "The raw browser Worker count includes three ORT runtime URL workers as well as the one product acoustic Worker. The immutable gate counted all four; it failed. This evidence does not show a second product model session. No post-output acceptance reinterpretation is made.",
+  "jobsCompleted": 18,
+  "windowsCompleted": 228,
+  "actualModelRuns": 228,
+  "modelRunCountComplete": true,
+  "unresolvedRuns": 0,
+  "modelInputMismatches": 0,
+  "truthBearingBundleInputs": [],
+  "forbiddenRequests": 0,
+  "truthOpened": false,
+  "midiOpened": false,
+  "scenarioOpened": false,
+  "targetOpened": false,
+  "productVerdictComputed": false,
+  "acousticOutputSha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+  "acousticSealSha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85",
+  "failureSealStatus": "BLOCKED_AUDIO_OUTPUT_SEALED",
+  "sourceOrProtocolModifiedAfterExecution": false,
+  "neuralReruns": 0,
+  "StageB": "NOT_STARTED",
+  "safetyCounters": "NOT_MEASURED",
+  "usabilityMetrics": "NOT_MEASURED",
+  "productLatencyMetrics": "NOT_MEASURED",
+  "warnings": [
+    "ORT emitted two W-tagged node-assignment/performance messages; exact text is retained in acoustic.json diagnostics, not suppressed or converted to a neural failure.",
+    "Git emitted LF-to-CRLF staging warnings.",
+    "One remote ls-remote TLS handshake error occurred before neural execution; the subsequent exact remote verification succeeded before static/neural execution. No failed neural cell was retried."
+  ],
+  "nextAllowedPhase": "Independent audit of this immutable output and Worker accounting distinction only. Do not claim a fresh blind corpus on a rerun, rewrite this gate as PASS, open H50 truth, execute Stage B or enable microphone without separate authorization."
+}

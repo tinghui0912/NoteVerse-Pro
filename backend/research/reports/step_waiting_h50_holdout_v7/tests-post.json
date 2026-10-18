@@ -1,0 +1,12 @@
+{
+  "startedAt": "2026-10-18T11:00:45.377Z",
+  "completedAt": "2026-10-18T11:00:46.532Z",
+  "passed": 14,
+  "failed": 0,
+  "testFiles": 2,
+  "checks": 8,
+  "role": "SYNTHETIC_EMPTY_PORT_CONTRACT_ONLY_NO_NEURAL_EXECUTION",
+  "dryJobs": 18,
+  "dryModelWindows": 228,
+  "newNeuralRuns": 0
+}
