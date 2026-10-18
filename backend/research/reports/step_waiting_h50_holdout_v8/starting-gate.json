@@ -1,0 +1,18 @@
+{
+  "localHead": "888b957864b704a3536a1dd10235e188a46ac6fe",
+  "remoteHead": "888b957864b704a3536a1dd10235e188a46ac6fe",
+  "mergeBase": "888b957864b704a3536a1dd10235e188a46ac6fe",
+  "ahead": 0,
+  "behind": 0,
+  "completeCommitChain": [],
+  "productionDiff": "",
+  "github": {
+    "head": "888b957864b704a3536a1dd10235e188a46ac6fe",
+    "queriedAt": "2026-10-18T11:22:44.090830+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  }
+}

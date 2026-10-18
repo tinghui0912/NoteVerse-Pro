@@ -1,0 +1,11 @@
+{
+  "classification": "PRE_FREEZE_AUDIT_GUARD_WIRING",
+  "observation": "The first metadata setup invocation was stopped by the new non-Git subprocess guard because Windows Popen reports executable=None unless explicitly supplied.",
+  "resolutionBeforeFreeze": "All metadata Git subprocess calls now pass the discovered Git executable explicitly. The guard continues to reject executable=None and all non-Git processes; no command-line fallback parsing or runtime allowlist weakening was introduced.",
+  "historicalFilesChanged": false,
+  "stageAAccountingOpened": false,
+  "truthOpened": false,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "neuralRerun": false
+}

@@ -1,0 +1,35 @@
+{
+  "productWorkerConstructionSites": 1,
+  "productWorkerWrapperSites": 1,
+  "acousticModelSessionOwners": 1,
+  "inferenceSessionCreateSites": 1,
+  "sources": {
+    "entry": {
+      "path": "backend/research/step_waiting_h50_holdout_v7/entry.ts",
+      "sha256": "c1996ebad7c8b1c81fda654f2f208111668a72ba6cabd562d19fd03c05ff220a"
+    },
+    "worker": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+    },
+    "session": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    "canonical": {
+      "path": "apps/customer-web/scripts/qualification/continuous-regression.mjs",
+      "sha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804"
+    },
+    "dry": {
+      "path": "backend/research/step_waiting_h50_holdout_v7/dry-runtime.ts",
+      "sha256": "c8ded5636006feb32c2a3b9f741ad9e653199c405c3b01b45d1f04bc505be7f2"
+    },
+    "runner": {
+      "path": "backend/research/step_waiting_h50_holdout_v7/stage-a-runner.mjs",
+      "sha256": "3c91e155660669d127072722a413e97b46c81f41914386ce8808e9ca8c505049"
+    }
+  },
+  "canonicalRequirement": "At least one observed production /worker.js, not total page Worker count == 1",
+  "v7TestGap": "QUALIFICATION_HARNESS_WORKER_TAXONOMY_TEST_GAP",
+  "v7TestGapDescription": "Dry RunOwnership tests cover second product Worker/session; no raw browser event versus product/ORT taxonomy test existed."
+}

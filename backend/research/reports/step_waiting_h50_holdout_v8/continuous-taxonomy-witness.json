@@ -1,0 +1,279 @@
+{
+  "cellsChecked": 8,
+  "cellsWithExactlyOneProductWorker": 8,
+  "cellsWithUnexpectedWorkers": 0,
+  "observedOrtRuntimeWorkerCounts": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+  ],
+  "unexpectedWorkers": 0,
+  "continuousGateStatus": "PASS",
+  "musicalPass": 8,
+  "productionControllerPass": "PASS",
+  "semanticDiffs": [],
+  "cells": [
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 44100,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 48000,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 44100,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 48000,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 44100,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 48000,
+      "actualModelRuns": 10,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "silence",
+      "rate": 44100,
+      "actualModelRuns": 3,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    },
+    {
+      "id": "silence",
+      "rate": 48000,
+      "actualModelRuns": 3,
+      "status": "PASS",
+      "product": 1,
+      "ort": 3,
+      "unexpected": 0,
+      "total": 4,
+      "events": [
+        {
+          "url": "http://127.0.0.1:61075/worker.js",
+          "pathname": "/worker.js",
+          "classification": "productAcousticWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        },
+        {
+          "url": "http://127.0.0.1:61075/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "classification": "ortRuntimeWorker"
+        }
+      ]
+    }
+  ],
+  "requirementScope": "The 3-per-cell ORT count is an observation in immutable evidence, not a universal runtime cardinality rule."
+}
