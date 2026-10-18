@@ -1,0 +1,174 @@
+{
+  "role": "SELECTED_AUDIO_ACQUISITION_PROTOCOL_FREEZE",
+  "implementationCommit": "971b7b4ec6247f8700080bb21a0b92bfec1d8c26",
+  "files": [
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/decoder-environment.json",
+      "sha256": "8f34922a7cb1a7b9e1fcf5b93f16b41439828050c9120e6fb5040496fc8857c4"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/focused-tests.json",
+      "sha256": "9ad89d3b3c829a40e6a5641d54ac723675b5e3975ab01f3d5bdfc058158dc516"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/focused-tests.txt",
+      "sha256": "17b2ae4d4b70fc0f5b85992c2dabf3914b16958a86e78275b03899f67f9ac4cc"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/node-tests.json",
+      "sha256": "334337146bb0e968c5b717f8162d18f9db8343ef81fa5480f76adfc10a271c2e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/publisher-sync-evidence.json",
+      "sha256": "ba0b8b702d951f3f6256bb2d971ce641924666e1b68e51a18705b4d97b3cf9e5"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/selected-truth-and-sources.json",
+      "sha256": "27dc909d77dea1f7d1a227680c0b8a419a7a7abf96639cbdb5efe0df2a486e9f"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v5/starting-gate.json",
+      "sha256": "75a6040fd79bad64871c412edfcd09b4e2b0fbc0e3ac1c43dd83987a8534b722"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/eligibility.py",
+      "sha256": "6fcf0c56b9175a7453d1cb8da92381d066e9088b0876e042f250f7111452d559"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/pair_identity.py",
+      "sha256": "29b9710dcbacbb74b43226c557553ccbe2d60a9045cc32a809547beeabb1617a"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/scorer-contract.json",
+      "sha256": "b0691e5b8b03a550fd7a869328ffba83107587753a5951d8ae48aa89d9860ddd"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/select_truth.py",
+      "sha256": "8e405b7f46f74d1ff7f315f2031b0bdc7503df92065195d77831e50a02b77454"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector-contract.json",
+      "sha256": "8e6700de83ae10cdb5e0da29cd1ff6fbac7f1cad6082cced11bdbccd9b074077"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v3/selector.py",
+      "sha256": "0a8b52e31c329fb956db6b213354f46a9b18349930b1a17120c6bf76f67e0496"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/acquire.py",
+      "sha256": "ad7e6d8af177987c2742561b652832fae48d44580b54a59dcb5e8e9bd5167552"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/contracts.py",
+      "sha256": "27973d9e2a0517bcd6235e60099c184cb13bc098ef3f8b1d2c4f8507fb9b5cb8"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/decode.py",
+      "sha256": "5a63d19fb3ad4f32d7cedae820042913fb2c0549e876d391da86c9afabbb4157"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/decoder-contract.json",
+      "sha256": "aa4afd635467d3c46736b98c7c3e3ddf3c836f6deb0f7e05cadfe270ccef8eb0"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/dsp.ts",
+      "sha256": "b2a5babc2a4a4f81dd31b0ee367ea2c85311731d43deabcc0be1537f1faf23de"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/environment.py",
+      "sha256": "5fe9e3e60e2f817baba297561e00005e3298a3e615a4a968827b21ee82780700"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/exposure.py",
+      "sha256": "841cd3b4d1e9c90b7fa59e6364aa84817d2e45dba4e814a982b50099e97ab05f"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/input-preservation-contract.json",
+      "sha256": "bcbfc057101405a0fccbcf84afa693c71f1544b8ec6c816282cbac7c282c36ae"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/input-preservation.mjs",
+      "sha256": "3c85aa853ba36ffb538fa2388b7206e9a65bca283a98b81bea8267f5213179b1"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/node-tests.mjs",
+      "sha256": "0eda9bd82f26b54180a5c903fde46d92613dc25fe66e97e2ea661dd161166ae5"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/node-tests.ts",
+      "sha256": "4b9e44d3980ca78ef2674c6d9c232657c2a3430d26893e4c38853de404745209"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/prepare.py",
+      "sha256": "8c3d90ece6a47e31d18f3abdd9d934f38d73466b4b47b498e19bba650a979136"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/protocol.py",
+      "sha256": "c67ae1aab06efc9b50b297ff602718a85b4bf917501eff3cb3ed82e36265a75e"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/report.py",
+      "sha256": "ab341ada931285e79affcfb99bbb42e1cd6eea6ee6eb7fabef2ec2a7526b5661"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/run_tests.py",
+      "sha256": "b3ba803b5ec7a84e007c8282c2995d3555478087e44f1a1f8860b47233cc3339"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/scenarios.py",
+      "sha256": "76d23cb6ebe21a9f369eeb8a4fd50ed6a335d24e4351212180f0c3db67f08d57"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/selected-audio-acquisition-contract.json",
+      "sha256": "cdbae1bbf00257b843d847c21239a0098cb54c092bf3f69b4ef8c13b62b33779"
+    },
+    {
+      "path": "backend/research/step_waiting_h50_holdout_v5/test_contracts.py",
+      "sha256": "2bfeffb94274167caad76d7ab2338e2867cfaf5678e89c5862b4d889eb20f1fe"
+    },
+    {
+      "path": "backend\\research\\reports\\step_waiting_h50_holdout_v4\\combined-truth-topology.json",
+      "sha256": "bbae21a06f0b56f486234936cfbef7484bc2f0c9d833662a6ab8d0cf6afd564b"
+    },
+    {
+      "path": "backend\\research\\reports\\step_waiting_h50_holdout_v4\\truth-topology-seal.json",
+      "sha256": "6023fc0cdb5a9bf36769b5f33a4ff1fce8ce220f9d968516bfaf6cfb5f32ee18"
+    }
+  ],
+  "HMs": 50,
+  "newNeuralRuns": 0,
+  "RobustSessionRuns": 0,
+  "freezeCanonicalSha256": "0f669a76c9b2661b2577300d641e195feeee33018081e510b58498b35f75b2fe"
+}
