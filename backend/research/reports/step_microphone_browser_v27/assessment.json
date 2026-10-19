@@ -1,0 +1,4389 @@
+{
+  "phase": "STEP_MICROPHONE_BROWSER_RESOURCE_GRAPH_V27",
+  "recordedAt": "2026-10-19T15:35:53.611Z",
+  "startingRemoteHead": "82856a1bb9e4c16d3cdbde13172952efb8d9e10e",
+  "disposition": "STEP_V27_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "authorization": "V27_FIRST_AUTHORIZED_EXECUTION_OF_IMMUTABLE_V26_PREPARED_BROWSER_ARTIFACTS",
+  "V26NotResumed": true,
+  "V26Disposition": "STEP_V26_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "symbol": "EXECUTABLE_SYMBOL_NAME_RUNV26_IS_HISTORICAL_ARTIFACT_IDENTITY_NOT_PHASE_RESUMPTION",
+  "bundlesRebuilt": 0,
+  "immutableInputs": [
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+      "sha256": "94a042eb56bb6bea42521e65547cab632ab84b693379599a1d55dff4824fac35",
+      "bytes": 132684
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/worker.js",
+      "sha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526",
+      "bytes": 33908
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/browser-input.wav",
+      "sha256": "47e9287126bd2b0f1589abb972c98bac467c1850b2ad620a7b3604d26d9b316b",
+      "bytes": 3685040
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/build-and-environment.json",
+      "sha256": "0d46a0b1a5b3ba4be3343ab99b6e07061d5600973c497eb093a755aba18e58d9",
+      "bytes": 6659
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/contract.json",
+      "sha256": "f983c5f9f234b6ec13d2e1bd30696a20b4d922c89a70dd3104bbdc5976221056",
+      "bytes": 6913
+    }
+  ],
+  "virtualInputRecords": [
+    {
+      "kind": "ESBUILD_VIRTUAL_INPUT",
+      "identifier": "<define:process.env>",
+      "buildSemanticRecordSha256": "3ab14acfa29c94a10c8ae99822cca442076637ffb571ef3083b03be2b9f64a8a",
+      "provenance": "esbuild process.env define expression {}; not a filesystem file and has no filesystem SHA",
+      "bundles": [
+        "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+        "backend/research/reports/step_microphone_browser_v26/bundles/worker.js"
+      ]
+    }
+  ],
+  "buildSemantics": {
+    "record": {
+      "platform": "browser",
+      "format": "esm",
+      "target": "es2022",
+      "bundle": true,
+      "metafile": true,
+      "logLevel": "silent",
+      "define": {
+        "process.env.NODE_ENV": "\"production\"",
+        "process.env": "{}"
+      },
+      "tsconfig": {
+        "path": "apps/customer-web/tsconfig.json",
+        "sha256": "ad5286875d6909d6f632ca01361781a256a3bf75798e6ccc78addebc53c32eca"
+      },
+      "esbuild": {
+        "packagePath": "backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/package.json",
+        "version": "0.25.12",
+        "packageIdentities": [
+          {
+            "path": "backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/package.json",
+            "sha256": "cb7d5b1fe478f8cbaae566a86031b6fdf5f7d444354f35d1cb3cba9adf6d2935",
+            "bytes": 1490
+          },
+          {
+            "path": "backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/lib/main.js",
+            "sha256": "0d1241812c443111d39475dfc66836003e9ef8b87e54d990dd67df29d20010e1",
+            "bytes": 88706
+          }
+        ]
+      },
+      "externalResolver": {
+        "specifier": "onnxruntime-web/webgpu",
+        "result": "/ort/ort.webgpu.min.mjs",
+        "external": true,
+        "plugin": "accepted-pinned-ort-external"
+      },
+      "nodePaths": [
+        "apps/customer-web/node_modules"
+      ],
+      "absWorkingDir": "REPOSITORY_ROOT",
+      "configurationSource": {
+        "path": "backend/research/step_microphone_browser_v26/run.mjs",
+        "sha256": "283b7667815f326334f1f6ed2acd1eba3621018a4ad1effaea8d698696f71148",
+        "configuration": "Original V26 prepare/rebuild-prefreeze options; source read as bytes only, never imported"
+      },
+      "entrypoints": [
+        {
+          "entry": "backend/research/step_microphone_browser_v26/entry.ts",
+          "entrySha256": "a7a2d1922901d0085021e1469b618ddc2a64075eb752f473e38ca6646b7784ad",
+          "output": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+          "outputSha256": "94a042eb56bb6bea42521e65547cab632ab84b693379599a1d55dff4824fac35"
+        },
+        {
+          "entry": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+          "entrySha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218",
+          "output": "backend/research/reports/step_microphone_browser_v26/bundles/worker.js",
+          "outputSha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526"
+        }
+      ],
+      "resultAuthority": "IMMUTABLE_PREPARED_BUNDLE_BYTES_NO_REBUILD_IN_V27"
+    },
+    "canonicalSha256": "3ab14acfa29c94a10c8ae99822cca442076637ffb571ef3083b03be2b9f64a8a",
+    "digestMeaning": "SHA256 of canonical build-semantic record, NOT virtual-node bytes"
+  },
+  "freezeProof": {
+    "freezeCommit": "13bbddb960d7b740ecb9b819a49915b78571f73c",
+    "remoteHead": "13bbddb960d7b740ecb9b819a49915b78571f73c",
+    "remoteVerifiedAt": "2026-10-19T15:33:38.303Z",
+    "freezeSha256": "c3a253f8cb8a7d0e5a79b3d6e67fc60975dec0511014d71485b9d4f9054e8e1e",
+    "browserLaunches": 0,
+    "authorization": "V27_FIRST_AUTHORIZED_EXECUTION_OF_IMMUTABLE_V26_PREPARED_BROWSER_ARTIFACTS"
+  },
+  "browserLaunchAt": "2026-10-19T15:33:50.164Z",
+  "remoteProofPrecededLaunch": true,
+  "browser": {
+    "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "version": "155.0.8059.80",
+    "headed": true,
+    "playwright": "1.48.2",
+    "CDPBrowser": {
+      "protocolVersion": "1.3",
+      "product": "Chrome/155.0.8059.80",
+      "revision": "@43a195105613ac83c21d3f14de279f4a045c7da0",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+      "jsVersion": "15.5.35.23"
+    },
+    "CDPSystem": {
+      "gpu": {
+        "devices": [
+          {
+            "vendorId": 4318,
+            "deviceId": 10208,
+            "subSysId": 685576259,
+            "revision": 161,
+            "vendorString": "",
+            "deviceString": "NVIDIA GeForce RTX 4080 Laptop GPU",
+            "driverVendor": "NVIDIA",
+            "driverVersion": "32.0.15.5597"
+          },
+          {
+            "vendorId": 32902,
+            "deviceId": 42912,
+            "subSysId": 685576259,
+            "revision": 4,
+            "vendorString": "",
+            "deviceString": "Intel(R) Iris(R) Xe Graphics",
+            "driverVendor": "",
+            "driverVersion": "31.0.101.4502"
+          },
+          {
+            "vendorId": 5140,
+            "deviceId": 140,
+            "subSysId": 0,
+            "revision": 0,
+            "vendorString": "",
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVendor": "",
+            "driverVersion": "10.0.26100.8972"
+          }
+        ],
+        "auxAttributes": {
+          "amdSwitchable": false,
+          "bgra8OverlaySupport": "SCALING",
+          "canSupportThreadedTextureMailbox": false,
+          "directComposition": true,
+          "directMLFeatureLevel": "Not supported",
+          "directRenderingVersion": "",
+          "displayType": "ANGLE_D3D11",
+          "dx12FeatureLevel": "Not supported",
+          "glExtensions": "GL_AMD_performance_monitor GL_ANGLE_base_vertex_base_instance_shader_builtin GL_ANGLE_blob_cache GL_ANGLE_client_arrays GL_ANGLE_clip_cull_distance GL_ANGLE_copy_texture_3d GL_ANGLE_depth_texture GL_ANGLE_framebuffer_blit GL_ANGLE_framebuffer_multisample GL_ANGLE_get_serialized_context_string GL_ANGLE_get_tex_level_parameter GL_ANGLE_instanced_arrays GL_ANGLE_memory_size GL_ANGLE_multiview_multisample GL_ANGLE_pack_reverse_row_order GL_ANGLE_polygon_mode GL_ANGLE_program_binary_readiness_query GL_ANGLE_program_cache_control GL_ANGLE_provoking_vertex GL_ANGLE_renderability_validation GL_ANGLE_request_extension GL_ANGLE_robust_client_memory GL_ANGLE_shader_pixel_local_storage GL_ANGLE_shader_pixel_local_storage_coherent GL_ANGLE_stencil_texturing GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_ANGLE_texture_multisample GL_ANGLE_texture_usage GL_ANGLE_translated_shader_source GL_APPLE_clip_distance GL_ARM_rgba8 GL_CHROMIUM_bind_generates_resource GL_CHROMIUM_bind_uniform_location GL_CHROMIUM_copy_compressed_texture GL_CHROMIUM_copy_texture GL_CHROMIUM_lose_context GL_EXT_EGL_image_external_wrap_modes GL_EXT_base_instance GL_EXT_blend_func_extended GL_EXT_blend_minmax GL_EXT_clip_control GL_EXT_clip_cull_distance GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_depth GL_EXT_debug_label GL_EXT_debug_marker GL_EXT_depth_clamp GL_EXT_discard_framebuffer GL_EXT_disjoint_timer_query GL_EXT_draw_buffers GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_float_blend GL_EXT_frag_depth GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_occlusion_query_boolean GL_EXT_polygon_offset_clamp GL_EXT_read_format_bgra GL_EXT_render_snorm GL_EXT_robustness GL_EXT_sRGB GL_EXT_shader_texture_lod GL_EXT_texture_border_clamp GL_EXT_texture_compression_bptc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_compression_s3tc_srgb GL_EXT_texture_filter_anisotropic GL_EXT_texture_format_BGRA8888 GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_EXT_texture_rg GL_EXT_texture_storage GL_EXT_texture_type_2_10_10_10_REV GL_EXT_unpack_subimage GL_KHR_debug GL_KHR_parallel_shader_compile GL_KHR_robustness GL_NV_EGL_stream_consumer_external GL_NV_fence GL_NV_framebuffer_blit GL_NV_pack_subimage GL_NV_pixel_buffer_object GL_NV_shader_noperspective_interpolation GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_EGL_image_external_essl3 GL_OES_depth24 GL_OES_depth32 GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_get_program_binary GL_OES_mapbuffer GL_OES_packed_depth_stencil GL_OES_required_internalformat GL_OES_rgb8_rgba8 GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_standard_derivatives GL_OES_surfaceless_context GL_OES_texture_border_clamp GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_vertex_array_object GL_OVR_multiview GL_OVR_multiview2 ",
+          "glImplementationParts": "(gl=egl-angle,angle=d3d11)",
+          "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Laptop GPU (0x000027E0) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.15.5597)",
+          "glResetNotificationStrategy": 33362,
+          "glVendor": "Google Inc. (NVIDIA)",
+          "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28854 git hash: cccf60cde32c)",
+          "glWsExtensions": "EGL_EXT_create_context_robustness EGL_ANGLE_d3d_share_handle_client_buffer EGL_ANGLE_d3d_texture_client_buffer EGL_ANGLE_surface_d3d_texture_2d_share_handle EGL_ANGLE_query_surface_pointer EGL_ANGLE_window_fixed_size EGL_ANGLE_keyed_mutex EGL_ANGLE_surface_orientation EGL_ANGLE_direct_composition EGL_NV_post_sub_buffer EGL_KHR_create_context EGL_KHR_image EGL_KHR_image_base EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_gl_renderbuffer_image EGL_KHR_get_all_proc_addresses EGL_KHR_stream EGL_KHR_stream_consumer_gltexture EGL_NV_stream_consumer_gltexture_yuv EGL_ANGLE_stream_producer_d3d_texture EGL_ANGLE_create_context_webgl_compatibility EGL_CHROMIUM_create_context_bind_generates_resource EGL_CHROMIUM_sync_control EGL_EXT_pixel_format_float EGL_KHR_surfaceless_context EGL_ANGLE_display_texture_share_group EGL_ANGLE_display_semaphore_share_group EGL_ANGLE_create_context_client_arrays EGL_ANGLE_program_cache_control EGL_ANGLE_robust_resource_initialization EGL_ANGLE_create_context_extensions_enabled EGL_ANDROID_blob_cache EGL_ANDROID_recordable EGL_ANGLE_image_d3d11_texture EGL_ANGLE_create_context_backwards_compatible EGL_KHR_no_config_context EGL_KHR_create_context_no_error EGL_KHR_reusable_sync EGL_ANGLE_memory_usage_report ",
+          "glWsVendor": "Google Inc. (NVIDIA)",
+          "glWsVersion": "1.5 (ANGLE 2.1.28854 git hash: cccf60cde32c)",
+          "inProcessGpu": false,
+          "initializationTime": 0.155618,
+          "isAsan": false,
+          "isClangCoverage": false,
+          "jpegDecodeAcceleratorSupported": false,
+          "maxMsaaSamples": "8",
+          "nv12OverlaySupport": "SCALING",
+          "optimus": false,
+          "p010OverlaySupport": "SCALING",
+          "passthroughCmdDecoder": true,
+          "pixelShaderVersion": "5.0",
+          "processCrashCount": 0,
+          "rgb10a2OverlaySupport": "SCALING",
+          "sandboxed": false,
+          "skiaBackendType": "GaneshGL",
+          "subpixelFontRendering": true,
+          "supportsD3dSharedImages": false,
+          "supportsDirectML": false,
+          "supportsDx12": false,
+          "supportsOverlays": true,
+          "supportsVulkan": false,
+          "targetCpuBits": 64,
+          "vertexShaderVersion": "5.0",
+          "visibilityCallbackCallCount": 0,
+          "vulkanVersion": "Not supported",
+          "yuy2OverlaySupport": "SCALING"
+        },
+        "featureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "driverBugWorkarounds": [
+          "disable_d3d11_vp9_ksvc_decoding",
+          "disable_d3d12_av1_encoding",
+          "disable_d3d12_h264_encoding",
+          "disable_hevc_hmft_cbr_encoding",
+          "disable_vp9_hmft_temporal_encoding",
+          "enable_bgra8_overlays_with_yuv_overlay_support",
+          "enable_webgl_timer_query_extensions",
+          "exit_on_context_lost",
+          "force_rgb10a2_overlay_support",
+          "unpack_overlapping_rows_separately_unpack_buffer",
+          "use_first_valid_ref_for_av1_invalid_ref",
+          "disabled_extension_GL_KHR_blend_equation_advanced",
+          "disabled_extension_GL_KHR_blend_equation_advanced_coherent"
+        ],
+        "videoDecoding": [],
+        "videoEncoding": []
+      },
+      "modelName": "",
+      "modelVersion": "",
+      "commandLine": "\"C:/Program Files/Google/Chrome/Application/chrome.exe\" --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,MediaRouter,DialMediaRouteProvider,AcceptCHFrame,AutoExpandDetailsElement,CertificateTransparencyComponentUpdater,AvoidUnnecessaryBeforeUnloadCheckSync,Translate,HttpsUpgrades,PaintHolding,ThirdPartyStoragePartitioning,LensOverlay,PlzDedicatedWorker --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --enable-automation --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --no-sandbox --use-fake-ui-for-media-stream --use-fake-device-for-media-stream --use-file-for-fake-audio-capture=\"C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\reports\\step_microphone_browser_v26\\browser-input.wav\" --autoplay-policy=no-user-gesture-required --user-data-dir=\"C:\\Users\\TINGHU~1\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-ck5WB5\" --remote-debugging-pipe --no-startup-window --flag-switches-begin --flag-switches-end"
+    }
+  },
+  "GPU": {
+    "info": {
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": "",
+      "description": ""
+    },
+    "features": [
+      "depth32float-stencil8",
+      "rg11b10ufloat-renderable",
+      "texture-formats-tier1",
+      "bgra8unorm-storage",
+      "texture-compression-bc",
+      "dual-source-blending",
+      "core-features-and-limits",
+      "float32-filterable",
+      "indirect-first-instance",
+      "float32-blendable",
+      "subgroup-size-control",
+      "depth-clip-control",
+      "texture-compression-bc-sliced-3d",
+      "texture-formats-tier2",
+      "timestamp-query",
+      "shader-f16",
+      "clip-distances",
+      "primitive-index",
+      "texture-component-swizzle",
+      "subgroups"
+    ]
+  },
+  "cells": [
+    {
+      "id": "normal-44100",
+      "status": "FAILED",
+      "rate": 44100,
+      "environmentValidated": true,
+      "counts": {
+        "rootStreams": 1,
+        "analysisClones": 1,
+        "context": 1,
+        "workerOwners": 1,
+        "loadAttempts": 1,
+        "loadSuccesses": 1,
+        "runAttempts": 71,
+        "runSuccesses": 71,
+        "runFailures": 0,
+        "workerDisposeCalls": 1,
+        "captureConnections": 1,
+        "captureStopCalls": 2,
+        "captureStopTransitions": 1,
+        "sourceRuntimes": 1,
+        "chronologyInstances": 1,
+        "assemblerInstances": 1,
+        "sourceDisposals": 1
+      },
+      "accounting": {
+        "AudioContexts": 1,
+        "rootStreams": 1,
+        "analysisClones": 1,
+        "productWorkers": 1,
+        "modelLoadAttempts": 1,
+        "modelLoadsSucceeded": 1,
+        "modelSessionsObserved": 1,
+        "neuralRunRequests": 71,
+        "successfulInferenceResponses": 71,
+        "failedInferenceResponses": 0,
+        "actualSessionRunsWithReceipts": 71,
+        "decoderRunsWithReceipts": 71,
+        "unacknowledgedModelRequests": 0,
+        "publications": 71,
+        "attempts": 20,
+        "retirementBoundaries": 21,
+        "workerDisposals": 1,
+        "sourceDisposals": 1,
+        "captureStopTransitions": 1,
+        "infrastructureFailures": 0,
+        "hiddenWarmups": 0,
+        "unknownExecutions": 0
+      },
+      "GPU": {
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        },
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "timestamp-query",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ]
+      },
+      "modelReceipt": {
+        "source": "network",
+        "downloadMs": 294.45000000298023,
+        "cacheReadMs": 56.40999999642372,
+        "verificationMs": 89.32500000298023,
+        "totalLoadMs": 459.705000013113,
+        "byteSize": 98689283,
+        "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "persistentStorageGranted": null,
+        "assetId": "practice-acoustic-robust-browser",
+        "assetVersion": "v1",
+        "modelByteSize": 98689283,
+        "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "executionProvider": "webgpu",
+        "modelFetchAndVerifyMs": 545.859999999404,
+        "sessionCreateMs": 449.18000000715256,
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "ortWebVersion": "1.20.1",
+        "automaticFallback": false,
+        "actualSessionLoadCount": 1,
+        "inputDescriptor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputDescriptors": {
+          "reg_onset_output": [
+            1,
+            183,
+            88
+          ],
+          "frame_output": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "captured": {
+        "sourceSampleRateHz": 44100,
+        "capturedThroughSourceSample": 1970176,
+        "nextSequence": 962,
+        "audioContextOriginFrame": 46848,
+        "blocks": 962,
+        "chunkSizes": {
+          "2048": 962
+        },
+        "closed": true,
+        "failure": null
+      },
+      "analysis": {
+        "state": "DISPOSED",
+        "failureCode": null,
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+        "sourceRateHz": 44100,
+        "sourceBase": 0,
+        "nextSourceSampleIndex": 1970176,
+        "activeRegion": null,
+        "pendingRegions": 0,
+        "outstanding": 0,
+        "counts": {
+          "windowsQueued": 71,
+          "windowsStarted": 71,
+          "windowsPublished": 71,
+          "observationsPublished": 109,
+          "peakOutstanding": 2,
+          "backpressureFailures": 0,
+          "regionsStarted": 1,
+          "regionsDrained": 0
+        },
+        "diagnostics": [
+          {
+            "jobIndex": 39,
+            "regionIndex": 0,
+            "ownedStartTarget": 401149.387755102,
+            "ownedEndTarget": 410749.387755102,
+            "inputStartSample": 384349,
+            "inputEndSample": 413469,
+            "queueDelayMs": 0,
+            "inferenceMs": 232.78999999165535,
+            "decodeMs": 0.42500001192092896,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 40
+          },
+          {
+            "jobIndex": 40,
+            "regionIndex": 0,
+            "ownedStartTarget": 410749.387755102,
+            "ownedEndTarget": 420349.387755102,
+            "inputStartSample": 393949,
+            "inputEndSample": 423069,
+            "queueDelayMs": 0,
+            "inferenceMs": 232.35500000417233,
+            "decodeMs": 0.19499999284744263,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 41
+          },
+          {
+            "jobIndex": 41,
+            "regionIndex": 0,
+            "ownedStartTarget": 420349.387755102,
+            "ownedEndTarget": 429949.387755102,
+            "inputStartSample": 403549,
+            "inputEndSample": 432669,
+            "queueDelayMs": 0,
+            "inferenceMs": 231.4050000011921,
+            "decodeMs": 0.3799999952316284,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 42
+          },
+          {
+            "jobIndex": 42,
+            "regionIndex": 0,
+            "ownedStartTarget": 429949.387755102,
+            "ownedEndTarget": 439549.387755102,
+            "inputStartSample": 413149,
+            "inputEndSample": 442269,
+            "queueDelayMs": 0,
+            "inferenceMs": 220.57500000298023,
+            "decodeMs": 0.20499999821186066,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 43
+          },
+          {
+            "jobIndex": 43,
+            "regionIndex": 0,
+            "ownedStartTarget": 439549.387755102,
+            "ownedEndTarget": 449149.387755102,
+            "inputStartSample": 422749,
+            "inputEndSample": 451869,
+            "queueDelayMs": 0,
+            "inferenceMs": 229.70499999821186,
+            "decodeMs": 0.39499999582767487,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 44
+          },
+          {
+            "jobIndex": 44,
+            "regionIndex": 0,
+            "ownedStartTarget": 449149.387755102,
+            "ownedEndTarget": 458749.387755102,
+            "inputStartSample": 432349,
+            "inputEndSample": 461469,
+            "queueDelayMs": 0,
+            "inferenceMs": 226.17499999701977,
+            "decodeMs": 0.20499999821186066,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 45
+          },
+          {
+            "jobIndex": 45,
+            "regionIndex": 0,
+            "ownedStartTarget": 458749.387755102,
+            "ownedEndTarget": 468349.387755102,
+            "inputStartSample": 441949,
+            "inputEndSample": 471069,
+            "queueDelayMs": 0,
+            "inferenceMs": 220.65000000596046,
+            "decodeMs": 0.3999999910593033,
+            "publicationMs": 0,
+            "eventCount": 1,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 46
+          },
+          {
+            "jobIndex": 46,
+            "regionIndex": 0,
+            "ownedStartTarget": 468349.387755102,
+            "ownedEndTarget": 477949.387755102,
+            "inputStartSample": 451549,
+            "inputEndSample": 480669,
+            "queueDelayMs": 0,
+            "inferenceMs": 239.6850000023842,
+            "decodeMs": 0.19499999284744263,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 47
+          },
+          {
+            "jobIndex": 47,
+            "regionIndex": 0,
+            "ownedStartTarget": 477949.387755102,
+            "ownedEndTarget": 487549.387755102,
+            "inputStartSample": 461149,
+            "inputEndSample": 490269,
+            "queueDelayMs": 0,
+            "inferenceMs": 235.9150000065565,
+            "decodeMs": 0.4000000059604645,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 48
+          },
+          {
+            "jobIndex": 48,
+            "regionIndex": 0,
+            "ownedStartTarget": 487549.387755102,
+            "ownedEndTarget": 497149.387755102,
+            "inputStartSample": 470749,
+            "inputEndSample": 499869,
+            "queueDelayMs": 0,
+            "inferenceMs": 234.56999999284744,
+            "decodeMs": 0.3050000071525574,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 49
+          },
+          {
+            "jobIndex": 49,
+            "regionIndex": 0,
+            "ownedStartTarget": 497149.387755102,
+            "ownedEndTarget": 506749.387755102,
+            "inputStartSample": 480349,
+            "inputEndSample": 509469,
+            "queueDelayMs": 0,
+            "inferenceMs": 215.72499999403954,
+            "decodeMs": 0.26500000059604645,
+            "publicationMs": 0,
+            "eventCount": 7,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 50
+          },
+          {
+            "jobIndex": 50,
+            "regionIndex": 0,
+            "ownedStartTarget": 506749.387755102,
+            "ownedEndTarget": 516349.387755102,
+            "inputStartSample": 489949,
+            "inputEndSample": 519069,
+            "queueDelayMs": 0,
+            "inferenceMs": 227.39500001072884,
+            "decodeMs": 0.28999999165534973,
+            "publicationMs": 0,
+            "eventCount": 6,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 51
+          },
+          {
+            "jobIndex": 51,
+            "regionIndex": 0,
+            "ownedStartTarget": 516349.387755102,
+            "ownedEndTarget": 525949.387755102,
+            "inputStartSample": 499549,
+            "inputEndSample": 528669,
+            "queueDelayMs": 0,
+            "inferenceMs": 229.77500000596046,
+            "decodeMs": 0.1899999976158142,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 52
+          },
+          {
+            "jobIndex": 52,
+            "regionIndex": 0,
+            "ownedStartTarget": 525949.387755102,
+            "ownedEndTarget": 535549.387755102,
+            "inputStartSample": 509149,
+            "inputEndSample": 538269,
+            "queueDelayMs": 0,
+            "inferenceMs": 229.9450000077486,
+            "decodeMs": 0.22499999403953552,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 53
+          },
+          {
+            "jobIndex": 53,
+            "regionIndex": 0,
+            "ownedStartTarget": 535549.387755102,
+            "ownedEndTarget": 545149.387755102,
+            "inputStartSample": 518749,
+            "inputEndSample": 547869,
+            "queueDelayMs": 0,
+            "inferenceMs": 234.27500000596046,
+            "decodeMs": 0.2150000035762787,
+            "publicationMs": 0,
+            "eventCount": 4,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 54
+          },
+          {
+            "jobIndex": 54,
+            "regionIndex": 0,
+            "ownedStartTarget": 545149.387755102,
+            "ownedEndTarget": 554749.387755102,
+            "inputStartSample": 528349,
+            "inputEndSample": 557469,
+            "queueDelayMs": 0,
+            "inferenceMs": 228.73000000417233,
+            "decodeMs": 0.2199999988079071,
+            "publicationMs": 0,
+            "eventCount": 5,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 55
+          },
+          {
+            "jobIndex": 55,
+            "regionIndex": 0,
+            "ownedStartTarget": 554749.387755102,
+            "ownedEndTarget": 564349.387755102,
+            "inputStartSample": 537949,
+            "inputEndSample": 567069,
+            "queueDelayMs": 0,
+            "inferenceMs": 225.10999999940395,
+            "decodeMs": 0.22999998927116394,
+            "publicationMs": 0,
+            "eventCount": 6,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 56
+          },
+          {
+            "jobIndex": 56,
+            "regionIndex": 0,
+            "ownedStartTarget": 564349.387755102,
+            "ownedEndTarget": 573949.387755102,
+            "inputStartSample": 547549,
+            "inputEndSample": 576669,
+            "queueDelayMs": 0,
+            "inferenceMs": 227.79500000178814,
+            "decodeMs": 0.1899999976158142,
+            "publicationMs": 0,
+            "eventCount": 7,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 57
+          },
+          {
+            "jobIndex": 57,
+            "regionIndex": 0,
+            "ownedStartTarget": 573949.387755102,
+            "ownedEndTarget": 583549.387755102,
+            "inputStartSample": 557149,
+            "inputEndSample": 586269,
+            "queueDelayMs": 0,
+            "inferenceMs": 221.67499999701977,
+            "decodeMs": 0.19500000774860382,
+            "publicationMs": 0,
+            "eventCount": 4,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 58
+          },
+          {
+            "jobIndex": 58,
+            "regionIndex": 0,
+            "ownedStartTarget": 583549.387755102,
+            "ownedEndTarget": 593149.387755102,
+            "inputStartSample": 566749,
+            "inputEndSample": 595869,
+            "queueDelayMs": 0,
+            "inferenceMs": 217.85500000417233,
+            "decodeMs": 0.4449999928474426,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 59
+          },
+          {
+            "jobIndex": 59,
+            "regionIndex": 0,
+            "ownedStartTarget": 593149.387755102,
+            "ownedEndTarget": 602749.387755102,
+            "inputStartSample": 576349,
+            "inputEndSample": 605469,
+            "queueDelayMs": 0,
+            "inferenceMs": 223.66999998688698,
+            "decodeMs": 0.1900000125169754,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 60
+          },
+          {
+            "jobIndex": 60,
+            "regionIndex": 0,
+            "ownedStartTarget": 602749.387755102,
+            "ownedEndTarget": 612349.387755102,
+            "inputStartSample": 585949,
+            "inputEndSample": 615069,
+            "queueDelayMs": 0,
+            "inferenceMs": 233.79999999701977,
+            "decodeMs": 0.20499999821186066,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 61
+          },
+          {
+            "jobIndex": 61,
+            "regionIndex": 0,
+            "ownedStartTarget": 612349.387755102,
+            "ownedEndTarget": 621949.387755102,
+            "inputStartSample": 595549,
+            "inputEndSample": 624669,
+            "queueDelayMs": 0,
+            "inferenceMs": 226.01999999582767,
+            "decodeMs": 0.20000000298023224,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 62
+          },
+          {
+            "jobIndex": 62,
+            "regionIndex": 0,
+            "ownedStartTarget": 621949.387755102,
+            "ownedEndTarget": 631549.387755102,
+            "inputStartSample": 605149,
+            "inputEndSample": 634269,
+            "queueDelayMs": 0,
+            "inferenceMs": 224.28999999165535,
+            "decodeMs": 0.25,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 63
+          },
+          {
+            "jobIndex": 63,
+            "regionIndex": 0,
+            "ownedStartTarget": 631549.387755102,
+            "ownedEndTarget": 641149.387755102,
+            "inputStartSample": 614749,
+            "inputEndSample": 643869,
+            "queueDelayMs": 0,
+            "inferenceMs": 226.21500000357628,
+            "decodeMs": 0.2199999988079071,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 64
+          },
+          {
+            "jobIndex": 64,
+            "regionIndex": 0,
+            "ownedStartTarget": 641149.387755102,
+            "ownedEndTarget": 650749.387755102,
+            "inputStartSample": 624349,
+            "inputEndSample": 653469,
+            "queueDelayMs": 0,
+            "inferenceMs": 221.22499999403954,
+            "decodeMs": 0.19500000774860382,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 65
+          },
+          {
+            "jobIndex": 65,
+            "regionIndex": 0,
+            "ownedStartTarget": 650749.387755102,
+            "ownedEndTarget": 660349.387755102,
+            "inputStartSample": 633949,
+            "inputEndSample": 663069,
+            "queueDelayMs": 0,
+            "inferenceMs": 232.08500000834465,
+            "decodeMs": 0.19499999284744263,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 66
+          },
+          {
+            "jobIndex": 66,
+            "regionIndex": 0,
+            "ownedStartTarget": 660349.387755102,
+            "ownedEndTarget": 669949.387755102,
+            "inputStartSample": 643549,
+            "inputEndSample": 672669,
+            "queueDelayMs": 0,
+            "inferenceMs": 222.9750000089407,
+            "decodeMs": 0.19999998807907104,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 67
+          },
+          {
+            "jobIndex": 67,
+            "regionIndex": 0,
+            "ownedStartTarget": 669949.387755102,
+            "ownedEndTarget": 679549.387755102,
+            "inputStartSample": 653149,
+            "inputEndSample": 682269,
+            "queueDelayMs": 0,
+            "inferenceMs": 223.00999999046326,
+            "decodeMs": 0.24500000476837158,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 68
+          },
+          {
+            "jobIndex": 68,
+            "regionIndex": 0,
+            "ownedStartTarget": 679549.387755102,
+            "ownedEndTarget": 689149.387755102,
+            "inputStartSample": 662749,
+            "inputEndSample": 691869,
+            "queueDelayMs": 0,
+            "inferenceMs": 226.625,
+            "decodeMs": 0.20000000298023224,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 69
+          },
+          {
+            "jobIndex": 69,
+            "regionIndex": 0,
+            "ownedStartTarget": 689149.387755102,
+            "ownedEndTarget": 698749.387755102,
+            "inputStartSample": 672349,
+            "inputEndSample": 701469,
+            "queueDelayMs": 0,
+            "inferenceMs": 223.73499999940395,
+            "decodeMs": 0.2149999886751175,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 70
+          },
+          {
+            "jobIndex": 70,
+            "regionIndex": 0,
+            "ownedStartTarget": 698749.387755102,
+            "ownedEndTarget": 708349.387755102,
+            "inputStartSample": 681949,
+            "inputEndSample": 711069,
+            "queueDelayMs": 0,
+            "inferenceMs": 222.9399999976158,
+            "decodeMs": 0.20000000298023224,
+            "publicationMs": 0,
+            "eventCount": 0,
+            "outstandingAtEnqueue": 1,
+            "actualSessionRunCount": 71
+          }
+        ],
+        "resources": {
+          "sessionPcmBytes": 0,
+          "sourceAdapterBytes": 35796,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "retainedPublicationEvents": 0,
+          "diagnosticWindowLimit": 32,
+          "compactDiagnosticsPlanningBytes": 16384
+        }
+      },
+      "assembler": {
+        "phase": "BLOCKED",
+        "inputEligibleAfterSourceSample": 1650688,
+        "processedThroughSourceSample": 1952388,
+        "gestureAnchorSourceSample": null,
+        "gestureEndSourceSample": null,
+        "activeObservationCount": 0,
+        "retainedObservationIdentityCount": 109
+      },
+      "sourceChronology": {
+        "gapless": true,
+        "fixedOrigin": 46848,
+        "chunks": 962,
+        "samples": 1970176,
+        "rate": 44100
+      },
+      "gates": null,
+      "diagnostics": {
+        "inferenceMs": {
+          "count": 71,
+          "p50": 226.6000000089407,
+          "p95": 236.64500001072884,
+          "max": 687.9650000035763
+        },
+        "capture": {
+          "sourceSampleRateHz": 44100,
+          "capturedThroughSourceSample": 1970176,
+          "nextSequence": 962,
+          "audioContextOriginFrame": 46848,
+          "blocks": 962,
+          "chunkSizes": {
+            "2048": 962
+          },
+          "closed": true,
+          "failure": null
+        },
+        "analysis": {
+          "state": "DISPOSED",
+          "failureCode": null,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+          "sourceRateHz": 44100,
+          "sourceBase": 0,
+          "nextSourceSampleIndex": 1970176,
+          "activeRegion": null,
+          "pendingRegions": 0,
+          "outstanding": 0,
+          "counts": {
+            "windowsQueued": 71,
+            "windowsStarted": 71,
+            "windowsPublished": 71,
+            "observationsPublished": 109,
+            "peakOutstanding": 2,
+            "backpressureFailures": 0,
+            "regionsStarted": 1,
+            "regionsDrained": 0
+          },
+          "diagnostics": [
+            {
+              "jobIndex": 39,
+              "regionIndex": 0,
+              "ownedStartTarget": 401149.387755102,
+              "ownedEndTarget": 410749.387755102,
+              "inputStartSample": 384349,
+              "inputEndSample": 413469,
+              "queueDelayMs": 0,
+              "inferenceMs": 232.78999999165535,
+              "decodeMs": 0.42500001192092896,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 40
+            },
+            {
+              "jobIndex": 40,
+              "regionIndex": 0,
+              "ownedStartTarget": 410749.387755102,
+              "ownedEndTarget": 420349.387755102,
+              "inputStartSample": 393949,
+              "inputEndSample": 423069,
+              "queueDelayMs": 0,
+              "inferenceMs": 232.35500000417233,
+              "decodeMs": 0.19499999284744263,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 41
+            },
+            {
+              "jobIndex": 41,
+              "regionIndex": 0,
+              "ownedStartTarget": 420349.387755102,
+              "ownedEndTarget": 429949.387755102,
+              "inputStartSample": 403549,
+              "inputEndSample": 432669,
+              "queueDelayMs": 0,
+              "inferenceMs": 231.4050000011921,
+              "decodeMs": 0.3799999952316284,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 42
+            },
+            {
+              "jobIndex": 42,
+              "regionIndex": 0,
+              "ownedStartTarget": 429949.387755102,
+              "ownedEndTarget": 439549.387755102,
+              "inputStartSample": 413149,
+              "inputEndSample": 442269,
+              "queueDelayMs": 0,
+              "inferenceMs": 220.57500000298023,
+              "decodeMs": 0.20499999821186066,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 43
+            },
+            {
+              "jobIndex": 43,
+              "regionIndex": 0,
+              "ownedStartTarget": 439549.387755102,
+              "ownedEndTarget": 449149.387755102,
+              "inputStartSample": 422749,
+              "inputEndSample": 451869,
+              "queueDelayMs": 0,
+              "inferenceMs": 229.70499999821186,
+              "decodeMs": 0.39499999582767487,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 44
+            },
+            {
+              "jobIndex": 44,
+              "regionIndex": 0,
+              "ownedStartTarget": 449149.387755102,
+              "ownedEndTarget": 458749.387755102,
+              "inputStartSample": 432349,
+              "inputEndSample": 461469,
+              "queueDelayMs": 0,
+              "inferenceMs": 226.17499999701977,
+              "decodeMs": 0.20499999821186066,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 45
+            },
+            {
+              "jobIndex": 45,
+              "regionIndex": 0,
+              "ownedStartTarget": 458749.387755102,
+              "ownedEndTarget": 468349.387755102,
+              "inputStartSample": 441949,
+              "inputEndSample": 471069,
+              "queueDelayMs": 0,
+              "inferenceMs": 220.65000000596046,
+              "decodeMs": 0.3999999910593033,
+              "publicationMs": 0,
+              "eventCount": 1,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 46
+            },
+            {
+              "jobIndex": 46,
+              "regionIndex": 0,
+              "ownedStartTarget": 468349.387755102,
+              "ownedEndTarget": 477949.387755102,
+              "inputStartSample": 451549,
+              "inputEndSample": 480669,
+              "queueDelayMs": 0,
+              "inferenceMs": 239.6850000023842,
+              "decodeMs": 0.19499999284744263,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 47
+            },
+            {
+              "jobIndex": 47,
+              "regionIndex": 0,
+              "ownedStartTarget": 477949.387755102,
+              "ownedEndTarget": 487549.387755102,
+              "inputStartSample": 461149,
+              "inputEndSample": 490269,
+              "queueDelayMs": 0,
+              "inferenceMs": 235.9150000065565,
+              "decodeMs": 0.4000000059604645,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 48
+            },
+            {
+              "jobIndex": 48,
+              "regionIndex": 0,
+              "ownedStartTarget": 487549.387755102,
+              "ownedEndTarget": 497149.387755102,
+              "inputStartSample": 470749,
+              "inputEndSample": 499869,
+              "queueDelayMs": 0,
+              "inferenceMs": 234.56999999284744,
+              "decodeMs": 0.3050000071525574,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 49
+            },
+            {
+              "jobIndex": 49,
+              "regionIndex": 0,
+              "ownedStartTarget": 497149.387755102,
+              "ownedEndTarget": 506749.387755102,
+              "inputStartSample": 480349,
+              "inputEndSample": 509469,
+              "queueDelayMs": 0,
+              "inferenceMs": 215.72499999403954,
+              "decodeMs": 0.26500000059604645,
+              "publicationMs": 0,
+              "eventCount": 7,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 50
+            },
+            {
+              "jobIndex": 50,
+              "regionIndex": 0,
+              "ownedStartTarget": 506749.387755102,
+              "ownedEndTarget": 516349.387755102,
+              "inputStartSample": 489949,
+              "inputEndSample": 519069,
+              "queueDelayMs": 0,
+              "inferenceMs": 227.39500001072884,
+              "decodeMs": 0.28999999165534973,
+              "publicationMs": 0,
+              "eventCount": 6,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 51
+            },
+            {
+              "jobIndex": 51,
+              "regionIndex": 0,
+              "ownedStartTarget": 516349.387755102,
+              "ownedEndTarget": 525949.387755102,
+              "inputStartSample": 499549,
+              "inputEndSample": 528669,
+              "queueDelayMs": 0,
+              "inferenceMs": 229.77500000596046,
+              "decodeMs": 0.1899999976158142,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 52
+            },
+            {
+              "jobIndex": 52,
+              "regionIndex": 0,
+              "ownedStartTarget": 525949.387755102,
+              "ownedEndTarget": 535549.387755102,
+              "inputStartSample": 509149,
+              "inputEndSample": 538269,
+              "queueDelayMs": 0,
+              "inferenceMs": 229.9450000077486,
+              "decodeMs": 0.22499999403953552,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 53
+            },
+            {
+              "jobIndex": 53,
+              "regionIndex": 0,
+              "ownedStartTarget": 535549.387755102,
+              "ownedEndTarget": 545149.387755102,
+              "inputStartSample": 518749,
+              "inputEndSample": 547869,
+              "queueDelayMs": 0,
+              "inferenceMs": 234.27500000596046,
+              "decodeMs": 0.2150000035762787,
+              "publicationMs": 0,
+              "eventCount": 4,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 54
+            },
+            {
+              "jobIndex": 54,
+              "regionIndex": 0,
+              "ownedStartTarget": 545149.387755102,
+              "ownedEndTarget": 554749.387755102,
+              "inputStartSample": 528349,
+              "inputEndSample": 557469,
+              "queueDelayMs": 0,
+              "inferenceMs": 228.73000000417233,
+              "decodeMs": 0.2199999988079071,
+              "publicationMs": 0,
+              "eventCount": 5,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 55
+            },
+            {
+              "jobIndex": 55,
+              "regionIndex": 0,
+              "ownedStartTarget": 554749.387755102,
+              "ownedEndTarget": 564349.387755102,
+              "inputStartSample": 537949,
+              "inputEndSample": 567069,
+              "queueDelayMs": 0,
+              "inferenceMs": 225.10999999940395,
+              "decodeMs": 0.22999998927116394,
+              "publicationMs": 0,
+              "eventCount": 6,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 56
+            },
+            {
+              "jobIndex": 56,
+              "regionIndex": 0,
+              "ownedStartTarget": 564349.387755102,
+              "ownedEndTarget": 573949.387755102,
+              "inputStartSample": 547549,
+              "inputEndSample": 576669,
+              "queueDelayMs": 0,
+              "inferenceMs": 227.79500000178814,
+              "decodeMs": 0.1899999976158142,
+              "publicationMs": 0,
+              "eventCount": 7,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 57
+            },
+            {
+              "jobIndex": 57,
+              "regionIndex": 0,
+              "ownedStartTarget": 573949.387755102,
+              "ownedEndTarget": 583549.387755102,
+              "inputStartSample": 557149,
+              "inputEndSample": 586269,
+              "queueDelayMs": 0,
+              "inferenceMs": 221.67499999701977,
+              "decodeMs": 0.19500000774860382,
+              "publicationMs": 0,
+              "eventCount": 4,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 58
+            },
+            {
+              "jobIndex": 58,
+              "regionIndex": 0,
+              "ownedStartTarget": 583549.387755102,
+              "ownedEndTarget": 593149.387755102,
+              "inputStartSample": 566749,
+              "inputEndSample": 595869,
+              "queueDelayMs": 0,
+              "inferenceMs": 217.85500000417233,
+              "decodeMs": 0.4449999928474426,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 59
+            },
+            {
+              "jobIndex": 59,
+              "regionIndex": 0,
+              "ownedStartTarget": 593149.387755102,
+              "ownedEndTarget": 602749.387755102,
+              "inputStartSample": 576349,
+              "inputEndSample": 605469,
+              "queueDelayMs": 0,
+              "inferenceMs": 223.66999998688698,
+              "decodeMs": 0.1900000125169754,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 60
+            },
+            {
+              "jobIndex": 60,
+              "regionIndex": 0,
+              "ownedStartTarget": 602749.387755102,
+              "ownedEndTarget": 612349.387755102,
+              "inputStartSample": 585949,
+              "inputEndSample": 615069,
+              "queueDelayMs": 0,
+              "inferenceMs": 233.79999999701977,
+              "decodeMs": 0.20499999821186066,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 61
+            },
+            {
+              "jobIndex": 61,
+              "regionIndex": 0,
+              "ownedStartTarget": 612349.387755102,
+              "ownedEndTarget": 621949.387755102,
+              "inputStartSample": 595549,
+              "inputEndSample": 624669,
+              "queueDelayMs": 0,
+              "inferenceMs": 226.01999999582767,
+              "decodeMs": 0.20000000298023224,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 62
+            },
+            {
+              "jobIndex": 62,
+              "regionIndex": 0,
+              "ownedStartTarget": 621949.387755102,
+              "ownedEndTarget": 631549.387755102,
+              "inputStartSample": 605149,
+              "inputEndSample": 634269,
+              "queueDelayMs": 0,
+              "inferenceMs": 224.28999999165535,
+              "decodeMs": 0.25,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 63
+            },
+            {
+              "jobIndex": 63,
+              "regionIndex": 0,
+              "ownedStartTarget": 631549.387755102,
+              "ownedEndTarget": 641149.387755102,
+              "inputStartSample": 614749,
+              "inputEndSample": 643869,
+              "queueDelayMs": 0,
+              "inferenceMs": 226.21500000357628,
+              "decodeMs": 0.2199999988079071,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 64
+            },
+            {
+              "jobIndex": 64,
+              "regionIndex": 0,
+              "ownedStartTarget": 641149.387755102,
+              "ownedEndTarget": 650749.387755102,
+              "inputStartSample": 624349,
+              "inputEndSample": 653469,
+              "queueDelayMs": 0,
+              "inferenceMs": 221.22499999403954,
+              "decodeMs": 0.19500000774860382,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 65
+            },
+            {
+              "jobIndex": 65,
+              "regionIndex": 0,
+              "ownedStartTarget": 650749.387755102,
+              "ownedEndTarget": 660349.387755102,
+              "inputStartSample": 633949,
+              "inputEndSample": 663069,
+              "queueDelayMs": 0,
+              "inferenceMs": 232.08500000834465,
+              "decodeMs": 0.19499999284744263,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 66
+            },
+            {
+              "jobIndex": 66,
+              "regionIndex": 0,
+              "ownedStartTarget": 660349.387755102,
+              "ownedEndTarget": 669949.387755102,
+              "inputStartSample": 643549,
+              "inputEndSample": 672669,
+              "queueDelayMs": 0,
+              "inferenceMs": 222.9750000089407,
+              "decodeMs": 0.19999998807907104,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 67
+            },
+            {
+              "jobIndex": 67,
+              "regionIndex": 0,
+              "ownedStartTarget": 669949.387755102,
+              "ownedEndTarget": 679549.387755102,
+              "inputStartSample": 653149,
+              "inputEndSample": 682269,
+              "queueDelayMs": 0,
+              "inferenceMs": 223.00999999046326,
+              "decodeMs": 0.24500000476837158,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 68
+            },
+            {
+              "jobIndex": 68,
+              "regionIndex": 0,
+              "ownedStartTarget": 679549.387755102,
+              "ownedEndTarget": 689149.387755102,
+              "inputStartSample": 662749,
+              "inputEndSample": 691869,
+              "queueDelayMs": 0,
+              "inferenceMs": 226.625,
+              "decodeMs": 0.20000000298023224,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 69
+            },
+            {
+              "jobIndex": 69,
+              "regionIndex": 0,
+              "ownedStartTarget": 689149.387755102,
+              "ownedEndTarget": 698749.387755102,
+              "inputStartSample": 672349,
+              "inputEndSample": 701469,
+              "queueDelayMs": 0,
+              "inferenceMs": 223.73499999940395,
+              "decodeMs": 0.2149999886751175,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 70
+            },
+            {
+              "jobIndex": 70,
+              "regionIndex": 0,
+              "ownedStartTarget": 698749.387755102,
+              "ownedEndTarget": 708349.387755102,
+              "inputStartSample": 681949,
+              "inputEndSample": 711069,
+              "queueDelayMs": 0,
+              "inferenceMs": 222.9399999976158,
+              "decodeMs": 0.20000000298023224,
+              "publicationMs": 0,
+              "eventCount": 0,
+              "outstandingAtEnqueue": 1,
+              "actualSessionRunCount": 71
+            }
+          ],
+          "resources": {
+            "sessionPcmBytes": 0,
+            "sourceAdapterBytes": 35796,
+            "targetRingBytes": 262144,
+            "outstandingInputBytes": 0,
+            "maximumOutstandingInputBytes": 465920,
+            "retainedPublicationEvents": 0,
+            "diagnosticWindowLimit": 32,
+            "compactDiagnosticsPlanningBytes": 16384
+          }
+        },
+        "assembler": {
+          "phase": "BLOCKED",
+          "inputEligibleAfterSourceSample": 1650688,
+          "processedThroughSourceSample": 1952388,
+          "gestureAnchorSourceSample": null,
+          "gestureEndSourceSample": null,
+          "activeObservationCount": 0,
+          "retainedObservationIdentityCount": 109
+        },
+        "verdicts": {
+          "MATCH": 0,
+          "RETRY": 2,
+          "MISMATCH": 18
+        },
+        "noPhysicalUXLatencyClaim": true
+      },
+      "attempts": [
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:1",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 12024.125425170068,
+              "sampleIndex": 483415.93125
+            }
+          },
+          "observed": [
+            "B2",
+            "B3",
+            "E3",
+            "G#3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.3830246925354004,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 12074.12542517007,
+            "sampleIndex": 485620.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:2",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 13744.12542517007,
+              "sampleIndex": 559267.93125
+            }
+          },
+          "observed": [
+            "B3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.8545168042182922,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 13794.125425170068,
+            "sampleIndex": 561472.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:3",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 14984.125425170068,
+              "sampleIndex": 613951.93125
+            }
+          },
+          "observed": [
+            "B2",
+            "B3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.7541407942771912,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 15034.125425170068,
+            "sampleIndex": 616156.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:4",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 15954.125425170068,
+              "sampleIndex": 656728.93125
+            }
+          },
+          "observed": [
+            "E3",
+            "G#4"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.5183891654014587,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 16004.12542517007,
+            "sampleIndex": 658933.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:5",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 20404.125425170067,
+              "sampleIndex": 852973.93125
+            }
+          },
+          "observed": [
+            "B2",
+            "B3",
+            "E3",
+            "E4",
+            "G#3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.2255522906780243,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 20454.125425170067,
+            "sampleIndex": 855178.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "RETRY",
+          "retryReason": "UNCERTAIN",
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:6",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 21244.125425170067,
+              "sampleIndex": 890017.93125
+            }
+          },
+          "observed": [
+            "B3",
+            "E3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.881168007850647,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 21294.125425170067,
+            "sampleIndex": 892222.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:7",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 22164.125425170067,
+              "sampleIndex": 930589.93125
+            }
+          },
+          "observed": [
+            "B3",
+            "E3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.9073451161384583,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 22214.12542517007,
+            "sampleIndex": 932794.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:8",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 23294.125425170067,
+              "sampleIndex": 980422.93125
+            }
+          },
+          "observed": [
+            "B2",
+            "B3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.7877822518348694,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 23344.125425170067,
+            "sampleIndex": 982627.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:9",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 24804.125425170067,
+              "sampleIndex": 1047013.93125
+            }
+          },
+          "observed": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.3961493968963623,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 24854.125425170067,
+            "sampleIndex": 1049218.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "RETRY",
+          "retryReason": "UNCERTAIN",
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:10",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 28804.125425170067,
+              "sampleIndex": 1223413.93125
+            }
+          },
+          "observed": [
+            "A4"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.8698951005935669,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 28854.125425170067,
+            "sampleIndex": 1225618.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:11",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 29704.125425170063,
+              "sampleIndex": 1263103.93125
+            }
+          },
+          "observed": [
+            "F5"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.7547598481178284,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 29754.125425170063,
+            "sampleIndex": 1265308.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:12",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 30704.125425170063,
+              "sampleIndex": 1307203.93125
+            }
+          },
+          "observed": [
+            "D#5"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.915988564491272,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 30754.125425170063,
+            "sampleIndex": 1309408.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:13",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 31694.125425170067,
+              "sampleIndex": 1350862.93125
+            }
+          },
+          "observed": [
+            "F5"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.9199765920639038,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 31744.125425170067,
+            "sampleIndex": 1353067.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:14",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 32564.125425170063,
+              "sampleIndex": 1389229.93125
+            }
+          },
+          "observed": [
+            "D5",
+            "F2",
+            "F3",
+            "F5"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.2842644453048706,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 32614.125425170063,
+            "sampleIndex": 1391434.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:15",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 33124.12542517007,
+              "sampleIndex": 1413925.93125
+            }
+          },
+          "observed": [
+            "A#2",
+            "A#4",
+            "D5"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.3727419376373291,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 33174.12542517007,
+            "sampleIndex": 1416130.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:16",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 34784.12542517007,
+              "sampleIndex": 1487131.93125
+            }
+          },
+          "observed": [
+            "A#2",
+            "A#3",
+            "D3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.7659915685653687,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 34834.12542517006,
+            "sampleIndex": 1489336.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:17",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 35674.12542517007,
+              "sampleIndex": 1526380.93125
+            }
+          },
+          "observed": [
+            "D4"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.9106121063232422,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 35724.12542517007,
+            "sampleIndex": 1528585.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:18",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 36204.12542517007,
+              "sampleIndex": 1549753.93125
+            }
+          },
+          "observed": [
+            "A#3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.45269277691841125,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 36254.12542517007,
+            "sampleIndex": 1551958.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:19",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 36744.12542517007,
+              "sampleIndex": 1573567.93125
+            }
+          },
+          "observed": [
+            "A#3"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.6203740835189819,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 36794.12542517007,
+            "sampleIndex": 1575772.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        },
+        {
+          "identity": {
+            "attemptId": "normal-44100:attempt:20",
+            "localSessionId": "normal-44100",
+            "stepId": "v26:step:0",
+            "targetGeneration": 1,
+            "inputSource": "MICROPHONE",
+            "attemptStartSessionTime": {
+              "domainId": "normal-44100",
+              "ms": 37494.12542517007,
+              "sampleIndex": 1606642.93125
+            }
+          },
+          "observed": [
+            "D4"
+          ],
+          "evidenceKind": "EVIDENCE",
+          "confidence": 0.9124151468276978,
+          "captureEnd": {
+            "domainId": "normal-44100",
+            "ms": 37544.12542517007,
+            "sampleIndex": 1608847.93125
+          },
+          "expected": [
+            "E4"
+          ],
+          "verdict": "MISMATCH",
+          "retryReason": null,
+          "postVerdictPhase": "POST_VERDICT",
+          "generationBefore": 1,
+          "generationAfter": 1
+        }
+      ],
+      "boundaries": [
+        {
+          "initial": true,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 73728,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 2734.1496598639455,
+              "sampleIndex": 73728
+            },
+            "sequence": 1
+          },
+          "physical": 73728,
+          "processed": null,
+          "sourceRuntimeNext": 73728,
+          "contextTime": 2.742857142857143,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 542720,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 13368.888888888889,
+              "sampleIndex": 542720
+            },
+            "sequence": 2
+          },
+          "physical": 542720,
+          "processed": 523548,
+          "sourceRuntimeNext": 542720,
+          "contextTime": 13.371791383219955,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 593920,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 14529.886621315194,
+              "sampleIndex": 593920
+            },
+            "sequence": 3
+          },
+          "physical": 593920,
+          "processed": 576468,
+          "sourceRuntimeNext": 593920,
+          "contextTime": 14.570521541950113,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 647168,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 15737.32426303855,
+              "sampleIndex": 647168
+            },
+            "sequence": 4
+          },
+          "physical": 647168,
+          "processed": 629388,
+          "sourceRuntimeNext": 647168,
+          "contextTime": 15.740226757369614,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 698368,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 16898.321995464852,
+              "sampleIndex": 698368
+            },
+            "sequence": 5
+          },
+          "physical": 698368,
+          "processed": 682308,
+          "sourceRuntimeNext": 698368,
+          "contextTime": 16.930249433106574,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 886784,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 21170.79365079365,
+              "sampleIndex": 886784
+            },
+            "sequence": 6
+          },
+          "physical": 886784,
+          "processed": 867527.9999999999,
+          "sourceRuntimeNext": 886784,
+          "contextTime": 21.17079365079365,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 911360,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 21728.072562358277,
+              "sampleIndex": 911360
+            },
+            "sequence": 7
+          },
+          "physical": 911360,
+          "processed": 893987.9999999999,
+          "sourceRuntimeNext": 911360,
+          "contextTime": 21.771609977324264,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 966656,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 22981.950113378683,
+              "sampleIndex": 966656
+            },
+            "sequence": 8
+          },
+          "physical": 966656,
+          "processed": 946907.9999999999,
+          "sourceRuntimeNext": 966656,
+          "contextTime": 22.981950113378684,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1015808,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 24096.507936507933,
+              "sampleIndex": 1015808
+            },
+            "sequence": 9
+          },
+          "physical": 1015808,
+          "processed": 999827.9999999999,
+          "sourceRuntimeNext": 1015808,
+          "contextTime": 24.140045351473923,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1069056,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 25303.94557823129,
+              "sampleIndex": 1069056
+            },
+            "sequence": 10
+          },
+          "physical": 1069056,
+          "processed": 1052747.9999999998,
+          "sourceRuntimeNext": 1069056,
+          "contextTime": 25.341678004535147,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1257472,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 29576.417233560092,
+              "sampleIndex": 1257472
+            },
+            "sequence": 11
+          },
+          "physical": 1257472,
+          "processed": 1237968,
+          "sourceRuntimeNext": 1257472,
+          "contextTime": 29.58222222222222,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1306624,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 30690.97505668934,
+              "sampleIndex": 1306624
+            },
+            "sequence": 12
+          },
+          "physical": 1306624,
+          "processed": 1290888,
+          "sourceRuntimeNext": 1306624,
+          "contextTime": 30.731609977324265,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1335296,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 31341.13378684807,
+              "sampleIndex": 1335296
+            },
+            "sequence": 13
+          },
+          "physical": 1335296,
+          "processed": 1317348,
+          "sourceRuntimeNext": 1335296,
+          "contextTime": 31.352743764172335,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1388544,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 32548.571428571428,
+              "sampleIndex": 1388544
+            },
+            "sequence": 14
+          },
+          "physical": 1388544,
+          "processed": 1370268,
+          "sourceRuntimeNext": 1388544,
+          "contextTime": 32.551473922902495,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1413120,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 33105.85034013606,
+              "sampleIndex": 1413120
+            },
+            "sequence": 15
+          },
+          "physical": 1413120,
+          "processed": 1396728,
+          "sourceRuntimeNext": 1413120,
+          "contextTime": 33.140680272108845,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1441792,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 33756.009070294785,
+              "sampleIndex": 1441792
+            },
+            "sequence": 16
+          },
+          "physical": 1441792,
+          "processed": 1423188,
+          "sourceRuntimeNext": 1441792,
+          "contextTime": 33.761814058956915,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1521664,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 35567.165532879815,
+              "sampleIndex": 1521664
+            },
+            "sequence": 17
+          },
+          "physical": 1521664,
+          "processed": 1502568,
+          "sourceRuntimeNext": 1521664,
+          "contextTime": 35.57006802721089,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1548288,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 36170.884353741494,
+              "sampleIndex": 1548288
+            },
+            "sequence": 18
+          },
+          "physical": 1548288,
+          "processed": 1529028,
+          "sourceRuntimeNext": 1548288,
+          "contextTime": 36.1708843537415,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1572864,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 36728.16326530612,
+              "sampleIndex": 1572864
+            },
+            "sequence": 19
+          },
+          "physical": 1572864,
+          "processed": 1555488,
+          "sourceRuntimeNext": 1572864,
+          "contextTime": 36.76009070294785,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1601536,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 37378.32199546485,
+              "sampleIndex": 1601536
+            },
+            "sequence": 20
+          },
+          "physical": 1601536,
+          "processed": 1581948,
+          "sourceRuntimeNext": 1601536,
+          "contextTime": 37.38122448979592,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        },
+        {
+          "initial": false,
+          "boundary": {
+            "sourceDomainId": "normal-44100:capture",
+            "sourceSampleRateHz": 44100,
+            "capturedThroughSourceSample": 1650688,
+            "sessionTime": {
+              "domainId": "normal-44100",
+              "ms": 38492.879818594105,
+              "sampleIndex": 1650688
+            },
+            "sequence": 21
+          },
+          "physical": 1650688,
+          "processed": 1634868,
+          "sourceRuntimeNext": 1650688,
+          "contextTime": 38.53061224489796,
+          "beforeIndex": 0,
+          "afterIndex": 0,
+          "beforeGeneration": 1,
+          "afterGeneration": 1,
+          "sameStack": true
+        }
+      ],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "REAL_DISTINCT_SOURCE_ATTEMPTS_OBSERVED",
+      "infrastructure": [],
+      "applicationFailures": [],
+      "inputFailures": [],
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": [
+        {
+          "kind": "INPUT_DISPOSE",
+          "root": [
+            "live"
+          ],
+          "clone": [
+            "ended"
+          ],
+          "contextState": "running",
+          "input": {
+            "resourceState": "DISPOSED",
+            "failure": null,
+            "publications": 71,
+            "retiredThroughSourceSample": 1650688,
+            "retirementSequence": 21,
+            "regionStarted": true,
+            "capture": {
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1970176,
+              "nextSequence": 962,
+              "audioContextOriginFrame": 46848,
+              "blocks": 962,
+              "chunkSizes": {
+                "2048": 962
+              },
+              "closed": true,
+              "failure": null
+            },
+            "analysis": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 1970176,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 71,
+                "windowsStarted": 71,
+                "windowsPublished": 71,
+                "observationsPublished": 109,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 1,
+                "regionsDrained": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 39,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 401149.387755102,
+                  "ownedEndTarget": 410749.387755102,
+                  "inputStartSample": 384349,
+                  "inputEndSample": 413469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 232.78999999165535,
+                  "decodeMs": 0.42500001192092896,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 40
+                },
+                {
+                  "jobIndex": 40,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 410749.387755102,
+                  "ownedEndTarget": 420349.387755102,
+                  "inputStartSample": 393949,
+                  "inputEndSample": 423069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 232.35500000417233,
+                  "decodeMs": 0.19499999284744263,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 41
+                },
+                {
+                  "jobIndex": 41,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 420349.387755102,
+                  "ownedEndTarget": 429949.387755102,
+                  "inputStartSample": 403549,
+                  "inputEndSample": 432669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 231.4050000011921,
+                  "decodeMs": 0.3799999952316284,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 42
+                },
+                {
+                  "jobIndex": 42,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 429949.387755102,
+                  "ownedEndTarget": 439549.387755102,
+                  "inputStartSample": 413149,
+                  "inputEndSample": 442269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 220.57500000298023,
+                  "decodeMs": 0.20499999821186066,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 43
+                },
+                {
+                  "jobIndex": 43,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 439549.387755102,
+                  "ownedEndTarget": 449149.387755102,
+                  "inputStartSample": 422749,
+                  "inputEndSample": 451869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 229.70499999821186,
+                  "decodeMs": 0.39499999582767487,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 44
+                },
+                {
+                  "jobIndex": 44,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 449149.387755102,
+                  "ownedEndTarget": 458749.387755102,
+                  "inputStartSample": 432349,
+                  "inputEndSample": 461469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 226.17499999701977,
+                  "decodeMs": 0.20499999821186066,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 45
+                },
+                {
+                  "jobIndex": 45,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 458749.387755102,
+                  "ownedEndTarget": 468349.387755102,
+                  "inputStartSample": 441949,
+                  "inputEndSample": 471069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 220.65000000596046,
+                  "decodeMs": 0.3999999910593033,
+                  "publicationMs": 0,
+                  "eventCount": 1,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 46
+                },
+                {
+                  "jobIndex": 46,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 468349.387755102,
+                  "ownedEndTarget": 477949.387755102,
+                  "inputStartSample": 451549,
+                  "inputEndSample": 480669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 239.6850000023842,
+                  "decodeMs": 0.19499999284744263,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 47
+                },
+                {
+                  "jobIndex": 47,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 477949.387755102,
+                  "ownedEndTarget": 487549.387755102,
+                  "inputStartSample": 461149,
+                  "inputEndSample": 490269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 235.9150000065565,
+                  "decodeMs": 0.4000000059604645,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 48
+                },
+                {
+                  "jobIndex": 48,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 487549.387755102,
+                  "ownedEndTarget": 497149.387755102,
+                  "inputStartSample": 470749,
+                  "inputEndSample": 499869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 234.56999999284744,
+                  "decodeMs": 0.3050000071525574,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 49
+                },
+                {
+                  "jobIndex": 49,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 497149.387755102,
+                  "ownedEndTarget": 506749.387755102,
+                  "inputStartSample": 480349,
+                  "inputEndSample": 509469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 215.72499999403954,
+                  "decodeMs": 0.26500000059604645,
+                  "publicationMs": 0,
+                  "eventCount": 7,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 50
+                },
+                {
+                  "jobIndex": 50,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 506749.387755102,
+                  "ownedEndTarget": 516349.387755102,
+                  "inputStartSample": 489949,
+                  "inputEndSample": 519069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 227.39500001072884,
+                  "decodeMs": 0.28999999165534973,
+                  "publicationMs": 0,
+                  "eventCount": 6,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 51
+                },
+                {
+                  "jobIndex": 51,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 516349.387755102,
+                  "ownedEndTarget": 525949.387755102,
+                  "inputStartSample": 499549,
+                  "inputEndSample": 528669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 229.77500000596046,
+                  "decodeMs": 0.1899999976158142,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 52
+                },
+                {
+                  "jobIndex": 52,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 525949.387755102,
+                  "ownedEndTarget": 535549.387755102,
+                  "inputStartSample": 509149,
+                  "inputEndSample": 538269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 229.9450000077486,
+                  "decodeMs": 0.22499999403953552,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 53
+                },
+                {
+                  "jobIndex": 53,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 535549.387755102,
+                  "ownedEndTarget": 545149.387755102,
+                  "inputStartSample": 518749,
+                  "inputEndSample": 547869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 234.27500000596046,
+                  "decodeMs": 0.2150000035762787,
+                  "publicationMs": 0,
+                  "eventCount": 4,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 54
+                },
+                {
+                  "jobIndex": 54,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 545149.387755102,
+                  "ownedEndTarget": 554749.387755102,
+                  "inputStartSample": 528349,
+                  "inputEndSample": 557469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 228.73000000417233,
+                  "decodeMs": 0.2199999988079071,
+                  "publicationMs": 0,
+                  "eventCount": 5,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 55
+                },
+                {
+                  "jobIndex": 55,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 554749.387755102,
+                  "ownedEndTarget": 564349.387755102,
+                  "inputStartSample": 537949,
+                  "inputEndSample": 567069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 225.10999999940395,
+                  "decodeMs": 0.22999998927116394,
+                  "publicationMs": 0,
+                  "eventCount": 6,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 56
+                },
+                {
+                  "jobIndex": 56,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 564349.387755102,
+                  "ownedEndTarget": 573949.387755102,
+                  "inputStartSample": 547549,
+                  "inputEndSample": 576669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 227.79500000178814,
+                  "decodeMs": 0.1899999976158142,
+                  "publicationMs": 0,
+                  "eventCount": 7,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 57
+                },
+                {
+                  "jobIndex": 57,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 573949.387755102,
+                  "ownedEndTarget": 583549.387755102,
+                  "inputStartSample": 557149,
+                  "inputEndSample": 586269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 221.67499999701977,
+                  "decodeMs": 0.19500000774860382,
+                  "publicationMs": 0,
+                  "eventCount": 4,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 58
+                },
+                {
+                  "jobIndex": 58,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 583549.387755102,
+                  "ownedEndTarget": 593149.387755102,
+                  "inputStartSample": 566749,
+                  "inputEndSample": 595869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 217.85500000417233,
+                  "decodeMs": 0.4449999928474426,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 59
+                },
+                {
+                  "jobIndex": 59,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 593149.387755102,
+                  "ownedEndTarget": 602749.387755102,
+                  "inputStartSample": 576349,
+                  "inputEndSample": 605469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 223.66999998688698,
+                  "decodeMs": 0.1900000125169754,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 60
+                },
+                {
+                  "jobIndex": 60,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 602749.387755102,
+                  "ownedEndTarget": 612349.387755102,
+                  "inputStartSample": 585949,
+                  "inputEndSample": 615069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 233.79999999701977,
+                  "decodeMs": 0.20499999821186066,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 61
+                },
+                {
+                  "jobIndex": 61,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 612349.387755102,
+                  "ownedEndTarget": 621949.387755102,
+                  "inputStartSample": 595549,
+                  "inputEndSample": 624669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 226.01999999582767,
+                  "decodeMs": 0.20000000298023224,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 62
+                },
+                {
+                  "jobIndex": 62,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 621949.387755102,
+                  "ownedEndTarget": 631549.387755102,
+                  "inputStartSample": 605149,
+                  "inputEndSample": 634269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 224.28999999165535,
+                  "decodeMs": 0.25,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 63
+                },
+                {
+                  "jobIndex": 63,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 631549.387755102,
+                  "ownedEndTarget": 641149.387755102,
+                  "inputStartSample": 614749,
+                  "inputEndSample": 643869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 226.21500000357628,
+                  "decodeMs": 0.2199999988079071,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 64
+                },
+                {
+                  "jobIndex": 64,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 641149.387755102,
+                  "ownedEndTarget": 650749.387755102,
+                  "inputStartSample": 624349,
+                  "inputEndSample": 653469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 221.22499999403954,
+                  "decodeMs": 0.19500000774860382,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 65
+                },
+                {
+                  "jobIndex": 65,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 650749.387755102,
+                  "ownedEndTarget": 660349.387755102,
+                  "inputStartSample": 633949,
+                  "inputEndSample": 663069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 232.08500000834465,
+                  "decodeMs": 0.19499999284744263,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 66
+                },
+                {
+                  "jobIndex": 66,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 660349.387755102,
+                  "ownedEndTarget": 669949.387755102,
+                  "inputStartSample": 643549,
+                  "inputEndSample": 672669,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 222.9750000089407,
+                  "decodeMs": 0.19999998807907104,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 67
+                },
+                {
+                  "jobIndex": 67,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 669949.387755102,
+                  "ownedEndTarget": 679549.387755102,
+                  "inputStartSample": 653149,
+                  "inputEndSample": 682269,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 223.00999999046326,
+                  "decodeMs": 0.24500000476837158,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 68
+                },
+                {
+                  "jobIndex": 68,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 679549.387755102,
+                  "ownedEndTarget": 689149.387755102,
+                  "inputStartSample": 662749,
+                  "inputEndSample": 691869,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 226.625,
+                  "decodeMs": 0.20000000298023224,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 69
+                },
+                {
+                  "jobIndex": 69,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 689149.387755102,
+                  "ownedEndTarget": 698749.387755102,
+                  "inputStartSample": 672349,
+                  "inputEndSample": 701469,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 223.73499999940395,
+                  "decodeMs": 0.2149999886751175,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 70
+                },
+                {
+                  "jobIndex": 70,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 698749.387755102,
+                  "ownedEndTarget": 708349.387755102,
+                  "inputStartSample": 681949,
+                  "inputEndSample": 711069,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 222.9399999976158,
+                  "decodeMs": 0.20000000298023224,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 71
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              }
+            },
+            "assembler": {
+              "phase": "BLOCKED",
+              "inputEligibleAfterSourceSample": 1650688,
+              "processedThroughSourceSample": 1952388,
+              "gestureAnchorSourceSample": null,
+              "gestureEndSourceSample": null,
+              "activeObservationCount": 0,
+              "retainedObservationIdentityCount": 109
+            }
+          }
+        },
+        {
+          "kind": "APPLICATION_SESSION_DISPOSE",
+          "root": [
+            "ended"
+          ],
+          "contextState": "closed"
+        }
+      ],
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 2204.9999999998836\n- 2205\n     ^\n\n    at auditCell (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v27/campaign.mjs:61:12)\n    at file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v27/campaign.mjs:119:7",
+      "failureClassification": {
+        "disposition": "STEP_V27_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+        "reason": "TOOL_ENVIRONMENT_INSTRUMENTATION_OR_UNRESOLVED_CAUSALITY_NOT_A_PRODUCTION_DEFECT",
+        "productionGraphRunning": true,
+        "resourceCreationAloneIsNotProof": true
+      }
+    },
+    {
+      "id": "normal-48000",
+      "status": "NOT_STARTED",
+      "rate": 48000,
+      "environmentValidated": false,
+      "counts": null,
+      "accounting": null,
+      "GPU": null,
+      "modelReceipt": null,
+      "captured": null,
+      "analysis": null,
+      "assembler": null,
+      "sourceChronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "attempts": [],
+      "boundaries": [],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "SECOND_IDENTICAL_TARGET_ACCEPTANCE_NOT_EXERCISED",
+      "infrastructure": null,
+      "applicationFailures": null,
+      "inputFailures": null,
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": null,
+      "error": null,
+      "failureClassification": null
+    },
+    {
+      "id": "context-loss-44100",
+      "status": "NOT_STARTED",
+      "rate": 44100,
+      "environmentValidated": false,
+      "counts": null,
+      "accounting": null,
+      "GPU": null,
+      "modelReceipt": null,
+      "captured": null,
+      "analysis": null,
+      "assembler": null,
+      "sourceChronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "attempts": [],
+      "boundaries": [],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "SECOND_IDENTICAL_TARGET_ACCEPTANCE_NOT_EXERCISED",
+      "infrastructure": null,
+      "applicationFailures": null,
+      "inputFailures": null,
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": null,
+      "error": null,
+      "failureClassification": null
+    },
+    {
+      "id": "context-loss-48000",
+      "status": "NOT_STARTED",
+      "rate": 48000,
+      "environmentValidated": false,
+      "counts": null,
+      "accounting": null,
+      "GPU": null,
+      "modelReceipt": null,
+      "captured": null,
+      "analysis": null,
+      "assembler": null,
+      "sourceChronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "attempts": [],
+      "boundaries": [],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "SECOND_IDENTICAL_TARGET_ACCEPTANCE_NOT_EXERCISED",
+      "infrastructure": null,
+      "applicationFailures": null,
+      "inputFailures": null,
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": null,
+      "error": null,
+      "failureClassification": null
+    },
+    {
+      "id": "root-loss-44100",
+      "status": "NOT_STARTED",
+      "rate": 44100,
+      "environmentValidated": false,
+      "counts": null,
+      "accounting": null,
+      "GPU": null,
+      "modelReceipt": null,
+      "captured": null,
+      "analysis": null,
+      "assembler": null,
+      "sourceChronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "attempts": [],
+      "boundaries": [],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "SECOND_IDENTICAL_TARGET_ACCEPTANCE_NOT_EXERCISED",
+      "infrastructure": null,
+      "applicationFailures": null,
+      "inputFailures": null,
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": null,
+      "error": null,
+      "failureClassification": null
+    },
+    {
+      "id": "root-loss-48000",
+      "status": "NOT_STARTED",
+      "rate": 48000,
+      "environmentValidated": false,
+      "counts": null,
+      "accounting": null,
+      "GPU": null,
+      "modelReceipt": null,
+      "captured": null,
+      "analysis": null,
+      "assembler": null,
+      "sourceChronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "attempts": [],
+      "boundaries": [],
+      "repeatedIdenticalTargetTransitions": [],
+      "sameTargetAttemptDiagnostic": "SECOND_IDENTICAL_TARGET_ACCEPTANCE_NOT_EXERCISED",
+      "infrastructure": null,
+      "applicationFailures": null,
+      "inputFailures": null,
+      "rootStop": null,
+      "afterInfrastructureLoss": null,
+      "teardown": null,
+      "error": null,
+      "failureClassification": null
+    }
+  ],
+  "totals": {
+    "ChromeLaunches": 1,
+    "ChromeLaunchAttempts": 1,
+    "browserContexts": 1,
+    "AudioContexts": 1,
+    "rootStreams": 1,
+    "analysisClones": 1,
+    "productWorkers": 1,
+    "modelLoadAttempts": 1,
+    "modelLoadsSucceeded": 1,
+    "modelSessionsObserved": 1,
+    "neuralRunRequests": 71,
+    "successfulInferenceResponses": 71,
+    "failedInferenceResponses": 0,
+    "actualSessionRunsWithReceipts": 71,
+    "decoderRunsWithReceipts": 71,
+    "unacknowledgedModelRequests": 0,
+    "publications": 71,
+    "attempts": 20,
+    "retirementBoundaries": 21,
+    "workerDisposals": 1,
+    "sourceDisposals": 1,
+    "captureStopTransitions": 1,
+    "infrastructureFailures": 0,
+    "hiddenWarmups": 0,
+    "unknownExecutions": 0
+  },
+  "answers": {
+    "01_V26CompletelyImmutable": true,
+    "02_V26NotResumed": true,
+    "03_exactBundleWAVHashesReused": true,
+    "04_bundlesRebuilt": false,
+    "05_inputRepresentation": "FILESYSTEM_INPUT has exact real bytes/SHA and original metafile name; ESBUILD_VIRTUAL_INPUT has exact identifier, bundle membership and build-semantic provenance only",
+    "06_virtualNodeReadAsFile": false,
+    "07_unexpectedVirtualInputs": [],
+    "08_newV27FreezeCreated": true,
+    "09_remoteFreezeBeforeLaunch": true,
+    "10_actualBrowserVersion": {
+      "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "version": "155.0.8059.80",
+      "headed": true,
+      "playwright": "1.48.2",
+      "CDPBrowser": {
+        "protocolVersion": "1.3",
+        "product": "Chrome/155.0.8059.80",
+        "revision": "@43a195105613ac83c21d3f14de279f4a045c7da0",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "jsVersion": "15.5.35.23"
+      },
+      "CDPSystem": {
+        "gpu": {
+          "devices": [
+            {
+              "vendorId": 4318,
+              "deviceId": 10208,
+              "subSysId": 685576259,
+              "revision": 161,
+              "vendorString": "",
+              "deviceString": "NVIDIA GeForce RTX 4080 Laptop GPU",
+              "driverVendor": "NVIDIA",
+              "driverVersion": "32.0.15.5597"
+            },
+            {
+              "vendorId": 32902,
+              "deviceId": 42912,
+              "subSysId": 685576259,
+              "revision": 4,
+              "vendorString": "",
+              "deviceString": "Intel(R) Iris(R) Xe Graphics",
+              "driverVendor": "",
+              "driverVersion": "31.0.101.4502"
+            },
+            {
+              "vendorId": 5140,
+              "deviceId": 140,
+              "subSysId": 0,
+              "revision": 0,
+              "vendorString": "",
+              "deviceString": "Microsoft Basic Render Driver",
+              "driverVendor": "",
+              "driverVersion": "10.0.26100.8972"
+            }
+          ],
+          "auxAttributes": {
+            "amdSwitchable": false,
+            "bgra8OverlaySupport": "SCALING",
+            "canSupportThreadedTextureMailbox": false,
+            "directComposition": true,
+            "directMLFeatureLevel": "Not supported",
+            "directRenderingVersion": "",
+            "displayType": "ANGLE_D3D11",
+            "dx12FeatureLevel": "Not supported",
+            "glExtensions": "GL_AMD_performance_monitor GL_ANGLE_base_vertex_base_instance_shader_builtin GL_ANGLE_blob_cache GL_ANGLE_client_arrays GL_ANGLE_clip_cull_distance GL_ANGLE_copy_texture_3d GL_ANGLE_depth_texture GL_ANGLE_framebuffer_blit GL_ANGLE_framebuffer_multisample GL_ANGLE_get_serialized_context_string GL_ANGLE_get_tex_level_parameter GL_ANGLE_instanced_arrays GL_ANGLE_memory_size GL_ANGLE_multiview_multisample GL_ANGLE_pack_reverse_row_order GL_ANGLE_polygon_mode GL_ANGLE_program_binary_readiness_query GL_ANGLE_program_cache_control GL_ANGLE_provoking_vertex GL_ANGLE_renderability_validation GL_ANGLE_request_extension GL_ANGLE_robust_client_memory GL_ANGLE_shader_pixel_local_storage GL_ANGLE_shader_pixel_local_storage_coherent GL_ANGLE_stencil_texturing GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_ANGLE_texture_multisample GL_ANGLE_texture_usage GL_ANGLE_translated_shader_source GL_APPLE_clip_distance GL_ARM_rgba8 GL_CHROMIUM_bind_generates_resource GL_CHROMIUM_bind_uniform_location GL_CHROMIUM_copy_compressed_texture GL_CHROMIUM_copy_texture GL_CHROMIUM_lose_context GL_EXT_EGL_image_external_wrap_modes GL_EXT_base_instance GL_EXT_blend_func_extended GL_EXT_blend_minmax GL_EXT_clip_control GL_EXT_clip_cull_distance GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_depth GL_EXT_debug_label GL_EXT_debug_marker GL_EXT_depth_clamp GL_EXT_discard_framebuffer GL_EXT_disjoint_timer_query GL_EXT_draw_buffers GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_float_blend GL_EXT_frag_depth GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_occlusion_query_boolean GL_EXT_polygon_offset_clamp GL_EXT_read_format_bgra GL_EXT_render_snorm GL_EXT_robustness GL_EXT_sRGB GL_EXT_shader_texture_lod GL_EXT_texture_border_clamp GL_EXT_texture_compression_bptc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_compression_s3tc_srgb GL_EXT_texture_filter_anisotropic GL_EXT_texture_format_BGRA8888 GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_EXT_texture_rg GL_EXT_texture_storage GL_EXT_texture_type_2_10_10_10_REV GL_EXT_unpack_subimage GL_KHR_debug GL_KHR_parallel_shader_compile GL_KHR_robustness GL_NV_EGL_stream_consumer_external GL_NV_fence GL_NV_framebuffer_blit GL_NV_pack_subimage GL_NV_pixel_buffer_object GL_NV_shader_noperspective_interpolation GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_EGL_image_external_essl3 GL_OES_depth24 GL_OES_depth32 GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_get_program_binary GL_OES_mapbuffer GL_OES_packed_depth_stencil GL_OES_required_internalformat GL_OES_rgb8_rgba8 GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_standard_derivatives GL_OES_surfaceless_context GL_OES_texture_border_clamp GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_vertex_array_object GL_OVR_multiview GL_OVR_multiview2 ",
+            "glImplementationParts": "(gl=egl-angle,angle=d3d11)",
+            "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Laptop GPU (0x000027E0) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.15.5597)",
+            "glResetNotificationStrategy": 33362,
+            "glVendor": "Google Inc. (NVIDIA)",
+            "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28854 git hash: cccf60cde32c)",
+            "glWsExtensions": "EGL_EXT_create_context_robustness EGL_ANGLE_d3d_share_handle_client_buffer EGL_ANGLE_d3d_texture_client_buffer EGL_ANGLE_surface_d3d_texture_2d_share_handle EGL_ANGLE_query_surface_pointer EGL_ANGLE_window_fixed_size EGL_ANGLE_keyed_mutex EGL_ANGLE_surface_orientation EGL_ANGLE_direct_composition EGL_NV_post_sub_buffer EGL_KHR_create_context EGL_KHR_image EGL_KHR_image_base EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_gl_renderbuffer_image EGL_KHR_get_all_proc_addresses EGL_KHR_stream EGL_KHR_stream_consumer_gltexture EGL_NV_stream_consumer_gltexture_yuv EGL_ANGLE_stream_producer_d3d_texture EGL_ANGLE_create_context_webgl_compatibility EGL_CHROMIUM_create_context_bind_generates_resource EGL_CHROMIUM_sync_control EGL_EXT_pixel_format_float EGL_KHR_surfaceless_context EGL_ANGLE_display_texture_share_group EGL_ANGLE_display_semaphore_share_group EGL_ANGLE_create_context_client_arrays EGL_ANGLE_program_cache_control EGL_ANGLE_robust_resource_initialization EGL_ANGLE_create_context_extensions_enabled EGL_ANDROID_blob_cache EGL_ANDROID_recordable EGL_ANGLE_image_d3d11_texture EGL_ANGLE_create_context_backwards_compatible EGL_KHR_no_config_context EGL_KHR_create_context_no_error EGL_KHR_reusable_sync EGL_ANGLE_memory_usage_report ",
+            "glWsVendor": "Google Inc. (NVIDIA)",
+            "glWsVersion": "1.5 (ANGLE 2.1.28854 git hash: cccf60cde32c)",
+            "inProcessGpu": false,
+            "initializationTime": 0.155618,
+            "isAsan": false,
+            "isClangCoverage": false,
+            "jpegDecodeAcceleratorSupported": false,
+            "maxMsaaSamples": "8",
+            "nv12OverlaySupport": "SCALING",
+            "optimus": false,
+            "p010OverlaySupport": "SCALING",
+            "passthroughCmdDecoder": true,
+            "pixelShaderVersion": "5.0",
+            "processCrashCount": 0,
+            "rgb10a2OverlaySupport": "SCALING",
+            "sandboxed": false,
+            "skiaBackendType": "GaneshGL",
+            "subpixelFontRendering": true,
+            "supportsD3dSharedImages": false,
+            "supportsDirectML": false,
+            "supportsDx12": false,
+            "supportsOverlays": true,
+            "supportsVulkan": false,
+            "targetCpuBits": 64,
+            "vertexShaderVersion": "5.0",
+            "visibilityCallbackCallCount": 0,
+            "vulkanVersion": "Not supported",
+            "yuy2OverlaySupport": "SCALING"
+          },
+          "featureStatus": {
+            "2d_canvas": "enabled",
+            "direct_rendering_display_compositor": "disabled_off_ok",
+            "gpu_compositing": "enabled",
+            "multiple_raster_threads": "enabled_on",
+            "opengl": "enabled_on",
+            "rasterization": "enabled",
+            "raw_draw": "disabled_off_ok",
+            "skia_graphite": "disabled_off",
+            "trees_in_viz": "disabled_off",
+            "video_decode": "enabled",
+            "video_encode": "enabled",
+            "webgl": "enabled",
+            "webgpu": "enabled",
+            "webnn": "disabled_off"
+          },
+          "driverBugWorkarounds": [
+            "disable_d3d11_vp9_ksvc_decoding",
+            "disable_d3d12_av1_encoding",
+            "disable_d3d12_h264_encoding",
+            "disable_hevc_hmft_cbr_encoding",
+            "disable_vp9_hmft_temporal_encoding",
+            "enable_bgra8_overlays_with_yuv_overlay_support",
+            "enable_webgl_timer_query_extensions",
+            "exit_on_context_lost",
+            "force_rgb10a2_overlay_support",
+            "unpack_overlapping_rows_separately_unpack_buffer",
+            "use_first_valid_ref_for_av1_invalid_ref",
+            "disabled_extension_GL_KHR_blend_equation_advanced",
+            "disabled_extension_GL_KHR_blend_equation_advanced_coherent"
+          ],
+          "videoDecoding": [],
+          "videoEncoding": []
+        },
+        "modelName": "",
+        "modelVersion": "",
+        "commandLine": "\"C:/Program Files/Google/Chrome/Application/chrome.exe\" --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,MediaRouter,DialMediaRouteProvider,AcceptCHFrame,AutoExpandDetailsElement,CertificateTransparencyComponentUpdater,AvoidUnnecessaryBeforeUnloadCheckSync,Translate,HttpsUpgrades,PaintHolding,ThirdPartyStoragePartitioning,LensOverlay,PlzDedicatedWorker --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --enable-automation --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --no-sandbox --use-fake-ui-for-media-stream --use-fake-device-for-media-stream --use-file-for-fake-audio-capture=\"C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\reports\\step_microphone_browser_v26\\browser-input.wav\" --autoplay-policy=no-user-gesture-required --user-data-dir=\"C:\\Users\\TINGHU~1\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-ck5WB5\" --remote-debugging-pipe --no-startup-window --flag-switches-begin --flag-switches-end"
+      }
+    },
+    "11_actualGPU": {
+      "info": {
+        "vendor": "nvidia",
+        "architecture": "lovelace",
+        "device": "",
+        "description": ""
+      },
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "texture-formats-tier1",
+        "bgra8unorm-storage",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "core-features-and-limits",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "texture-formats-tier2",
+        "timestamp-query",
+        "shader-f16",
+        "clip-distances",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ]
+    },
+    "12_hardwareWebGPU": true,
+    "13_actualContextRates": [
+      {
+        "id": "normal-44100",
+        "rate": 44100,
+        "state": "FAILED"
+      }
+    ],
+    "14_productionCaptureUsed": true,
+    "15_productionWorkerUsed": true,
+    "16_workersPerCell": [
+      {
+        "id": "normal-44100",
+        "count": 1
+      }
+    ],
+    "17_modelOwnersPerCell": [
+      {
+        "id": "normal-44100",
+        "attempts": 1,
+        "loads": 1,
+        "sessionsObserved": 1
+      }
+    ],
+    "18_neuralAccounting": {
+      "ChromeLaunches": 1,
+      "ChromeLaunchAttempts": 1,
+      "browserContexts": 1,
+      "AudioContexts": 1,
+      "rootStreams": 1,
+      "analysisClones": 1,
+      "productWorkers": 1,
+      "modelLoadAttempts": 1,
+      "modelLoadsSucceeded": 1,
+      "modelSessionsObserved": 1,
+      "neuralRunRequests": 71,
+      "successfulInferenceResponses": 71,
+      "failedInferenceResponses": 0,
+      "actualSessionRunsWithReceipts": 71,
+      "decoderRunsWithReceipts": 71,
+      "unacknowledgedModelRequests": 0,
+      "publications": 71,
+      "attempts": 20,
+      "retirementBoundaries": 21,
+      "workerDisposals": 1,
+      "sourceDisposals": 1,
+      "captureStopTransitions": 1,
+      "infrastructureFailures": 0,
+      "hiddenWarmups": 0,
+      "unknownExecutions": 0
+    },
+    "19_regionsPerCell": [
+      {
+        "id": "normal-44100",
+        "regions": 1
+      }
+    ],
+    "20_chronology": [
+      {
+        "id": "normal-44100",
+        "evidence": {
+          "gapless": true,
+          "fixedOrigin": 46848,
+          "chunks": 962,
+          "samples": 1970176,
+          "rate": 44100
+        },
+        "status": "FAILED"
+      },
+      {
+        "id": "normal-48000",
+        "evidence": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "context-loss-44100",
+        "evidence": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "context-loss-48000",
+        "evidence": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "root-loss-44100",
+        "evidence": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "root-loss-48000",
+        "evidence": null,
+        "status": "NOT_STARTED"
+      }
+    ],
+    "21_fixedOrigin": [
+      {
+        "id": "normal-44100",
+        "origin": 46848
+      },
+      {
+        "id": "normal-48000",
+        "origin": null
+      },
+      {
+        "id": "context-loss-44100",
+        "origin": null
+      },
+      {
+        "id": "context-loss-48000",
+        "origin": null
+      },
+      {
+        "id": "root-loss-44100",
+        "origin": null
+      },
+      {
+        "id": "root-loss-48000",
+        "origin": null
+      }
+    ],
+    "22_physicalRetirementEvidence": [
+      {
+        "id": "normal-44100",
+        "boundaries": [
+          {
+            "initial": true,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 73728,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 2734.1496598639455,
+                "sampleIndex": 73728
+              },
+              "sequence": 1
+            },
+            "physical": 73728,
+            "processed": null,
+            "sourceRuntimeNext": 73728,
+            "contextTime": 2.742857142857143,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 542720,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 13368.888888888889,
+                "sampleIndex": 542720
+              },
+              "sequence": 2
+            },
+            "physical": 542720,
+            "processed": 523548,
+            "sourceRuntimeNext": 542720,
+            "contextTime": 13.371791383219955,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 593920,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 14529.886621315194,
+                "sampleIndex": 593920
+              },
+              "sequence": 3
+            },
+            "physical": 593920,
+            "processed": 576468,
+            "sourceRuntimeNext": 593920,
+            "contextTime": 14.570521541950113,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 647168,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 15737.32426303855,
+                "sampleIndex": 647168
+              },
+              "sequence": 4
+            },
+            "physical": 647168,
+            "processed": 629388,
+            "sourceRuntimeNext": 647168,
+            "contextTime": 15.740226757369614,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 698368,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 16898.321995464852,
+                "sampleIndex": 698368
+              },
+              "sequence": 5
+            },
+            "physical": 698368,
+            "processed": 682308,
+            "sourceRuntimeNext": 698368,
+            "contextTime": 16.930249433106574,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 886784,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 21170.79365079365,
+                "sampleIndex": 886784
+              },
+              "sequence": 6
+            },
+            "physical": 886784,
+            "processed": 867527.9999999999,
+            "sourceRuntimeNext": 886784,
+            "contextTime": 21.17079365079365,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 911360,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 21728.072562358277,
+                "sampleIndex": 911360
+              },
+              "sequence": 7
+            },
+            "physical": 911360,
+            "processed": 893987.9999999999,
+            "sourceRuntimeNext": 911360,
+            "contextTime": 21.771609977324264,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 966656,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 22981.950113378683,
+                "sampleIndex": 966656
+              },
+              "sequence": 8
+            },
+            "physical": 966656,
+            "processed": 946907.9999999999,
+            "sourceRuntimeNext": 966656,
+            "contextTime": 22.981950113378684,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1015808,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 24096.507936507933,
+                "sampleIndex": 1015808
+              },
+              "sequence": 9
+            },
+            "physical": 1015808,
+            "processed": 999827.9999999999,
+            "sourceRuntimeNext": 1015808,
+            "contextTime": 24.140045351473923,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1069056,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 25303.94557823129,
+                "sampleIndex": 1069056
+              },
+              "sequence": 10
+            },
+            "physical": 1069056,
+            "processed": 1052747.9999999998,
+            "sourceRuntimeNext": 1069056,
+            "contextTime": 25.341678004535147,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1257472,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 29576.417233560092,
+                "sampleIndex": 1257472
+              },
+              "sequence": 11
+            },
+            "physical": 1257472,
+            "processed": 1237968,
+            "sourceRuntimeNext": 1257472,
+            "contextTime": 29.58222222222222,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1306624,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 30690.97505668934,
+                "sampleIndex": 1306624
+              },
+              "sequence": 12
+            },
+            "physical": 1306624,
+            "processed": 1290888,
+            "sourceRuntimeNext": 1306624,
+            "contextTime": 30.731609977324265,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1335296,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 31341.13378684807,
+                "sampleIndex": 1335296
+              },
+              "sequence": 13
+            },
+            "physical": 1335296,
+            "processed": 1317348,
+            "sourceRuntimeNext": 1335296,
+            "contextTime": 31.352743764172335,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1388544,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 32548.571428571428,
+                "sampleIndex": 1388544
+              },
+              "sequence": 14
+            },
+            "physical": 1388544,
+            "processed": 1370268,
+            "sourceRuntimeNext": 1388544,
+            "contextTime": 32.551473922902495,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1413120,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 33105.85034013606,
+                "sampleIndex": 1413120
+              },
+              "sequence": 15
+            },
+            "physical": 1413120,
+            "processed": 1396728,
+            "sourceRuntimeNext": 1413120,
+            "contextTime": 33.140680272108845,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1441792,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 33756.009070294785,
+                "sampleIndex": 1441792
+              },
+              "sequence": 16
+            },
+            "physical": 1441792,
+            "processed": 1423188,
+            "sourceRuntimeNext": 1441792,
+            "contextTime": 33.761814058956915,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1521664,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 35567.165532879815,
+                "sampleIndex": 1521664
+              },
+              "sequence": 17
+            },
+            "physical": 1521664,
+            "processed": 1502568,
+            "sourceRuntimeNext": 1521664,
+            "contextTime": 35.57006802721089,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1548288,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 36170.884353741494,
+                "sampleIndex": 1548288
+              },
+              "sequence": 18
+            },
+            "physical": 1548288,
+            "processed": 1529028,
+            "sourceRuntimeNext": 1548288,
+            "contextTime": 36.1708843537415,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1572864,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 36728.16326530612,
+                "sampleIndex": 1572864
+              },
+              "sequence": 19
+            },
+            "physical": 1572864,
+            "processed": 1555488,
+            "sourceRuntimeNext": 1572864,
+            "contextTime": 36.76009070294785,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1601536,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 37378.32199546485,
+                "sampleIndex": 1601536
+              },
+              "sequence": 20
+            },
+            "physical": 1601536,
+            "processed": 1581948,
+            "sourceRuntimeNext": 1601536,
+            "contextTime": 37.38122448979592,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          },
+          {
+            "initial": false,
+            "boundary": {
+              "sourceDomainId": "normal-44100:capture",
+              "sourceSampleRateHz": 44100,
+              "capturedThroughSourceSample": 1650688,
+              "sessionTime": {
+                "domainId": "normal-44100",
+                "ms": 38492.879818594105,
+                "sampleIndex": 1650688
+              },
+              "sequence": 21
+            },
+            "physical": 1650688,
+            "processed": 1634868,
+            "sourceRuntimeNext": 1650688,
+            "contextTime": 38.53061224489796,
+            "beforeIndex": 0,
+            "afterIndex": 0,
+            "beforeGeneration": 1,
+            "afterGeneration": 1,
+            "sameStack": true
+          }
+        ]
+      },
+      {
+        "id": "normal-48000",
+        "boundaries": []
+      },
+      {
+        "id": "context-loss-44100",
+        "boundaries": []
+      },
+      {
+        "id": "context-loss-48000",
+        "boundaries": []
+      },
+      {
+        "id": "root-loss-44100",
+        "boundaries": []
+      },
+      {
+        "id": "root-loss-48000",
+        "boundaries": []
+      }
+    ],
+    "23_processedUsedForRetirement": false,
+    "24_fixedCooldownIntroduced": false,
+    "25_ordinaryEvidenceReachedRuntime": true,
+    "26_verdictOwner": "Actual schema6 StepPracticeRuntime; immutable harness assertions occur only after finalized ordinary EVIDENCE",
+    "27_observationReuse": [
+      {
+        "id": "normal-44100",
+        "validated": "NOT_EVALUATED"
+      },
+      {
+        "id": "normal-48000",
+        "validated": "NOT_EVALUATED"
+      },
+      {
+        "id": "context-loss-44100",
+        "validated": "NOT_EVALUATED"
+      },
+      {
+        "id": "context-loss-48000",
+        "validated": "NOT_EVALUATED"
+      },
+      {
+        "id": "root-loss-44100",
+        "validated": "NOT_EVALUATED"
+      },
+      {
+        "id": "root-loss-48000",
+        "validated": "NOT_EVALUATED"
+      }
+    ],
+    "28_normalRootPreserved": [
+      {
+        "id": "normal-44100",
+        "root": [
+          "live"
+        ],
+        "status": "FAILED"
+      },
+      {
+        "id": "normal-48000",
+        "root": null,
+        "status": "NOT_STARTED"
+      }
+    ],
+    "29_normalBorrowedContext": [
+      {
+        "id": "normal-44100",
+        "state": "running",
+        "status": "FAILED"
+      },
+      {
+        "id": "normal-48000",
+        "state": null,
+        "status": "NOT_STARTED"
+      }
+    ],
+    "30_actualRootStopLoss": [
+      {
+        "id": "root-loss-44100",
+        "stopped": null,
+        "watcher": null,
+        "classification": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "root-loss-48000",
+        "stopped": null,
+        "watcher": null,
+        "classification": null,
+        "status": "NOT_STARTED"
+      }
+    ],
+    "31_actualContextInterruption": [
+      {
+        "id": "context-loss-44100",
+        "watcher": null,
+        "inputFailures": null,
+        "status": "NOT_STARTED"
+      },
+      {
+        "id": "context-loss-48000",
+        "watcher": null,
+        "inputFailures": null,
+        "status": "NOT_STARTED"
+      }
+    ],
+    "32_syntheticInfrastructureEvents": false,
+    "33_productionBackendDeliveryExercised": false,
+    "34_freshHoldoutAccessed": false,
+    "35_physicalMicrophoneQualified": false,
+    "36_recognitionQualified": false,
+    "37_controllerHookCapabilityModified": false,
+    "38_capabilitiesClosed": true,
+    "39_productionModified": false,
+    "40_githubCI": "Local results are not CI; actual final status/workflows queried at Git closure"
+  },
+  "defaults": {
+    "modelIdentity": "robust-browser-engineering-default-xc4-v1",
+    "modelSHA256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "modelBytes": 98689283,
+    "rate": 16000,
+    "inputSamples": 29120,
+    "inputMs": 1820,
+    "decoder": "A",
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170,
+    "ORT": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false
+  },
+  "baselineClassification": "CURRENT_FROZEN_ENGINEERING_BASELINE_NOT_GLOBAL_OPTIMUM",
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "physicalDevice": "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+  "permissionUXQualified": false,
+  "productionAssetDeliveryQualified": false,
+  "recognitionQualified": false,
+  "fixedCooldownSelected": false,
+  "freshHoldoutAccess": 0,
+  "thresholdOrGeometryStudy": false,
+  "productionDiff": [],
+  "V3ThroughV26Diff": [],
+  "historicalRawFilesVerified": 1857,
+  "localTests": {
+    "result": "LOCAL_PASS",
+    "classification": "LOCAL_TESTS_NOT_GITHUB_CI_NOT_BROWSER_EVIDENCE",
+    "productRegressions": {
+      "passed": 519,
+      "failed": 0,
+      "pending": 0,
+      "files": 46,
+      "report": "product-regressions.json"
+    },
+    "categories": {
+      "V25PersistentOwnership": {
+        "passed": 38,
+        "failed": 0,
+        "deterministicDoublesOnly": true
+      },
+      "V25Architecture": {
+        "passed": 3,
+        "failed": 0
+      },
+      "V24Assembler": {
+        "passed": 20,
+        "failed": 0
+      },
+      "RuntimeStatus": {
+        "passed": 8,
+        "failed": 0
+      },
+      "ModelWorkerIdentity": {
+        "passed": 9,
+        "failed": 0,
+        "realModelRuns": 0
+      },
+      "CaptureTransport": {
+        "passed": 10,
+        "failed": 0
+      },
+      "SourceAnalysisRuntime": {
+        "passed": 2,
+        "failed": 0,
+        "deterministicPortsOnly": true
+      },
+      "V27VirtualInputManifestFreezeGraphAndGuards": {
+        "passed": 11,
+        "failed": 0,
+        "report": "tooling-tests.json"
+      }
+    },
+    "applicationTypecheck": "LOCAL_PASS tsc --noEmit --incremental false",
+    "V27ResearchLint": "LOCAL_PASS eslint *.mjs --max-warnings=0",
+    "V27CampaignSyntax": "LOCAL_PASS node --check",
+    "productionChanges": false,
+    "bundlesRebuilt": false,
+    "browserLaunchesBeforeRemoteProof": 0,
+    "realNeuralRunsBeforeRemoteProof": 0,
+    "freezeCommandFailuresInProductTestCount": false,
+    "warnings": "Existing jsdom HTMLMediaElement pause/load warnings; no failing product tests"
+  },
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 2204.9999999998836\n- 2205\n     ^\n\n    at auditCell (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v27/campaign.mjs:61:12)\n    at file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v27/campaign.mjs:119:7",
+  "causalFailure": {
+    "disposition": "STEP_V27_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+    "reason": "TOOL_ENVIRONMENT_INSTRUMENTATION_OR_UNRESOLVED_CAUSALITY_NOT_A_PRODUCTION_DEFECT",
+    "productionGraphRunning": true,
+    "resourceCreationAloneIsNotProof": true
+  },
+  "nextAllowedPhase": "STOP_FOR_INDEPENDENT_AUDIT_NO_SAME_PHASE_REPAIR_RETRY_OR_CAPABILITY_PROMOTION"
+}

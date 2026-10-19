@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-10-19T15:33:49.647Z",
+  "proof": {
+    "freezeCommit": "13bbddb960d7b740ecb9b819a49915b78571f73c",
+    "remoteHead": "13bbddb960d7b740ecb9b819a49915b78571f73c",
+    "remoteVerifiedAt": "2026-10-19T15:33:38.303Z",
+    "freezeSha256": "c3a253f8cb8a7d0e5a79b3d6e67fc60975dec0511014d71485b9d4f9054e8e1e",
+    "browserLaunches": 0,
+    "authorization": "V27_FIRST_AUTHORIZED_EXECUTION_OF_IMMUTABLE_V26_PREPARED_BROWSER_ARTIFACTS"
+  },
+  "campaignOrdinal": 1,
+  "cellRetries": 0,
+  "authorization": "V27_FIRST_AUTHORIZED_EXECUTION_OF_IMMUTABLE_V26_PREPARED_BROWSER_ARTIFACTS",
+  "symbol": "EXECUTABLE_SYMBOL_NAME_RUNV26_IS_HISTORICAL_ARTIFACT_IDENTITY_NOT_PHASE_RESUMPTION"
+}
