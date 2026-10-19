@@ -1,0 +1,2513 @@
+{
+  "startedAt": "2026-10-19T05:19:18.060Z",
+  "completedAt": "2026-10-19T05:19:18.068Z",
+  "inputSha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a",
+  "label": "EXPOSED_PRODUCT_POLICY_RESEARCH_ONLY_NOT_QUALIFICATION",
+  "attempts": [
+    {
+      "scenarioId": "correct_single",
+      "family": "correct_single",
+      "rate": 44100,
+      "jobId": "j-3ea18cb7ffbe8add3120531f",
+      "audioBoundCaseId": "497e64b39d554ba07e0fbef1cf7cf267ba0e3e2d0d84afe7e51554a2c7a7d9c0",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:correct_single:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        64
+      ],
+      "physicalTruth": [
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p01:g:450",
+      "physicalOnsetMs": 81885.41666666832,
+      "acousticObserved": [
+        64
+      ],
+      "sealedObservationIds": [
+        "j-3ea18cb7ffbe8add3120531f:r0:w5:p64:f70240"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "correct_single",
+      "family": "correct_single",
+      "rate": 48000,
+      "jobId": "j-a1987006cc63fcdaef5ce98a",
+      "audioBoundCaseId": "497e64b39d554ba07e0fbef1cf7cf267ba0e3e2d0d84afe7e51554a2c7a7d9c0",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:correct_single:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        64
+      ],
+      "physicalTruth": [
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p01:g:450",
+      "physicalOnsetMs": 81885.41666666832,
+      "acousticObserved": [
+        64
+      ],
+      "sealedObservationIds": [
+        "j-a1987006cc63fcdaef5ce98a:r0:w5:p64:f70240"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "correct_chord",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:correct_chord:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "correct_chord",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:correct_chord:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:post_ready_repeat:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:801",
+      "physicalOnsetMs": 77656.24999999908,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:post_ready_repeat:44100:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:803",
+      "physicalOnsetMs": 79270.83333333248,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+        "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+        "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:post_ready_repeat:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:801",
+      "physicalOnsetMs": 77656.24999999908,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+        "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+        "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+        "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:post_ready_repeat:48000:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:803",
+      "physicalOnsetMs": 79270.83333333248,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+        "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+        "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:match_followed_by_next_target:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:801",
+      "physicalOnsetMs": 77656.24999999908,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:match_followed_by_next_target:44100:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:803",
+      "physicalOnsetMs": 79270.83333333248,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+        "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+        "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:match_followed_by_next_target:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:801",
+      "physicalOnsetMs": 77656.24999999908,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+        "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+        "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+        "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:match_followed_by_next_target:48000:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:803",
+      "physicalOnsetMs": 79270.83333333248,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+        "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+        "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        36,
+        53,
+        59,
+        62
+      ],
+      "physicalGestureId": "kv279_2:g:523",
+      "physicalOnsetMs": 109072.91666667095,
+      "acousticObserved": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "sealedObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p53:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p59:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p62:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p36:f69920",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p48:f69920",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p55:f70080"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:44100:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        52,
+        55,
+        60
+      ],
+      "physicalGestureId": "kv279_2:g:527",
+      "physicalOnsetMs": 111926.0416666713,
+      "acousticObserved": [
+        52,
+        55,
+        60
+      ],
+      "sealedObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w9:p52:f115040",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w9:p60:f115040",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w10:p55:f115520"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 2,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:44100:attempt:3",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        65
+      ],
+      "physicalGestureId": "kv279_2:g:530",
+      "physicalOnsetMs": 113783.33333333828,
+      "acousticObserved": [
+        65
+      ],
+      "sealedObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w13:p65:f144960"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        36,
+        53,
+        59,
+        62
+      ],
+      "physicalGestureId": "kv279_2:g:523",
+      "physicalOnsetMs": 109072.91666667095,
+      "acousticObserved": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "sealedObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w5:p53:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p59:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p62:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p36:f69920",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p48:f69920",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p55:f70080"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:48000:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        52,
+        55,
+        60
+      ],
+      "physicalGestureId": "kv279_2:g:527",
+      "physicalOnsetMs": 111926.0416666713,
+      "acousticObserved": [
+        52,
+        55,
+        60
+      ],
+      "sealedObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w9:p52:f115040",
+        "j-b38ff68d7141a55f2a977892:r0:w9:p60:f115040",
+        "j-b38ff68d7141a55f2a977892:r0:w10:p55:f115520"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "attemptOrdinal": 2,
+      "v15AttemptId": "v15:multiple_wrong_then_correct:48000:attempt:3",
+      "targetGeneration": 1,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        65
+      ],
+      "physicalGestureId": "kv279_2:g:530",
+      "physicalOnsetMs": 113783.33333333828,
+      "acousticObserved": [
+        65
+      ],
+      "sealedObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w13:p65:f144960"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:partial_then_full:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2081",
+      "physicalOnsetMs": 201743.75000000047,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p74:f69120",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p70:f69280",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p46:f69600",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:partial_then_full:44100:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2083",
+      "physicalOnsetMs": 203314.58333333378,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p46:f94720",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p58:f94880",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p50:f95360"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:partial_then_full:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2081",
+      "physicalOnsetMs": 201743.75000000047,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:partial_then_full:48000:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2083",
+      "physicalOnsetMs": 203314.58333333378,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:mismatch_same_target_rearm:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2081",
+      "physicalOnsetMs": 201743.75000000047,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p74:f69120",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p70:f69280",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p46:f69600",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:mismatch_same_target_rearm:44100:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2083",
+      "physicalOnsetMs": 203314.58333333378,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p46:f94720",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p58:f94880",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p50:f95360"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:mismatch_same_target_rearm:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2081",
+      "physicalOnsetMs": 201743.75000000047,
+      "acousticObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "sealedObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "attemptOrdinal": 1,
+      "v15AttemptId": "v15:mismatch_same_target_rearm:48000:attempt:2",
+      "targetGeneration": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "physicalGestureId": "kv281_1:g:2083",
+      "physicalOnsetMs": 203314.58333333378,
+      "acousticObserved": [
+        46,
+        50,
+        58
+      ],
+      "sealedObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360"
+      ],
+      "P0": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": true,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:extra_chord_tone:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_EXTRA_NONBLOCKING_BY_DESIGN"
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:extra_chord_tone:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": true,
+        "classification": "FALSE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": true,
+        "classification": "TRUE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_EXTRA_NONBLOCKING_BY_DESIGN"
+    },
+    {
+      "scenarioId": "missing_chord_tone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:missing_chord_tone:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        21,
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "missing_chord_tone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:missing_chord_tone:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        21,
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "wrong_semitone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_semitone:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56,
+        63
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "wrong_semitone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_semitone:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        56,
+        63
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": null
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_octave:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": false,
+        "classification": "FALSE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_COVERAGE_POLICY_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT"
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_octave:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": false,
+        "classification": "FALSE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_COVERAGE_POLICY_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT"
+    }
+  ],
+  "overall": {
+    "attempts": 34,
+    "P0": {
+      "TRUE_ACCEPT": 8,
+      "FALSE_REJECT": 12,
+      "TRUE_REJECT": 14,
+      "FALSE_ACCEPT": 0
+    },
+    "P1": {
+      "TRUE_ACCEPT": 20,
+      "FALSE_REJECT": 0,
+      "TRUE_REJECT": 12,
+      "FALSE_ACCEPT": 2
+    }
+  },
+  "byRate": [
+    {
+      "rate": 44100,
+      "attempts": 17,
+      "P0": {
+        "TRUE_ACCEPT": 4,
+        "FALSE_REJECT": 6,
+        "TRUE_REJECT": 7,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 10,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 6,
+        "FALSE_ACCEPT": 1
+      }
+    },
+    {
+      "rate": 48000,
+      "attempts": 17,
+      "P0": {
+        "TRUE_ACCEPT": 4,
+        "FALSE_REJECT": 6,
+        "TRUE_REJECT": 7,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 10,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 6,
+        "FALSE_ACCEPT": 1
+      }
+    }
+  ],
+  "byScenario": [
+    {
+      "scenarioId": "correct_single",
+      "family": "correct_single",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "correct_single",
+      "family": "correct_single",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "correct_chord",
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 1,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "correct_chord",
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 1,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "attempts": 3,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "family": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "attempts": 3,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 44100,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "family": "partial_then_full",
+      "rate": 48000,
+      "attempts": 2,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 1,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 1,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "missing_chord_tone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "missing_chord_tone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "wrong_semitone",
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "wrong_semitone",
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 1
+      }
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 1,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 1
+      }
+    }
+  ],
+  "byFamily": [
+    {
+      "family": "correct_single",
+      "rate": 44100,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "correct_single",
+      "rate": 48000,
+      "attempts": 1,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "correct_chord",
+      "rate": 44100,
+      "attempts": 5,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 3,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 1
+      }
+    },
+    {
+      "family": "correct_chord",
+      "rate": 48000,
+      "attempts": 5,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 2,
+        "TRUE_REJECT": 3,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 1
+      }
+    },
+    {
+      "family": "post_ready_repeat",
+      "rate": 44100,
+      "attempts": 4,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 4,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 4,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "post_ready_repeat",
+      "rate": 48000,
+      "attempts": 4,
+      "P0": {
+        "TRUE_ACCEPT": 0,
+        "FALSE_REJECT": 4,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 4,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 0,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "attempts": 3,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "attempts": 3,
+      "P0": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 1,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "partial_then_full",
+      "rate": 44100,
+      "attempts": 4,
+      "P0": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    },
+    {
+      "family": "partial_then_full",
+      "rate": 48000,
+      "attempts": 4,
+      "P0": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      },
+      "P1": {
+        "TRUE_ACCEPT": 2,
+        "FALSE_REJECT": 0,
+        "TRUE_REJECT": 2,
+        "FALSE_ACCEPT": 0
+      }
+    }
+  ],
+  "P0V15Parity": "34_OF_34_EXACT",
+  "P1FalseAccepts": [
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_octave:44100:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": false,
+        "classification": "FALSE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_COVERAGE_POLICY_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT"
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "family": "correct_chord",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "attemptOrdinal": 0,
+      "v15AttemptId": "v15:wrong_octave:48000:attempt:1",
+      "targetGeneration": 1,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "physicalOnsetMs": 71228.12499999894,
+      "acousticObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "sealedObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ],
+      "P0": {
+        "verdict": "MISMATCH",
+        "fullPhysicalSupport": false,
+        "classification": "TRUE_REJECT"
+      },
+      "P1": {
+        "verdict": "MATCH",
+        "fullPhysicalSupport": false,
+        "classification": "FALSE_ACCEPT"
+      },
+      "midiExactPhysicalSupport": false,
+      "specialClassification": "MICROPHONE_COVERAGE_POLICY_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT"
+    }
+  ],
+  "P1MatchPhysicalSupportAudit": [
+    {
+      "scenarioId": "correct_single",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        64
+      ],
+      "physicalTruth": [
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "correct_single",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        64
+      ],
+      "physicalTruth": [
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "correct_chord",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "correct_chord",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        56,
+        64
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "rate": 44100,
+      "ordinal": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "post_ready_repeat",
+      "rate": 48000,
+      "ordinal": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "rate": 44100,
+      "ordinal": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "match_followed_by_next_target",
+      "rate": 48000,
+      "ordinal": 1,
+      "expected": [
+        46,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "rate": 44100,
+      "ordinal": 2,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        65
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "multiple_wrong_then_correct",
+      "rate": 48000,
+      "ordinal": 2,
+      "expected": [
+        65
+      ],
+      "physicalTruth": [
+        65
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "rate": 44100,
+      "ordinal": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "partial_then_full",
+      "rate": 48000,
+      "ordinal": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "rate": 44100,
+      "ordinal": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "mismatch_same_target_rearm",
+      "rate": 48000,
+      "ordinal": 1,
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "extra_chord_tone",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": true
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "rate": 44100,
+      "ordinal": 0,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": false
+    },
+    {
+      "scenarioId": "wrong_octave",
+      "rate": 48000,
+      "ordinal": 0,
+      "expected": [
+        52,
+        56
+      ],
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "fullPhysicalSupport": false
+    }
+  ],
+  "physicalTruthCriterion": "For the microphone required-target-support counterfactual, supported iff expected is a subset of frozen physical truth. MATCH unsupported => FALSE_ACCEPT; non-MATCH supported => FALSE_REJECT. This is not MIDI exact-key-set ground truth; physical extras remain significant for MIDI.",
+  "hypotheticalProgressionExecuted": false,
+  "unconditionalCoveragePolicy": "MICROPHONE_REQUIRED_PITCH_COVERAGE_NOT_SAFE_AS_UNCONDITIONAL_MATCH_POLICY",
+  "noQualifiedProductionMicrophoneVerdictPolicy": true,
+  "P2Implemented": false,
+  "newReadoutRequiredByThisEvidence": "NOT_ESTABLISHED",
+  "retirement": "REARM_REQUIRED_FIXED_COOLDOWN_DURATION_NOT_YET_ESTABLISHED",
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "ContinuousAcousticReruns": 0,
+    "StepAcousticReruns": 0,
+    "freshHoldoutAccess": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  },
+  "disposition": "STEP_MICROPHONE_V16_NAIVE_REQUIRED_PITCH_COVERAGE_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT"
+}
