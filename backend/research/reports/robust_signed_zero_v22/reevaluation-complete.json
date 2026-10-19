@@ -1,0 +1,23 @@
+{
+  "completedAt": "2026-10-19T11:16:03.786Z",
+  "executions": 1,
+  "profiles": 20,
+  "execution": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "decoderACalls": 0,
+    "decoderBCalls": 0,
+    "decoderCCalls": 0,
+    "H50ReplayRuns": 0,
+    "StepPracticeRuntimeConstructions": 0,
+    "productVerdictRuns": 0,
+    "ContinuousAcousticRuns": 0,
+    "freshHoldoutAccess": 0,
+    "warmups": 0,
+    "unknownExecution": 0
+  },
+  "disposition": "ROBUST_V22_THRESHOLD_GRID_NO_SAFE_USABILITY_CHALLENGER_BASELINE_RETAINED"
+}

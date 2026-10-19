@@ -1,0 +1,1115 @@
+{
+  "phase": "ROBUST_V22_V21_EVIDENCE_ONLY_SIGNED_ZERO_CLOSURE",
+  "classification": "ZERO_NEURAL_ZERO_DECODER_ZERO_PRODUCT_RUNTIME_EXPOSED_EVIDENCE_REEVALUATION",
+  "startedAt": "2026-10-19T11:16:02.647Z",
+  "completedAt": "2026-10-19T11:16:03.755Z",
+  "historicalStatements": [
+    "V21_NOT_RESUMED",
+    "V22_IS_NEW_ADDITIVE_EVIDENCE_REEVALUATION"
+  ],
+  "historicalV21Disposition": "ROBUST_V21_THRESHOLD_STUDY_INTEGRITY_BLOCKED",
+  "startingRemoteHead": "ebd1220d3f342ea67a49be5b9b964ad01156ff51",
+  "completeCommitChainAtEvaluation": [
+    "eb738bf6723a76a26a34d89782b7fb50d75fafb4 research: prospectively freeze independent V22 signed-zero evidence verifier"
+  ],
+  "proof": {
+    "freezeCommit": "eb738bf6723a76a26a34d89782b7fb50d75fafb4",
+    "remoteHead": "eb738bf6723a76a26a34d89782b7fb50d75fafb4",
+    "remoteVerifiedAt": "2026-10-19T11:15:49.523Z",
+    "freezeSha256": "f77bc4403bc07e84956fc4f1495052f0bc4c65d3b78cd76b508dfde9c1070473",
+    "reevaluation": "NOT_STARTED",
+    "execution": {
+      "neuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "pcmDecodeRuns": 0,
+      "resamplingRuns": 0,
+      "decoderACalls": 0,
+      "decoderBCalls": 0,
+      "decoderCCalls": 0,
+      "H50ReplayRuns": 0,
+      "StepPracticeRuntimeConstructions": 0,
+      "productVerdictRuns": 0,
+      "ContinuousAcousticRuns": 0,
+      "freshHoldoutAccess": 0,
+      "warmups": 0,
+      "unknownExecution": 0
+    }
+  },
+  "normalization": "SIGNED_ZERO_CANONICALIZATION_ONLY_NO_METRIC_CHANGE",
+  "normalizationRule": "numeric zero -> +0; every other value unchanged recursively; no list reordering, omission, tolerance, rounding or coercion",
+  "sourceIdentities": {
+    "V21Protocol": "6e500619c2de0c682087463514043573bdcecfb319b9861b46176630c6bef56d",
+    "V21StageAOutputCorpus": "2443a185276b0ffb45184b7054a3c765701c5b924bd2efb8fcbe6b502ed01a4a",
+    "V21RawStudyResult": "e3d703d9d941f0e37f0c20a9a4587e22b3eb6dea3bacedb83de1ee32e79eb3a4",
+    "V20RawCanonicalCorpus": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0"
+  },
+  "comparedProfiles": 20,
+  "challengers": 19,
+  "artifacts": [
+    {
+      "profileId": "ROBUST_A_O015_F005",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O015_F005.json",
+      "sha256": "4c9985d0daeec608c92256f42586b11e1260bc67581ac34529846edda2e734e6"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F010",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O015_F010.json",
+      "sha256": "e91d69e27545c1f61394927229fc62fc43c40c7037625b04e5ef9e68ae1da8f2"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F015",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O015_F015.json",
+      "sha256": "34df395c04320d6dfea453d4e996c12e79c6840a91a6a34a1cf9a1ac70fd75b0"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F020",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O015_F020.json",
+      "sha256": "d8c9859d298d48e81f47d0101a49d2a07c6a7b3f878db2403262a33a6a996b05"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F005",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O020_F005.json",
+      "sha256": "23ad004711035efbaab73b1fb7525f22f1a427b0fdb09f65e412e3d709d204eb"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F010",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O020_F010.json",
+      "sha256": "56b20800b0b818beb505757961ed35cd875cac3e2b9e4ced62fad4d23234c4f7"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F015",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O020_F015.json",
+      "sha256": "fc50e8d37701326d6c72802c0794708f68df074479e5cd66f82083a603a0a22b"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F020",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O020_F020.json",
+      "sha256": "7023676cc471c1511147a65ac61ca39f9bd76d1fc729abd79b3e49d9c7f881a4"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F005",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O025_F005.json",
+      "sha256": "38fd443bb6633ca16f9057de897e003057efdf688b09f370d4bf1cf6948cfdfb"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F010",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O025_F010.json",
+      "sha256": "b8871aa195be0f5d12273b5f70a81d26cbb4ee8a3508df8a5acdde6e63fd54a7"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F015",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O025_F015.json",
+      "sha256": "06f929d4018bf668235e166025749f8bcbdebb8db6ce4e7b50d121999db102a8"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F020",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O025_F020.json",
+      "sha256": "de6c7151b87f5d31b11d4476a366620f4f6daca375e6ceebe2c45468388533f6"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F005",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O030_F005.json",
+      "sha256": "1e599ed54a34f16bf93896777745c15c68525acde1cc1b88268429bb92e11370"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F010",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O030_F010.json",
+      "sha256": "5562c7053968f3025bea54fb9d20fc2342f5bde8bdfa5f4e808b4fdb98e7bbb6"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F015",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O030_F015.json",
+      "sha256": "00c6fd95e843e775cc1a8c76cfc527fe00e8016a51a08dcce6cbb499f994ddb6"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F020",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O030_F020.json",
+      "sha256": "5f623e6a776239bde15b4f96bea35dc4187fe4d41feb9ecf5b555b312eb2129c"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F005",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O035_F005.json",
+      "sha256": "513af38bb25b2aa339590160d2cf247a755a5eb2ce2fdb4ecbd12727bbc49557"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F010",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O035_F010.json",
+      "sha256": "8c0a8dc17d7f473748dab3d3c4ce2e6748a42727e2858f7ae4464f07368447e9"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F015",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O035_F015.json",
+      "sha256": "f679c7a5d2d5274022e5178519ef918e25fc53579984a3dc825d497c4cbe8421"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F020",
+      "path": "backend/research/reports/robust_signed_zero_v22/profiles/ROBUST_A_O035_F020.json",
+      "sha256": "391ff9b629ae2a78c4b2413427540e9e0281ed93cfbba2c97de7cd4fc270a077"
+    }
+  ],
+  "exactStructuralChecks": 2126,
+  "independentSemanticParity": true,
+  "semanticMismatches": [],
+  "negativeZeroRepresentationLocations": [
+    {
+      "profileId": "ROBUST_A_O030_F005",
+      "component": 4
+    }
+  ],
+  "comparisonCoverage": [
+    "all Stage-B result fields including full targetViews",
+    "all study profile summary fields",
+    "fixed denominators",
+    "historical execution receipt (read only, not new execution)",
+    "selection order/leaders/nomination/raw generated disposition"
+  ],
+  "normalizationDoesNotReorderArraysOmitFieldsOrCoerceValues": true,
+  "denominators": {
+    "counterfactualRowsPerProfile": 34,
+    "targetViewsPerProfile": 26,
+    "physicalRateUnits": 18,
+    "physicalGesturesIgnoringRate": 9,
+    "ratesCorrelatedNotIndependentRecordings": true,
+    "populationEstimate": "NOT_GENERALIZABLE_PRODUCT_RATE"
+  },
+  "control": {
+    "profileId": "ROBUST_A_O030_F005",
+    "rows": {
+      "intendedGestureTargetViews": 34,
+      "H50AttemptCoverage": {
+        "numerator": 34,
+        "denominator": 34,
+        "value": 1
+      },
+      "NO_ATTEMPT": 0,
+      "verdicts": {
+        "MATCH": 8,
+        "RETRY": 14,
+        "MISMATCH": 12
+      },
+      "classifications": {
+        "SAFE_MATCH": 8,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 12,
+        "UNSUPPORTED_RETRY": 2,
+        "SUPPORTED_MISMATCH": 0,
+        "TRUE_REJECT": 12,
+        "SUPPORTED_NO_ATTEMPT": 0,
+        "UNSUPPORTED_NO_ATTEMPT": 0
+      },
+      "requiredTargetPitchRecall": {
+        "numerator": 38,
+        "denominator": 38,
+        "value": 1
+      },
+      "allRequiredTargetsPresent": {
+        "numerator": 20,
+        "denominator": 20,
+        "value": 1
+      },
+      "cleanExactTargetRate": {
+        "numerator": 8,
+        "denominator": 20,
+        "value": 0.4
+      },
+      "safeAutoMatchCoverage": {
+        "numerator": 8,
+        "denominator": 20,
+        "value": 0.4
+      },
+      "supportedAmbiguityRetryRate": {
+        "numerator": 12,
+        "denominator": 20,
+        "value": 0.6
+      },
+      "unsupportedTargetHallucination": {
+        "numerator": 2,
+        "denominator": 14,
+        "value": 0.14285714285714285
+      },
+      "rawAssembledExcessPitchProposals": 44,
+      "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+    },
+    "views": {
+      "intendedGestureTargetViews": 26,
+      "H50AttemptCoverage": {
+        "numerator": 26,
+        "denominator": 26,
+        "value": 1
+      },
+      "NO_ATTEMPT": 0,
+      "verdicts": {
+        "MATCH": 6,
+        "RETRY": 10,
+        "MISMATCH": 10
+      },
+      "classifications": {
+        "SAFE_MATCH": 6,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 8,
+        "UNSUPPORTED_RETRY": 2,
+        "SUPPORTED_MISMATCH": 0,
+        "TRUE_REJECT": 10,
+        "SUPPORTED_NO_ATTEMPT": 0,
+        "UNSUPPORTED_NO_ATTEMPT": 0
+      },
+      "requiredTargetPitchRecall": {
+        "numerator": 24,
+        "denominator": 24,
+        "value": 1
+      },
+      "allRequiredTargetsPresent": {
+        "numerator": 14,
+        "denominator": 14,
+        "value": 1
+      },
+      "cleanExactTargetRate": {
+        "numerator": 6,
+        "denominator": 14,
+        "value": 0.42857142857142855
+      },
+      "safeAutoMatchCoverage": {
+        "numerator": 6,
+        "denominator": 14,
+        "value": 0.42857142857142855
+      },
+      "supportedAmbiguityRetryRate": {
+        "numerator": 8,
+        "denominator": 14,
+        "value": 0.5714285714285714
+      },
+      "unsupportedTargetHallucination": {
+        "numerator": 2,
+        "denominator": 12,
+        "value": 0.16666666666666666
+      },
+      "rawAssembledExcessPitchProposals": 34,
+      "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+    },
+    "byRate": [
+      {
+        "rate": 44100,
+        "rows": {
+          "intendedGestureTargetViews": 17,
+          "H50AttemptCoverage": {
+            "numerator": 17,
+            "denominator": 17,
+            "value": 1
+          },
+          "NO_ATTEMPT": 0,
+          "verdicts": {
+            "MATCH": 4,
+            "RETRY": 7,
+            "MISMATCH": 6
+          },
+          "classifications": {
+            "SAFE_MATCH": 4,
+            "DANGEROUS_FALSE_MATCH": 0,
+            "SUPPORTED_RETRY": 6,
+            "UNSUPPORTED_RETRY": 1,
+            "SUPPORTED_MISMATCH": 0,
+            "TRUE_REJECT": 6,
+            "SUPPORTED_NO_ATTEMPT": 0,
+            "UNSUPPORTED_NO_ATTEMPT": 0
+          },
+          "requiredTargetPitchRecall": {
+            "numerator": 19,
+            "denominator": 19,
+            "value": 1
+          },
+          "allRequiredTargetsPresent": {
+            "numerator": 10,
+            "denominator": 10,
+            "value": 1
+          },
+          "cleanExactTargetRate": {
+            "numerator": 4,
+            "denominator": 10,
+            "value": 0.4
+          },
+          "safeAutoMatchCoverage": {
+            "numerator": 4,
+            "denominator": 10,
+            "value": 0.4
+          },
+          "supportedAmbiguityRetryRate": {
+            "numerator": 6,
+            "denominator": 10,
+            "value": 0.6
+          },
+          "unsupportedTargetHallucination": {
+            "numerator": 1,
+            "denominator": 7,
+            "value": 0.14285714285714285
+          },
+          "rawAssembledExcessPitchProposals": 22,
+          "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+        },
+        "views": {
+          "intendedGestureTargetViews": 13,
+          "H50AttemptCoverage": {
+            "numerator": 13,
+            "denominator": 13,
+            "value": 1
+          },
+          "NO_ATTEMPT": 0,
+          "verdicts": {
+            "MATCH": 3,
+            "RETRY": 5,
+            "MISMATCH": 5
+          },
+          "classifications": {
+            "SAFE_MATCH": 3,
+            "DANGEROUS_FALSE_MATCH": 0,
+            "SUPPORTED_RETRY": 4,
+            "UNSUPPORTED_RETRY": 1,
+            "SUPPORTED_MISMATCH": 0,
+            "TRUE_REJECT": 5,
+            "SUPPORTED_NO_ATTEMPT": 0,
+            "UNSUPPORTED_NO_ATTEMPT": 0
+          },
+          "requiredTargetPitchRecall": {
+            "numerator": 12,
+            "denominator": 12,
+            "value": 1
+          },
+          "allRequiredTargetsPresent": {
+            "numerator": 7,
+            "denominator": 7,
+            "value": 1
+          },
+          "cleanExactTargetRate": {
+            "numerator": 3,
+            "denominator": 7,
+            "value": 0.42857142857142855
+          },
+          "safeAutoMatchCoverage": {
+            "numerator": 3,
+            "denominator": 7,
+            "value": 0.42857142857142855
+          },
+          "supportedAmbiguityRetryRate": {
+            "numerator": 4,
+            "denominator": 7,
+            "value": 0.5714285714285714
+          },
+          "unsupportedTargetHallucination": {
+            "numerator": 1,
+            "denominator": 6,
+            "value": 0.16666666666666666
+          },
+          "rawAssembledExcessPitchProposals": 17,
+          "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+        }
+      },
+      {
+        "rate": 48000,
+        "rows": {
+          "intendedGestureTargetViews": 17,
+          "H50AttemptCoverage": {
+            "numerator": 17,
+            "denominator": 17,
+            "value": 1
+          },
+          "NO_ATTEMPT": 0,
+          "verdicts": {
+            "MATCH": 4,
+            "RETRY": 7,
+            "MISMATCH": 6
+          },
+          "classifications": {
+            "SAFE_MATCH": 4,
+            "DANGEROUS_FALSE_MATCH": 0,
+            "SUPPORTED_RETRY": 6,
+            "UNSUPPORTED_RETRY": 1,
+            "SUPPORTED_MISMATCH": 0,
+            "TRUE_REJECT": 6,
+            "SUPPORTED_NO_ATTEMPT": 0,
+            "UNSUPPORTED_NO_ATTEMPT": 0
+          },
+          "requiredTargetPitchRecall": {
+            "numerator": 19,
+            "denominator": 19,
+            "value": 1
+          },
+          "allRequiredTargetsPresent": {
+            "numerator": 10,
+            "denominator": 10,
+            "value": 1
+          },
+          "cleanExactTargetRate": {
+            "numerator": 4,
+            "denominator": 10,
+            "value": 0.4
+          },
+          "safeAutoMatchCoverage": {
+            "numerator": 4,
+            "denominator": 10,
+            "value": 0.4
+          },
+          "supportedAmbiguityRetryRate": {
+            "numerator": 6,
+            "denominator": 10,
+            "value": 0.6
+          },
+          "unsupportedTargetHallucination": {
+            "numerator": 1,
+            "denominator": 7,
+            "value": 0.14285714285714285
+          },
+          "rawAssembledExcessPitchProposals": 22,
+          "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+        },
+        "views": {
+          "intendedGestureTargetViews": 13,
+          "H50AttemptCoverage": {
+            "numerator": 13,
+            "denominator": 13,
+            "value": 1
+          },
+          "NO_ATTEMPT": 0,
+          "verdicts": {
+            "MATCH": 3,
+            "RETRY": 5,
+            "MISMATCH": 5
+          },
+          "classifications": {
+            "SAFE_MATCH": 3,
+            "DANGEROUS_FALSE_MATCH": 0,
+            "SUPPORTED_RETRY": 4,
+            "UNSUPPORTED_RETRY": 1,
+            "SUPPORTED_MISMATCH": 0,
+            "TRUE_REJECT": 5,
+            "SUPPORTED_NO_ATTEMPT": 0,
+            "UNSUPPORTED_NO_ATTEMPT": 0
+          },
+          "requiredTargetPitchRecall": {
+            "numerator": 12,
+            "denominator": 12,
+            "value": 1
+          },
+          "allRequiredTargetsPresent": {
+            "numerator": 7,
+            "denominator": 7,
+            "value": 1
+          },
+          "cleanExactTargetRate": {
+            "numerator": 3,
+            "denominator": 7,
+            "value": 0.42857142857142855
+          },
+          "safeAutoMatchCoverage": {
+            "numerator": 3,
+            "denominator": 7,
+            "value": 0.42857142857142855
+          },
+          "supportedAmbiguityRetryRate": {
+            "numerator": 4,
+            "denominator": 7,
+            "value": 0.5714285714285714
+          },
+          "unsupportedTargetHallucination": {
+            "numerator": 1,
+            "denominator": 6,
+            "value": 0.16666666666666666
+          },
+          "rawAssembledExcessPitchProposals": 17,
+          "rawExcessMeaning": "MODEL_QUALITY_DIAGNOSTIC_NOT_PHYSICAL_EXTRA_KEY_ERROR_NOT_SELECTION_OBJECTIVE"
+        }
+      }
+    ],
+    "rankingComponents": [
+      0,
+      6,
+      -2,
+      -8,
+      0
+    ]
+  },
+  "challengerMatrix": [
+    {
+      "profileId": "ROBUST_A_O015_F005",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -3
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O015_F010",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -4
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O015_F015",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -5
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O015_F020",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -6
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O020_F005",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -2
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O020_F010",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -3
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O020_F015",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -4
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O020_F020",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -5
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O025_F005",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -1
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O025_F010",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -2
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O025_F015",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -3
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O025_F020",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -4
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O030_F010",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -1
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O030_F015",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -2
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O030_F020",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -3
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O035_F005",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -1
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O035_F010",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -2
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O035_F015",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -3
+      ]
+    },
+    {
+      "profileId": "ROBUST_A_O035_F020",
+      "eligible": false,
+      "meaningful": false,
+      "rejectionReasons": [
+        "NO_STRICT_SAFE_AUTO_MATCH_IMPROVEMENT"
+      ],
+      "newlyRecoveredSafeTargetViews": 0,
+      "recoveredDistinctPhysicalGestures": 0,
+      "pairedRecoveredPhysicalGestures": 0,
+      "recoveredRecordingIds": [],
+      "pairedRecoveredRecordingIds": [],
+      "newUnsupportedHallucinationViewIds": [],
+      "baselineSafeMatchRegressionViewIds": [],
+      "requiredTargetRecallRegression": false,
+      "dangerousAutomaticMatchCount": 0,
+      "rankingComponents": [
+        0,
+        6,
+        -2,
+        -8,
+        -4
+      ]
+    }
+  ],
+  "distinctChallengerProductMetricVectors": [
+    {
+      "vector": {
+        "classifications": {
+          "SAFE_MATCH": 6,
+          "DANGEROUS_FALSE_MATCH": 0,
+          "SUPPORTED_RETRY": 8,
+          "UNSUPPORTED_RETRY": 2,
+          "SUPPORTED_MISMATCH": 0,
+          "TRUE_REJECT": 10,
+          "SUPPORTED_NO_ATTEMPT": 0,
+          "UNSUPPORTED_NO_ATTEMPT": 0
+        },
+        "requiredTargetPitchRecall": {
+          "numerator": 24,
+          "denominator": 24,
+          "value": 1
+        },
+        "allRequiredTargetsPresent": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1
+        },
+        "unsupportedTargetHallucination": {
+          "numerator": 2,
+          "denominator": 12,
+          "value": 0.16666666666666666
+        },
+        "safeAutoMatchCoverage": {
+          "numerator": 6,
+          "denominator": 14,
+          "value": 0.42857142857142855
+        },
+        "supportedAmbiguityRetryRate": {
+          "numerator": 8,
+          "denominator": 14,
+          "value": 0.5714285714285714
+        }
+      },
+      "profileIds": [
+        "ROBUST_A_O015_F005",
+        "ROBUST_A_O015_F010",
+        "ROBUST_A_O015_F015",
+        "ROBUST_A_O015_F020",
+        "ROBUST_A_O020_F005",
+        "ROBUST_A_O020_F010",
+        "ROBUST_A_O020_F015",
+        "ROBUST_A_O020_F020",
+        "ROBUST_A_O025_F005",
+        "ROBUST_A_O025_F010",
+        "ROBUST_A_O025_F015",
+        "ROBUST_A_O025_F020",
+        "ROBUST_A_O030_F010",
+        "ROBUST_A_O030_F015",
+        "ROBUST_A_O030_F020",
+        "ROBUST_A_O035_F005",
+        "ROBUST_A_O035_F010",
+        "ROBUST_A_O035_F015",
+        "ROBUST_A_O035_F020"
+      ]
+    }
+  ],
+  "productMetricVectorDefinition": "All view classifications and product rates, excludes engineering grid distance; per-profile ranking vectors remain in matrix",
+  "counts": {
+    "eligible": 0,
+    "meaningful": 0,
+    "anySafeRecovery": 0,
+    "newHallucination": 0,
+    "baselineSafeMatchRegression": 0,
+    "recallRegression": 0
+  },
+  "selection": {
+    "order": [],
+    "leaders": [],
+    "selected": null,
+    "disposition": "ROBUST_V21_THRESHOLD_GRID_NO_SAFE_USABILITY_CHALLENGER_BASELINE_RETAINED"
+  },
+  "selectedReadout": null,
+  "serializedVerdictRecordsRead": 680,
+  "realEvidenceArithmeticEvaluations": 1,
+  "execution": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "decoderACalls": 0,
+    "decoderBCalls": 0,
+    "decoderCCalls": 0,
+    "H50ReplayRuns": 0,
+    "StepPracticeRuntimeConstructions": 0,
+    "productVerdictRuns": 0,
+    "ContinuousAcousticRuns": 0,
+    "freshHoldoutAccess": 0,
+    "warmups": 0,
+    "unknownExecution": 0
+  },
+  "productionDiff": [],
+  "V3ThroughV21Diff": [],
+  "currentDefaults": {
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "inputSamples": 29120,
+    "inputMs": 1820,
+    "decoder": "A",
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170
+  },
+  "baselineInterpretation": "CURRENT_030_005_BASELINE_RETAINED_NO_EXPOSED_THRESHOLD_EVIDENCE_FOR_CHANGE",
+  "globalOptimumClaimed": false,
+  "geometryExecuted": false,
+  "ContinuousRerun": false,
+  "freshHoldoutTouched": false,
+  "nextGeometryQuestionDesignOnly": "NEXT_EXPOSED_DEVELOPMENT_QUESTION_MAY_BE_GEOMETRY_600_170_VS_600_120",
+  "promotion": "SHARED_DEFAULT_PROMOTION_BLOCKED_PENDING_BROAD_CONTINUOUS_REGRESSION_AND_FRESH_QUALIFICATION",
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "disposition": "ROBUST_V22_THRESHOLD_GRID_NO_SAFE_USABILITY_CHALLENGER_BASELINE_RETAINED",
+  "nextAllowedPhase": "STOP_WAIT_FOR_INDEPENDENT_AUDIT_NO_AUTOMATIC_EXECUTION"
+}

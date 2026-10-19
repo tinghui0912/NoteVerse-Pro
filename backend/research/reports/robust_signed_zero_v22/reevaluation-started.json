@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-10-19T11:16:02.647Z",
+  "proof": {
+    "freezeCommit": "eb738bf6723a76a26a34d89782b7fb50d75fafb4",
+    "remoteHead": "eb738bf6723a76a26a34d89782b7fb50d75fafb4",
+    "remoteVerifiedAt": "2026-10-19T11:15:49.523Z",
+    "freezeSha256": "f77bc4403bc07e84956fc4f1495052f0bc4c65d3b78cd76b508dfde9c1070473",
+    "reevaluation": "NOT_STARTED",
+    "execution": {
+      "neuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "pcmDecodeRuns": 0,
+      "resamplingRuns": 0,
+      "decoderACalls": 0,
+      "decoderBCalls": 0,
+      "decoderCCalls": 0,
+      "H50ReplayRuns": 0,
+      "StepPracticeRuntimeConstructions": 0,
+      "productVerdictRuns": 0,
+      "ContinuousAcousticRuns": 0,
+      "freshHoldoutAccess": 0,
+      "warmups": 0,
+      "unknownExecution": 0
+    }
+  },
+  "realEvaluationOrdinal": 1,
+  "execution": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "decoderACalls": 0,
+    "decoderBCalls": 0,
+    "decoderCCalls": 0,
+    "H50ReplayRuns": 0,
+    "StepPracticeRuntimeConstructions": 0,
+    "productVerdictRuns": 0,
+    "ContinuousAcousticRuns": 0,
+    "freshHoldoutAccess": 0,
+    "warmups": 0,
+    "unknownExecution": 0
+  },
+  "V21_NOT_RESUMED": true
+}
