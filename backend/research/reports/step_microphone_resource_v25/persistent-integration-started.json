@@ -1,0 +1,43 @@
+{
+  "startedAt": "2026-10-19T14:29:52.797Z",
+  "proof": {
+    "freezeCommit": "875dc63b73d3f0f301c2325b96c5062602a72e6c",
+    "remoteHead": "875dc63b73d3f0f301c2325b96c5062602a72e6c",
+    "remoteVerifiedAt": "2026-10-19T14:29:44.545Z",
+    "freezeSha256": "11d30e7f8aab0a2e8aba715293dabb10cc6741e52c1f10fc87cf6d34fe8b36b3",
+    "persistentIntegration": "NOT_STARTED",
+    "zero": {
+      "realNeuralInferenceRuns": 0,
+      "realModelSessionLoads": 0,
+      "realWorkerModelRuns": 0,
+      "decoderARunsAgainstRealTensors": 0,
+      "decoderBRuns": 0,
+      "decoderCRuns": 0,
+      "PCMFileDecodeRuns": 0,
+      "freshHoldoutAccess": 0,
+      "V20TensorReprocessing": 0,
+      "V21V22ThresholdStudy": 0,
+      "V23GeometryStudy": 0,
+      "ContinuousAcousticReplay": 0,
+      "hiddenWarmups": 0,
+      "unknownExecutions": 0
+    }
+  },
+  "executionOrdinal": 1,
+  "zero": {
+    "realNeuralInferenceRuns": 0,
+    "realModelSessionLoads": 0,
+    "realWorkerModelRuns": 0,
+    "decoderARunsAgainstRealTensors": 0,
+    "decoderBRuns": 0,
+    "decoderCRuns": 0,
+    "PCMFileDecodeRuns": 0,
+    "freshHoldoutAccess": 0,
+    "V20TensorReprocessing": 0,
+    "V21V22ThresholdStudy": 0,
+    "V23GeometryStudy": 0,
+    "ContinuousAcousticReplay": 0,
+    "hiddenWarmups": 0,
+    "unknownExecutions": 0
+  }
+}
