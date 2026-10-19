@@ -1,0 +1,882 @@
+{
+  "phase": "STEP_RUNTIME_OWNED_SOURCE_SENSITIVE_VERDICT_V18",
+  "label": "ZERO_NEURAL_PRODUCT_DOMAIN_REFACTOR_EXPOSED_REGRESSION_NOT_QUALIFICATION",
+  "createdAt": "2026-10-19T08:01:13.257138+00:00",
+  "startingHead": "7cc9f96ccd66c8025a3e4cca41e51e36c94a5993",
+  "startingGate": {
+    "localHead": "7cc9f96ccd66c8025a3e4cca41e51e36c94a5993",
+    "remoteHead": "7cc9f96ccd66c8025a3e4cca41e51e36c94a5993",
+    "mergeBase": "7cc9f96ccd66c8025a3e4cca41e51e36c94a5993",
+    "ahead": 0,
+    "behind": 0,
+    "cleanWorktreeBeforeEdits": true,
+    "fetchFirst": true
+  },
+  "disposition": "STEP_V18_RUNTIME_OWNED_SOURCE_SENSITIVE_VERDICT_ESTABLISHED_V17_PARITY_PRESERVED",
+  "architectureClarification": "V17_RESEARCH_POLICY_RESULT_ACCEPTED_EXTERNAL_POLICY_OWNER_NOT_PRODUCTION_ARCHITECTURE",
+  "requiredAnswers": {
+    "1_V17Immutable": true,
+    "2_correctnessOwner": "StepPracticeRuntime.completeAttempt only; inputSource resolves runtime verdictPolicy, no caller policy option.",
+    "3_analyzerControllerHookTargetAccessForVerdict": "NONE. Controller legitimately retains artifact/target context for orchestration and display, not verdict selection. Current MIDI evidence producer is score-blind; future microphone producer contract accepts no target/score/policy. Microphone analyzer not implemented.",
+    "4_MidiExactSet": true,
+    "5_microphoneExactMatches": "Table-driven actual-runtime test passed; full pitches/confidence retained.",
+    "6_targetCoveredExtrasDerivedInsideRuntime": [
+      {
+        "rowId": "correct_chord:44100:0",
+        "rate": 44100,
+        "expected": [
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:correct_chord:44100",
+            "ms": 1221.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:correct_chord:44100:attempt:1",
+          "localSessionId": "v18:correct_chord:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:correct_chord:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:correct_chord:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY"
+      },
+      {
+        "rowId": "correct_chord:48000:0",
+        "rate": 48000,
+        "expected": [
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:correct_chord:48000",
+            "ms": 1221.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:correct_chord:48000:attempt:1",
+          "localSessionId": "v18:correct_chord:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:correct_chord:48000",
+            "ms": 1171.875
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:correct_chord:48000",
+            "ms": 1221.875
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY"
+      }
+    ],
+    "7_runtimeRetryPreservesPitches": 14,
+    "8_runtimeRetryPreservesConfidence": true,
+    "9_missingTarget": [
+      {
+        "rowId": "missing_chord_tone:44100:0",
+        "rate": 44100,
+        "expected": [
+          21,
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:missing_chord_tone:44100",
+            "ms": 1221.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:missing_chord_tone:44100:attempt:1",
+          "localSessionId": "v18:missing_chord_tone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:missing_chord_tone:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:missing_chord_tone:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": null
+        },
+        "classification": "TRUE_REJECT"
+      },
+      {
+        "rowId": "missing_chord_tone:48000:0",
+        "rate": 48000,
+        "expected": [
+          21,
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:missing_chord_tone:48000",
+            "ms": 1221.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:missing_chord_tone:48000:attempt:1",
+          "localSessionId": "v18:missing_chord_tone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:missing_chord_tone:48000",
+            "ms": 1171.875
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:missing_chord_tone:48000",
+            "ms": 1221.875
+          },
+          "retryReason": null
+        },
+        "classification": "TRUE_REJECT"
+      }
+    ],
+    "10_wrongSemitone": [
+      {
+        "rowId": "wrong_semitone:44100:0",
+        "rate": 44100,
+        "expected": [
+          56,
+          63
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_semitone:44100",
+            "ms": 1221.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:wrong_semitone:44100:attempt:1",
+          "localSessionId": "v18:wrong_semitone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:wrong_semitone:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_semitone:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": null
+        },
+        "classification": "TRUE_REJECT"
+      },
+      {
+        "rowId": "wrong_semitone:48000:0",
+        "rate": 48000,
+        "expected": [
+          56,
+          63
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_semitone:48000",
+            "ms": 1221.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:wrong_semitone:48000:attempt:1",
+          "localSessionId": "v18:wrong_semitone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:wrong_semitone:48000",
+            "ms": 1171.875
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_semitone:48000",
+            "ms": 1221.875
+          },
+          "retryReason": null
+        },
+        "classification": "TRUE_REJECT"
+      }
+    ],
+    "11_wrongOctave": [
+      {
+        "rowId": "wrong_octave:44100:0",
+        "rate": 44100,
+        "expected": [
+          52,
+          56
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_octave:44100",
+            "ms": 1221.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:wrong_octave:44100:attempt:1",
+          "localSessionId": "v18:wrong_octave:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:wrong_octave:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_octave:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "classification": "UNSUPPORTED_RETRY"
+      },
+      {
+        "rowId": "wrong_octave:48000:0",
+        "rate": 48000,
+        "expected": [
+          52,
+          56
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "submittedEvidence": {
+          "kind": "EVIDENCE",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_octave:48000",
+            "ms": 1221.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v18:wrong_octave:48000:attempt:1",
+          "localSessionId": "v18:wrong_octave:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v18:wrong_octave:48000",
+            "ms": 1171.875
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v18:wrong_octave:48000",
+            "ms": 1221.875
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "classification": "UNSUPPORTED_RETRY"
+      }
+    ],
+    "12_replayEvidenceKinds": {
+      "EVIDENCE": 34,
+      "RETRY": 0
+    },
+    "13_runtimeVerdictCounts": {
+      "MATCH": 8,
+      "RETRY": 14,
+      "MISMATCH": 12
+    },
+    "14_dangerousMatches": 0,
+    "15_retryRetainsTargetGeneration": true,
+    "16_matchAdvancementOnlyAtRearm": true,
+    "17_watermarkEqualityStaleRulesUnchanged": true,
+    "18_schema": {
+      "schemaVersion": 6,
+      "runtimeVersion": "step-source-sensitive-verdict-v6"
+    },
+    "19_compatibilityShims": false,
+    "20_acousticExecution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "selectedPcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "StageAReruns": 0,
+      "freshHoldoutAccess": 0,
+      "hiddenWarmupRuns": 0,
+      "unknownRuns": 0
+    },
+    "21_thresholdsUnchanged": [
+      0.3,
+      0.05
+    ],
+    "22_geometryUnchanged": [
+      600,
+      1050,
+      170
+    ],
+    "23_rawTensorAbsence": {
+      "sourceFiles": [
+        {
+          "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+          "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+        },
+        {
+          "path": "backend/research/browser_runtime/run_phase9ga3_challenger_sweep.mjs",
+          "sha256": "9247625dc4ddd06faca229447a8543cbc4abccf16f218ff9518e286001307169"
+        },
+        {
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+          "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+        },
+        {
+          "path": "apps/customer-web/src/lib/practice/acoustic/runtime/inference-types.ts",
+          "sha256": "80dbe50620191795a19a255f0070614e1c600da141d6285aee0a440040202b0e"
+        },
+        {
+          "path": "backend/research/step_waiting_h50_holdout_v7/entry.ts",
+          "sha256": "c1996ebad7c8b1c81fda654f2f208111668a72ba6cabd562d19fd03c05ff220a"
+        },
+        {
+          "path": "backend/research/reports/step_next_acoustic_wave1_v11/assessment.json",
+          "sha256": "56f60a1fe3f8d4a59d284021b0c1961b86f4ae12619577f53516279136793c1d"
+        },
+        {
+          "path": "backend/research/reports/step_next_acoustic_wave1_v14/assessment.json",
+          "sha256": "388cbd2339e227050249460a388d8ec146ff7e7b58170ac3f159d997fba9cba3"
+        }
+      ],
+      "historicalExecutorRawTensorExportEnabled": false,
+      "productionReturn": "Decoded events/run diagnostics only; not reusable raw onset/frame tensors",
+      "scope": "Current V7/V17 evidence lineage. Not a claim that unrelated older calibration caches never existed.",
+      "sealedAcousticNumericTensorBuffers": [],
+      "scopedCommittedArtifactsChecked": 49,
+      "committedReusableTensorArtifactsForCurrentEvidence": [],
+      "unexecutedV11JournalDesignNotEvidence": true,
+      "rawTensorRequirement": "FUTURE_THRESHOLD_STUDY_REQUIRES_ONE_TIME_FROZEN_RAW_TENSOR_CAPTURE",
+      "grid": {
+        "onset": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35
+        ],
+        "frame": [
+          0.05,
+          0.1,
+          0.15,
+          0.2
+        ]
+      },
+      "gridClassification": "PRE_EXISTING_BOUNDED_THRESHOLD_GRID_AVAILABLE_FOR_FUTURE_ROBUST_DEVELOPMENT",
+      "calibratedForCurrentRobust600170": false,
+      "gridExecuted": false,
+      "directionSelected": false,
+      "productionChangesRequiredForInventory": false
+    },
+    "24_historicalGridVerifiedNotExecuted": {
+      "onset": [
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.35
+      ],
+      "frame": [
+        0.05,
+        0.1,
+        0.15,
+        0.2
+      ],
+      "calibratedForCurrentRobust600170": false,
+      "executed": false,
+      "directionSelected": false
+    },
+    "25_ContinuousUntouched": true,
+    "26_microphoneCapabilitiesClosed": true,
+    "27_CI": "ACTUAL_GITHUB_QUERY_ONLY_LOCAL_TESTS_ARE_NOT_CI"
+  },
+  "freezeProof": {
+    "freezeCommit": "9063185a53b061e1754b85d15c82ebb17e86a374",
+    "remoteHead": "9063185a53b061e1754b85d15c82ebb17e86a374",
+    "remoteVerifiedAt": "2026-10-19T08:01:04.654Z",
+    "freezeSha256": "b76152cc0db08dfafa1f527e9efe8ec8dae9b116ded5a3713e9200dd13cbe4dc",
+    "replay": "NOT_STARTED",
+    "execution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "selectedPcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "StageAReruns": 0,
+      "freshHoldoutAccess": 0,
+      "hiddenWarmupRuns": 0,
+      "unknownRuns": 0
+    }
+  },
+  "replayBoundary": {
+    "completedAt": "2026-10-19T08:01:11.983Z",
+    "startedAt": "2026-10-19T08:01:11.434Z",
+    "replayExecutions": 1,
+    "execution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "selectedPcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "StageAReruns": 0,
+      "freshHoldoutAccess": 0,
+      "hiddenWarmupRuns": 0,
+      "unknownRuns": 0
+    }
+  },
+  "historicalResearchFilesRawUnchanged": 1494,
+  "historicalDiff": [],
+  "productionDiff": [
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.test.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime-status.test.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-verdict-policy.test.ts",
+    "apps/customer-web/src/lib/practice/step/step-architecture.test.ts"
+  ],
+  "productionScope": "Only STEP local-core verdict/schema and direct tests; controller/acoustic/Continuous/capability sources unchanged.",
+  "changedFilesAtAssessment": [
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.test.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime-status.test.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-verdict-policy.test.ts",
+    "apps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+    "backend/research/reports/step_runtime_verdict_v18/.gitattributes",
+    "backend/research/reports/step_runtime_verdict_v18/historical-raw-identities.json",
+    "backend/research/reports/step_runtime_verdict_v18/local-verification.json",
+    "backend/research/reports/step_runtime_verdict_v18/product-vitest.json",
+    "backend/research/reports/step_runtime_verdict_v18/production-eslint.json",
+    "backend/research/reports/step_runtime_verdict_v18/raw-tensor-and-grid-inventory.json",
+    "backend/research/reports/step_runtime_verdict_v18/remote-replay-freeze-proof.json",
+    "backend/research/reports/step_runtime_verdict_v18/replay-complete.json",
+    "backend/research/reports/step_runtime_verdict_v18/replay-started.json",
+    "backend/research/reports/step_runtime_verdict_v18/replay-tests.json",
+    "backend/research/reports/step_runtime_verdict_v18/research-eslint.json",
+    "backend/research/reports/step_runtime_verdict_v18/research-tests.json",
+    "backend/research/reports/step_runtime_verdict_v18/runtime-replay-freeze.json",
+    "backend/research/reports/step_runtime_verdict_v18/runtime-replay-results.json",
+    "backend/research/step_runtime_verdict_v18/.gitattributes",
+    "backend/research/step_runtime_verdict_v18/audit.mjs",
+    "backend/research/step_runtime_verdict_v18/closure.py",
+    "backend/research/step_runtime_verdict_v18/contract.json",
+    "backend/research/step_runtime_verdict_v18/domain.ts",
+    "backend/research/step_runtime_verdict_v18/eslint.config.mjs",
+    "backend/research/step_runtime_verdict_v18/ownership-and-future-study.md",
+    "backend/research/step_runtime_verdict_v18/tests.mjs",
+    "backend/research/step_runtime_verdict_v18/tsconfig.json"
+  ],
+  "overall": {
+    "verdicts": {
+      "MATCH": 8,
+      "RETRY": 14,
+      "MISMATCH": 12
+    },
+    "classifications": {
+      "SAFE_MATCH": 8,
+      "DANGEROUS_FALSE_MATCH": 0,
+      "SUPPORTED_RETRY": 12,
+      "UNSUPPORTED_RETRY": 2,
+      "TRUE_REJECT": 12,
+      "FALSE_REJECT": 0
+    }
+  },
+  "byRate": [
+    {
+      "rate": 44100,
+      "verdicts": {
+        "MATCH": 4,
+        "RETRY": 7,
+        "MISMATCH": 6
+      },
+      "classifications": {
+        "SAFE_MATCH": 4,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 6,
+        "UNSUPPORTED_RETRY": 1,
+        "TRUE_REJECT": 6,
+        "FALSE_REJECT": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "verdicts": {
+        "MATCH": 4,
+        "RETRY": 7,
+        "MISMATCH": 6
+      },
+      "classifications": {
+        "SAFE_MATCH": 4,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 6,
+        "UNSUPPORTED_RETRY": 1,
+        "TRUE_REJECT": 6,
+        "FALSE_REJECT": 0
+      }
+    }
+  ],
+  "perRowV17Parity": true,
+  "submittedEvidenceKinds": {
+    "EVIDENCE": 34,
+    "RETRY": 0
+  },
+  "externalP2Executions": 0,
+  "limitations": "CONSERVATIVE_TRISTATE_RUNTIME_SEMANTICS_ESTABLISHED_NOT_MICROPHONE_QUALIFIED. Exact-but-hallucinated evidence can still MATCH; wrong octave is not universally solved.",
+  "retirement": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+  "microphoneCooldownSelected": false,
+  "currentAcousticDefaults": {
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "inputSamples": 29120,
+    "inputMs": 1820,
+    "decoder": "A",
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170,
+    "ORT": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false
+  },
+  "futureStudy": "ACOUSTIC_OPERATING_POINT_REOPEN_AUTHORIZED_FOR_FUTURE_EXPOSED_DEVELOPMENT_STUDY_NOT_EXECUTED_IN_V18",
+  "rawTensorRequirement": "FUTURE_THRESHOLD_STUDY_REQUIRES_ONE_TIME_FROZEN_RAW_TENSOR_CAPTURE",
+  "futureObjective": "Maximize SAFE_AUTO_MATCH_COVERAGE subject to zero/controlled dangerous automatic MATCH, non-worsening DANGEROUS_TARGET_HALLUCINATION, required-target recall, runtime stability and latency. Not merely fewer EXTRA, more CORRECT, higher recall or higher precision.",
+  "historicalGrid": {
+    "onset": [
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35
+    ],
+    "frame": [
+      0.05,
+      0.1,
+      0.15,
+      0.2
+    ],
+    "label": "PRE_EXISTING_BOUNDED_THRESHOLD_GRID_AVAILABLE_FOR_FUTURE_ROBUST_DEVELOPMENT",
+    "notCalibratedForCurrentRobust600170": true,
+    "executed": false,
+    "directionSelected": false
+  },
+  "localVerification": {
+    "label": "LOCAL_TESTING_NOT_GITHUB_CI",
+    "productTests": {
+      "runner": "current installed Vitest",
+      "files": 31,
+      "passed": 336,
+      "failed": 0,
+      "pending": 0,
+      "artifact": "product-vitest.json",
+      "scope": [
+        "STEP local-core including source-policy table",
+        "controller/retirement",
+        "MIDI bounded attempts",
+        "hook/status/components",
+        "input capability",
+        "architecture"
+      ],
+      "notices": "jsdom HTMLMediaElement pause/load not implemented; no acoustic execution"
+    },
+    "preReplayDevelopmentFailures": [
+      "Initial new RETRY test incorrectly compared the mutable eligibility watermark with the pre-attempt target snapshot; corrected to assert stable step/generation/pitches plus finalized capture boundary.",
+      "Initial test fixture needed the existing PracticeScoreArtifact type annotation for meter source literal types. Corrected before freeze/replay; no product policy tuning."
+    ],
+    "researchPreTests": {
+      "passed": 6,
+      "failed": 0,
+      "artifact": "research-tests.json"
+    },
+    "applicationTypecheck": {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "cwd": "apps/customer-web",
+      "exitCode": 0
+    },
+    "researchTypecheck": {
+      "command": "node apps/customer-web/node_modules/typescript/bin/tsc -p backend/research/step_runtime_verdict_v18/tsconfig.json",
+      "exitCode": 0
+    },
+    "productionLint": {
+      "files": 7,
+      "errors": 0,
+      "warnings": 0,
+      "artifact": "production-eslint.json",
+      "exitCode": 0
+    },
+    "researchLint": {
+      "files": 3,
+      "errors": 0,
+      "warnings": 0,
+      "artifact": "research-eslint.json",
+      "exitCode": 0
+    },
+    "metadataPythonSyntax": {
+      "method": "ast.parse closure.py before freeze; no execution or import",
+      "requiredBeforeFreeze": true
+    },
+    "build": "NOT_RUN_NO_NEXT_API_OR_BUNDLE_CONFIGURATION_CHANGE; full application typecheck and direct production lint run",
+    "neuralModelDecoderPcmExecution": false,
+    "CIInterpretation": "NOT CI PASS"
+  },
+  "replayAssertions": {
+    "passed": 6,
+    "failed": 0
+  },
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "StepAcousticReruns": 0,
+    "ContinuousAcousticReruns": 0,
+    "StageAReruns": 0,
+    "freshHoldoutAccess": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "Continuous": "UNTOUCHED_NOT_RERUN_INTERNAL_OWNERSHIP_AUTHORITATIVE_PRESENTATION_SEPARATE_FUTURE_REFACTOR",
+  "scientificClaim": "NONE",
+  "microphoneQualified": false,
+  "newStudyExecuted": false,
+  "nextAllowedPhase": "STOP_FOR_INDEPENDENT_AUDIT_NO_AUTOMATIC_ACOUSTIC_EXECUTION_OR_MICROPHONE_INTEGRATION"
+}

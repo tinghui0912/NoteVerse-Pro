@@ -1,0 +1,21 @@
+{
+  "freezeCommit": "9063185a53b061e1754b85d15c82ebb17e86a374",
+  "remoteHead": "9063185a53b061e1754b85d15c82ebb17e86a374",
+  "remoteVerifiedAt": "2026-10-19T08:01:04.654Z",
+  "freezeSha256": "b76152cc0db08dfafa1f527e9efe8ec8dae9b116ded5a3713e9200dd13cbe4dc",
+  "replay": "NOT_STARTED",
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "StepAcousticReruns": 0,
+    "ContinuousAcousticReruns": 0,
+    "StageAReruns": 0,
+    "freshHoldoutAccess": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  }
+}
