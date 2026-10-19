@@ -1,0 +1,20 @@
+{
+  "label":"LOCAL_PREFLIGHT_NOT_GITHUB_CI",
+  "allPreflightPassed":true,
+  "researchTests":{"passed":16,"failed":0,"artifact":"pre-execution-tests.json","command":"node backend/research/robust_raw_tensor_v20/tests.mjs pre"},
+  "structuralParser":{"implementation":"Existing installed TypeScript compiler API","version":"6.0.3","decoderCallExpressions":1,"metadataObjects":1,"metadataCountedAsCall":false,"aliasesWrappersComputedCallsThresholdGridRejected":true,"packageInstalled":false},
+  "productTestsExitCode":0,
+  "productTests":{"passed":336,"failed":0,"pending":0,"files":31,"artifact":"product-vitest.json","runner":"current installed Vitest","scope":"STEP local-core/controller/MIDI/hook/status/component/input-capability/architecture regression; no acoustic model execution","notices":"jsdom HTMLMediaElement pause/load not implemented notices, no test failures"},
+  "researchTypecheckExitCode":0,
+  "researchTypecheckCommand":"node apps/customer-web/node_modules/typescript/bin/tsc -p backend/research/robust_raw_tensor_v20/tsconfig.json",
+  "applicationTypecheckExitCode":0,
+  "applicationTypecheckCommand":"node node_modules/typescript/bin/tsc --noEmit --incremental false (cwd apps/customer-web)",
+  "researchLintExitCode":0,
+  "researchLint":{"files":11,"errors":0,"warnings":0,"artifact":"research-eslint.json","config":"backend/research/robust_raw_tensor_v20/eslint.config.mjs"},
+  "metadataPythonSyntax":"ast.parse closeout.py PASS; no module import or model execution",
+  "productionChanged":false,
+  "preFreezeNeuralRuns":0,
+  "preFreezeDecoderRuns":0,
+  "V19CommandsResumed":0,
+  "CIInterpretation":"NOT CI PASS"
+}

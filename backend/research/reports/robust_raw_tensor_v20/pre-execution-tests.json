@@ -1,0 +1,88 @@
+{
+  "passed": 16,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "production/history unchanged; accepted V6/V7/V15 identities exact",
+      "status": "PASS"
+    },
+    {
+      "name": "exact 9-case 18-job 228-input two-rate inventory",
+      "status": "PASS"
+    },
+    {
+      "name": "all 228 finite little-endian inputs are exact 29120 samples and V6/reference SHA",
+      "status": "PASS"
+    },
+    {
+      "name": "canonical arithmetic: 16104 f32, 64416 tensor, 128832 pair, 29373696 corpus",
+      "status": "PASS"
+    },
+    {
+      "name": "lossless LE serialization includes sign, subnormal and finite Float32 extremes",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong tensor dtype/shape/count/nonfinite cannot serialize",
+      "status": "PASS"
+    },
+    {
+      "name": "onset/frame fixed concatenation and readback SHA detect any bit mutation",
+      "status": "PASS"
+    },
+    {
+      "name": "Stage A browser/Worker graph raw-only, no decoder/truth/runtime/finalizer imports",
+      "status": "PASS"
+    },
+    {
+      "name": "capture host source imports no control/verifier/baseline/reference",
+      "status": "PASS"
+    },
+    {
+      "name": "single session/run owner guarded at exactly 228 without hidden warmup path",
+      "status": "PASS"
+    },
+    {
+      "name": "exact model/ORT assets already hash verified, no FIR or source PCM served during capture",
+      "status": "PASS"
+    },
+    {
+      "name": "baseline graph imports actual production decoder/publication, never model session",
+      "status": "PASS"
+    },
+    {
+      "name": "structural decoder-call AST resolves one local binding/call and excludes report metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "AST rejects aliases/computed calls/second imports/wrappers and threshold/grid alternatives",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP server fixed asset/input/raw allowlist; no directory serving",
+      "status": "PASS"
+    },
+    {
+      "name": "corpus identity depends on deterministic ordered input and raw tensor hashes",
+      "status": "PASS"
+    }
+  ],
+  "structural": {
+    "parser": "Existing repository TypeScript compiler API",
+    "parserVersion": "6.0.3",
+    "decoderCallExpressions": 1,
+    "localUnaliasedBindings": 1,
+    "reportMetadataObjects": 1,
+    "reportMetadataCountedAsDecoderCall": false,
+    "thresholdArguments": {
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05
+    },
+    "indirectOrComputedDecoderCalls": 0,
+    "decoderWrappers": 0,
+    "thresholdGridIterations": 0
+  },
+  "newNeuralRuns": 0,
+  "decoderRuns": 0,
+  "localNotCI": true
+}

@@ -1,0 +1,45 @@
+{
+  "graphs": [
+    {
+      "entry": "backend/research/robust_raw_tensor_v20/capture-entry.mjs",
+      "path": "backend/data/work/robust_raw_tensor_v20/capture-entry.js",
+      "sha256": "7dd6f62af158aa554f6dca6426ae835467c040ec1cff055680bbf4a97baafe24",
+      "inputs": [
+        "backend/research/robust_raw_tensor_v20/wire.mjs",
+        "backend/research/robust_raw_tensor_v20/capture-entry.mjs"
+      ],
+      "esbuildVersion": "0.25.12",
+      "platform": "browser"
+    },
+    {
+      "entry": "backend/research/robust_raw_tensor_v20/capture-worker.mjs",
+      "path": "backend/data/work/robust_raw_tensor_v20/capture-worker.js",
+      "sha256": "58bdd4f0bbb7cf2e4b72951a03f7b5305a4f0aea470ada70a0bdcb8f1c7ce800",
+      "inputs": [
+        "backend/research/robust_raw_tensor_v20/wire.mjs",
+        "backend/research/robust_raw_tensor_v20/capture-worker.mjs"
+      ],
+      "esbuildVersion": "0.25.12",
+      "platform": "browser"
+    },
+    {
+      "entry": "backend/research/robust_raw_tensor_v20/baseline.ts",
+      "path": "backend/data/work/robust_raw_tensor_v20/baseline.mjs",
+      "sha256": "c71f5c5dcda996979ac98abf0680c76ba8cb66946073b9be4aeb3ac2f298045b",
+      "inputs": [
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+        "backend/research/robust_raw_tensor_v20/baseline.ts"
+      ],
+      "esbuildVersion": "0.25.12",
+      "platform": "node"
+    }
+  ],
+  "captureForbiddenImports": [],
+  "baselineNeuralImports": []
+}

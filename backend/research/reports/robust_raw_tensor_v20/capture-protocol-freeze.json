@@ -1,0 +1,711 @@
+{
+  "role": "V20_EXPOSED_RAW_TENSOR_CAPTURE_PROTOCOL_FREEZE",
+  "startingHead": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+  "createdAt": "2026-10-19T09:05:45.386Z",
+  "contract": {
+    "phase": "ROBUST_RAW_TENSOR_CAPTURE_V20",
+    "label": "EXPOSED_DEVELOPMENT_FOUNDATION_NOT_MICROPHONE_QUALIFICATION_NOT_THRESHOLD_BAKEOFF",
+    "startingHead": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+    "historicalBoundary": "V19_NOT_RESUMED_NEW_V20_PROSPECTIVE_PROTOCOL_REQUIRED",
+    "V19HistoricalDisposition": "ROBUST_V19_RAW_TENSOR_CAPTURE_INTEGRITY_BLOCKED",
+    "V19FailureClassification": "QUALIFICATION_TOOLING_STATIC_TEXT_OCCURRENCE_TEST_DEFECT_NOT_ACOUSTIC_MODEL_FAILURE",
+    "structuralGate": "Existing installed TypeScript parser: one unaliased decodeRobustPiano binding from frozen production bundle, exactly one direct call, literal .30/.05 arguments, only frozen job/window loop, no wrappers/aliases/computed access/grid iteration. Report metadata is not a call. No regex fallback or package installation.",
+    "model": {
+      "identity": "robust-browser-engineering-default-xc4-v1",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "bytes": 98689283,
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "inputSamples": 29120,
+      "inputMs": 1820,
+      "inputName": "audio",
+      "inputShape": [
+        1,
+        29120
+      ],
+      "outputNames": [
+        "reg_onset_output",
+        "frame_output"
+      ],
+      "outputShape": [
+        1,
+        183,
+        88
+      ],
+      "dtype": "float32",
+      "ORT": "1.20.1",
+      "provider": "webgpu",
+      "graphOptimizationLevel": "disabled",
+      "automaticFallback": false
+    },
+    "corpus": {
+      "cases": 9,
+      "rates": [
+        44100,
+        48000
+      ],
+      "jobs": 18,
+      "inputs": 228,
+      "source": "Exact V6 opaque PCM + strongest V6 preservation/reference SHA + V7 runtime window coordinates. Full corpus; no case selection."
+    },
+    "stageA": {
+      "researchCaptureWorkers": 1,
+      "modelSessionLoads": 1,
+      "attemptedSessionRuns": 228,
+      "successfulSessionRuns": 228,
+      "failedSessionRuns": 0,
+      "hiddenWarmups": 0,
+      "unknownRuns": 0,
+      "decoderRuns": 0,
+      "productVerdictRuns": 0,
+      "truthAccessCount": 0,
+      "scope": "Raw tensors only. Separate capture process/browser/worker may read only frozen opaque input manifest, verified input blobs, model/ORT, own bundles and remote permission.",
+      "hardware": "Headed branded Chrome, real hardware WebGPU; no flags/provider/version/thread fallback",
+      "workerTaxonomy": "One V20_CAPTURE_OWNER at /capture-worker.js, frozen ORT jsep workers classified ORT_RUNTIME_SUBORDINATE, all others rejected. Raw total is evidence, not owner invariant.",
+      "gpuInitialization": "One navigator.gpu.requestAdapter metadata query without neural execution; ORT internal non-model initialization is not an extra session.run."
+    },
+    "binary": {
+      "format": "IEEE754_FLOAT32_LITTLE_ENDIAN",
+      "valuesPerTensor": 16104,
+      "tensorBytes": 64416,
+      "pairBytes": 128832,
+      "totalCanonicalBytes": 29373696,
+      "jobBlobs": 18,
+      "order": "Frozen job order then window order, onset followed by frame, no padding/compression/decimal JSON",
+      "identity": "SHA256 stable-key canonical JSON of ordered jobId/runOrdinal/runtimeWindow/inputSha256/onsetSha256/frameSha256/pairSha256 records",
+      "readback": "Raw bytes re-read at each appended offset and after job closure; exact SHA required."
+    },
+    "stageB": {
+      "neuralRuns": 0,
+      "baselineDecoderRuns": 228,
+      "implementation": "Actual current production decodeRobustPiano plus production sourcePublication/window ownership",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05,
+      "alternativeThresholdRuns": 0,
+      "productVerdictRuns": 0,
+      "parity": "Exact all V7 publication observations including cardinality/order/pitch/midi/source/target samples/confidence and IDs. Availability wall-clock is not compared. All V15 assembly observations must be exact members of the corresponding V7/V20 set. No truth or product scoring.",
+      "newDiagnostics": "onsetScore/frameScore unavailable in V7 observation payload: NEWLY_PRESERVED_RAW_DERIVED_DIAGNOSTIC, no fabricated historical parity."
+    },
+    "seals": "Capture protocol commit/push/fetch/exact remote proof before any session. Raw corpus commit/push/fetch/exact remote proof before any decoder call. One capture only. Preserve partial raw bytes on any failure; no repair/rerun.",
+    "productionDefaults": {
+      "decoder": "A",
+      "onset": 0.3,
+      "frame": 0.05,
+      "ownedMs": 600,
+      "pastMs": 1050,
+      "futureMs": 170,
+      "mutated": false
+    },
+    "historicalThresholdGrid": {
+      "onset": [
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.35
+      ],
+      "frame": [
+        0.05,
+        0.1,
+        0.15,
+        0.2
+      ],
+      "classification": "PRE_EXISTING_BOUNDED_THRESHOLD_GRID_AVAILABLE_FOR_FUTURE_ZERO_NEURAL_DEVELOPMENT",
+      "executed": false,
+      "directionSelected": false,
+      "winnerSelected": false
+    },
+    "V18": {
+      "runtimeVersion": "step-source-sensitive-verdict-v6",
+      "schemaVersion": 6,
+      "MIDI": "MIDI_EXACT_SET",
+      "MICROPHONE": "MICROPHONE_CONSERVATIVE_TRISTATE",
+      "retirement": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+      "microphoneCooldownSelected": false,
+      "unchanged": true
+    },
+    "prohibited": "No alternative threshold/decoder, physical truth or expected target scoring, P0/P1/P2, STEP runtime, Continuous finalizer, product metrics or candidate/winner selection. No production changes or capability enablement.",
+    "stop": {
+      "input": "ROBUST_V20_MODEL_INPUT_REPRODUCTION_INTEGRITY_BLOCKED",
+      "capture": "ROBUST_V20_RAW_TENSOR_CAPTURE_INTEGRITY_BLOCKED",
+      "parity": "ROBUST_V20_RAW_TENSOR_BASELINE_PARITY_FAILURE"
+    },
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "files": [
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758"
+    },
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b"
+    },
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/README.md",
+      "sha256": "4f031c5952d5f2dce0bcc4181945fd1268b78b8e06b04f0d72f9a68a317d1220"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts",
+      "sha256": "6d1126d528da72a8251a63ff7d2d65176d7adc0efcad77a5af89330864501df5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts",
+      "sha256": "bc0561f01a6fd18b0cc7b87590e1ecbfa5a8fa74537c97cd287787941274b72c"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts",
+      "sha256": "11b0a44be5138de4ef32ed01818a8e967aaa43d8380bffb43ad2a7621530cf1d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/publication.ts",
+      "sha256": "8ebadaadda772bb39b7c32bdfba2a16da5c4ea1dd80ef3c4e8e8bba21ce46068"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/runtime.test.ts",
+      "sha256": "cb28f73eec16f6237cc103e22226597c9f4db94fc5f350567a15504933b7d9f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/decoder.test.ts",
+      "sha256": "def278782f5300862254f16761f60fcd116057605821d52a9b5ba36e7477291a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "sha256": "afa6a41b9449ad759df22205be98293519bdb1164e92e31009dfe3ca22976c7f"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/window-geometry.test.ts",
+      "sha256": "e37e1b4caca3de72f0f49c9e3f6bf8c6826c032ca79fcb8ea2cc5b60c64727a4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/inference-types.ts",
+      "sha256": "80dbe50620191795a19a255f0070614e1c600da141d6285aee0a440040202b0e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts",
+      "sha256": "f7440917cfaa9a87d8dafb667e7334d3849ab0cb498244d326b206edc5fe32f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "sha256": "8bf881713a3ac510e385c5ebc92db350861f9ed630934ca0b25fd5427197e975"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-architecture.test.ts",
+      "sha256": "cbababfa167d9f89f99857a28d7ee2a206cfab47eb8494cce70d588528179659"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-parity.test.ts",
+      "sha256": "6bb2bdd3a36e63cf451708b486ad398d469a994434947fd387795d9138f2b6f8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "sha256": "e93d784efc58f6b90b4a79a2df230d074c2c82e8178753f4aae5ce3ce1027211"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts",
+      "sha256": "a8eadfe0f4b8e4e7bf795a68edd12e84cf14f9c5a121f9628abd0cce0e8256f6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-types.ts",
+      "sha256": "f130ce409374cc99f2a6511217f42255b1e6552a4a9b7c7fb340c805482a5c4a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "sha256": "6d31409bca8f2210bcf7573f7c0ae6d53e0706252796eb1c73fa0892bbcf9c2b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "sha256": "8fb151efdca3c6aff0a06c5843543aa2b493a0e6dca591bf053ac671c705f34e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/dsp-parity.test.ts",
+      "sha256": "9410643d03cf18edf99f2ba362c11f23f73f69cd197aa237bcf3b9cf85859bff"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-errors.ts",
+      "sha256": "f7811d5ed12c07d7c2f1212bd66e6426abb461c82d4187916ef8b537d2691813"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "sha256": "5e53a616150666ef16760f6cc3672556c83ffe6ffcce7e5dad2dce73df14d886"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "sha256": "956871490adc449af9964c7e4b1ff084890ebef98e85139e12f01dc94d5248f8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/README.md",
+      "sha256": "30d43822eeadbb5de8f46cb9bc4a861a77ef10f7ff32141d867f4b6ff82c2507"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json",
+      "sha256": "2411500a2b6b152bf70479e989cecf5ff56d4cbb12f4bed3659b1c79319cc080"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-assignment.ts",
+      "sha256": "487ac9da8af1fa4ed54cbd1e87b22acd898f3b8f5f2da3dc78ee2fc6b6b473bb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-projection.ts",
+      "sha256": "8c79f043abca037f7017dfad48b484302e67887d5105fbfc9b4f79e4be71fcdb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-session.test.ts",
+      "sha256": "cf86c00a0b48e091672eb78e4f954ffcf7d46dea242b7f03979adaaeb6a52011"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-session.ts",
+      "sha256": "dcc0010e6871ddb873039c19914c1be96216e54e5779a9fa282db0c9cd0b302b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-types.ts",
+      "sha256": "d9dda83dd7d9c9632155374c68e107459c43878f2a21dddb43364b2d3cb315c6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-expected-strikes.ts",
+      "sha256": "37f4908bdb9ed38513e6be91a0827f68d829fc90d93aa3491bc0b651668c65b4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-policy.ts",
+      "sha256": "2fbc3daeacdc5b250908b43f7db3918c81ab95c45574c6e8f117e33b82570ff6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.test.ts",
+      "sha256": "765928ba396f899cd7a0fb5c2dbad15efdab82cb2a589cbed7dcc119738f4121"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-midi-evidence.ts",
+      "sha256": "1ed138a3e625e2b36c34bb9c5620d1bc726a28e4fd5dfb20bdf7d87cfe1b3b98"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-observation.ts",
+      "sha256": "e915468afb986160e4b6f9d973a7d9d6668633b3eee8406238c13722fc8697eb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/cursor-scope.ts",
+      "sha256": "ab7494eefba9acf12d1ee2b27c233f972eddecbcd557796fc918f5ae3e7de584"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/index.ts",
+      "sha256": "f25ecf4ae4bea06d3ff52de88b86e4ba23a3cd1bf698d3a845f57b949b5b308d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/local-practice-core.test.ts",
+      "sha256": "2a18bd8a53982df34346c3a9478321b00451ca65b7644edf24af59d3150f62cd"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+      "sha256": "79ef4cbbf3d71fa38c9deafc46d0deeb051d2e7ea07db4425de27fd2eda62a95"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/performance-runtime.ts",
+      "sha256": "1839e530e1c7e70515e401adc34558b038d4d6abddbadf9964ab64c8a0ceb92b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/practice-tempo.test.ts",
+      "sha256": "66aa69c88b2a4fd658c4afb7a913f68270a50884e6517f5ea01fbbcfbc6cc31b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/practice-tempo.ts",
+      "sha256": "d3f7cb8bed7cd4cfb2f716c28d6d6fc0e262e4fd5c3445114024d53f8158a076"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "sha256": "f227643ee07a338d7b21294819c0384d78377f10326994c45fe6599de1d5a70d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.test.ts",
+      "sha256": "b24137766add88eb48b839063db07fcf84879f404c0245906e6bce872384c05c"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "1fe3c00c3ebaa1e56f0d7fc96143650cfa1105a757a24e02c7529b3e2a11c13d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-paced-lifecycle.test.ts",
+      "sha256": "c24df6ef88531f4d876e06329a4c0557fde31bc84d24c70ee412274a1c01d341"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-rearm-watermark.test.ts",
+      "sha256": "fd31330c1759fdd2db8e9e364e76c8778bfc6929f4f8384bf6a16f2821f08aab"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime-status.test.ts",
+      "sha256": "3f27cd5848abf130fc16031da5450e538bf617c56f99c14d690c1d4968d8e061"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "dab8396fbc9293d3f7c7926f5c39f28eaec01258a87f02b75a9212a1ae40352a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-verdict-policy.test.ts",
+      "sha256": "d73a30f5f303b1d36333c04494bcb173b6c9e1baceafd6530f76a5994e2d1272"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/README.md",
+      "sha256": "3cae3a3498ff5b71ca21be989019c25907619c205f87c27b7e3d2814dbf6a08f"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/exclusive-boundary.test.ts",
+      "sha256": "31cb9eb9cfe24c59550ecdd4821a8cb72bb04c4ff7c390dc6c8342d98a10fee3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/input-time-contract.test.ts",
+      "sha256": "7c51fb3627ae134cd1fbe1b330c6b1caecca21f1bc978f71d81b0c4fc432a4f5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+      "sha256": "e3b33c81dea249699e7407a1f78aea116012999ec20c836605fa3858411bcc5a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-errors.ts",
+      "sha256": "dd0268cfbc7c5f0a18350b9ed5b2eb27929b706d493e77a72f548e04a9529366"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "sha256": "d662cbf787e57baa7bdbd52f1eb658ddfdca80997588fad36f4d164d150b4b19"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-paced-midi.test.ts",
+      "sha256": "dd797103ec9a976fd130623ff6ed3fe507f0c05aea7b9a53ac744e94176adb89"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-platform.ts",
+      "sha256": "9b766164f8d81dabed8ca49a9b2c9d2b235f9dec5a9da9907484248408bb048a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.test.ts",
+      "sha256": "a155b60fb3f6232786a7fd1ac0104b5a9a2f753abc28ff283486bf45e4d7b159"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "sha256": "41dc5d6661d2154bb780e7f3455b3d5e765521427f35a4be6c48b1d87bd39af2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/waiting-contract.test.ts",
+      "sha256": "0889e856b493c904e461f099c3fa7b6790c70b06425bd01a2b2fef91a801979f"
+    },
+    {
+      "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/baseline.mjs",
+      "sha256": "c71f5c5dcda996979ac98abf0680c76ba8cb66946073b9be4aeb3ac2f298045b"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/capture-entry.js",
+      "sha256": "7dd6f62af158aa554f6dca6426ae835467c040ec1cff055680bbf4a97baafe24"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/capture-worker.js",
+      "sha256": "58bdd4f0bbb7cf2e4b72951a03f7b5305a4f0aea470ada70a0bdcb8f1c7ce800"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs.json",
+      "sha256": "1988ecd2a5d5d1dffe688f434e7ceb4b27eec03365a490eeb673a0dba55ad1d6"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-163f5f8ce2977dccf0ebc6a6.f32",
+      "sha256": "ed59f1be3cc14f263e61fe71a6f5d2cfe3855e4ca47db2e8b0584595befc8f2c"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-32e68eca71c65e1452252e5f.f32",
+      "sha256": "1bfbf0d47a7bd56695d04050aff6df61bb88febdbdd98a261eaa54ba43efc3d2"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-345e4955170302c450281935.f32",
+      "sha256": "98d866aa96d3bd595b30be95fc0db1e531d31289c0b59aaabfb4912b3e6b896d"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-3ea18cb7ffbe8add3120531f.f32",
+      "sha256": "c8e9b8911303be0c23384d950c545fcbbb64980292a2a12b54a4ef5bf1c33bc7"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-3ec9a6d5ef516adf6bd4daf0.f32",
+      "sha256": "ab768d9e4aaba514f211a02f5c7c6130627b5161943e033113549260c6587c26"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-43634d2c02fe5f9c2aab7915.f32",
+      "sha256": "ead3bbe494207fdae87c58423c2403543f8e2b4000a27ed1e2c02ba91e0eb49c"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-5c9651201c93bc9e4a5a8b9c.f32",
+      "sha256": "8206e9891d744a9161f0c4147b8181b1218fd15809886c529ad0eba370daa7a5"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-800323ad4631df7d7b814c83.f32",
+      "sha256": "301fa41b41716b28b8b44995a9114782469e6bb6b416d84c0c70208f535dc3ee"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-981acf2c9183ecf2d7e21648.f32",
+      "sha256": "81e4264f3e94a0103da16e4b4a6cda8aea8f74712455411b58d38d9abb270b77"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-9d86f1787e7f062a94778015.f32",
+      "sha256": "bc8ad50aef441119ab369ffc63bf487c83948cfa3f225a91983237423dad5d32"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-a1987006cc63fcdaef5ce98a.f32",
+      "sha256": "d7cfb57cf6ea20401b8fda7fe3136645ea1887023ca1b206b98ab3c8a2c59e76"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-a8b8ef76b7bf61ae456b2142.f32",
+      "sha256": "8898c740f8476ed28a7d9dbd81daed8470f80ea8a9b9a41810282a376cac6020"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-a9f537c1bb46e37eb0ef01d1.f32",
+      "sha256": "43564e8c0317afe207bcca34bf00df54e585643748ef72256621b466b81ffd6b"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-b12396b9f8784b14c92a97c9.f32",
+      "sha256": "70a380f4c84f0450fef207ce9259c2e628fdee0d8bcc99af1bc970184594e6cb"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-b38ff68d7141a55f2a977892.f32",
+      "sha256": "5632204d198c103a8802e0cb5e6205774494d0701f1bf5915fbec8f737338bf6"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-c29d502d44aedb4aa68d6dc6.f32",
+      "sha256": "246c356131b9d5849a09b8d0e85077aa3e70db7fd34f3110313bedff93d8024f"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-e5e2a2a28646779132491ce8.f32",
+      "sha256": "b7374edf25e17c7d2f0308d8307d2233fbf0234c39b7fc4e5fef369ec8552424"
+    },
+    {
+      "path": "backend/data/work/robust_raw_tensor_v20/inputs/j-ffb0e106dac8cfc6c92a7f0c.f32",
+      "sha256": "cfca8aa1f4f2f9c401679558321e26bc25201addf6e351903cf24dd442ec61cb"
+    },
+    {
+      "path": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/jobs.json",
+      "sha256": "42bd0dcb1ed9bf2e7fa2328e18ab4f6064767d2728d7d29a8adca91af1dbfd02"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/baseline-reference.json",
+      "sha256": "474a7113c93fed2a123075f6ffe5e42963b96147dae8a7342b47e557f731d705"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/bundle-graphs.json",
+      "sha256": "b78920739fb2a9bf4a105fe85e49dc104aef32630d0b82f9fc1fc57ce3dfebd8"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/historical-raw-identities.json",
+      "sha256": "0ebe73537848b4790372d7f140a2aa85203634f3980e765336c29c8f2b88bd54"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/input-preservation.json",
+      "sha256": "f23c44f0dbea6e3c7b3a3469a51ece2332788d42fa13f0e0f23e1046d8086d67"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/local-verification.json",
+      "sha256": "4b311ae42059cb22beac39aa7c4b39318b708a044d9194abf5e0d34dbba24321"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/pre-execution-tests.json",
+      "sha256": "dd6327e1eaefb7eb5b2790a2ac98443ec06908c5ca2b2042c85b61eb88be42aa"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/product-vitest.json",
+      "sha256": "d60a88ba1b9d88ed7ec0adbe77176cee1cd7fc571c78474544d932b5d9643de5"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/research-eslint.json",
+      "sha256": "3866472720c2928f81205424b2ab090f3538845defb8215b13a750b7d40964a3"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+      "sha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a"
+    },
+    {
+      "path": "backend/research/reports/step_runtime_verdict_v18/assessment.json",
+      "sha256": "0e0b66d880a0b6903b6a79f23e933c74cec77ddd27d6a15113e749493113c96d"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+      "sha256": "27d80f956f207366f3739d8277f559f98b7ba85f4f51df7a75b7dd57da2e2c51"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic-seal.json",
+      "sha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic.json",
+      "sha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/.gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/baseline.mjs",
+      "sha256": "c59fc2971260d03e07b494451b25d46d4393e5c24e025d9a5e0b5c0a02a7dc69"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/baseline.ts",
+      "sha256": "c6bfd31fd74f8779a53ed21f5841edf8a7518ab4a0273f0a0df68e97b3914022"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/capture-entry.mjs",
+      "sha256": "6b2b47d97268f8f4375d4ec0377b6cdc1ce747163f036d72295406be6b099b90"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/capture-worker.mjs",
+      "sha256": "ee2eeb53887079aa094b74526e8ff9cc417cc97a2c564c93445a95739c7e36cc"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/capture.mjs",
+      "sha256": "a1a45d079f97d886b367c7801048e8e5c1fc2b19516ef4a859eb64820fde3651"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/closeout.py",
+      "sha256": "d7cddb6e9f41d6aadd43561b000e739b3519a5bd9fc1a499be544992e20ae44c"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/contract.json",
+      "sha256": "ddefcf1e420d171e155c286f750824615b0866287893da3061f9a34c8d82cfab"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/control.mjs",
+      "sha256": "8fdd489b2a23c2c86c73811f93ed032c9a1b41e359aa05063cd1a564563d08fb"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/design.md",
+      "sha256": "20a6a1604304bcd9fbf0184e2e50d842520b277615a9b7b52e125b3d51e6860a"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/eslint.config.mjs",
+      "sha256": "b4837c093bcadaffedfe718c38f167cc610b77a9953bb05b52ea09a06c065af0"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/io.mjs",
+      "sha256": "7b709a0c1228d386e30c852195f792bfa2f5fbb91151ed022e30f0248fa35d7a"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/prepare-inputs.ts",
+      "sha256": "4c0031f8c0bdf7860d1ed9547d7567e07c0a01832f830ed4e57cc742cc71a14e"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/raw-proof.mjs",
+      "sha256": "f94a37b46697b231c3f3c28db722b19fb1033d34cbbf003258670a85ce5c43ff"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/stage-a-config.json",
+      "sha256": "bd6f429396f725b6cf29d7058a498522e662ed02d40f25896c557776ae9dd693"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/structure.mjs",
+      "sha256": "8682a5c1c2c51705cba92bda918a30211f66e0ec6b8c202c8b90f334bb7b9ff1"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/tests.mjs",
+      "sha256": "33810420c7f859328fd89f55ddc449c753f23a4e318bc7b54f3d7e53dec6c6cd"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/tsconfig.json",
+      "sha256": "779d1c7de79e9f085bbe1d7a2057219e612cf46f1fafa23cb2cb2d50b64b58d4"
+    },
+    {
+      "path": "backend/research/robust_raw_tensor_v20/wire.mjs",
+      "sha256": "b5568a21fe945e47cfb2e3e658632809f3097a00c5ac06e92316ea0601acafd8"
+    }
+  ],
+  "modelRunsBeforeFreeze": 0,
+  "decoderRunsBeforeFreeze": 0,
+  "initialGitHub": {
+    "queriedAt": "2026-10-19T08:55:02.881433+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "ciInterpretation": "NOT CI PASS"
+  }
+}
