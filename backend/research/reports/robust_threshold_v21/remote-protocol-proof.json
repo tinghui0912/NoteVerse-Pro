@@ -1,0 +1,21 @@
+{
+  "commit": "eb3a1780ce887d73e2232c28863685d27bafdd05",
+  "remoteHead": "eb3a1780ce887d73e2232c28863685d27bafdd05",
+  "remoteVerifiedAt": "2026-10-19T10:43:44.664Z",
+  "freezeSha256": "6e500619c2de0c682087463514043573bdcecfb319b9861b46176630c6bef56d",
+  "blindConfigSha256": "1d881d4aa02550d2088420cf2e3a0bfcd71aae0ab9b5bf1d69d1ec1c7223b8a9",
+  "StageA": "NOT_STARTED",
+  "zero": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "freshHoldoutAccess": 0,
+    "modelWarmupRuns": 0,
+    "unknownNeuralExecutions": 0,
+    "decoderBRuns": 0,
+    "decoderCRuns": 0,
+    "ContinuousAcousticReruns": 0
+  }
+}
