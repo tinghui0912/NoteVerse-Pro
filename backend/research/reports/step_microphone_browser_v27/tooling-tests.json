@@ -1,0 +1,56 @@
+{
+  "result": "LOCAL_PASS",
+  "passed": 11,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "filesystem inputs hash exact file bytes and preserve original metafile name",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "exact virtual input has provenance and never attempts filesystem read",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "unknown virtual-looking nodes fail closed rather than being skipped",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "missing real input fails closed",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "duplicate real or virtual identities cannot disagree silently",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "all immutable V26 bundles/WAV/metadata/contract and seven assets verify exactly",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "filesystem manifest covers all real inputs, including exact entrypoint source identities",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "freeze executable graph reaches only Node builtins and V27 pure evidence modules, never browser/model/decoder execution",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "campaign has exactly one launch site after remote authorization and does not execute/import V26 campaign wrapper",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "causal failure classification rejects resource-created proxy and keeps environment/root-stimulus/evidence cases distinct",
+      "result": "LOCAL_PASS"
+    },
+    {
+      "name": "starting HEAD/scope, V26 history and current capability remain unchanged",
+      "result": "LOCAL_PASS"
+    }
+  ],
+  "browserLaunches": 0,
+  "newModelSessions": 0,
+  "neuralRuns": 0,
+  "virtualFilesystemReads": 0,
+  "bundlesRebuilt": 0
+}
