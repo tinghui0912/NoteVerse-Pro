@@ -1,0 +1,4140 @@
+{
+  "phase": "STEP_MICROPHONE_CONSERVATIVE_TRISTATE_V17",
+  "createdAt": "2026-10-19T07:29:16.947378+00:00",
+  "startingHead": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+  "label": "EXPOSED_DEVELOPMENT_PRODUCT_POLICY_RESEARCH_ONLY_NOT_QUALIFICATION",
+  "disposition": "STEP_MICROPHONE_V17_CONSERVATIVE_TRISTATE_SAFETY_SUPPORTED_ON_EXISTING_EXPOSED_EVIDENCE",
+  "startingGate": {
+    "localHead": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+    "remoteHead": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+    "mergeBase": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+    "ahead": 0,
+    "behind": 0,
+    "cleanWorktreeBeforeEdits": true,
+    "fetchFirst": true
+  },
+  "historicalResearchFilesRawUnchanged": 1467,
+  "productionDiff": [],
+  "historicalDiff": [],
+  "changedFilesAtAssessment": [
+    "backend/research/reports/step_microphone_tristate_v17/.gitattributes",
+    "backend/research/reports/step_microphone_tristate_v17/analysis-complete.json",
+    "backend/research/reports/step_microphone_tristate_v17/analysis-started.json",
+    "backend/research/reports/step_microphone_tristate_v17/existing-domain-and-ui-inventory.json",
+    "backend/research/reports/step_microphone_tristate_v17/historical-raw-identities.json",
+    "backend/research/reports/step_microphone_tristate_v17/local-verification.json",
+    "backend/research/reports/step_microphone_tristate_v17/pre-freeze-byte-representation-check.json",
+    "backend/research/reports/step_microphone_tristate_v17/product-vitest.json",
+    "backend/research/reports/step_microphone_tristate_v17/remote-freeze-proof.json",
+    "backend/research/reports/step_microphone_tristate_v17/research-eslint.json",
+    "backend/research/reports/step_microphone_tristate_v17/research-tests.json",
+    "backend/research/reports/step_microphone_tristate_v17/tristate-policy-freeze.json",
+    "backend/research/reports/step_microphone_tristate_v17/tristate-results.json",
+    "backend/research/step_microphone_tristate_v17/.gitattributes",
+    "backend/research/step_microphone_tristate_v17/closure.py",
+    "backend/research/step_microphone_tristate_v17/contract.json",
+    "backend/research/step_microphone_tristate_v17/core.mjs",
+    "backend/research/step_microphone_tristate_v17/design-note.md",
+    "backend/research/step_microphone_tristate_v17/domain.ts",
+    "backend/research/step_microphone_tristate_v17/eslint.config.mjs",
+    "backend/research/step_microphone_tristate_v17/policy.mjs",
+    "backend/research/step_microphone_tristate_v17/runner.mjs",
+    "backend/research/step_microphone_tristate_v17/tests.mjs",
+    "backend/research/step_microphone_tristate_v17/tsconfig.json"
+  ],
+  "freezeProof": {
+    "freezeCommit": "a22a4cce2dfecfcf19b09857a74e7536154eac1d",
+    "remoteHead": "a22a4cce2dfecfcf19b09857a74e7536154eac1d",
+    "remoteVerifiedAt": "2026-10-19T07:29:03.986Z",
+    "freezeSha256": "4a51c2eb0ebd2497f156735d051141019bbc08d035b5043c423b4ed26a26c3e4",
+    "analysis": "NOT_STARTED",
+    "execution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "PcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "ContinuousProjectionReruns": 0,
+      "freshHoldoutAccess": 0,
+      "warmups": 0,
+      "unknownRuns": 0
+    }
+  },
+  "analysisBoundary": {
+    "startedAt": "2026-10-19T07:29:10.500Z",
+    "completedAt": "2026-10-19T07:29:11.073Z",
+    "analysisExecutions": 1,
+    "freezeCommit": "a22a4cce2dfecfcf19b09857a74e7536154eac1d",
+    "freezeSha256": "4a51c2eb0ebd2497f156735d051141019bbc08d035b5043c423b4ed26a26c3e4",
+    "remoteVerifiedAt": "2026-10-19T07:29:03.986Z",
+    "remoteVerifiedBeforeAnalysis": true,
+    "execution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "PcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "ContinuousProjectionReruns": 0,
+      "freshHoldoutAccess": 0,
+      "warmups": 0,
+      "unknownRuns": 0
+    }
+  },
+  "remoteVerifiedBeforeAnalysis": true,
+  "V16HistoricalDispositions": [
+    "STEP_MICROPHONE_V16_NAIVE_REQUIRED_PITCH_COVERAGE_UNSAFE_WRONG_OCTAVE_FALSE_ACCEPT",
+    "CONTINUOUS_MICROPHONE_SOURCE_SENSITIVE_PRODUCT_INTERPRETATION_SUPPORTED_FOR_FURTHER_DEVELOPMENT"
+  ],
+  "prospectiveCorrectionPreserved": "V15_EXACT_SET_BLOCKER_DOES_NOT_BY_ITSELF_PROVE_NEW_ACOUSTIC_READOUT_IS_REQUIRED",
+  "requiredAnswers": {
+    "1_V16Immutable": true,
+    "2_zeroExecution": {
+      "newNeuralRuns": 0,
+      "modelSessionLoads": 0,
+      "acousticWorkerConstructions": 0,
+      "decoderARuns": 0,
+      "decoderBRuns": 0,
+      "PcmDecodeRuns": 0,
+      "StepAcousticReruns": 0,
+      "ContinuousAcousticReruns": 0,
+      "ContinuousProjectionReruns": 0,
+      "freshHoldoutAccess": 0,
+      "warmups": 0,
+      "unknownRuns": 0
+    },
+    "3_productionAlreadySupportsRetryUncertain": true,
+    "4_existingVerdictUsedNotInvented": "Actual schema5 step-paced-attempt-v5 runtime finalized RETRY/UNCERTAIN; no fourth verdict or production change.",
+    "5_P2VerdictRows": {
+      "MATCH": 8,
+      "RETRY": 14,
+      "MISMATCH": 12
+    },
+    "6_wrongOctave": [
+      {
+        "rowId": "wrong_octave:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          52,
+          56
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": false,
+          "classification": "FALSE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "UNSUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:wrong_octave:44100:attempt:1",
+          "localSessionId": "v17:wrong_octave:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_octave:44100",
+            "ms": 1171.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:wrong_octave:44100:attempt:1",
+          "localSessionId": "v17:wrong_octave:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_octave:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:wrong_octave:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:wrong_octave:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:wrong_octave:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:44100",
+                "ms": 1221.8820861678005
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:wrong_octave:44100:attempt:1",
+                "localSessionId": "v17:wrong_octave:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:wrong_octave:44100",
+                  "ms": 1171.8820861678005
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:wrong_octave:44100",
+                  "ms": 1221.8820861678005
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_octave:44100:attempt:1",
+                  "localSessionId": "v17:wrong_octave:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_octave:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_octave:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:wrong_octave:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_octave:44100:attempt:1",
+                  "localSessionId": "v17:wrong_octave:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_octave:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_octave:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "wrong_octave:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          52,
+          56
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": false,
+          "classification": "FALSE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "UNSUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:wrong_octave:48000:attempt:1",
+          "localSessionId": "v17:wrong_octave:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_octave:48000",
+            "ms": 1171.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:wrong_octave:48000:attempt:1",
+          "localSessionId": "v17:wrong_octave:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_octave:48000",
+            "ms": 1171.875
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:wrong_octave:48000",
+            "ms": 1221.875
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:wrong_octave:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:wrong_octave:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:48000",
+                "ms": 1221.875
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:wrong_octave:48000:attempt:1",
+                "localSessionId": "v17:wrong_octave:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:wrong_octave:48000",
+                  "ms": 1171.875
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:wrong_octave:48000",
+                  "ms": 1221.875
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_octave:48000:attempt:1",
+                  "localSessionId": "v17:wrong_octave:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_octave:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_octave:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:wrong_octave:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_octave:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_octave:48000:attempt:1",
+                  "localSessionId": "v17:wrong_octave:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_octave:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_octave:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "7_correctChord": [
+      {
+        "rowId": "correct_chord:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:correct_chord:44100:attempt:1",
+          "localSessionId": "v17:correct_chord:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_chord:44100",
+            "ms": 1171.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:correct_chord:44100:attempt:1",
+          "localSessionId": "v17:correct_chord:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_chord:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:correct_chord:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:correct_chord:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:correct_chord:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:44100",
+                "ms": 1221.8820861678005
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:correct_chord:44100:attempt:1",
+                "localSessionId": "v17:correct_chord:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:correct_chord:44100",
+                  "ms": 1171.8820861678005
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:correct_chord:44100",
+                  "ms": 1221.8820861678005
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_chord:44100:attempt:1",
+                  "localSessionId": "v17:correct_chord:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_chord:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_chord:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:correct_chord:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_chord:44100:attempt:1",
+                  "localSessionId": "v17:correct_chord:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_chord:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_chord:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "correct_chord:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:correct_chord:48000:attempt:1",
+          "localSessionId": "v17:correct_chord:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_chord:48000",
+            "ms": 1171.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:correct_chord:48000:attempt:1",
+          "localSessionId": "v17:correct_chord:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_chord:48000",
+            "ms": 1171.875
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:correct_chord:48000",
+            "ms": 1221.875
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:correct_chord:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:correct_chord:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:48000",
+                "ms": 1221.875
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:correct_chord:48000:attempt:1",
+                "localSessionId": "v17:correct_chord:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:correct_chord:48000",
+                  "ms": 1171.875
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:correct_chord:48000",
+                  "ms": 1221.875
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_chord:48000:attempt:1",
+                  "localSessionId": "v17:correct_chord:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_chord:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_chord:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:correct_chord:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_chord:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_chord:48000:attempt:1",
+                  "localSessionId": "v17:correct_chord:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_chord:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_chord:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "8_postReadyRepeat": [
+      {
+        "rowId": "post_ready_repeat:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          46,
+          58
+        ],
+        "physicalTruth": [
+          46,
+          58
+        ],
+        "acousticObserved": [
+          46,
+          58,
+          70,
+          74
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+          "localSessionId": "v17:post_ready_repeat:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 1103.7414965986395
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+          "localSessionId": "v17:post_ready_repeat:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 1103.7414965986395
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 1153.7414965986395
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 1153.7414965986395
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                "localSessionId": "v17:post_ready_repeat:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:post_ready_repeat:44100",
+                  "ms": 1103.7414965986395
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:post_ready_repeat:44100",
+                  "ms": 1153.7414965986395
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1103.7414965986395
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1153.7414965986395
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1103.7414965986395
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1153.7414965986395
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "post_ready_repeat:44100:1",
+        "rate": 44100,
+        "ordinal": 1,
+        "expected": [
+          46,
+          58
+        ],
+        "physicalTruth": [
+          46,
+          58
+        ],
+        "acousticObserved": [
+          46,
+          50,
+          58
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:post_ready_repeat:44100:attempt:2",
+          "localSessionId": "v17:post_ready_repeat:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 2139.1609977324265
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:post_ready_repeat:44100:attempt:2",
+          "localSessionId": "v17:post_ready_repeat:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 2139.1609977324265
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:post_ready_repeat:44100",
+            "ms": 2189.1609977324265
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1103.7414965986395
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1153.7414965986395
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 2189.1609977324265
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:post_ready_repeat:44100:attempt:2",
+                "localSessionId": "v17:post_ready_repeat:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:post_ready_repeat:44100",
+                  "ms": 2139.1609977324265
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:post_ready_repeat:44100",
+                  "ms": 2189.1609977324265
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1103.7414965986395
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1153.7414965986395
+                  },
+                  "retryReason": "UNCERTAIN"
+                },
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:2",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 2139.1609977324265
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 2189.1609977324265
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:post_ready_repeat:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:44100",
+                "ms": 3000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1103.7414965986395
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 1153.7414965986395
+                  },
+                  "retryReason": "UNCERTAIN"
+                },
+                {
+                  "attemptId": "v17:post_ready_repeat:44100:attempt:2",
+                  "localSessionId": "v17:post_ready_repeat:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 2139.1609977324265
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:44100",
+                    "ms": 2189.1609977324265
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "post_ready_repeat:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          46,
+          58
+        ],
+        "physicalTruth": [
+          46,
+          58
+        ],
+        "acousticObserved": [
+          46,
+          58,
+          70,
+          74
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+          "localSessionId": "v17:post_ready_repeat:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 1103.75
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+          "localSessionId": "v17:post_ready_repeat:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 1103.75
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 1153.75
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 1153.75
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                "localSessionId": "v17:post_ready_repeat:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:post_ready_repeat:48000",
+                  "ms": 1103.75
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:post_ready_repeat:48000",
+                  "ms": 1153.75
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1103.75
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1153.75
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1103.75
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1153.75
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "post_ready_repeat:48000:1",
+        "rate": 48000,
+        "ordinal": 1,
+        "expected": [
+          46,
+          58
+        ],
+        "physicalTruth": [
+          46,
+          58
+        ],
+        "acousticObserved": [
+          46,
+          50,
+          58
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": true,
+          "classification": "FALSE_REJECT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "RETRY",
+          "reason": "UNCERTAIN"
+        },
+        "classification": "SUPPORTED_RETRY",
+        "identity": {
+          "attemptId": "v17:post_ready_repeat:48000:attempt:2",
+          "localSessionId": "v17:post_ready_repeat:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 2139.1666666666665
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:post_ready_repeat:48000:attempt:2",
+          "localSessionId": "v17:post_ready_repeat:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 2139.1666666666665
+          },
+          "verdict": "RETRY",
+          "observedAttackPitches": [],
+          "confidence": null,
+          "captureEndSessionTime": {
+            "domainId": "v17:post_ready_repeat:48000",
+            "ms": 2189.1666666666665
+          },
+          "retryReason": "UNCERTAIN"
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1103.75
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1153.75
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 2189.1666666666665
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:post_ready_repeat:48000:attempt:2",
+                "localSessionId": "v17:post_ready_repeat:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:post_ready_repeat:48000",
+                  "ms": 2139.1666666666665
+                },
+                "verdict": "RETRY",
+                "observedAttackPitches": [],
+                "confidence": null,
+                "captureEndSessionTime": {
+                  "domainId": "v17:post_ready_repeat:48000",
+                  "ms": 2189.1666666666665
+                },
+                "retryReason": "UNCERTAIN"
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1103.75
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1153.75
+                  },
+                  "retryReason": "UNCERTAIN"
+                },
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:2",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 2139.1666666666665
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 2189.1666666666665
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:post_ready_repeat:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:post_ready_repeat:48000",
+                "ms": 3000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:1",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1103.75
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 1153.75
+                  },
+                  "retryReason": "UNCERTAIN"
+                },
+                {
+                  "attemptId": "v17:post_ready_repeat:48000:attempt:2",
+                  "localSessionId": "v17:post_ready_repeat:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 2139.1666666666665
+                  },
+                  "verdict": "RETRY",
+                  "observedAttackPitches": [],
+                  "confidence": null,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:post_ready_repeat:48000",
+                    "ms": 2189.1666666666665
+                  },
+                  "retryReason": "UNCERTAIN"
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "9_missingChordTone": [
+      {
+        "rowId": "missing_chord_tone:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          21,
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P2": {
+          "verdict": "MISMATCH",
+          "reason": null
+        },
+        "classification": "TRUE_REJECT",
+        "identity": {
+          "attemptId": "v17:missing_chord_tone:44100:attempt:1",
+          "localSessionId": "v17:missing_chord_tone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:missing_chord_tone:44100",
+            "ms": 1171.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:missing_chord_tone:44100:attempt:1",
+          "localSessionId": "v17:missing_chord_tone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:missing_chord_tone:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v17:missing_chord_tone:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:missing_chord_tone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:missing_chord_tone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:44100",
+                "ms": 1221.8820861678005
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:missing_chord_tone:44100:attempt:1",
+                "localSessionId": "v17:missing_chord_tone:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:missing_chord_tone:44100",
+                  "ms": 1171.8820861678005
+                },
+                "verdict": "MISMATCH",
+                "observedAttackPitches": [
+                  "E3",
+                  "E4",
+                  "G#3",
+                  "G#4"
+                ],
+                "confidence": 0.3733293116092682,
+                "captureEndSessionTime": {
+                  "domainId": "v17:missing_chord_tone:44100",
+                  "ms": 1221.8820861678005
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:missing_chord_tone:44100:attempt:1",
+                  "localSessionId": "v17:missing_chord_tone:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:missing_chord_tone:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733293116092682,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:missing_chord_tone:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:missing_chord_tone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:missing_chord_tone:44100:attempt:1",
+                  "localSessionId": "v17:missing_chord_tone:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:missing_chord_tone:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733293116092682,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:missing_chord_tone:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "missing_chord_tone:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          21,
+          56,
+          64
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P2": {
+          "verdict": "MISMATCH",
+          "reason": null
+        },
+        "classification": "TRUE_REJECT",
+        "identity": {
+          "attemptId": "v17:missing_chord_tone:48000:attempt:1",
+          "localSessionId": "v17:missing_chord_tone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:missing_chord_tone:48000",
+            "ms": 1171.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:missing_chord_tone:48000:attempt:1",
+          "localSessionId": "v17:missing_chord_tone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:missing_chord_tone:48000",
+            "ms": 1171.875
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v17:missing_chord_tone:48000",
+            "ms": 1221.875
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:missing_chord_tone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:missing_chord_tone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:48000",
+                "ms": 1221.875
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:missing_chord_tone:48000:attempt:1",
+                "localSessionId": "v17:missing_chord_tone:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:missing_chord_tone:48000",
+                  "ms": 1171.875
+                },
+                "verdict": "MISMATCH",
+                "observedAttackPitches": [
+                  "E3",
+                  "E4",
+                  "G#3",
+                  "G#4"
+                ],
+                "confidence": 0.3733627498149872,
+                "captureEndSessionTime": {
+                  "domainId": "v17:missing_chord_tone:48000",
+                  "ms": 1221.875
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:missing_chord_tone:48000:attempt:1",
+                  "localSessionId": "v17:missing_chord_tone:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:missing_chord_tone:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733627498149872,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:missing_chord_tone:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:missing_chord_tone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:missing_chord_tone:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:missing_chord_tone:48000:attempt:1",
+                  "localSessionId": "v17:missing_chord_tone:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:missing_chord_tone:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733627498149872,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:missing_chord_tone:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "10_wrongSemitone": [
+      {
+        "rowId": "wrong_semitone:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          56,
+          63
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P2": {
+          "verdict": "MISMATCH",
+          "reason": null
+        },
+        "classification": "TRUE_REJECT",
+        "identity": {
+          "attemptId": "v17:wrong_semitone:44100:attempt:1",
+          "localSessionId": "v17:wrong_semitone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_semitone:44100",
+            "ms": 1171.8820861678005
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:wrong_semitone:44100:attempt:1",
+          "localSessionId": "v17:wrong_semitone:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_semitone:44100",
+            "ms": 1171.8820861678005
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733293116092682,
+          "captureEndSessionTime": {
+            "domainId": "v17:wrong_semitone:44100",
+            "ms": 1221.8820861678005
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:wrong_semitone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:wrong_semitone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:44100",
+                "ms": 1221.8820861678005
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:wrong_semitone:44100:attempt:1",
+                "localSessionId": "v17:wrong_semitone:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:wrong_semitone:44100",
+                  "ms": 1171.8820861678005
+                },
+                "verdict": "MISMATCH",
+                "observedAttackPitches": [
+                  "E3",
+                  "E4",
+                  "G#3",
+                  "G#4"
+                ],
+                "confidence": 0.3733293116092682,
+                "captureEndSessionTime": {
+                  "domainId": "v17:wrong_semitone:44100",
+                  "ms": 1221.8820861678005
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_semitone:44100:attempt:1",
+                  "localSessionId": "v17:wrong_semitone:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_semitone:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733293116092682,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_semitone:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:wrong_semitone:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_semitone:44100:attempt:1",
+                  "localSessionId": "v17:wrong_semitone:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_semitone:44100",
+                    "ms": 1171.8820861678005
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733293116092682,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_semitone:44100",
+                    "ms": 1221.8820861678005
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "wrong_semitone:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          56,
+          63
+        ],
+        "physicalTruth": [
+          56,
+          64
+        ],
+        "acousticObserved": [
+          52,
+          56,
+          64,
+          68
+        ],
+        "P0": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P1": {
+          "verdict": "MISMATCH",
+          "fullPhysicalSupport": false,
+          "classification": "TRUE_REJECT"
+        },
+        "P2": {
+          "verdict": "MISMATCH",
+          "reason": null
+        },
+        "classification": "TRUE_REJECT",
+        "identity": {
+          "attemptId": "v17:wrong_semitone:48000:attempt:1",
+          "localSessionId": "v17:wrong_semitone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_semitone:48000",
+            "ms": 1171.875
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:wrong_semitone:48000:attempt:1",
+          "localSessionId": "v17:wrong_semitone:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:wrong_semitone:48000",
+            "ms": 1171.875
+          },
+          "verdict": "MISMATCH",
+          "observedAttackPitches": [
+            "E3",
+            "E4",
+            "G#3",
+            "G#4"
+          ],
+          "confidence": 0.3733627498149872,
+          "captureEndSessionTime": {
+            "domainId": "v17:wrong_semitone:48000",
+            "ms": 1221.875
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:wrong_semitone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:wrong_semitone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:48000",
+                "ms": 1221.875
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:wrong_semitone:48000:attempt:1",
+                "localSessionId": "v17:wrong_semitone:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:wrong_semitone:48000",
+                  "ms": 1171.875
+                },
+                "verdict": "MISMATCH",
+                "observedAttackPitches": [
+                  "E3",
+                  "E4",
+                  "G#3",
+                  "G#4"
+                ],
+                "confidence": 0.3733627498149872,
+                "captureEndSessionTime": {
+                  "domainId": "v17:wrong_semitone:48000",
+                  "ms": 1221.875
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_semitone:48000:attempt:1",
+                  "localSessionId": "v17:wrong_semitone:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_semitone:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733627498149872,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_semitone:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:wrong_semitone:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:wrong_semitone:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [
+                {
+                  "attemptId": "v17:wrong_semitone:48000:attempt:1",
+                  "localSessionId": "v17:wrong_semitone:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:wrong_semitone:48000",
+                    "ms": 1171.875
+                  },
+                  "verdict": "MISMATCH",
+                  "observedAttackPitches": [
+                    "E3",
+                    "E4",
+                    "G#3",
+                    "G#4"
+                  ],
+                  "confidence": 0.3733627498149872,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:wrong_semitone:48000",
+                    "ms": 1221.875
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "11_correctSingle": [
+      {
+        "rowId": "correct_single:44100:0",
+        "rate": 44100,
+        "ordinal": 0,
+        "expected": [
+          64
+        ],
+        "physicalTruth": [
+          64
+        ],
+        "acousticObserved": [
+          64
+        ],
+        "P0": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "MATCH",
+          "reason": null
+        },
+        "classification": "SAFE_MATCH",
+        "identity": {
+          "attemptId": "v17:correct_single:44100:attempt:1",
+          "localSessionId": "v17:correct_single:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_single:44100",
+            "ms": 1174.5804988662132
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:correct_single:44100:attempt:1",
+          "localSessionId": "v17:correct_single:44100",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_single:44100",
+            "ms": 1174.5804988662132
+          },
+          "verdict": "MATCH",
+          "observedAttackPitches": [
+            "E4"
+          ],
+          "confidence": 0.9306982755661011,
+          "captureEndSessionTime": {
+            "domainId": "v17:correct_single:44100",
+            "ms": 1224.5804988662132
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:correct_single:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:44100",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:correct_single:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:44100",
+                "ms": 1224.5804988662132
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:correct_single:44100:attempt:1",
+                "localSessionId": "v17:correct_single:44100",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:correct_single:44100",
+                  "ms": 1174.5804988662132
+                },
+                "verdict": "MATCH",
+                "observedAttackPitches": [
+                  "E4"
+                ],
+                "confidence": 0.9306982755661011,
+                "captureEndSessionTime": {
+                  "domainId": "v17:correct_single:44100",
+                  "ms": 1224.5804988662132
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_single:44100:attempt:1",
+                  "localSessionId": "v17:correct_single:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_single:44100",
+                    "ms": 1174.5804988662132
+                  },
+                  "verdict": "MATCH",
+                  "observedAttackPitches": [
+                    "E4"
+                  ],
+                  "confidence": 0.9306982755661011,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_single:44100",
+                    "ms": 1224.5804988662132
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:correct_single:44100",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ENDED",
+            "completionReason": "SCOPE_COMPLETED",
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 1,
+              "targetGeneration": 2,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:44100",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": true,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_single:44100:attempt:1",
+                  "localSessionId": "v17:correct_single:44100",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_single:44100",
+                    "ms": 1174.5804988662132
+                  },
+                  "verdict": "MATCH",
+                  "observedAttackPitches": [
+                    "E4"
+                  ],
+                  "confidence": 0.9306982755661011,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_single:44100",
+                    "ms": 1224.5804988662132
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      },
+      {
+        "rowId": "correct_single:48000:0",
+        "rate": 48000,
+        "ordinal": 0,
+        "expected": [
+          64
+        ],
+        "physicalTruth": [
+          64
+        ],
+        "acousticObserved": [
+          64
+        ],
+        "P0": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P1": {
+          "verdict": "MATCH",
+          "fullPhysicalSupport": true,
+          "classification": "TRUE_ACCEPT"
+        },
+        "P2": {
+          "verdict": "MATCH",
+          "reason": null
+        },
+        "classification": "SAFE_MATCH",
+        "identity": {
+          "attemptId": "v17:correct_single:48000:attempt:1",
+          "localSessionId": "v17:correct_single:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_single:48000",
+            "ms": 1174.5833333333333
+          }
+        },
+        "productRecord": {
+          "attemptId": "v17:correct_single:48000:attempt:1",
+          "localSessionId": "v17:correct_single:48000",
+          "stepId": "s0",
+          "targetGeneration": 1,
+          "inputSource": "MICROPHONE",
+          "attemptStartSessionTime": {
+            "domainId": "v17:correct_single:48000",
+            "ms": 1174.5833333333333
+          },
+          "verdict": "MATCH",
+          "observedAttackPitches": [
+            "E4"
+          ],
+          "confidence": 0.9290251731872559,
+          "captureEndSessionTime": {
+            "domainId": "v17:correct_single:48000",
+            "ms": 1224.5833333333333
+          },
+          "retryReason": null
+        },
+        "domainTrace": {
+          "ready": {
+            "localSessionId": "v17:correct_single:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:48000",
+                "ms": 1000
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": true,
+              "attempts": [],
+              "skips": []
+            }
+          },
+          "postVerdict": {
+            "localSessionId": "v17:correct_single:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ACTIVE",
+            "completionReason": null,
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 0,
+              "targetGeneration": 1,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:48000",
+                "ms": 1224.5833333333333
+              },
+              "inputAvailable": true,
+              "completed": false,
+              "attemptState": "POST_VERDICT",
+              "activeAttempt": null,
+              "pendingPostVerdict": {
+                "attemptId": "v17:correct_single:48000:attempt:1",
+                "localSessionId": "v17:correct_single:48000",
+                "stepId": "s0",
+                "targetGeneration": 1,
+                "inputSource": "MICROPHONE",
+                "attemptStartSessionTime": {
+                  "domainId": "v17:correct_single:48000",
+                  "ms": 1174.5833333333333
+                },
+                "verdict": "MATCH",
+                "observedAttackPitches": [
+                  "E4"
+                ],
+                "confidence": 0.9290251731872559,
+                "captureEndSessionTime": {
+                  "domainId": "v17:correct_single:48000",
+                  "ms": 1224.5833333333333
+                },
+                "retryReason": null
+              },
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_single:48000:attempt:1",
+                  "localSessionId": "v17:correct_single:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_single:48000",
+                    "ms": 1174.5833333333333
+                  },
+                  "verdict": "MATCH",
+                  "observedAttackPitches": [
+                    "E4"
+                  ],
+                  "confidence": 0.9290251731872559,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_single:48000",
+                    "ms": 1224.5833333333333
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          },
+          "rearmed": {
+            "localSessionId": "v17:correct_single:48000",
+            "scoreId": "frozen-v6",
+            "revisionId": "v6",
+            "artifactId": "v17-domain-replay",
+            "mode": "STEP_BY_STEP",
+            "inputSource": "MICROPHONE",
+            "practiceScope": {
+              "kind": "FULL"
+            },
+            "tempoSelection": {
+              "mode": "SCORE"
+            },
+            "metronomeEnabled": false,
+            "runtimeStatus": "ENDED",
+            "completionReason": "SCOPE_COMPLETED",
+            "version": {
+              "schemaVersion": 5,
+              "runtimeVersion": "step-paced-attempt-v5"
+            },
+            "createdAtMs": 0,
+            "updatedAtMs": 0,
+            "step": {
+              "currentIndex": 1,
+              "targetGeneration": 2,
+              "inputEligibleAfter": {
+                "domainId": "v17:correct_single:48000",
+                "ms": 2000
+              },
+              "inputAvailable": true,
+              "completed": true,
+              "attemptState": "READY",
+              "activeAttempt": null,
+              "pendingPostVerdict": null,
+              "canAcceptAttempt": false,
+              "attempts": [
+                {
+                  "attemptId": "v17:correct_single:48000:attempt:1",
+                  "localSessionId": "v17:correct_single:48000",
+                  "stepId": "s0",
+                  "targetGeneration": 1,
+                  "inputSource": "MICROPHONE",
+                  "attemptStartSessionTime": {
+                    "domainId": "v17:correct_single:48000",
+                    "ms": 1174.5833333333333
+                  },
+                  "verdict": "MATCH",
+                  "observedAttackPitches": [
+                    "E4"
+                  ],
+                  "confidence": 0.9290251731872559,
+                  "captureEndSessionTime": {
+                    "domainId": "v17:correct_single:48000",
+                    "ms": 1224.5833333333333
+                  },
+                  "retryReason": null
+                }
+              ],
+              "skips": []
+            }
+          }
+        }
+      }
+    ],
+    "12_dangerousAutomaticMatches": 0,
+    "13_uniquePhysicalEvidence": {
+      "units": 18,
+      "physicalGesturesIgnoringRate": 9,
+      "recordingIds": [
+        "Chopin_op10_no3_p01",
+        "Chopin_op10_no3_p02",
+        "kv279_2",
+        "kv281_1"
+      ],
+      "multiplicitySum": 34
+    },
+    "14_supportedUniqueUnitBurden": {
+      "supportedUniquePhysicalUnits": 12,
+      "mixedSupportedTargetContexts": 0,
+      "counts": {
+        "MATCH": 6,
+        "RETRY": 6,
+        "MISMATCH": 0
+      },
+      "SAFE_AUTO_MATCH_COVERAGE": 0.5,
+      "SUPPORTED_AMBIGUITY_RETRY_RATE": 0.5,
+      "supportedMismatchRate": 0,
+      "interpretation": "NOT_GENERALIZABLE_PRODUCT_RATE"
+    },
+    "15_rateGeneralizability": "NOT_GENERALIZABLE_PRODUCT_RATE",
+    "16_persistentRetryRisk": {
+      "classification": "PERSISTENT_ACOUSTIC_AMBIGUITY_USABILITY_RISK",
+      "decision": {
+        "recommendation": "ACOUSTIC_OPERATING_POINT_REOPEN_JUSTIFIED_FOR_EXPOSED_DEVELOPMENT_ONLY",
+        "qualifyingPhysicalGestures": [
+          {
+            "recordingId": "Chopin_op10_no3_p02",
+            "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+            "rates": [
+              44100,
+              48000
+            ],
+            "unitIds": [
+              "46f87b280a1d182c3831248996ea31cdcded67b24912fdb16f199440da8db7c5",
+              "c8adc875e055fb3d71af133c3ed2200e53c87b93dd7595848f8df3e5e7a33bbf"
+            ]
+          },
+          {
+            "recordingId": "kv281_1",
+            "physicalGestureId": "kv281_1:g:801",
+            "rates": [
+              48000,
+              44100
+            ],
+            "unitIds": [
+              "58ab2ab3a51dc156d1b61372bbb808f5afa9f9702ae6dcb9b90c94e238ccc8eb",
+              "ae003c9ef42edd571ca0e09b79c7ebcdea6ea7b1328b6789f90de3d610654088"
+            ]
+          },
+          {
+            "recordingId": "kv281_1",
+            "physicalGestureId": "kv281_1:g:803",
+            "rates": [
+              48000,
+              44100
+            ],
+            "unitIds": [
+              "5b8941242e8daaae1aeda9810a8943079684a9baaacaf7cdbd4f130cbde85439",
+              "5fba93bbc2c9c61ec1d8bb4fb71f2177077843ff8c005f1ac554b760d5e716cf"
+            ]
+          }
+        ],
+        "qualifyingRecordingIds": [
+          "Chopin_op10_no3_p02",
+          "kv281_1"
+        ],
+        "independentRecordingsNotRateVariants": true,
+        "executionAuthorized": false
+      },
+      "limitation": "Two rate variants are not repeated user trials. Distinct frozen same-target physical repeats can both return RETRY. Deterministic ambiguity may persist; no population or repeated-device-run rate claim."
+    },
+    "17_automaticNthRetryPromotionInvented": false,
+    "18_rearmRequired": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+    "19_fixedMicrophoneCooldownSelected": false,
+    "20_modelInputContract": "MODEL_INPUT_CONTRACT_NOT_REOPENED",
+    "21_thresholdDefaults": {
+      "onset": 0.3,
+      "frame": 0.05,
+      "current": true,
+      "mutated": false
+    },
+    "22_geometryDefaults": {
+      "owned": 600,
+      "past": 1050,
+      "future": 170,
+      "current": true,
+      "mutated": false
+    },
+    "23_reopenRecommendation": {
+      "recommendation": "ACOUSTIC_OPERATING_POINT_REOPEN_JUSTIFIED_FOR_EXPOSED_DEVELOPMENT_ONLY",
+      "qualifyingPhysicalGestures": [
+        {
+          "recordingId": "Chopin_op10_no3_p02",
+          "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+          "rates": [
+            44100,
+            48000
+          ],
+          "unitIds": [
+            "46f87b280a1d182c3831248996ea31cdcded67b24912fdb16f199440da8db7c5",
+            "c8adc875e055fb3d71af133c3ed2200e53c87b93dd7595848f8df3e5e7a33bbf"
+          ]
+        },
+        {
+          "recordingId": "kv281_1",
+          "physicalGestureId": "kv281_1:g:801",
+          "rates": [
+            48000,
+            44100
+          ],
+          "unitIds": [
+            "58ab2ab3a51dc156d1b61372bbb808f5afa9f9702ae6dcb9b90c94e238ccc8eb",
+            "ae003c9ef42edd571ca0e09b79c7ebcdea6ea7b1328b6789f90de3d610654088"
+          ]
+        },
+        {
+          "recordingId": "kv281_1",
+          "physicalGestureId": "kv281_1:g:803",
+          "rates": [
+            48000,
+            44100
+          ],
+          "unitIds": [
+            "5b8941242e8daaae1aeda9810a8943079684a9baaacaf7cdbd4f130cbde85439",
+            "5fba93bbc2c9c61ec1d8bb4fb71f2177077843ff8c005f1ac554b760d5e716cf"
+          ]
+        }
+      ],
+      "qualifyingRecordingIds": [
+        "Chopin_op10_no3_p02",
+        "kv281_1"
+      ],
+      "independentRecordingsNotRateVariants": true,
+      "executionAuthorized": false
+    },
+    "24_futureObjective": "Maximize SAFE_AUTO_MATCH_COVERAGE subject to DANGEROUS_TARGET_HALLUCINATION safety, required-target recall, runtime stability and latency; never maximize CORRECT or merely minimize raw extras.",
+    "25_Continuous": {
+      "status": "CONTINUOUS_SOURCE_SENSITIVE_PRESENTATION_READY_FOR_SEPARATE_PRODUCT_REFACTOR",
+      "interpretation": "DESIGN_NOTE_ONLY_NOT_IMPLEMENTED_NOT_PRODUCTION_QUALIFICATION",
+      "sourceRowsVerified": 22,
+      "ContinuousProjectionReruns": 0,
+      "internalOwnershipChanged": false
+    },
+    "26_capabilitiesClosed": true,
+    "27_CI": "ACTUAL_GITHUB_QUERY_ONLY_LOCAL_TESTS_ARE_NOT_CI"
+  },
+  "overall": {
+    "verdicts": {
+      "MATCH": 8,
+      "RETRY": 14,
+      "MISMATCH": 12
+    },
+    "classifications": {
+      "SAFE_MATCH": 8,
+      "DANGEROUS_FALSE_MATCH": 0,
+      "SUPPORTED_RETRY": 12,
+      "UNSUPPORTED_RETRY": 2,
+      "TRUE_REJECT": 12,
+      "FALSE_REJECT": 0
+    }
+  },
+  "byRate": [
+    {
+      "rate": 44100,
+      "verdicts": {
+        "MATCH": 4,
+        "RETRY": 7,
+        "MISMATCH": 6
+      },
+      "classifications": {
+        "SAFE_MATCH": 4,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 6,
+        "UNSUPPORTED_RETRY": 1,
+        "TRUE_REJECT": 6,
+        "FALSE_REJECT": 0
+      }
+    },
+    {
+      "rate": 48000,
+      "verdicts": {
+        "MATCH": 4,
+        "RETRY": 7,
+        "MISMATCH": 6
+      },
+      "classifications": {
+        "SAFE_MATCH": 4,
+        "DANGEROUS_FALSE_MATCH": 0,
+        "SUPPORTED_RETRY": 6,
+        "UNSUPPORTED_RETRY": 1,
+        "TRUE_REJECT": 6,
+        "FALSE_REJECT": 0
+      }
+    }
+  ],
+  "counterfactualAttempts": 34,
+  "scenarioRateCells": 22,
+  "uniquePhysicalEvidenceUnits": 18,
+  "supportedUniqueUnitBurden": {
+    "supportedUniquePhysicalUnits": 12,
+    "mixedSupportedTargetContexts": 0,
+    "counts": {
+      "MATCH": 6,
+      "RETRY": 6,
+      "MISMATCH": 0
+    },
+    "SAFE_AUTO_MATCH_COVERAGE": 0.5,
+    "SUPPORTED_AMBIGUITY_RETRY_RATE": 0.5,
+    "supportedMismatchRate": 0,
+    "interpretation": "NOT_GENERALIZABLE_PRODUCT_RATE"
+  },
+  "burdenByRate": [
+    {
+      "rate": 44100,
+      "supportedUniquePhysicalUnits": 6,
+      "mixedSupportedTargetContexts": 0,
+      "counts": {
+        "MATCH": 3,
+        "RETRY": 3,
+        "MISMATCH": 0
+      },
+      "SAFE_AUTO_MATCH_COVERAGE": 0.5,
+      "SUPPORTED_AMBIGUITY_RETRY_RATE": 0.5,
+      "supportedMismatchRate": 0,
+      "interpretation": "NOT_GENERALIZABLE_PRODUCT_RATE"
+    },
+    {
+      "rate": 48000,
+      "supportedUniquePhysicalUnits": 6,
+      "mixedSupportedTargetContexts": 0,
+      "counts": {
+        "MATCH": 3,
+        "RETRY": 3,
+        "MISMATCH": 0
+      },
+      "SAFE_AUTO_MATCH_COVERAGE": 0.5,
+      "SUPPORTED_AMBIGUITY_RETRY_RATE": 0.5,
+      "supportedMismatchRate": 0,
+      "interpretation": "NOT_GENERALIZABLE_PRODUCT_RATE"
+    }
+  ],
+  "productRelevantOperatingPointDiagnostics": {
+    "unitTargetViews": 26,
+    "supportedTargetViews": 14,
+    "unsupportedTargetViews": 12,
+    "requiredTargetPitchRecall": {
+      "numerator": 24,
+      "denominator": 24,
+      "value": 1
+    },
+    "cleanExactTargetRate": {
+      "numerator": 6,
+      "denominator": 14,
+      "value": 0.42857142857142855
+    },
+    "supportedAmbiguityRate": {
+      "numerator": 8,
+      "denominator": 14,
+      "value": 0.5714285714285714
+    },
+    "dangerousTargetHallucinationRate": {
+      "numerator": 2,
+      "denominator": 12,
+      "value": 0.16666666666666666
+    },
+    "missingTargetFalseNegativeRate": {
+      "numerator": 0,
+      "denominator": 14,
+      "value": 0
+    },
+    "interpretation": "UNIQUE_UNIT_TARGET_VIEWS_NOT_INDEPENDENT_RECORDINGS_NOT_GENERALIZABLE_PRODUCT_RATE",
+    "hallucinationRiskNotEliminatedByRetry": true
+  },
+  "reopenDecision": {
+    "recommendation": "ACOUSTIC_OPERATING_POINT_REOPEN_JUSTIFIED_FOR_EXPOSED_DEVELOPMENT_ONLY",
+    "qualifyingPhysicalGestures": [
+      {
+        "recordingId": "Chopin_op10_no3_p02",
+        "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+        "rates": [
+          44100,
+          48000
+        ],
+        "unitIds": [
+          "46f87b280a1d182c3831248996ea31cdcded67b24912fdb16f199440da8db7c5",
+          "c8adc875e055fb3d71af133c3ed2200e53c87b93dd7595848f8df3e5e7a33bbf"
+        ]
+      },
+      {
+        "recordingId": "kv281_1",
+        "physicalGestureId": "kv281_1:g:801",
+        "rates": [
+          48000,
+          44100
+        ],
+        "unitIds": [
+          "58ab2ab3a51dc156d1b61372bbb808f5afa9f9702ae6dcb9b90c94e238ccc8eb",
+          "ae003c9ef42edd571ca0e09b79c7ebcdea6ea7b1328b6789f90de3d610654088"
+        ]
+      },
+      {
+        "recordingId": "kv281_1",
+        "physicalGestureId": "kv281_1:g:803",
+        "rates": [
+          48000,
+          44100
+        ],
+        "unitIds": [
+          "5b8941242e8daaae1aeda9810a8943079684a9baaacaf7cdbd4f130cbde85439",
+          "5fba93bbc2c9c61ec1d8bb4fb71f2177077843ff8c005f1ac554b760d5e716cf"
+        ]
+      }
+    ],
+    "qualifyingRecordingIds": [
+      "Chopin_op10_no3_p02",
+      "kv281_1"
+    ],
+    "independentRecordingsNotRateVariants": true,
+    "executionAuthorized": false
+  },
+  "currentDefaults": {
+    "classification": "CURRENT_FROZEN_ENGINEERING_BASELINE_NOT_GLOBAL_OPTIMUM",
+    "model": "robust-browser-engineering-default-xc4-v1",
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "inputSamples": 29120,
+    "inputMs": 1820,
+    "decoder": "A",
+    "onsetThreshold": 0.3,
+    "frameThreshold": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170
+  },
+  "defaultMutation": false,
+  "modelInputContract": "MODEL_INPUT_CONTRACT_NOT_REOPENED",
+  "sharedModelPolicy": "SHARED_ROBUST_NEURAL_MODEL_FOR_CONTINUOUS_AND_STEP",
+  "futureStudyOrder": [
+    "decoder .30/.05 operating point, no direction selected",
+    "geometry owned600/future170 vs historical owned600/future120 challenger, keep full real 29120-sample contract and freeze context accounting separately",
+    "new readout mechanism only if separately demonstrated necessary"
+  ],
+  "tuningDirectionSelected": false,
+  "studyExecutionAuthorized": false,
+  "manualEscape": "Design only: explicit READY-only Continue/Skip remains a user override and skip record, never automatic MATCH. No production copy or control change.",
+  "Continuous": {
+    "status": "CONTINUOUS_SOURCE_SENSITIVE_PRESENTATION_READY_FOR_SEPARATE_PRODUCT_REFACTOR",
+    "interpretation": "DESIGN_NOTE_ONLY_NOT_IMPLEMENTED_NOT_PRODUCTION_QUALIFICATION",
+    "sourceRowsVerified": 22,
+    "ContinuousProjectionReruns": 0,
+    "internalOwnershipChanged": false
+  },
+  "modelQualityDiagnosticsPreserved": true,
+  "localVerification": {
+    "label": "LOCAL_VERIFICATION_NOT_GITHUB_CI",
+    "researchTests": {
+      "command": "node backend/research/step_microphone_tristate_v17/tests.mjs",
+      "passed": 24,
+      "failed": 0,
+      "artifact": "research-tests.json",
+      "scope": "Synthetic P2/actual pure runtime/identity/architecture, no real P2 analysis"
+    },
+    "productTests": {
+      "runner": "current installed Vitest",
+      "files": 30,
+      "passed": 315,
+      "failed": 0,
+      "pending": 0,
+      "artifact": "product-vitest.json",
+      "scope": [
+        "STEP local-core",
+        "STEP controller/retirement",
+        "MIDI",
+        "use-local-practice",
+        "practice components",
+        "input capability",
+        "architecture no legacy realtime"
+      ],
+      "notices": "jsdom emitted HTMLMediaElement.pause/load not-implemented notices; no test failures or acoustic execution"
+    },
+    "researchTypecheck": {
+      "command": "node apps/customer-web/node_modules/typescript/bin/tsc -p backend/research/step_microphone_tristate_v17/tsconfig.json",
+      "exitCode": 0
+    },
+    "researchLint": {
+      "runner": "installed ESLint with research-only eslint.config.mjs",
+      "files": 5,
+      "errors": 0,
+      "warnings": 0,
+      "artifact": "research-eslint.json",
+      "exitCode": 0
+    },
+    "pythonMetadataSyntax": {
+      "method": "ast.parse closure.py, no import or analysis",
+      "requiredBeforeFreeze": true
+    },
+    "productionChanged": false,
+    "modelDecoderPcmExecution": false,
+    "ContinuousProjectionReruns": 0,
+    "CIInterpretation": "NOT CI PASS"
+  },
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "PcmDecodeRuns": 0,
+    "StepAcousticReruns": 0,
+    "ContinuousAcousticReruns": 0,
+    "ContinuousProjectionReruns": 0,
+    "freshHoldoutAccess": 0,
+    "warmups": 0,
+    "unknownRuns": 0
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "productionMicrophonePolicy": "NOT_QUALIFIED_NOT_IMPLEMENTED",
+  "scientificClaim": "NONE",
+  "candidateSelected": false,
+  "qualificationStarted": false,
+  "freshHoldoutTouched": false,
+  "nextAllowedPhase": "INDEPENDENT_AUDIT_ONLY_SEPARATE_AUTHORIZATION_AND_FREEZE_REQUIRED_FOR_ANY_ACOUSTIC_STUDY"
+}
