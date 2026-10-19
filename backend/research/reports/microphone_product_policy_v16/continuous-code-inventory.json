@@ -1,0 +1,190 @@
+{
+  "rows": [
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "anchor": "private claim(",
+      "category": "INTERNAL_ONLY",
+      "finding": "One observation owner MATCHED/WRONG/EXTRA; residuals and reservations must close before completion. Removing EXTRA breaks accounting, not merely presentation.",
+      "line": 126,
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "anchor": "private commitExtras()",
+      "category": "INTERNAL_ONLY",
+      "finding": "Residual observations become finalized EXTRA only after claimant/wrong-group frontiers; closeCompletion rejects unresolved residuals.",
+      "line": 216,
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-projection.ts",
+      "anchor": "export function completedContinuousTruth",
+      "category": "INTERNAL_ONLY",
+      "finding": "Completion projects already committed groups/extras/owners, no second assignment. Pending groups or reservations yield UNAVAILABLE.",
+      "line": 7,
+      "sha256": "8c79f043abca037f7017dfad48b484302e67887d5105fbfc9b4f79e4be71fcdb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts",
+      "anchor": "this.state = 'COMPLETE'; completedPerformanceStore.setPerformance",
+      "category": "FINAL_REPORT",
+      "finding": "Controller waits for acoustic tail/finality, constructs CompletedPerformance including evaluation and inputSource, then publishes to transient store once. No scoring formula here.",
+      "line": 245,
+      "sha256": "90f5817590fb01e9b9806c4aac57c173404237912b558c29eb105284987f39f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.ts",
+      "anchor": "class CompletedPerformanceStore",
+      "category": "INTERNAL_ONLY",
+      "finding": "In-memory completed performance, frozen evaluation; no durable evaluation persistence in this store. Ownership declarations validated against ledger.",
+      "line": 146,
+      "sha256": "c2b6434d820ad168f5fdec4770d53b02435995a688a57aef4b19060f2a6b474e"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-local-practice.ts",
+      "anchor": "performanceEvaluation: snapshot?.evaluation",
+      "category": "INTERNAL_ONLY",
+      "finding": "Read-only controller evaluation to UI. Microphone start remains capability-blocked. Hook does not score WRONG/EXTRA.",
+      "line": 78,
+      "sha256": "4900321545d554f7d11aeee58b7f6818f3512ddd33981bae6c283866774bd1b6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "anchor": "export function noteAnnotationsFromContinuousEvaluation",
+      "category": "LIVE_POSITIVE_FEEDBACK",
+      "finding": "After group is non-PENDING, MATCHED strike renderNoteIds become confirmed green. It does not provide provisional onset feedback before finality.",
+      "line": 147,
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "anchor": "} else if (strike.state === 'MISSING')",
+      "category": "LIVE_STRONG_NEGATIVE_FEEDBACK",
+      "finding": "Finalized MISSING expected strikes become red. WRONG observations and EXTRA do not get their own live note annotations; a WRONG group may still contain a red MISSING strike.",
+      "line": 160,
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-score-viewer.tsx",
+      "anchor": "noteAnnotationsFromContinuousEvaluation(performanceEvaluation)",
+      "category": "LIVE_POSITIVE_FEEDBACK",
+      "finding": "Viewer consumes finalized matched/missing annotations. No live EXTRA-note badge or direct wrong-observation coloring is wired here.",
+      "line": 136,
+      "sha256": "b045c415fc064ff3f946f800f97cc70ce5a517a806e6fb5cdbb38abd9c36479b"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx",
+      "anchor": "performanceEvaluation={localPractice.performanceEvaluation}",
+      "category": "NOT_CURRENTLY_WIRED",
+      "finding": "Passes evaluation to score viewer. No live WRONG/EXTRA numerical counters or accuracy score in inspected practice view; elapsed transport/controls are independent.",
+      "line": 549,
+      "sha256": "4136ff11afbe7dccc8fefbac26597adffc6c4b50371b6e061d6eebcd51adee40"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-completion-dialog.tsx",
+      "anchor": "interface PracticeCompletionDialogProps",
+      "category": "NOT_CURRENTLY_WIRED",
+      "finding": "Dialog receives outcome/mode/loading/actions, not evaluation, counts or numeric score. Completion wording is not wrong/extra feedback.",
+      "line": 17,
+      "sha256": "627b3fcdc3d3f19bef598a2bdfe5ca32e1ab186073bfc1ade396c5e8a3a2066b"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx",
+      "anchor": "function buildFeedbackSummary",
+      "category": "FINAL_REPORT",
+      "finding": "Review counts target, MATCHED, MISSING, NOT_REACHED strikes and extras.length. No separate wrongObservations count or numeric accuracy/overall score formula.",
+      "line": 87,
+      "sha256": "475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx",
+      "anchor": "{t('extraPitchCount')}",
+      "category": "FINAL_REPORT",
+      "finding": "EXTRA is user-visible as final review extra count. It is not only internal, although no numeric penalty formula was found.",
+      "line": 741,
+      "sha256": "475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064"
+    },
+    {
+      "path": "apps/customer-web/messages/en/practice.json",
+      "anchor": "\"extraPitchCount\":",
+      "category": "FINAL_REPORT",
+      "finding": "Current English label is Extra playing. Chinese counterpart is a similarly physical claim. Valid deterministic MIDI wording is not validated as an acoustic physical-key assertion.",
+      "line": 111,
+      "sha256": "dc1eab23eb3f4c7a39d6334c84a2f975e45c26b05bc4c189cf6f739a08a8a51e"
+    },
+    {
+      "path": "apps/customer-web/messages/zh/practice.json",
+      "anchor": "\"extraPitchCount\":",
+      "category": "FINAL_REPORT",
+      "finding": "Current Chinese label represents extra playing; proposed microphone interpretation should explicitly be possible acoustic evidence instead.",
+      "line": 111,
+      "sha256": "28233ad265b94a85d7869ee03e07973ef7895d784f78dcfca81ec8612cacf769"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "anchor": "export function noteAnnotationsFromCompletedEvaluation",
+      "category": "FINAL_REPORT",
+      "finding": "Review note coloring again uses MATCHED green/MISSING red. Direct WRONG/EXTRA observation annotations are not wired.",
+      "line": 168,
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx",
+      "anchor": "await saveMutation.mutateAsync({",
+      "category": "SCORE_INPUT",
+      "status": "NOT_CURRENTLY_WIRED",
+      "finding": "Save uploads media, score/artifact/scope/tempo/timebase metadata, not evaluation, WRONG/EXTRA counts, numerical score or accuracy.",
+      "line": 506,
+      "sha256": "475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/queries/use-performance-take-queries.ts",
+      "anchor": "export interface SavePerformanceTakeInput",
+      "category": "SCORE_INPUT",
+      "status": "NOT_CURRENTLY_WIRED",
+      "finding": "No evaluation/score/count input in save API. Durable saved take is not a persisted completed-evaluation report.",
+      "line": 53,
+      "sha256": "208387444350f8cf2aee3bc89ff8630721e8912114311a686e2a54bc588941ed"
+    },
+    {
+      "path": "apps/customer-web/src/generated/api/types.gen.ts",
+      "anchor": "export type PerformanceTakeCreateRequest =",
+      "category": "SCORE_INPUT",
+      "status": "NOT_CURRENTLY_WIRED",
+      "finding": "Generated create/read schemas retain media/source/timing identities but no evaluation or accuracy field.",
+      "line": 3028,
+      "sha256": "ed81625f4d146995ec9271caa77a5bef849d08957398ad2400c621ecec8c24fc"
+    },
+    {
+      "path": "backend/app/modules/performance_takes/schemas.py",
+      "anchor": "class PerformanceTakeRead(",
+      "category": "SCORE_INPUT",
+      "status": "NOT_CURRENTLY_WIRED",
+      "finding": "Backend read/create model likewise has no performance evaluation or numerical score; no server scoring authority introduced.",
+      "line": 161,
+      "sha256": "ebda2ee869c9eed7250ce86e895704b26c1fc9242afe331d91e14d095b35fe54"
+    },
+    {
+      "path": "backend/app/db/models/performance_take.py",
+      "anchor": "class PerformanceTake(SQLModel",
+      "category": "SCORE_INPUT",
+      "status": "NOT_CURRENTLY_WIRED",
+      "finding": "Durable media/source metadata storage, not Continuous ownership or performance score persistence.",
+      "line": 37,
+      "sha256": "a2b6658836d3697d40ed817056c75ad0f092fbe6d674e1985657a356788cb7fb"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(app)/my-performances/page.tsx",
+      "anchor": "const scoreTitle = take.score_title_snapshot",
+      "category": "NOT_CURRENTLY_WIRED",
+      "finding": "Saved performances list exposes media and music-score metadata, no saved wrong/extra counts or accuracy score.",
+      "line": 123,
+      "sha256": "1dc25eecc2daf427a678e59411ee335512316c3e825208db22b338e1eb0d328f"
+    }
+  ],
+  "scoreFormula": "NOT_FOUND_IN_INSPECTED_CURRENT_COMPLETED_EVALUATION_TO_UI_AND_SAVE_PATHS",
+  "actualPersistence": "Transient store includes evaluation; durable media-take API excludes evaluation/counts/numerical score",
+  "liveFeedback": "Finalized MATCHED/MISSING annotations only; no provisional low-latency match path or direct WRONG/EXTRA badge currently wired",
+  "recommendation": "Preserve finality; future provisional positive feedback requires a separate non-authoritative design, not promoting unfinalized ownership",
+  "userErrorClaim": "Microphone Extra playing label is not validated as physical key-event truth; public microphone capability remains closed"
+}

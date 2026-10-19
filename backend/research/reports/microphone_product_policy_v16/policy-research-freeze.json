@@ -1,0 +1,344 @@
+{
+  "role": "V16_ZERO_NEURAL_PRODUCT_POLICY_RESEARCH_FREEZE",
+  "createdAt": "2026-10-19T05:18:34.630Z",
+  "startingHead": "2384dbb79895c23c7aaf4725fcadac8a6ebb4649",
+  "contract": {
+    "phase": "MICROPHONE_PRODUCT_POLICY_V16_ZERO_NEURAL",
+    "label": "EXPOSED_PRODUCT_POLICY_RESEARCH_ONLY_NOT_QUALIFICATION",
+    "startingHead": "2384dbb79895c23c7aaf4725fcadac8a6ebb4649",
+    "prospectiveCorrection": "V15_EXACT_SET_BLOCKER_DOES_NOT_BY_ITSELF_PROVE_NEW_ACOUSTIC_READOUT_IS_REQUIRED",
+    "historicalV15Disposition": "STEP_ROBUST_A_V15_V13_PACED_REPLAY_COMPLETE_EXACT_SET_RECOGNITION_BLOCKER_REMAINS",
+    "modelPolicy": "SHARED_ROBUST_NEURAL_MODEL_FOR_CONTINUOUS_AND_STEP",
+    "sourceSemantics": {
+      "MIDI": "Direct NOTE_ON physical key-event evidence; MIDI_EXACT_SET, extras significant",
+      "MICROPHONE": "Probabilistic acoustic evidence; neither unmatched pitch nor target presence proves a physical key event"
+    },
+    "policies": {
+      "P0": "EXACT_SET: MATCH iff normalized observed set equals expected set",
+      "P1": "REQUIRED_PITCH_COVERAGE: MATCH iff expected is a subset of observed; no confidence, octave, cardinality or timing modification"
+    },
+    "physicalTruth": "For the microphone required-target-support counterfactual, supported iff expected is a subset of frozen physical truth. MATCH unsupported => FALSE_ACCEPT; non-MATCH supported => FALSE_REJECT. This is not MIDI exact-key-set ground truth; physical extras remain significant for MIDI.",
+    "attemptTargets": "Use the frozen V15 active target at each attempt, checked against frozen v6 scenario at V15 ready.currentIndex. Do not simulate P1 target advancement, regenerate H50, or reuse a changed hypothetical later target. All 34 V15 attempts, both rates, all 11 scenarios.",
+    "aggregation": "Report TA/FR/TR/FA per policy, rate, scenarioId and physical family. Combined totals also retain all rate-level rows. Repeated counterfactual scenarios reuse evidence and are not independent recordings. No weighted winner score.",
+    "extraToneUnderP1": "MICROPHONE_EXTRA_NONBLOCKING_BY_DESIGN; never rename as old extraToneFalseMatch",
+    "promotionGate": "Any MATCH lacking full physical target support blocks unconditional microphone P1. Wrong-octave witness must be named and retained separately.",
+    "continuousEvidence": "Use exact V7 continuous-musical.json sealed bytes and all 36 existing completed counterfactual ledgers in continuous-parity.json. Require ACOUSTIC source provenance and content linkage to original sealed publication arrays. The real controller completion is inventoried separately but excluded from projection because its engineering.publications retains only count 11, not a full publication array; exclusion is pre-analysis evidence-completeness policy, not outcome selection. Read only; no finalizer/acoustic rerun. Silence has no completed scenario ledgers and is not invented as one.",
+    "continuousProjections": {
+      "C0": "Source-agnostic existing category interpretation: MATCHED, MISSING, WRONG, EXTRA, NOT_REACHED. Labels are not proof that every category currently has a UI penalty.",
+      "C1_MICROPHONE": "Keep MATCHED/MISSING; map finalized WRONG/EXTRA observation interpretation to POSSIBLE_UNMATCHED_ACOUSTIC. Preserve exact internal owners, finality, reservations history, groups, matches, extras, timing, observation identities. Do not reassign notes.",
+      "C1_MIDI": "Keep C0 strong key-event interpretation; do not substitute MIDI evaluations for acoustic evidence"
+    },
+    "continuousMetrics": {
+      "targetStrikeRecall": "MATCHED/(MATCHED+MISSING); exclude NOT_REACHED, retain denominator and counts; internal score-target coverage, not independent physical transcription recall",
+      "chordCompleteness": "All expected strikes MATCHED / eligible groups with >=2 strikes and no NOT_REACHED. Expected-strike completeness, not exact acoustic attack-set equality",
+      "timing": "Stored matched timingOffsetMs; count, signed offsets, absolute nearest-rank P50/P95/max. No latency claim",
+      "strongNegativeCount": "Diagnostic category-item count only: C0=MISSING strikes+WRONG observation owners+EXTRA owners; microphone C1=MISSING strikes. Overlapping missing-target/wrong-observation items are not unique user errors and not a weighted score. Report the full vector first.",
+      "actualWiredFeedback": "Inventory live green/red expected-note annotations and final review counts separately from potential category interpretation",
+      "finalScore": "NOT_COMPARABLE if no current deterministic performance score formula exists. Do not invent an accuracy/score formula.",
+      "modelQuality": "Internal raw categories, counts, timing, evidence bytes and historical acoustic metrics preserved. Product leniency is not model precision improvement."
+    },
+    "retirement": "REARM_REQUIRED_FIXED_COOLDOWN_DURATION_NOT_YET_ESTABLISHED",
+    "temporalInvariants": [
+      "READY-only new attempt",
+      "POST_VERDICT",
+      "explicit rearm",
+      "strict eventTime > retirement watermark",
+      "equality rejected",
+      "old observation source time cannot be rewritten",
+      "one observation cannot satisfy two same-target attempts",
+      "old target generation cannot complete new attempt"
+    ],
+    "retry": "Conceptual MATCH/MISMATCH/UNCERTAIN only; no uncertainty classifier implemented",
+    "forbidden": [
+      "P2",
+      "threshold/confidence fitting",
+      "top-K",
+      "octave/harmonic suppression",
+      "pitch-class collapse",
+      "target-specific model filtering",
+      "decoder execution/change",
+      "PCM decode",
+      "new neural execution",
+      "fixed microphone cooldown",
+      "fresh holdout",
+      "production edit"
+    ],
+    "stop": "Remote protocol proof must precede the single real counterfactual analysis. Identity/provenance/ownership/P0 parity failure seals failure and stops; no policy edits after results. Missing Continuous completed evidence yields INSUFFICIENT rather than synthetic data or inference.",
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "files": [
+    {
+      "path": "apps/customer-web/messages/en/practice.json",
+      "sha256": "dc1eab23eb3f4c7a39d6334c84a2f975e45c26b05bc4c189cf6f739a08a8a51e"
+    },
+    {
+      "path": "apps/customer-web/messages/zh/practice.json",
+      "sha256": "28233ad265b94a85d7869ee03e07973ef7895d784f78dcfca81ec8612cacf769"
+    },
+    {
+      "path": "apps/customer-web/scripts/continuous-product-replay/controller-entry.ts",
+      "sha256": "31a1ac7a933259d975cd91ed11cff8e68aae5f647cea933c962ec28a6127d5f5"
+    },
+    {
+      "path": "apps/customer-web/scripts/continuous-product-replay/product-scenarios.ts",
+      "sha256": "373b65118ec38f57087432e326135b3577627b6c2042f5832722715e58fbf328"
+    },
+    {
+      "path": "apps/customer-web/scripts/qualification/continuous-regression.mjs",
+      "sha256": "59d1501c3eafbb3e5efec2eb53d055150c422fc97a0f928900ffd8cf9d289804"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(app)/my-performances/page.tsx",
+      "sha256": "1dc25eecc2daf427a678e59411ee335512316c3e825208db22b338e1eb0d328f"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx",
+      "sha256": "4136ff11afbe7dccc8fefbac26597adffc6c4b50371b6e061d6eebcd51adee40"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx",
+      "sha256": "475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-completion-dialog.tsx",
+      "sha256": "627b3fcdc3d3f19bef598a2bdfe5ca32e1ab186073bfc1ade396c5e8a3a2066b"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-score-viewer.tsx",
+      "sha256": "b045c415fc064ff3f946f800f97cc70ce5a517a806e6fb5cdbb38abd9c36479b"
+    },
+    {
+      "path": "apps/customer-web/src/generated/api/types.gen.ts",
+      "sha256": "ed81625f4d146995ec9271caa77a5bef849d08957398ad2400c621ecec8c24fc"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-local-practice.ts",
+      "sha256": "4900321545d554f7d11aeee58b7f6818f3512ddd33981bae6c283866774bd1b6"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/queries/use-performance-take-queries.ts",
+      "sha256": "208387444350f8cf2aee3bc89ff8630721e8912114311a686e2a54bc588941ed"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.ts",
+      "sha256": "c2b6434d820ad168f5fdec4770d53b02435995a688a57aef4b19060f2a6b474e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts",
+      "sha256": "90f5817590fb01e9b9806c4aac57c173404237912b558c29eb105284987f39f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-projection.ts",
+      "sha256": "8c79f043abca037f7017dfad48b484302e67887d5105fbfc9b4f79e4be71fcdb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "sha256": "8af3afe57a76cd5c702e5fc43569b4ba0ce0b9e782ad7eaaf30581754e352166"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "191055255b0fa210645533182de8232b77f0cb614d4dd426824f28e50daf4d4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "572c97ce339264ef2c85fce9a091cca9d0ff0a91e1821643ec8ee5850a133781"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0"
+    },
+    {
+      "path": "backend/app/db/models/performance_take.py",
+      "sha256": "a2b6658836d3697d40ed817056c75ad0f092fbe6d674e1985657a356788cb7fb"
+    },
+    {
+      "path": "backend/app/modules/performance_takes/schemas.py",
+      "sha256": "ebda2ee869c9eed7250ce86e895704b26c1fc9242afe331d91e14d095b35fe54"
+    },
+    {
+      "path": "backend/data/work/product_completion_replay/v1/audio_only/manifest.json",
+      "sha256": "2ea6801cff52618fa70c0704e4b0795d999b7246910e375793683df22fbcbe8a"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/.gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/closure.py",
+      "sha256": "8f48b2999fa986e1453e5493796e42c4d86a3dab2e6995218b31c1e24c0b6f37"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/contract.json",
+      "sha256": "f10b0cb6b6ebe464425f060858512e9f034d147bf46afa4edb4d7e468d565aa7"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/core.mjs",
+      "sha256": "02f97a2745c9575cc6e76fcb589d40c769bcf0da3064ed75fd8d43d2f2c20771"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/design-note.md",
+      "sha256": "817660ec1c52506b46bb2c986188d4e5b785da6b36ac17b05cdaf555caf99ae9"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/eslint.config.mjs",
+      "sha256": "f12aac0f44490f2639e602ac975151bf5415c5bdabb152c0bb6d9e8f79cdc843"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/inventory.mjs",
+      "sha256": "8fecc151bf20f2bc94c8237dc23d172502a95168307ecd8ee222fb36e8d15345"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/isolation.ts",
+      "sha256": "8d15e51c5017fee8037afef644a807d02c23b758767b01240062dc0ab8d643fa"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/policies.mjs",
+      "sha256": "ec328093fa360984c0e7b22ded558175b0bcd11f3e6e73bbfbe037999624bca1"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/runner.mjs",
+      "sha256": "04b4d69d79e6f51f862c98a753f9960797aa46d9adb5c04c4177a73782720f5f"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/tests.mjs",
+      "sha256": "c4bf4e451a481a77d55583ba47373115249bc0afb8d2f3c5c014c18b56f58403"
+    },
+    {
+      "path": "backend/research/microphone_product_policy_v16/tsconfig.json",
+      "sha256": "65aae0d2f55542934d3ba36fc067be74e05330de849bd9d8e8529c463fac0299"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/continuous-code-inventory.json",
+      "sha256": "696b4d5f0543ea519585748c3e55c40ce0a163a121e7c692c26ae9359e68907f"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/existing-evidence-inventory.json",
+      "sha256": "64dad7948e907cb9b59b10a403013cd807ed626256a300391570967f04b69a99"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/historical-raw-identities.json",
+      "sha256": "50fc5df616809a5fac6bf97a61174f1fb2ec24dc3dea9fee8a55844f8a73ec92"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/local-verification.json",
+      "sha256": "f71ce40f767e2da4c4a565a880fd54f0b38660bc8717be1785faff4cd3752616"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/prefreeze-tooling-observations.json",
+      "sha256": "71d6edd56df2a8618cd09d4931f69fbc956d82ea086076deae88bf24de2b7f66"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/research-tests-v2.json",
+      "sha256": "4b4b15a4d60650bd8687c8c7bd0ec1e388aa2cbba1be410acfb9cad0cc1d4ee0"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_stage_a_decoder_resampler_development_2026-10-15.json",
+      "sha256": "7be34699e9c77182abe1447af30aada726e5baefb6b06e45814247fa31ccf315"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/assessment.json",
+      "sha256": "739e71cbb863789103ee4230c4e777fe82c8d28e70ffe65affd06c3f9c9d0f83"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+      "sha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/remote-evidence-and-github-receipt.json",
+      "sha256": "1eb35c5811f099726ed8dfdc3894b0ff0429d813c03efe1d1a931c7fec953412"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/replay-protocol-freeze.json",
+      "sha256": "5707123068bc2faa7e7286d37f0dbd4a79860f21abf480034c963ac371759e7b"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/audio-bound-cases.json",
+      "sha256": "745152c3cd7b7fc746a427398914b3eebcc19c9d99d768ac530199293c141b8e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+      "sha256": "fe91b48802b3c1d27e412e90dd27a4e20ebc90e8ef011a0ccee90838434c2d55"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/continuous-acoustic-seal.json",
+      "sha256": "10677f38fc34bac502d25ffb96670157e60ddd5d7b32d856062b8890289d47ae"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/continuous-musical.json",
+      "sha256": "71a120574760a7dde5ab4956a6a0918d1199bb3f7afc788f9c1b67052944bc1e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/continuous-parity.json",
+      "sha256": "c0368ba08013761ceb8c8b81ce52c4f02d9288bafd2a661eedec04a2ae0a6c56"
+    }
+  ],
+  "testRuntimeImportGraph": [
+    "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+    "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+    "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "backend/research/microphone_product_policy_v16/isolation.ts"
+  ],
+  "newExecutionBudget": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "ContinuousAcousticReruns": 0,
+    "StepAcousticReruns": 0,
+    "freshHoldoutAccess": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  },
+  "counterfactualAnalysis": "NOT_STARTED",
+  "analysisExecutionsAllowed": 1,
+  "remoteProofRequired": true,
+  "initialGitHub": {
+    "queriedAt": "2026-10-19T05:04:57.597822+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "ciInterpretation": "NOT CI PASS"
+  }
+}

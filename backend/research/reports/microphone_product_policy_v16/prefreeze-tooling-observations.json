@@ -1,0 +1,16 @@
+{
+  "stage": "BEFORE_PROTOCOL_FREEZE_AND_REAL_COUNTERFACTUAL_ANALYSIS",
+  "command": "node backend/research/microphone_product_policy_v16/runner.mjs prepare",
+  "exitCode": 1,
+  "failure": "TypeError: publications.flatMap is not a function",
+  "cause": "Controller engineering.microphone.publications is retained publication count 11, not an array. Existing completed ownership is present but a strict original-publication-content join cannot be performed for that controller record.",
+  "resolutionBeforeFreeze": "Retain complete controller inventory as a limitation, exclude it prospectively from the strict publication-linked projection corpus. Use all 36 fully linked acoustic completed counterfactual ledgers. No outcome-dependent selection, no projection or P1 analysis had run.",
+  "validPartialInventoryArtifacts": ["historical-raw-identities.json", "continuous-code-inventory.json"],
+  "partialInventoryHandling": "Reuse only if exact bytes equal newly derived inventory; conflict rejects. No historical file, frozen protocol or evidence path compatibility repair.",
+  "newRegressionTest": "controller publication count is not substituted for a retained publication array",
+  "counterfactualAnalysisExecutions": 0,
+  "newNeuralRuns": 0,
+  "modelSessionLoads": 0,
+  "decoderARuns": 0,
+  "decoderBRuns": 0
+}
