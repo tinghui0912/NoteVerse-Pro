@@ -1,0 +1,345 @@
+{
+  "startingRemoteHead": "160d7b3a0e315bc99b8a31d0d41e09c11c776c7f",
+  "resultCommit": "7f57c4a76b65719bb3c6ca2b9e50eeee69d595de",
+  "endingRemoteHeadAtResultSeal": "7f57c4a76b65719bb3c6ca2b9e50eeee69d595de",
+  "remoteVerifiedAt": "2026-10-19T11:58:38.199Z",
+  "completeCommitChain": [
+    "a0b8cf774709d3f91b25521f47622e680169410f research: prospectively freeze single V23 600-120 geometry capture and product gates",
+    "b145f22c5f5a372e8ab41b3f49bd51d2faacdbb5 research: seal single-session V23 600-120 raw tensor capture",
+    "7f57c4a76b65719bb3c6ca2b9e50eeee69d595de research: seal V23 STEP product parity without meaningful safe-auto-match gain"
+  ],
+  "exactChangedFiles": [
+    "backend/research/reports/robust_geometry_v23/assessment.json",
+    "backend/research/reports/robust_geometry_v23/assessment.md",
+    "backend/research/reports/robust_geometry_v23/baseline-verification.json",
+    "backend/research/reports/robust_geometry_v23/bundle-graphs.json",
+    "backend/research/reports/robust_geometry_v23/bundles/capture-entry.js",
+    "backend/research/reports/robust_geometry_v23/bundles/capture-worker.js",
+    "backend/research/reports/robust_geometry_v23/bundles/decoder.mjs",
+    "backend/research/reports/robust_geometry_v23/bundles/domain.mjs",
+    "backend/research/reports/robust_geometry_v23/bundles/prepare.mjs",
+    "backend/research/reports/robust_geometry_v23/candidate-publications.json",
+    "backend/research/reports/robust_geometry_v23/capture-protocol-freeze.json",
+    "backend/research/reports/robust_geometry_v23/capture-started.json",
+    "backend/research/reports/robust_geometry_v23/geometry-results.json",
+    "backend/research/reports/robust_geometry_v23/historical-identities.json",
+    "backend/research/reports/robust_geometry_v23/input-preservation.json",
+    "backend/research/reports/robust_geometry_v23/inputs.json",
+    "backend/research/reports/robust_geometry_v23/local-verification.json",
+    "backend/research/reports/robust_geometry_v23/post-a-tests.json",
+    "backend/research/reports/robust_geometry_v23/post-b-tests.json",
+    "backend/research/reports/robust_geometry_v23/pre-execution-tests.json",
+    "backend/research/reports/robust_geometry_v23/product-vitest.json",
+    "backend/research/reports/robust_geometry_v23/raw-tensor-seal.json",
+    "backend/research/reports/robust_geometry_v23/remote-capture-permission.json",
+    "backend/research/reports/robust_geometry_v23/remote-raw-seal-proof.json",
+    "backend/research/reports/robust_geometry_v23/stage-b-started.json",
+    "backend/research/reports/robust_geometry_v23/starting-gate.json",
+    "backend/research/reports/robust_geometry_v23/tensor-corpus-manifest.json",
+    "backend/research/reports/robust_geometry_v23/tensors/j-163f5f8ce2977dccf0ebc6a6.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-32e68eca71c65e1452252e5f.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-345e4955170302c450281935.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-3ea18cb7ffbe8add3120531f.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-3ec9a6d5ef516adf6bd4daf0.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-43634d2c02fe5f9c2aab7915.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-5c9651201c93bc9e4a5a8b9c.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-800323ad4631df7d7b814c83.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-981acf2c9183ecf2d7e21648.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-9d86f1787e7f062a94778015.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-a1987006cc63fcdaef5ce98a.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-a8b8ef76b7bf61ae456b2142.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-a9f537c1bb46e37eb0ef01d1.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-b12396b9f8784b14c92a97c9.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-b38ff68d7141a55f2a977892.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-c29d502d44aedb4aa68d6dc6.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-e5e2a2a28646779132491ce8.f32",
+    "backend/research/reports/robust_geometry_v23/tensors/j-ffb0e106dac8cfc6c92a7f0c.f32",
+    "backend/research/robust_geometry_v23/capture-entry.mjs",
+    "backend/research/robust_geometry_v23/capture-worker.mjs",
+    "backend/research/robust_geometry_v23/capture.mjs",
+    "backend/research/robust_geometry_v23/closeout.mjs",
+    "backend/research/robust_geometry_v23/contract.json",
+    "backend/research/robust_geometry_v23/control.mjs",
+    "backend/research/robust_geometry_v23/decoder.ts",
+    "backend/research/robust_geometry_v23/design.md",
+    "backend/research/robust_geometry_v23/domain.ts",
+    "backend/research/robust_geometry_v23/eslint.config.mjs",
+    "backend/research/robust_geometry_v23/io.mjs",
+    "backend/research/robust_geometry_v23/prepare-inputs.ts",
+    "backend/research/robust_geometry_v23/run.mjs",
+    "backend/research/robust_geometry_v23/stage-a-config.json",
+    "backend/research/robust_geometry_v23/stage-b.mjs",
+    "backend/research/robust_geometry_v23/tests.mjs",
+    "backend/research/robust_geometry_v23/tsconfig.json",
+    "backend/research/robust_geometry_v23/wire.mjs"
+  ],
+  "identities": [
+    {
+      "path": "backend/research/reports/robust_geometry_v23/assessment.json",
+      "sha256": "1d7324771807037964fe9c9e73c3c84c833f14240cd94fada230d4f2fc33590c"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/assessment.md",
+      "sha256": "a11e25603571c28ee860744b7b8433a2f916b1c293bddd241e0f2573023f9ff0"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/baseline-verification.json",
+      "sha256": "4cf588332b2ce941d45fdc1545ce5b376ba99970793297200c7905e9b5a2c81d"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundle-graphs.json",
+      "sha256": "00c53d4f291cd499bc653be2198d740af373b5db495cbc4377e6297cc7d3236f"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundles/capture-entry.js",
+      "sha256": "64bf21a460757f5fad1d4b27adfeb17beb3ab159b7823866c25b10594dd35882"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundles/capture-worker.js",
+      "sha256": "b0e81627d9964d5447e4665db8870596a02c4207e2b15cba0a3320db21e20e86"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundles/decoder.mjs",
+      "sha256": "c71f5c5dcda996979ac98abf0680c76ba8cb66946073b9be4aeb3ac2f298045b"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundles/domain.mjs",
+      "sha256": "dd011df1b5d5459673b03edd3c89479217638a7d37b03640c1d23a8c9cd73911"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/bundles/prepare.mjs",
+      "sha256": "3d1a72c444c567e2b334bc172299a647eb17604dfebe610b1929da45a765e3bf"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/candidate-publications.json",
+      "sha256": "6dabd75156539b441812521fdee90440d974f2f371946733144af812ab3530a4"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/capture-protocol-freeze.json",
+      "sha256": "9c6c1ba667b29ad182661248fa1688a661bf46714decf0223fb03b3bf99d2550"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/capture-started.json",
+      "sha256": "7c23b058fa70308bb13f2a2cd745cab30a67a9ff6b5faf08b2057e9b5cf47757"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/geometry-results.json",
+      "sha256": "0831f4c7dc8036f59f92dc2d78bea6e2e7ac72be51ff9393d44f94a0dbcb2bd0"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/historical-identities.json",
+      "sha256": "0976a1c01f4b630d9b0dc53c2e0c2fc34b14a3a927c7170b01b9150f671ec02b"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/input-preservation.json",
+      "sha256": "4b6ee8dcc6f75b3bff0f1322060080cfa6fbf3e36c2ca0b8242a5f407aba4d00"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/inputs.json",
+      "sha256": "bd2989f3ce7df2629bd267f2b117839118990af42bef35edc2648024455e8c9e"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/local-verification.json",
+      "sha256": "8e96abb14942d608e9539ef3f30a7ad08eb3135b94e71a129376a5d9ccd7c7e6"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/post-a-tests.json",
+      "sha256": "bc027a61edb05b9e06bdfe6d03b2fbcb6583c1dcfe377dadf7b0431faf8b1265"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/post-b-tests.json",
+      "sha256": "ce7db127c5c0291abb31b27eb78ec93d9c31db49c70b11a32aaf78315cc0cd25"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/pre-execution-tests.json",
+      "sha256": "1057ab642a5bb0df83c9ade257da85d2b14a6f65a49addd12e43b87299470f66"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/product-vitest.json",
+      "sha256": "063bb48c30dd7fbaedb4856122c5fc4da51bf0cef5828cb2210bac6a5b205481"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/raw-tensor-seal.json",
+      "sha256": "30c7e6520b02e253eb8d1e9d6aea2aeba9d79a052fc3fb930dcaf5fa9a2d9ac8"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/remote-capture-permission.json",
+      "sha256": "a68d653171e2fbf5ea7aa4e841966f22c72ea3d7c2ca3937f004101ae7f36052"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/remote-raw-seal-proof.json",
+      "sha256": "d3de830a764deaff54c2d28f37495a55da9d813b97beecf752e7714389b10429"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/stage-b-started.json",
+      "sha256": "9299edaf585845b156c8fbae2df83cc1b5d15b8b785e88ee23296cf868217c53"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/starting-gate.json",
+      "sha256": "a064a8f9225dfc510f16e11aaa43b6038907182507bb792df1f643cfe1f93287"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensor-corpus-manifest.json",
+      "sha256": "aa8efbfa0051ad2224fb8d14f40cfb58cac971dcdded3b7e7a1a0552dd1852d8"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-163f5f8ce2977dccf0ebc6a6.f32",
+      "sha256": "ee004cb60221392ceb8c60e00b0b0209842afa1bcf32223f43b0ceadf540de4e"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-32e68eca71c65e1452252e5f.f32",
+      "sha256": "2fef6e6394ce1ecacc80cb5c5e10db1b1ceb3ef155486848250ab37d64c0f08f"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-345e4955170302c450281935.f32",
+      "sha256": "905f7be2bdf391cbb057253fa437712d1a52ecb4a7b60694b87bf02202004dec"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-3ea18cb7ffbe8add3120531f.f32",
+      "sha256": "09473d2f2cff5a03fe7d244b8313deda6857fb531fc303bc6e7201aab17aa234"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-3ec9a6d5ef516adf6bd4daf0.f32",
+      "sha256": "755e3d105a467836f4b98da47ec7b11fd0cef46a6a156e50cf7766c068f59300"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-43634d2c02fe5f9c2aab7915.f32",
+      "sha256": "716dd06cdc6f4d7e1e440dd3ddfdd0fb760d3bf7955c93f4d386a023e01fc9d4"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-5c9651201c93bc9e4a5a8b9c.f32",
+      "sha256": "3d3ea37cdd58f17bc9acf9e239da560ec212326ab2adf5418791d24ce14fc42a"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-800323ad4631df7d7b814c83.f32",
+      "sha256": "34c54a0d22d108c931d0c092c9a8eef10cc00bd04f4308f308050bfd9ba52cd0"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-981acf2c9183ecf2d7e21648.f32",
+      "sha256": "0b6da90a2b834799e6a8414f9f1c11b10e9d4e4b11f91754c5c96e4be749f6ed"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-9d86f1787e7f062a94778015.f32",
+      "sha256": "315b21df21bc90cac47e4c3f178a996d4811ab269d4dbeeda1bd4c6bc62a441f"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-a1987006cc63fcdaef5ce98a.f32",
+      "sha256": "f482abf22020ab2f0e52f2fb9459556feec75b70137f84ecfe553f3094c0c200"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-a8b8ef76b7bf61ae456b2142.f32",
+      "sha256": "17ae7c9e1dc580b2b86c460a1be186da3709901d09f773264ff08704a48e9626"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-a9f537c1bb46e37eb0ef01d1.f32",
+      "sha256": "7437e9ca381a253f5936dd07f390c32a70ec0658efb9e8df753bfbcdd284eeed"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-b12396b9f8784b14c92a97c9.f32",
+      "sha256": "5046f5c2a6fce9da27f2f72137443580265baf6664826873b0223914635d6170"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-b38ff68d7141a55f2a977892.f32",
+      "sha256": "e7bbede7b79dd3eff4ee8cbe325eb441e9c5f6d8d182d5b262bef05bfa339424"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-c29d502d44aedb4aa68d6dc6.f32",
+      "sha256": "85cad167d9656807b9daef29c646df04e7b507fa5b5f2e43bf9072cf1429ff00"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-e5e2a2a28646779132491ce8.f32",
+      "sha256": "646c33632b46019279c40736c5b8cab683987852af00baa19fae3b0bf2805c94"
+    },
+    {
+      "path": "backend/research/reports/robust_geometry_v23/tensors/j-ffb0e106dac8cfc6c92a7f0c.f32",
+      "sha256": "07b683140a7b1325476867ed59946115697d8db7812418d30ecdf1fa2bbda42f"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/capture-entry.mjs",
+      "sha256": "8ace01fe9f418c23db3161480e160a063243ec8f97d391efe7cea6994c0c762e"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/capture-worker.mjs",
+      "sha256": "ee2eeb53887079aa094b74526e8ff9cc417cc97a2c564c93445a95739c7e36cc"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/capture.mjs",
+      "sha256": "1702c11a67dbb1f19a47df59fbfe1909b79b48be174d046902348154b305f093"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/closeout.mjs",
+      "sha256": "2461a1a02be6242a282bcc541d0a61c56f5f2a7d52fc1b95ff358aef167e1ea7"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/contract.json",
+      "sha256": "c68c4d36f2012326b221d62f65707d8f70f627cf3723ed6cd66f22c5a6c49ab0"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/control.mjs",
+      "sha256": "b204d0087de545b6550968aac6ba4826f3fb931df0bb2d312f871a479c92bbba"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/decoder.ts",
+      "sha256": "c6bfd31fd74f8779a53ed21f5841edf8a7518ab4a0273f0a0df68e97b3914022"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/design.md",
+      "sha256": "7cc25aefd966d609bbdd9ffff34694230e203e4b178d6c3a7c2fede47072e98c"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/domain.ts",
+      "sha256": "8f087d6a2cb7e10f75239562ce25d9c2b4547e2e081feb821b6958d15331fa8d"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/eslint.config.mjs",
+      "sha256": "bec3c150dde9bf44d942b455a35228ec912d7211f1274d6f46416b374d18fb85"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/io.mjs",
+      "sha256": "f4d13d949ca01448e5a5ea1babc544a65693f1b30f73c0e3d172c9e92152f8de"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/prepare-inputs.ts",
+      "sha256": "db2ee281739d79762ea83bfe030db1ddbff0bb5dfebab13df290c6c055c049f9"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/run.mjs",
+      "sha256": "5fca4d0a805e76e88684d481585777aa512a54426623138c4594ef59673a0701"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/stage-a-config.json",
+      "sha256": "e6e4c5afbba66d20e0603b3cfdf4eca5c5307ba42878f5911c2eb8181c904bdf"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/stage-b.mjs",
+      "sha256": "b2e3da92cdcb1a1ca983e166c6c178186ba2eb5251702dcbe799edb6c534de15"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/tests.mjs",
+      "sha256": "522523a547b27c3c527f09310b28ca1def45844c0991740ed0682916b240a7d8"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/tsconfig.json",
+      "sha256": "f3a359bcf97a7da2e7505f02ca4d8c1ef7dbb50724a3b35135d281c61923a3ee"
+    },
+    {
+      "path": "backend/research/robust_geometry_v23/wire.mjs",
+      "sha256": "e25ac66057b71fbbfdc963a173075c157f149980f4e324fabb400e0e8f8400b6"
+    }
+  ],
+  "productionDiff": [],
+  "V3ThroughV22Diff": [],
+  "allResultBytesMatchRemoteCommit": true,
+  "github": {
+    "head": "7f57c4a76b65719bb3c6ca2b9e50eeee69d595de",
+    "queriedAt": "2026-10-19T11:58:38.161115+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "cleanWorktreeAtVerification": true,
+  "disposition": "ROBUST_V23_600_120_NO_MEANINGFUL_STEP_USABILITY_GAIN_BASELINE_600_170_RETAINED",
+  "receiptCommitNote": "This additive receipt is committed afterwards; final receipt HEAD is independently fetched and verified without self-reference."
+}
