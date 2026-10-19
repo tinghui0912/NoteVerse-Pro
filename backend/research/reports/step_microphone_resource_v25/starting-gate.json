@@ -1,0 +1,12 @@
+{
+  "startingHead": "df82baaf95fa75ae6369058745b94785b7d5cef5",
+  "localHead": "df82baaf95fa75ae6369058745b94785b7d5cef5",
+  "remoteHead": "df82baaf95fa75ae6369058745b94785b7d5cef5",
+  "mergeBase": "df82baaf95fa75ae6369058745b94785b7d5cef5",
+  "branch": "codex/customer-web-delivery-boundary",
+  "ahead": 0,
+  "behind": 0,
+  "cleanWorktree": true,
+  "fetchBeforeEdits": true,
+  "github": {"queriedAt": "2026-10-19T14:19:12.986992+00:00", "combinedState": "pending", "statuses": [], "workflow_runs": [], "workflowRunTotalCount": 0, "ciInterpretation": "NOT CI PASS"}
+}
