@@ -15,10 +15,12 @@ export type LocalPracticeInputState =
   | 'RUNNING'
   | 'ERROR';
 
-export type StepPracticeLifecycle = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
+/** Domain status only; browser preparation and disposal belong to the controller. */
+export type StepRuntimeStatus = 'ACTIVE' | 'ENDED';
 export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 type LocalPracticeSessionBase = {
+  /** Local practice-instance identity, never a backend or transport session. */
   localSessionId: string;
   scoreId: string;
   revisionId: string;
@@ -36,7 +38,7 @@ type LocalPracticeSessionBase = {
 
 export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
   mode: 'STEP_BY_STEP';
-  lifecycleState: StepPracticeLifecycle;
+  runtimeStatus: StepRuntimeStatus;
   step: {
     currentIndex: number;
     targetGeneration: number;

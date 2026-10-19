@@ -7,7 +7,8 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { ContinuousPracticeLifecycle, StepPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
 import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
@@ -47,7 +48,7 @@ export type PracticeStatusView = {
 
 export type PracticeStatusProps = {
   className?: string;
-  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   stepInteractionPhase?: StepAttemptState | null;
   lastFinalizedVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
@@ -78,7 +79,7 @@ export function resolvePracticeStatusView({
   stepInteractionPhase,
   lastFinalizedVerdict,
 }: {
-  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   stepInteractionPhase?: StepAttemptState | null;
   lastFinalizedVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;

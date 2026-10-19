@@ -119,3 +119,26 @@ it('paced progression has one commit owner, no modality runtimes or RESET compat
   expect(policy).not.toMatch(/setTimeout|setInterval|new Worker|AudioContext|numThreads/);
   for (const file of files) expect(read(file)).not.toMatch(/class (Midi|Microphone)StepRuntime/);
 });
+it('application ownership and domain status have separate types and truthful STEP snapshots', () => {
+  const domain = read(path.join(practice, 'local-core/session.ts'));
+  const controller = read(path.join(__dirname, 'step-practice-controller.ts'));
+  const runtime = read(path.join(practice, 'local-core/step-runtime.ts'));
+  const hook = read(path.join(src, 'hooks/practice/use-step-local-practice.ts'));
+  const aliasType = (text: string, name: string) => {
+    const ast = ts.createSourceFile('owner.ts', text, ts.ScriptTarget.Latest, true);
+    return (ast.statements.find(n => ts.isTypeAliasDeclaration(n) && n.name.text === name) as ts.TypeAliasDeclaration).type.getText(ast);
+  };
+  expect(aliasType(domain, 'StepRuntimeStatus')).toBe("'ACTIVE' | 'ENDED'");
+  expect(aliasType(controller, 'StepControllerState')).toBe("'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED'");
+  for (const p of [...files, path.join(src, 'hooks/practice/use-step-local-practice.ts'),
+    ...productionFiles(path.join(src, 'components/practice'))]) expect(read(p)).not.toContain('StepPracticeLifecycle');
+  expect(runtime).not.toMatch(/StepControllerState|\bIDLE\b|\bPREPARING\b|\bDISPOSED\b|lifecycleState/);
+  expect(controller).not.toContain('StepRuntimeStatus');
+  expect(runtime).toContain('runtimeStatus: this.status');
+  expect(hook).toContain('lifecycle: applicationState');
+  expect(hook).not.toMatch(/\.runtimeStatus\s*=|\.rearm\(|StepRuntimeStatus|new StepPracticeRuntime/);
+  const ast = ts.createSourceFile('session.ts', domain, ts.ScriptTarget.Latest, true);
+  const snapshot = ast.statements.find(n => ts.isTypeAliasDeclaration(n) && n.name.text === 'LocalStepSessionSnapshot')!;
+  expect(snapshot.getText(ast)).toContain('runtimeStatus: StepRuntimeStatus');
+  expect(snapshot.getText(ast)).not.toContain('lifecycleState');
+});

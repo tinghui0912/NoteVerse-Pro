@@ -36,6 +36,30 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
+  it('application IDLE -> PREPARING -> ACTIVE is separate from already-ACTIVE internal domain status', async () => {
+    const s = setup(0, 'MIDI', true);
+    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', sessionSnapshot: null });
+    const states: string[] = []; s.controller.subscribe(() => states.push(s.controller.snapshot().state));
+    const pending = s.controller.start();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'PREPARING', canAcceptAttempt: false,
+      sessionSnapshot: { runtimeStatus: 'ACTIVE', completionReason: null, step: { inputAvailable: false } } });
+    expect(s.controller.snapshot().sessionSnapshot).not.toHaveProperty('lifecycleState');
+    s.resolveStart(); await pending;
+    expect(states).toEqual(['PREPARING', 'ACTIVE']);
+    expect(s.controller.snapshot()).toMatchObject({ state: 'ACTIVE', canAcceptAttempt: true, sessionSnapshot: { runtimeStatus: 'ACTIVE' } });
+    s.controller.finish(); s.controller.finish();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'ENDED', sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' } });
+    expect(s.completion).toHaveBeenCalledTimes(1); s.controller.dispose(); s.controller.dispose();
+    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
+  });
+  it('preparation failure returns to application IDLE without inventing a domain IDLE snapshot', async () => {
+    const s = setup(); s.midi.start.mockRejectedValueOnce(new Error('NO_CONNECTED_INPUT'));
+    await s.controller.start();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', sessionSnapshot: null, error: 'NO_CONNECTED_INPUT', canAcceptAttempt: false });
+    expect(s.completion).not.toHaveBeenCalled(); expect(s.midi.dispose).toHaveBeenCalledTimes(1);
+    expect(s.metronome.destroy).toHaveBeenCalledTimes(1); s.controller.dispose();
+    expect(s.midi.dispose).toHaveBeenCalledTimes(1);
+  });
   it.each(['C4','D4'])('exact end note is ignored before or after close (%s), strictly later note starts fresh', async pitch => {
     const run = async (order: 'BEFORE' | 'AFTER') => {
       const s = setup(); await s.controller.start(); s.clock.set(200); s.note(pitch);

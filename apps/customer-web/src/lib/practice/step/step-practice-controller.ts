@@ -1,6 +1,6 @@
 import { StepPracticeRuntime, groupForCurrentStep } from '../local-core/step-runtime';
 import { PracticeTimebase } from '../local-core/timebase';
-import { createLocalSessionId, type LocalStepSessionSnapshot, type StepPracticeLifecycle } from '../local-core/session';
+import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';
 import { resolvePracticeScope, type PracticeInputSource, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '../local-core/practice-tempo';
 import type { BrowserMidiState } from '../midi/browser-midi-controller';
@@ -15,7 +15,8 @@ export type StepControllerOptions = Readonly<{
   tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
   onCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
 }>;
-export type StepControllerState = StepPracticeLifecycle;
+/** Local browser application/resource ownership, not the domain runtime status. */
+export type StepControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
 
 /** The sole STEP application owner. Restart means constructing a fresh owner. */
 export class StepPracticeController {

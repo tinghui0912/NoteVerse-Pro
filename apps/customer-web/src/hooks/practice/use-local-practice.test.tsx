@@ -146,6 +146,8 @@ describe('useLocalPractice', () => {
     );
 
     expect(result.current.lifecycle).toBe('IDLE');
+    expect(result.current.applicationState).toBe('IDLE');
+    expect(result.current.runtimeStatus).toBeNull();
     expect(result.current.canAcceptAttempt).toBe(false);
     expect(result.current.stepInteractionPhase).toBeNull();
     expect(result.current.inputState).toBe('IDLE');
@@ -168,6 +170,8 @@ describe('useLocalPractice', () => {
     });
 
     expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(result.current.applicationState).toBe('ACTIVE');
+    expect(result.current.runtimeStatus).toBe('ACTIVE');
     expect(result.current.canAcceptAttempt).toBe(true);
     expect(result.current.stepInteractionPhase).toBe('READY');
     expect(result.current.inputState).toBe('RUNNING');

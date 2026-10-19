@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
-import type { LocalPracticeInputState, StepPracticeLifecycle } from '@/lib/practice/local-core/session';
+import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';
+import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
@@ -48,11 +48,13 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const skip = useCallback(() => { owner.current?.skip(); }, []);
   const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
-  const state = snapshot?.state ?? 'IDLE';
-  const lifecycle: StepPracticeLifecycle = state;
+  const applicationState: StepControllerState = snapshot?.state ?? 'IDLE';
   const inputError = preparationError ?? snapshot?.error ?? null;
-  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : state === 'PREPARING' ? 'STARTING' : state === 'ACTIVE' ? 'RUNNING' : 'IDLE';
-  return { mode: 'STEP_BY_STEP' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
+  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : applicationState === 'PREPARING' ? 'STARTING' : applicationState === 'ACTIVE' ? 'RUNNING' : 'IDLE';
+  // Generic UI boundary only: lifecycle denotes application presentation, never domain status.
+  return { mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
+    runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,
+    inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,
     canAcceptAttempt: snapshot?.canAcceptAttempt ?? false,
     lastFinalizedVerdict: snapshot?.lastFinalizedVerdict ?? null,

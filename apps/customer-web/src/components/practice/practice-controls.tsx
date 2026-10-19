@@ -11,14 +11,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { ContinuousPracticeLifecycle, StepPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
 import type { TempoSegment } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlSurfaceProps {
-  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -41,7 +42,7 @@ interface PracticeControlSurfaceProps {
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepPracticeLifecycle }) {
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
   return <PracticeControlSurface {...props} />;
 }
 

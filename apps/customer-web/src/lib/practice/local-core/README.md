@@ -9,6 +9,15 @@ the browser does not parse MusicXML independently for active Practice authority.
 
 ## STEP
 
+`localSessionId` identifies a local practice instance with score/revision/artifact,
+scope, input, tempo, metronome, metadata and history. It is not a backend Practice
+runtime, WebSocket/matchmaker session, server authority or transport identity.
+The runtime is constructed ACTIVE and owns only `StepRuntimeStatus: ACTIVE | ENDED`.
+Snapshots expose `runtimeStatus` and `completionReason`: natural scope completion
+is SCOPE_COMPLETED with completed=true; explicit Stop is STOPPED_BY_USER without
+fabricating natural completion. Browser IDLE/PREPARING/DISPOSED are controller
+resource states, never representable in this domain status.
+
 One target / one bounded attempt / one verdict. `step-attempt.ts` defines the
 immutable target generation, attempt identity, generic finalized evidence, retry
 reason, finalized record and separate user Skip action. `StepPracticeRuntime`
@@ -33,7 +42,9 @@ not an analysis frontier or publication time. No busy audio is replayed after
 re-arm. Equality is rejected, including readiness/reconnect/Skip boundaries.
 MIDI gesture ownership is [start,end); its 35ms is not acoustic grouping policy.
 
-The clean-break v4 STEP schema is `step-paced-attempt-v4`; no older STEP snapshot
+The clean-break v5 STEP schema is `step-paced-attempt-v5`: runtimeStatus replaces
+the old serialized lifecycleState field. No shared controller/domain lifecycle
+alias or older STEP snapshot
 parser remains. Full attempt/Skip history stops explicitly at 100,000 records,
 never silently evicts. See `../step/README.md` for application resource policy.
 

@@ -1,12 +1,18 @@
 import {expect, expectTypeOf, it} from 'vitest';
-import type {LocalStepSessionSnapshot, LocalPerformanceSessionSnapshot} from '../local-core/session';
+import type {LocalStepSessionSnapshot, LocalPerformanceSessionSnapshot, StepRuntimeStatus} from '../local-core/session';
+import type {StepControllerState} from './step-practice-controller';
 import {StepPracticeRuntime} from '../local-core/step-runtime';
 import {ManualClock} from '../local-core/timebase';
 import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
 import type {PracticeScoreArtifact} from '../local-core/artifact';
 
-it('snapshot typing cannot represent paused STEP; Continuous retains it', () => {
-  expectTypeOf<LocalStepSessionSnapshot['lifecycleState']>().toEqualTypeOf<'IDLE'|'PREPARING'|'ACTIVE'|'ENDED'|'DISPOSED'>();
+it('controller and domain statuses are distinct; STEP runtime cannot represent application states or PAUSED', () => {
+  expectTypeOf<StepControllerState>().toEqualTypeOf<'IDLE'|'PREPARING'|'ACTIVE'|'ENDED'|'DISPOSED'>();
+  expectTypeOf<StepRuntimeStatus>().toEqualTypeOf<'ACTIVE'|'ENDED'>();
+  expectTypeOf<LocalStepSessionSnapshot['runtimeStatus']>().toEqualTypeOf<StepRuntimeStatus>();
+  expectTypeOf<StepPracticeRuntime['state']>().toEqualTypeOf<StepRuntimeStatus>();
+  expectTypeOf<Extract<StepRuntimeStatus, 'IDLE'|'PREPARING'|'DISPOSED'|'PAUSED'>>().toEqualTypeOf<never>();
+  expectTypeOf<Extract<keyof LocalStepSessionSnapshot, 'lifecycleState'>>().toEqualTypeOf<never>();
   expectTypeOf<LocalPerformanceSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'PAUSED'|'ENDED'>();
 });
 it.each(['MATCH','MISMATCH','RETRY'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {

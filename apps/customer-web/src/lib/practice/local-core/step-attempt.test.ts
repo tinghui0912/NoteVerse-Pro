@@ -84,15 +84,15 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step).toEqual(snapshot.step); expect(snapshot.step.attempts).toEqual([]);
     expect(snapshot.completionReason).toBe('STOPPED_BY_USER');
   });
-  it('final MATCH waits in POST_VERDICT; scope ends once at rearm, v4 immutable snapshot', () => {
+  it('final MATCH waits in POST_VERDICT; scope ends once at rearm, v5 immutable snapshot', () => {
     const { runtime, begin, finish } = setup(4); finish(begin(), ['D5']);
     expect(runtime.isCompleted).toBe(false);
     expect(runtime.currentStepIndex).toBe(4);
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
     expect(() => rearmAtCaptureEnd(runtime)).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 4, runtimeVersion: 'step-paced-attempt-v4' },
-      lifecycleState: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 5, runtimeVersion: 'step-paced-attempt-v5' },
+      runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });
   it('rejects stale source time, foreign domain, invalid confidence and forged identity', () => {
@@ -111,7 +111,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     }
     expect(() => s.begin()).toThrow('STEP_HISTORY_LIMIT_EXCEEDED');
     const result = s.runtime.snapshot();
-    expect(result.lifecycleState).toBe('ENDED'); expect(result.step.activeAttempt).toBeNull();
+    expect(result.runtimeStatus).toBe('ENDED'); expect(result.step.activeAttempt).toBeNull();
     expect(result.step.attempts.length).toBe(MAX_STEP_HISTORY_RECORDS);
     expect(result.step.attempts[0].attemptId).toBe('step-test:attempt:1');
   });

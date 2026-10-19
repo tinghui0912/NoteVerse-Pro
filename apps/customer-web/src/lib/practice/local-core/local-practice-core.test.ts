@@ -1095,7 +1095,7 @@ describe('local session foundation', () => {
     expect(stepA.snapshot().metronomeEnabled).toBe(true);
     stepA.end();
     const finalStepA = stepA.snapshot();
-    expect(finalStepA.lifecycleState).toBe('ENDED');
+    expect(finalStepA.runtimeStatus).toBe('ENDED');
     expect(finalStepA.metronomeEnabled).toBe(true);
 
     const perfA = new ContinuousPracticeSession({
@@ -1124,7 +1124,7 @@ describe('local session foundation', () => {
     stepB.setMetronomeEnabled(false);
     stepB.end();
     const finalStepB = stepB.snapshot();
-    expect(finalStepB.lifecycleState).toBe('ENDED');
+    expect(finalStepB.runtimeStatus).toBe('ENDED');
     expect(finalStepB.metronomeEnabled).toBe(false);
 
     const perfB = new ContinuousPracticeSession({

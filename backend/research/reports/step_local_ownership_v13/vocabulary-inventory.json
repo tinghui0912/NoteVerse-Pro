@@ -1,0 +1,1301 @@
+{
+  "scope": [
+    "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+    "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+    "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+    "apps/customer-web/src/lib/practice/local-core/index.ts",
+    "apps/customer-web/src/lib/practice/local-core/practice-tempo.ts",
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+    "apps/customer-web/src/lib/practice/step/step-errors.ts",
+    "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+    "apps/customer-web/src/lib/practice/step/step-platform.ts",
+    "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+    "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts"
+  ],
+  "categories": {
+    "A": "VALID_LOCAL_PRACTICE_INSTANCE_IDENTITY",
+    "B": "VALID_BROWSER_APPLICATION_RESOURCE_LIFECYCLE",
+    "C": "VALID_DOMAIN_RUNTIME_STATUS",
+    "D": "OBSOLETE_SERVER_SESSION_AUTHORITY"
+  },
+  "occurrences": [
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 3,
+      "token": "StepControllerState",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 4,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 51,
+      "token": "StepControllerState",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "const applicationState: StepControllerState = snapshot?.state ?? 'IDLE';"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 54,
+      "token": "lifecycle",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "// Generic UI boundary only: lifecycle denotes application presentation, never domain status."
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 55,
+      "token": "lifecycle",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "return { mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 56,
+      "token": "runtimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 56,
+      "token": "sessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 56,
+      "token": "runtimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 62,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "line": 62,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/index.ts",
+      "line": 6,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export * from './continuous-evaluation-session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/index.ts",
+      "line": 10,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export * from './session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 3,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import type { RuntimeVersionIdentity, SessionTime } from './timebase';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 6,
+      "token": "ContinuousPracticeLifecycle",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type ContinuousPracticeLifecycle ="
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 19,
+      "token": "StepRuntimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "export type StepRuntimeStatus = 'ACTIVE' | 'ENDED';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 22,
+      "token": "LocalPracticeSessionBase",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "type LocalPracticeSessionBase = {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 23,
+      "token": "backend",
+      "category": "A",
+      "reason": "Negative boundary documentation only, not an active authority/import/transport: local instance identity is not a server session.",
+      "context": "/** Local practice-instance identity, never a backend or transport session. */"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 23,
+      "token": "transport",
+      "category": "A",
+      "reason": "Negative boundary documentation only, not an active authority/import/transport: local instance identity is not a server session.",
+      "context": "/** Local practice-instance identity, never a backend or transport session. */"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 23,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "/** Local practice-instance identity, never a backend or transport session. */"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 24,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "localSessionId: string;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 33,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "completionReason: LocalPracticeCompletionReason | null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 39,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 39,
+      "token": "LocalPracticeSessionBase",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 41,
+      "token": "runtimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "runtimeStatus: StepRuntimeStatus;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 41,
+      "token": "StepRuntimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "runtimeStatus: StepRuntimeStatus;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 45,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "inputEligibleAfter: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 57,
+      "token": "LocalPerformanceSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 57,
+      "token": "LocalPracticeSessionBase",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 59,
+      "token": "lifecycleState",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "lifecycleState: ContinuousPracticeLifecycle;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 59,
+      "token": "ContinuousPracticeLifecycle",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "lifecycleState: ContinuousPracticeLifecycle;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 73,
+      "token": "LocalPracticeSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type LocalPracticeSessionSnapshot ="
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 74,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "| LocalStepSessionSnapshot"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 75,
+      "token": "LocalPerformanceSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "| LocalPerformanceSessionSnapshot;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "line": 77,
+      "token": "createLocalSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export function createLocalSessionId(prefix = 'local-practice'): string {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 2,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import type { SessionTime } from './timebase';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 10,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 14,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "attemptId: string; localSessionId: string; stepId: string; targetGeneration: number;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 15,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "inputSource: PracticeInputSource; attemptStartSessionTime: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 15,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "inputSource: PracticeInputSource; attemptStartSessionTime: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 21,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 21,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 22,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "}> | Readonly<{ kind: 'RETRY'; reason: StepRetryReason; captureEndSessionTime: Readonly<SessionTime> }>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 22,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "}> | Readonly<{ kind: 'RETRY'; reason: StepRetryReason; captureEndSessionTime: Readonly<SessionTime> }>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 26,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Readonly<SessionTime>; retryReason: StepRetryReason | null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 26,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Readonly<SessionTime>; retryReason: StepRetryReason | null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 28,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type StepSkipRecord = Readonly<{ stepId: string; targetGeneration: number; sessionTime: Readonly<SessionTime> }>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "line": 28,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type StepSkipRecord = Readonly<{ stepId: string; targetGeneration: number; sessionTime: Readonly<SessionTime> }>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 4,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { PracticeTimebase, type LocalClock, type DurableClock, type SessionTime } from './timebase';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 5,
+      "token": "createLocalSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalStepSessionSnapshot,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 5,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalStepSessionSnapshot,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 6,
+      "token": "StepRuntimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "type StepRuntimeStatus } from './session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 6,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "type StepRuntimeStatus } from './session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 13,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "localSessionId?: string; clock: LocalClock; timebase?: PracticeTimebase; metadataClock?: DurableClock;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 22,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "readonly localSessionId: string;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 28,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private boundary: Readonly<SessionTime>;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 29,
+      "token": "StepRuntimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "private status: StepRuntimeStatus = 'ACTIVE';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 31,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "private completionReason: LocalPracticeCompletionReason | null = null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 45,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.localSessionId = options.localSessionId ?? createLocalSessionId('step');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 45,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.localSessionId = options.localSessionId ?? createLocalSessionId('step');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 45,
+      "token": "createLocalSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.localSessionId = options.localSessionId ?? createLocalSessionId('step');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 46,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 47,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (this.timebase.domainId !== this.localSessionId) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 57,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "openAttempt(start: SessionTime): StepAttemptIdentity | null {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 65,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 66,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 66,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 67,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "inputSource: this.options.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 76,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.validateTime(evidence.captureEndSessionTime);"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 77,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 77,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 87,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }), retryReason: evidence.kind === 'RETRY' ? evidence.reason : null });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 87,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }), retryReason: evidence.kind === 'RETRY' ? evidence.reason : null });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 90,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.boundary = record.captureEndSessionTime;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 93,
+      "token": "acceptAfterSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "rearm(acceptAfterSessionTime: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 93,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "rearm(acceptAfterSessionTime: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 95,
+      "token": "acceptAfterSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.validateTime(acceptAfterSessionTime);"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 96,
+      "token": "acceptAfterSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (acceptAfterSessionTime.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 100,
+      "token": "acceptAfterSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.boundary = Object.freeze({ ...acceptAfterSessionTime });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 115,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "acceptInputAfter(capturedThrough: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 127,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 132,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "this.cancelAttempt(); this.status = 'ENDED'; this.completionReason = 'STOPPED_BY_USER';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 134,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "snapshot(): LocalStepSessionSnapshot {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 135,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 135,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 138,
+      "token": "runtimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 138,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 138,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 149,
+      "token": "StepRuntimeStatus",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "get state(): StepRuntimeStatus { return this.status; }"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 156,
+      "token": "completionReason",
+      "category": "C",
+      "reason": "Domain status/completion metadata; lifecycleState here is Continuous-only and unchanged.",
+      "context": "this.completed = true; this.status = 'ENDED'; this.completionReason = 'SCOPE_COMPLETED';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 161,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 161,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 163,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 163,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 164,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 164,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "&& identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 171,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private validateTime(time: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 172,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (!time || time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 174,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private now(): Readonly<SessionTime> { return Object.freeze(this.timebase.runtimeToSessionTime(this.options.clock.nowMs())); }"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "line": 174,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private now(): Readonly<SessionTime> { return Object.freeze(this.timebase.runtimeToSessionTime(this.options.clock.nowMs())); }"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 29,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "export type SessionTime = {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 40,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "anchorSessionTimeMs?: number;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 48,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private readonly anchorSessionTimeMs: number;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 56,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.anchorSessionTimeMs = 0;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 63,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.anchorSessionTimeMs = options.anchorSessionTimeMs ?? 0;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 63,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.anchorSessionTimeMs = options.anchorSessionTimeMs ?? 0;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 66,
+      "token": "atSessionMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "atSessionMs(ms: number, sampleIndex?: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 66,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "atSessionMs(ms: number, sampleIndex?: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 68,
+      "token": "Session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "throw new Error('Session time values must be finite.');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 75,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "runtimeToSessionTime(runtimeMs: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 75,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "runtimeToSessionTime(runtimeMs: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 76,
+      "token": "atSessionMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return this.atSessionMs(runtimeMs - this.runtimeOriginMs);"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 79,
+      "token": "sampleIndexToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "sampleIndexToSessionTime(sampleIndex: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 79,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "sampleIndexToSessionTime(sampleIndex: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 83,
+      "token": "atSessionMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return this.atSessionMs("
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 84,
+      "token": "anchorSessionTimeMs",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.anchorSessionTimeMs + (sampleIndex - this.anchorSampleIndex) / this.sampleRateHz * 1000,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 89,
+      "token": "midiEventToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "midiEventToSessionTime(midiEventTimeMs: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 89,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "midiEventToSessionTime(midiEventTimeMs: number): SessionTime {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 90,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return this.runtimeToSessionTime(midiEventTimeMs);"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 93,
+      "token": "assertSameSessionTimeDomain",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "assertSameSessionTimeDomain(left: SessionTime, right: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 93,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "assertSameSessionTimeDomain(left: SessionTime, right: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 93,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "assertSameSessionTimeDomain(left: SessionTime, right: SessionTime): void {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 95,
+      "token": "Session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "throw new Error('Session time values must be finite before comparison.');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 98,
+      "token": "Session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "throw new Error('Session time values belong to different practice time domains.');"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "line": 104,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "captureTime: SessionTime;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-errors.ts",
+      "line": 11,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "STEP_HISTORY_LIMIT_EXCEEDED: 'This session reached its attempt-history limit. Start a new session.',"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-errors.ts",
+      "line": 11,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "STEP_HISTORY_LIMIT_EXCEEDED: 'This session reached its attempt-history limit. Start a new session.',"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 1,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import type { SessionTime } from '../local-core/timebase';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 11,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "open(time: SessionTime): StepAttemptIdentity | null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 17,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private active: { identity: StepAttemptIdentity; pitches: Set<string>; end: SessionTime } | null = null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 27,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (note.sessionTime.domainId !== this.active.end.domainId || note.sessionTime.ms < this.active.identity.attemptStartSessionTime.ms"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 27,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (note.sessionTime.domainId !== this.active.end.domainId || note.sessionTime.ms < this.active.identity.attemptStartSessionTime.ms"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 27,
+      "token": "attemptStartSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "if (note.sessionTime.domainId !== this.active.end.domainId || note.sessionTime.ms < this.active.identity.attemptStartSessionTime.ms"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 28,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "|| note.sessionTime.ms >= this.active.end.ms) { this.ignore(); return; }"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 32,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const identity = this.sink.open(note.sessionTime);"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 35,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.active = { identity, pitches: new Set([note.pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 35,
+      "token": "sessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.active = { identity, pitches: new Set([note.pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "line": 40,
+      "token": "captureEndSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "observedAttackPitches: Object.freeze([...gesture.pitches].sort()), captureEndSessionTime: Object.freeze(gesture.end) })); }"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 3,
+      "token": "createLocalSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 3,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 3,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 16,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "onCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 19,
+      "token": "StepControllerState",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "export type StepControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 29,
+      "token": "StepControllerState",
+      "category": "B",
+      "reason": "Browser application/resource state or documented generic UI presentation field.",
+      "context": "private state: StepControllerState = 'IDLE';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 38,
+      "token": "LocalStepSessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "private finalSnapshot: LocalStepSessionSnapshot | null = null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 44,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const session = this.runtime?.snapshot() ?? this.finalSnapshot;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 46,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "stepInteractionPhase: session?.step.attemptState ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 48,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "lastFinalizedVerdict: session?.step.attempts.at(-1) ?? null,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 51,
+      "token": "sessionSnapshot",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "sessionSnapshot: session,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 51,
+      "token": "session",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "sessionSnapshot: session,"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 59,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const localSessionId = createLocalSessionId('step'), timebase = new PracticeTimebase({ domainId: localSessionId });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 59,
+      "token": "createLocalSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const localSessionId = createLocalSessionId('step'), timebase = new PracticeTimebase({ domainId: localSessionId });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 59,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const localSessionId = createLocalSessionId('step'), timebase = new PracticeTimebase({ domainId: localSessionId });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 62,
+      "token": "localSessionId",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "const runtime = new StepPracticeRuntime({ ...this.options, clock: this.platform.clock, timebase, localSessionId });"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 90,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "runtime.acceptInputAfter(timebase.runtimeToSessionTime(this.platform.clock.nowMs()));"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "line": 147,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "this.runtime.acceptInputAfter(this.timebase.runtimeToSessionTime(this.platform.clock.nowMs()));"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "line": 1,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "import type { LocalClock, PracticeTimebase, SessionTime } from '../local-core/timebase';"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "line": 5,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "retirementWatermark(): Readonly<SessionTime> | null;"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "line": 11,
+      "token": "SessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "retirementWatermark(): Readonly<SessionTime> {"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "line": 12,
+      "token": "runtimeToSessionTime",
+      "category": "A",
+      "reason": "Valid local practice-instance identity, local snapshot metadata, or same-instance event time domain.",
+      "context": "return this.timebase.runtimeToSessionTime(this.clock.nowMs());"
+    }
+  ],
+  "activeCategoryD": [],
+  "manualAdjudication": "Inspected STEP production/local-core dependencies, import graph and backend/app references. No category D active authority found. Negative boundary comments do not introduce server ownership.",
+  "ContinuousScope": "Continuous implementation remains independent and unchanged; shared metadata/timebase/barrel references are retained, not mechanically renamed."
+}

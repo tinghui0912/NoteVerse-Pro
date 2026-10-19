@@ -20,7 +20,15 @@ Input eligibility is exclusive: attempt start must be strictly later than
 inputEligibleAfter at readiness/reconnect/skip or the prior gesture end. An event at
 the exact gesture end is ignored regardless of whether it precedes or follows
 the close callback; there is no timestamp adjustment, deferral or queued retry.
-Session lifecycle is IDLE / PREPARING / ACTIVE / ENDED / DISPOSED.
+Controller application/resource lifecycle (`StepControllerState`) is
+IDLE / PREPARING / ACTIVE / ENDED / DISPOSED. It is not a domain session status.
+Runtime domain status is only ACTIVE / ENDED (`StepRuntimeStatus`), constructed
+ACTIVE even while its controller is PREPARING. Runtime snapshots serialize
+`runtimeStatus` plus completionReason, not application lifecycleState.
+`localSessionId` remains a local practice-instance identity, not a backend,
+WebSocket/matchmaker session, server authority or transport identity.
+The hook exposes applicationState and runtimeStatus distinctly. Its generic UI
+`lifecycle` property is application presentation only, not runtime status.
 READY -> CAPTURING -> ANALYZING -> POST_VERDICT permits at most one active attempt.
 POST_VERDICT retains the answered target and a finalized pending transition.
 Only re-arm consumes it: MATCH advances target atomically with READY; a final
@@ -41,7 +49,9 @@ Input loss preserves finalized POST_VERDICT ownership; reconnect first establish
 a fresh watermark, then the controller commits the preserved transition once. Restart
 disposes the old controller and constructs a new session and input owner.
 
-The v4 schema has no old snapshot restore, WAIT attempt, compatibility export,
+The v5 snapshot schema removes lifecycleState in favor of runtimeStatus, with no
+compatibility alias or old snapshot restore. V12 v4 historical evidence stays
+unchanged; its paced attempt semantics are unchanged here. There is no WAIT attempt, compatibility export,
 fallback evaluator, or rolling StepEvidenceSession. Full attempt/skip history is
 limited to 100,000 total records: over 138 hours at one attempt per five seconds.
 At the ceiling the session ends with an explicit error before acquiring another

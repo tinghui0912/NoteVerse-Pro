@@ -1,0 +1,82 @@
+
+[WebServer] (node:16780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:28008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:30504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:30412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/5] [chromium] › tests\e2e\practice-step-by-step-smoke.spec.ts:324:7 › Browser-Local Practice E2E Smoke › STEP MIDI: runs locally with zero session requests and zero WebSockets
+
+[WebServer] (node:23936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:18480) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+[2/5] [chromium] › tests\e2e\practice-step-by-step-smoke.spec.ts:654:7 › Browser-Local Practice E2E Smoke › METRONOME LIVE TOGGLE: toggles metronome ON and OFF during active practice
+
+[WebServer] (node:29472) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:20680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+[3/5] [chromium] › tests\e2e\practice-step-by-step-smoke.spec.ts:715:7 › Browser-Local Practice E2E Smoke › CUSTOMER UX REGRESSION: desktop drawer parity, input gating, 2-stage section selection, bottom tempo/metronome
+
+[WebServer] (node:27948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:25516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+[4/5] [chromium] › tests\e2e\practice-step-by-step-smoke.spec.ts:828:7 › Browser-Local Practice E2E Smoke › START CAPABILITY GATING & MIDI RETRY: microphone analysis unavailable, MIDI 0-device fails start, connecting device enables retry
+
+[WebServer] (node:28108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:13788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+[5/5] [chromium] › tests\e2e\practice-step-by-step-smoke.spec.ts:897:7 › Browser-Local Practice E2E Smoke › MICROPHONE ANALYSIS: continuous microphone remains unavailable without model-asset fetch
+
+[WebServer] (node:29188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:26336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+
+[WebServer] [browser] [Warning] Requesting layout with encoded breaks but nothing provided in the data
+[WebServer]  (src\lib\score\verovio\adapter.ts:47:18)
+  5 passed (37.8s)

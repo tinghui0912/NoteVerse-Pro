@@ -4,7 +4,7 @@ import type { SessionTime } from './timebase';
 export const MAX_ACTIVE_STEP_ATTEMPTS = 1;
 // Full history, never silently evicted. One attempt / 5s permits >138 hours.
 export const MAX_STEP_HISTORY_RECORDS = 100_000;
-export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 4, runtimeVersion: 'step-paced-attempt-v4' });
+export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 5, runtimeVersion: 'step-paced-attempt-v5' });
 export type StepAttemptState = 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT';
 export type StepTarget = Readonly<{
   stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;
