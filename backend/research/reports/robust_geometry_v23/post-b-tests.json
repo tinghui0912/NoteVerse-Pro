@@ -1,0 +1,22 @@
+{
+  "completedAt": "2026-10-19T11:57:22.085Z",
+  "status": "LOCAL_PASS",
+  "tests": [
+    {
+      "name": "exact branch/start ancestry; only V23 changes, production/history unchanged",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "all 228 candidate raw pairs and subhashes/readback exact, one session no extras",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "candidate-only .30/.05 decoder count, schema6 EVIDENCE records, fixed denominator and recomputed classifications/gates",
+      "status": "LOCAL_PASS"
+    }
+  ],
+  "count": 3,
+  "neuralRuns": 0,
+  "decoderRuns": 0,
+  "productRuntimeRuns": 0
+}
