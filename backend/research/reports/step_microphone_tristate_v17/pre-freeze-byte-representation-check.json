@@ -1,0 +1,18 @@
+{
+  "classification": "EXISTING_WINDOWS_WORKTREE_CRLF_VERSUS_GIT_BLOB_LF_NOT_SOURCE_MUTATION",
+  "stage": "BEFORE_PROTOCOL_COMMIT_AND_BEFORE_REAL_P2_ANALYSIS",
+  "pathsChecked": 52,
+  "initialDiagnostic": "A stricter supplemental raw-worktree-equals-index assertion failed on five unchanged production inventory sources. This assertion conflated two byte representations; it was not the accepted worktree hash gate.",
+  "followup": "For all five files: raw SHA matches frozen/V16 inventory; indexed bytes exactly match starting commit; bytes differ only by CRLF versus LF. No source was rewritten. No hash is silently normalized by the evaluator.",
+  "portabilityLimitation": "Freeze raw hashes intentionally bind this existing Windows worktree representation. A different checkout newline representation must not claim raw-hash equality; committed Git identities below are separate audit evidence.",
+  "trueSourceOrFrozenHashMismatches": [],
+  "rows": [
+    {"path":"apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx","worktreeSha256":"475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064","gitBlobContentSha256":"7ba206814b075185f74930911edcc245ae12b6d513aed2ba7fef8ee97216eb0a"},
+    {"path":"apps/customer-web/src/components/practice/practice-completion-dialog.tsx","worktreeSha256":"627b3fcdc3d3f19bef598a2bdfe5ca32e1ab186073bfc1ade396c5e8a3a2066b","gitBlobContentSha256":"99e39881ae43205a301a52c430fb9773e47c02939794ba84a7f6d22acbb8b48d"},
+    {"path":"apps/customer-web/src/hooks/queries/use-performance-take-queries.ts","worktreeSha256":"208387444350f8cf2aee3bc89ff8630721e8912114311a686e2a54bc588941ed","gitBlobContentSha256":"381611194473b255dccc759a4d4ae038b90554a00b2e44ebdc09b2f26b658647"},
+    {"path":"backend/app/db/models/performance_take.py","worktreeSha256":"a2b6658836d3697d40ed817056c75ad0f092fbe6d674e1985657a356788cb7fb","gitBlobContentSha256":"abfb84dc7f3f43c5bd3ebf4b0cf2d5c1d92b2b1e329772baa6a18f5025c9ad51"},
+    {"path":"backend/app/modules/performance_takes/schemas.py","worktreeSha256":"ebda2ee869c9eed7250ce86e895704b26c1fc9242afe331d91e14d095b35fe54","gitBlobContentSha256":"62d6be30dacdb0cc99f22a90ffb3c8f840484185ca3f1cbf4431429270ee397e"}
+  ],
+  "analysisExecutions": 0,
+  "neuralExecutions": 0
+}

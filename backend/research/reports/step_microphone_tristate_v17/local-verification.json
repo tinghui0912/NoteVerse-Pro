@@ -1,0 +1,12 @@
+{
+  "label": "LOCAL_VERIFICATION_NOT_GITHUB_CI",
+  "researchTests": {"command": "node backend/research/step_microphone_tristate_v17/tests.mjs", "passed": 24, "failed": 0, "artifact": "research-tests.json", "scope": "Synthetic P2/actual pure runtime/identity/architecture, no real P2 analysis"},
+  "productTests": {"runner": "current installed Vitest", "files": 30, "passed": 315, "failed": 0, "pending": 0, "artifact": "product-vitest.json", "scope": ["STEP local-core", "STEP controller/retirement", "MIDI", "use-local-practice", "practice components", "input capability", "architecture no legacy realtime"], "notices": "jsdom emitted HTMLMediaElement.pause/load not-implemented notices; no test failures or acoustic execution"},
+  "researchTypecheck": {"command": "node apps/customer-web/node_modules/typescript/bin/tsc -p backend/research/step_microphone_tristate_v17/tsconfig.json", "exitCode": 0},
+  "researchLint": {"runner": "installed ESLint with research-only eslint.config.mjs", "files": 5, "errors": 0, "warnings": 0, "artifact": "research-eslint.json", "exitCode": 0},
+  "pythonMetadataSyntax": {"method": "ast.parse closure.py, no import or analysis", "requiredBeforeFreeze": true},
+  "productionChanged": false,
+  "modelDecoderPcmExecution": false,
+  "ContinuousProjectionReruns": 0,
+  "CIInterpretation": "NOT CI PASS"
+}

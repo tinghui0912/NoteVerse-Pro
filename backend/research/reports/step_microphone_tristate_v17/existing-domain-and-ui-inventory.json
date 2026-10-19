@@ -1,0 +1,68 @@
+{
+  "productionRuntime": "StepPracticeRuntime schema5 / step-paced-attempt-v5",
+  "finalizedRetry": true,
+  "retryReason": "UNCERTAIN",
+  "phase": "POST_VERDICT",
+  "advancementOnRetry": false,
+  "explicitRearmRequired": true,
+  "currentSkip": "READY-only explicit command creates a separate skip record; not a MATCH",
+  "presentation": "Controller/hook expose lastFinalizedVerdict and interaction phase. practice-status maps RETRY during POST_VERDICT to stepPostVerdictRetry. No microphone analyzer or qualified microphone RETRY policy is wired.",
+  "UIImplementationInV17": false,
+  "Continuous": {
+    "status": "CONTINUOUS_SOURCE_SENSITIVE_PRESENTATION_READY_FOR_SEPARATE_PRODUCT_REFACTOR",
+    "interpretation": "DESIGN_NOTE_ONLY_NOT_IMPLEMENTED_NOT_PRODUCTION_QUALIFICATION",
+    "sourceRowsVerified": 22,
+    "ContinuousProjectionReruns": 0,
+    "internalOwnershipChanged": false
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "572c97ce339264ef2c85fce9a091cca9d0ff0a91e1821643ec8ee5850a133781"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "191055255b0fa210645533182de8232b77f0cb614d4dd426824f28e50daf4d4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "sha256": "41dc5d6661d2154bb780e7f3455b3d5e765521427f35a4be6c48b1d87bd39af2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "sha256": "cd6e32ac46fea17538fde9c40c5853e4d4ab14e6c0ba3bd2d6608a7286f19e23"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-status.tsx",
+      "sha256": "d814d2d3d2f7bcb5bcd199094cfdf7e1fb25783260ba008353c1a58881e7af84"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-skip-control.tsx",
+      "sha256": "e9c7473239cb1a92f598d96c94108fbd77dc94037d921d2caf29d2dab47ff4fc"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx",
+      "sha256": "4136ff11afbe7dccc8fefbac26597adffc6c4b50371b6e061d6eebcd51adee40"
+    },
+    {
+      "path": "apps/customer-web/messages/en/practice.json",
+      "sha256": "dc1eab23eb3f4c7a39d6334c84a2f975e45c26b05bc4c189cf6f739a08a8a51e"
+    },
+    {
+      "path": "apps/customer-web/messages/zh/practice.json",
+      "sha256": "28233ad265b94a85d7869ee03e07973ef7895d784f78dcfca81ec8612cacf769"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    }
+  ]
+}

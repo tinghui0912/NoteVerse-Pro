@@ -1,0 +1,336 @@
+{
+  "role": "V17_CONSERVATIVE_TRISTATE_RESEARCH_PROTOCOL_FREEZE",
+  "startingHead": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+  "createdAt": "2026-10-19T07:27:36.444Z",
+  "contract": {
+    "phase": "STEP_MICROPHONE_CONSERVATIVE_TRISTATE_V17",
+    "label": "EXPOSED_DEVELOPMENT_PRODUCT_POLICY_RESEARCH_ONLY_NOT_QUALIFICATION",
+    "startingHead": "e7b98f302431e61b19f3b6886b51ce4f50bb01e7",
+    "candidate": "P2_CONSERVATIVE_TRISTATE",
+    "policy": {
+      "MATCH": "normalized O == E",
+      "RETRY_UNCERTAIN": "E is a proper subset of O",
+      "MISMATCH": "at least one required pitch in E is absent in O"
+    },
+    "rationale": "P0 exact-set blocks V16 wrong-octave false MATCH but falsely rejects supported gestures with acoustic extras. P1 coverage removes those false rejects but causes a proven wrong-octave false MATCH. P2 expresses target-covered-but-extra ambiguity through existing RETRY/UNCERTAIN, not imaginary physical-key certainty. Product honesty/safety policy, not acoustic accuracy improvement.",
+    "baseline": {
+      "classification": "CURRENT_FROZEN_ENGINEERING_BASELINE_NOT_GLOBAL_OPTIMUM",
+      "model": "robust-browser-engineering-default-xc4-v1",
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "inputSamples": 29120,
+      "inputMs": 1820,
+      "decoder": "A",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05,
+      "ownedMs": 600,
+      "pastMs": 1050,
+      "futureMs": 170
+    },
+    "physicalSupport": "E is a subset of frozen physical truth, independently of acoustic output",
+    "classifications": {
+      "SAFE_MATCH": "MATCH and supported",
+      "DANGEROUS_FALSE_MATCH": "MATCH and unsupported",
+      "SUPPORTED_RETRY": "RETRY and supported",
+      "UNSUPPORTED_RETRY": "RETRY and unsupported",
+      "TRUE_REJECT": "MISMATCH and unsupported",
+      "FALSE_REJECT": "MISMATCH and supported"
+    },
+    "safetyGate": "Any DANGEROUS_FALSE_MATCH immediately seals safety failure and stops. No repair or alternative policy.",
+    "inputs": "All 34 frozen V15 attempts, rebound by exact scenario/rate/ordinal to V16 P0/P1 rows. Keep physical truth, observed pitches, IDs, original source times. Do not regenerate H50 or acoustic evidence.",
+    "domainReplay": "Actual current StepPracticeRuntime only. Per scenario/rate, use frozen V15 target sequence and synthetic SessionTime epochs/rearm watermarks. RETRY uses existing kind=RETRY reason=UNCERTAIN. Non-RETRY passes complete unchanged observed pitch strings as EVIDENCE. Original acoustic evidence stays in a sidecar because existing RETRY record intentionally stores empty observedAttackPitches/confidence=null. Finalize -> POST_VERDICT -> explicit rearm. No microphone resources, latency or shipping cooldown claim.",
+    "dedup": {
+      "keyFields": [
+        "audioBoundCaseId",
+        "physicalGestureId",
+        "sourceRateHz",
+        "canonical sealed observation identity/set SHA256"
+      ],
+      "observationCanonicalization": "Validate IDs/pitch/midiPitch/confidence/sourceDomainId/sourceSampleRateHz/sourceEventSample/targetSample against immutable V15 assembly; sort complete observation objects by observationId, SHA256 stable-key JSON. Target excluded from physical identity.",
+      "grouping": "Retain every scenario row, expected target, P2 classification and multiplicity in the physical group. Conflicting truth/recording/acoustic identity is integrity failure. Retain separate unique target views inside each physical group.",
+      "supportedUsability": "A physical unit is supported if at least one existing frozen target view has physical target support. Use each DISTINCT supported target view once. A unit gets one usability verdict only when all supported target views agree; otherwise MIXED_SUPPORTED_TARGET_CONTEXT_NOT_COMPARABLE and no pooled rate. Never select a favorable target view or invent an expected set.",
+      "recordingCorrelation": "Both rate variants remain reported, but are not independent recordings. Also report recording IDs and distinct physical gesture IDs ignoring rate."
+    },
+    "usability": {
+      "SAFE_AUTO_MATCH_COVERAGE": "Supported unique physical units with unanimous MATCH / supported unique physical units with unanimous verdict",
+      "SUPPORTED_AMBIGUITY_RETRY_RATE": "Supported unique physical units with unanimous RETRY / same denominator",
+      "MISMATCH": "Supported unique physical units with unanimous MISMATCH / same denominator",
+      "rateInterpretation": "NOT_GENERALIZABLE_PRODUCT_RATE"
+    },
+    "reopenDecision": {
+      "recommendB": "Only if zero dangerous automatic MATCH, no mixed supported target contexts, and supported RETRY occurs on >=2 distinct physical gestures in >=2 distinct recording IDs, with each qualifying gesture observed at BOTH 44100 and 48000. This is a minimal cross-recording recurrence criterion for designing research, not a usability SLO or population estimate.",
+      "otherwise": "ACOUSTIC_OPERATING_POINT_REOPEN_NOT_JUSTIFIED",
+      "B": "ACOUSTIC_OPERATING_POINT_REOPEN_JUSTIFIED_FOR_EXPOSED_DEVELOPMENT_ONLY",
+      "executionAuthorized": false
+    },
+    "futureObjective": "Maximize SAFE_AUTO_MATCH_COVERAGE subject to DANGEROUS_TARGET_HALLUCINATION safety, required-target recall, runtime stability and latency; never maximize CORRECT or merely minimize raw extras.",
+    "futureMetrics": {
+      "requiredTargetRecall": "On supported unique physical-unit/target views, observed required pitches / required physical target pitches; also report all-required coverage",
+      "cleanExactTargetRate": "Supported view O == E",
+      "supportedAmbiguityRate": "Supported view E proper subset O",
+      "dangerousTargetHallucinationRate": "Unsupported unique physical-unit/target view with E subset O; retain even if P2 correctly returns RETRY",
+      "missingTargetFalseNegativeRate": "Supported target view with some E pitch absent in O",
+      "scope": "Descriptive exposed diagnostics; targets and rate variants remain correlated. No raw EXTRA count substitutes for these metrics."
+    },
+    "prospectiveStudyOrder": [
+      "decoder .30/.05 operating point, no direction selected",
+      "geometry owned600/future170 vs historical owned600/future120 challenger, keep full real 29120-sample contract and freeze context accounting separately",
+      "new readout mechanism only if separately demonstrated necessary"
+    ],
+    "modelInputContract": "MODEL_INPUT_CONTRACT_NOT_REOPENED",
+    "retirement": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+    "persistentRetry": "PERSISTENT_ACOUSTIC_AMBIGUITY_USABILITY_RISK; never auto-promote Nth retry, majority-vote, union evidence, accumulate, auto-skip or fit confidence from these outputs",
+    "continuous": "Do not rerun projection. Verify V16 inventory source hashes, carry forward ownership/presentation interpretation only. Separate future product refactor note, no implementation.",
+    "stop": "Freeze commit/push/fetch/exact remote proof before one real P2 analysis. Any hash, domain parity, dedup conflict or input integrity failure seals failure and stops. No policy/code/parameter edits after output.",
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "files": [
+    {
+      "path": "apps/customer-web/messages/en/practice.json",
+      "sha256": "dc1eab23eb3f4c7a39d6334c84a2f975e45c26b05bc4c189cf6f739a08a8a51e"
+    },
+    {
+      "path": "apps/customer-web/messages/zh/practice.json",
+      "sha256": "28233ad265b94a85d7869ee03e07973ef7895d784f78dcfca81ec8612cacf769"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(app)/my-performances/page.tsx",
+      "sha256": "1dc25eecc2daf427a678e59411ee335512316c3e825208db22b338e1eb0d328f"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx",
+      "sha256": "4136ff11afbe7dccc8fefbac26597adffc6c4b50371b6e061d6eebcd51adee40"
+    },
+    {
+      "path": "apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx",
+      "sha256": "475c8e843c37dab3f91672f79036ff1c2454675100befee3c7265bfb30e66064"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-completion-dialog.tsx",
+      "sha256": "627b3fcdc3d3f19bef598a2bdfe5ca32e1ab186073bfc1ade396c5e8a3a2066b"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-score-viewer.tsx",
+      "sha256": "b045c415fc064ff3f946f800f97cc70ce5a517a806e6fb5cdbb38abd9c36479b"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-skip-control.tsx",
+      "sha256": "e9c7473239cb1a92f598d96c94108fbd77dc94037d921d2caf29d2dab47ff4fc"
+    },
+    {
+      "path": "apps/customer-web/src/components/practice/practice-status.tsx",
+      "sha256": "d814d2d3d2f7bcb5bcd199094cfdf7e1fb25783260ba008353c1a58881e7af84"
+    },
+    {
+      "path": "apps/customer-web/src/generated/api/types.gen.ts",
+      "sha256": "ed81625f4d146995ec9271caa77a5bef849d08957398ad2400c621ecec8c24fc"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-local-practice.ts",
+      "sha256": "4900321545d554f7d11aeee58b7f6818f3512ddd33981bae6c283866774bd1b6"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "sha256": "cd6e32ac46fea17538fde9c40c5853e4d4ab14e6c0ba3bd2d6608a7286f19e23"
+    },
+    {
+      "path": "apps/customer-web/src/hooks/queries/use-performance-take-queries.ts",
+      "sha256": "208387444350f8cf2aee3bc89ff8630721e8912114311a686e2a54bc588941ed"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.ts",
+      "sha256": "c2b6434d820ad168f5fdec4770d53b02435995a688a57aef4b19060f2a6b474e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts",
+      "sha256": "90f5817590fb01e9b9806c4aac57c173404237912b558c29eb105284987f39f2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-projection.ts",
+      "sha256": "8c79f043abca037f7017dfad48b484302e67887d5105fbfc9b4f79e4be71fcdb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "sha256": "8af3afe57a76cd5c702e5fc43569b4ba0ce0b9e782ad7eaaf30581754e352166"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "191055255b0fa210645533182de8232b77f0cb614d4dd426824f28e50daf4d4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "572c97ce339264ef2c85fce9a091cca9d0ff0a91e1821643ec8ee5850a133781"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "sha256": "41dc5d6661d2154bb780e7f3455b3d5e765521427f35a4be6c48b1d87bd39af2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0"
+    },
+    {
+      "path": "backend/app/db/models/performance_take.py",
+      "sha256": "a2b6658836d3697d40ed817056c75ad0f092fbe6d674e1985657a356788cb7fb"
+    },
+    {
+      "path": "backend/app/modules/performance_takes/schemas.py",
+      "sha256": "ebda2ee869c9eed7250ce86e895704b26c1fc9242afe331d91e14d095b35fe54"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/assessment.json",
+      "sha256": "2889f94c67ceed7be16469876a22c13eab6cbe0e76e1d4240768b58ae9fa086f"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/continuous-code-inventory.json",
+      "sha256": "696b4d5f0543ea519585748c3e55c40ce0a163a121e7c692c26ae9359e68907f"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/policy-research-freeze.json",
+      "sha256": "af44e96cfc087341a2173fc8a29b9e95e890f09046af311e2d13e25e607100cc"
+    },
+    {
+      "path": "backend/research/reports/microphone_product_policy_v16/step-policy-results.json",
+      "sha256": "fa08a97eb24af34b0d3fcb41e94be44cb04fc771614690ebc43ba816ead8d858"
+    },
+    {
+      "path": "backend/research/reports/step_microphone_tristate_v17/existing-domain-and-ui-inventory.json",
+      "sha256": "a9eb8fe363bb46122842e83afe0bab99ba93db397f585008f33c9eadc4769ac1"
+    },
+    {
+      "path": "backend/research/reports/step_microphone_tristate_v17/historical-raw-identities.json",
+      "sha256": "1d04ff3df9a1d2801db21ed00b4f4be4416636baef1b69fcfd5eaf21660072c3"
+    },
+    {
+      "path": "backend/research/reports/step_microphone_tristate_v17/local-verification.json",
+      "sha256": "6017712f8e39509f17033eb3c6797c3daf702be11f78a7996e9ab7d40a792f3c"
+    },
+    {
+      "path": "backend/research/reports/step_microphone_tristate_v17/research-tests.json",
+      "sha256": "89b8a01bbd2b723f422ac6c3adf9cb5f149af90f5e57c4ec5660de48d706732d"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+      "sha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/audio-bound-cases.json",
+      "sha256": "745152c3cd7b7fc746a427398914b3eebcc19c9d99d768ac530199293c141b8e"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+      "sha256": "fe91b48802b3c1d27e412e90dd27a4e20ebc90e8ef011a0ccee90838434c2d55"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/.gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/closure.py",
+      "sha256": "2a785738b1808704a8aa50d5782cb401a9462f79c4fc2bc3a7649e249b878c6f"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/contract.json",
+      "sha256": "b0154f3ba2eee0c0d446594e25e950220f070a56568f14ba679db71267ae02d6"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/core.mjs",
+      "sha256": "84f045f068de9f57e5873ba9149fc462f83bba89add4e7923e0863ff6a9bcce2"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/design-note.md",
+      "sha256": "7de569c8a71fcb8e145ab7da76d303342942a028f95e8436620bae8e32ea0047"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/domain.ts",
+      "sha256": "85ddf73e305e9d1839b7a3ac7b83e7488b1fb7f53a4ce330b9df7d1ed21ee548"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/eslint.config.mjs",
+      "sha256": "f12aac0f44490f2639e602ac975151bf5415c5bdabb152c0bb6d9e8f79cdc843"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/policy.mjs",
+      "sha256": "33ffeb31d46d5964e9eb0717663edcf1f11c2d8777f398bd6440358dc3403b8e"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/runner.mjs",
+      "sha256": "ae86fd5fd43eead41f0aac8bebd17e33bf78ab546c636420fb2f171b84edf0dd"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/tests.mjs",
+      "sha256": "3060589923b058f9094b55ffb7d891d7805b2ce1c95672604558b5e19c5ee60e"
+    },
+    {
+      "path": "backend/research/step_microphone_tristate_v17/tsconfig.json",
+      "sha256": "915fdc88d1e39d92150db115196064b304fdb11d634111e86620bf955ceef7dc"
+    }
+  ],
+  "executableDomainGraph": [
+    "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+    "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+    "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "backend/research/step_microphone_tristate_v17/domain.ts"
+  ],
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "PcmDecodeRuns": 0,
+    "StepAcousticReruns": 0,
+    "ContinuousAcousticReruns": 0,
+    "ContinuousProjectionReruns": 0,
+    "freshHoldoutAccess": 0,
+    "warmups": 0,
+    "unknownRuns": 0
+  },
+  "analysis": "NOT_STARTED",
+  "analysisExecutionsAllowed": 1,
+  "remoteProofRequired": true,
+  "initialGitHub": {
+    "queriedAt": "2026-10-19T05:43:31.327113+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "ciInterpretation": "NOT CI PASS"
+  }
+}
