@@ -1,0 +1,10 @@
+{
+  "freezeCommit": "a0b8cf774709d3f91b25521f47622e680169410f",
+  "remoteHead": "a0b8cf774709d3f91b25521f47622e680169410f",
+  "remoteVerifiedAt": "2026-10-19T11:55:07.943Z",
+  "freezeSha256": "9c6c1ba667b29ad182661248fa1688a661bf46714decf0223fb03b3bf99d2550",
+  "configSha256": "e6e4c5afbba66d20e0603b3cfdf4eca5c5307ba42878f5911c2eb8181c904bdf",
+  "candidateNeuralRunsBeforePermission": 0,
+  "baselineNeuralRuns": 0,
+  "StageB": "NOT_STARTED"
+}
