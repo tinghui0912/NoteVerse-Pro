@@ -1,0 +1,61 @@
+{
+  "startingHead": "e15a449100294a00e4c3329efd5e7297cd4d260b",
+  "verifiedEvidenceCommit": "1a30a40cc0139a6c24706420dfd56cfd6b768222",
+  "verifiedRemoteHead": "1a30a40cc0139a6c24706420dfd56cfd6b768222",
+  "remoteVerifiedAt": "2026-10-19T03:19:04.534056+00:00",
+  "completeCommitChainThroughEvidence": [
+    "1a30a40cc0139a6c24706420dfd56cfd6b768222 research: seal V14 prefreeze static graph dependency blocker with zero inference"
+  ],
+  "changedFilesThroughEvidence": [
+    "backend/research/reports/step_next_acoustic_wave1_v14/assessment.json",
+    "backend/research/reports/step_next_acoustic_wave1_v14/assessment.md",
+    "backend/research/reports/step_next_acoustic_wave1_v14/pre-freeze-tooling-failure.json",
+    "backend/research/reports/step_next_acoustic_wave1_v14/static-graph.json",
+    "backend/research/reports/step_next_acoustic_wave1_v14/static-graph.stderr.txt",
+    "backend/research/step_next_acoustic_wave1_v14/closure.py",
+    "backend/research/step_next_acoustic_wave1_v14/contract.json",
+    "backend/research/step_next_acoustic_wave1_v14/core.mjs",
+    "backend/research/step_next_acoustic_wave1_v14/inspect_onnx.py"
+  ],
+  "productionDiff": [],
+  "historicalDiffs": {
+    "v3": [],
+    "v4": [],
+    "v5": [],
+    "v6": [],
+    "v7": [],
+    "v8": [],
+    "v9": [],
+    "v10": [],
+    "v11": [],
+    "v12": [],
+    "v13": []
+  },
+  "assessmentSha256": "388cbd2339e227050249460a388d8ec146ff7e7b58170ac3f159d997fba9cba3",
+  "execution": {
+    "robustSessionRuns": 0,
+    "originalSessionRuns": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "originalDecoderRuns": 0,
+    "modelSessionLoads": 0,
+    "productAcousticWorkerConstructions": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0,
+    "failedModelRuns": 0,
+    "unresolvedModelRuns": 0,
+    "newNeuralRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "freshHoldoutAccess": 0
+  },
+  "github": {
+    "head": "1a30a40cc0139a6c24706420dfd56cfd6b768222",
+    "queriedAt": "2026-10-19T03:19:08.518280+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "receiptPlacement": "Additive receipt follows verified failure evidence; final receipt HEAD is fetched and queried independently in task closeout."
+}
