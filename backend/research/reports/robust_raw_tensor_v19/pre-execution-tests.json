@@ -1,0 +1,22 @@
+{
+  "status":"FAIL_STOP_BEFORE_PROTOCOL_FREEZE",
+  "passedBeforeFailure":12,
+  "failed":1,
+  "notRunAfterFailure":2,
+  "command":"node backend/research/robust_raw_tensor_v19/tests.mjs pre",
+  "failedTest":"baseline only one frozen .30/.05 call site; remote raw seal gate precedes import/call",
+  "source":"backend/research/robust_raw_tensor_v19/tests.mjs:79",
+  "assertion":"(source.match(/onsetThreshold: 0\\.30, frameThreshold: 0\\.05/g) ?? []).length === 1",
+  "actual":2,
+  "expected":1,
+  "failureClassification":"STATIC_SOURCE_TEXT_OCCURRENCE_COUNT_CONFLATES_DECODER_ARGUMENT_AND_REPORT_METADATA",
+  "inspection":"baseline.mjs contains one literal at the decodeRobustPiano call and one in the report thresholds field. This explains the failed static assertion; it does not establish full harness execution integrity or authorize ignoring the failed gate.",
+  "completedChecks":["production/history scope and accepted identities","9-case/18-job/228-input two-rate inventory","all228 finite Float32 inputs with exact V6/reference SHA","binary byte arithmetic","LE roundtrip including sign/subnormal/extremes","descriptor/nonfinite rejection","pair readback SHA/tamper detection","raw-only browser/Worker import graph","capture-host import isolation","single guarded model/session/run call site","exact model/ORT assets","production baseline decoder/publication graph with no neural reachability"],
+  "notRunChecks":["remaining HTTP allowlist test","remaining corpus identity test"],
+  "rerunPerformed":false,
+  "testOrHarnessRepairedAfterFailure":false,
+  "protocolFreeze":"NOT_CREATED",
+  "newNeuralRuns":0,
+  "decoderRuns":0,
+  "localNotCI":true
+}
