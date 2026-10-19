@@ -157,3 +157,20 @@ it('application ownership and domain status have separate types and truthful STE
   expect(snapshot.getText(ast)).toContain('runtimeStatus: StepRuntimeStatus');
   expect(snapshot.getText(ast)).not.toContain('lifecycleState');
 });
+
+it('one production H50 assembler is target-blind, source-frontier sealed and not browser microphone wiring', () => {
+  const file = path.join(__dirname, 'step-acoustic-attempt-assembler.ts');
+  const source = read(file), reached = reach(file);
+  expect(files.filter(p => /export class StepAcousticAttemptAssembler\b/.test(read(p)))).toEqual([file]);
+  expect(reached).toEqual(expect.arrayContaining([file, path.join(practice, 'local-core/timebase.ts')]));
+  expect(reached.filter(p => p !== file && p !== path.join(practice, 'local-core/timebase.ts'))).toEqual([]);
+  expect(source).not.toMatch(/StepPracticeRuntime|currentTarget|attackPitchesForStep|pitchSetsEqual|expected|targetGeneration|subset|\bp2\(|\.rearm\(/);
+  expect(source).not.toMatch(/setTimeout|setInterval|performance\.now|Date\.now|availabilityTimeMs|performanceTimeMs|AudioContext|new Worker|fetch\(/);
+  expect(source).toContain('this.frontier < active.end');
+  expect(source).toContain('sourceEventSample > this.eligibleAfter');
+  expect(source).toContain('o.sourceEventSample < active.end');
+  expect(source).toContain('Math.min(...bounded.map(o => o.confidence))');
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).not.toContain('StepAcousticAttemptAssembler');
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
+  expect(read(path.join(src, 'hooks/practice/use-step-local-practice.ts'))).not.toContain('StepAcousticAttemptAssembler');
+});

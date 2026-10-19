@@ -9,6 +9,8 @@ export type SourceAcousticObservation = Readonly<{
 }>;
 export type SourceAcousticPublication = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: SourceRate; window: AcousticWindow;
+  /** Exclusive absolute source frontier processed by this publication, not physical captured-through. */
+  ownedThroughSourceSample: number;
   availabilityTimeMs: number; observations: readonly SourceAcousticObservation[];
 }>;
 export type SourcePublicationSink = (publication: SourceAcousticPublication) => void;
@@ -28,7 +30,10 @@ export function sourcePublication(domain: string, rate: SourceRate, base: number
     return Object.freeze({ observationId, pitch: e.pitch, midiPitch: e.midiPitch, confidence: e.confidence,
       sourceDomainId: domain, sourceSampleRateHz: rate, sourceEventSample: numerator / 16000, targetSample: e.targetSample });
   });
-  return Object.freeze({ sourceDomainId: domain, sourceSampleRateHz: rate, window,
+  const ownedThroughSourceSample = base + window.ownedEndTarget * rate / 16000;
+  if (!Number.isFinite(ownedThroughSourceSample) || ownedThroughSourceSample < 0
+    || ownedThroughSourceSample > Number.MAX_SAFE_INTEGER) fail('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
+  return Object.freeze({ sourceDomainId: domain, sourceSampleRateHz: rate, window, ownedThroughSourceSample,
     availabilityTimeMs, observations: Object.freeze(observations) });
 }
 export function deliverSynchronously<T>(sink: (value: T) => void, value: T): void {

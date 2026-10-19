@@ -1,0 +1,325 @@
+{
+  "role": "V24_PROSPECTIVE_PRODUCTION_H50_MIGRATION_REPLAY_FREEZE",
+  "createdAt": "2026-10-19T13:33:02.368Z",
+  "startingHead": "d60605ea96285e5dba85a0cb98a01dd8613f67ad",
+  "contract": {
+    "phase": "STEP_PRODUCTION_ACOUSTIC_ATTEMPT_ASSEMBLER_V24",
+    "classification": "ZERO_NEURAL_PRODUCTION_ARCHITECTURE_MIGRATION_NOT_MICROPHONE_QUALIFICATION",
+    "gestureMs": 50,
+    "eligibility": "sourceEventSample > inputEligibleAfterSourceSample",
+    "interval": "[T,T+50ms)",
+    "seal": "absolute exclusive ownedThroughSourceSample >= gesture end",
+    "frontierEnvelope": "unchanged immutable V7 publication plus V20/V6 sourceOriginSample + window.ownedEndTarget * sourceRateHz / 16000; observations and window unchanged",
+    "frontierNotPhysicalCapturedThrough": true,
+    "evidenceKind": "EVIDENCE_ONLY",
+    "confidence": "minimum bounded observation confidence",
+    "observationOrder": "sourceEventSample ascending then stable observationId code-unit order",
+    "duplicate": "identical immutable content idempotent; mutated ID fails closed; no ID reassigned; bounded identity registry never evicts",
+    "sourceMapping": "PracticeTimebase fixed sample anchor to same localSessionId, sampleIndex preserved; no transport/arrival clock/fit/compensation",
+    "runtimeSchema": 6,
+    "runtimeVersion": "step-source-sensitive-verdict-v6",
+    "runtimeVerdictOwner": "StepPracticeRuntime.completeAttempt",
+    "rearm": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+    "cooldown": "FIXED_MICROPHONE_COOLDOWN_NOT_ESTABLISHED",
+    "noBrowserMicrophoneWiring": true,
+    "replay": "all immutable V15/V18 34 attempts across 22 cells; same prior paced epochs; ordinary evidence from production assembler only",
+    "replayInstanceBoundary": "one assembler per frozen paced attempt with fixed source/session anchor; cell runtime persists; persistent-instance same-target and non-READY isolation are separately tested in production tests",
+    "assemblyComparison": [
+      "anchor source sample",
+      "end source sample",
+      "complete observations and IDs/order",
+      "source event samples",
+      "pitches",
+      "minimum confidence",
+      "source domain",
+      "source sample rate"
+    ],
+    "verdictParity": {
+      "MATCH": 8,
+      "RETRY": 14,
+      "MISMATCH": 12
+    },
+    "physicalClassificationParity": {
+      "SAFE_MATCH": 8,
+      "DANGEROUS_FALSE_MATCH": 0,
+      "SUPPORTED_RETRY": 12,
+      "UNSUPPORTED_RETRY": 2,
+      "TRUE_REJECT": 12,
+      "FALSE_REJECT": 0
+    },
+    "truthRole": "downstream physical classification only; never passed to assembler",
+    "stop": "any per-row assembly/verdict divergence preserves failure and stops; never change H50 to fit evidence",
+    "replayExecutionsAllowed": 1,
+    "currentDefaults": {
+      "model": "robust-browser-engineering-default-xc4-v1",
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "inputSamples": 29120,
+      "inputMs": 1820,
+      "decoder": "A",
+      "onset": 0.3,
+      "frame": 0.05,
+      "ownedMs": 600,
+      "pastMs": 1050,
+      "futureMs": 170
+    },
+    "baselineClassification": "CURRENT_FROZEN_ENGINEERING_BASELINE_NOT_GLOBAL_OPTIMUM",
+    "V23ImmutableDisposition": "ROBUST_V23_600_120_NO_MEANINGFUL_STEP_USABILITY_GAIN_BASELINE_600_170_RETAINED",
+    "V23CandidateOutputUsed": false,
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "files": [
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "sha256": "cd6e32ac46fea17538fde9c40c5853e4d4ab14e6c0ba3bd2d6608a7286f19e23"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/publication.ts",
+      "sha256": "8ebadaadda772bb39b7c32bdfba2a16da5c4ea1dd80ef3c4e8e8bba21ce46068"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.test.ts",
+      "sha256": "844197fef19b2a764db9bd887caa14abb1fee471207ec9cef41b134f192929bd"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "sha256": "49ea38c9a08bc81802f12d96dd2a531016f1c5f3da92ec649cf5b5f4bb02dbe9"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "sha256": "f227643ee07a338d7b21294819c0384d78377f10326994c45fe6599de1d5a70d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "sha256": "1fe3c00c3ebaa1e56f0d7fc96143650cfa1105a757a24e02c7529b3e2a11c13d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "sha256": "dab8396fbc9293d3f7c7926f5c39f28eaec01258a87f02b75a9212a1ae40352a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.test.ts",
+      "sha256": "df686bd26ceaf922d40694a25690e4e45dd1c537826952a0e0014595306fc4c2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+      "sha256": "e815f34b6617490e6a3823572058a1acd78cf5e8a60d17535e12753bcdf657f4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+      "sha256": "fa472cf84cdc30964e1169223125012b9fca3b8f1b61de1324679be4cf4bced3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "sha256": "d662cbf787e57baa7bdbd52f1eb658ddfdca80997588fad36f4d164d150b4b19"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "sha256": "41dc5d6661d2154bb780e7f3455b3d5e765521427f35a4be6c48b1d87bd39af2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0"
+    },
+    {
+      "path": "backend/research/reports/robust_raw_tensor_v20/tensor-corpus-manifest.json",
+      "sha256": "4bb391905007ecbd594b4ed76d7fa79be0a3c095062da9111c4de63e72129c4b"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/bundles/assembler.mjs",
+      "sha256": "dfc2ef71eb7c5046eb62070971518c26e279c944db4e39bb930c977ebfcf6751"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/bundles/domain.mjs",
+      "sha256": "fd51a08b8115036ce6ae717c47dc427e28e0fcb19efb204948004d5d58f90208"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/historical-identities.json",
+      "sha256": "df4f896fe63564e7b3579cde4e1c441af3b90c1f762f977cf3f3681d5323d84d"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/local-verification.json",
+      "sha256": "2eb30a4ef2bcf45b05dbbd4a7d0e27ce56c5d1864bf70eef180c7c9aa0eb283c"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/preflight-tests.json",
+      "sha256": "0ee6a49b55875ffd0499b3b13f9b77e32e547c8a19c7e437472655244edd9432"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/product-vitest-final.json",
+      "sha256": "4082e793a855fb4369bcaa9e95bcc2af99181a93bcb11b1b0b83f42372a4d649"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/product-vitest.json",
+      "sha256": "7496ae542fb7e250f15dc096184f2c1e74ec13f396670d0fa72efefc1d17dd50"
+    },
+    {
+      "path": "backend/research/reports/step_acoustic_assembler_v24/starting-gate.json",
+      "sha256": "9a61b3804ec34eccfa179550153c4e5ea9f21dfe0c9f4b2924d04aa538195ff1"
+    },
+    {
+      "path": "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+      "sha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a"
+    },
+    {
+      "path": "backend/research/reports/step_runtime_verdict_v18/runtime-replay-results.json",
+      "sha256": "66d07cabefd9592677f124af256149ad24057b569778de1b3c88653cadf9a0be"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+      "sha256": "27d80f956f207366f3739d8277f559f98b7ba85f4f51df7a75b7dd57da2e2c51"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+      "sha256": "fe91b48802b3c1d27e412e90dd27a4e20ebc90e8ef011a0ccee90838434c2d55"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic-seal.json",
+      "sha256": "5ffdb33b8f34791249f40e8c7b6c778b6d93a5f362b305b77120269ceb933f85"
+    },
+    {
+      "path": "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic.json",
+      "sha256": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/assembler.ts",
+      "sha256": "69a05ed82a75987a4ea02f4efc20d28b7007fe458cbbb29aada1bc2bd40fbb77"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/audit.mjs",
+      "sha256": "2542847c3689d24aba0d15956ddcc92aabf408ae741fde057d566c0805de7c10"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/closeout.mjs",
+      "sha256": "235f0590b11a54b6fd3912ca1be3ba8aa96f7772ef1d403a7d5bd37ccc5055fb"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/contract.json",
+      "sha256": "e88e74946e918c619f77e72c6b8db5f1657e82fb0f3b6bd0393ae87712b057ed"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/design.md",
+      "sha256": "c5246e954585b23efaf7d2fb188b7f8e938d4af8fc5264e9a271bb31b055d31d"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/domain.ts",
+      "sha256": "af1fcbd2aa001b8d01888b695444ec4807197550eb4fe23d049480236c7905a6"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/eslint.config.mjs",
+      "sha256": "1692ac6d918f24e3fd29ee3b9642d4fcc7ff8f1904ba1ad84e6c2a147e357b24"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/io.mjs",
+      "sha256": "619838e8a051e7826cb046ecb2ae55bfcec05a42bbaa3382620bbd55ae05d49b"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/replay.mjs",
+      "sha256": "518ef65a1303c0af0eb9d25ab26cb8cf4cf00915311bc474cfb2c552a6004cff"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/run.mjs",
+      "sha256": "3ac26a981fc4e703a8aa846187d62a0710aaf0295396c214b59f7e2044185f9e"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/tests.mjs",
+      "sha256": "9c3cedaea5615b08de34f0276111187a2e48ddcfe052642013e01e5eeb1c9071"
+    },
+    {
+      "path": "backend/research/step_acoustic_assembler_v24/tsconfig.json",
+      "sha256": "a5258b9753fd566409dcfba032d8ba61423212c5f9777bcb6ab52831b8dfdea6"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "assembler",
+      "path": "backend/research/reports/step_acoustic_assembler_v24/bundles/assembler.mjs",
+      "sha256": "dfc2ef71eb7c5046eb62070971518c26e279c944db4e39bb930c977ebfcf6751",
+      "graph": [
+        "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+        "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+        "backend/research/step_acoustic_assembler_v24/assembler.ts"
+      ]
+    },
+    {
+      "name": "domain",
+      "path": "backend/research/reports/step_acoustic_assembler_v24/bundles/domain.mjs",
+      "sha256": "fd51a08b8115036ce6ae717c47dc427e28e0fcb19efb204948004d5d58f90208",
+      "graph": [
+        "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+        "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+        "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+        "apps/customer-web/src/lib/practice/local-core/session.ts",
+        "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+        "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+        "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+        "backend/research/step_acoustic_assembler_v24/domain.ts"
+      ]
+    }
+  ],
+  "productionChangeAllowlist": [
+    "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+    "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.test.ts",
+    "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+    "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.test.ts",
+    "apps/customer-web/src/lib/practice/step/step-architecture.test.ts"
+  ],
+  "evidenceArtifacts": [
+    "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic.json",
+    "backend/research/reports/step_waiting_h50_holdout_v7/stage-a/acoustic-seal.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+    "backend/research/reports/step_runtime_verdict_v18/runtime-replay-results.json",
+    "backend/research/reports/step_waiting_h50_holdout_v6/scenario-manifest.json",
+    "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+    "backend/research/reports/robust_raw_tensor_v20/tensor-corpus-manifest.json"
+  ],
+  "replayExecutionsAllowed": 1,
+  "replay": "NOT_STARTED",
+  "zero": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "modelRuns": 0,
+    "AcousticModelWorkerRuns": 0,
+    "decoderRuns": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "decoderCRuns": 0,
+    "PCMDecodeRuns": 0,
+    "freshHoldoutAccess": 0,
+    "ContinuousAcousticRuns": 0
+  }
+}
