@@ -1,6 +1,6 @@
 import { StepPracticeRuntime, groupForCurrentStep } from '../local-core/step-runtime';
 import { PracticeTimebase } from '../local-core/timebase';
-import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';
+import { createLocalSessionId, type LocalStepSessionSnapshot, type StepPracticeLifecycle } from '../local-core/session';
 import { resolvePracticeScope, type PracticeInputSource, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '../local-core/practice-tempo';
 import type { BrowserMidiState } from '../midi/browser-midi-controller';
@@ -8,13 +8,14 @@ import { STEP_ANALYSIS_UNAVAILABLE_REASON } from '../input-capability-reasons';
 import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
 import { stepApplicationError, type StepApplicationErrorCode } from './step-errors';
+import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
 
 export type StepControllerOptions = Readonly<{
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
   tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
   onCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
 }>;
-export type StepControllerState = 'READY' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
+export type StepControllerState = StepPracticeLifecycle;
 
 /** The sole STEP application owner. Restart means constructing a fresh owner. */
 export class StepPracticeController {
@@ -24,7 +25,8 @@ export class StepPracticeController {
   private midi: StepMidiPort | null = null;
   private metronome: StepMetronomePort | null = null;
   private input: StepMidiAttemptInput | null = null;
-  private state: StepControllerState = 'READY';
+  private state: StepControllerState = 'IDLE';
+  private retirement: StepRetirementPolicy | null = null;
   private error: StepApplicationErrorCode | null = null;
   private readonly listeners = new Set<() => void>();
   private generation = 0;
@@ -38,19 +40,24 @@ export class StepPracticeController {
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   snapshot() {
+    const session = this.runtime?.snapshot() ?? this.finalSnapshot;
     return Object.freeze({ state: this.state, error: this.error,
+      stepInteractionPhase: session?.step.attemptState ?? null,
+      canAcceptAttempt: this.state === 'ACTIVE' && this.error === null && (this.runtime?.canAcceptAttempt ?? false),
+      lastFinalizedVerdict: session?.step.attempts.at(-1) ?? null,
       elapsedSeconds: Math.floor((this.elapsedMs + (this.activeAt === null ? 0 : this.platform.clock.nowMs() - this.activeAt)) / 1000),
       activeStepGroup: this.runtime ? groupForCurrentStep(this.runtime) : null,
-      sessionSnapshot: this.runtime?.snapshot() ?? this.finalSnapshot,
+      sessionSnapshot: session,
       lastSnapshot: this.finalSnapshot, inputDiagnostics: this.input?.snapshot() ?? null });
   }
   async start(): Promise<void> {
-    if (this.state !== 'READY') return;
+    if (this.state !== 'IDLE') return;
     if (this.options.inputSource === 'MICROPHONE') { this.error = STEP_ANALYSIS_UNAVAILABLE_REASON; this.emit(); return; }
     const generation = ++this.generation; this.state = 'PREPARING'; this.error = null; this.emit();
     try {
       const localSessionId = createLocalSessionId('step'), timebase = new PracticeTimebase({ domainId: localSessionId });
       this.timebase = timebase;
+      this.retirement = new MidiStepRetirementPolicy(this.platform.clock, timebase);
       const runtime = new StepPracticeRuntime({ ...this.options, clock: this.platform.clock, timebase, localSessionId });
       runtime.setInputUnavailable();
       this.runtime = runtime;
@@ -71,11 +78,7 @@ export class StepPracticeController {
           const result = runtime.completeAttempt(identity, evidence);
           if (result.kind === 'REJECTED') return;
           this.emit();
-          if (this.state !== 'ACTIVE') return;
-          if (runtime.isCompleted) this.complete();
-          else if (runtime.snapshot().step.attemptState === 'RESET') {
-            runtime.rearm(result.record.captureEndSessionTime); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit();
-          }
+          this.commitPostVerdict();
         },
         failure: error => this.failAttempt(error),
       }, this.platform.timer);
@@ -90,11 +93,11 @@ export class StepPracticeController {
       this.metronome?.start(runtime.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
-      this.error = stepApplicationError(error); this.cleanup(); this.runtime = null; this.state = 'READY'; this.emit();
+      this.error = stepApplicationError(error); this.cleanup(); this.runtime = null; this.state = 'IDLE'; this.emit();
     }
   }
   skip(): void {
-    if (this.state !== 'ACTIVE') return;
+    if (this.state !== 'ACTIVE' || !this.runtime?.canAcceptAttempt) return;
     this.input?.cancel();
     try {
       if (!this.runtime?.skip()) return;
@@ -115,11 +118,23 @@ export class StepPracticeController {
     if (enabled) this.updateTarget(); this.emit();
   }
   private complete(): void {
+    if (this.state === 'ENDED' || this.state === 'DISPOSED') return;
     this.holdElapsed(); this.input?.cancel(); this.finalSnapshot = this.runtime?.snapshot() ?? null;
     this.cleanup(); this.state = 'ENDED'; this.emit();
     if (this.finalSnapshot) this.options.onCompletion?.(this.finalSnapshot);
   }
   private updateTarget(): void { if (this.runtime && !this.runtime.isCompleted) this.metronome?.setStepContext(this.runtime.currentOnsetBeat); }
+  private commitPostVerdict(): void {
+    const step = this.runtime?.snapshot().step;
+    if (this.state !== 'ACTIVE' || this.error || !this.runtime || !step?.inputAvailable
+      || step.attemptState !== 'POST_VERDICT') return;
+    const watermark = this.retirement?.retirementWatermark();
+    if (!watermark) return;
+    const matched = step.pendingPostVerdict?.verdict === 'MATCH';
+    this.runtime.rearm(watermark);
+    if (this.runtime.isCompleted) this.complete();
+    else { if (matched) this.updateTarget(); this.emit(); }
+  }
   private holdElapsed(): void {
     if (this.activeAt !== null) this.elapsedMs += this.platform.clock.nowMs() - this.activeAt;
     this.activeAt = null;
@@ -129,7 +144,8 @@ export class StepPracticeController {
     if (state.connectedInputCount > 0) {
       if (this.state === 'ACTIVE' && this.error === 'NO_CONNECTED_INPUT' && this.runtime && this.timebase) {
         this.runtime.acceptInputAfter(this.timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
-        this.error = null; this.emit();
+        this.error = null;
+        this.commitPostVerdict(); this.emit();
       }
       return;
     }

@@ -32,8 +32,12 @@ describe('one target / one bounded attempt / one verdict', () => {
     const { runtime, begin, finish } = setup(index), identity = begin();
     const result = finish(identity, pitches);
     expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict, ...identity } });
-    expect(runtime.currentStepIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));
+    expect(runtime.currentStepIndex).toBe(index);
+    expect(runtime.currentTarget()?.targetGeneration).toBe(identity.targetGeneration);
+    expect(runtime.snapshot().step.pendingPostVerdict).toBe(result.kind === 'FINALIZED' ? result.record : null);
     expect(runtime.snapshot().step.attempts).toHaveLength(1);
+    rearmAtCaptureEnd(runtime);
+    expect(runtime.currentStepIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));
     expect(Object.isFrozen(runtime.snapshot().step.attempts[0].observedAttackPitches)).toBe(true);
     expect(finish(identity, pitches)).toMatchObject({ kind: 'REJECTED' });
     expect(runtime.snapshot().step.attempts).toHaveLength(1);
@@ -42,31 +46,31 @@ describe('one target / one bounded attempt / one verdict', () => {
     const { runtime, begin, finish } = setup(3);
     finish(begin(), ['A4']); rearmAtCaptureEnd(runtime); finish(begin(), ['C5']);
     expect(runtime.currentStepIndex).toBe(3);
-    rearmAtCaptureEnd(runtime); finish(begin(), ['A4', 'C5']);
+    rearmAtCaptureEnd(runtime); finish(begin(), ['A4', 'C5']); rearmAtCaptureEnd(runtime);
     expect(runtime.currentStepIndex).toBe(4);
     expect(runtime.snapshot().step.attempts.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
   });
-  it('repeated notes need new identity and RESET is explicit backpressure', () => {
+  it('repeated notes need new identity and POST_VERDICT is explicit backpressure', () => {
     const { runtime, begin, finish, time } = setup(), first = begin();
     expect(runtime.openAttempt(time(205))).toBeNull();
-    finish(first, ['C4']); expect(runtime.snapshot().step.attemptState).toBe('RESET');
+    finish(first, ['C4']); expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     expect(runtime.openAttempt(time(240))).toBeNull(); rearmAtCaptureEnd(runtime);
     const second = begin(); expect(second.attemptId).not.toBe(first.attemptId);
-    finish(second, ['C4']); expect(runtime.currentStepIndex).toBe(2);
+    finish(second, ['C4']); rearmAtCaptureEnd(runtime); expect(runtime.currentStepIndex).toBe(2);
   });
   it.each(['UNCERTAIN', 'TOO_QUIET'] as const)('RETRY %s records without advancing', reason => {
     const { runtime, begin, time } = setup(), identity = begin(); runtime.analyzeAttempt(identity);
     expect(runtime.completeAttempt(identity, { kind: 'RETRY', reason, captureEndSessionTime: time(235) }))
       .toMatchObject({ kind: 'FINALIZED', record: { verdict: 'RETRY', retryReason: reason, confidence: null } });
-    expect(runtime.currentStepIndex).toBe(0); expect(runtime.snapshot().step.attemptState).toBe('RESET');
+    expect(runtime.currentStepIndex).toBe(0); expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime); expect(runtime.snapshot().step.attemptState).toBe('READY');
   });
-  it.each(['setInputUnavailable', 'skip', 'end'] as const)('%s invalidates active capture and late analysis', command => {
+  it.each(['setInputUnavailable', 'end'] as const)('%s invalidates active capture and late analysis', command => {
     const { runtime, begin, finish } = setup(), old = begin(); runtime[command]();
     expect(finish(old, ['C4'])).toMatchObject({ kind: 'REJECTED' });
     expect(runtime.snapshot().step.attempts).toHaveLength(0);
     expect(runtime.snapshot().step.activeAttempt).toBeNull();
-    expect(runtime.snapshot().step.skips).toHaveLength(command === 'skip' ? 1 : 0);
+    expect(runtime.snapshot().step.skips).toHaveLength(0);
   });
   it('input return preserves target generation; old attempt and session cannot complete', () => {
     const a = setup(), identity = a.begin(); a.runtime.setInputUnavailable(); a.runtime.acceptInputAfter(a.time());
@@ -80,9 +84,14 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step).toEqual(snapshot.step); expect(snapshot.step.attempts).toEqual([]);
     expect(snapshot.completionReason).toBe('STOPPED_BY_USER');
   });
-  it('scope completion, separate skip history, v3 snapshot, immutable output', () => {
+  it('final MATCH waits in POST_VERDICT; scope ends once at rearm, v4 immutable snapshot', () => {
     const { runtime, begin, finish } = setup(4); finish(begin(), ['D5']);
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 3, runtimeVersion: 'step-waiting-attempt-v3' },
+    expect(runtime.isCompleted).toBe(false);
+    expect(runtime.currentStepIndex).toBe(4);
+    expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
+    rearmAtCaptureEnd(runtime);
+    expect(() => rearmAtCaptureEnd(runtime)).toThrow('STEP_ATTEMPT_STATE_INVALID');
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 4, runtimeVersion: 'step-paced-attempt-v4' },
       lifecycleState: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });
@@ -115,7 +124,7 @@ describe('one target / one bounded attempt / one verdict', () => {
         s.finish(s.begin(), cycle % 2 ? ['A4'] : ['C5']); rearmAtCaptureEnd(s.runtime);
         expect(s.runtime.currentStepIndex).toBe(3);
       }
-      const id = s.begin(); s.finish(id, ['C5','A4']);
+      const id = s.begin(); s.finish(id, ['C5','A4']); rearmAtCaptureEnd(s.runtime);
       expect(s.runtime.currentStepIndex).toBe(4); expect(s.finish(id, ['A4','C5']).kind).toBe('REJECTED');
       expect(s.runtime.snapshot().step.attempts).toHaveLength(11);
     }

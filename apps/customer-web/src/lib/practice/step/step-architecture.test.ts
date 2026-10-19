@@ -30,7 +30,7 @@ it('React STEP constructs only its application owner; no lifecycle or gesture ti
   const hook = path.join(src,'hooks/practice/use-step-local-practice.ts'), ast = ts.createSourceFile(hook,read(hook),ts.ScriptTarget.Latest,true), names: string[] = [];
   const visit = (node: ts.Node) => { if (ts.isNewExpression(node)) names.push(node.expression.getText(ast)); ts.forEachChild(node,visit); };
   visit(ast); expect(names).toEqual(['StepPracticeController']);
-  expect(read(hook)).not.toMatch(/StepPracticeRuntime|BrowserMidiController|MetronomeController|setTimeout|setInterval/);
+  expect(read(hook)).not.toMatch(/StepPracticeRuntime|BrowserMidiController|MetronomeController|setTimeout|setInterval|\.rearm\(/);
 });
 it('generic MIDI has neither target knowledge nor acoustic dependencies', () => {
   const midi = path.join(practice,'midi/browser-midi-controller.ts');
@@ -99,4 +99,23 @@ it('STEP has one waiting lifecycle, no transport commands or obsolete activation
   for (const file of productionFiles(path.join(practice,'acoustic'))) {
     expect(read(file)).not.toContain('STEP_MIDI_CHORD_COHERENCE_MS');
   }
+});
+it('paced progression has one commit owner, no modality runtimes or RESET compatibility alias', () => {
+  const file = path.join(practice, 'local-core/step-runtime.ts');
+  const ast = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true);
+  const runtime = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'StepPracticeRuntime') as ts.ClassDeclaration;
+  const method = (name: string) => runtime.members.find(n => ts.isMethodDeclaration(n) && n.name.getText(ast) === name)!.getText(ast);
+  expect(method('completeAttempt')).not.toMatch(/this\.advance\(|this\.end\(/);
+  expect(method('completeAttempt')).toContain("this.attemptState = 'POST_VERDICT'");
+  expect(method('rearm')).toContain("if (verdict === 'MATCH') this.advance()");
+  expect(method('skip')).toContain('!this.canAcceptAttempt');
+  for (const p of [file, path.join(practice, 'local-core/step-attempt.ts'), path.join(__dirname, 'step-practice-controller.ts')]) {
+    expect(read(p)).not.toMatch(/['"]RESET['"]|MidiStepRuntime|MicrophoneStepRuntime|pendingAttempts|attemptQueue/);
+  }
+  expect(read(file)).not.toMatch(/inputSource\s*[!=]==?\s*['"](?:MIDI|MICROPHONE)['"]/);
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).not.toMatch(/\.advance\(/);
+  const policy = read(path.join(__dirname, 'step-retirement-policy.ts'));
+  expect(policy).toContain('runtimeToSessionTime(this.clock.nowMs())');
+  expect(policy).not.toMatch(/setTimeout|setInterval|new Worker|AudioContext|numThreads/);
+  for (const file of files) expect(read(file)).not.toMatch(/class (Midi|Microphone)StepRuntime/);
 });

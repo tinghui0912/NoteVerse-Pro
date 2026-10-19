@@ -1093,7 +1093,7 @@ describe('local session foundation', () => {
     expect(stepA.snapshot().metronomeEnabled).toBe(false);
     stepA.setMetronomeEnabled(true);
     expect(stepA.snapshot().metronomeEnabled).toBe(true);
-    stepA.end('STOPPED_BY_USER');
+    stepA.end();
     const finalStepA = stepA.snapshot();
     expect(finalStepA.lifecycleState).toBe('ENDED');
     expect(finalStepA.metronomeEnabled).toBe(true);
@@ -1122,7 +1122,7 @@ describe('local session foundation', () => {
     });
     expect(stepB.snapshot().metronomeEnabled).toBe(true);
     stepB.setMetronomeEnabled(false);
-    stepB.end('SCOPE_COMPLETED');
+    stepB.end();
     const finalStepB = stepB.snapshot();
     expect(finalStepB.lifecycleState).toBe('ENDED');
     expect(finalStepB.metronomeEnabled).toBe(false);

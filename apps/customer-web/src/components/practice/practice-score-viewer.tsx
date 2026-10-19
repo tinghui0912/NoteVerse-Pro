@@ -21,14 +21,14 @@ import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-c
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-types';
 
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, StepPracticeLifecycle } from '@/lib/practice/local-core/session';
 
 type PracticeScoreViewerProps = {
   className?: string;
   sessionStatus?: ReactNode;
   xmlContent: string | null;
   isLoadingXml: boolean;
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
   sessionMode: PracticeMode;
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;

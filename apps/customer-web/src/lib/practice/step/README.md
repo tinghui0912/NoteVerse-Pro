@@ -20,9 +20,14 @@ Input eligibility is exclusive: attempt start must be strictly later than
 inputEligibleAfter at readiness/reconnect/skip or the prior gesture end. An event at
 the exact gesture end is ignored regardless of whether it precedes or follows
 the close callback; there is no timestamp adjustment, deferral or queued retry.
-CAPTURING -> ANALYZING -> RESET -> READY permits at most one active attempt.
+Session lifecycle is IDLE / PREPARING / ACTIVE / ENDED / DISPOSED.
+READY -> CAPTURING -> ANALYZING -> POST_VERDICT permits at most one active attempt.
+POST_VERDICT retains the answered target and a finalized pending transition.
+Only re-arm consumes it: MATCH advances target atomically with READY; a final
+MATCH completes the scope there. Snapshot readiness is derived, never hook-owned.
 Re-arm requires an explicit same-session monotonic accepted-input watermark.
-MIDI uses the finalized fixed gesture end, preserving immediate re-arm UX.
+The controller requests it from `StepRetirementPolicy`. MIDI uses current session
+time at the READY transition, with zero minimum technical delay and no extra timer.
 Future microphone input must use authoritative physical capture/session time
 through which input has already occurred, not the analysis frontier, Worker
 completion or publication availability. No busy evidence may open a later attempt.
@@ -30,11 +35,13 @@ The fixed MIDI policy is STEP_MIDI_CHORD_COHERENCE_MS=35. Native MIDI event
 timestamps, not callback arrival time, define capture/session time. The 35ms
 constant is MIDI-only, not an acoustic assembler or decoder timing tolerance.
 MISMATCH and RETRY preserve the target, recording complete immutable history.
-MATCH advances once. Skip is a separate user action. Input loss/Skip/Finish/Dispose
-cancel timers and identities without fabricated verdicts. Restart
+MATCH advances once at re-arm. Skip is a READY-only separate user action.
+Input loss/Finish/Dispose cancel unfinished timers and identities without fabricated verdicts.
+Input loss preserves finalized POST_VERDICT ownership; reconnect first establishes
+a fresh watermark, then the controller commits the preserved transition once. Restart
 disposes the old controller and constructs a new session and input owner.
 
-The v3 schema has no old snapshot restore, WAIT attempt, compatibility export,
+The v4 schema has no old snapshot restore, WAIT attempt, compatibility export,
 fallback evaluator, or rolling StepEvidenceSession. Full attempt/skip history is
 limited to 100,000 total records: over 138 hours at one attempt per five seconds.
 At the ceiling the session ends with an explicit error before acquiring another
@@ -48,6 +55,8 @@ input and destroys the metronome once before reporting completion.
 
 Microphone start remains STEP_ANALYSIS_UNAVAILABLE; capability is
 ATTEMPT_ANALYZER_NOT_VALIDATED. No model/FIR/Worker/Worklet/microphone permission is
-reachable from STEP MIDI. Future score-blind fresh-strike evidence may open one
-attempt while READY and share the sole Robust perception session; that detector,
-attempt analyzer, and TOO_QUIET classifier are not implemented here.
+reachable from STEP MIDI. Future acoustic input must share this semantic runtime,
+continue capture without Pause/Resume, and supply physical capturedThrough after
+its retirement condition. MICROPHONE_POST_VERDICT_MINIMUM_NOT_YET_ENGINEERING_QUALIFIED:
+no microphone duration is selected. H50 is only within-gesture grouping, not a cooldown.
+No RMS, flux or second strike detector is added. TOO_QUIET classification is not implemented.

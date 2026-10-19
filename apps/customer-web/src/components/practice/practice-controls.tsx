@@ -18,7 +18,7 @@ import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlSurfaceProps {
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -45,7 +45,8 @@ export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'l
   return <PracticeControlSurface {...props} />;
 }
 
-export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl'> & {
+export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
+  lifecycle: ContinuousPracticeLifecycle;
   onPause(): void; onResume(): void;
 }) {
   const t = useTranslations('practice');
@@ -87,7 +88,7 @@ function PracticeControlSurface({
     ? selectedInputCapability.supported
     : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
-    (lifecycle === 'READY' || lifecycle === 'ENDED') &&
+    (lifecycle === 'READY' || lifecycle === 'IDLE' || lifecycle === 'ENDED') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&

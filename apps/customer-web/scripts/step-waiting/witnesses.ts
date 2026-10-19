@@ -52,7 +52,11 @@ export function lifecycleWitnesses() {
   h.note(300); assert.equal(h.state().activeAttempt,null);
   h.note(301); const resumed = h.state().activeAttempt!;
   assert.ok(resumed); assert.equal(resumed.targetGeneration,old.targetGeneration);
-  h.input.cancel(); h.clock.set(350); h.runtime.skip();
+  h.clock.set(350); assert.equal(h.runtime.skip(),false);
+  assert.equal(h.state().activeAttempt,resumed);
+  // Skipping is only legal after unfinished input has been explicitly retired.
+  h.input.cancel(); h.runtime.setInputUnavailable(); h.runtime.acceptInputAfter(h.time(350));
+  assert.equal(h.runtime.skip(),true);
   const skipped = h.state(); h.note(350); assert.equal(h.state().activeAttempt,null);
   for(const callback of h.callbacks) callback(); assert.equal(h.state().attempts.length,0);
   const late = h.runtime.completeAttempt(old,{kind:'EVIDENCE',observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:h.time(235)});
@@ -60,7 +64,7 @@ export function lifecycleWitnesses() {
   h.note(351); const afterSkip = h.state().activeAttempt!; assert.ok(afterSkip);
   assert.equal(afterSkip.targetGeneration,skipped.targetGeneration);
   return [{name:'reconnect-boundary equality rejected',status:'PASS',previousAttempt:old,inputEligibleAfter:target.inputEligibleAfter,laterAttempt:resumed},
-    {name:'skip invalidates active attempt',status:'PASS',invalidatedAttempt:resumed,skippedState:skipped,laterAttempt:afterSkip},
+    {name:'skip rejected during capture; READY skip retires input',status:'PASS',invalidatedAttempt:resumed,skippedState:skipped,laterAttempt:afterSkip},
     {name:'stale timer cannot create verdict',status:'PASS',attemptsAfterStaleTimers:0},
     {name:'late prior identity rejected',status:'PASS',oldAttempt:old,result:late}];
 }

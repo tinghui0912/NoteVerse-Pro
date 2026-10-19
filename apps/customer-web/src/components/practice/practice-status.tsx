@@ -7,7 +7,8 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { ContinuousPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle, StepPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
@@ -20,6 +21,11 @@ type PracticeStatusMessageKey =
   | 'performanceRunning'
   | 'finishingPractice'
   | 'waitingForFirstNote'
+  | 'stepCapturing'
+  | 'stepAnalyzing'
+  | 'stepPostVerdictMatch'
+  | 'stepPostVerdictMismatch'
+  | 'stepPostVerdictRetry'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
   | 'settingStatusReady'
@@ -41,7 +47,9 @@ export type PracticeStatusView = {
 
 export type PracticeStatusProps = {
   className?: string;
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
+  stepInteractionPhase?: StepAttemptState | null;
+  lastFinalizedVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -67,8 +75,12 @@ export function resolvePracticeStatusView({
   rangePrompt = null,
   sessionMode,
   performanceClock,
+  stepInteractionPhase,
+  lastFinalizedVerdict,
 }: {
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: ContinuousPracticeLifecycle | StepPracticeLifecycle;
+  stepInteractionPhase?: StepAttemptState | null;
+  lastFinalizedVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -199,6 +211,14 @@ export function resolvePracticeStatusView({
     };
   }
 
+  if (stepInteractionPhase === 'CAPTURING' || stepInteractionPhase === 'ANALYZING') {
+    return { messageKey: stepInteractionPhase === 'CAPTURING' ? 'stepCapturing' : 'stepAnalyzing', pending: true, countInPulse: null };
+  }
+  if (stepInteractionPhase === 'POST_VERDICT' && lastFinalizedVerdict) {
+    const messageKey = lastFinalizedVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch'
+      : lastFinalizedVerdict.verdict === 'MISMATCH' ? 'stepPostVerdictMismatch' : 'stepPostVerdictRetry';
+    return { messageKey, pending: false, countInPulse: null };
+  }
   return {
     messageKey: 'waitingForFirstNote',
     pending: false,
@@ -217,6 +237,8 @@ export function PracticeStatus({
   sessionMode,
   practiceTime,
   performanceClock,
+  stepInteractionPhase,
+  lastFinalizedVerdict,
 }: PracticeStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
@@ -230,6 +252,8 @@ export function PracticeStatus({
         rangePrompt,
         sessionMode,
         performanceClock,
+        stepInteractionPhase,
+        lastFinalizedVerdict,
       }),
     [
       inputError,
@@ -240,6 +264,8 @@ export function PracticeStatus({
       rangePrompt,
       selectedInputCapability,
       sessionMode,
+      stepInteractionPhase,
+      lastFinalizedVerdict,
     ]
   );
 

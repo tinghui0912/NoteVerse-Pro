@@ -375,16 +375,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
       (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
     });
 
-    // Pause
-    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
-    await expect(pauseButton).toBeEnabled();
-    await pauseButton.click();
-    await expect(page.getByRole('status')).toContainText('练习已暂停');
-
-    // Resume
-    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
-    await expect(resumeButton).toBeEnabled();
-    await resumeButton.click();
+    // STEP is paced waiting, not Continuous transport.
+    await expect(page.getByRole('button', { name: '暂停', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '继续', exact: true })).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
     // Skip

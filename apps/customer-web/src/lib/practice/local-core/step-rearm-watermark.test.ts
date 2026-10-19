@@ -23,7 +23,7 @@ function harness() {
 describe('explicit STEP accepted-input watermark', () => {
   it.each(['MATCH', 'MISMATCH', 'RETRY'] as const)('%s cannot carry busy/late evidence across re-arm', verdict => {
     const s = harness(); s.finish(verdict);
-    expect(s.runtime.snapshot().step.attemptState).toBe('RESET');
+    expect(s.runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
     const watermark = s.time(700); s.runtime.rearm(watermark); watermark.ms = 1;
     expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
@@ -32,16 +32,16 @@ describe('explicit STEP accepted-input watermark', () => {
     expect(s.runtime.currentStepIndex).toBe(verdict === 'MATCH' ? 1 : 0);
     expect(s.runtime.snapshot().step.attempts).toHaveLength(1);
   });
-  it('rejects foreign/nonfinite/backward watermark without leaving RESET', () => {
+  it('rejects foreign/nonfinite/backward watermark without leaving POST_VERDICT', () => {
     const s = harness(); s.finish('MISMATCH');
     for (const invalid of [{ domainId: 'foreign', ms: 700 }, s.time(NaN), s.time(Infinity), s.time(134)]) {
       expect(() => s.runtime.rearm(invalid)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
-      expect(s.runtime.snapshot().step.attemptState).toBe('RESET');
+      expect(s.runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     }
     s.runtime.rearm(s.time(135)); expect(s.runtime.openAttempt(s.time(135))).toBeNull();
     expect(s.runtime.openAttempt(s.time(136))).not.toBeNull();
   });
-  it('requires RESET and ACTIVE, never reads implicit now to re-arm', () => {
+  it('requires POST_VERDICT and ACTIVE, never reads implicit now to re-arm', () => {
     const s = harness(); expect(() => s.runtime.rearm(s.time(0))).toThrow('STEP_ATTEMPT_STATE_INVALID');
     s.finish('MISMATCH'); s.clock.set(9000); s.runtime.rearm(s.time(500));
     expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(500);

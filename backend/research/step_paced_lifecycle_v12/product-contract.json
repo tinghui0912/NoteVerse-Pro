@@ -1,0 +1,85 @@
+{
+  "phase": "STEP_PACED_LIFECYCLE_V12",
+  "role": "PRODUCT_CONTRACT_REFACTOR_NOT_ACOUSTIC_QUALIFICATION",
+  "history": [
+    "V11_ACOUSTIC_BAKEOFF_NOT_RESUMED_PRODUCT_CONTRACT_CHANGED_FIRST",
+    "NO_NEURAL_EXECUTION_IN_V12"
+  ],
+  "schema": { "schemaVersion": 4, "runtimeVersion": "step-paced-attempt-v4", "compatibilityAlias": false },
+  "sessionLifecycle": ["IDLE", "PREPARING", "ACTIVE", "ENDED", "DISPOSED"],
+  "domainConstruction": "Runtime is constructed ACTIVE; controller alone owns preparation/disposal of application resources.",
+  "attemptInteractionLifecycle": ["READY", "CAPTURING", "ANALYZING", "POST_VERDICT"],
+  "ownership": {
+    "semantics": "One StepPracticeRuntime owns attempt identity, exact pitch-set verdict and target progression for all inputs.",
+    "orchestration": "One StepPracticeController requests retirement and commits runtime rearm.",
+    "retirement": "Input-specific StepRetirementPolicy establishes a safe same-domain physical watermark.",
+    "presentation": "Hook mirrors controller snapshots and sends commands; no semantic timer or direct rearm."
+  },
+  "ready": "Session ACTIVE, input available, attempt READY, current target exists, no fatal input error. canAcceptAttempt derives from runtime state plus application lifecycle/error; hooks do not own it.",
+  "eligibility": "Finite same-domain eventTime > inputEligibleAfter; equality is ignored.",
+  "capacity": 1,
+  "boundedCurrentEvidence": "Non-READY may contribute only to the already-open fixed gesture. No second gesture, queue, carryover, future-target reassignment or rolling pitch bag.",
+  "completeAttempt": "Exactly one immutable verdict record; active attempt cleared; POST_VERDICT with runtime-owned pending transition. Answered target remains current. No advancement or final-scope completion.",
+  "rearm": "Explicit finite same-domain nonbackward watermark, ACTIVE/POST_VERDICT and available input required. Retires <= watermark; consumes pending transition exactly once. MATCH advances and exposes next target plus READY atomically. Final MATCH completes scope here. MISMATCH/RETRY retain target and become READY.",
+  "skip": "READY and available input only; runtime-owned separate skip history and progression. Busy skip is a no-op and cannot cancel the bounded gesture.",
+  "stop": "Explicit user stop can end the session without applying pending advancement. It cannot fabricate SCOPE_COMPLETED.",
+  "midi": {
+    "chordCoherenceMs": 35,
+    "interval": "[first NOTE_ON, first NOTE_ON + 35ms)",
+    "windowExtension": false,
+    "targetConditioning": false,
+    "minimumTechnicalPostVerdictDelayMs": 0,
+    "artificialCooldown": false,
+    "retirementWatermark": "PracticeTimebase.runtimeToSessionTime(clock.nowMs()) at actual rearm/READY commit, not previous captureEnd.",
+    "lateCallback": "Preserved MIDIMessageEvent.timeStamp <= watermark remains permanently ineligible even when delivered after READY."
+  },
+  "microphone": {
+    "implementation": "CONTRACT_ONLY_NOT_INTEGRATED",
+    "minimumPostVerdict": "MICROPHONE_POST_VERDICT_MINIMUM_NOT_YET_ENGINEERING_QUALIFIED",
+    "durationSelected": false,
+    "futurePolicy": "Capture continues without Pause/Resume. After its future qualified retirement condition, capture owner supplies physical capturedThrough projected into the same session domain. Old/late evidence <= watermark cannot open a fresh attempt.",
+    "H50": "Historical acoustic within-attempt grouping, not cooldown and not requalified here.",
+    "RmsFluxOrSecondStrikeDetector": false
+  },
+  "disconnect": {
+    "READY": "Input unavailable; no attempt accepted until explicit fresh reconnect watermark.",
+    "CAPTURING_ANALYZING": "Invalidate unfinished identity, cancel input timer, retain target/session; stale completion rejected. Fresh reconnect watermark required.",
+    "POST_VERDICT": "Preserve finalized record/pending transition and phase. Reconnect restores input with fresh watermark but only explicit controller rearm applies pending transition once."
+  },
+  "metronome": "Answered target during POST_VERDICT. Context changes only after runtime commits MATCH rearm (or explicit READY skip).",
+  "historicalQualification": {
+    "v3_v10": "Immutable exposed development/historical evidence of OLD lifecycle; no historical result rewritten or promoted.",
+    "v11Disposition": "EVALUATION_INTEGRITY_BLOCKED",
+    "v11Scorer": "SUPERSEDED_FOR_FUTURE_EXECUTION_NOT_REPAIRED_OR_RESUMED",
+    "futureDevelopment": "Candidate/corpus design may be reused only as exposed DEVELOPMENT evidence with independently accepted V12 semantics and a new protocol.",
+    "futureQualification": "REBUILD_AFTER_V12_INDEPENDENT_ACCEPTANCE",
+    "normalUsability": "Paced note learning, not rapid-retrigger performance recognition.",
+    "mandatorySafetyCategory": "NON_READY_INPUT_ISOLATION",
+    "safetyScope": "CAPTURING outside the open bounded gesture, ANALYZING and POST_VERDICT input cannot create attempt2, queue, carry over, advance or become next-target evidence. Busy/late stress remains mandatory. Old busy/late denominator rules are not automatically future shipping gates."
+  },
+  "portableToolingLesson": "Windows absolute filesystem paths cannot be passed directly to dynamic ESM import(). Future tooling must use pathToFileURL(absolutePath).href. V11 is not repaired or executed.",
+  "execution": {
+    "newNeuralRuns": 0,
+    "RobustSessionRuns": 0,
+    "InferenceSessionRuns": 0,
+    "AcousticModelWorkerRuns": 0,
+    "decoderRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "selectedPcmDecoded": false,
+    "selectedPcmDecodeRuns": 0,
+    "freshHoldoutAccess": 0,
+    "StageAReruns": 0,
+    "StageBReruns": 0,
+    "ContinuousAcousticReruns": 0
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false,
+    "scientificWinnerClaimed": false,
+    "candidateSelected": false,
+    "acousticSurvivorClaimed": false
+  }
+}

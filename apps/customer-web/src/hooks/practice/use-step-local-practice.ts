@@ -34,7 +34,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
   }, [options.mode, setSnapshot]);
   const start = useCallback(async () => {
-    if (owner.current && owner.current.snapshot().state !== 'READY') return;
+    if (owner.current && owner.current.snapshot().state !== 'IDLE') return;
     if (!options.artifact || !options.scope || !tempoPlan) { setPreparationError('STEP_SCORE_UNAVAILABLE'); return; }
     if (!owner.current) {
       const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
@@ -48,11 +48,14 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const skip = useCallback(() => { owner.current?.skip(); }, []);
   const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
-  const state = snapshot?.state ?? 'READY';
-  const lifecycle: StepPracticeLifecycle = state === 'ACTIVE' ? state : state === 'ENDED' || state === 'DISPOSED' ? 'ENDED' : 'READY';
+  const state = snapshot?.state ?? 'IDLE';
+  const lifecycle: StepPracticeLifecycle = state;
   const inputError = preparationError ?? snapshot?.error ?? null;
   const inputState: LocalPracticeInputState = inputError ? 'ERROR' : state === 'PREPARING' ? 'STARTING' : state === 'ACTIVE' ? 'RUNNING' : 'IDLE';
   return { mode: 'STEP_BY_STEP' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
+    stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,
+    canAcceptAttempt: snapshot?.canAcceptAttempt ?? false,
+    lastFinalizedVerdict: snapshot?.lastFinalizedVerdict ?? null,
     performanceClock: null, performanceEvaluation: null, elapsedSeconds: snapshot?.elapsedSeconds ?? 0,
     completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: false, isFinalizingPerformance: false,

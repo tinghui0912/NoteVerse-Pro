@@ -15,7 +15,7 @@ export type LocalPracticeInputState =
   | 'RUNNING'
   | 'ERROR';
 
-export type StepPracticeLifecycle = 'READY' | 'ACTIVE' | 'ENDED';
+export type StepPracticeLifecycle = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
 export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 type LocalPracticeSessionBase = {
@@ -45,6 +45,8 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
     completed: boolean;
     attemptState: StepAttemptState;
     activeAttempt: StepAttemptIdentity | null;
+    pendingPostVerdict: StepAttemptRecord | null;
+    canAcceptAttempt: boolean;
     attempts: readonly StepAttemptRecord[];
     skips: readonly StepSkipRecord[];
   };

@@ -101,7 +101,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
     s.clock.advance(1); s.note('C4'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2); s.controller.dispose();
   });
-  it.each(['skip', 'finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
+  it.each(['finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
     const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const callback = s.timers[0].callback;
     if (command === 'disconnect') s.disconnect(); else s.controller[command]();
     const after = s.controller.snapshot(); callback();
@@ -124,15 +124,15 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
     s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1); s.controller.dispose();
   });
-  it('ANALYZING/RESET input is ignored, never queued for the next target', async () => {
+  it('ANALYZING/POST_VERDICT input is ignored, never queued for the next target', async () => {
     const s = setup(); await s.controller.start(); s.clock.set(101);
     const states: string[] = [];
     s.controller.subscribe(() => {
       const state = s.controller.snapshot().sessionSnapshot?.step.attemptState;
-      if (state === 'ANALYZING' || state === 'RESET') { states.push(state); s.note('C4'); }
+      if (state === 'ANALYZING' || state === 'POST_VERDICT') { states.push(state); s.note('C4'); }
     });
     s.note('C4'); s.close();
-    expect(states).toEqual(['ANALYZING', 'RESET']);
+    expect(states).toEqual(['ANALYZING', 'POST_VERDICT']);
     expect(s.timers).toHaveLength(1); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
     expect(s.controller.snapshot().inputDiagnostics?.ignoredNotes).toBe(2); s.controller.dispose();
   });
@@ -143,6 +143,65 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.timers).toHaveLength(0);
     expect(s.controller.snapshot().sessionSnapshot!.step.inputEligibleAfter.ms).toBe(500);
     s.note('C4', 'NOTE_ON', 501); expect(s.timers).toHaveLength(1); s.controller.dispose();
+  });
+  it('POST_VERDICT keeps answered target/metronome; READY commits current-time retirement with zero delay', async () => {
+    const s = setup(); await s.controller.start(); s.clock.set(200);
+    const contexts = s.metronome.setStepContext.mock.calls.length;
+    const trace: { phase: string | null; index: number; ready: boolean }[] = [];
+    const unsubscribe = s.controller.subscribe(() => {
+      const snapshot = s.controller.snapshot();
+      trace.push({ phase: snapshot.stepInteractionPhase, index: snapshot.sessionSnapshot!.step.currentIndex, ready: snapshot.canAcceptAttempt });
+      if (snapshot.stepInteractionPhase === 'POST_VERDICT') {
+        expect(snapshot.lastFinalizedVerdict?.verdict).toBe('MATCH');
+        expect(snapshot.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
+        expect(s.metronome.setStepContext.mock.calls).toHaveLength(contexts);
+        s.controller.skip();
+        s.clock.set(900); // Represents time spent on finalized feedback, not a policy cooldown.
+      }
+    });
+    s.note('C4'); s.close();
+    expect(trace).toEqual([
+      { phase: 'CAPTURING', index: 0, ready: false }, { phase: 'ANALYZING', index: 0, ready: false },
+      { phase: 'POST_VERDICT', index: 0, ready: false }, { phase: 'READY', index: 1, ready: true },
+    ]);
+    expect(s.controller.snapshot().sessionSnapshot!.step.inputEligibleAfter.ms).toBe(900);
+    unsubscribe();
+    expect(s.timers).toHaveLength(1); // Only the 35ms gesture timer, no post-verdict timer.
+    s.note('C4', 'NOTE_ON', 800); s.note('C4', 'NOTE_ON', 900);
+    expect(s.timers).toHaveLength(1);
+    s.clock.set(901); s.note('C4'); s.close();
+    expect(s.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(2); s.controller.dispose();
+  });
+  it.each(['ANALYZING', 'POST_VERDICT'] as const)('disconnect in synchronous %s notification does not revive or double-advance', async phase => {
+    const s = setup(); await s.controller.start(); s.clock.set(200);
+    let disconnected = false;
+    s.controller.subscribe(() => {
+      if (!disconnected && s.controller.snapshot().stepInteractionPhase === phase) { disconnected = true; s.disconnect(); }
+    });
+    s.note('C4'); s.close();
+    expect(s.controller.snapshot().canAcceptAttempt).toBe(false);
+    expect(s.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(0);
+    expect(s.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(phase === 'POST_VERDICT' ? 1 : 0);
+    s.clock.set(500); s.reconnect(); s.reconnect();
+    expect(s.controller.snapshot().canAcceptAttempt).toBe(true);
+    expect(s.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(phase === 'POST_VERDICT' ? 1 : 0);
+    s.note('C4', 'NOTE_ON', 499); s.note('C4', 'NOTE_ON', 500); s.timers[0].callback();
+    expect(s.controller.snapshot().sessionSnapshot!.step.activeAttempt).toBeNull();
+    s.clock.set(501); s.note('C4'); s.close();
+    expect(s.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(phase === 'POST_VERDICT' ? 2 : 1);
+    s.controller.dispose();
+  });
+  it('skip during CAPTURING does not cancel the bounded gesture; final feedback precedes completion', async () => {
+    const s = setup(4); await s.controller.start(); s.clock.set(200); s.note('D5');
+    s.controller.skip(); expect(s.controller.snapshot().stepInteractionPhase).toBe('CAPTURING');
+    s.controller.subscribe(() => {
+      if (s.controller.snapshot().stepInteractionPhase === 'POST_VERDICT') {
+        expect(s.completion).not.toHaveBeenCalled();
+        expect(s.controller.snapshot().activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[4].groupId);
+      }
+    });
+    s.close(); expect(s.completion).toHaveBeenCalledTimes(1); s.controller.finish();
+    expect(s.completion).toHaveBeenCalledTimes(1); s.controller.dispose();
   });
   it('disconnect while waiting keeps target/session and automatically returns to waiting', async () => {
     const s = setup(); await s.controller.start(); const original = s.controller.snapshot().sessionSnapshot!;
@@ -177,7 +236,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
   });
   it('microphone start rejected without constructing MIDI/metronome or acoustic resources', async () => {
     const s = setup(0, 'MICROPHONE'); await s.controller.start();
-    expect(s.controller.snapshot()).toMatchObject({ state: 'READY', error: 'STEP_ANALYSIS_UNAVAILABLE', sessionSnapshot: null });
+    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_ANALYSIS_UNAVAILABLE', sessionSnapshot: null });
     expect(s.midi.start).not.toHaveBeenCalled(); expect(s.metronome.start).not.toHaveBeenCalled(); s.controller.dispose();
   });
 });

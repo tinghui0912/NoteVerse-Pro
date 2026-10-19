@@ -135,7 +135,7 @@ describe('useLocalPractice', () => {
     });
   });
 
-  it('initializes in READY lifecycle and IDLE inputState', () => {
+  it('initializes in IDLE session lifecycle without attempt readiness', () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -145,7 +145,9 @@ describe('useLocalPractice', () => {
       })
     );
 
-    expect(result.current.lifecycle).toBe('READY');
+    expect(result.current.lifecycle).toBe('IDLE');
+    expect(result.current.canAcceptAttempt).toBe(false);
+    expect(result.current.stepInteractionPhase).toBeNull();
     expect(result.current.inputState).toBe('IDLE');
     expect(result.current.activeStepGroup).toBeNull();
     expect(result.current.performanceClock).toBeNull();
@@ -166,6 +168,8 @@ describe('useLocalPractice', () => {
     });
 
     expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(result.current.canAcceptAttempt).toBe(true);
+    expect(result.current.stepInteractionPhase).toBe('READY');
     expect(result.current.inputState).toBe('RUNNING');
     expect(result.current.activeStepGroup?.groupId).toBe(
       artifact.expectedPracticeGroups[0].groupId
@@ -203,12 +207,12 @@ describe('useLocalPractice', () => {
       await result.current.start();
     });
 
-    expect(result.current.lifecycle).toBe('READY');
+    expect(result.current.lifecycle).toBe('IDLE');
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('STEP_ANALYSIS_UNAVAILABLE');
   });
 
-  it('handles MIDI input start failure by keeping READY lifecycle and setting ERROR inputState', async () => {
+  it('handles MIDI input start failure by keeping IDLE lifecycle and setting ERROR inputState', async () => {
     midiMock.connectedInputCount = 0;
 
     const { result } = renderHook(() =>
@@ -224,7 +228,7 @@ describe('useLocalPractice', () => {
       await result.current.start();
     });
 
-    expect(result.current.lifecycle).toBe('READY');
+    expect(result.current.lifecycle).toBe('IDLE');
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
   });

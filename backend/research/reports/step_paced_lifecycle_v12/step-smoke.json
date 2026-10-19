@@ -1,0 +1,345 @@
+{
+  "config": {
+    "argv": [
+      "D:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "tests/e2e/practice-step-by-step-smoke.spec.ts",
+      "--grep",
+      "STEP MIDI|METRONOME LIVE|CUSTOMER UX|START CAPABILITY|MICROPHONE ANALYSIS",
+      "--reporter=json"
+    ],
+    "configFile": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\playwright.config.ts",
+    "rootDir": "C:/Users/tinghuilin/Downloads/NoteVerse-Pro/apps/customer-web/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/tinghuilin/Downloads/NoteVerse-Pro/apps/customer-web/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/tinghuilin/Downloads/NoteVerse-Pro/apps/customer-web/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.0",
+    "workers": 1,
+    "webServer": {
+      "command": "node ./node_modules/next/dist/bin/next dev --webpack -H localhost -p 3118",
+      "url": "http://localhost:3118/en/auth/login",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "env": {
+        "ALLUSERSPROFILE": "C:\\ProgramData",
+        "APPDATA": "C:\\Users\\tinghuilin\\AppData\\Roaming",
+        "AUTH_COOKIE_NAME": "auth",
+        "BROWSER_USE_ACCESS_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAR77FZEl+VS+2IMcUE1eXPoeNp2BjQk2vZyvrq1vnJCo=",
+        "CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS": "1",
+        "CODEX_APP_TOOLS_PIPE_PATH": "\\\\.\\pipe\\codex-app-tools-84252ed1-8282-4a2f-a0ad-c9137277fb1c",
+        "CODEX_CI": "1",
+        "CODEX_CLI_PATH": "C:\\Users\\tinghuilin\\AppData\\Local\\OpenAI\\Codex\\bin\\896a0166b774037a\\codex.exe",
+        "CODEX_INTERNAL_ORIGINATOR_OVERRIDE": "Codex Desktop",
+        "CODEX_MCP_NODE_PATH": "C:\\Users\\tinghuilin\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\78fb63cda1a9e2b2\\bin\\node.exe",
+        "CODEX_PERMISSION_PROFILE": ":danger-full-access",
+        "CODEX_SAGE_BACKFILL_TRACKER_TAB_REUSE": "1",
+        "CODEX_SESSION_ID": "01a0c27e-96fa-7351-a23e-e0d2cd5969ec",
+        "CODEX_SHELL": "1",
+        "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAR77FZEl+VS+2IMcUE1eXPoeNp2BjQk2vZyvrq1vnJCo=",
+        "CODEX_TECTONIC_PATH": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1013.4894.0_x64__2p2nqsd0c76g0\\app\\resources\\tectonic\\tectonic.exe",
+        "CODEX_THREAD_ID": "01a0c27e-96fa-7351-a23e-e0d2cd5969ec",
+        "CODEX_TOOL_CALL_ID": "exec-30419a82-bf77-4b5e-8fa8-6475e376b11b",
+        "CODEX_VERSION": "0.163.0-alpha.10.2",
+        "CODEX_WINDOWS_SANDBOX_PACKAGE_FAMILY": "OpenAI.Codex_2p2nqsd0c76g0",
+        "COLORTERM": "",
+        "CommonProgramFiles": "C:\\Program Files\\Common Files",
+        "CommonProgramFiles(x86)": "C:\\Program Files (x86)\\Common Files",
+        "CommonProgramW6432": "C:\\Program Files\\Common Files",
+        "COMPUTERNAME": "DESKTOP-8S6ILHP",
+        "ComSpec": "C:\\Windows\\system32\\cmd.exe",
+        "DISABLE_AUTO_UPDATE": "true",
+        "DriverData": "C:\\Windows\\System32\\Drivers\\DriverData",
+        "GH_PAGER": "cat",
+        "GIT_PAGER": "cat",
+        "HOMEDRIVE": "C:",
+        "HOMEPATH": "\\Users\\tinghuilin",
+        "IGCCSVC_DB": "AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAm0UNiJyZekCdobHzO3PueAQAAAACAAAAAAAQZgAAAAEAACAAAAB1OuH4xKo+jpRVfMKoVohbs0T9IMeIYcuOM+NFTLdnoQAAAAAOgAAAAAIAACAAAADqHeCJLoUhtVV2va/4HgXANtIibMGmyx8rHklZelS6pWAAAADFYmnMj8ipjhjRIydu8V/lLtQxGSxtuxxxGK7AHyw/S+k4aKO4yYZk5PvqLJU+t2vhpPYEgtzljvDzZY+eTOI0eSTn6uANBPccpd4sIPj9DJPfITwTJMsixqP+Fy44/bxAAAAAKTKvBwDk0Id38+NxEJdt82qck6oQ0YUjF6tGdCjPFq56XYl2sEpOThDaDbgnT9hGAtKZR324PaLUFvXAlyQu4w==",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LC_CTYPE": "C.UTF-8",
+        "LOCALAPPDATA": "C:\\Users\\tinghuilin\\AppData\\Local",
+        "LOGONSERVER": "\\\\DESKTOP-8S6ILHP",
+        "LOG_FORMAT": "json",
+        "NEXT_BACKEND_ORIGIN": "http://localhost:8000",
+        "NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S": "8e172ec9f458f2e636fc69a1b8c68c217f6bb8d10c41f70a05a0878b73863701",
+        "NO_COLOR": "1",
+        "NUMBER_OF_PROCESSORS": "20",
+        "OneDrive": "C:\\Users\\tinghuilin\\OneDrive",
+        "OS": "Windows_NT",
+        "PAGER": "cat",
+        "Path": "C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell;C:\\Users\\tinghuilin\\.codex\\tmp\\arg0-windows\\codex-arg0pJPiOi;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\libheif\\libheif\\bin;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\jxrlib\\jxrlib\\bin;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\poppler\\Library\\bin;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\bin\\override;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\Program Files\\NVIDIA Corporation\\NVIDIA NvDLISR;D:\\Program Files\\nodejs\\;D:\\Program Files\\Git\\cmd;D:\\Program Files (x86)\\NetSarang\\Xshell 8\\;C:\\Users\\tinghuilin\\AppData\\Local\\Muse Hub\\lib;C:\\Program Files (x86)\\Common Files\\Propellerhead Software\\ReWire\\;C:\\Program Files\\Common Files\\Propellerhead Software\\ReWire\\;D:\\Python\\Python313\\Scripts\\;D:\\Python\\Python313\\;C:\\Users\\tinghuilin\\AppData\\Local\\Programs\\Python\\Launcher\\;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell;C:\\Users\\tinghuilin\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\tinghuilin\\AppData\\Roaming\\npm;D:\\Programs\\Microsoft VS Code\\bin;D:\\flutter\\bin;D:\\jdk-21.0.12\\bin;C:\\Users\\tinghuilin\\AppData\\Local\\Muse Hub\\lib;C:\\Users\\tinghuilin\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\bin\\fallback;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin;C:\\Users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\git\\cmd;C:\\Users\\tinghuilin\\AppData\\Local\\OpenAI\\Codex\\bin\\ce4759538b7f2f1a;C:\\Users\\tinghuilin\\AppData\\Local\\OpenAI\\Codex\\bin\\896a0166b774037a",
+        "PATHEXT": ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL",
+        "PLAYWRIGHT_JSON_OUTPUT_NAME": "../../backend/research/reports/step_paced_lifecycle_v12/step-smoke.json",
+        "PLAYWRIGHT_PORT": "3118",
+        "PROCESSOR_ARCHITECTURE": "AMD64",
+        "PROCESSOR_IDENTIFIER": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+        "PROCESSOR_LEVEL": "6",
+        "PROCESSOR_REVISION": "ba02",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files",
+        "ProgramFiles(x86)": "C:\\Program Files (x86)",
+        "ProgramW6432": "C:\\Program Files",
+        "PSModulePath": "C:\\Users\\tinghuilin\\Documents\\PowerShell\\Modules;C:\\Program Files\\PowerShell\\Modules;c:\\users\\tinghuilin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\Modules;C:\\Users\\tinghuilin\\Documents\\WindowsPowerShell\\Modules;C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules",
+        "PUBLIC": "C:\\Users\\Public",
+        "REFRESH_COOKIE_NAME": "refresh",
+        "RUST_LOG": "warn",
+        "SHELL": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "SystemDrive": "C:",
+        "SystemRoot": "C:\\Windows",
+        "TEMP": "C:\\Users\\TINGHU~1\\AppData\\Local\\Temp",
+        "TERM": "dumb",
+        "TMP": "C:\\Users\\TINGHU~1\\AppData\\Local\\Temp",
+        "USERDOMAIN": "DESKTOP-8S6ILHP",
+        "USERDOMAIN_ROAMINGPROFILE": "DESKTOP-8S6ILHP",
+        "USERNAME": "tinghuilin",
+        "USERPROFILE": "C:\\Users\\tinghuilin",
+        "VBOX_MSI_INSTALL_PATH": "C:\\Program Files\\Oracle\\VirtualBox\\",
+        "windir": "C:\\Windows",
+        "ZES_ENABLE_SYSMAN": "1",
+        "ZSH_TMUX_AUTOSTART": "false",
+        "ZSH_TMUX_AUTOSTARTED": "true"
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "practice-step-by-step-smoke.spec.ts",
+      "file": "practice-step-by-step-smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Browser-Local Practice E2E Smoke",
+          "file": "practice-step-by-step-smoke.spec.ts",
+          "line": 323,
+          "column": 6,
+          "specs": [
+            {
+              "title": "STEP MIDI: runs locally with zero session requests and zero WebSockets",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9813,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-19T02:35:20.397Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b2161c6b1e19d5e9f6bc-f138fb71f829718ef51e",
+              "file": "practice-step-by-step-smoke.spec.ts",
+              "line": 324,
+              "column": 7
+            },
+            {
+              "title": "METRONOME LIVE TOGGLE: toggles metronome ON and OFF during active practice",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5059,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-19T02:35:30.662Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b2161c6b1e19d5e9f6bc-668fc2dfc91ae46f1c01",
+              "file": "practice-step-by-step-smoke.spec.ts",
+              "line": 654,
+              "column": 7
+            },
+            {
+              "title": "CUSTOMER UX REGRESSION: desktop drawer parity, input gating, 2-stage section selection, bottom tempo/metronome",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5253,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-19T02:35:35.729Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b2161c6b1e19d5e9f6bc-074059464b405b4d1f5a",
+              "file": "practice-step-by-step-smoke.spec.ts",
+              "line": 715,
+              "column": 7
+            },
+            {
+              "title": "START CAPABILITY GATING & MIDI RETRY: microphone analysis unavailable, MIDI 0-device fails start, connecting device enables retry",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5435,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-19T02:35:40.990Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b2161c6b1e19d5e9f6bc-581dfdb144d427a2cc83",
+              "file": "practice-step-by-step-smoke.spec.ts",
+              "line": 828,
+              "column": 7
+            },
+            {
+              "title": "MICROPHONE ANALYSIS: continuous microphone remains unavailable without model-asset fetch",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4385,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-19T02:35:46.433Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b2161c6b1e19d5e9f6bc-d397ca6d2bee0a48705e",
+              "file": "practice-step-by-step-smoke.spec.ts",
+              "line": 897,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-19T02:35:08.774Z",
+    "duration": 42592.392,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

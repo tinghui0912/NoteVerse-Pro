@@ -11,6 +11,15 @@ import {
 } from './practice-status';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
 import practiceMessages from '../../../messages/en/practice.json';
+import type { StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
+
+it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP status presents runtime phase %s, not session ACTIVE as READY', phase => {
+  const view = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,
+    lastFinalizedVerdict: { verdict: 'MISMATCH' } as StepAttemptRecord });
+  const keys = { READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing', POST_VERDICT: 'stepPostVerdictMismatch' };
+  expect(view.messageKey).toBe(keys[phase]);
+  expect(view.pending).toBe(phase === 'CAPTURING' || phase === 'ANALYZING');
+});
 
 const IntlProvider = NextIntlClientProvider as ComponentType<{
   locale: string;

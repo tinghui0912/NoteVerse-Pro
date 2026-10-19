@@ -31,6 +31,7 @@ export class StepPracticeRuntime {
   private completionReason: LocalPracticeCompletionReason | null = null;
   private attemptState: StepAttemptState = 'READY';
   private active: StepAttemptIdentity | null = null;
+  private pendingPostVerdict: StepAttemptRecord | null = null;
   private sequence = 0;
   private inputAvailable = true;
   private readonly attempts: StepAttemptRecord[] = [];
@@ -55,7 +56,7 @@ export class StepPracticeRuntime {
   }
   openAttempt(start: SessionTime): StepAttemptIdentity | null {
     const target = this.currentTarget();
-    if (!target || !this.inputAvailable || this.attemptState !== 'READY') return null;
+    if (!target || !this.canAcceptAttempt) return null;
     this.validateTime(start);
     // Input eligibility is exclusive: an event at the prior gesture end cannot be
     // rebound to a fresh attempt depending on timer/message callback order.
@@ -84,43 +85,51 @@ export class StepPracticeRuntime {
     const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
       confidence: evidence.kind === 'EVIDENCE' ? evidence.confidence : null,
       captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }), retryReason: evidence.kind === 'RETRY' ? evidence.reason : null });
-    this.attempts.push(record); this.active = null; this.attemptState = 'RESET';
+    this.attempts.push(record); this.active = null; this.attemptState = 'POST_VERDICT';
+    this.pendingPostVerdict = record;
     this.boundary = record.captureEndSessionTime;
-    if (verdict === 'MATCH') this.advance();
     return Object.freeze({ kind: 'FINALIZED', record });
   }
   rearm(acceptAfterSessionTime: SessionTime): void {
-    if (this.lifecycle !== 'ACTIVE' || this.attemptState !== 'RESET') throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    if (this.lifecycle !== 'ACTIVE' || !this.inputAvailable || this.attemptState !== 'POST_VERDICT' || !this.pendingPostVerdict) throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
     this.validateTime(acceptAfterSessionTime);
     if (acceptAfterSessionTime.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     // The caller owns physical capture coverage, not model analysis coverage.
     // Busy-period source evidence cannot be
     // rebound merely because its publication arrives after this transition.
     this.boundary = Object.freeze({ ...acceptAfterSessionTime });
+    const verdict = this.pendingPostVerdict.verdict;
+    this.pendingPostVerdict = null;
     this.attemptState = 'READY';
+    if (verdict === 'MATCH') this.advance();
   }
-  cancelAttempt(): void { this.active = null; this.attemptState = 'READY'; }
+  private cancelAttempt(): void {
+    // A finalized verdict is not an unfinished capture and cannot be cancelled by input loss.
+    this.active = null;
+    if (this.attemptState !== 'POST_VERDICT') this.attemptState = 'READY';
+  }
   setInputUnavailable(): void {
     if (this.lifecycle !== 'ACTIVE') return;
     this.cancelAttempt(); this.inputAvailable = false;
   }
   acceptInputAfter(capturedThrough: SessionTime): void {
-    if (this.lifecycle !== 'ACTIVE' || this.active || this.attemptState !== 'READY') throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    if (this.lifecycle !== 'ACTIVE' || this.inputAvailable || this.active
+      || (this.attemptState !== 'READY' && this.attemptState !== 'POST_VERDICT')) throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
     this.validateTime(capturedThrough);
     if (capturedThrough.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     this.boundary = Object.freeze({ ...capturedThrough }); this.inputAvailable = true;
   }
   skip(): boolean {
-    const target = this.currentTarget(); if (!target) return false;
+    const target = this.currentTarget(); if (!target || !this.canAcceptAttempt) return false;
     this.assertHistoryRoom(); this.cancelAttempt();
     const skippedAt = this.now();
     if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
     this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));
     this.advance(); return true;
   }
-  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
+  end(): void {
     if (this.lifecycle === 'ENDED') return;
-    this.cancelAttempt(); this.lifecycle = 'ENDED'; this.completionReason = reason; this.generation++;
+    this.cancelAttempt(); this.lifecycle = 'ENDED'; this.completionReason = 'STOPPED_BY_USER';
   }
   snapshot(): LocalStepSessionSnapshot {
     return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,
@@ -130,16 +139,22 @@ export class StepPracticeRuntime {
       version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
       step: Object.freeze({ currentIndex: this.currentIndex, targetGeneration: this.generation,
         inputEligibleAfter: this.boundary, inputAvailable: this.inputAvailable, completed: this.completed,
-        attemptState: this.attemptState, activeAttempt: this.active, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
+        attemptState: this.attemptState, activeAttempt: this.active, pendingPostVerdict: this.pendingPostVerdict,
+        canAcceptAttempt: this.canAcceptAttempt, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
   }
   setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
   get currentStepIndex(): number { return this.currentIndex; }
   get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
   get isCompleted(): boolean { return this.completed; }
   get state(): StepPracticeLifecycle { return this.lifecycle; }
+  get canAcceptAttempt(): boolean {
+    return this.lifecycle === 'ACTIVE' && this.inputAvailable && this.attemptState === 'READY' && this.currentTarget() !== null;
+  }
   private advance(): void {
     this.currentIndex++; this.generation++;
-    if (this.currentIndex > this.resolvedScope.endIndex) { this.completed = true; this.end('SCOPE_COMPLETED'); }
+    if (this.currentIndex > this.resolvedScope.endIndex) {
+      this.completed = true; this.lifecycle = 'ENDED'; this.completionReason = 'SCOPE_COMPLETED';
+    }
   }
   private owns(identity: StepAttemptIdentity): boolean {
     return this.lifecycle === 'ACTIVE' && this.active !== null && identity.attemptId === this.active.attemptId

@@ -494,6 +494,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       sessionMode={practiceMode}
       practiceTime={localPractice.elapsedSeconds}
       performanceClock={localPractice.performanceClock}
+      stepInteractionPhase={localPractice.mode === 'STEP_BY_STEP' ? localPractice.stepInteractionPhase : null}
+      lastFinalizedVerdict={localPractice.mode === 'STEP_BY_STEP' ? localPractice.lastFinalizedVerdict : null}
     />
   );
 
@@ -570,7 +572,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   <div className="pointer-events-none absolute bottom-24 right-6 z-30">
                     <PracticeSkipControl
                       visible={true}
-                      disabled={false}
+                      disabled={!localPractice.canAcceptAttempt}
                       onSkip={localPractice.skip}
                     />
                   </div>

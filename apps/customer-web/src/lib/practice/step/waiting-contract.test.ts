@@ -6,7 +6,7 @@ import fixture from '../local-core/__fixtures__/canonical-practice-score-artifac
 import type {PracticeScoreArtifact} from '../local-core/artifact';
 
 it('snapshot typing cannot represent paused STEP; Continuous retains it', () => {
-  expectTypeOf<LocalStepSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'ENDED'>();
+  expectTypeOf<LocalStepSessionSnapshot['lifecycleState']>().toEqualTypeOf<'IDLE'|'PREPARING'|'ACTIVE'|'ENDED'|'DISPOSED'>();
   expectTypeOf<LocalPerformanceSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'PAUSED'|'ENDED'>();
 });
 it.each(['MATCH','MISMATCH','RETRY'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {
