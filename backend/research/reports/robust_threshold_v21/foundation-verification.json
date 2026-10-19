@@ -1,0 +1,28 @@
+{
+  "verifiedAt": "2026-10-19T10:43:15.627Z",
+  "jobs": 18,
+  "pairs": 228,
+  "canonicalBytes": 29373696,
+  "corpusCanonicalSha256": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0",
+  "allBlobPairOnsetFrameHashes": "EXACT",
+  "dtype": "FLOAT32_LITTLE_ENDIAN",
+  "shape": [
+    1,
+    183,
+    88
+  ],
+  "finite": true,
+  "zero": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "freshHoldoutAccess": 0,
+    "modelWarmupRuns": 0,
+    "unknownNeuralExecutions": 0,
+    "decoderBRuns": 0,
+    "decoderCRuns": 0,
+    "ContinuousAcousticReruns": 0
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "completedAt": "2026-10-19T10:43:08.300Z",
+  "tests": [
+    {
+      "name": "production and historical tracked scope unchanged",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "exact 20 immutable historical grid profiles, order, IDs and control",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "all 18 blobs/228 pairs, finite LE values, every hash and canonical identity",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "Float32 LE and nonfinite/length rejection",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "decoder graph production only, no model/session/DSP/runtime/truth reachability",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "Stage A parsed imports and one resolved production decoder call with roster thresholds",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "34 fixed rows, observation-independent physical and target view dedup",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "baseline safe and hallucination view identities are fixed before alternative decode",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "actual H50 first strict event, half-open right edge, no target-conditioned extension",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "runtime v6 EVIDENCE-only policy, record preservation, POST_VERDICT, strict rearm and final MATCH commit",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "physical support and NO_ATTEMPT are independent of acoustic truth and no pseudo-verdict",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "hallucination identity subset, not count-only; recall and safe baseline regression gates",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "ranking exact lexicographic order, recurrence and complete ties never arbitrary winner",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "recurrence requires same target at both rates and two gestures from two recordings",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "Stage B ordinary EVIDENCE only, no external P2 and no decoder call",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "blind configuration is separate from truth-bearing protocol freeze",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "control parity includes exact full observations, ordering, confidence and event diagnostics",
+      "status": "LOCAL_PASS"
+    }
+  ],
+  "count": 17,
+  "result": "LOCAL_PASS",
+  "zero": {
+    "neuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "pcmDecodeRuns": 0,
+    "resamplingRuns": 0,
+    "freshHoldoutAccess": 0,
+    "modelWarmupRuns": 0,
+    "unknownNeuralExecutions": 0,
+    "decoderBRuns": 0,
+    "decoderCRuns": 0,
+    "ContinuousAcousticReruns": 0
+  }
+}

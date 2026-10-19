@@ -1,0 +1,400 @@
+{
+  "schema": "V21_BLIND_THRESHOLD_CONFIG_NO_TRUTH_OR_TARGETS",
+  "profiles": [
+    {
+      "profileId": "ROBUST_A_O015_F005",
+      "onsetThreshold": 0.15,
+      "frameThreshold": 0.05,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 3,
+      "readoutIdentity": "robust-a-o015-f005-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F010",
+      "onsetThreshold": 0.15,
+      "frameThreshold": 0.1,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 4,
+      "readoutIdentity": "robust-a-o015-f010-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F015",
+      "onsetThreshold": 0.15,
+      "frameThreshold": 0.15,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 5,
+      "readoutIdentity": "robust-a-o015-f015-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O015_F020",
+      "onsetThreshold": 0.15,
+      "frameThreshold": 0.2,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 6,
+      "readoutIdentity": "robust-a-o015-f020-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F005",
+      "onsetThreshold": 0.2,
+      "frameThreshold": 0.05,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 2,
+      "readoutIdentity": "robust-a-o020-f005-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F010",
+      "onsetThreshold": 0.2,
+      "frameThreshold": 0.1,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 3,
+      "readoutIdentity": "robust-a-o020-f010-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F015",
+      "onsetThreshold": 0.2,
+      "frameThreshold": 0.15,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 4,
+      "readoutIdentity": "robust-a-o020-f015-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O020_F020",
+      "onsetThreshold": 0.2,
+      "frameThreshold": 0.2,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 5,
+      "readoutIdentity": "robust-a-o020-f020-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F005",
+      "onsetThreshold": 0.25,
+      "frameThreshold": 0.05,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 1,
+      "readoutIdentity": "robust-a-o025-f005-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F010",
+      "onsetThreshold": 0.25,
+      "frameThreshold": 0.1,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 2,
+      "readoutIdentity": "robust-a-o025-f010-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F015",
+      "onsetThreshold": 0.25,
+      "frameThreshold": 0.15,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 3,
+      "readoutIdentity": "robust-a-o025-f015-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O025_F020",
+      "onsetThreshold": 0.25,
+      "frameThreshold": 0.2,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 4,
+      "readoutIdentity": "robust-a-o025-f020-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F005",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 0,
+      "readoutIdentity": "robust-a-o030-f005-v21-exposed-development",
+      "status": "CURRENT_CONTROL_NOT_NEW_CANDIDATE"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F010",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.1,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 1,
+      "readoutIdentity": "robust-a-o030-f010-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F015",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.15,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 2,
+      "readoutIdentity": "robust-a-o030-f015-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O030_F020",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.2,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 3,
+      "readoutIdentity": "robust-a-o030-f020-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F005",
+      "onsetThreshold": 0.35,
+      "frameThreshold": 0.05,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 1,
+      "readoutIdentity": "robust-a-o035-f005-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F010",
+      "onsetThreshold": 0.35,
+      "frameThreshold": 0.1,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 2,
+      "readoutIdentity": "robust-a-o035-f010-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F015",
+      "onsetThreshold": 0.35,
+      "frameThreshold": 0.15,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 3,
+      "readoutIdentity": "robust-a-o035-f015-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    },
+    {
+      "profileId": "ROBUST_A_O035_F020",
+      "onsetThreshold": 0.35,
+      "frameThreshold": 0.2,
+      "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "decoder": "PRODUCTION_DECODER_A",
+      "geometry": {
+        "ownedMs": 600,
+        "pastMs": 1050,
+        "futureMs": 170
+      },
+      "gridStepDistance": 4,
+      "readoutIdentity": "robust-a-o035-f020-v21-exposed-development",
+      "status": "EXPOSED_DEVELOPMENT_ONLY"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "decoder",
+      "path": "backend/research/reports/robust_threshold_v21/bundles/decoder.mjs",
+      "sha256": "c71f5c5dcda996979ac98abf0680c76ba8cb66946073b9be4aeb3ac2f298045b",
+      "graph": [
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+        "backend/research/robust_threshold_v21/decoder.ts"
+      ]
+    }
+  ],
+  "stageASources": [
+    {
+      "path": "backend/research/robust_threshold_v21/stage-a.mjs",
+      "sha256": "d7f80bfa4214de35ec216c4c3f8aed5042d3c32dac5939349967befd05d90174"
+    },
+    {
+      "path": "backend/research/robust_threshold_v21/io.mjs",
+      "sha256": "f47e54f17c76d3f9da763c0622c896f7b69111021705e3e09181f390e226c8a3"
+    },
+    {
+      "path": "backend/research/robust_threshold_v21/foundation.mjs",
+      "sha256": "8573f9de9252d45c21b018eac71616c2a481db8a02fecb62b74cdffe0b04f8d3"
+    },
+    {
+      "path": "backend/research/robust_threshold_v21/profiles.mjs",
+      "sha256": "6db632c6e2f5fb33752def811d035ba1cec6038ad5cc775b0bc3c3336244c1ce"
+    },
+    {
+      "path": "backend/research/reports/robust_threshold_v21/bundles/decoder.mjs",
+      "sha256": "c71f5c5dcda996979ac98abf0680c76ba8cb66946073b9be4aeb3ac2f298045b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "sha256": "8bf881713a3ac510e385c5ebc92db350861f9ed630934ca0b25fd5427197e975"
+    },
+    {
+      "path": "backend/research/robust_threshold_v21/decoder.ts",
+      "sha256": "c6bfd31fd74f8779a53ed21f5841edf8a7518ab4a0273f0a0df68e97b3914022"
+    }
+  ],
+  "rawBlobPaths": [
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-3ea18cb7ffbe8add3120531f.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a1987006cc63fcdaef5ce98a.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-345e4955170302c450281935.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-5c9651201c93bc9e4a5a8b9c.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a9f537c1bb46e37eb0ef01d1.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-163f5f8ce2977dccf0ebc6a6.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a8b8ef76b7bf61ae456b2142.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-43634d2c02fe5f9c2aab7915.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-c29d502d44aedb4aa68d6dc6.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-b38ff68d7141a55f2a977892.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-981acf2c9183ecf2d7e21648.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-b12396b9f8784b14c92a97c9.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-32e68eca71c65e1452252e5f.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-3ec9a6d5ef516adf6bd4daf0.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-800323ad4631df7d7b814c83.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-ffb0e106dac8cfc6c92a7f0c.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-9d86f1787e7f062a94778015.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-e5e2a2a28646779132491ce8.f32"
+  ],
+  "baselineAcousticReference": {
+    "path": "backend/research/reports/robust_raw_tensor_v20/baseline-parity.json",
+    "sha256": "969d95d860fa9431212412fc4014646aef5047f716fecfcebb37081839934318"
+  }
+}

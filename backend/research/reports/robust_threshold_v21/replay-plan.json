@@ -1,0 +1,1993 @@
+{
+  "rows": [
+    {
+      "rowId": "correct_single:44100:0",
+      "scenarioId": "correct_single",
+      "ordinal": 0,
+      "family": "correct_single",
+      "recordingId": "Chopin_op10_no3_p01",
+      "audioBoundCaseId": "497e64b39d554ba07e0fbef1cf7cf267ba0e3e2d0d84afe7e51554a2c7a7d9c0",
+      "physicalGestureId": "Chopin_op10_no3_p01:g:450",
+      "rate": 44100,
+      "jobId": "j-3ea18cb7ffbe8add3120531f",
+      "physicalTruth": [
+        64
+      ],
+      "expected": [
+        64
+      ],
+      "physicalOnsetMs": 81885.41666666832,
+      "eligibilityBoundarySample": 3604532,
+      "semanticEndSample": 3615557,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p01:g:450",
+          "onsetMs": 81885.41666666832
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        64
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-3ea18cb7ffbe8add3120531f:r0:w5:p64:f70240"
+      ]
+    },
+    {
+      "rowId": "correct_single:48000:0",
+      "scenarioId": "correct_single",
+      "ordinal": 0,
+      "family": "correct_single",
+      "recordingId": "Chopin_op10_no3_p01",
+      "audioBoundCaseId": "497e64b39d554ba07e0fbef1cf7cf267ba0e3e2d0d84afe7e51554a2c7a7d9c0",
+      "physicalGestureId": "Chopin_op10_no3_p01:g:450",
+      "rate": 48000,
+      "jobId": "j-a1987006cc63fcdaef5ce98a",
+      "physicalTruth": [
+        64
+      ],
+      "expected": [
+        64
+      ],
+      "physicalOnsetMs": 81885.41666666832,
+      "eligibilityBoundarySample": 3923300,
+      "semanticEndSample": 3935300,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p01:g:450",
+          "onsetMs": 81885.41666666832
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        64
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-a1987006cc63fcdaef5ce98a:r0:w5:p64:f70240"
+      ]
+    },
+    {
+      "rowId": "correct_chord:44100:0",
+      "scenarioId": "correct_chord",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56,
+        64
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3134545,
+      "semanticEndSample": 3145570,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "correct_chord:48000:0",
+      "scenarioId": "correct_chord",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56,
+        64
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3411750,
+      "semanticEndSample": 3423750,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "post_ready_repeat:44100:0",
+      "scenarioId": "post_ready_repeat",
+      "ordinal": 0,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:801",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 77656.24999999908,
+      "eligibilityBoundarySample": 3418026,
+      "semanticEndSample": 3429051,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "post_ready_repeat:44100:1",
+      "scenarioId": "post_ready_repeat",
+      "ordinal": 1,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:803",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 79270.83333333248,
+      "eligibilityBoundarySample": 3489229,
+      "semanticEndSample": 3500254,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+        "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+        "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000"
+      ]
+    },
+    {
+      "rowId": "post_ready_repeat:48000:0",
+      "scenarioId": "post_ready_repeat",
+      "ordinal": 0,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:801",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 77656.24999999908,
+      "eligibilityBoundarySample": 3720300,
+      "semanticEndSample": 3732300,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+        "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+        "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+        "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "post_ready_repeat:48000:1",
+      "scenarioId": "post_ready_repeat",
+      "ordinal": 1,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:803",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 79270.83333333248,
+      "eligibilityBoundarySample": 3797800,
+      "semanticEndSample": 3809800,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+        "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+        "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000"
+      ]
+    },
+    {
+      "rowId": "match_followed_by_next_target:44100:0",
+      "scenarioId": "match_followed_by_next_target",
+      "ordinal": 0,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:801",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 77656.24999999908,
+      "eligibilityBoundarySample": 3418026,
+      "semanticEndSample": 3429051,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w5:p74:f68960",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p70:f69120",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p46:f69600",
+        "j-32e68eca71c65e1452252e5f:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "match_followed_by_next_target:44100:1",
+      "scenarioId": "match_followed_by_next_target",
+      "ordinal": 1,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:803",
+      "rate": 44100,
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 79270.83333333248,
+      "eligibilityBoundarySample": 3489229,
+      "semanticEndSample": 3500254,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-32e68eca71c65e1452252e5f:r0:w7:p58:f95360",
+        "j-32e68eca71c65e1452252e5f:r0:w7:p46:f95840",
+        "j-32e68eca71c65e1452252e5f:r0:w8:p50:f96000"
+      ]
+    },
+    {
+      "rowId": "match_followed_by_next_target:48000:0",
+      "scenarioId": "match_followed_by_next_target",
+      "ordinal": 0,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:801",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 77656.24999999908,
+      "eligibilityBoundarySample": 3720300,
+      "semanticEndSample": 3732300,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w5:p74:f68960",
+        "j-800323ad4631df7d7b814c83:r0:w5:p70:f69120",
+        "j-800323ad4631df7d7b814c83:r0:w5:p46:f69600",
+        "j-800323ad4631df7d7b814c83:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "match_followed_by_next_target:48000:1",
+      "scenarioId": "match_followed_by_next_target",
+      "ordinal": 1,
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "physicalGestureId": "kv281_1:g:803",
+      "rate": 48000,
+      "jobId": "j-800323ad4631df7d7b814c83",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        58
+      ],
+      "physicalOnsetMs": 79270.83333333248,
+      "eligibilityBoundarySample": 3797800,
+      "semanticEndSample": 3809800,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:801",
+          "onsetMs": 77656.24999999908
+        },
+        {
+          "gestureId": "kv281_1:g:803",
+          "onsetMs": 79270.83333333248
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-800323ad4631df7d7b814c83:r0:w7:p58:f95360",
+        "j-800323ad4631df7d7b814c83:r0:w7:p46:f95840",
+        "j-800323ad4631df7d7b814c83:r0:w8:p50:f96000"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:44100:0",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 0,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:523",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "physicalTruth": [
+        36,
+        53,
+        59,
+        62
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 109072.91666667095,
+      "eligibilityBoundarySample": 4803501,
+      "semanticEndSample": 4814526,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p53:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p59:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p62:f69600",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p36:f69920",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p48:f69920",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w5:p55:f70080"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:44100:1",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 1,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:527",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "physicalTruth": [
+        52,
+        55,
+        60
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 111926.0416666713,
+      "eligibilityBoundarySample": 4929323,
+      "semanticEndSample": 4940348,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        55,
+        60
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w9:p52:f115040",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w9:p60:f115040",
+        "j-c29d502d44aedb4aa68d6dc6:r0:w10:p55:f115520"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:44100:2",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 2,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:530",
+      "rate": 44100,
+      "jobId": "j-c29d502d44aedb4aa68d6dc6",
+      "physicalTruth": [
+        65
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 113783.33333333828,
+      "eligibilityBoundarySample": 5011230,
+      "semanticEndSample": 5022255,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        65
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-c29d502d44aedb4aa68d6dc6:r0:w13:p65:f144960"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:48000:0",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 0,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:523",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "physicalTruth": [
+        36,
+        53,
+        59,
+        62
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 109072.91666667095,
+      "eligibilityBoundarySample": 5228300,
+      "semanticEndSample": 5240300,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w5:p53:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p59:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p62:f69600",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p36:f69920",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p48:f69920",
+        "j-b38ff68d7141a55f2a977892:r0:w5:p55:f70080"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:48000:1",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 1,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:527",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "physicalTruth": [
+        52,
+        55,
+        60
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 111926.0416666713,
+      "eligibilityBoundarySample": 5365250,
+      "semanticEndSample": 5377250,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        55,
+        60
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w9:p52:f115040",
+        "j-b38ff68d7141a55f2a977892:r0:w9:p60:f115040",
+        "j-b38ff68d7141a55f2a977892:r0:w10:p55:f115520"
+      ]
+    },
+    {
+      "rowId": "multiple_wrong_then_correct:48000:2",
+      "scenarioId": "multiple_wrong_then_correct",
+      "ordinal": 2,
+      "family": "multiple_wrong_then_correct",
+      "recordingId": "kv279_2",
+      "audioBoundCaseId": "4ad84ffbadea813182577a1b0f6f39c9632e101c7332077bff79ecd017537ca2",
+      "physicalGestureId": "kv279_2:g:530",
+      "rate": 48000,
+      "jobId": "j-b38ff68d7141a55f2a977892",
+      "physicalTruth": [
+        65
+      ],
+      "expected": [
+        65
+      ],
+      "physicalOnsetMs": 113783.33333333828,
+      "eligibilityBoundarySample": 5454400,
+      "semanticEndSample": 5466400,
+      "attributionGestures": [
+        {
+          "gestureId": "kv279_2:g:523",
+          "onsetMs": 109072.91666667095
+        },
+        {
+          "gestureId": "kv279_2:g:527",
+          "onsetMs": 111926.0416666713
+        },
+        {
+          "gestureId": "kv279_2:g:530",
+          "onsetMs": 113783.33333333828
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        65
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-b38ff68d7141a55f2a977892:r0:w13:p65:f144960"
+      ]
+    },
+    {
+      "rowId": "partial_then_full:44100:0",
+      "scenarioId": "partial_then_full",
+      "ordinal": 0,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2081",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 201743.75000000047,
+      "eligibilityBoundarySample": 8890284,
+      "semanticEndSample": 8901309,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p74:f69120",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p70:f69280",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p46:f69600",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "partial_then_full:44100:1",
+      "scenarioId": "partial_then_full",
+      "ordinal": 1,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2083",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 203314.58333333378,
+      "eligibilityBoundarySample": 8959558,
+      "semanticEndSample": 8970583,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p46:f94720",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p58:f94880",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p50:f95360"
+      ]
+    },
+    {
+      "rowId": "partial_then_full:48000:0",
+      "scenarioId": "partial_then_full",
+      "ordinal": 0,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2081",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 201743.75000000047,
+      "eligibilityBoundarySample": 9676500,
+      "semanticEndSample": 9688500,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "partial_then_full:48000:1",
+      "scenarioId": "partial_then_full",
+      "ordinal": 1,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2083",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 203314.58333333378,
+      "eligibilityBoundarySample": 9751900,
+      "semanticEndSample": 9763900,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360"
+      ]
+    },
+    {
+      "rowId": "mismatch_same_target_rearm:44100:0",
+      "scenarioId": "mismatch_same_target_rearm",
+      "ordinal": 0,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2081",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 201743.75000000047,
+      "eligibilityBoundarySample": 8890284,
+      "semanticEndSample": 8901309,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p74:f69120",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p70:f69280",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p46:f69600",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "mismatch_same_target_rearm:44100:1",
+      "scenarioId": "mismatch_same_target_rearm",
+      "ordinal": 1,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2083",
+      "rate": 44100,
+      "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 203314.58333333378,
+      "eligibilityBoundarySample": 8959558,
+      "semanticEndSample": 8970583,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p46:f94720",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p58:f94880",
+        "j-3ec9a6d5ef516adf6bd4daf0:r0:w7:p50:f95360"
+      ]
+    },
+    {
+      "rowId": "mismatch_same_target_rearm:48000:0",
+      "scenarioId": "mismatch_same_target_rearm",
+      "ordinal": 0,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2081",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "physicalTruth": [
+        46,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 201743.75000000047,
+      "eligibilityBoundarySample": 9676500,
+      "semanticEndSample": 9688500,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p74:f69120",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p70:f69280",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p46:f69600",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w5:p58:f69600"
+      ]
+    },
+    {
+      "rowId": "mismatch_same_target_rearm:48000:1",
+      "scenarioId": "mismatch_same_target_rearm",
+      "ordinal": 1,
+      "family": "partial_then_full",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "af12399a206c808ffc8e2cd6bba640dca6813d8771a93f4ab4463ac9fdccaf21",
+      "physicalGestureId": "kv281_1:g:2083",
+      "rate": 48000,
+      "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+      "physicalTruth": [
+        46,
+        50,
+        58
+      ],
+      "expected": [
+        46,
+        50,
+        58
+      ],
+      "physicalOnsetMs": 203314.58333333378,
+      "eligibilityBoundarySample": 9751900,
+      "semanticEndSample": 9763900,
+      "attributionGestures": [
+        {
+          "gestureId": "kv281_1:g:2081",
+          "onsetMs": 201743.75000000047
+        },
+        {
+          "gestureId": "kv281_1:g:2083",
+          "onsetMs": 203314.58333333378
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        46,
+        50,
+        58
+      ],
+      "baselineVerdict": "MATCH",
+      "baselineClassification": "SAFE_MATCH",
+      "baselineObservationIds": [
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p46:f94720",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p58:f94880",
+        "j-ffb0e106dac8cfc6c92a7f0c:r0:w7:p50:f95360"
+      ]
+    },
+    {
+      "rowId": "extra_chord_tone:44100:0",
+      "scenarioId": "extra_chord_tone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3134545,
+      "semanticEndSample": 3145570,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "extra_chord_tone:48000:0",
+      "scenarioId": "extra_chord_tone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3411750,
+      "semanticEndSample": 3423750,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": true,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "SUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "missing_chord_tone:44100:0",
+      "scenarioId": "missing_chord_tone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        21,
+        56,
+        64
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3134545,
+      "semanticEndSample": 3145570,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "missing_chord_tone:48000:0",
+      "scenarioId": "missing_chord_tone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        21,
+        56,
+        64
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3411750,
+      "semanticEndSample": 3423750,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "wrong_semitone:44100:0",
+      "scenarioId": "wrong_semitone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56,
+        63
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3134545,
+      "semanticEndSample": 3145570,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "wrong_semitone:48000:0",
+      "scenarioId": "wrong_semitone",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        56,
+        63
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3411750,
+      "semanticEndSample": 3423750,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "MISMATCH",
+      "baselineClassification": "TRUE_REJECT",
+      "baselineObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "wrong_octave:44100:0",
+      "scenarioId": "wrong_octave",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 44100,
+      "jobId": "j-345e4955170302c450281935",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        52,
+        56
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3134545,
+      "semanticEndSample": 3145570,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "UNSUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-345e4955170302c450281935:r0:w5:p52:f70240",
+        "j-345e4955170302c450281935:r0:w5:p64:f70400",
+        "j-345e4955170302c450281935:r0:w5:p68:f70560",
+        "j-345e4955170302c450281935:r0:w5:p56:f70720"
+      ]
+    },
+    {
+      "rowId": "wrong_octave:48000:0",
+      "scenarioId": "wrong_octave",
+      "ordinal": 0,
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "physicalGestureId": "Chopin_op10_no3_p02:g:446",
+      "rate": 48000,
+      "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+      "physicalTruth": [
+        56,
+        64
+      ],
+      "expected": [
+        52,
+        56
+      ],
+      "physicalOnsetMs": 71228.12499999894,
+      "eligibilityBoundarySample": 3411750,
+      "semanticEndSample": 3423750,
+      "attributionGestures": [
+        {
+          "gestureId": "Chopin_op10_no3_p02:g:446",
+          "onsetMs": 71228.12499999894
+        }
+      ],
+      "physicalTargetSupported": false,
+      "baselineObserved": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "baselineVerdict": "RETRY",
+      "baselineClassification": "UNSUPPORTED_RETRY",
+      "baselineObservationIds": [
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p52:f70240",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p64:f70400",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p68:f70560",
+        "j-5c9651201c93bc9e4a5a8b9c:r0:w5:p56:f70720"
+      ]
+    }
+  ],
+  "rowCount": 34,
+  "physicalUnits": [
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}",
+    "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}"
+  ],
+  "rateIgnoredPhysicalGestures": [
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\"}",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\"}",
+    "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\"}",
+    "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\"}",
+    "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\"}",
+    "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\"}",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\"}",
+    "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\"}",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\"}"
+  ],
+  "targetViewIds": [
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":44100}:target:[64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":48000}:target:[64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56,64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56,64]",
+    "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,58]",
+    "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+    "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,50,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,50,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,50,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,50,58]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[21,56,64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[21,56,64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56,63]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56,63]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[52,56]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[52,56]"
+  ],
+  "baselineSafeMatchViewIds": [
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":44100}:target:[64]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":48000}:target:[64]",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+    "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,50,58]",
+    "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,50,58]"
+  ],
+  "baselineUnsupportedCoveredViewIds": [
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[52,56]",
+    "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[52,56]"
+  ],
+  "baselineOracleViews": [
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":44100}:target:[64]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        64
+      ],
+      "rowIds": [
+        "correct_single:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p01:g:450\",\"physicalTruth\":[64],\"recordingId\":\"Chopin_op10_no3_p01\",\"sourceRateHz\":48000}:target:[64]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        64
+      ],
+      "rowIds": [
+        "correct_single:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56,64]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "correct_chord:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56,64]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "correct_chord:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,58]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "rowIds": [
+        "post_ready_repeat:44100:0",
+        "match_followed_by_next_target:44100:0"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,58]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        46,
+        50,
+        58
+      ],
+      "rowIds": [
+        "post_ready_repeat:44100:1",
+        "match_followed_by_next_target:44100:1"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:801\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,58]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "rowIds": [
+        "post_ready_repeat:48000:0",
+        "match_followed_by_next_target:48000:0"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:803\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,58]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        46,
+        50,
+        58
+      ],
+      "rowIds": [
+        "post_ready_repeat:48000:1",
+        "match_followed_by_next_target:48000:1"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        55,
+        60
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:44100:1"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":44100}:target:[65]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        65
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:44100:2"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:523\",\"physicalTruth\":[36,53,59,62],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        36,
+        48,
+        53,
+        55,
+        59,
+        62
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:527\",\"physicalTruth\":[52,55,60],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        55,
+        60
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:48000:1"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv279_2:g:530\",\"physicalTruth\":[65],\"recordingId\":\"kv279_2\",\"sourceRateHz\":48000}:target:[65]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        65
+      ],
+      "rowIds": [
+        "multiple_wrong_then_correct:48000:2"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,50,58]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "rowIds": [
+        "partial_then_full:44100:0",
+        "mismatch_same_target_rearm:44100:0"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":44100}:target:[46,50,58]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        46,
+        50,
+        58
+      ],
+      "rowIds": [
+        "partial_then_full:44100:1",
+        "mismatch_same_target_rearm:44100:1"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:2081\",\"physicalTruth\":[46,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,50,58]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        46,
+        58,
+        70,
+        74
+      ],
+      "rowIds": [
+        "partial_then_full:48000:0",
+        "mismatch_same_target_rearm:48000:0"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"kv281_1:g:2083\",\"physicalTruth\":[46,50,58],\"recordingId\":\"kv281_1\",\"sourceRateHz\":48000}:target:[46,50,58]",
+      "classification": "SAFE_MATCH",
+      "observed": [
+        46,
+        50,
+        58
+      ],
+      "rowIds": [
+        "partial_then_full:48000:1",
+        "mismatch_same_target_rearm:48000:1"
+      ],
+      "multiplicity": 2
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "extra_chord_tone:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56]",
+      "classification": "SUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "extra_chord_tone:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[21,56,64]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "missing_chord_tone:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[21,56,64]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "missing_chord_tone:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[56,63]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "wrong_semitone:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[56,63]",
+      "classification": "TRUE_REJECT",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "wrong_semitone:48000:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":44100}:target:[52,56]",
+      "classification": "UNSUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "wrong_octave:44100:0"
+      ],
+      "multiplicity": 1
+    },
+    {
+      "viewId": "{\"physicalGestureId\":\"Chopin_op10_no3_p02:g:446\",\"physicalTruth\":[56,64],\"recordingId\":\"Chopin_op10_no3_p02\",\"sourceRateHz\":48000}:target:[52,56]",
+      "classification": "UNSUPPORTED_RETRY",
+      "observed": [
+        52,
+        56,
+        64,
+        68
+      ],
+      "rowIds": [
+        "wrong_octave:48000:0"
+      ],
+      "multiplicity": 1
+    }
+  ],
+  "epoch": {
+    "readyMs": 10000,
+    "rearmMs": 20000,
+    "label": "SYNTHETIC_TARGET_VIEW_REPLAY_NOT_DEVICE_UX_LATENCY_OR_MICROPHONE_COOLDOWN"
+  },
+  "dedupKey": [
+    "recordingId",
+    "physicalGestureId",
+    "sourceRateHz",
+    "normalizedPhysicalTruth"
+  ],
+  "targetViewAdds": "normalizedExpectedTarget",
+  "candidateDependentFieldsInKey": []
+}
