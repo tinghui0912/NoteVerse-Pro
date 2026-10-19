@@ -1,0 +1,28 @@
+{
+  "passed": 5,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "Stage A one session, 228 accounted runs/pairs, zero unknown/warmup/decoder/truth/product runs",
+      "status": "PASS"
+    },
+    {
+      "name": "18 readback job blobs, all228 pair/tensor LE hashes and exact corpus bytes",
+      "status": "PASS"
+    },
+    {
+      "name": "raw seal remotely established before any baseline decode; baseline228 only and zero neural",
+      "status": "PASS"
+    },
+    {
+      "name": "all V7 observations and all34 V15 acoustic assemblies reproduce exactly",
+      "status": "PASS"
+    },
+    {
+      "name": "V18/runtime, production, Continuous and all historical evidence still unchanged",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Read-only assertions; no neural or decoder rerun",
+  "localNotCI": true
+}

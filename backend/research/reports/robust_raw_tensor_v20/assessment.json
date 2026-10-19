@@ -1,0 +1,653 @@
+{
+  "phase": "ROBUST_RAW_TENSOR_CAPTURE_V20",
+  "label": "EXPOSED_DEVELOPMENT_FOUNDATION_NOT_MICROPHONE_QUALIFICATION_NOT_THRESHOLD_BAKEOFF",
+  "createdAt": "2026-10-19T09:09:25.846787+00:00",
+  "startingHead": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+  "startingGate": {
+    "localHead": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+    "remoteHead": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+    "mergeBase": "f5bb7b5debdb64b5f5487b633eb2ba17b4e7564e",
+    "ahead": 0,
+    "behind": 0,
+    "cleanWorktreeBeforeEdits": true,
+    "fetchFirst": true,
+    "github": {
+      "queriedAt": "2026-10-19T08:55:02.881433+00:00",
+      "combinedState": "pending",
+      "statuses": [],
+      "workflow_runs": [],
+      "ciInterpretation": "NOT CI PASS"
+    }
+  },
+  "disposition": "ROBUST_V20_RAW_TENSOR_CORPUS_SEALED_CURRENT_030_005_BASELINE_PARITY_ESTABLISHED",
+  "failure": null,
+  "requiredAnswers": {
+    "1_V19Immutable": true,
+    "2_V19NotResumed": "V19_NOT_RESUMED_NEW_V20_PROSPECTIVE_PROTOCOL_REQUIRED",
+    "3_V20InputsReconstructedIndependently": 228,
+    "4_exactInputPreservation": {
+      "mismatches": 0,
+      "V6AndReferenceSha": "verified before session",
+      "V7WindowAndActualSha": "verified before session"
+    },
+    "5_allPreflightPassedBeforeFreeze": true,
+    "6_structuralASTCheck": {
+      "parser": "Existing repository TypeScript compiler API",
+      "parserVersion": "6.0.3",
+      "decoderCallExpressions": 1,
+      "localUnaliasedBindings": 1,
+      "reportMetadataObjects": 1,
+      "reportMetadataCountedAsDecoderCall": false,
+      "thresholdArguments": {
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05
+      },
+      "indirectOrComputedDecoderCalls": 0,
+      "decoderWrappers": 0,
+      "thresholdGridIterations": 0
+    },
+    "7_decoderCallExpressions": 1,
+    "8_reportMetadataExcluded": true,
+    "9_remoteProtocolBeforeModel": true,
+    "10_captureOwnerWorkers": 1,
+    "11_modelSessions": 1,
+    "12_attemptedSessionRuns": 228,
+    "13_successfulSessionRuns": 228,
+    "14_hiddenWarmupUnknown": {
+      "hiddenWarmupRuns": 0,
+      "unknownRuns": 0
+    },
+    "15_StageAForbiddenExecutions": {
+      "decoderRuns": 0,
+      "truthAccessCount": 0,
+      "productVerdictRuns": 0
+    },
+    "16_actualRawDescriptors": {
+      "pairsVerified": 228,
+      "dtype": "float32",
+      "shape": [
+        1,
+        183,
+        88
+      ],
+      "finite": true
+    },
+    "17_rawPairs": 228,
+    "18_rawBytes": 29373696,
+    "19_immediateAndFinalReadbacks": {
+      "completedJobReadbacks": 18,
+      "failures": [],
+      "rawProof": {
+        "captureCommit": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+        "remoteHead": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+        "remoteVerifiedAt": "2026-10-19T09:08:57.523Z",
+        "tensorManifestSha256": "4bb391905007ecbd594b4ed76d7fa79be0a3c095062da9111c4de63e72129c4b",
+        "rawSealSha256": "7513253623c799357de01d7a7a183a95ec2738e0fa374b88fe299a09d1899eaf",
+        "corpusCanonicalSha256": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0",
+        "totalJobs": 18,
+        "totalInputs": 228,
+        "totalRawPairs": 228,
+        "totalCanonicalRawBytes": 29373696,
+        "modelSessionLoads": 1,
+        "modelSessionRuns": 228,
+        "attemptedSessionRuns": 228,
+        "successfulSessionRuns": 228,
+        "captureOwnerWorkers": 1,
+        "hiddenWarmupRuns": 0,
+        "unknownRuns": 0,
+        "decoderRuns": 0,
+        "productVerdictEvaluations": 0,
+        "rawBlobReadbacksVerified": 18,
+        "all228PairAndTensorHashesVerified": true
+      }
+    },
+    "20_remoteRawSealBeforeDecoder": true,
+    "21_actualProductionDecoder": "Actual production decodeRobustPiano + sourcePublication; no copied algorithm",
+    "22_actualSourcePublication": "Actual production decodeRobustPiano + sourcePublication; no copied algorithm",
+    "23_baselineDecoderRuns": 228,
+    "24_StageBNeuralRuns": 0,
+    "25_V7ParityExact": true,
+    "26_V15Membership": [
+      {
+        "legacyAssemblyIndex": 0,
+        "jobId": "j-3ea18cb7ffbe8add3120531f",
+        "observationCount": 1,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 1,
+        "jobId": "j-a1987006cc63fcdaef5ce98a",
+        "observationCount": 1,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 2,
+        "jobId": "j-345e4955170302c450281935",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 3,
+        "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 4,
+        "jobId": "j-32e68eca71c65e1452252e5f",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 5,
+        "jobId": "j-32e68eca71c65e1452252e5f",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 6,
+        "jobId": "j-800323ad4631df7d7b814c83",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 7,
+        "jobId": "j-800323ad4631df7d7b814c83",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 8,
+        "jobId": "j-32e68eca71c65e1452252e5f",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 9,
+        "jobId": "j-32e68eca71c65e1452252e5f",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 10,
+        "jobId": "j-800323ad4631df7d7b814c83",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 11,
+        "jobId": "j-800323ad4631df7d7b814c83",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 12,
+        "jobId": "j-c29d502d44aedb4aa68d6dc6",
+        "observationCount": 6,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 13,
+        "jobId": "j-c29d502d44aedb4aa68d6dc6",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 14,
+        "jobId": "j-c29d502d44aedb4aa68d6dc6",
+        "observationCount": 1,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 15,
+        "jobId": "j-b38ff68d7141a55f2a977892",
+        "observationCount": 6,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 16,
+        "jobId": "j-b38ff68d7141a55f2a977892",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 17,
+        "jobId": "j-b38ff68d7141a55f2a977892",
+        "observationCount": 1,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 18,
+        "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 19,
+        "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 20,
+        "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 21,
+        "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 22,
+        "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 23,
+        "jobId": "j-3ec9a6d5ef516adf6bd4daf0",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 24,
+        "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 25,
+        "jobId": "j-ffb0e106dac8cfc6c92a7f0c",
+        "observationCount": 3,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 26,
+        "jobId": "j-345e4955170302c450281935",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 27,
+        "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 28,
+        "jobId": "j-345e4955170302c450281935",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 29,
+        "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 30,
+        "jobId": "j-345e4955170302c450281935",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 31,
+        "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 32,
+        "jobId": "j-345e4955170302c450281935",
+        "observationCount": 4,
+        "missingCount": 0
+      },
+      {
+        "legacyAssemblyIndex": 33,
+        "jobId": "j-5c9651201c93bc9e4a5a8b9c",
+        "observationCount": 4,
+        "missingCount": 0
+      }
+    ],
+    "27_alternativeThresholdRuns": 0,
+    "28_directionWinnerCandidateSelected": {
+      "directionSelected": false,
+      "winnerSelected": false,
+      "candidateSelected": false
+    },
+    "29_productionChanged": false,
+    "30_defaultsChanged": false,
+    "31_capabilityEnabled": false,
+    "32_CI": "ACTUAL_GITHUB_QUERY_ONLY_LOCAL_TESTING_IS_NOT_CI"
+  },
+  "V19Boundary": "V19_NOT_RESUMED_NEW_V20_PROSPECTIVE_PROTOCOL_REQUIRED",
+  "V19Disposition": "ROBUST_V19_RAW_TENSOR_CAPTURE_INTEGRITY_BLOCKED",
+  "V19FailureNotAcoustic": "QUALIFICATION_TOOLING_STATIC_TEXT_OCCURRENCE_TEST_DEFECT_NOT_ACOUSTIC_MODEL_FAILURE",
+  "productionDiff": [],
+  "historicalDiff": [],
+  "historicalFilesRawVerified": 1547,
+  "changedFilesAtAssessment": [
+    "backend/research/reports/robust_raw_tensor_v20/.gitattributes",
+    "backend/research/reports/robust_raw_tensor_v20/baseline-parity.json",
+    "backend/research/reports/robust_raw_tensor_v20/baseline-reference.json",
+    "backend/research/reports/robust_raw_tensor_v20/baseline-started.json",
+    "backend/research/reports/robust_raw_tensor_v20/bundle-graphs.json",
+    "backend/research/reports/robust_raw_tensor_v20/capture-protocol-freeze.json",
+    "backend/research/reports/robust_raw_tensor_v20/capture-started.json",
+    "backend/research/reports/robust_raw_tensor_v20/historical-raw-identities.json",
+    "backend/research/reports/robust_raw_tensor_v20/input-preservation.json",
+    "backend/research/reports/robust_raw_tensor_v20/local-verification.json",
+    "backend/research/reports/robust_raw_tensor_v20/post-execution-tests.json",
+    "backend/research/reports/robust_raw_tensor_v20/pre-execution-tests.json",
+    "backend/research/reports/robust_raw_tensor_v20/product-vitest.json",
+    "backend/research/reports/robust_raw_tensor_v20/raw-tensor-seal.json",
+    "backend/research/reports/robust_raw_tensor_v20/remote-capture-permission.json",
+    "backend/research/reports/robust_raw_tensor_v20/remote-raw-seal-proof.json",
+    "backend/research/reports/robust_raw_tensor_v20/research-eslint.json",
+    "backend/research/reports/robust_raw_tensor_v20/tensor-corpus-manifest.json",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-163f5f8ce2977dccf0ebc6a6.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-32e68eca71c65e1452252e5f.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-345e4955170302c450281935.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-3ea18cb7ffbe8add3120531f.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-3ec9a6d5ef516adf6bd4daf0.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-43634d2c02fe5f9c2aab7915.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-5c9651201c93bc9e4a5a8b9c.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-800323ad4631df7d7b814c83.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-981acf2c9183ecf2d7e21648.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-9d86f1787e7f062a94778015.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a1987006cc63fcdaef5ce98a.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a8b8ef76b7bf61ae456b2142.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-a9f537c1bb46e37eb0ef01d1.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-b12396b9f8784b14c92a97c9.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-b38ff68d7141a55f2a977892.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-c29d502d44aedb4aa68d6dc6.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-e5e2a2a28646779132491ce8.f32",
+    "backend/research/reports/robust_raw_tensor_v20/tensors/j-ffb0e106dac8cfc6c92a7f0c.f32",
+    "backend/research/robust_raw_tensor_v20/.gitattributes",
+    "backend/research/robust_raw_tensor_v20/baseline.mjs",
+    "backend/research/robust_raw_tensor_v20/baseline.ts",
+    "backend/research/robust_raw_tensor_v20/capture-entry.mjs",
+    "backend/research/robust_raw_tensor_v20/capture-worker.mjs",
+    "backend/research/robust_raw_tensor_v20/capture.mjs",
+    "backend/research/robust_raw_tensor_v20/closeout.py",
+    "backend/research/robust_raw_tensor_v20/contract.json",
+    "backend/research/robust_raw_tensor_v20/control.mjs",
+    "backend/research/robust_raw_tensor_v20/design.md",
+    "backend/research/robust_raw_tensor_v20/eslint.config.mjs",
+    "backend/research/robust_raw_tensor_v20/io.mjs",
+    "backend/research/robust_raw_tensor_v20/prepare-inputs.ts",
+    "backend/research/robust_raw_tensor_v20/raw-proof.mjs",
+    "backend/research/robust_raw_tensor_v20/stage-a-config.json",
+    "backend/research/robust_raw_tensor_v20/structure.mjs",
+    "backend/research/robust_raw_tensor_v20/tests.mjs",
+    "backend/research/robust_raw_tensor_v20/tsconfig.json",
+    "backend/research/robust_raw_tensor_v20/wire.mjs"
+  ],
+  "captureProtocolFreezeProof": {
+    "freezeCommit": "475c24ff451f94bbe79e653910f392d64578d704",
+    "remoteHead": "475c24ff451f94bbe79e653910f392d64578d704",
+    "remoteVerifiedAt": "2026-10-19T09:06:23.056Z",
+    "freezeSha256": "d332d0e44199c81670c25852b0bb99170f32a990baf2c6f766c79e9439a40081",
+    "configSha256": "bd6f429396f725b6cf29d7058a498522e662ed02d40f25896c557776ae9dd693",
+    "inputPreservationSha256": "f23c44f0dbea6e3c7b3a3469a51ece2332788d42fa13f0e0f23e1046d8086d67",
+    "newNeuralRuns": 0,
+    "baselineStageB": "NOT_STARTED"
+  },
+  "remoteRawSealProof": {
+    "captureCommit": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+    "remoteHead": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+    "remoteVerifiedAt": "2026-10-19T09:08:57.523Z",
+    "tensorManifestSha256": "4bb391905007ecbd594b4ed76d7fa79be0a3c095062da9111c4de63e72129c4b",
+    "rawSealSha256": "7513253623c799357de01d7a7a183a95ec2738e0fa374b88fe299a09d1899eaf",
+    "corpusCanonicalSha256": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0",
+    "totalJobs": 18,
+    "totalInputs": 228,
+    "totalRawPairs": 228,
+    "totalCanonicalRawBytes": 29373696,
+    "modelSessionLoads": 1,
+    "modelSessionRuns": 228,
+    "attemptedSessionRuns": 228,
+    "successfulSessionRuns": 228,
+    "captureOwnerWorkers": 1,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0,
+    "decoderRuns": 0,
+    "productVerdictEvaluations": 0,
+    "rawBlobReadbacksVerified": 18,
+    "all228PairAndTensorHashesVerified": true
+  },
+  "inputPreservation": {
+    "totalCases": 9,
+    "totalJobs": 18,
+    "totalInputs": 228,
+    "mismatches": 0
+  },
+  "StageA": {
+    "modelSessionLoads": 1,
+    "modelSessionLoadAttempts": 1,
+    "modelSessionRuns": 228,
+    "successfulSessionRuns": 228,
+    "failedSessionRuns": 0,
+    "attemptedSessionRuns": 228,
+    "captureWorkerConstructions": 1,
+    "captureOwnerWorkers": 1,
+    "inputCount": 228,
+    "rawTensorPairs": 228,
+    "rawCanonicalBytes": 29373696,
+    "decoderRuns": 0,
+    "productVerdictRuns": 0,
+    "truthAccessCount": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  },
+  "StageB": {
+    "neuralRuns": 0,
+    "baselineDecoderRuns": 228,
+    "alternativeThresholdDecoderRuns": 0,
+    "productVerdictRuns": 0
+  },
+  "browser": {
+    "version": "155.0.8059.80",
+    "headed": true,
+    "brand": "Google Chrome",
+    "playwright": "1.48.2",
+    "extraBrowserFlags": []
+  },
+  "GPU": {
+    "info": {
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": "",
+      "description": ""
+    },
+    "features": [
+      "depth32float-stencil8",
+      "rg11b10ufloat-renderable",
+      "texture-formats-tier1",
+      "bgra8unorm-storage",
+      "texture-compression-bc",
+      "dual-source-blending",
+      "core-features-and-limits",
+      "float32-filterable",
+      "indirect-first-instance",
+      "float32-blendable",
+      "subgroup-size-control",
+      "depth-clip-control",
+      "texture-compression-bc-sliced-3d",
+      "texture-formats-tier2",
+      "timestamp-query",
+      "shader-f16",
+      "clip-distances",
+      "primitive-index",
+      "texture-component-swizzle",
+      "subgroups"
+    ]
+  },
+  "workerTaxonomy": [
+    {
+      "url": "http://127.0.0.1:58521/capture-worker.js",
+      "pathname": "/capture-worker.js",
+      "at": "2026-10-19T09:06:44.624Z",
+      "classification": "V20_CAPTURE_OWNER"
+    },
+    {
+      "url": "http://127.0.0.1:58521/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "at": "2026-10-19T09:06:44.912Z",
+      "classification": "ORT_RUNTIME_SUBORDINATE"
+    },
+    {
+      "url": "http://127.0.0.1:58521/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "at": "2026-10-19T09:06:44.912Z",
+      "classification": "ORT_RUNTIME_SUBORDINATE"
+    },
+    {
+      "url": "http://127.0.0.1:58521/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "pathname": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "at": "2026-10-19T09:06:44.913Z",
+      "classification": "ORT_RUNTIME_SUBORDINATE"
+    }
+  ],
+  "modelIdentity": "robust-browser-engineering-default-xc4-v1",
+  "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+  "ORT": "1.20.1",
+  "provider": "webgpu",
+  "automaticFallback": false,
+  "corpusCanonicalSha256": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0",
+  "baselineObservationParity": "EXACT",
+  "onsetScoreFrameScore": "NEWLY_PRESERVED_RAW_DERIVED_DIAGNOSTIC_NOT_HISTORICAL_V7_PARITY",
+  "localVerification": {
+    "label": "LOCAL_PREFLIGHT_NOT_GITHUB_CI",
+    "allPreflightPassed": true,
+    "researchTests": {
+      "passed": 16,
+      "failed": 0,
+      "artifact": "pre-execution-tests.json",
+      "command": "node backend/research/robust_raw_tensor_v20/tests.mjs pre"
+    },
+    "structuralParser": {
+      "implementation": "Existing installed TypeScript compiler API",
+      "version": "6.0.3",
+      "decoderCallExpressions": 1,
+      "metadataObjects": 1,
+      "metadataCountedAsCall": false,
+      "aliasesWrappersComputedCallsThresholdGridRejected": true,
+      "packageInstalled": false
+    },
+    "productTestsExitCode": 0,
+    "productTests": {
+      "passed": 336,
+      "failed": 0,
+      "pending": 0,
+      "files": 31,
+      "artifact": "product-vitest.json",
+      "runner": "current installed Vitest",
+      "scope": "STEP local-core/controller/MIDI/hook/status/component/input-capability/architecture regression; no acoustic model execution",
+      "notices": "jsdom HTMLMediaElement pause/load not implemented notices, no test failures"
+    },
+    "researchTypecheckExitCode": 0,
+    "researchTypecheckCommand": "node apps/customer-web/node_modules/typescript/bin/tsc -p backend/research/robust_raw_tensor_v20/tsconfig.json",
+    "applicationTypecheckExitCode": 0,
+    "applicationTypecheckCommand": "node node_modules/typescript/bin/tsc --noEmit --incremental false (cwd apps/customer-web)",
+    "researchLintExitCode": 0,
+    "researchLint": {
+      "files": 11,
+      "errors": 0,
+      "warnings": 0,
+      "artifact": "research-eslint.json",
+      "config": "backend/research/robust_raw_tensor_v20/eslint.config.mjs"
+    },
+    "metadataPythonSyntax": "ast.parse closeout.py PASS; no module import or model execution",
+    "productionChanged": false,
+    "preFreezeNeuralRuns": 0,
+    "preFreezeDecoderRuns": 0,
+    "V19CommandsResumed": 0,
+    "CIInterpretation": "NOT CI PASS"
+  },
+  "postExecutionAssertions": {
+    "passed": 5,
+    "failed": 0,
+    "tests": [
+      {
+        "name": "Stage A one session, 228 accounted runs/pairs, zero unknown/warmup/decoder/truth/product runs",
+        "status": "PASS"
+      },
+      {
+        "name": "18 readback job blobs, all228 pair/tensor LE hashes and exact corpus bytes",
+        "status": "PASS"
+      },
+      {
+        "name": "raw seal remotely established before any baseline decode; baseline228 only and zero neural",
+        "status": "PASS"
+      },
+      {
+        "name": "all V7 observations and all34 V15 acoustic assemblies reproduce exactly",
+        "status": "PASS"
+      },
+      {
+        "name": "V18/runtime, production, Continuous and all historical evidence still unchanged",
+        "status": "PASS"
+      }
+    ],
+    "scope": "Read-only assertions; no neural or decoder rerun",
+    "localNotCI": true
+  },
+  "productTestCounts": {
+    "numPassedTests": 336,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "currentAcousticDefaults": {
+    "decoder": "A",
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170,
+    "mutated": false
+  },
+  "V18SemanticsUnchanged": {
+    "runtimeVersion": "step-source-sensitive-verdict-v6",
+    "schemaVersion": 6,
+    "MIDI": "MIDI_EXACT_SET",
+    "MICROPHONE": "MICROPHONE_CONSERVATIVE_TRISTATE",
+    "retirement": "REARM_REQUIRED_INDEPENDENT_OF_PITCH_VERDICT_POLICY",
+    "microphoneCooldownSelected": false,
+    "unchanged": true
+  },
+  "historicalThresholdGrid": {
+    "onset": [
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35
+    ],
+    "frame": [
+      0.05,
+      0.1,
+      0.15,
+      0.2
+    ],
+    "classification": "PRE_EXISTING_BOUNDED_THRESHOLD_GRID_AVAILABLE_FOR_FUTURE_ZERO_NEURAL_DEVELOPMENT",
+    "executed": false,
+    "directionSelected": false,
+    "winnerSelected": false
+  },
+  "candidateSelected": false,
+  "noProductPolicyScoring": true,
+  "microphoneQualified": false,
+  "scientificWinner": "NOT_CLAIMED",
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "nextAllowedPhase": "STOP_FOR_INDEPENDENT_AUDIT_NO_THRESHOLD_STUDY_OR_MICROPHONE_ENABLEMENT"
+}

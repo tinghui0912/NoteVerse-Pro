@@ -1,0 +1,28 @@
+{
+  "startedAt": "2026-10-19T09:09:10.423Z",
+  "rawSealRemoteProof": {
+    "captureCommit": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+    "remoteHead": "e8a6328c66e8c0c1026a6743af3d4684f610fc77",
+    "remoteVerifiedAt": "2026-10-19T09:08:57.523Z",
+    "tensorManifestSha256": "4bb391905007ecbd594b4ed76d7fa79be0a3c095062da9111c4de63e72129c4b",
+    "rawSealSha256": "7513253623c799357de01d7a7a183a95ec2738e0fa374b88fe299a09d1899eaf",
+    "corpusCanonicalSha256": "73c4aad015e8cc10a78bc54bac9f5d89af2c14a0b50a6ecf190761081dd476a0",
+    "totalJobs": 18,
+    "totalInputs": 228,
+    "totalRawPairs": 228,
+    "totalCanonicalRawBytes": 29373696,
+    "modelSessionLoads": 1,
+    "modelSessionRuns": 228,
+    "attemptedSessionRuns": 228,
+    "successfulSessionRuns": 228,
+    "captureOwnerWorkers": 1,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0,
+    "decoderRuns": 0,
+    "productVerdictEvaluations": 0,
+    "rawBlobReadbacksVerified": 18,
+    "all228PairAndTensorHashesVerified": true
+  },
+  "allowedExecutions": 1,
+  "neuralRuns": 0
+}
