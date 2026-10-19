@@ -1,0 +1,66 @@
+{
+  "classification": "EXPOSED_BROWSER_ENGINEERING_INPUT_NOT_FRESH_QUALIFICATION",
+  "sources": [
+    {
+      "family": "correct_single",
+      "recordingId": "Chopin_op10_no3_p01",
+      "audioBoundCaseId": "497e64b39d554ba07e0fbef1cf7cf267ba0e3e2d0d84afe7e51554a2c7a7d9c0",
+      "jobId": "j-3ea18cb7ffbe8add3120531f",
+      "audioSourceSha256": "660d8ebd492206340e5efb436722fc8cd721488b4d61ad608af063c0f759d029",
+      "acceptedPcmPath": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/j-3ea18cb7ffbe8add3120531f.f32",
+      "acceptedPcmSha256": "cd2821495b6a29b287bcca3088e8b004fd8a4c5cd5edbd49bd0cdcef7e607e61",
+      "sourceOriginSample": 3418632,
+      "sourceEndSample": 3744090,
+      "inputRate": 44100,
+      "channels": 1,
+      "outputStartSample": 529200,
+      "outputSampleCount": 325458,
+      "clampedSamples": 0
+    },
+    {
+      "family": "correct_chord",
+      "recordingId": "Chopin_op10_no3_p02",
+      "audioBoundCaseId": "7f4fcbf45f8c2b0f69f2fc296ed56482f640798c7bb2132bdb8436df8f9c48fa",
+      "jobId": "j-345e4955170302c450281935",
+      "audioSourceSha256": "4171005671699df29f58a2a29ea9685b56956e20b270d91a4e22f9aa28eedcba",
+      "acceptedPcmPath": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/j-345e4955170302c450281935.f32",
+      "acceptedPcmSha256": "0ccefe9b2475f6b0e416674241a150c716e493b1225596d867dd878537c15935",
+      "sourceOriginSample": 2948526,
+      "sourceEndSample": 3274866,
+      "inputRate": 44100,
+      "channels": 1,
+      "outputStartSample": 898758,
+      "outputSampleCount": 326340,
+      "clampedSamples": 0
+    },
+    {
+      "family": "post_ready_repeat",
+      "recordingId": "kv281_1",
+      "audioBoundCaseId": "006fa5dd4159244bfdc31cf2b0371844d1553dcf69df1bdce59d1fca0aad9253",
+      "jobId": "j-32e68eca71c65e1452252e5f",
+      "audioSourceSha256": "34210e8bbb1d46b3d7b3126235a2715cd811d8d4384e04a282afac4ee39a0f4a",
+      "acceptedPcmPath": "backend/data/work/step_waiting_h50_holdout_v6/audio_only/j-32e68eca71c65e1452252e5f.f32",
+      "acceptedPcmSha256": "22bbb7c132a52cf59355278c8e42feaf72d9da5166e65b22919875ff9208572e",
+      "sourceOriginSample": 3232530,
+      "sourceEndSample": 3629430,
+      "inputRate": 44100,
+      "channels": 1,
+      "outputStartSample": 1269198,
+      "outputSampleCount": 396900,
+      "clampedSamples": 0
+    }
+  ],
+  "preservation": {
+    "path": "backend/research/reports/step_waiting_h50_holdout_v6/input-preservation.json",
+    "sha256": "27d80f956f207366f3739d8277f559f98b7ba85f4f51df7a75b7dd57da2e2c51"
+  },
+  "path": "backend/research/reports/step_microphone_browser_v26/browser-input.wav",
+  "sha256": "47e9287126bd2b0f1589abb972c98bac467c1850b2ad620a7b3604d26d9b316b",
+  "channels": 1,
+  "sampleRate": 44100,
+  "samples": 1842498,
+  "durationSeconds": 41.78,
+  "format": "WAV_PCM16_LE",
+  "transform": "Accepted V6 44100 mono f32 LE clips in this fixed order; 12s leading zero silence, 1s zero gaps, 4s zero tail. For each finite sample v write signed PCM16 LE round(max(-1,min(1,v))*32767). No resampling/normalization/output-driven edits. Browser may resample fake-media to each requested AudioContext rate. WAV is exposed engineering input, not a fresh recording.",
+  "sourceReplacedAfterOutput": false
+}

@@ -1,0 +1,8 @@
+{
+  "startingHead":"3757d8c38d0ee750a2330fc15550151258e2e517",
+  "localHead":"3757d8c38d0ee750a2330fc15550151258e2e517",
+  "remoteHead":"3757d8c38d0ee750a2330fc15550151258e2e517",
+  "mergeBase":"3757d8c38d0ee750a2330fc15550151258e2e517",
+  "branch":"codex/customer-web-delivery-boundary","cleanWorktree":true,"ahead":0,"behind":0,"fetchBeforeEdits":true,
+  "github":{"queriedAt":"2026-10-19T14:49:29.324240+00:00","combinedState":"pending","statuses":[],"workflow_runs":[],"workflowRunTotalCount":0,"ciInterpretation":"NOT CI PASS"}
+}

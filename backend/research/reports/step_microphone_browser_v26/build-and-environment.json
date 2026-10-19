@@ -1,0 +1,120 @@
+{
+  "environment": {
+    "os": {
+      "platform": "win32",
+      "release": "10.0.26200",
+      "version": "Windows 11 Home",
+      "arch": "x64"
+    },
+    "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "chromeFileVersion": "155.0.8059.80",
+    "chromeExecutableSha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532",
+    "playwrightVersion": "1.48.2",
+    "node": "v24.19.0",
+    "browserNotLaunched": true,
+    "productAssetAPI": "NOT_AVAILABLE_IN_LOCAL_LISTENING_SERVICES",
+    "metadataOnlyDiscovery": "FileVersionInfo/OS/package metadata; browser/GPU details collected only in frozen campaign"
+  },
+  "bundles": [
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+      "sha256": "94a042eb56bb6bea42521e65547cab632ab84b693379599a1d55dff4824fac35",
+      "inputs": [
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+        "<define:process.env>",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+        "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+        "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+        "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+        "apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts",
+        "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+        "apps/customer-web/src/lib/auth/return-url.ts",
+        "apps/customer-web/src/lib/app-protocol.ts",
+        "apps/customer-web/src/lib/observability/client.ts",
+        "apps/customer-web/src/lib/observability/index.ts",
+        "apps/customer-web/src/lib/api-client.ts",
+        "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+        "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+        "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+        "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+        "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+        "apps/customer-web/src/lib/practice/local-core/session.ts",
+        "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+        "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+        "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+        "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json",
+        "backend/research/step_microphone_browser_v26/contract.json",
+        "backend/research/step_microphone_browser_v26/entry.ts"
+      ],
+      "entry": "backend/research/step_microphone_browser_v26/entry.ts"
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/worker.js",
+      "sha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526",
+      "inputs": [
+        "<define:process.env>",
+        "apps/customer-web/src/lib/model-assets/types.ts",
+        "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+        "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+        "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+        "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts"
+      ],
+      "entry": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts"
+    }
+  ],
+  "assets": {
+    "/model.onnx": {
+      "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "bytes": 98689283
+    },
+    "/ort/ort.webgpu.min.mjs": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+      "bytes": 333468
+    },
+    "/ort/ort-wasm-simd-threaded.jsep.mjs": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+      "bytes": 46839
+    },
+    "/ort/ort-wasm-simd-threaded.jsep.wasm": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+      "bytes": 21663894
+    },
+    "/model-assets/practice-acoustic/fir-160-441.f32": {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+      "bytes": 35284
+    },
+    "/model-assets/practice-acoustic/fir-1-3.f32": {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f",
+      "bytes": 244
+    },
+    "/acoustic/source/capture.worklet.js": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "sha256": "8fb151efdca3c6aff0a06c5843543aa2b493a0e6dca591bf053ac671c705f34e",
+      "bytes": 4356
+    }
+  },
+  "graph": "ACTUAL_PRODUCTION_CORE_WITH_TRANSPARENT_INSTRUMENTATION",
+  "productionAccessAPIExecuted": false,
+  "preFreezeStaticRebuildOnly": true
+}
