@@ -1,0 +1,28 @@
+{
+  "stage": "BEFORE_V15_PROTOCOL_FREEZE_AND_REAL_REPLAY",
+  "observations": [
+    {
+      "command": "node backend/research/step_robust_a_paced_replay_v15/tests.mjs",
+      "exitCode": 1,
+      "failedCheck": "Git-blob raw bytes incorrectly assumed identical to clean Windows checkout bytes",
+      "path": "backend/research/reports/step_local_ownership_v13/build.log",
+      "gitEolEvidence": "i/lf w/crlf",
+      "startingGitBlob": "bfa9e2828f8b2b5d8f9ab0943cda512f832c7ca4",
+      "currentGitFilteredBlob": "bfa9e2828f8b2b5d8f9ab0943cda512f832c7ca4",
+      "classification": "PREFREEZE_CHECKOUT_BYTE_VERSUS_GIT_OBJECT_COMPARISON_ERROR",
+      "resolution": "Record both raw checkout SHA and Git-content SHA. Require unchanged Git blob under the existing Git filter; all explicitly accepted raw-SHA evidence remains exact raw byte verification without normalization. No historical file modified.",
+      "actualV15AcousticReplayStarted": false
+    },
+    {
+      "command": "node backend/research/step_robust_a_paced_replay_v15/tests.mjs",
+      "exitCode": 1,
+      "failedCheck": "Synthetic cross-publication fixture reused observation ID o0 for different notes",
+      "classification": "PREFREEZE_SYNTHETIC_FIXTURE_ID_COLLISION",
+      "resolution": "Give different synthetic observations distinct IDs. Frozen assembler correctly rejected the collision; no production or historical evidence changed.",
+      "actualV15AcousticReplayStarted": false
+    }
+  ],
+  "newNeuralRuns": 0,
+  "decoderARuns": 0,
+  "decoderBRuns": 0
+}
