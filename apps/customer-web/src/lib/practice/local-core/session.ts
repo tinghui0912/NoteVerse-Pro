@@ -1,7 +1,7 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
 import type { PracticeTempoSelection, ResolvedPracticeTempoPlan } from './practice-tempo';
 import type { RuntimeVersionIdentity, SessionTime } from './timebase';
-import type { StepAttemptIdentity, StepAttemptRecord, StepAttemptState, StepSkipRecord } from './step-attempt';
+import type { StepAttemptIdentity, StepAttemptRecord, StepAttemptState, StepSkipRecord, StepVerdictPolicy } from './step-attempt';
 
 export type ContinuousPracticeLifecycle =
   | 'READY'
@@ -40,6 +40,7 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
   mode: 'STEP_BY_STEP';
   runtimeStatus: StepRuntimeStatus;
   step: {
+    verdictPolicy: StepVerdictPolicy;
     currentIndex: number;
     targetGeneration: number;
     inputEligibleAfter: Readonly<SessionTime>;

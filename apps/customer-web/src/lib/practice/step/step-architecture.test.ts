@@ -112,12 +112,27 @@ it('paced progression has one commit owner, no modality runtimes or RESET compat
   for (const p of [file, path.join(practice, 'local-core/step-attempt.ts'), path.join(__dirname, 'step-practice-controller.ts')]) {
     expect(read(p)).not.toMatch(/['"]RESET['"]|MidiStepRuntime|MicrophoneStepRuntime|pendingAttempts|attemptQueue/);
   }
-  expect(read(file)).not.toMatch(/inputSource\s*[!=]==?\s*['"](?:MIDI|MICROPHONE)['"]/);
+  // Source differences are resolved once as a domain verdict identity, never lifecycle branches.
+  for (const name of ['openAttempt', 'analyzeAttempt', 'rearm', 'skip']) {
+    expect(method(name)).not.toMatch(/inputSource\s*[!=]==?\s*['"](?:MIDI|MICROPHONE)['"]/);
+  }
   expect(read(path.join(__dirname, 'step-practice-controller.ts'))).not.toMatch(/\.advance\(/);
   const policy = read(path.join(__dirname, 'step-retirement-policy.ts'));
   expect(policy).toContain('runtimeToSessionTime(this.clock.nowMs())');
   expect(policy).not.toMatch(/setTimeout|setInterval|new Worker|AudioContext|numThreads/);
   for (const file of files) expect(read(file)).not.toMatch(/class (Midi|Microphone)StepRuntime/);
+});
+it('target-relative verdict policy has only the runtime owner; producers remain score-blind', () => {
+  const runtime = read(path.join(practice, 'local-core/step-runtime.ts'));
+  expect(runtime).toContain('get verdictPolicy(): StepVerdictPolicy');
+  expect(runtime).toContain('expected.every(pitch => pitches.includes(pitch))');
+  for (const p of [path.join(__dirname, 'step-practice-controller.ts'),
+    path.join(__dirname, 'step-midi-attempt-input.ts'), path.join(src, 'hooks/practice/use-step-local-practice.ts'),
+    ...productionFiles(path.join(practice, 'acoustic'))]) {
+    expect(read(p)).not.toMatch(/MICROPHONE_CONSERVATIVE_TRISTATE|MIDI_EXACT_SET|pitchSetsEqual|\bp2\(|targetCovered|expected\.every/);
+  }
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('runtime.completeAttempt(identity, evidence)');
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
 });
 it('application ownership and domain status have separate types and truthful STEP snapshots', () => {
   const domain = read(path.join(practice, 'local-core/session.ts'));

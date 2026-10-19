@@ -1,0 +1,55 @@
+{
+  "mode": "pre",
+  "passed": 6,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "accepted V15/V16/V17 identities and allowed change scope",
+      "status": "PASS"
+    },
+    {
+      "name": "domain executable graph cannot reach acoustic model/decoder/Worker",
+      "status": "PASS"
+    },
+    {
+      "name": "replay contains one unconditional ordinary EVIDENCE construction, no external P2",
+      "status": "PASS"
+    },
+    {
+      "name": "source policy is runtime-owned and no caller-selectable parameter exists",
+      "status": "PASS"
+    },
+    {
+      "name": "controller remains generic forwarding owner and microphone startup disabled",
+      "status": "PASS"
+    },
+    {
+      "name": "frozen defaults and all execution counters remain unchanged",
+      "status": "PASS"
+    }
+  ],
+  "graph": [
+    "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+    "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+    "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+    "apps/customer-web/src/lib/practice/local-core/session.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "backend/research/step_runtime_verdict_v18/domain.ts"
+  ],
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "StepAcousticReruns": 0,
+    "ContinuousAcousticReruns": 0,
+    "StageAReruns": 0,
+    "freshHoldoutAccess": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0
+  },
+  "localNotCI": true
+}

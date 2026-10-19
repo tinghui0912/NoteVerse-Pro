@@ -6,7 +6,8 @@ import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalSte
   type StepRuntimeStatus } from './session';
 import type { PracticeTempoSelection } from './practice-tempo';
 import { MAX_STEP_HISTORY_RECORDS, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence,
-  type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget } from './step-attempt';
+  type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget,
+  type StepVerdictPolicy } from './step-attempt';
 
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
@@ -20,6 +21,7 @@ export type StepAttemptCompletion = Readonly<{ kind: 'REJECTED'; reason: 'STALE_
 export class StepPracticeRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
+  private readonly inputSource: StepPracticeRuntimeOptions['inputSource'];
   private readonly resolvedScope;
   private readonly timebase: PracticeTimebase;
   private readonly createdAtMs: number;
@@ -40,6 +42,7 @@ export class StepPracticeRuntime {
 
   constructor(private readonly options: StepPracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
+    this.inputSource = options.inputSource;
     this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
     this.currentIndex = this.resolvedScope.startIndex;
     this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
@@ -64,7 +67,7 @@ export class StepPracticeRuntime {
     this.assertHistoryRoom();
     this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
       localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,
-      inputSource: this.options.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
+      inputSource: this.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
     this.attemptState = 'CAPTURING'; return this.active;
   }
   analyzeAttempt(identity: StepAttemptIdentity): boolean {
@@ -81,10 +84,15 @@ export class StepPracticeRuntime {
     }
     if (evidence.kind === 'RETRY' && evidence.reason !== 'UNCERTAIN' && evidence.reason !== 'TOO_QUIET') throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     const pitches = Object.freeze(evidence.kind === 'EVIDENCE' ? normalizePitchSet(evidence.observedAttackPitches) : []);
-    const verdict = evidence.kind === 'RETRY' ? 'RETRY' : pitchSetsEqual(pitches, this.currentTarget()!.attackPitches) ? 'MATCH' : 'MISMATCH';
+    const expected = this.currentTarget()!.attackPitches;
+    // Target-relative uncertainty belongs here, not in an evidence producer.
+    const verdict = evidence.kind === 'RETRY' ? 'RETRY' : pitchSetsEqual(pitches, expected) ? 'MATCH'
+      : this.verdictPolicy === 'MICROPHONE_CONSERVATIVE_TRISTATE' && expected.every(pitch => pitches.includes(pitch))
+        ? 'RETRY' : 'MISMATCH';
     const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
       confidence: evidence.kind === 'EVIDENCE' ? evidence.confidence : null,
-      captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }), retryReason: evidence.kind === 'RETRY' ? evidence.reason : null });
+      captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }),
+      retryReason: evidence.kind === 'RETRY' ? evidence.reason : verdict === 'RETRY' ? 'UNCERTAIN' : null });
     this.attempts.push(record); this.active = null; this.attemptState = 'POST_VERDICT';
     this.pendingPostVerdict = record;
     this.boundary = record.captureEndSessionTime;
@@ -133,11 +141,11 @@ export class StepPracticeRuntime {
   }
   snapshot(): LocalStepSessionSnapshot {
     return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,
-      artifactId: this.artifact.artifactId, mode: 'STEP_BY_STEP', inputSource: this.options.inputSource,
+      artifactId: this.artifact.artifactId, mode: 'STEP_BY_STEP', inputSource: this.inputSource,
       practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
       metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,
       version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
-      step: Object.freeze({ currentIndex: this.currentIndex, targetGeneration: this.generation,
+      step: Object.freeze({ verdictPolicy: this.verdictPolicy, currentIndex: this.currentIndex, targetGeneration: this.generation,
         inputEligibleAfter: this.boundary, inputAvailable: this.inputAvailable, completed: this.completed,
         attemptState: this.attemptState, activeAttempt: this.active, pendingPostVerdict: this.pendingPostVerdict,
         canAcceptAttempt: this.canAcceptAttempt, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
@@ -147,6 +155,9 @@ export class StepPracticeRuntime {
   get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
   get isCompleted(): boolean { return this.completed; }
   get state(): StepRuntimeStatus { return this.status; }
+  get verdictPolicy(): StepVerdictPolicy {
+    return this.inputSource === 'MIDI' ? 'MIDI_EXACT_SET' : 'MICROPHONE_CONSERVATIVE_TRISTATE';
+  }
   get canAcceptAttempt(): boolean {
     return this.status === 'ACTIVE' && this.inputAvailable && this.attemptState === 'READY' && this.currentTarget() !== null;
   }
@@ -159,7 +170,7 @@ export class StepPracticeRuntime {
   private owns(identity: StepAttemptIdentity): boolean {
     return this.status === 'ACTIVE' && this.active !== null && identity.attemptId === this.active.attemptId
       && identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId
-      && identity.targetGeneration === this.generation && identity.inputSource === this.options.inputSource
+      && identity.targetGeneration === this.generation && identity.inputSource === this.inputSource
       && identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId
       && identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;
   }

@@ -20,11 +20,11 @@ function setup() {
 }
 
 describe('local STEP domain status, independent of browser resources', () => {
-  it('constructs ACTIVE with local instance identity and truthful v5 snapshot', () => {
+  it('constructs ACTIVE with local instance identity and truthful v6 snapshot', () => {
     const s = setup(), snapshot = s.runtime.snapshot();
     expect(s.runtime.state).toBe('ACTIVE');
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
-      version: { schemaVersion: 5, runtimeVersion: 'step-paced-attempt-v5' }, step: { completed: false, attemptState: 'READY' } });
+      version: { schemaVersion: 6, runtimeVersion: 'step-source-sensitive-verdict-v6' }, step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
     expect(snapshot.scoreId).toBe(fixture.scoreId);
     expect(snapshot.revisionId).toBe(fixture.revisionId); expect(snapshot.artifactId).toBe(fixture.artifactId);
