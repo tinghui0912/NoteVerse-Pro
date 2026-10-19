@@ -1,0 +1,13 @@
+{
+  "status": "LOCAL_PASS",
+  "researchPreExecutionTests": {"passed": 13, "failed": 0, "report": "pre-execution-tests.json"},
+  "researchLint": {"status": "LOCAL_PASS", "cwd": "backend/research/robust_geometry_v23", "command": "node ../../../apps/customer-web/node_modules/eslint/bin/eslint.js *.mjs --config eslint.config.mjs"},
+  "researchTypecheck": {"status": "LOCAL_PASS", "command": "tsc --noEmit --incremental false -p backend/research/robust_geometry_v23/tsconfig.json"},
+  "applicationTypecheck": {"status": "LOCAL_PASS", "command": "tsc --noEmit --incremental false"},
+  "productRegressionTests": {"status": "LOCAL_PASS", "passed": 336, "failed": 0, "files": 31, "report": "product-vitest.json", "note": "Deterministic/mock local-core/controller/MIDI/hooks/component/capability/architecture tests; no real neural capture or candidate product scoring"},
+  "jsdomWarnings": "HTMLMediaElement pause/load not implemented; no test failures",
+  "candidateNeuralRunsBeforeFreeze": 0,
+  "candidateDecoderRunsBeforeFreeze": 0,
+  "baselineNeuralRuns": 0,
+  "CI": "LOCAL_TESTS_ARE_NOT_GITHUB_CI"
+}

@@ -1,0 +1,20 @@
+{
+  "phase": "ROBUST_GEOMETRY_600_120_V23",
+  "branch": "codex/customer-web-delivery-boundary",
+  "localHead": "160d7b3a0e315bc99b8a31d0d41e09c11c776c7f",
+  "remoteHead": "160d7b3a0e315bc99b8a31d0d41e09c11c776c7f",
+  "mergeBase": "160d7b3a0e315bc99b8a31d0d41e09c11c776c7f",
+  "ahead": 0,
+  "behind": 0,
+  "cleanWorktree": true,
+  "productionDiff": [],
+  "github": {
+    "head": "160d7b3a0e315bc99b8a31d0d41e09c11c776c7f",
+    "queriedAt": "2026-10-19T11:44:58.818184+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  }
+}

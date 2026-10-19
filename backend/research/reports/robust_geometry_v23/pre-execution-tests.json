@@ -1,0 +1,61 @@
+{
+  "completedAt": "2026-10-19T11:53:23.238Z",
+  "status": "LOCAL_PASS",
+  "tests": [
+    {
+      "name": "exact branch/start ancestry; only V23 changes, production/history unchanged",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "starting local and remote HEAD exact with no ahead/behind",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "one fixed geometry candidate, no alternate thresholds or geometry roster",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "exact 9/18/228 inventory, both rates, every input hash finite Float32 count and readback",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "ordinary slots 1100/600/120; partial slots full real 1820; no padding and unchanged source projection",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "actual preparation geometry function preserves full/partial ownership with real-length windows",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "V20/V22 exact baseline identities and target denominator independently verified without runtime",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "frozen source graph isolation: capture raw only, no decoder/truth/runtime; noncapture zero neural",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "structural one owner Worker, one model create and one guarded run path; no warmup",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "structural single production decoder call, literal .30/.05 only; metadata not a call",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "exact model/ORT asset hashes and no fallback contract",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "LE Float32 serialization and output arithmetic from shape, finite rejection",
+      "status": "LOCAL_PASS"
+    },
+    {
+      "name": "meaningful recovery recurrence requires both rates, two gestures and recordings",
+      "status": "LOCAL_PASS"
+    }
+  ],
+  "count": 13,
+  "neuralRuns": 0,
+  "modelSessionLoads": 0
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "V23_RAW_ONLY_SINGLE_GEOMETRY_NO_TRUTH_OR_TARGET",
+  "candidate": "ROBUST_A_600_120_O030_F005_V23_EXPOSED",
+  "modelIdentity": "robust-browser-engineering-default-xc4-v1",
+  "ORT": "1.20.1",
+  "provider": "webgpu",
+  "graphOptimizationLevel": "disabled",
+  "automaticFallback": false,
+  "geometry": {
+    "ownedMs": 600,
+    "pastMs": 1100,
+    "futureMs": 120
+  },
+  "assets": {
+    "/model.onnx": {
+      "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "bytes": 98689283
+    },
+    "/ort/ort.webgpu.min.mjs": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+      "bytes": 333468
+    },
+    "/ort/ort-wasm-simd-threaded.jsep.mjs": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+      "bytes": 46839
+    },
+    "/ort/ort-wasm-simd-threaded.jsep.wasm": {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+      "bytes": 21663894
+    }
+  },
+  "manifest": {
+    "path": "backend/research/reports/robust_geometry_v23/inputs.json",
+    "sha256": "bd2989f3ce7df2629bd267f2b117839118990af42bef35edc2648024455e8c9e"
+  },
+  "bundles": [
+    {
+      "entry": "backend/research/robust_geometry_v23/capture-entry.mjs",
+      "path": "backend/research/reports/robust_geometry_v23/bundles/capture-entry.js",
+      "sha256": "64bf21a460757f5fad1d4b27adfeb17beb3ab159b7823866c25b10594dd35882",
+      "inputs": [
+        "backend/research/robust_geometry_v23/wire.mjs",
+        "backend/research/robust_geometry_v23/capture-entry.mjs"
+      ],
+      "platform": "browser",
+      "phase": "capture",
+      "esbuildVersion": "0.25.12"
+    },
+    {
+      "entry": "backend/research/robust_geometry_v23/capture-worker.mjs",
+      "path": "backend/research/reports/robust_geometry_v23/bundles/capture-worker.js",
+      "sha256": "b0e81627d9964d5447e4665db8870596a02c4207e2b15cba0a3320db21e20e86",
+      "inputs": [
+        "backend/research/robust_geometry_v23/wire.mjs",
+        "backend/research/robust_geometry_v23/capture-worker.mjs"
+      ],
+      "platform": "browser",
+      "phase": "capture",
+      "esbuildVersion": "0.25.12"
+    }
+  ],
+  "expectedJobs": 18,
+  "expectedInputs": 228,
+  "expectedPairBytes": 128832,
+  "expectedRawBytes": 29373696
+}
