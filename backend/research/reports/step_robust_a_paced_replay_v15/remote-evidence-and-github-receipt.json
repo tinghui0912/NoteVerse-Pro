@@ -1,0 +1,62 @@
+{
+  "startingHead": "a7a49041b88af250272cdec710e0108d6f9bdd63",
+  "verifiedEvidenceCommit": "11b8711f81b5c824eaae3f0a4bddf6db041f3eb6",
+  "verifiedRemoteHead": "11b8711f81b5c824eaae3f0a4bddf6db041f3eb6",
+  "remoteVerifiedAt": "2026-10-19T03:56:07.577562+00:00",
+  "completeCommitChainThroughEvidence": [
+    "8e5d5c18648f17bfa62e23c69eabbb55b7550dc4 research: freeze zero-neural Robust A V13 paced replay protocol",
+    "11b8711f81b5c824eaae3f0a4bddf6db041f3eb6 research: seal V15 zero-neural paced Robust A recognition diagnosis"
+  ],
+  "changedFilesThroughEvidence": [
+    "backend/research/reports/step_robust_a_paced_replay_v15/app-eslint.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/assessment.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/assessment.md",
+    "backend/research/reports/step_robust_a_paced_replay_v15/decoder-b-decision.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/paced-replay-results.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/prefreeze-tooling-observations.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/product-vitest.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/recognition-diagnosis.md",
+    "backend/research/reports/step_robust_a_paced_replay_v15/replay-protocol-freeze.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/replay-remote-proof.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/replay-tests.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/research-eslint.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/starting-gate-and-integrity.json",
+    "backend/research/reports/step_robust_a_paced_replay_v15/static-verification.json",
+    "backend/research/step_robust_a_paced_replay_v15/closure.py",
+    "backend/research/step_robust_a_paced_replay_v15/core.mjs",
+    "backend/research/step_robust_a_paced_replay_v15/eslint.config.mjs",
+    "backend/research/step_robust_a_paced_replay_v15/policy.json",
+    "backend/research/step_robust_a_paced_replay_v15/replay.ts",
+    "backend/research/step_robust_a_paced_replay_v15/runner.mjs",
+    "backend/research/step_robust_a_paced_replay_v15/tests.mjs",
+    "backend/research/step_robust_a_paced_replay_v15/tsconfig.json"
+  ],
+  "productionDiff": [],
+  "historicalDiff": [],
+  "assessmentSha256": "739e71cbb863789103ee4230c4e777fe82c8d28e70ffe65affd06c3f9c9d0f83",
+  "replayResultsSha256": "290c41185e488bfb6d08fd50b193d175ba5941ed37171ba2db73e969339e8b8a",
+  "acousticOutputStillExact": "61411716e8f42bf70b235946bc89da9b5e408a3a0e58970f254314f3fdcfa2b1",
+  "execution": {
+    "newNeuralRuns": 0,
+    "modelSessionLoads": 0,
+    "acousticWorkerConstructions": 0,
+    "decoderARuns": 0,
+    "decoderBRuns": 0,
+    "selectedPcmDecodeRuns": 0,
+    "hiddenWarmupRuns": 0,
+    "unknownRuns": 0,
+    "freshHoldoutAccess": 0,
+    "StageAReruns": 0,
+    "ContinuousAcousticReruns": 0
+  },
+  "github": {
+    "head": "11b8711f81b5c824eaae3f0a4bddf6db041f3eb6",
+    "queriedAt": "2026-10-19T03:56:11.521302+00:00",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "receiptPlacement": "Additive receipt follows evidence commit; final receipt HEAD is independently fetched and queried in closeout."
+}
