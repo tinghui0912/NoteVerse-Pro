@@ -32,8 +32,6 @@ type PracticeStatusMessageKey =
   | 'settingStatusReady'
   | 'micStartFailed'
   | 'midiStartFailed'
-  | 'micStepAnalysisUnavailable'
-  | 'micContinuousUnavailable'
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
@@ -103,22 +101,6 @@ export function resolvePracticeStatusView({
         countInPulse: null,
       };
     }
-    if (inputError === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
-      return {
-        messageKey: 'micContinuousUnavailable',
-        isError: true,
-        pending: false,
-        countInPulse: null,
-      };
-    }
-    if (inputError === 'STEP_ANALYSIS_UNAVAILABLE') {
-      return {
-        messageKey: 'micStepAnalysisUnavailable',
-        isError: true,
-        pending: false,
-        countInPulse: null,
-      };
-    }
     if (sessionMode === 'STEP_BY_STEP' && inputError && Object.hasOwn(STEP_ERROR_MESSAGES, inputError)) {
       return { customMessage: STEP_ERROR_MESSAGES[inputError as StepApplicationErrorCode], isError: true, pending: false, countInPulse: null };
     }
@@ -156,22 +138,6 @@ export function resolvePracticeStatusView({
       };
     }
     if (selectedInputCapability && !selectedInputCapability.supported) {
-      if (selectedInputCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
-        return {
-          messageKey: 'micContinuousUnavailable',
-          isError: true,
-          pending: false,
-          countInPulse: null,
-        };
-      }
-      if (selectedInputCapability.status === 'STEP_ANALYSIS_UNAVAILABLE') {
-        return {
-          messageKey: 'micStepAnalysisUnavailable',
-          isError: true,
-          pending: false,
-          countInPulse: null,
-        };
-      }
       if (selectedInputCapability.status === 'BROWSER_UNSUPPORTED') {
         return {
           messageKey: inputSource === 'MIDI' ? 'midiBrowserUnsupported' : 'micBrowserUnsupported',
@@ -278,8 +244,6 @@ export function PracticeStatus({
   } else if (resolvedView.isError) {
     if (
       resolvedView.messageKey === 'midiNoConnectedInput' ||
-      resolvedView.messageKey === 'micStepAnalysisUnavailable' ||
-      resolvedView.messageKey === 'micContinuousUnavailable' ||
       resolvedView.messageKey === 'micBrowserUnsupported' ||
       resolvedView.messageKey === 'midiBrowserUnsupported'
     ) {

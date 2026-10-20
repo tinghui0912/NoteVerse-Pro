@@ -1,4 +1,3 @@
-import { STEP_ANALYSIS_UNAVAILABLE_REASON } from './input-capability-reasons';
 import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
@@ -8,17 +7,7 @@ type WindowWithWebKitAudioContext = Window & {
 
 export type PracticeMicrophoneCapability =
   | { supported: true; status: 'AVAILABLE'; reason?: undefined }
-  | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
-  | {
-      supported: false;
-      status: 'STEP_ANALYSIS_UNAVAILABLE';
-      reason: 'STEP_ANALYSIS_UNAVAILABLE';
-    }
-  | {
-      supported: false;
-      status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
-      reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
-    };
+  | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' };
 
 export type PracticeMidiCapability =
   | { supported: true; status: 'AVAILABLE'; reason?: undefined }
@@ -44,14 +33,10 @@ export type PracticeInputCapabilities = {
 };
 
 type ContinuousAcousticAnalysisCapability =
-  // Historical qualification consumers still describe this state; production no longer emits it.
-  | { status: 'MODEL_NOT_VALIDATED' }
   | { status: 'BROWSER_UNSUPPORTED' }
   | { status: 'AVAILABLE' };
 
 type StepAcousticAnalysisCapability =
-  // Preserved for historical qualification consumers; never emitted by product detection.
-  | { status: 'ATTEMPT_ANALYZER_NOT_VALIDATED' }
   | { status: 'BROWSER_UNSUPPORTED' }
   | { status: 'AVAILABLE' };
 
@@ -165,14 +150,7 @@ export function getSelectedMicrophoneCapability(
     mode === 'STEP_BY_STEP'
     && capabilities.acousticAnalysis.step.status !== 'AVAILABLE'
   ) {
-    if (capabilities.acousticAnalysis.step.status === 'BROWSER_UNSUPPORTED') {
-      return { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
-    }
-    return {
-      supported: false,
-      status: STEP_ANALYSIS_UNAVAILABLE_REASON,
-      reason: STEP_ANALYSIS_UNAVAILABLE_REASON,
-    };
+    return { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
   }
   return capabilities.microphoneCapture;
 }

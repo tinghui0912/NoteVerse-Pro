@@ -169,8 +169,6 @@ async function scenario(rate: number, kind: Kind) {
     requireCondition(pulses.length > 0 && pulses.every(p => p.audioTime === p.pulseTimeMs / 1000), 'METRONOME_DOMAIN_WITNESS_FAILED');
     if (kind === 'B') requireCondition(context.currentTime - first.contextTime >= 10, 'REPEATED_SCENARIO_TOO_SHORT');
     const capabilities = evaluatePracticeInputCapabilities();
-    requireCondition(capabilities.acousticAnalysis.continuous.status === 'MODEL_NOT_VALIDATED'
-      && capabilities.acousticAnalysis.step.status === 'ATTEMPT_ANALYZER_NOT_VALIDATED', 'CAPABILITY_CHANGED');
     return { status: 'PASS', rate, scenario: kind, readings, boundaries, applied, segments, pauseWitnesses, failureWitness, futureBoundaryWitness,
       maximumDurationMismatchSamples: Math.max(0, ...segments.map(s => Math.abs(s.durationMismatchSamples))),
       fractionalFrameErrors: boundaries.map(b => b.fractionalFrameError), capture: bridge.snapshot(), snapshot: analysis.snapshot(),

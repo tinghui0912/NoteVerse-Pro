@@ -42,7 +42,6 @@ describe('PracticeSettingsPanel', () => {
     }
     render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}><PracticeAvailability /></NextIntlClientProvider>);
     expect(screen.getByRole('button', { name: /^step-by-step/i })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByText('Step-by-step microphone analysis is temporarily unavailable')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /midi keyboard/i }));
     expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
@@ -165,14 +164,14 @@ describe('PracticeSettingsPanel', () => {
     expect(screen.queryByText(/^Metronome$/i)).toBeNull();
   });
 
-  it('displays STEP acoustic analysis unavailable status', () => {
+  it('displays the unsupported microphone runtime status', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
           microphoneCapability={{
             supported: false,
-            status: 'STEP_ANALYSIS_UNAVAILABLE',
-            reason: 'STEP_ANALYSIS_UNAVAILABLE',
+            status: 'BROWSER_UNSUPPORTED',
+            reason: 'BROWSER_UNSUPPORTED',
           }}
           midiCapability={{
             supported: true,
@@ -190,7 +189,7 @@ describe('PracticeSettingsPanel', () => {
     );
 
     expect(
-      screen.getByText('Step-by-step microphone analysis is temporarily unavailable')
+      screen.getByText('Unavailable in this browser')
     ).toBeVisible();
   });
 

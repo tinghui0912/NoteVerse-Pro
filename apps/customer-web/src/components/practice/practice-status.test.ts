@@ -168,41 +168,27 @@ describe('resolvePracticeStatusView', () => {
     });
   });
 
+  it.each([
+    ['STEP_MICROPHONE_PERMISSION_DENIED', 'Microphone permission was denied.'],
+    ['STEP_ACOUSTIC_RUNTIME_FAILED', 'Microphone analysis failed. Start a new session.'],
+  ])('preserves the STEP application error %s', (inputError, customMessage) => {
+    expect(resolvePracticeStatusView({ lifecycle: 'ENDED', inputState: 'ERROR', inputError,
+      inputSource: 'MICROPHONE', sessionMode: 'STEP_BY_STEP' })).toMatchObject({
+      customMessage, isError: true, pending: false,
+    });
+  });
+
+  it.each([
+    ['MICROPHONE_PERMISSION_DENIED', 'micPermissionDenied'],
+    ['ANALYSIS_FAILED', 'micAnalysisFailed'],
+  ])('preserves the Continuous application error %s', (inputError, messageKey) => {
+    expect(resolvePracticeStatusView({ lifecycle: 'ACTIVE', inputState: 'ERROR', inputError,
+      inputSource: 'MICROPHONE', sessionMode: 'CONTINUOUS_PLAY' })).toMatchObject({
+      messageKey, isError: true, pending: false,
+    });
+  });
+
   it('displays capability unavailability reasons before practice starts', () => {
-    expect(
-      resolvePracticeStatusView({
-        lifecycle: 'READY',
-        inputState: 'IDLE',
-        inputSource: 'MICROPHONE',
-        selectedInputCapability: {
-          supported: false,
-          status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
-          reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
-        },
-        sessionMode: 'CONTINUOUS_PLAY',
-      })
-    ).toMatchObject({
-      messageKey: 'micContinuousUnavailable',
-      isError: true,
-    });
-
-    expect(
-      resolvePracticeStatusView({
-        lifecycle: 'READY',
-        inputState: 'IDLE',
-        inputSource: 'MICROPHONE',
-        selectedInputCapability: {
-          supported: false,
-          status: 'STEP_ANALYSIS_UNAVAILABLE',
-          reason: 'STEP_ANALYSIS_UNAVAILABLE',
-        },
-        sessionMode: 'STEP_BY_STEP',
-      })
-    ).toMatchObject({
-      messageKey: 'micStepAnalysisUnavailable',
-      isError: true,
-    });
-
     // Mic browser unsupported
     expect(
       resolvePracticeStatusView({
@@ -302,7 +288,7 @@ describe('PracticeStatus rendering', () => {
     expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
   });
 
-  it('renders Continuous analysis unavailable message before start when capability is unavailable', () => {
+  it('renders the browser prerequisite error before Continuous starts', () => {
     render(
       createElement(
         IntlProvider,
@@ -316,8 +302,8 @@ describe('PracticeStatus rendering', () => {
           inputSource: 'MICROPHONE',
           selectedInputCapability: {
             supported: false,
-            status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
-            reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+            status: 'BROWSER_UNSUPPORTED',
+            reason: 'BROWSER_UNSUPPORTED',
           },
           sessionMode: 'CONTINUOUS_PLAY',
           practiceTime: 0,
@@ -326,7 +312,7 @@ describe('PracticeStatus rendering', () => {
     );
 
     expect(
-      screen.getByText('Continuous microphone analysis is temporarily unavailable')
+      screen.getByText('The current browser does not support the required microphone practice features')
     ).toBeTruthy();
   });
 

@@ -12,10 +12,3 @@ export class MidiStepRetirementPolicy implements StepRetirementPolicy {
     return this.timebase.runtimeToSessionTime(this.clock.nowMs());
   }
 }
-
-/** Contract only, not a microphone implementation or a qualified delay value. */
-export interface FutureMicrophoneRetirementContract extends StepRetirementPolicy {
-  readonly minimumPostVerdict: 'MICROPHONE_POST_VERDICT_MINIMUM_NOT_YET_ENGINEERING_QUALIFIED';
-  // A future owner returns capturedThrough only after its qualified retirement condition.
-  // Capture continues; source event time <= that watermark is permanently retired.
-}

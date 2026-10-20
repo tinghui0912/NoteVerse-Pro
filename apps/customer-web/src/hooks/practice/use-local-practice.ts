@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PracticeInputSource, PracticeMode, PracticeScope, PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import type { ContinuousPracticeLifecycle, LocalPracticeInputState, LocalPracticeSessionSnapshot } from '@/lib/practice/local-core/session';
+import type { LocalPracticeInputState, LocalPracticeSessionSnapshot } from '@/lib/practice/local-core/session';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
@@ -10,7 +10,6 @@ import { ContinuousPracticeController, type ContinuousControllerSnapshot } from 
 import { useStepLocalPractice } from './use-step-local-practice';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 
-export type { ContinuousPracticeLifecycle, LocalPracticeInputState };
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined; mode: PracticeMode; inputSource: PracticeInputSource;
   scope: PracticeScope | null; tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;

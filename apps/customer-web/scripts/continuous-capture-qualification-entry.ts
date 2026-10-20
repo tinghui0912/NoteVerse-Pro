@@ -6,7 +6,6 @@ import { ContinuousPracticeSession } from '../src/lib/practice/local-core/perfor
 import { ManualClock } from '../src/lib/practice/local-core/timebase';
 import type { PracticeScoreArtifact } from '../src/lib/practice/local-core';
 import artifact from '../src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
-import { continuousMicrophoneSink } from '../src/lib/practice/continuous-microphone-input';
 import { evaluatePracticeInputCapabilities } from '../src/lib/practice/input-capability';
 
 declare global {
@@ -31,14 +30,13 @@ window.runContinuousCaptureQualification = async rate => {
     if (context.sampleRate !== rate) throw new Error(`ACTUAL_SOURCE_RATE_UNAVAILABLE:${context.sampleRate}`);
     const clock = new ManualClock(0), session = new ContinuousPracticeSession({ artifact: artifact as PracticeScoreArtifact,
       scope: { kind: 'FULL' }, clock, countInBeats: 0, inputSource: 'MICROPHONE' });
-    const sink = continuousMicrophoneSink(session);
     const publications: { id: string; frontier: number; availability: number; count: number; sourceSamples: readonly number[] }[] = [];
     let startContextTime = Infinity, inferenceDoesNotChangeClock = true;
     runtime = await ContinuousAcousticProjection.create({ sessionDomainId: session.timebase.domainId, sourceDomainId: `fake-capture-${rate}`,
       sourceSampleRateHz: rate, coefficientBytes: coefficients, worker,
       nowAvailabilityMs: () => context!.currentTime * 1000 - startContextTime,
       onPublication: publication => {
-        const before = session.clock.snapshot(); sink(publication);
+        const before = session.clock.snapshot(); session.publishAnalysis(publication);
         inferenceDoesNotChangeClock &&= JSON.stringify(before) === JSON.stringify(session.clock.snapshot());
         publications.push({ id: publication.publicationId, frontier: publication.analyzedThroughPerformanceMs,
           availability: publication.availabilityTimeMs, count: publication.observations.length,
@@ -85,7 +83,7 @@ window.runContinuousCaptureQualification = async rate => {
     if (snapshot.counts.windowsStarted !== 2 || snapshot.counts.windowsPublished !== 2 || snapshot.outstanding !== 0
       || snapshot.state !== 'SEALED' || snapshot.counts.terminalPublications !== 1 || snapshot.diagnostics.at(-1)?.actualSessionRunCount !== 2
       || publications.at(-1)?.frontier !== 1200 || publications.at(-1)?.count !== 0
-      || !inferenceDoesNotChangeClock || capabilities.acousticAnalysis.continuous.status !== 'MODEL_NOT_VALIDATED') throw new Error('CAPTURE_QUALIFICATION_ASSERTION');
+      || !inferenceDoesNotChangeClock) throw new Error('CAPTURE_QUALIFICATION_ASSERTION');
     return { status: 'PASS', actualAudioContextRate: context.sampleRate, trackSettings: stream.getAudioTracks()[0].getSettings(),
       model, capture: bridge.snapshot(), snapshot, transportWitness, publications, completed,
       inferenceDoesNotChangeClock, capabilities, realDeviceProbe: 'NOT_PERFORMED', productionMicrophone: false };

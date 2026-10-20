@@ -47,7 +47,7 @@ export type ContinuousStrikeEvaluation = ContinuousExpectedStrike & (
   | Readonly<{ state: 'MISSING' | 'NOT_REACHED'; finality: ContinuousFinality }>
 );
 
-export type ContinuousGroupVerdict = 'PENDING' | 'CORRECT' | 'MISSING' | 'WRONG'
+type ContinuousGroupVerdict = 'PENDING' | 'CORRECT' | 'MISSING' | 'WRONG'
   | 'INCOMPLETE_CHORD' | 'NOT_REACHED';
 
 export type ContinuousGroupEvaluation = Readonly<{
@@ -60,7 +60,7 @@ export type ContinuousGroupEvaluation = Readonly<{
   finality: ContinuousFinality | null;
 }>;
 
-export type ContinuousFinalizedStrike = Exclude<ContinuousStrikeEvaluation, { state: 'PENDING' }>;
+type ContinuousFinalizedStrike = Exclude<ContinuousStrikeEvaluation, { state: 'PENDING' }>;
 export type ContinuousFinalizedGroup = Omit<ContinuousGroupEvaluation, 'verdict' | 'strikes' | 'finality'> & Readonly<{
   verdict: Exclude<ContinuousGroupVerdict, 'PENDING'>;
   strikes: readonly ContinuousFinalizedStrike[];

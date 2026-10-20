@@ -3,7 +3,7 @@ import type { StepAttemptEvidence } from '../local-core/step-attempt';
 import type { SourceAcousticObservation, SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
-export const MAX_STEP_ACOUSTIC_IDENTITIES = 100_000;
+const MAX_STEP_ACOUSTIC_IDENTITIES = 100_000;
 const MAX_GESTURE_OBSERVATIONS = 32768;
 
 export type StepAcousticAttemptSink<Identity> = Readonly<{

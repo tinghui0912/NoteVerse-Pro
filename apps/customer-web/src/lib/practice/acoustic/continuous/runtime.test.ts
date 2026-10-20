@@ -15,17 +15,16 @@ import { ContinuousFinalizer } from '../../local-core/continuous-finalizer';
 import { ContinuousPracticeSession } from '../../local-core/performance-runtime';
 import { ManualClock, type PracticeScoreArtifact } from '../../local-core/index';
 import canonicalArtifact from '../../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import { continuousMicrophoneSink } from '../../continuous-microphone-input';
 import { projectContinuousEvidence } from './publication';
 import { sourcePublication } from '../runtime/source-publication';
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
-export function result(input: AcousticInferenceInput): AcousticInferenceResult {
+function result(input: AcousticInferenceInput): AcousticInferenceResult {
   const w = input.window, targetSample = Math.round(w.ownedStartTarget + Math.min(1600, (w.ownedEndTarget - w.ownedStartTarget) / 2));
   return { events: [{ midiPitch: 60, pitch: 'C4', confidence: .4, onsetScore: .6, frameScore: .4,
     targetSample }], inferenceMs: 1, decodeMs: .1, actualSessionRunCount: w.jobIndex + 1 };
 }
-export async function setup(rate = 48000, port?: AcousticInferencePort, sink?: AcousticRuntimeOptions['onPublication']) {
+async function setup(rate = 48000, port?: AcousticInferencePort, sink?: AcousticRuntimeOptions['onPublication']) {
   const publications: ContinuousEvidencePublication[] = [], calls: AcousticInferenceInput[] = [];
   const worker = port ?? { run: async (input: AcousticInferenceInput) => { calls.push(input); return result(input); }, dispose: vi.fn(async () => {}) };
   const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'session', sourceDomainId: 'capture', sourceSampleRateHz: rate,
@@ -42,7 +41,7 @@ export async function setup(rate = 48000, port?: AcousticInferencePort, sink?: A
   feedTo(rate * 2);
   return { runtime, bridge, publications, calls, worker, feedTo };
 }
-export function packet(start: number, n: number, sequence: number, rate = 48000): CaptureChunk {
+function packet(start: number, n: number, sequence: number, rate = 48000): CaptureChunk {
   return { type: 'pcm-chunk', sequence, sourceSampleRateHz: rate, sourceStartSampleIndex: start,
     sourceEndSampleIndex: start + n, audioContextStartFrame: start, captureTimeSeconds: start / rate,
     inputChannelCount: 1, samples: new Float32Array(n) };
@@ -232,8 +231,7 @@ it('real product finalizer alone produces all five verdicts from the model-agnos
     midiPitch: event.midi, pitch: event.pitch, confidence: .9, onsetScore: .9, frameScore: .9,
     targetSample: 32000 + event.time * 16,
   })) }), dispose: async () => {} };
-  const sink = continuousMicrophoneSink({ publishAnalysis: p => finalizer.publish(p) });
-  const { runtime, bridge, feedTo } = await setup(48000, worker, sink);
+  const { runtime, bridge, feedTo } = await setup(48000, worker, p => finalizer.publish(p));
   bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
   for (let n = 96000; n < 268800; n += 28800) { feedTo(n + 28800); await runtime.drain(); }
   runtime.requestTerminal(3600); feedTo(278400); await runtime.seal();
@@ -248,10 +246,9 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
     scope: { kind: 'FULL' }, clock, countInBeats: 0, inputSource: 'MICROPHONE' });
   session.start(); clock.advance(1200);
   const before = session.clock.snapshot();
-  const sink = continuousMicrophoneSink(session);
   const port: AcousticInferencePort = { run: async input => result(input), dispose: async () => {} };
   const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: session.timebase.domainId, sourceDomainId: 'clock-independent',
-    sourceSampleRateHz: 48000, coefficientBytes: await coefficients(), worker: port, nowAvailabilityMs: () => 2000, onPublication: sink });
+    sourceSampleRateHz: 48000, coefficientBytes: await coefficients(), worker: port, nowAvailabilityMs: () => 2000, onPublication: p => session.publishAnalysis(p) });
   let next = 0;
   function feed(end: number) { while (next < end) { const n = Math.min(2048, end - next); runtime.append({ sourceSampleRateHz: 48000,
     sourceStartSampleIndex: next, sourceEndSampleIndex: next + n, samples: new Float32Array(n) }); next += n; } }

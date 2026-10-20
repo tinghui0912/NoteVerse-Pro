@@ -23,7 +23,7 @@ export type BuildContinuousExpectedStrikesInput = {
   scope: PracticeScope;
 };
 
-export type ResolvedContinuousPracticeContract = {
+type ResolvedContinuousPracticeContract = {
   artifact: PracticeScoreArtifact;
   tempoPlan: ResolvedPracticeTempoPlan;
   timeline: PracticeTempoTimeline;
@@ -34,7 +34,7 @@ export type ResolvedContinuousPracticeContract = {
   expectedStrikes: ContinuousExpectedStrike[];
 };
 
-export function resolveContinuousPracticeContract(input: BuildContinuousExpectedStrikesInput): ResolvedContinuousPracticeContract {
+function resolveContinuousPracticeContract(input: BuildContinuousExpectedStrikesInput): ResolvedContinuousPracticeContract {
   assertPracticeScoreArtifact(input.artifact);
   const tempoPlan = resolvePracticeTempoPlan(input.artifact, input.tempoSelection);
   const timeline = new PracticeTempoTimeline(tempoPlan, input.artifact.scoreEndBeat);

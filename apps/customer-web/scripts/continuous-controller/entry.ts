@@ -119,8 +119,6 @@ window.runContinuousControllerQualification = async (rate, scenario) => {
     assert(boundaries.filter(b => b.action === 'APPLIED').every(b => b.sourceSampleIndex === b.nextSourceAtAction), 'INEXACT_APPLIED_BOUNDARY');
     if (!failureCase) assert(runtime.analyzedThroughPerformanceMs === result.transport!.performanceTimeMs && runtime.counts.terminalPublications === 1, 'TERMINAL_EXACT_T');
     const capabilities = evaluatePracticeInputCapabilities();
-    assert(capabilities.acousticAnalysis.continuous.status === 'MODEL_NOT_VALIDATED'
-      && capabilities.acousticAnalysis.step.status === 'ATTEMPT_ANALYZER_NOT_VALIDATED', 'CAPABILITY_ENABLED');
     return { status: 'PASS', rate, scenario, trackSettings, nativeHardwareRateQualification: false, offlineWitness, resumeWitnesses,
       failureWitness, engineering, model: engineering.microphone!.model, transport: result.transport,
       lifecycleTimings: [...lifecycleTimings],
