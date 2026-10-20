@@ -74,7 +74,7 @@ def _artifact_id(payload: dict[str, Any]) -> str:
 
 
 def _camel_dataclass(item: Any) -> Any:
-    if is_dataclass(item):
+    if is_dataclass(item) and not isinstance(item, type):
         return {
             _camel_key(key): _camel_dataclass(value)
             for key, value in asdict(item).items()

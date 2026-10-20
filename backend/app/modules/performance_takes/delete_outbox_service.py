@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 import json
-import logging
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.logger import logger
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeDeleteOutbox,
@@ -26,8 +26,6 @@ from app.modules.performance_takes.source_snapshot_delete_service import (
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
-
-logger = logging.getLogger(__name__)
 
 
 def _status_value(status: object) -> str:
@@ -62,7 +60,7 @@ def _load_orphan_final_entries(value: str | None) -> list[dict[str, str | None]]
 
 
 def _load_orphan_final_keys(value: str | None) -> list[str]:
-    return [entry["key"] for entry in _load_orphan_final_entries(value) if entry.get("key")]
+    return [key for entry in _load_orphan_final_entries(value) if (key := entry.get("key"))]
 
 
 def _dump_orphan_final_entries(entries: list[dict[str, str | None]]) -> str | None:
@@ -642,14 +640,11 @@ class PerformanceTakeDeleteOutboxService:
                 absent_orphan_final_object_keys=tuple(absent_orphan_keys),
             )
         except Exception:
-            logger.exception(
-                "performance_take_upload_authorization.cleanup_object_delete_failed",
-                extra={
-                    "authorization_id": target.authorization_id,
-                    "status": target.status,
-                    "staging_object_key": target.staging_object_key,
-                    "final_object_key": target.final_object_key,
-                },
+            logger.bind(
+                resource_id=target.authorization_id,
+                status=target.status,
+            ).opt(exception=True).error(
+                "performance_take_upload_authorization.cleanup_object_delete_failed"
             )
             return AuthorizationCleanupResult()
 

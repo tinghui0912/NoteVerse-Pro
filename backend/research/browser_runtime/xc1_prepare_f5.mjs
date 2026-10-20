@@ -38,7 +38,7 @@ for (const deployment of DEPLOYMENTS) {
     sessionLoadCount: artifact.sessionLoadCount, actualInferenceSessionRunCount: artifact.actualInferenceSessionRunCount };
 }
 const sourceFiles = git('ls-files', 'backend/research/browser_runtime/*.mjs', 'backend/research/browser_runtime/xc1_ort120_runtime/*',
-  'backend/scripts/*xc1*r3d*.py', 'backend/research/*xc1*.py', 'backend/scripts/bytedance_pcm_preprocessing.py',
+  'backend/research/tools/*xc1*r3d*.py', 'backend/research/*xc1*.py', 'backend/research/tools/bytedance_pcm_preprocessing.py',
   'apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts',
   'apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts',
   'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts', 'docker/research/Dockerfile.xc1-r3d-science')

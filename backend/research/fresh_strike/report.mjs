@@ -41,7 +41,7 @@ await json(path.join(reportRoot,'final.json'),{
    cases:truth.cases.length,scoredSecondsPerRate:truth.scoredSecondsPerSourceRate,
    role:'historical MAESTRO DEVELOPMENT ONLY; overlapping case opportunities not independent trials',
    candidateDefinitions:JSON.parse(JSON.stringify((await import('./detectors.mjs')).DEFINITIONS)),
-   historicalBaseline:freeze.files.find(f=>f.path==='backend/scripts/evaluate_causal_physical_strike_trigger.py'),
+   historicalBaseline:freeze.files.find(f=>f.path==='backend/research/tools/retired/evaluate_causal_physical_strike_trigger.py.txt'),
    budget:freeze.budget,attemptedCandidates:['decoded','historical','rise','support'],selectedCandidate:null,failures,
    metrics:scores.metrics,sourceRateParity:scores.sourceRateParity,
    candidateStreamSealSha256:scores.candidateStreamSealSha256},

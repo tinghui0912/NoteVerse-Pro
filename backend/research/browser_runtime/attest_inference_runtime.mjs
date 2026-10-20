@@ -25,7 +25,7 @@ export const CHECKPOINTS = [
     expectedBytes: 171966578,
     expectedSha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
     dockerImage: 'noteverse-bytedance-calibration:phase9ga21',
-    adapterRelPath: 'backend/scripts/run_bytedance_pytorch_raw_batch.py',
+    adapterRelPath: 'backend/research/tools/run_bytedance_pytorch_raw_batch.py',
     expectedAdapterSha256: 'f79b3ae0aff472d82a779e544915355d753876c1ac7b5803af4a5bf18d7b7204',
   },
   {
@@ -45,7 +45,7 @@ export const CHECKPOINTS = [
     expectedBytes: 103815845,
     expectedSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
     dockerImage: 'noteverse-challengers:phase9ga3',
-    adapterRelPath: 'backend/scripts/run_bytedance_pytorch_raw_batch.py',
+    adapterRelPath: 'backend/research/tools/run_bytedance_pytorch_raw_batch.py',
     expectedAdapterSha256: 'f79b3ae0aff472d82a779e544915355d753876c1ac7b5803af4a5bf18d7b7204',
   },
 ];

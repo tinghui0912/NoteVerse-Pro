@@ -32,7 +32,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     if(git('status','--porcelain'))throw Error('UNCOMMITTED_SOURCE');
     const jobs=JSON.parse(await readFile(path.join(WORK,'development/audio_only/jobs.json'),'utf8')).jobs;
     const files=git('ls-files','backend/research/fresh_strike','apps/customer-web','backend/app/modules/model_assets',
-      'backend/scripts/evaluate_causal_physical_strike_trigger.py','backend/research/browser_runtime/xc1_browser_runtime_shared.mjs').split('\n').filter(Boolean);
+      'backend/research/tools/retired/evaluate_causal_physical_strike_trigger.py.txt','backend/research/browser_runtime/xc1_browser_runtime_shared.mjs').split('\n').filter(Boolean);
     files.push(MODEL,'backend/data/work/fresh_strike/v2/local_dataset_audit.json','backend/data/work/fresh_strike/v2/development/truth.json',
       'backend/data/work/fresh_strike/v2/development/audio_only/jobs.json',...jobs.map(j=>j.path),
       ...['package.json','dist/ort.webgpu.min.mjs','dist/ort-wasm-simd-threaded.jsep.mjs','dist/ort-wasm-simd-threaded.jsep.wasm'].map(f=>'apps/customer-web/node_modules/onnxruntime-web/'+f));

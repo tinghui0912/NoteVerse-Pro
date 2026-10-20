@@ -24,7 +24,7 @@ export const freezePath = id => path.join(ROOT, `backend/research/reports/contin
 export async function freeze(id) {
   if (git('status', '--porcelain')) throw new Error('IMPLEMENTATION_MUST_BE_COMMITTED_CLEAN');
   const paths = git('ls-files', 'apps/customer-web', 'backend/app/modules/model_assets', 'backend/tests/test_continuous_model_asset.py',
-    'backend/scripts/qualify_continuous_robust_asset.py', 'backend/research/history/continuous-acoustic-before-promotion',
+    'backend/research/tools/qualify_continuous_robust_asset.py', 'backend/research/history/continuous-acoustic-before-promotion',
     'backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs', 'backend/research/browser_runtime/xc1_browser_runtime_shared.mjs',
     'docs/architecture/practice-product-contract.md').split('\n').filter(Boolean);
   const assets = [MODEL, FIXTURE];

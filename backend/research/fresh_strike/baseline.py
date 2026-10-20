@@ -10,7 +10,7 @@ import numpy as np
 from audit import ROOT, WORK, save
 
 def historical_types():
-    path = ROOT/'backend/scripts/evaluate_causal_physical_strike_trigger.py'
+    path = ROOT/'backend/research/tools/retired/evaluate_causal_physical_strike_trigger.py.txt'
     tree = ast.parse(path.read_text())
     names = {'StrikeCandidate','FrameTrace','DetectorConfig','CausalPcmStrikeDetector','_median_or_zero','_rms_history_stats'}
     selected = [node for node in tree.body if isinstance(node,(ast.ClassDef,ast.FunctionDef)) and node.name in names]
@@ -48,7 +48,7 @@ def main():
         results.append({'id':job['id'],'rate':job['rate'],'tokens':tokens})
     baseline_path = WORK/'development/baseline.json'
     save(baseline_path,{**proof,'developmentExecutionProof':proof,'results':results,
-        'historicalSourceSha256':hashlib.sha256((ROOT/'backend/scripts/evaluate_causal_physical_strike_trigger.py').read_bytes()).hexdigest(),
+        'historicalSourceSha256':hashlib.sha256((ROOT/'backend/research/tools/retired/evaluate_causal_physical_strike_trigger.py.txt').read_bytes()).hexdigest(),
         'extraction':'unchanged AST nodes only; unavailable external benchmark helper imports excluded',
         'config':module.DetectorConfig().__dict__,'newNeuralRuns':0,'truthRead':False})
     save(WORK/'development/candidate-stream-seal.json',{**proof,'sealedAt':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),

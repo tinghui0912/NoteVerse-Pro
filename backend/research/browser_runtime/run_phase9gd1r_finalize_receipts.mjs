@@ -44,8 +44,8 @@ const preprocessingRows = parity.fixtures.map((fixture) => {
 const preprocessingReceipt = {
   artifact: 'phase9g_d1r_robust_frozen_preprocessing_receipt',
   phase: '9G-D.1R',
-  frozenHelper: 'backend/scripts/bytedance_pcm_preprocessing.py::extract_resample_linear',
-  frozenRunner: 'backend/scripts/run_bytedance_robust_pytorch_raw_batch.py',
+  frozenHelper: 'backend/research/tools/bytedance_pcm_preprocessing.py::extract_resample_linear',
+  frozenRunner: 'backend/research/tools/run_bytedance_robust_pytorch_raw_batch.py',
   expectedPreprocessingIdentity: 'deterministic_wav_pcm16_mono_linear_resample_16k_v1',
   status: parity.preprocessingParity?.status ?? 'NOT_REPORTED',
   fixtureCount: preprocessingRows.length,

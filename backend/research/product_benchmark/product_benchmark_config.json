@@ -30,7 +30,7 @@
         "bytes": 171966578
       },
       "dockerImage": "noteverse-bytedance-calibration:phase9ga21",
-      "dockerScript": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
+      "dockerScript": "backend/research/tools/run_bytedance_pytorch_raw_batch.py",
       "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga21",
       "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
       "terminalWindowPolicy": "RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1",
@@ -87,7 +87,7 @@
         "bytes": 103815845
       },
       "dockerImage": "noteverse-challengers:phase9ga3",
-      "dockerScript": "backend/scripts/run_bytedance_robust_pytorch_raw_batch.py",
+      "dockerScript": "backend/research/tools/run_bytedance_robust_pytorch_raw_batch.py",
       "runtimeIdentity": "noteverse-challengers:phase9ga3",
       "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
       "terminalWindowPolicy": "FIXED_1820_RIGHT_ANCHORED_COMMIT_V1",

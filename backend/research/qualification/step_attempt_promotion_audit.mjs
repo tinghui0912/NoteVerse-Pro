@@ -60,7 +60,7 @@ async function audit() {
     'backend/research/reports/bytedance_browser_runtime_feasibility.md',
     'backend/research/reports/rtt_bytedance_candidate_handoff.md',
     'backend/research/reports/bytedance_score_aware_rolling_step.md',
-    'backend/scripts/evaluate_causal_physical_strike_trigger.py',
+    'backend/research/tools/retired/evaluate_causal_physical_strike_trigger.py.txt',
     'apps/customer-web/src/lib/api/model-assets.ts',
     'apps/customer-web/src/lib/api/continuous-model-asset.ts',
     'backend/app/modules/model_assets/service.py',

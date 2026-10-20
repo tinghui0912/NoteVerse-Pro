@@ -3,7 +3,7 @@ import wave
 import numpy as np
 import pytest
 from scipy.signal import resample_poly
-from backend.scripts.bytedance_pcm_preprocessing import extract_resample_linear
+from backend.research.tools.bytedance_pcm_preprocessing import extract_resample_linear
 
 
 def test_host_receipt_paths_resolve_in_docker_without_escape():

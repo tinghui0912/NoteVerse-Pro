@@ -19,7 +19,7 @@ sourceFiles.push(...['xc1_artifacts.mjs', 'xc1_browser_runtime_shared.mjs', 'xc1
   'apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts',
   'apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts',
   'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts',
-  'backend/scripts/bytedance_pcm_preprocessing.py');
+  'backend/research/tools/bytedance_pcm_preprocessing.py');
 const sourceHashBoundary = {};
 for (const file of [...new Set(sourceFiles)]) sourceHashBoundary[file] = await fileSha(file);
 const runtimeAssets = {};

@@ -5,4 +5,4 @@ WORKDIR /workspace
 COPY docker/research/requirements.online-amt-dr3r.txt /tmp/requirements.online-amt-dr3r.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.online-amt-dr3r.txt
 
-CMD ["python", "backend/scripts/qualify_online_amt_grouped_browser_dr3.py", "--repo-root", "/workspace"]
+CMD ["python", "backend/research/tools/qualify_online_amt_grouped_browser_dr3.py", "--repo-root", "/workspace"]

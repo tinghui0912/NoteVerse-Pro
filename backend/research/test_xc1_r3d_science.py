@@ -3,8 +3,8 @@ import random
 import numpy as np
 import pytest
 from backend.research.xc1_scientific_bakeoff import OnsetEvent, match_pitch_onsets, paired_bootstrap, bytedance_linear_resample_full_np
-from backend.scripts.bytedance_pcm_preprocessing import extract_resample_linear
-from backend.scripts.phase9g_xc1_r3d_stage_b import container_guard, verify_canonical
+from backend.research.tools.bytedance_pcm_preprocessing import extract_resample_linear
+from backend.research.tools.phase9g_xc1_r3d_stage_b import container_guard, verify_canonical
 
 
 def test_container_guard():
@@ -61,7 +61,7 @@ def test_bootstrap_missing_pair_fails_closed():
 
 
 def test_canonical_artifact_rejects_mutation():
-    from backend.scripts.phase9g_xc1_r3d_stage_b import digest
+    from backend.research.tools.phase9g_xc1_r3d_stage_b import digest
     artifact = {'number': .000000000005, 'values': [1, 2.0]}
     artifact['artifactCanonicalSha256'] = digest(artifact)
     verify_canonical(artifact)

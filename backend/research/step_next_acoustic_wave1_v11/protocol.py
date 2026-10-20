@@ -70,7 +70,7 @@ def setup():
     save('preflight.json',{'status':'PASS','label':LABEL,'models':models,'originalStaticAdmissibility':'PASS',
         'originalClassification':'HISTORICAL_THRESHOLDS_ENGINEERING_BRIDGE_NOT_RECALIBRATED',
         'originalProvenance':{'report':'backend/data/work/bytedance_browser_runtime_feasibility/report.json','sha256':sha(ROOT/'backend/data/work/bytedance_browser_runtime_feasibility/report.json'),
-            'exportSource':'backend/scripts/evaluate_bytedance_browser_runtime_feasibility.py','exportSourceSha256':sha(ROOT/'backend/scripts/evaluate_bytedance_browser_runtime_feasibility.py'),
+            'exportSource':'backend/research/tools/evaluate_bytedance_browser_runtime_feasibility.py','exportSourceSha256':sha(ROOT/'backend/research/tools/evaluate_bytedance_browser_runtime_feasibility.py'),
             'checkpointSha256':sha(checkpoint),'input':[1,29120],'output':[1,183,88],'bridge':'Production decodeRobustPiano(raw,start,{onsetThreshold:.20,frameThreshold:.10}); production source-domain projection and planner geometry, no target access.'},
         'layerB':verified,'sourceManifests':[{'path':q,'sha256':sha(ROOT/q)} for q in (FULL,SANITIZED)],
         'modelRuns':0,'selectedPcmDecoded':False,'freshHoldoutSelected':False})
@@ -97,7 +97,7 @@ def freeze():
     for g in load(p.local(WORK/'bundle-graphs.json')):
         paths+=g['inputs'];paths.append(p.local(WORK/g['output']))
     paths+=['backend/research/browser_runtime/xc2_decoders.mjs','backend/research/browser_runtime/xc1_robust_decoder.mjs',
-        'backend/research/xc1_scientific_bakeoff.py','backend/scripts/phase9g_xc1_r3d_stage_b.py',
+        'backend/research/xc1_scientific_bakeoff.py','backend/research/tools/phase9g_xc1_r3d_stage_b.py',
         'backend/research/step_waiting_h50_holdout_v9/evaluate.ts','backend/research/step_waiting_h50_holdout_v9/domain.ts',
         'backend/research/step_waiting_h50_holdout_v7/source-execution.ts',
         'backend/research/step_waiting_topology_v3/assembly.ts',p.local(WORK/'bundle-graphs.json')]

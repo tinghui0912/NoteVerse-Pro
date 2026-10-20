@@ -20,6 +20,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, create_engine
 
 from app.api.deps import get_current_user, get_db
+from app.core.exceptions import ValidationException
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
@@ -62,6 +63,7 @@ from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
+from app.shared.error_codes import ErrorCode
 from app.storage.base import DirectUploadTarget
 from app.storage.factory import get_file_storage
 from app.storage.local import LocalFileStorage
@@ -265,6 +267,25 @@ def _create_default_take(
     session.add(take)
     session.flush()
     return take
+
+
+def test_invalid_stored_scope_reports_validation_error(test_env):
+    session, storage, user, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    take = _create_default_take(
+        session,
+        user_id=user.id,
+        source_snapshot_id=snapshot.id,
+        client_request_id="invalid-stored-scope",
+        take_uuid="invalid-stored-scope",
+        media_object_key="test/invalid-stored-scope.webm",
+    )
+    take.scope_type = "INVALID"
+    service = PerformanceTakeService(storage=storage)
+    with pytest.raises(ValidationException) as raised:
+        service._to_read_dto(take, snapshot=snapshot)
+    assert raised.value.code == ErrorCode.VALIDATION_ERROR
+    assert raised.value.details == {"field": "scope_type", "reason": "scope_type_invalid"}
 
 
 def _create_take_delete_outbox(

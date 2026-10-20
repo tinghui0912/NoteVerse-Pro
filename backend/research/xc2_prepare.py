@@ -14,7 +14,7 @@ import numpy as np
 import scipy
 from scipy.signal import resample_poly
 
-from backend.scripts.bytedance_pcm_preprocessing import extract_resample_linear
+from backend.research.tools.bytedance_pcm_preprocessing import extract_resample_linear
 
 ROOT = Path(__file__).resolve().parents[2]
 PHASE = 'PHASE_9G_XC2_ROBUST_PRODUCT_VERDICT_AND_LATENCY_BASELINE'

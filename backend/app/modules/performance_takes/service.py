@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import hashlib
 import hmac
 import json
-import logging
 from time import monotonic
 from typing import Optional
 from uuid import uuid4
@@ -17,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.logger import logger
 from app.core.exceptions import (
     ExternalServiceException,
     ResourceNotFoundException,
@@ -85,7 +85,6 @@ TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
 SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS = 15 * 60
-logger = logging.getLogger(__name__)
 TERMINAL_UPLOAD_AUTHORIZATION_STATUSES = {
     PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
     PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
@@ -228,7 +227,7 @@ def _load_orphan_final_entries(value: str | None) -> list[dict[str, str | None]]
 
 
 def _load_orphan_final_keys(value: str | None) -> list[str]:
-    return [entry["key"] for entry in _load_orphan_final_entries(value) if entry.get("key")]
+    return [key for entry in _load_orphan_final_entries(value) if (key := entry.get("key"))]
 
 
 def _dump_orphan_final_entries(entries: list[dict[str, str | None]]) -> str | None:
@@ -307,7 +306,7 @@ class PerformanceTakeService:
         practice_source_service: PracticeSourceService | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
-        self.storage = storage  # type: ignore[assignment]
+        self.storage = storage
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
         self.practice_source_service = practice_source_service or PracticeSourceService(
@@ -342,7 +341,6 @@ class PerformanceTakeService:
         scope_type = take.scope_type
         if scope_type not in {"FULL", "RANGE"}:
             raise ValidationException(
-                "Performance take scope is invalid.",
                 ErrorCode.VALIDATION_ERROR,
                 field="scope_type",
                 details={"reason": "scope_type_invalid"},
@@ -808,9 +806,8 @@ class PerformanceTakeService:
             if self.storage.exists(candidate_key):
                 self.storage.delete(candidate_key)
         except Exception:
-            logger.exception(
-                "performance_take_upload.finalize_candidate_cleanup_failed",
-                extra={"candidate_object_key": candidate_key},
+            logger.opt(exception=True).error(
+                "performance_take_upload.finalize_candidate_cleanup_failed"
             )
 
     async def _delete_candidate_final_async(self, candidate_key: str | None) -> None:
@@ -1168,9 +1165,8 @@ class PerformanceTakeService:
             try:
                 await asyncio.to_thread(self._delete_storage_object_if_exists, staging_key)
             except Exception:
-                logger.exception(
-                    "performance_take_upload_authorization.cancel_staging_delete_failed",
-                    extra={"reservation_id": reservation_id, "staging_object_key": staging_key},
+                logger.bind(resource_id=reservation_id).opt(exception=True).error(
+                    "performance_take_upload_authorization.cancel_staging_delete_failed"
                 )
 
     def _delete_storage_object_if_exists(self, key: str) -> None:
@@ -1408,9 +1404,10 @@ class PerformanceTakeService:
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
+        header_storage = self.storage
         header_bytes = await asyncio.to_thread(
             lambda: b"".join(
-                self.storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
+                header_storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
             )
         )
         if not _verify_container_magic_bytes(

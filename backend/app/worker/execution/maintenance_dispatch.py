@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import logging
-
+from app.core.logger import logger
 from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.mail.outbox_service import mail_outbox_service
@@ -18,8 +17,6 @@ from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import file_storage
 from app.worker.task_runtime import run_scheduler_scan
-
-logger = logging.getLogger(__name__)
 
 
 def execute_import_dispatch_maintenance() -> dict[str, int]:
