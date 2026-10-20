@@ -106,7 +106,7 @@ def test_per_pitch_positive_scoring_uses_canonical_gt_times():
     assert row["verdict"] == "PASS"
 
 
-def test_markdown_reports_production_disabled():
+def test_markdown_reports_candidate_verdict():
     m = load_module()
     md = m.markdown({
         "metadata": {"researchHarnessGitHead": "h"},
@@ -116,7 +116,7 @@ def test_markdown_reports_production_disabled():
             "reason": "x",
         },
     })
-    assert "Production microphone remains disabled after Phase 8B." in md
+    assert "Frontend =" in md
     assert "No production integration was performed." in md
 
 

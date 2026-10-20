@@ -291,7 +291,6 @@ const report = {
     p15p22InferenceIncrease: 0,
     phase9gBOutcome: 'STATISTICAL_TIE',
     phase9gBWinner: null,
-    productionMicrophoneEnabled: false,
     practiceWebSocketRestored: false,
     backendPracticeInferenceRestored: false,
     d4QualificationPerformed: false,

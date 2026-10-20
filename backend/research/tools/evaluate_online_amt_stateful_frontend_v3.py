@@ -55,7 +55,6 @@ def main() -> int:
             "productionCandidacy": "REJECTED",
             "development": "NOT RUN",
             "calibration": "NOT RUN",
-            "productionMicrophone": "DISABLED"
         }
     elif legacy["verdict"] != "PASS":
         final = {
@@ -65,7 +64,6 @@ def main() -> int:
             "productionCandidacy": "REJECTED",
             "development": "NOT RUN",
             "calibration": "NOT RUN",
-            "productionMicrophone": "DISABLED"
         }
     else:
         final = {
@@ -75,7 +73,6 @@ def main() -> int:
             "productionCandidacy": "NOT DECIDED",
             "development": "NOT RUN",
             "calibration": "NOT RUN",
-            "productionMicrophone": "DISABLED"
         }
     decision["final"] = final
     write_json(args.identity_output, identity)
@@ -169,7 +166,6 @@ def markdown(decision: dict[str, Any]) -> str:
         f"Production candidacy: `{final['productionCandidacy']}`",
         f"Reason: {final['reason']}",
         "",
-        "Production microphone remains disabled after Phase 8C.",
         "No production integration was performed.",
         "",
     ])

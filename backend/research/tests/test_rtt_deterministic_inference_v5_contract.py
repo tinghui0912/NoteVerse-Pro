@@ -68,7 +68,7 @@ def test_training_audit_records_inference_mode_without_eval():
     assert "with torch.inference_mode()" in source
 
 
-def test_markdown_reports_production_disabled():
+def test_markdown_reports_candidate_verdict():
     m = load_module()
     md = m.markdown({
         "metadata": {
@@ -81,7 +81,7 @@ def test_markdown_reports_production_disabled():
             "reason": "x",
         },
     })
-    assert "Production microphone remains disabled after Phase 7E." in md
+    assert "Frontend =" in md
     assert "No production integration was performed." in md
 
 

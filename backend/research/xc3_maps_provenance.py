@@ -204,7 +204,7 @@ def audit():
                              'R2': 'DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY',
                              'R4Cadence': 'ROBUST_CADENCE_SUSTAINABLE',
                              'R4Headroom': 'ROBUST_20_PERCENT_HEADROOM_FAIL',
-                             'viennaP15P22InferenceIncrease': 0, 'productionMicrophone': False,
+                             'viennaP15P22InferenceIncrease': 0,
                              'D4': False, 'productionWinner': None, 'practiceWebSocket': False,
                              'backendServerPracticeInference': False, 'scoreFollowing': False,
                              'expectedScoreEntersInference': False, 'historicalScienceModified': False,

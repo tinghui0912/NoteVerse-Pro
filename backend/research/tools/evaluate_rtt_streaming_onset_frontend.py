@@ -749,7 +749,6 @@ def markdown_report(r: dict[str, Any]) -> str:
         "",
         f"```text\n{r.get('finalVerdict')}\n```",
         "",
-        "Production microphone remains disabled after Phase 7.",
         "No production integration was performed.",
         "",
     ])

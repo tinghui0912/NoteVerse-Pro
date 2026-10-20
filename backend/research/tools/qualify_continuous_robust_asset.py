@@ -55,7 +55,7 @@ def qualify(publish: bool, report: Path) -> dict:
             "classification": "DISTINCT_HISTORICAL_ARTIFACT_NOT_ACCEPTED_BY_CONTINUOUS_RUNTIME"},
         "provenanceReport": "backend/research/reports/phase9g_d1r_robust_browser_candidate_identity_export_2026-10-12.json",
         "provenanceCommit": "4d8dbed42ece16b18f422ee834947027b1f84be0",
-        "newNeuralInferenceCount": 0, "productionMicrophone": False,
+        "newNeuralInferenceCount": 0,
         "uploaded": False,
     }
     try:

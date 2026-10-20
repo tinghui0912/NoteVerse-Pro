@@ -71,7 +71,7 @@ def test_source_event_matching_is_one_to_one():
     assert metrics["timing"]["sampleCount"] == 1
 
 
-def test_markdown_reports_production_disabled():
+def test_markdown_reports_candidate_verdict():
     m = load_module()
     md = m.markdown({
         "metadata": {"researchHarnessGitHead": "h"},
@@ -81,7 +81,7 @@ def test_markdown_reports_production_disabled():
             "reason": "x",
         },
     })
-    assert "Production microphone remains disabled after Phase 8." in md
+    assert "Frontend =" in md
     assert "No production integration was performed." in md
 
 

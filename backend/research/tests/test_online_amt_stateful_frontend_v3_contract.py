@@ -52,7 +52,7 @@ def test_markdown_reports_phase8c_disabled():
             "reason": "x",
         },
     })
-    assert "Production microphone remains disabled after Phase 8C." in md
+    assert "Frontend =" in md
     assert "No production integration was performed." in md
 
 

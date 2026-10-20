@@ -1,17 +1,13 @@
 # Practice Audio Fixtures
 
-This directory keeps small audio samples that may be reused by browser-local
-practice tests or model research scripts. It no longer defines a backend
-score-following replay runtime: product practice execution is owned by the
-browser-local runtime.
+This directory keeps small audio samples and paired physical-truth metadata
+for research tools and tests.
 
 Real recordings should be 16-bit PCM `.wav` files. Stereo files should be
 downmixed by whichever test or script consumes the sample.
 
-The surviving fixtures are neutral acoustic samples and a planned physical
-same-take microphone/MIDI contract. They are not a current product microphone
-capability gate and they are not evidence that production microphone analysis is
-enabled.
+Fixtures describe acoustic inputs and physical truth, independently of product
+capability detection or device qualification.
 
 ## Paired MIDI + Microphone Ground Truth
 

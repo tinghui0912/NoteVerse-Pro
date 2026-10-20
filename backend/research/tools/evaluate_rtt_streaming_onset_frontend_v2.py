@@ -489,7 +489,6 @@ def write_all(args: argparse.Namespace, reports: dict[str, Any], *, verdict: str
         "browser": "NOT RUN",
         "verdict": verdict,
         "reason": reason,
-        "productionMicrophone": "DISABLED",
     }
     args.decision_json.parent.mkdir(parents=True, exist_ok=True)
     args.decision_json.write_text(json.dumps(reports, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -541,7 +540,6 @@ def markdown(r: dict[str, Any]) -> str:
         "",
         f"```text\n{r['final']['verdict']}\n```",
         "",
-        "Production microphone remains disabled after Phase 7B.",
         "No production integration was performed.",
         "",
     ])

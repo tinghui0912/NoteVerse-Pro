@@ -203,7 +203,6 @@ const artifact = {
     calibrationUsed: false,
     evaluationUsed: false,
     candidateWinnerSelected: false,
-    productionMicrophoneEnabled: false,
   },
 };
 

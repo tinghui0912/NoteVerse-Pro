@@ -636,7 +636,6 @@ def write_all(args: argparse.Namespace, decision: dict[str, Any], verdict: str, 
         "verdict": final_verdict,
         "failureCategory": category,
         "reason": reason,
-        "productionMicrophone": "DISABLED",
     }
     write_json(args.decision_json, decision)
     args.decision_md.parent.mkdir(parents=True, exist_ok=True)
@@ -658,7 +657,6 @@ def markdown(decision: dict[str, Any]) -> str:
         f"Failure category: `{final['failureCategory']}`",
         f"Reason: {final['reason']}",
         "",
-        "Production microphone remains disabled after Phase 7E.",
         "No production integration was performed.",
         "",
     ]

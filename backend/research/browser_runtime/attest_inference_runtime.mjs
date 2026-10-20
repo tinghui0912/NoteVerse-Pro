@@ -421,7 +421,6 @@ export function attestRuntimeEnvironment({ skipSyntheticExecution = false } = {}
       realBlindInferenceExecuted: false,
       blindPerformersAccessed: false,
       productionWinnerSelected: false,
-      productionMicrophoneActive: false,
     },
   };
 

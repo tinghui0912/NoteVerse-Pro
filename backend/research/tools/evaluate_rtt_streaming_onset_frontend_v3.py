@@ -696,7 +696,6 @@ def write_decision(args: argparse.Namespace, report: dict[str, Any], verdict: st
         "browser": "NOT RUN",
         "verdict": f"RTT Shared Streaming Onset Frontend = {verdict}",
         "reason": reason,
-        "productionMicrophone": "DISABLED",
     }
     report["final"] = final
     write_json(args.decision_json, report)
@@ -728,7 +727,6 @@ def markdown(report: dict[str, Any]) -> str:
         "",
         f"```text\n{report['final']['verdict']}\n```",
         "",
-        "Production microphone remains disabled after Phase 7C.",
         "No production integration was performed.",
         "",
     ]

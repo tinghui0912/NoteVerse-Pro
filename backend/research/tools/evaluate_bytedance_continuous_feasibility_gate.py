@@ -248,7 +248,7 @@ def _trusted_region_summary(region: dict[str, Any] | None, dataset: dict[str, An
 
 def _model_disposition(verdict: str) -> str:
     if verdict == "PASS":
-        return "ByteDance may proceed to a later Continuous microphone integration phase; production remains disabled."
+        return "ByteDance meets this research feasibility gate."
     if verdict == "FAIL":
         return (
             "ByteDance is rejected for the 1.82s generic sliding-window "

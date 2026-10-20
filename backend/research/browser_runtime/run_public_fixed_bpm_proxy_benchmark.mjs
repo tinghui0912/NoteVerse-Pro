@@ -180,7 +180,6 @@ const report = {
     noCalibrationOrEvaluationTuning: true,
     noOfficialProductionWinner: true,
     officialProductRankRemainsNull: true,
-    productionMicrophoneEnabled: false,
   },
 };
 

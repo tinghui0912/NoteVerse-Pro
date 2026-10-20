@@ -72,7 +72,7 @@ def test_script_cross_checks_cli_against_wrapper():
     assert "compare_rows_exact" in source
 
 
-def test_markdown_reports_production_disabled():
+def test_markdown_reports_candidate_verdict():
     m = load_module()
     md = m.markdown({
         "metadata": {"researchHarnessGitHead": "h", "checkpointSha256": "c"},
@@ -83,7 +83,7 @@ def test_markdown_reports_production_disabled():
         },
         "upstreamMetricReproduction": {"summary": {"verdict": "FAIL"}},
     })
-    assert "Production microphone remains disabled after Phase 7D." in md
+    assert "Frontend =" in md
 
 
 def row(value):
