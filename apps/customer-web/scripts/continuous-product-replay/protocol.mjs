@@ -23,7 +23,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     if(git('status','--porcelain'))throw new Error('UNCOMMITTED_SOURCE');
     await engineeringFreeze(ID);
     const corpus=JSON.parse(await readFile(path.join(ROOT,CORPUS),'utf8'));
-    const files=git('ls-files','apps/customer-web','docs/architecture/practice-product-contract-v2.md','backend/research/qualification/product_replay_prepare.py','backend/research/qualification/test_product_replay_prepare.py','backend/app/modules/model_assets','backend/tests/test_continuous_model_asset.py',CORPUS).split('\n').filter(Boolean);
+    const files=git('ls-files','apps/customer-web','docs/architecture/practice-product-contract.md','backend/research/qualification/product_replay_prepare.py','backend/research/qualification/test_product_replay_prepare.py','backend/app/modules/model_assets','backend/tests/test_continuous_model_asset.py',CORPUS).split('\n').filter(Boolean);
     files.push(MODEL,FIXTURE,`backend/research/reports/continuous_controller_freeze_${ID}_2026-10-17.json`,
       'backend/research/reports/product_completion_invalidation_v1_2026-10-17.json',
       'backend/research/reports/product_completion_musical_invalid_v1_2026-10-17.json',

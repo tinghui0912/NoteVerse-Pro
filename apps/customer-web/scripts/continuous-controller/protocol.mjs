@@ -11,7 +11,7 @@ export const paths = (id = 'v1') => ({ work: path.join(ROOT, 'backend/data/work/
   freeze: path.join(ROOT, `backend/research/reports/continuous_controller_freeze_${id}_2026-10-17.json`) });
 export async function freeze(id = 'v1') {
   if (git('status', '--porcelain')) throw new Error('UNCOMMITTED_SOURCE');
-  const files = git('ls-files', 'apps/customer-web', 'docs/architecture/practice-product-contract-v2.md', 'backend/app/modules/model_assets',
+  const files = git('ls-files', 'apps/customer-web', 'docs/architecture/practice-product-contract.md', 'backend/app/modules/model_assets',
     'backend/tests/test_continuous_model_asset.py', 'backend/research/browser_runtime/xc1_browser_runtime_shared.mjs',
     'backend/research/history/continuous-controller-alternate-executables').split('\n').filter(Boolean);
   await newJson(paths(id).freeze, { phase: PHASE, freezeId: id, startingHead: START, productImplementationCommit: git('rev-parse', 'HEAD'),

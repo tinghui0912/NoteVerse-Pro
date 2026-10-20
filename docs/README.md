@@ -32,7 +32,7 @@ runtime contracts.
 - [ADR 0005: Review Pipeline Before Score](adr/0005-review-pipeline-before-score.md)
 - [ADR 0007: Editor Domain Model](adr/0007-editor-domain-model.md)
 - [Architecture Index](architecture/README.md)
-- [Practice Product Contract v2](architecture/practice-product-contract-v2.md)
+- [Practice Product Contract](architecture/practice-product-contract.md)
 - [External Dependencies](architecture/integrations/external-dependencies.md)
 - [Kubernetes Application Runtime Contract](architecture/runtime/k8s-application-runtime-contract.md)
 - [Backend Settings Ownership](architecture/runtime/settings-ownership.md)

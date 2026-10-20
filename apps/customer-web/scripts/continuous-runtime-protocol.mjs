@@ -26,7 +26,7 @@ export async function freeze(id) {
   const paths = git('ls-files', 'apps/customer-web', 'backend/app/modules/model_assets', 'backend/tests/test_continuous_model_asset.py',
     'backend/scripts/qualify_continuous_robust_asset.py', 'backend/research/history/continuous-acoustic-before-promotion',
     'backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs', 'backend/research/browser_runtime/xc1_browser_runtime_shared.mjs',
-    'docs/architecture/practice-product-contract-v2.md').split('\n').filter(Boolean);
+    'docs/architecture/practice-product-contract.md').split('\n').filter(Boolean);
   const assets = [MODEL, FIXTURE];
   const dspPath = 'backend/data/work/xc6_capture/dsp48_reference.json';
   const dsp = JSON.parse(await readFile(path.join(ROOT, dspPath), 'utf8'));

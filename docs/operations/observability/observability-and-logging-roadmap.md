@@ -281,10 +281,10 @@ Objective: make async work diagnosable without reading free-form strings.
 
 Status: partially implemented. Import, import pipeline, render, playback, mail,
 dispatch, score deletion cleanup, API exception boundaries, runtime startup,
-notification, realtime, avatar, practice runtime, and derived-asset retention
+notification, realtime, avatar, and derived-asset retention
 entrypoints now emit structured lifecycle events with stable operation IDs and
 context where available. Text recognition/integration, OCR subprocess execution,
-LEGATO OMR, and practice matchmaker diagnostics also use structured events.
+and LEGATO OMR also use structured events.
 Standard-library framework logs and Celery worker/beat logs are routed through
 the shared stdout sink, so K8s `LOG_FORMAT=json` produces JSON container logs.
 Guardrails now prevent new free-form application logs from creeping back in via
@@ -526,8 +526,7 @@ fields but no forbidden file/storage/text fields, raw exception value, or stack
 trace. The Loki datasource now derives Tempo navigation only from a validated
 32-character trace ID, and application realtime/SSE notifications record
 bounded lifecycle events without audio or Practice control payloads. Practice
-execution itself is browser-local and does not have an active Practice WebSocket
-runtime. P3 is implemented
+execution itself is browser-local. P3 is implemented
 locally: the four durable operation records persist vetted `traceparent` and
 optional `tracestate`, relay dispatches create producer spans, worker attempts
 create fresh consumer spans, and each relay delivery gets a unique Celery task

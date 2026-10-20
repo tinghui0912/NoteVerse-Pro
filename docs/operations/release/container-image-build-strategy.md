@@ -232,8 +232,7 @@ The API image includes:
   gate keeps the blocking engine off the event loop and limits concurrent work;
   a dedicated CPU worker is a future scale decision, not a second HTTP service.
 
-It does not include retired Practice score-following dependencies, LEGATO,
-PaddleOCR, or worker model-cache tooling.
+LEGATO, PaddleOCR and worker model-cache tooling belong to worker images.
 
 ### Backend Beat Image
 

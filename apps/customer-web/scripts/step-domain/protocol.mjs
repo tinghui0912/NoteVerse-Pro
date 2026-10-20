@@ -27,7 +27,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     const files=git('ls-files','apps/customer-web','backend/app/modules/model_assets','backend/app/core/settings/model_asset_delivery.py',
       'backend/tests/test_practice_acoustic_model_asset.py','backend/tests/test_model_assets.py','backend/research/qualification/step_domain_cleanup.mjs',
       'backend/research/history/step-original-bytedance-low-level-before-domain-reset','docker/research/Dockerfile.practice-acoustic-qualification',
-      'docs/architecture/practice-product-contract-v2.md','backend/research/browser_runtime/xc1_browser_runtime_shared.mjs').split('\n').filter(Boolean);
+      'docs/architecture/practice-product-contract.md','backend/research/browser_runtime/xc1_browser_runtime_shared.mjs').split('\n').filter(Boolean);
     const corpus=JSON.parse(await readFile(path.join(ROOT,'backend/research/reports/product_completion_corpus_v1_2026-10-17.json'),'utf8'));
     files.push(MODEL,FIXTURE,...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
       'backend/research/reports/step_domain_invalidation_v1_2026-10-17.json',

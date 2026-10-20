@@ -6,7 +6,7 @@ write an ADR under `../adr/`.
 
 ## Runtime
 
-- [Practice Product Contract v2](practice-product-contract-v2.md)
+- [Practice Product Contract](practice-product-contract.md)
 - [Kubernetes Application Runtime Contract](runtime/k8s-application-runtime-contract.md)
 - [Runtime Dependency Ownership](runtime/runtime-dependency-ownership.md)
 - [Backend Settings Ownership](runtime/settings-ownership.md)

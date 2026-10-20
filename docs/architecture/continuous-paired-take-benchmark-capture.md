@@ -1,8 +1,10 @@
 # Continuous Paired-Take Benchmark Capture
 
-Status: Phase 9F-B research-only corpus/import contract.
+Status: research-only corpus/import contract.
 
-This document defines the source-of-truth boundary for future Continuous Practice v2 acoustic benchmark takes. It does not enable production microphone Practice and does not select a model winner.
+This document defines benchmark take provenance and import rules. Production
+integration is described by the [Practice Product Contract](practice-product-contract.md).
+Benchmark evidence requires separate physical-device and product qualification.
 
 ## Unit Of Truth
 
@@ -22,7 +24,8 @@ ExpectedStrike[] is never a source-manifest field. It is derived by the shared p
 
 ## Public Proxy Benchmark Direction
 
-NoteVerse no longer maintains a custom research microphone/MIDI capture frontend for the immediate frozen-candidate comparison. ContinuousPairedTakeManifest v2 remains the source-of-truth schema for native future takes, but Phase 9F-B uses public proxy data first.
+ContinuousPairedTakeManifest v2 defines native takes. Public comparisons use proxy
+data with explicit provenance and evidence roles.
 
 Public comparison evidence is split into two layers:
 
@@ -66,7 +69,7 @@ The calibration artifact bytes are verified before import. Candidate predictions
 
 Supported splits are DEVELOPMENT, CALIBRATION, and EVALUATION. Source audio hash, MIDI hash, and capture session identity must not leak across protected splits.
 
-An EVALUATION manifest must carry an executable lock projection. Direct import of an unlocked EVALUATION manifest fails closed. The lock includes every truth-defining field: manifest identity/schema/split, verified policy identity, take IDs, capture session IDs, score artifact path/hash/schema, tempo selection, scope, completion, audio identity and metadata, performance origin, physical MIDI/capture identity, same-take binding, segment source/performance boundaries, synchronization provenance, family taxonomy, and evidence role. Phase 9F-A.2 does not populate or inspect EVALUATION for tuning.
+An EVALUATION manifest must carry an executable lock projection. Direct import of an unlocked EVALUATION manifest fails closed. The lock includes every truth-defining field: manifest identity/schema/split, verified policy identity, take IDs, capture session IDs, score artifact path/hash/schema, tempo selection, scope, completion, audio identity and metadata, performance origin, physical MIDI/capture identity, same-take binding, segment source/performance boundaries, synchronization provenance, family taxonomy, and evidence role. EVALUATION is not used for tuning.
 
 ## Public Proxy Datasets
 

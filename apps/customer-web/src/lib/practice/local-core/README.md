@@ -1,88 +1,59 @@
-# Offline-First Local Practice Core
+# Local Practice Domain
 
-Pure product domain only: no React, browser MIDI, AudioContext, AudioWorklet,
-Worker, WebGPU, ONNX, model assets, network or microphone infrastructure.
-
-`PracticeScoreArtifact` comes from the canonical backend score producer. It is
-the shared revision-bound score/group/physical-attack/meter/tempo/render contract;
-the browser does not parse MusicXML independently for active Practice authority.
+This directory owns pure product semantics. Browser resources, React, input
+acquisition, model execution and network access belong to application adapters.
+The backend supplies the canonical revision-bound `PracticeScoreArtifact`, including
+score groups, physical attack targets, meter, tempo and render mapping.
 
 ## STEP
 
-`localSessionId` identifies a local practice instance with score/revision/artifact,
-scope, input, tempo, metronome, metadata and history. It is not a backend Practice
-runtime, WebSocket/matchmaker session, server authority or transport identity.
-The runtime is constructed ACTIVE and owns only `StepRuntimeStatus: ACTIVE | ENDED`.
-Snapshots expose `runtimeStatus` and `completionReason`: natural scope completion
-is SCOPE_COMPLETED with completed=true; explicit Stop is STOPPED_BY_USER without
-fabricating natural completion. Browser IDLE/PREPARING/DISPOSED are controller
-resource states, never representable in this domain status.
+`StepPracticeRuntime` owns one target, one bounded attempt and one verdict.
+READY -> CAPTURING -> ANALYZING -> POST_VERDICT permits one active attempt.
+Finalization records MATCH / MISMATCH / RETRY; explicit rearm commits MATCH
+progression and returns other verdicts to the same target. Skip is a separate
+READY-only action. STEP waits for input and has no Pause/Resume lifecycle.
 
-One target / one bounded attempt / one verdict. `step-attempt.ts` defines the
-immutable target generation, attempt identity, generic finalized evidence, retry
-reason, finalized record and separate user Skip action. `StepPracticeRuntime`
-alone compares exact physical attack pitch sets, excluding continuation pitches.
+The domain compares physical attack pitches, excluding continuation pitches.
+MIDI uses exact-set evaluation. Microphone uses conservative tri-state evaluation:
+an exact set matches, a superset retries as UNCERTAIN, and other sets mismatch.
+Explicit retry evidence retains its reason.
 
-READY -> CAPTURING -> ANALYZING -> POST_VERDICT -> READY (or scope completion).
-Finalization records MATCH / MISMATCH / RETRY without advancing. Only the explicit
-post-verdict re-arm commits a MATCH transition; MISMATCH and RETRY record/stay. No WAIT verdict, rolling
-pending acoustic store, cross-target scan or partial-pitch accumulation exists.
-One active attempt maximum. STEP waits and has no Pause/Resume. Input loss,
-and Finish invalidate unfinished attempts without verdicts. Skip is READY-only.
-Restart is a fresh session. Late
-results cannot cross session, target, generation or attempt identity.
-The input boundary is exclusive (`attemptStart > inputEligibleAfter`). All
-verdicts set the initial evidence boundary to the finalized capture end. Explicit
-`rearm(acceptAfterSessionTime)` advances it monotonically from ACTIVE/POST_VERDICT only;
-the caller supplies finite same-session input coverage, never implicit now.
-MIDI uses current session time at the actual READY transition, with no added delay.
-Future microphone callers must supply authoritative
-physical capture/session time through which input has occurred while busy,
-not an analysis frontier or publication time. No busy audio is replayed after
-re-arm. Equality is rejected, including readiness/reconnect/Skip boundaries.
-MIDI gesture ownership is [start,end); its 35ms is not acoustic grouping policy.
+Identity binds session, step, target generation, input source and capture start.
+Attempt start must be strictly later than `inputEligibleAfter`. Rearm accepts an
+explicit finite, same-session, monotonic watermark. The application supplies
+physical input retirement, including capture while busy. Busy evidence is discarded
+and cannot satisfy another target. Unfinished attempts are cancelled on input loss
+or Finish; finalized POST_VERDICT records retain their pending transition.
 
-The clean-break v5 STEP schema is `step-paced-attempt-v5`: runtimeStatus replaces
-the old serialized lifecycleState field. No shared controller/domain lifecycle
-alias or older STEP snapshot
-parser remains. Full attempt/Skip history stops explicitly at 100,000 records,
-never silently evicts. See `../step/README.md` for application resource policy.
-
-`StepPracticeController` owns application lifecycle and the fixed 35ms MIDI gesture
-assembler. Generic Browser MIDI knows no target. React only commands/subscribes.
-Microphone analysis/fresh-strike detection is not implemented. Its future generic
-attempt facts must use this same pure domain, not a second progression runtime.
+Domain status is ACTIVE / ENDED, with completion reason distinguishing scope
+completion from user Stop. Application preparation and disposal belong to the
+controller. Attempt/Skip history has a 100,000-record ceiling and fails explicitly
+before accepting another record. See [STEP application](../step/README.md) for
+input, lifecycle and resource ownership.
 
 ## Continuous
 
-Continuous is fixed-tempo clock practice, not score following. The independent
-`PerformanceClockRuntime` owns transport, count-in, pause/resume and captured-time
-mapping. Segment arithmetic is anchor + local delta, preserving exact resume
-identity. Acoustic/MIDI evidence cannot move clock/playhead/BPM/scope.
+`PerformanceClockRuntime` owns fixed-tempo transport, count-in, pause/resume and
+captured-time mapping. Segment arithmetic adds local deltas to exact anchors.
+MIDI/acoustic evidence affects evaluation only; clock, playhead, BPM and scope
+remain clock-owned.
 
-`ContinuousEvaluationSession` constructs canonical expected strikes.
+`ContinuousEvaluationSession` constructs expected strikes.
 `ContinuousEvidenceStore` validates immutable publications and monotonic coverage.
 `assignContinuousEvidence` performs deterministic max-cardinality/min-error
-one-to-one assignment. `ContinuousFinalizer` owns fixed direct-claimant reservation
-and immutable truth. `completedContinuousTruth` projects that same accumulated
-truth into completion and Review, never re-evaluating a whole performance.
+one-to-one assignment. `ContinuousFinalizer` owns direct-claimant reservations and
+immutable finalized results. Completion and Review project that same ledger.
 
-The assignment window is +/-250ms; non-recursive strike/group/EXTRA analysis
-frontiers are bounded by +750/+1250/+1500ms. Transitive connected-component waiting
-is prohibited. Reservation is reversible eligibility, not ownership; an observation
-is MATCHED, WRONG or EXTRA at most once. Canonical chord strikes share one expected
-group time. These analysis-frontier bounds are not a wall-clock latency SLO.
+The assignment window is +/-250ms. Non-recursive strike/group/EXTRA coverage
+frontiers are bounded by +750/+1250/+1500ms; these are not wall-clock latency
+guarantees. Each observation is MATCHED, WRONG or EXTRA at most once. Canonical
+chord strikes share one expected group time. MIDI and microphone use one evaluator.
 
-Completion contains canonical groups/nested strikes/WRONG evidence/extras/ownership,
-not a parallel legacy result. MIDI and microphone use the sole evaluator.
+## Domain Inputs
 
-## Evidence and Browser Boundary
-
-Capture event time is never inference completion time. `PracticeTimebase` maps
-source/session domains; Continuous performance mapping is clock-owned. Domain
-records are local application/completion contracts, not server execution protocols.
-
-The one shared score-blind acoustic foundation is `../acoustic/{model,source,runtime}`.
-Only `../acoustic/continuous` projects source observations into performance evidence.
-No browser acoustic module is imported here. Both microphone capabilities remain
-disabled; STEP MIDI loads no acoustic assets. Backend serves immutable assets only.
+The domain accepts canonical score artifacts, resolved scope/tempo, session-bound
+capture times, generic bounded STEP evidence and immutable Continuous publications.
+Capture event time is distinct from inference completion or publication availability.
+`PracticeTimebase` maps source/session coordinates; the Continuous clock maps
+performance coordinates. Score-blind acoustic inference and physical resource
+ownership remain outside this directory.

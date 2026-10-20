@@ -44,8 +44,7 @@ Application realtime notification records use bounded event names for SSE
 connection open/close and domain notifications. They may include opaque
 session/user IDs, durations, close status, and a stable public code. They never
 include control payloads, audio bytes, score content, or client headers.
-Practice execution is browser-local and does not emit a Practice WebSocket log
-contract.
+Practice execution and its session diagnostics are browser-local.
 
 This policy concerns logs only. Full diagnostics required for a privileged
 operator workflow remain in the controlled operations data contract and are

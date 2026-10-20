@@ -1,63 +1,50 @@
 # Shared Practice Acoustic Foundation
 
-This is the single active score-blind acoustic implementation. Both microphone
-capabilities remain disabled. Future STEP bounded-attempt consumption is not
-implemented and the historical STEP policy is not transferred to Robust.
+STEP_BY_STEP and CONTINUOUS_PLAY use this browser-local, score-blind foundation
+for microphone analysis. Browser capability detection checks runtime prerequisites;
+physical-device recognition quality, permissions and latency require separate
+product qualification.
 
-## Ownership
+## Modules
 
-- `model/`: exact Robust asset and output validation, one ORT 1.20.1 WebGPU
-  session/Worker, transaction-local raw output interpretation and decoder A.
-- `source/`: qualified 44.1k/48k FIR, PCM Worklet/credits, capture chronology,
-  analysis-clone ownership, and mode-neutral infrastructure-loss facts.
-- `runtime/`: source-only analysis regions, fixed real-context windows, target
-  PCM ring, bounded sequential queue and immutable source observations.
-- `continuous/`: external BEGIN/PAUSE/TERMINAL scheduling, source-to-performance
-  projection, stable product observation IDs and exact terminal-T coverage.
+- `model/`: verified Robust asset loading, one ORT 1.20.1 WebGPU session/Worker,
+  transaction-local raw output interpretation and decoder A.
+- `source/`: 44.1k/48k FIR adapters, PCM Worklet/credits, capture chronology,
+  analysis-clone ownership and infrastructure-loss facts.
+- `runtime/`: source-domain analysis regions, real-context windows, bounded target
+  PCM ring and sequential inference queue, immutable source observations.
+- `continuous/`: BEGIN/PAUSE/TERMINAL scheduling, source-to-performance projection,
+  stable product observation IDs and exact terminal-T coverage.
 
-The shared scheduler knows only absolute source samples and resampled target
-samples. It has no score, target, performanceTime, BPM, cursor, STEP generation
-or verdict. Continuous projection is the first place source observations gain
-performance time. It synchronously feeds the existing unique product evaluator.
-No model raw tensors survive the inference transaction or enter application state.
-Future score-free extraction belongs adjacent to that one interpretation boundary,
-not in a second model session for the same capture stream.
+The foundation receives source samples and regions, without score targets, BPM,
+playhead, verdicts or product lifecycle ownership. Continuous projection introduces
+performance coordinates. STEP consumes source observations through its H50 assembler.
+Raw tensors remain inside the inference transaction. One capture stream uses one
+model session.
 
-## Identity and Delivery
+## Model Identity
 
-The shared asset is `practice-acoustic-robust-browser@v1`, served only by
-`/model-assets/practice-acoustic-robust-browser-v1/access`. Browser download and
-OPFS reads verify 98,689,283 bytes and SHA256
+The model is `practice-acoustic-robust-browser@v1`, served by
+`/model-assets/practice-acoustic-robust-browser-v1/access`. Download and OPFS reads
+verify 98,689,283 bytes and SHA256
 `4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3`.
-The historical `models/continuous/...` OSS key is centralized storage identity
-only; no duplicate object or model selector exists. FIR files live only under
-`public/model-assets/practice-acoustic/`, with unchanged bytes and identities.
-The authoritative decoder is `model/robust-piano-decoder.ts`, with transaction-only
-`raw-output-contract.ts`. It receives explicit .30/.05 from `model-contract.ts`;
-there are no historical Original/STEP threshold defaults or fixed-anchor windows.
-Original ByteDance executable provider, loader and access endpoint are removed.
-The remaining old low-level tree is byte-archived under
-`backend/research/history/step-original-bytedance-low-level-before-domain-reset/`.
+FIR assets are under `public/model-assets/practice-acoustic/`.
+`model/robust-piano-decoder.ts` consumes the transaction-local raw output contract
+and explicit onset/frame thresholds .30/.05 from `model-contract.ts`.
 
-## Resources and Clock Isolation
+## Ownership, Clock and Bounds
 
-Target PCM is 65,536 float32 samples (262,144 bytes). Source FIR ring is 512
-bytes plus coefficients (35,284 or 244 bytes). At most four queued/active model
-inputs retain 465,920 bytes; a transport/active copy is separately bounded.
-The fifth ready window fails before allocation, without dropping ownership.
-Worklet transport allows 32 unacknowledged blocks of at most 2,048 samples
-(262,144 payload bytes). Diagnostics retain 32 compact metadata records and no
-event arrays; 16KiB is a planning estimate, not a total JS/ORT/GPU heap bound.
-At most four undrained source regions and eight Continuous scheduled boundaries
-are allowed. There is no full-session PCM or publication-event retention.
+Product controllers own the root stream and AudioContext; analysis owns its clone.
+Continuous uses the session AudioContext for transport, capture and metronome.
+Pause PCM is context-only; resume preserves exact source/performance anchors.
+Only terminal real-tail drain publishes the empty exact-T coverage handshake.
+Healthy-context analysis failure stops analysis only; product controllers interpret
+infrastructure-loss facts.
 
-One session-owned AudioContext remains the Continuous transport clock, capture
-frame domain and metronome domain. Pause PCM is context-only. The projection
-requires exact resume identity; it never moves transport. Normal publications
-cover a half-open owned interval; only terminal real-tail drain produces the
-empty exact-T product coverage handshake. Healthy-context analysis failure is
-analysis-only; infrastructure facts are interpreted by the product controller.
-
-Pre-refactor source is byte-archived with revision/blob/size/SHA provenance under
-`backend/research/history/shared-acoustic-before-clean-break/`. It is never a
-product import or fallback. Resource ceilings are not a UX latency SLO.
+Target PCM retains 65,536 float32 samples. At most four queued/active model inputs
+retain 465,920 bytes, with a separately bounded transport/active copy. The fifth
+ready input fails before allocation. Worklet transport permits 32 unacknowledged
+blocks of at most 2,048 samples. At most four undrained source regions and eight
+Continuous scheduled boundaries are allowed. Diagnostics retain 32 compact metadata
+records without event arrays. Analysis memory is bounded independently of optional
+user recording; these limits are not a total JS/ORT/GPU heap or UX latency guarantee.

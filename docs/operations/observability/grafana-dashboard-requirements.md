@@ -211,7 +211,6 @@ platform dashboard is the second-level diagnostic view.
 - completed duration average
 3. Realtime row:
    - active app SSE
-   - active practice WebSocket
 4. Storage row:
    - reserved for storage/quota metrics
 

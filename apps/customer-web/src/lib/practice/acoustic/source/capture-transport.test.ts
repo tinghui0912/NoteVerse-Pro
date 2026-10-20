@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { expect, it } from 'vitest';
-import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES, CAPTURE_TRANSPORT_MAX_UNACKED } from './capture-transport-contract';
 import type { CaptureChunk } from './capture-types';
 
@@ -20,21 +19,15 @@ async function fixture(rate = 48000) {
     scope.currentFrame = frame; scope.currentTime = frame / rate;
     return processor.process([Array.from({ length: channels }, (_, c) => Float32Array.from({ length }, (_, i) => Math.fround((frame + i) % 211 / 211 + c * .1)))], []);
   };
-  return { processor, sent, run, scope, text };
+  return { processor, sent, run, scope };
 }
-it('standalone transport constants exactly equal TS and existing resource ceilings', async () => {
-  const f = await fixture();
-  expect(Number(f.text.match(/const CAPTURE_TRANSPORT_BLOCK_SAMPLES = (\d+);/)![1])).toBe(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
-  expect(Number(f.text.match(/const CAPTURE_TRANSPORT_MAX_UNACKED = (\d+);/)![1])).toBe(CAPTURE_TRANSPORT_MAX_UNACKED);
-  expect(CAPTURE_TRANSPORT_BLOCK_SAMPLES).toBe(2048); expect(CAPTURE_TRANSPORT_MAX_UNACKED).toBe(32);
-  expect(ACOUSTIC_RESOURCES.maxSourceBlockSamples).toBe(2048); expect(ACOUSTIC_RESOURCES.maxUnacknowledgedBlocks).toBe(32);
-});
 it.each([44100, 48000])('arbitrary legal quanta preserve every real averaged sample at %i', async rate => {
   const f = await fixture(rate); let frame = 7000, count = 0;
   for (const length of [17, 127, 2048, 3, 511, 1024, 366]) { expect(f.run(frame, length)).toBe(true); frame += length; count += length; }
   expect(count).toBe(4096); expect(f.sent).toHaveLength(2);
   for (let block = 0; block < 2; block++) {
     const { message, transfer } = f.sent[block];
+    expect(message.samples).toHaveLength(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
     expect(message.sourceStartSampleIndex).toBe(block * 2048); expect(message.sourceEndSampleIndex).toBe((block + 1) * 2048);
     expect(message.audioContextStartFrame).toBe(7000 + block * 2048);
     expect(message.captureTimeSeconds).toBe(message.audioContextStartFrame / rate);
@@ -58,7 +51,7 @@ it('only unpublished provisional startup is retired on a frame discontinuity', a
 });
 it('32 unacked full blocks accepted; 33rd fails with no further accumulator allocation', async () => {
   const f = await fixture();
-  for (let i = 0; i < 32; i++) expect(f.run(i * 2048, 2048)).toBe(true);
+  for (let i = 0; i < CAPTURE_TRANSPORT_MAX_UNACKED; i++) expect(f.run(i * 2048, 2048)).toBe(true);
   expect(f.sent).toHaveLength(32); expect(f.processor.accumulator?.length).toBe(2048);
   expect(f.run(32 * 2048, 2048)).toBe(false); expect(f.sent).toHaveLength(33);
   expect(f.sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED');

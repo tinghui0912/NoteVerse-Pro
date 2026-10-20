@@ -35,7 +35,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   const files=git('ls-files','apps/customer-web','backend/research/step_waiting','backend/research/step_decoded_sufficiency',
     'backend/research/history/step-boundary-before-waiting-lifecycle','backend/app/modules/model_assets',
     'backend/tests/test_practice_acoustic_model_asset.py','backend/tests/test_model_assets.py',
-    'backend/research/browser_runtime/xc1_browser_runtime_shared.mjs','docs/architecture/practice-product-contract-v2.md').split('\n').filter(Boolean);
+    'backend/research/browser_runtime/xc1_browser_runtime_shared.mjs','docs/architecture/practice-product-contract.md').split('\n').filter(Boolean);
   const corpus=JSON.parse(await readFile(path.join(ROOT,'backend/research/reports/product_completion_corpus_v1_2026-10-17.json'),'utf8'));
   files.push(MODEL,FIXTURE,...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
     'backend/data/work/product_completion_replay/v1/audio_only/manifest.json','backend/data/work/product_completion_replay/v4/truth.json',

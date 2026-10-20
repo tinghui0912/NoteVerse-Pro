@@ -227,23 +227,8 @@ until refresh.
 
 ## Practice And Audio Diagnostics
 
-Current Practice execution is browser-local, and the backend does not own a live
-Practice audio/alignment runtime. Historical `practice_audio.*` and
-`practice_alignment.*` diagnostics may still appear in old logs, but the retired
-environment switches are not part of the current runtime configuration.
-
-```logql
-{namespace="noteverse-prod", container="backend-api"}
-| json
-| event =~ "practice_.*|practice\\..*"
-```
-
-Historical high-volume diagnostic examples:
-
-- `practice_audio.gate_diagnostic`
-- historical `practice_alignment.*` events from retired score-following builds
-
-Do not alert directly on these without sampling or clear thresholds.
+Practice execution and session diagnostics are browser-local. Diagnose backend
+score/source/artifact delivery through the corresponding HTTP request logs.
 
 ## Text Recognition And OMR
 
