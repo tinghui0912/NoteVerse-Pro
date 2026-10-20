@@ -5,8 +5,10 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.quality.dockerignore"
       - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
@@ -14,8 +16,10 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.quality.dockerignore"
       - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"

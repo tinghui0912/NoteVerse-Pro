@@ -30,6 +30,7 @@ RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/work
 
 COPY backend/ /app/
+RUN test ! -e /app/research
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
 CMD ["beat"]

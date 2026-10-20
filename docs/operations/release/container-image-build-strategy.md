@@ -92,6 +92,10 @@ The backend quality image is also not a deployed workload. It exists so ruff,
 mypy, pytest, and model-layer checks run in a deterministic Linux environment
 without adding development tooling to runtime images.
 
+Backend runtime and quality Docker contexts exclude `backend/research` through
+Dockerfile-specific ignore files that retain the root exclusions. Research Docker
+builds keep their separately owned contexts and use the root `.dockerignore`.
+
 ## Tagging Policy
 
 Every deployable image must have an immutable source tag:

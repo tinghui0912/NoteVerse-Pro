@@ -6,13 +6,17 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "docker/backend/Dockerfile.api"
+      - "docker/backend/Dockerfile.api.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-api-image.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "docker/backend/Dockerfile.api"
+      - "docker/backend/Dockerfile.api.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-api-image.yml"
 
