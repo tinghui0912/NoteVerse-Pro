@@ -1,0 +1,131 @@
+{
+  "phase": "V36",
+  "objective": "PRODUCTION PRACTICE ACOUSTIC MODEL ASSET DELIVERY — AUTHENTICATED SAME-ORIGIN ACCESS, REAL OSS SIGNED GET, OPFS INTEGRITY, WARM CACHE REUSE",
+  "disposition": "PRACTICE_ACOUSTIC_V36_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "firstFailure": {
+    "phase": "V36",
+    "disposition": "PRACTICE_ACOUSTIC_V36_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+    "firstFailedGate": "SOURCE_INVENTORY_COMPLETENESS",
+    "requestedCommand": "git ls-tree -r --name-only 922c80263633b1b8afd7d2dec83c78f296635c45",
+    "toolOutputTokenCap": 30000,
+    "returnedInventoryLines": 2116,
+    "assertion": "REQUIRED_SOURCE_ABSENT",
+    "missingFromReturnedRepresentation": [
+      "backend/app/modules/model_assets/router.py",
+      "backend/app/modules/model_assets/service.py",
+      "backend/app/modules/model_assets/schemas.py"
+    ],
+    "causalCategory": "RESEARCH_SOURCE_DISCOVERY_TOOL_RESPONSE_TRUNCATION",
+    "productionSourceAbsenceEstablished": false,
+    "productionDefectEstablished": false,
+    "noRepairOrRetry": true,
+    "sourceInventoryRetried": false,
+    "productionSourceReads": 0,
+    "environmentInputsEvaluated": false,
+    "executionCounts": {
+      "browserLaunches": 0,
+      "authenticatedAccessRequests": 0,
+      "ossModelGets": 0,
+      "modelSessions": 0,
+      "inferenceRuns": 0
+    },
+    "note": "The outer helper interpreted a size-limited terminal tool response as a full Git tree. This preserves that failed mandatory gate, not a claim of actual production file absence."
+  },
+  "firstFailureArtifact": "first-failure.json",
+  "startingHead": "922c80263633b1b8afd7d2dec83c78f296635c45",
+  "exactStartingGateVerified": true,
+  "historicalStatements": [
+    "V34 BROWSER CORE QUALIFICATION REMAINS ESTABLISHED",
+    "V35 WAS NOT REPAIRED",
+    "V35 WAS NOT RETRIED",
+    "V35 DELIVERY QUALIFICATION WAS NOT ESTABLISHED",
+    "V36 IS A NEW PROSPECTIVE ASSET-DELIVERY PHASE"
+  ],
+  "historicalV34Disposition": "STEP_V34_BROWSER_CORE_GRAPH_CONTEXT_INTERRUPTION_AND_INFERENCE_LIFECYCLE_ACCOUNTING_ESTABLISHED_ROOT_LOSS_NOT_EVALUATED_CAPABILITY_CLOSED",
+  "historicalV35Disposition": "PRACTICE_ACOUSTIC_V35_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "historicalReceiptsUsedAsDeliveryEvidence": false,
+  "sourceDiscovery": "FAILED_TOOLING_COMPLETENESS_GATE_NOT_RETRIED",
+  "productionSourceAbsenceEstablished": false,
+  "productionDefectEstablished": false,
+  "originProtocol": {
+    "authority": "USER_SUPPLIED_V36_PROTOCOL_NOT_EXECUTED_SOURCE_PROOF",
+    "apiBase": "/api/v1",
+    "browserAuthority": "CUSTOMER_WEB_ORIGIN",
+    "backendOrigin": "Server-side rewrite infrastructure only; not required as a browser-visible endpoint",
+    "dualBrowserOriginRequirement": false,
+    "targetMustBeExplicitlySupplied": true,
+    "noTargetDiscoveryPerformed": true
+  },
+  "suppliedOriginAndAuthValidation": "NOT_REACHED_AFTER_PERMANENT_SOURCE_DISCOVERY_STOP",
+  "noCredentialFilesRead": true,
+  "noEnvironmentFilesModified": true,
+  "descriptor": {
+    "schemaVersion": 1,
+    "assetId": "practice-acoustic-robust-browser",
+    "assetVersion": "v1",
+    "expectedByteSize": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "mediaType": "application/octet-stream"
+  },
+  "objectStorageIdentity": "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx",
+  "cells": [
+    {
+      "id": "authenticated-cold-network-delivery",
+      "status": "NOT_STARTED"
+    },
+    {
+      "id": "authenticated-warm-opfs-cache",
+      "status": "NOT_STARTED"
+    }
+  ],
+  "counts": {
+    "authenticatedAccessRequests": 0,
+    "unauthenticatedAccessRequests": 0,
+    "signedUrlsCreated": 0,
+    "ossModelGets": 0,
+    "modelDownloadBytes": 0,
+    "browserCampaigns": 0,
+    "browserLaunches": 0,
+    "modelSessions": 0,
+    "inferenceRuns": 0,
+    "decoderRuns": 0,
+    "microphoneCaptureRuns": 0,
+    "productVerdictRuns": 0,
+    "freshHoldoutAccess": 0
+  },
+  "protocolFreezeCreated": false,
+  "remoteDeliveryAuthorizationCreated": false,
+  "deliveryQualificationTests": "NOT_RUN_AFTER_EARLY_PERMANENT_TOOLING_STOP",
+  "securityTests": {
+    "result": "PASS",
+    "syntheticCases": 7,
+    "purpose": "Security of additive blocked-phase closeout only; not delivery qualification"
+  },
+  "securityPolicy": "All new sources/reports scanned before every commit. No auth, signed URL, email, cookie or credential value in evidence. Security-only process-environment inspection is not qualification input validation.",
+  "noDependencyOverrides": true,
+  "noSyntheticDescriptors": true,
+  "noFallbackSource": true,
+  "noAuthenticationBypass": true,
+  "deliveryBoundaryQualified": false,
+  "coldDownloadQualified": false,
+  "warmCacheQualified": false,
+  "sessionAcceptanceQualified": false,
+  "productionDiff": [],
+  "V3ThroughV35Diff": [],
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "disclaimers": [
+    "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+    "MICROPHONE_PERMISSION_UX_NOT_QUALIFIED",
+    "PHYSICAL_MICROPHONE_UX_LATENCY_NOT_QUALIFIED",
+    "FRESH_ACOUSTIC_RECOGNITION_QUALIFICATION_NOT_PERFORMED",
+    "ROOT_SOURCE_LOSS_NOT_EVALUATED"
+  ],
+  "noRepairOrRetry": true,
+  "localChecksAreNotGitHubCI": true,
+  "stop": "STOP_FOR_INDEPENDENT_AUDIT"
+}
