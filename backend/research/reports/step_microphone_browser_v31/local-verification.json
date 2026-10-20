@@ -1,0 +1,303 @@
+{
+  "result": "LOCAL_PASS",
+  "completedAt": "2026-10-20T05:52:01.949Z",
+  "results": [
+    {
+      "name": "starting-gate",
+      "result": "LOCAL_PASS",
+      "details": null
+    },
+    {
+      "name": "all-module-syntax",
+      "result": "LOCAL_PASS",
+      "details": {
+        "modules": 14
+      }
+    },
+    {
+      "name": "research-eslint",
+      "result": "LOCAL_PASS",
+      "details": {
+        "errors": 0
+      }
+    },
+    {
+      "name": "shell-boundary",
+      "result": "LOCAL_PASS",
+      "details": {
+        "inlineExecution": false,
+        "shells": false,
+        "directArgvOnly": true
+      }
+    },
+    {
+      "name": "identity-domain-synthetic-tests",
+      "result": "LOCAL_PASS",
+      "details": {
+        "passed": 6
+      }
+    },
+    {
+      "name": "historical-local-materializations-and-assets",
+      "result": "LOCAL_PASS",
+      "details": {
+        "sourceInputs": 44,
+        "assets": 7
+      }
+    },
+    {
+      "name": "starting-git-object-authority",
+      "result": "LOCAL_PASS",
+      "details": {
+        "protectedTrackedObjects": 3774,
+        "worktreeBytesNotUsedForRemoteComparison": true
+      }
+    },
+    {
+      "name": "dual-acoustic-identities",
+      "result": "LOCAL_PASS",
+      "details": {
+        "raw": {
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+          "domain": "WORKTREE_MATERIALIZATION",
+          "representation": "SHA256_WORKTREE_MATERIALIZATION",
+          "subject": {
+            "kind": "LOCAL_CHECKOUT_FILE_BYTES",
+            "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json"
+          },
+          "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+          "bytes": 5010
+        },
+        "productionDefinition": {
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+          "domain": "WORKTREE_MATERIALIZATION",
+          "representation": "SHA256_WORKTREE_MATERIALIZATION",
+          "subject": {
+            "kind": "LOCAL_CHECKOUT_FILE_BYTES",
+            "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts"
+          },
+          "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+          "bytes": 3633
+        },
+        "canonical": {
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+          "domain": "CANONICAL_JSON_SEMANTIC_IDENTITY",
+          "representation": "CANONICAL_JSON_UTF8_SHA256",
+          "subject": {
+            "kind": "PARSED_JSON_CANONICAL_UTF8",
+            "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+            "algorithm": "Frozen production canonicalJson"
+          },
+          "sha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443"
+        },
+        "expectedRepresentationsAndHashesDiffer": true,
+        "productionAcousticCodeExecuted": false
+      }
+    },
+    {
+      "name": "oracle-isolation-and-synchronous-rearm",
+      "result": "LOCAL_PASS",
+      "details": {
+        "oracle": [
+          {
+            "filename": "backend/research/step_microphone_browser_v26/entry.ts",
+            "parameters": [
+              "identity",
+              "evidence"
+            ],
+            "ordinaryEvidenceGuard": {
+              "start": 10561,
+              "end": 10627,
+              "line": 147,
+              "text": "demand(evidence.kind === 'EVIDENCE', 'EXTERNAL_RETRY_NOT_ALLOWED')"
+            },
+            "passiveExpectedSnapshot": {
+              "start": 10672,
+              "end": 10721,
+              "line": 148,
+              "text": "expected = domain!.currentTarget()!.attackPitches"
+            },
+            "analyzeCall": {
+              "start": 10738,
+              "end": 10770,
+              "line": 149,
+              "text": "domain!.analyzeAttempt(identity)"
+            },
+            "runtimeCompleteCall": {
+              "start": 10829,
+              "end": 10872,
+              "line": 150,
+              "text": "domain!.completeAttempt(identity, evidence)"
+            },
+            "successfulFinalizationGuard": {
+              "start": 10961,
+              "end": 11076,
+              "line": 152,
+              "text": "if (result.kind !== 'FINALIZED' || evidence.kind !== 'EVIDENCE') throw new Error('EVIDENCE_FINALIZATION_REQUIRED');"
+            },
+            "expectedIdentifierUses": [
+              {
+                "start": 11290,
+                "end": 11298,
+                "line": 155,
+                "text": "expected"
+              },
+              {
+                "start": 11840,
+                "end": 11848,
+                "line": 160,
+                "text": "expected"
+              }
+            ],
+            "oracle": {
+              "start": 11315,
+              "end": 11426,
+              "line": 156,
+              "text": "oracle = JSON.stringify(o) === JSON.stringify(e) ? 'MATCH' : e.every(p => o.includes(p)) ? 'RETRY' : 'MISMATCH'"
+            },
+            "comparison": {
+              "start": 11436,
+              "end": 11515,
+              "line": 157,
+              "text": "demand(result.record.verdict === oracle, 'RUNTIME_SOURCE_POLICY_INCONSISTENCY')"
+            },
+            "noExpectedFlowBeforeFinalization": true,
+            "originalArguments": true,
+            "verdictComparedNeverReplaced": true,
+            "note": "Passive pre-finalization snapshot accepted; its uses begin only after successful FINALIZED guard"
+          },
+          {
+            "filename": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+            "parameters": [
+              "identity",
+              "evidence"
+            ],
+            "ordinaryEvidenceGuard": {
+              "start": 123775,
+              "end": 123841,
+              "line": 3354,
+              "text": "demand(evidence.kind === \"EVIDENCE\", \"EXTERNAL_RETRY_NOT_ALLOWED\")"
+            },
+            "passiveExpectedSnapshot": {
+              "start": 123885,
+              "end": 123932,
+              "line": 3355,
+              "text": "expected = domain.currentTarget().attackPitches"
+            },
+            "analyzeCall": {
+              "start": 123949,
+              "end": 123980,
+              "line": 3356,
+              "text": "domain.analyzeAttempt(identity)"
+            },
+            "runtimeCompleteCall": {
+              "start": 124039,
+              "end": 124081,
+              "line": 3357,
+              "text": "domain.completeAttempt(identity, evidence)"
+            },
+            "successfulFinalizationGuard": {
+              "start": 124170,
+              "end": 124285,
+              "line": 3359,
+              "text": "if (result.kind !== \"FINALIZED\" || evidence.kind !== \"EVIDENCE\") throw new Error(\"EVIDENCE_FINALIZATION_REQUIRED\");"
+            },
+            "expectedIdentifierUses": [
+              {
+                "start": 124396,
+                "end": 124404,
+                "line": 3361,
+                "text": "expected"
+              },
+              {
+                "start": 124942,
+                "end": 124950,
+                "line": 3365,
+                "text": "expected"
+              }
+            ],
+            "oracle": {
+              "start": 124421,
+              "end": 124534,
+              "line": 3362,
+              "text": "oracle = JSON.stringify(o) === JSON.stringify(e) ? \"MATCH\" : e.every((p) => o.includes(p)) ? \"RETRY\" : \"MISMATCH\""
+            },
+            "comparison": {
+              "start": 124544,
+              "end": 124623,
+              "line": 3363,
+              "text": "demand(result.record.verdict === oracle, \"RUNTIME_SOURCE_POLICY_INCONSISTENCY\")"
+            },
+            "noExpectedFlowBeforeFinalization": true,
+            "originalArguments": true,
+            "verdictComparedNeverReplaced": true,
+            "note": "Passive pre-finalization snapshot accepted; its uses begin only after successful FINALIZED guard"
+          }
+        ],
+        "synchronousCommit": {
+          "domainCommit": "if (initial) domain!.acceptInputAfter(b.sessionTime); else {\n      demand(before.domain!.step.attemptState === 'POST_VERDICT', 'REARM_WITHOUT_POST_VERDICT'); domain!.rearm(b.sessionTime);\n    }",
+          "immediateNextStatement": "if (domain!.snapshot().runtimeStatus === 'ACTIVE') input!.arm(b);",
+          "noTaskGap": true
+        },
+        "assemblerConstruction": "first.sourceEventSample + this.sourceRate * STEP_ACOUSTIC_GESTURE_MS / 1000",
+        "gestureMs": 50
+      }
+    },
+    {
+      "name": "tooling-unit-tests",
+      "result": "LOCAL_PASS",
+      "details": {
+        "passed": 8
+      }
+    },
+    {
+      "name": "local-product-regressions",
+      "result": "LOCAL_PASS",
+      "details": {
+        "passed": 519,
+        "files": 85,
+        "deterministicDoublesNotRealNeural": true
+      }
+    },
+    {
+      "name": "application-typecheck",
+      "result": "LOCAL_PASS",
+      "details": null
+    },
+    {
+      "name": "relevant-production-lint",
+      "result": "LOCAL_PASS",
+      "details": null
+    },
+    {
+      "name": "git-diff-check",
+      "result": "LOCAL_PASS",
+      "details": {
+        "exitCode": 0
+      }
+    },
+    {
+      "name": "deterministic-v31-text-and-scope",
+      "result": "LOCAL_PASS",
+      "details": {
+        "files": 29,
+        "newline": "LF_SINGLE_FINAL_NEWLINE_OR_EMPTY_LOG",
+        "protectedMaterializationsNeverNormalized": true
+      }
+    }
+  ],
+  "counters": {
+    "chromeLaunches": 0,
+    "modelSessionLoads": 0,
+    "neuralRuns": 0,
+    "decoderRuns": 0,
+    "browserProductVerdictRuns": 0,
+    "hiddenWarmups": 0,
+    "unknownExecutions": 0,
+    "freshHoldoutAccess": 0,
+    "bundleRebuilds": 0
+  },
+  "productionDiff": [],
+  "V3ThroughV30Diff": [],
+  "localNotGitHubCI": true
+}

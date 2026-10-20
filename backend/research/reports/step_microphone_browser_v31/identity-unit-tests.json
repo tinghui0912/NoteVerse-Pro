@@ -1,0 +1,29 @@
+{
+  "result": "LOCAL_PASS",
+  "results": [
+    {
+      "name": "key sorting recursively and raw whitespace independent of semantic identity",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "arrays preserve order and primitive serializations remain distinct",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "worktree, external asset, canonical semantic records always name domain representation and subject",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "incorrect expected local raw and canonical hashes fail exactly",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "Git immutability compares Git object domains only and rejects mutation",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "different checkout bytes may coexist with identical committed content without drift",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    }
+  ]
+}
