@@ -1,0 +1,1547 @@
+{
+  "phase": "V43",
+  "stage": "FROZEN_QUALIFICATION",
+  "startCommit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+  "createdAt": "2026-10-20T11:22:04.919Z",
+  "freezeParentOrDescendant": "HEAD",
+  "contract": {
+    "phase": "V43",
+    "startingHead": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+    "stages": {
+      "A": "HARNESS_ENGINEERING_NOT_QUALIFICATION_REPEATABLE",
+      "B": "FROZEN_QUALIFICATION_ONE_CAMPAIGN_AFTER_REMOTE_AUTHORIZATION"
+    },
+    "historicalStatements": [
+      "V34 BROWSER CORE QUALIFICATION REMAINS ESTABLISHED",
+      "V35 THROUGH V42 MODEL-ASSET DELIVERY QUALIFICATION REMAINS BLOCKED",
+      "V35 THROUGH V42 WERE NOT REPAIRED OR RETRIED",
+      "V43 IS A NEW PROSPECTIVE MODEL-ASSET-DELIVERY PHASE"
+    ],
+    "customerWebOrigin": "http://localhost:3000",
+    "originAuthority": "CANONICALIZED_USER_AUTHORIZED_RETAINED_BROWSER_PAGE",
+    "authMode": "EXPLICIT_TEST_LOGIN_IN_MEMORY",
+    "readinessIsNotQualificationEvidence": true,
+    "endpoint": "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access",
+    "unauthenticatedStatus": 401,
+    "cells": [
+      "authenticated-cold-network-delivery",
+      "authenticated-warm-opfs-cache"
+    ],
+    "campaignMaximum": 1,
+    "cellRetries": 0,
+    "cellDeadlineMs": 90000,
+    "campaignDeadlineMs": 210000,
+    "model": {
+      "schemaVersion": 1,
+      "assetId": "practice-acoustic-robust-browser",
+      "assetVersion": "v1",
+      "expectedByteSize": 98689283,
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "mediaType": "application/octet-stream"
+    },
+    "objectKey": "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx",
+    "expectedOssHost": "noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com",
+    "ort": {
+      "version": "1.20.1",
+      "provider": "webgpu",
+      "automaticFallback": false,
+      "graphOptimizationLevel": "disabled"
+    },
+    "ossExpiry": {
+      "sdk": "alibabacloud-oss-v2",
+      "version": "1.4.0",
+      "direction": "descriptorExpiry >= effectiveSignedExpiry",
+      "deltaMsLowerInclusive": 0,
+      "deltaMsUpperExclusive": 2000,
+      "maximumOss4DurationSeconds": 604800,
+      "bothExpiriesMustBeFuture": true,
+      "authority": "PINNED_SOURCE_AND_HERMETIC_CLOCK_CHARACTERIZATION"
+    },
+    "inferenceRuns": 0,
+    "browserInstrumentation": "OBSERVATION_ONLY_UNCHANGED_CALL_ARGUMENTS_AND_RETURN_VALUES",
+    "researchStaticResources": "/__v43/entry.mjs and pinned ORT dist only; API/auth/OSS bytes never intercepted or faked",
+    "backendTestPolicy": "PREPARED_QUALITY_IMAGE_RUN_RM_NO_DEPS_PULL_NEVER_NO_BUILD_NO_INSTALL",
+    "identityDomains": [
+      "GIT_OBJECT_CONTENT",
+      "WORKTREE_MATERIALIZATION",
+      "CANONICAL_JSON_SEMANTIC_IDENTITY",
+      "EXTERNAL_LOCAL_ASSET",
+      "EXTERNAL_LOCAL_DEPENDENCY",
+      "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+      "BUNDLER_VIRTUAL_INPUT"
+    ],
+    "sourceDiscoveryInvariant": "NO_QUALIFICATION_GATE_DEPENDS_ON_TRUNCATABLE_DISPLAY_OUTPUT",
+    "secretPolicy": "NO_PRINCIPAL_VALUES_COOKIES_TOKENS_SIGNED_URL_OR_QUERY_VALUES_PERSISTED_SCAN_BEFORE_EVERY_COMMIT",
+    "protocolStateKey": "qualificationAuthorizationState",
+    "writerCompatibilityInvariant": "ALL_POST_FREEZE_EVIDENCE_SCHEMAS_ARE_SECRET_SCANNER_COMPATIBLE_BEFORE_FREEZE",
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    },
+    "disclaimers": [
+      "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+      "MICROPHONE_PERMISSION_UX_NOT_QUALIFIED",
+      "PHYSICAL_MICROPHONE_UX_LATENCY_NOT_QUALIFIED",
+      "FRESH_ACOUSTIC_RECOGNITION_QUALIFICATION_NOT_PERFORMED",
+      "ROOT_SOURCE_LOSS_NOT_EVALUATED"
+    ],
+    "ci": "LOCAL_PASS_NOT_CI"
+  },
+  "indexIdentities": [
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/audit.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "350c60a2dc859ef5531cd4dfa78db1498c022d669aead0f0eda0e1586808c700",
+      "byteSize": 7109
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/browser-entry.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "406c787ba5fad8e7130276495062da6421ca6fa595079493bcb4dec240fed04c",
+      "byteSize": 9671
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/bundle.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "4752ba772c2bdade1b7ad78014e54673f4a982a8c3c790edc3fb89f97b904493",
+      "byteSize": 5386
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/campaign.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "381118c49d6368dc26991cb960f37bc59579de757024edfd2d021b74cad455f3",
+      "byteSize": 8452
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/closeout-machine.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "3f6805900ccd512829d6239b36ccfbfe5fd49acc696f49538fcd100c8a147c08",
+      "byteSize": 2947
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/closeout.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "869a816ae7ef769a1ff08003c1b8c4b6f9bfe62ece52328a1e8029d27192fdde",
+      "byteSize": 3704
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/contract.json",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "5dd1226544f114a9692620d79875fb3e014a7545b36f7fe8d108146b8ff9a506",
+      "byteSize": 3280
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/discovery.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "b52708a56a2d8a90813d77f9f43a76f9513cf529addb2c9020d9520650bee49e",
+      "byteSize": 3462
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/engineering.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "1e882074e138b076497bc88a11574a4299b1166ded44d78e7648ededf3044959",
+      "byteSize": 10279
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/eslint.config.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "0eaa53295eef9fb8671e073b54504a1413bf987db299155f8e7ea09279d3e1af",
+      "byteSize": 677
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/evidence.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "7889ac3c9269a8ef4d70d8195a9acf0fa4d7e484306adbf237b7a6419b9f0d3b",
+      "byteSize": 3184
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/expiry-tests.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "4bd72de8e5b512b1dd03ae5ca58f25dc82a493d6f5287cc87257154428389182",
+      "byteSize": 4032
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/freeze.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "668778331633aa9863969718c25984e3bc8dd310afaf5974ffb6b0830e0611fe",
+      "byteSize": 6817
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/identities.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "11862d9d6d0b45b94745351afdd3459f703a3638ba489e02628d89ec760e44f8",
+      "byteSize": 1838
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/io.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "d0230c9757a5354ba8be429d52a9f555a25e2ce88f36a8b8febc0bbd8e56d7c0",
+      "byteSize": 3594
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/network.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "80777114291e7ab7ac2e26ec94d0e6945d9b1a60a1c0dd07e05bd6f7200d0032",
+      "byteSize": 884
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/oss-expiry.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "83918009d48c297dbcb83fe0801f04ae250e8ab17c492a7ad98925d919cdbab2",
+      "byteSize": 3668
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/process-result-tests.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "a37779b7f33b417c1b324a37c40360ea5dbbe3118a7cc830f2f92bc585485bce",
+      "byteSize": 5709
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/process-result.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "a2ad0a4c972abb8fbaf2e6c34f6c52b1a9d012ccf6c117f3dad0358efb672e2c",
+      "byteSize": 5912
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/proofs.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "12865f7cdff15de10625f57e60fe25a3dccaf5f24d92e6c6f75831131ff60d1a",
+      "byteSize": 5337
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/quality-image.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "89e653afebb96bbd3fcef50d547b50c522bf7e1c21772eed2a38cc82b3587899",
+      "byteSize": 2615
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/quality-runtime-proof.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "9e17454c70c05173450d195a4f6e2f3497cbdd4f60347f83f6fb9d9d57d5992b",
+      "byteSize": 3635
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/sdk-expiry.py",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "35879e76ec70f219f1fd2a88fe9fc3743ce8ba636c5d0bd1879eaa4b858e83da",
+      "byteSize": 9379
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/sdk-proof.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "7c1e93ee50f15d06112e5f73993a15bfc7454539a9a27ed84f371c719a72042b",
+      "byteSize": 3268
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/security.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "59e97f3d38dc6c9e4bc1b7139e6374ec7f7847a4ee1c018dbe2aa613215dfaed",
+      "byteSize": 2257
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/tests.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "5e2ace6d759551f388650c28ef9749cad87f513ad26e5b3fc994b10b8c3c9d8f",
+      "byteSize": 9729
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/writer-tests.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "b5c0cfc0520c8b7a6421ca7db02735001fbddca75d88e53943a99b28c3c1a537",
+      "byteSize": 8076
+    },
+    {
+      "subject": "backend/research/reports/practice_acoustic_asset_delivery_v43/entry.mjs",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "2f5e4786ae1881b32b361a131bafd5b7d343a0cf7f72ae681a4bcef60a93c6a0",
+      "byteSize": 55180
+    },
+    {
+      "subject": "backend/research/reports/practice_acoustic_asset_delivery_v43/preflight-summary.json",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "b6d4c876eb7ee5ebef131b26cc948f49c86441fc8351a8d9d8768532fa2bdb31",
+      "byteSize": 51577
+    },
+    {
+      "subject": "backend/research/reports/practice_acoustic_asset_delivery_v43/sdk-expiry-semantics.json",
+      "representation": "SHA256_INDEX_OBJECT_CONTENT",
+      "domain": "GIT_OBJECT_CONTENT",
+      "sha256": "21abd91f53a35b185f9aa5d3a14c868bbc39826c86011087824fb660cd59787c",
+      "byteSize": 10624
+    }
+  ],
+  "protectedGitObjects": [
+    {
+      "subject": "apps/customer-web/src/lib/app-protocol.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "ac462c9508511553143dca06b777f2079d0c9d4d",
+      "sha256": "7ed3591f2d925b71a61156cb49ac9a41c91b881fbc2ea473f8c43e88fb875ac6",
+      "byteSize": 207
+    },
+    {
+      "subject": "apps/customer-web/next.config.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "8216bc16e67ab7b429f1f235f1310284b8726380",
+      "sha256": "31fa7509bc961e07b46080ba6459e9448097e043a8cc09ff99caf76b4b7bd871",
+      "byteSize": 1755
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api-client.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "5e9b70b14e172548facd6835c744f6d9dba18af2",
+      "sha256": "2ab48f9af86dbd700fae94b42794839c9c029aac44e8f88b2dc9cd4f9e4adc06",
+      "byteSize": 11947
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "511b9c60c22a1fc0e23f463693e0da4c8d4620c2",
+      "sha256": "a34c1b372ca843f5f8b02d740893ca1eabbd66f54d52f5ffa87151f37442cb4f",
+      "byteSize": 1631
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "a091106903f35f1f66aa7affa8145ae865059407",
+      "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d",
+      "byteSize": 17394
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "b98652db79aa44b4ff32944f8da93b2f4c0b8707",
+      "sha256": "d84a81506f45c708f9bce655f52f78dfe72016d4c0d5c506b6ae48c67e3f8f69",
+      "byteSize": 493
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "19e390b81a400093b890b3e86664f620798656c4",
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3",
+      "byteSize": 1132
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "7c781dee7edd4f27690419a37d59fe19426315fa",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1",
+      "byteSize": 5334
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "800e322f1cb13c230e5de5e315d0ef5af974f43d",
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e",
+      "byteSize": 3538
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "fd3f852c85d5b279c52cc30578493a6912807133",
+      "sha256": "022c99f65e4e327f26baa5d7f8e6a7d3d7eef441e781cb6e6deb2e49b9e8c56a",
+      "byteSize": 1611
+    },
+    {
+      "subject": "backend/app/api/deps.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "e07546b2227390e3130c2f07faa2e255e9e624f7",
+      "sha256": "7be166a05252610e61e74e289d8de1cf97f758ebb5be1487c4651c5ecbeac0b7",
+      "byteSize": 4038
+    },
+    {
+      "subject": "backend/app/modules/model_assets/router.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "sha256": "57e040b05048fb7b30a7c94e064d2393fa1e3793cb58f5de986c450eb57c299e",
+      "byteSize": 875
+    },
+    {
+      "subject": "backend/app/modules/model_assets/service.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "sha256": "b26982e8f0420d5f00abdd3b080ced4b5f656f7224751cc4992007b4fc21e0e9",
+      "byteSize": 2678
+    },
+    {
+      "subject": "backend/app/modules/model_assets/schemas.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "sha256": "ce678147c1768f41fe199b6dc63dd929c34381ffb24b1d5bcf776fb509a9797b",
+      "byteSize": 740
+    },
+    {
+      "subject": "backend/app/core/settings/model_asset_delivery.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "f7abc7652ddef4e92ca6e618b40b8f7bd773cc13",
+      "sha256": "c2591a78534e85f0c395c6a9831dd6563c5d62529ff354f5b44a588534b4a41c",
+      "byteSize": 647
+    },
+    {
+      "subject": "backend/app/core/settings/browser_cors.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "3e76c90ea6977ad479287ce8956c6289a6aed5b0",
+      "sha256": "075fdad696bbe790a51b6dade92668dab235d4a5dcd5e2bd50d23932e71609e1",
+      "byteSize": 597
+    },
+    {
+      "subject": "backend/app/core/settings/customer_session_security.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "3628735c24c9ade3eb14811a7a68872e628dca06",
+      "sha256": "8f4176bb8189bf3bb34eca3401d6050551c918f7b0f67039b2fbe6ddd0b15f03",
+      "byteSize": 1438
+    },
+    {
+      "subject": "backend/tests/test_practice_acoustic_model_asset.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "b3041c41589e7db9cf603948824ce363e421e5d4",
+      "sha256": "866ae71f45627d0c6bb692960058139f97a4d45b489d56e02cd5ced837667f3b",
+      "byteSize": 3163
+    },
+    {
+      "subject": "backend/tests/test_model_assets.py",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "ceb918f9e446618a3253f04be6f892f77e6d1c12",
+      "sha256": "9ea58a691476d469fb4cc668b155021ccf679dd86c8be93c06386c07dc6e3d70",
+      "byteSize": 4823
+    },
+    {
+      "subject": "docker-compose.backend-dev.yml",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "96d38592465976f88eb5b51186512e9fd1de573d",
+      "sha256": "e1a99b164c04f11b329314aa25a3dd5ff4936d6c71b029466fd0dece4a9f897a",
+      "byteSize": 3114
+    },
+    {
+      "subject": "docker/backend/Dockerfile.api",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "b7ad1c205a8af4289508f2566eddd31a7bdaf5a2",
+      "sha256": "2ad1f553a40347b66f6cc8a46dfac1be44bd090865c6f214c2196478cb6536e3",
+      "byteSize": 1448
+    },
+    {
+      "subject": "docker/backend/Dockerfile.quality",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "49dd3327def1af07cdd7239223484e2e3955514e",
+      "sha256": "bd4dbe7fac9d43f3ead8fd330b37e5e41c9858f74175c376a917bff30ccdb401",
+      "byteSize": 791
+    },
+    {
+      "subject": "backend/requirements/api.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "5cce735978a968d0fd12434a0dd8ea033a91c11c",
+      "sha256": "5b5675119ff6a482491957e65cc5c18c3453daefd4eb5b9f77a850807812d9f2",
+      "byteSize": 133
+    },
+    {
+      "subject": "backend/requirements/quality-core.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "364dbcb9e20c1e2c1f2db15ebec25e2e97129d71",
+      "sha256": "3cbb68bedcf2e33530127e62d85f56071fbf37f9c8564b7deda83b95b05a7145",
+      "byteSize": 255
+    },
+    {
+      "subject": "backend/requirements/quality-tools.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "dc3a1ae072f6fddb89b0b7592f36ee637922c42d",
+      "sha256": "0d142553b5e8d32cd6ce96fd9a79e407923c6c51e4cc00acc3bf38527cfef8e2",
+      "byteSize": 146
+    },
+    {
+      "subject": "scripts/backend_quality_docker.ps1",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "f818f2a82db56710e959dfca15fb725dfa33d77c",
+      "sha256": "a1eca7f841791b1c89abda97f5005da6d35ed1fd6d0ded3674b25718575966bb",
+      "byteSize": 3418
+    },
+    {
+      "subject": "backend/README.md",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "1309d3621f31fa245445a9cf7e9c63a63e5d269e",
+      "sha256": "da09c38397bedf622921f2d1c74216af98112a872fb1f7c01c63cf4eccb55253",
+      "byteSize": 7790
+    },
+    {
+      "subject": ".github/workflows/backend-quality.yml",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "46ec239d786358382940ae6003aabc9a10031400",
+      "sha256": "f3721abb0decfe91d7d28f4855025328505b1e6f9bdcb64c9d8d822581524ca1",
+      "byteSize": 7083
+    },
+    {
+      "subject": "apps/customer-web/package.json",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "5cfa11951a9590f5a6414c6425b30bb499a9c881",
+      "sha256": "2d9d75c69d2497e69c8f9b4a4a2d054baed096b7d9c2f784afc3cc6cf8ecbba7",
+      "byteSize": 3796
+    },
+    {
+      "subject": "apps/customer-web/package-lock.json",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "66a609f06aed5bf6f20e1a4e690c0386a1e6af9a",
+      "sha256": "05ca9ecd1120e0e0d00e1f236cfa00c871f43955485602ea5e6f2d022af4b33e",
+      "byteSize": 472805
+    },
+    {
+      "subject": "apps/customer-web/tsconfig.json",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "b575f7dac742447c79dd92f8b471b7d5e18c32cc",
+      "sha256": "55134881a23efd2a1f9266d2d0752731ff9c40d0e867136cd8863ea679560a09",
+      "byteSize": 702
+    },
+    {
+      "subject": "backend/requirements/http.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "4d55c6f80f911cc56ee9976a1ba25e02346d61d9",
+      "sha256": "5ebe80cdb835cc291f3cdd186b4333109b150d163affaf2f476b21756c7fedc3",
+      "byteSize": 206
+    },
+    {
+      "subject": "backend/requirements/core.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "9c598c133da013da876538243dd6204e504b7d3c",
+      "sha256": "98eab8be02c63f0df3f64b4187f9d717cf6acc6988f825e285f9deacb2fa864a",
+      "byteSize": 113
+    },
+    {
+      "subject": "backend/requirements/tracing.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "eaa015afbe2d2c9ea9cac6ae94dc1e5706903207",
+      "sha256": "d7bf7eb1feae5bcfde51db6f2378d7711bd32679f2e7bae7b034bcb9b01d8761",
+      "byteSize": 185
+    },
+    {
+      "subject": "backend/requirements/db.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "76ca1b3b75fa39f2e56291353effe86a503869c5",
+      "sha256": "b50ea5bf8464878e3b36a822ede42ec6717aa407d1a798c50cc6d6e125b5b223",
+      "byteSize": 104
+    },
+    {
+      "subject": "backend/requirements/migrations.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "43be5bcccd86587007ac6e9f1e1473118af91ee7",
+      "sha256": "9562885d980015f4a05157ddc3708693711fdb942dd7afa029e37c51b968b82c",
+      "byteSize": 48
+    },
+    {
+      "subject": "backend/requirements/storage.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "31069b30d452ca97b8932ad695a727737d39af46",
+      "sha256": "b0a70e0265868cd19e1fd37d4752b2360a875bbaf282b6d888049caacaa0f1d8",
+      "byteSize": 73
+    },
+    {
+      "subject": "backend/requirements/celery.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "16d8f3bc3616c282b00620240f980856a106315c",
+      "sha256": "fc654aef6b2579ca715740b9eadcfd48d963269de507246ea1b2c9cd824ac34f",
+      "byteSize": 51
+    },
+    {
+      "subject": "backend/requirements/cache.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "698043c9ef3321f7eefb817829fec9fd81d34217",
+      "sha256": "c96672b6728fda7246a53b82464f792bdca3c049ef030caf35c7a4c2bae0f2ed",
+      "byteSize": 85
+    },
+    {
+      "subject": "backend/requirements/auth.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "6e101b78ac06b9098963b0e9bf477c715c4ac955",
+      "sha256": "e10dba1d8a78cc2ea4e6f398b6b6bfdbcdf0bab546b4bd9fe7e538d5b67ea31f",
+      "byteSize": 103
+    },
+    {
+      "subject": "backend/requirements/image.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "6722975e0726756191f394c6d3ab1d70b9f8e5a3",
+      "sha256": "e47b02d73c33f2346f68b9a8a810ce7b718fcf1551dc44af4c832899bdde3c82",
+      "byteSize": 65
+    },
+    {
+      "subject": "backend/requirements/fingering.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "27f945a186d3af356ad3b68fabc66c857396b17e",
+      "sha256": "bb89989c22109572eab2ed57d80888b17d04baa3fa9306c35db7d124b2f353ab",
+      "byteSize": 91
+    },
+    {
+      "subject": "backend/requirements/practice-score.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "7b58b5e8112d69e1958317523845e30339df9239",
+      "sha256": "d1efe34fdd00fe54d06409faac1a01b258322b90c9621affd39a67dc25f73ec3",
+      "byteSize": 72
+    },
+    {
+      "subject": "backend/requirements/beat.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "720f5fca285a218c1146340a725ec9fe15311fc8",
+      "sha256": "04293c7f037ff647f333d0baf27afb4072d5a32d6772fc320b2aa22ebd6f8c20",
+      "byteSize": 374
+    },
+    {
+      "subject": "backend/requirements/render.txt",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "eabdb5dad920ae8372b361cc6c3fd670d519eaf0",
+      "sha256": "3011c0ea90bebe088c7eab53aa8ead52ea10e00acb4b7fd0018bb342d023ebd2",
+      "byteSize": 48
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "5acff684245d5d6db38894e6d9c884ccc7cc5593",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+      "byteSize": 3633
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/index.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "72adb4620c229151e86005ba4ef57b790223540a",
+      "sha256": "4fdada31cc0d87f2d0b941dfa01d64b668f87f9d4709e2a52cecfb753dc27711",
+      "byteSize": 80
+    },
+    {
+      "subject": "apps/customer-web/src/lib/auth/return-url.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "f8c7a75e78b7c1d38091da2c000b1cffb42ca18f",
+      "sha256": "4a0c364c8a3e5b8d98d0ff1ed787cc8e949544e50721a2a5585df80c9192050f",
+      "byteSize": 1221
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "202daa1ed41861588e5cb2b6e7a54db8d1f2563c",
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a",
+      "byteSize": 1211
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "3074d6571b8de20ccd0da154730d598f6928b425",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e",
+      "byteSize": 2780
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/client.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "40ca4b16e7ab8d68ceaee575bfae7328d97a45c2",
+      "sha256": "0b34f99fe110a1f20063e16cc93c2770db6ea0e0cc2c0213da1b9821b8f49c9b",
+      "byteSize": 2215
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "aaf5ab3da2318303516713ff4ba932957946f176",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+      "byteSize": 5010
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "38b9291e3169e63ede575cc5b5d30ef108fa9b1c",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa",
+      "byteSize": 2188
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "4bdb423e72517ff303fc2c44d06c3ad1931a3729",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe",
+      "byteSize": 342
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/types.ts",
+      "commit": "83d6c1590cf88ff42dd32f8856d4081f7927cb1d",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "blob": "dc05480730a9c0a9a6c553da694b58ea4c953a61",
+      "sha256": "87aa36d41db9561640b7f396a1ef028baba55a0d484590081ee67e4963ee7131",
+      "byteSize": 2098
+    }
+  ],
+  "externalIdentities": [
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/browser-entry.mjs",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 9671,
+      "sha256": "406c787ba5fad8e7130276495062da6421ca6fa595079493bcb4dec240fed04c"
+    },
+    {
+      "subject": "backend/research/practice_acoustic_asset_delivery_v43/oss-expiry.mjs",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3668,
+      "sha256": "83918009d48c297dbcb83fe0801f04ae250e8ab17c492a7ad98925d919cdbab2"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api-client.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 12330,
+      "sha256": "2b08bd76661e769eec0cdb8d632741e05baca4e476ae5905d3e24a1c2c36162a"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 1631,
+      "sha256": "a34c1b372ca843f5f8b02d740893ca1eabbd66f54d52f5ffa87151f37442cb4f"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 5334,
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3633,
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/index.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 80,
+      "sha256": "4fdada31cc0d87f2d0b941dfa01d64b668f87f9d4709e2a52cecfb753dc27711"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/app-protocol.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 211,
+      "sha256": "99a7e751cf168e41f8a9af0870ed427d293abc9a194df9991604aff15cf5cb02"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/auth/return-url.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 1257,
+      "sha256": "b81a1d63bca5680afbde187b58f63a2df2464632064d7d908b0b6850bda5a86d"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 1132,
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 1211,
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 493,
+      "sha256": "d84a81506f45c708f9bce655f52f78dfe72016d4c0d5c506b6ae48c67e3f8f69"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2780,
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/client.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2291,
+      "sha256": "5825155ef8242c9b3fd5cb8f3b24668c8c4ef74aaf33d6c0b9b8a0e15c3b73a5"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 5010,
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2188,
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 17394,
+      "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 342,
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe"
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/types.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2098,
+      "sha256": "87aa36d41db9561640b7f396a1ef028baba55a0d484590081ee67e4963ee7131"
+    },
+    {
+      "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\node_modules\\vite\\package.json",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 5006,
+      "sha256": "a2b943431b51bfcc2e9386eecf8b4b3f6e4bf443e56d17b1f4c8495a61b4050c"
+    },
+    {
+      "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\node_modules\\vite\\dist\\node\\index.js",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2700,
+      "sha256": "9b3e72282cfda2f0e60ad5b123e2c8a89e27b9b7cc7c892ae7b34036db5f92ef"
+    },
+    {
+      "subject": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 4600472,
+      "sha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3355,
+      "sha256": "c303615e5005055b8aac7fcaa196a1795fc5495c54c24b5250c7fa6bb0b915ed"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 46839,
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+      "route": "/__v43/ort/ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 21663894,
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+      "route": "/__v43/ort/ort-wasm-simd-threaded.jsep.wasm"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 24618,
+      "sha256": "745eb7c0ce6f18a6aa521971b2877babc7ffb27eecb58ab3bc6e5ef4692672e8",
+      "route": "/__v43/ort/ort-wasm-simd-threaded.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 11246032,
+      "sha256": "207d02be4591c156b0a98f024f3d58005b5b04c92274d759fb390338c63559ea",
+      "route": "/__v43/ort/ort-wasm-simd-threaded.wasm"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.bundle.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 775869,
+      "sha256": "d4dfceb125d1aa222df41bf91f31ba49c9f10eb3ba315a34a8a773ef34296dc3",
+      "route": "/__v43/ort/ort.all.bundle.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 731232,
+      "sha256": "0c1e76607139b7876c39cbcd3b86e6202b55581d17cfc079282f98fcfdbe11be",
+      "route": "/__v43/ort/ort.all.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 5500236,
+      "sha256": "09edfa2dad2d11bcc318412770f2f076ad3a161e585453d85b287c8c8e851a88",
+      "route": "/__v43/ort/ort.all.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 468451,
+      "sha256": "e1602de08c4d287700aaebc77332e19f52dd7554feb510a23dac9345992698e2",
+      "route": "/__v43/ort/ort.bundle.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 446164,
+      "sha256": "7eb964c1adb20e5c316733013659d2d0ef6b84d62f8a3cd77c0020ebf3b3c50e",
+      "route": "/__v43/ort/ort.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3637153,
+      "sha256": "3f2aa1b333b00f029635a84d626db3402c9a540ae4da40eb15d49d661fcc9aa7",
+      "route": "/__v43/ort/ort.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.node.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 22658,
+      "sha256": "67a230f50b19769b1901ed1750b80128184d65740a286d5e4bd25b76d9a493fa",
+      "route": "/__v43/ort/ort.node.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.wasm.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 48904,
+      "sha256": "f53ed4792e758e7232f779d479eb8931b97ff3ab2e3b9a33ee00d1251ffdaad6",
+      "route": "/__v43/ort/ort.wasm.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.wasm.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 539003,
+      "sha256": "65163a6f0ea2d35ea14f74508a67f756770ca18d705c9cc73c84b9589f98afec",
+      "route": "/__v43/ort/ort.wasm.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 421036,
+      "sha256": "a497e8f0e8cd5ac804df18a83334505a84db887fc7f37d5479caf56441807008",
+      "route": "/__v43/ort/ort.webgl.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgl.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3380789,
+      "sha256": "499e47aea6632ffee73b22c7f7bf5ede2a6dce2d04b2f03a7505a1959ec7a6fb",
+      "route": "/__v43/ort/ort.webgl.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 377970,
+      "sha256": "86d19a9e9e9ecb51aaba1a4f33378c1738b6b0c2d582f8ba259caa800434f38d",
+      "route": "/__v43/ort/ort.webgpu.bundle.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 333468,
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+      "route": "/__v43/ort/ort.webgpu.min.mjs"
+    },
+    {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.mjs",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 2388479,
+      "sha256": "aaab18a91f3ff3662e5cedf73ece817207551bb76ef193d9d346a0ae0e1a090f",
+      "route": "/__v43/ort/ort.webgpu.mjs"
+    },
+    {
+      "subject": "backend/research/browser_runtime/dr3r_browser_runtime/node_modules/playwright",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+      "extensions": [
+        ".js",
+        ".json"
+      ],
+      "files": 94,
+      "bytes": 2511915,
+      "sha256": "f9e4ab8723a1374291aa5338c9af6e46fa4dc4aae3de409b1369963e72658d61"
+    },
+    {
+      "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright-core",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+      "extensions": [
+        ".js",
+        ".json"
+      ],
+      "files": 285,
+      "bytes": 4768596,
+      "sha256": "eda583f8a4db15adc8f3308a4f2346ed219c16a7f61db2400a406b8036720fa0"
+    },
+    {
+      "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\node_modules\\vite",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+      "extensions": [
+        ".js",
+        ".json",
+        ".d.ts"
+      ],
+      "files": 40,
+      "bytes": 2117619,
+      "sha256": "539c5318ddc35c31ce83ec4dffd53405c3189e38dfda360d0db488309dd10065"
+    }
+  ],
+  "preparedQualityImage": {
+    "domain": "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+    "representation": "DOCKER_CONTENT_ADDRESSED_IMAGE_ID",
+    "subject": "noteverse-backend-quality:dev",
+    "imageName": "noteverse-backend-quality:dev",
+    "imageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179",
+    "repoTags": [
+      "noteverse-backend-quality:dev"
+    ],
+    "createdAt": "2026-10-20T09:43:29.374015184Z",
+    "architecture": "amd64",
+    "os": "linux",
+    "entrypoint": null,
+    "cmd": [
+      "bash"
+    ]
+  },
+  "sdkEnvironment": {
+    "quality": {
+      "version": "1.4.0",
+      "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+      "packageRoot": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2",
+      "packageFiles": 205,
+      "packageTreeRepresentation": "SHA256_CANONICAL_RELATIVE_SOURCE_RECORDS",
+      "packageTreeSha256": "883e0678ee2b9d2033552c390c34a445e8b275101a3ce92e000046000572dc74",
+      "criticalSources": [
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/_client.py",
+          "relativePath": "_client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 28110,
+          "sha256": "e375047f55b748812839b8312113c719f334ca343a7090627786332a484b9b19"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/client.py",
+          "relativePath": "client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 98265,
+          "sha256": "c367a4f2a49d7b9559da471959a15830c54160d85f16bdd085edc62e7dce7e2e"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "relativePath": "presigner.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 6738,
+          "sha256": "d5be51d99876f6a4d50274f071f80e2a27f25b08cc303ff17c3e59dc4c46ca53"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/__init__.py",
+          "relativePath": "signer/__init__.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 94,
+          "sha256": "31e87ea236c87151cf7e1bc548c15fb685d3f0983d2c1000e4cf2c680b3fdb7f"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "relativePath": "signer/v4.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 12066,
+          "sha256": "6baa961eb65ee8566732b1aac4a7e69574879f321cba3e39a72fb965021ed4e4"
+        }
+      ],
+      "sourceWitnesses": [
+        {
+          "symbol": "presign_inner",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 119,
+          "lineCount": 28,
+          "sourceSha256": "d76eb1eef9d7ee5119496c989e324c623d57ae46ec865e46096112cf22286a29"
+        },
+        {
+          "symbol": "_deserialize_output",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 200,
+          "lineCount": 21,
+          "sourceSha256": "9a698ad1156515c34558284ad32513e41801b1b1ed3a6591fa836d42d27905da"
+        },
+        {
+          "symbol": "SignerV4",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "firstLine": 14,
+          "lineCount": 295,
+          "sourceSha256": "58feb4d131682017a07b05343eb765d13fd3604ee7536226405355bc783e0310"
+        }
+      ],
+      "facts": {
+        "absoluteExpirationFromFirstClock": true,
+        "separateSignerClock": true,
+        "integerTruncatedDuration": true,
+        "wholeSecondSigningDate": true,
+        "resultKeepsOriginalExpirationMetadata": true,
+        "v4LimitSevenDays": true
+      }
+    },
+    "runtime": {
+      "version": "1.4.0",
+      "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+      "packageRoot": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2",
+      "packageFiles": 205,
+      "packageTreeRepresentation": "SHA256_CANONICAL_RELATIVE_SOURCE_RECORDS",
+      "packageTreeSha256": "883e0678ee2b9d2033552c390c34a445e8b275101a3ce92e000046000572dc74",
+      "criticalSources": [
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/_client.py",
+          "relativePath": "_client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 28110,
+          "sha256": "e375047f55b748812839b8312113c719f334ca343a7090627786332a484b9b19"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/client.py",
+          "relativePath": "client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 98265,
+          "sha256": "c367a4f2a49d7b9559da471959a15830c54160d85f16bdd085edc62e7dce7e2e"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "relativePath": "presigner.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 6738,
+          "sha256": "d5be51d99876f6a4d50274f071f80e2a27f25b08cc303ff17c3e59dc4c46ca53"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/__init__.py",
+          "relativePath": "signer/__init__.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 94,
+          "sha256": "31e87ea236c87151cf7e1bc548c15fb685d3f0983d2c1000e4cf2c680b3fdb7f"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "relativePath": "signer/v4.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 12066,
+          "sha256": "6baa961eb65ee8566732b1aac4a7e69574879f321cba3e39a72fb965021ed4e4"
+        }
+      ],
+      "sourceWitnesses": [
+        {
+          "symbol": "presign_inner",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 119,
+          "lineCount": 28,
+          "sourceSha256": "d76eb1eef9d7ee5119496c989e324c623d57ae46ec865e46096112cf22286a29"
+        },
+        {
+          "symbol": "_deserialize_output",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 200,
+          "lineCount": 21,
+          "sourceSha256": "9a698ad1156515c34558284ad32513e41801b1b1ed3a6591fa836d42d27905da"
+        },
+        {
+          "symbol": "SignerV4",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "firstLine": 14,
+          "lineCount": 295,
+          "sourceSha256": "58feb4d131682017a07b05343eb765d13fd3604ee7536226405355bc783e0310"
+        }
+      ],
+      "facts": {
+        "absoluteExpirationFromFirstClock": true,
+        "separateSignerClock": true,
+        "integerTruncatedDuration": true,
+        "wholeSecondSigningDate": true,
+        "resultKeepsOriginalExpirationMetadata": true,
+        "v4LimitSevenDays": true
+      }
+    }
+  },
+  "bundleSha256": "2f5e4786ae1881b32b361a131bafd5b7d343a0cf7f72ae681a4bcef60a93c6a0",
+  "execution": {
+    "chrome": {
+      "subject": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 4600472,
+      "sha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532"
+    },
+    "playwright": {
+      "root": "backend/research/browser_runtime/dr3r_browser_runtime/node_modules/playwright",
+      "version": "1.48.2"
+    },
+    "externalTrees": [
+      {
+        "subject": "backend/research/browser_runtime/dr3r_browser_runtime/node_modules/playwright",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+        "extensions": [
+          ".js",
+          ".json"
+        ],
+        "files": 94,
+        "bytes": 2511915,
+        "sha256": "f9e4ab8723a1374291aa5338c9af6e46fa4dc4aae3de409b1369963e72658d61"
+      },
+      {
+        "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright-core",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+        "extensions": [
+          ".js",
+          ".json"
+        ],
+        "files": 285,
+        "bytes": 4768596,
+        "sha256": "eda583f8a4db15adc8f3308a4f2346ed219c16a7f61db2400a406b8036720fa0"
+      },
+      {
+        "subject": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\node_modules\\vite",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "SHA256_CANONICAL_SORTED_FILE_RECORDS",
+        "extensions": [
+          ".js",
+          ".json",
+          ".d.ts"
+        ],
+        "files": 40,
+        "bytes": 2117619,
+        "sha256": "539c5318ddc35c31ce83ec4dffd53405c3189e38dfda360d0db488309dd10065"
+      }
+    ],
+    "ortAssets": [
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 46839,
+        "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+        "route": "/__v43/ort/ort-wasm-simd-threaded.jsep.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 21663894,
+        "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+        "route": "/__v43/ort/ort-wasm-simd-threaded.jsep.wasm"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 24618,
+        "sha256": "745eb7c0ce6f18a6aa521971b2877babc7ffb27eecb58ab3bc6e5ef4692672e8",
+        "route": "/__v43/ort/ort-wasm-simd-threaded.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 11246032,
+        "sha256": "207d02be4591c156b0a98f024f3d58005b5b04c92274d759fb390338c63559ea",
+        "route": "/__v43/ort/ort-wasm-simd-threaded.wasm"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.bundle.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 775869,
+        "sha256": "d4dfceb125d1aa222df41bf91f31ba49c9f10eb3ba315a34a8a773ef34296dc3",
+        "route": "/__v43/ort/ort.all.bundle.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 731232,
+        "sha256": "0c1e76607139b7876c39cbcd3b86e6202b55581d17cfc079282f98fcfdbe11be",
+        "route": "/__v43/ort/ort.all.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.all.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 5500236,
+        "sha256": "09edfa2dad2d11bcc318412770f2f076ad3a161e585453d85b287c8c8e851a88",
+        "route": "/__v43/ort/ort.all.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 468451,
+        "sha256": "e1602de08c4d287700aaebc77332e19f52dd7554feb510a23dac9345992698e2",
+        "route": "/__v43/ort/ort.bundle.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 446164,
+        "sha256": "7eb964c1adb20e5c316733013659d2d0ef6b84d62f8a3cd77c0020ebf3b3c50e",
+        "route": "/__v43/ort/ort.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 3637153,
+        "sha256": "3f2aa1b333b00f029635a84d626db3402c9a540ae4da40eb15d49d661fcc9aa7",
+        "route": "/__v43/ort/ort.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.node.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 22658,
+        "sha256": "67a230f50b19769b1901ed1750b80128184d65740a286d5e4bd25b76d9a493fa",
+        "route": "/__v43/ort/ort.node.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.wasm.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 48904,
+        "sha256": "f53ed4792e758e7232f779d479eb8931b97ff3ab2e3b9a33ee00d1251ffdaad6",
+        "route": "/__v43/ort/ort.wasm.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.wasm.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 539003,
+        "sha256": "65163a6f0ea2d35ea14f74508a67f756770ca18d705c9cc73c84b9589f98afec",
+        "route": "/__v43/ort/ort.wasm.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 421036,
+        "sha256": "a497e8f0e8cd5ac804df18a83334505a84db887fc7f37d5479caf56441807008",
+        "route": "/__v43/ort/ort.webgl.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgl.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 3380789,
+        "sha256": "499e47aea6632ffee73b22c7f7bf5ede2a6dce2d04b2f03a7505a1959ec7a6fb",
+        "route": "/__v43/ort/ort.webgl.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 377970,
+        "sha256": "86d19a9e9e9ecb51aaba1a4f33378c1738b6b0c2d582f8ba259caa800434f38d",
+        "route": "/__v43/ort/ort.webgpu.bundle.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 333468,
+        "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+        "route": "/__v43/ort/ort.webgpu.min.mjs"
+      },
+      {
+        "subject": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.mjs",
+        "domain": "EXTERNAL_LOCAL_ASSET",
+        "representation": "RAW_BYTES_SHA256",
+        "byteSize": 2388479,
+        "sha256": "aaab18a91f3ff3662e5cedf73ece817207551bb76ef193d9d346a0ae0e1a090f",
+        "route": "/__v43/ort/ort.webgpu.mjs"
+      }
+    ],
+    "ortPackage": {
+      "subject": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+      "domain": "EXTERNAL_LOCAL_ASSET",
+      "representation": "RAW_BYTES_SHA256",
+      "byteSize": 3355,
+      "sha256": "c303615e5005055b8aac7fcaa196a1795fc5495c54c24b5250c7fa6bb0b915ed"
+    }
+  },
+  "bundler": {
+    "authority": "CUSTOMER_WEB_LOCKFILE_VITEST_VITE_BUILD_API",
+    "version": "8.0.16",
+    "externalRoute": "/__v43/ort/ort.webgpu.min.mjs",
+    "virtualInputs": [],
+    "deterministicBuild": true
+  },
+  "selfReference": "Protocol committed hash belongs only in subsequent remote proof.",
+  "counters": {
+    "browserCampaigns": 0,
+    "modelAccessRequests": 0,
+    "ossRequests": 0,
+    "sessions": 0,
+    "inferenceRuns": 0
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "result": "LOCAL_PASS_NOT_CI_HERMETIC_NOT_DELIVERY_EVIDENCE",
+  "identity": {
+    "quality": {
+      "version": "1.4.0",
+      "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+      "packageRoot": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2",
+      "packageFiles": 205,
+      "packageTreeRepresentation": "SHA256_CANONICAL_RELATIVE_SOURCE_RECORDS",
+      "packageTreeSha256": "883e0678ee2b9d2033552c390c34a445e8b275101a3ce92e000046000572dc74",
+      "criticalSources": [
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/_client.py",
+          "relativePath": "_client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 28110,
+          "sha256": "e375047f55b748812839b8312113c719f334ca343a7090627786332a484b9b19"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/client.py",
+          "relativePath": "client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 98265,
+          "sha256": "c367a4f2a49d7b9559da471959a15830c54160d85f16bdd085edc62e7dce7e2e"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "relativePath": "presigner.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 6738,
+          "sha256": "d5be51d99876f6a4d50274f071f80e2a27f25b08cc303ff17c3e59dc4c46ca53"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/__init__.py",
+          "relativePath": "signer/__init__.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 94,
+          "sha256": "31e87ea236c87151cf7e1bc548c15fb685d3f0983d2c1000e4cf2c680b3fdb7f"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "relativePath": "signer/v4.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 12066,
+          "sha256": "6baa961eb65ee8566732b1aac4a7e69574879f321cba3e39a72fb965021ed4e4"
+        }
+      ],
+      "sourceWitnesses": [
+        {
+          "symbol": "presign_inner",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 119,
+          "lineCount": 28,
+          "sourceSha256": "d76eb1eef9d7ee5119496c989e324c623d57ae46ec865e46096112cf22286a29"
+        },
+        {
+          "symbol": "_deserialize_output",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 200,
+          "lineCount": 21,
+          "sourceSha256": "9a698ad1156515c34558284ad32513e41801b1b1ed3a6591fa836d42d27905da"
+        },
+        {
+          "symbol": "SignerV4",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "firstLine": 14,
+          "lineCount": 295,
+          "sourceSha256": "58feb4d131682017a07b05343eb765d13fd3604ee7536226405355bc783e0310"
+        }
+      ],
+      "facts": {
+        "absoluteExpirationFromFirstClock": true,
+        "separateSignerClock": true,
+        "integerTruncatedDuration": true,
+        "wholeSecondSigningDate": true,
+        "resultKeepsOriginalExpirationMetadata": true,
+        "v4LimitSevenDays": true
+      }
+    },
+    "runtime": {
+      "version": "1.4.0",
+      "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+      "packageRoot": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2",
+      "packageFiles": 205,
+      "packageTreeRepresentation": "SHA256_CANONICAL_RELATIVE_SOURCE_RECORDS",
+      "packageTreeSha256": "883e0678ee2b9d2033552c390c34a445e8b275101a3ce92e000046000572dc74",
+      "criticalSources": [
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/_client.py",
+          "relativePath": "_client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 28110,
+          "sha256": "e375047f55b748812839b8312113c719f334ca343a7090627786332a484b9b19"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/client.py",
+          "relativePath": "client.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 98265,
+          "sha256": "c367a4f2a49d7b9559da471959a15830c54160d85f16bdd085edc62e7dce7e2e"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "relativePath": "presigner.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 6738,
+          "sha256": "d5be51d99876f6a4d50274f071f80e2a27f25b08cc303ff17c3e59dc4c46ca53"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/__init__.py",
+          "relativePath": "signer/__init__.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 94,
+          "sha256": "31e87ea236c87151cf7e1bc548c15fb685d3f0983d2c1000e4cf2c680b3fdb7f"
+        },
+        {
+          "subject": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "relativePath": "signer/v4.py",
+          "domain": "EXTERNAL_LOCAL_DEPENDENCY",
+          "representation": "RAW_BYTES_SHA256",
+          "byteSize": 12066,
+          "sha256": "6baa961eb65ee8566732b1aac4a7e69574879f321cba3e39a72fb965021ed4e4"
+        }
+      ],
+      "sourceWitnesses": [
+        {
+          "symbol": "presign_inner",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 119,
+          "lineCount": 28,
+          "sourceSha256": "d76eb1eef9d7ee5119496c989e324c623d57ae46ec865e46096112cf22286a29"
+        },
+        {
+          "symbol": "_deserialize_output",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/presigner.py",
+          "firstLine": 200,
+          "lineCount": 21,
+          "sourceSha256": "9a698ad1156515c34558284ad32513e41801b1b1ed3a6591fa836d42d27905da"
+        },
+        {
+          "symbol": "SignerV4",
+          "sourceFile": "/usr/local/lib/python3.12/site-packages/alibabacloud_oss_v2/signer/v4.py",
+          "firstLine": 14,
+          "lineCount": 295,
+          "sourceSha256": "58feb4d131682017a07b05343eb765d13fd3604ee7536226405355bc783e0310"
+        }
+      ],
+      "facts": {
+        "absoluteExpirationFromFirstClock": true,
+        "separateSignerClock": true,
+        "integerTruncatedDuration": true,
+        "wholeSecondSigningDate": true,
+        "resultKeepsOriginalExpirationMetadata": true,
+        "v4LimitSevenDays": true
+      }
+    }
+  },
+  "networkAttempts": 0,
+  "syntheticCredentialsOnly": true,
+  "clockRestored": true,
+  "sampleCount": 84,
+  "minimumDeltaMs": 0,
+  "maximumDeltaMs": 1999.998,
+  "allSamplesAcceptedByExactBrowserExpiryParser": true,
+  "proof": {
+    "effective": "floorToSecond(signingTime) + floor(expiration - signingTime) seconds",
+    "delta": "frac(signingTime seconds) + frac(expiration - signingTime seconds)",
+    "precondition": "expiration - signingTime > 0; int truncation is floor for positive duration",
+    "bound": "0 <= deltaMs < 2000",
+    "normalSdkQuantizationNotProductionDefect": true
+  },
+  "clockModules": [
+    "alibabacloud_oss_v2.presigner",
+    "alibabacloud_oss_v2.signer.v4"
+  ],
+  "representativeSamples": [
+    {
+      "descriptorExpiry": "2030-01-02T03:09:05+00:00",
+      "xOssDate": "20300102T030405Z",
+      "xOssExpires": "300",
+      "effectiveSignedExpiry": "2030-01-02T03:09:05+00:00",
+      "deltaMs": 0,
+      "generationTime": "2030-01-02T03:04:05+00:00",
+      "fractionUs": 0,
+      "signingDelayUs": 0,
+      "https": true,
+      "hostname": "noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com",
+      "pathname": "/models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx",
+      "signatureVersion": "OSS4-HMAC-SHA256",
+      "oss4FieldPresence": {
+        "x-oss-signature-version": true,
+        "x-oss-date": true,
+        "x-oss-expires": true,
+        "x-oss-credential": true,
+        "x-oss-signature": true
+      },
+      "awsSigningAbsent": true
+    },
+    {
+      "descriptorExpiry": "2030-01-02T03:09:05.000001+00:00",
+      "xOssDate": "20300102T030405Z",
+      "xOssExpires": "299",
+      "effectiveSignedExpiry": "2030-01-02T03:09:04+00:00",
+      "deltaMs": 1000.001,
+      "generationTime": "2030-01-02T03:04:05.000002+00:00",
+      "fractionUs": 1,
+      "signingDelayUs": 1,
+      "https": true,
+      "hostname": "noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com",
+      "pathname": "/models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx",
+      "signatureVersion": "OSS4-HMAC-SHA256",
+      "oss4FieldPresence": {
+        "x-oss-signature-version": true,
+        "x-oss-date": true,
+        "x-oss-expires": true,
+        "x-oss-credential": true,
+        "x-oss-signature": true
+      },
+      "awsSigningAbsent": true
+    },
+    {
+      "descriptorExpiry": "2030-01-02T03:09:05.999998+00:00",
+      "xOssDate": "20300102T030405Z",
+      "xOssExpires": "299",
+      "effectiveSignedExpiry": "2030-01-02T03:09:04+00:00",
+      "deltaMs": 1999.998,
+      "generationTime": "2030-01-02T03:04:05.999999+00:00",
+      "fractionUs": 999998,
+      "signingDelayUs": 1,
+      "https": true,
+      "hostname": "noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com",
+      "pathname": "/models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx",
+      "signatureVersion": "OSS4-HMAC-SHA256",
+      "oss4FieldPresence": {
+        "x-oss-signature-version": true,
+        "x-oss-date": true,
+        "x-oss-expires": true,
+        "x-oss-credential": true,
+        "x-oss-signature": true
+      },
+      "awsSigningAbsent": true
+    }
+  ],
+  "integrationScope": "Exact sanitized temporal and structural fields parsed from real offline SDK URLs; signatures and credential query values never exported",
+  "characterizationHelper": "backend/research/practice_acoustic_asset_delivery_v43/sdk-expiry.py"
+}
