@@ -1,0 +1,13 @@
+{
+  "disposition": "PRACTICE_ACOUSTIC_V41_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "activeLocalGate": "FREEZE_REMOTE_AUTHORIZATION",
+  "orchestratorBoundary": "NONE",
+  "safeCode": "FROZEN_PROTOCOL_FAILURE",
+  "errorClass": "AssertionError",
+  "processDiagnostic": null,
+  "browserCampaigns": 0,
+  "modelAccessRequests": 0,
+  "ossRequests": 0,
+  "noRetryAfterFreeze": true,
+  "productionDefectEstablished": false
+}
