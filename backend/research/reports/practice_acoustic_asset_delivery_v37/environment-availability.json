@@ -1,0 +1,15 @@
+{
+  "customerWebOriginSupplied": false,
+  "customerWebOriginValid": false,
+  "browserOrigin": null,
+  "authSupplied": false,
+  "exactlyOneLegitimateAuthFormSupplied": false,
+  "authMode": "NONE_OR_INVALID_COMBINATION",
+  "storageStateFileAccessible": null,
+  "credentialsNetworkValidated": false,
+  "ready": false,
+  "backendBrowserOriginRequired": false,
+  "targetInferred": false,
+  "credentialFilesRead": false,
+  "source": "EXPLICIT_V37_PROCESS_ENVIRONMENT_ONLY_NO_FALLBACK_OR_DISCOVERY"
+}

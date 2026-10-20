@@ -1,0 +1,262 @@
+{
+  "sourceIdentities": [
+    {
+      "path": "apps/customer-web/src/lib/app-protocol.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/app-protocol.ts",
+        "blobSha": "ac462c9508511553143dca06b777f2079d0c9d4d"
+      },
+      "sha256": "7ed3591f2d925b71a61156cb49ac9a41c91b881fbc2ea473f8c43e88fb875ac6",
+      "bytes": 207
+    },
+    {
+      "path": "apps/customer-web/next.config.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/next.config.ts",
+        "blobSha": "8216bc16e67ab7b429f1f235f1310284b8726380"
+      },
+      "sha256": "31fa7509bc961e07b46080ba6459e9448097e043a8cc09ff99caf76b4b7bd871",
+      "bytes": 1755
+    },
+    {
+      "path": "apps/customer-web/src/lib/api-client.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/api-client.ts",
+        "blobSha": "5e9b70b14e172548facd6835c744f6d9dba18af2"
+      },
+      "sha256": "2ab48f9af86dbd700fae94b42794839c9c029aac44e8f88b2dc9cd4f9e4adc06",
+      "bytes": 11947
+    },
+    {
+      "path": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+        "blobSha": "511b9c60c22a1fc0e23f463693e0da4c8d4620c2"
+      },
+      "sha256": "a34c1b372ca843f5f8b02d740893ca1eabbd66f54d52f5ffa87151f37442cb4f",
+      "bytes": 1631
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+        "blobSha": "a091106903f35f1f66aa7affa8145ae865059407"
+      },
+      "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d",
+      "bytes": 17394
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+        "blobSha": "b98652db79aa44b4ff32944f8da93b2f4c0b8707"
+      },
+      "sha256": "d84a81506f45c708f9bce655f52f78dfe72016d4c0d5c506b6ae48c67e3f8f69",
+      "bytes": 493
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+        "blobSha": "19e390b81a400093b890b3e86664f620798656c4"
+      },
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3",
+      "bytes": 1132
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+        "blobSha": "7c781dee7edd4f27690419a37d59fe19426315fa"
+      },
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1",
+      "bytes": 5334
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+        "blobSha": "800e322f1cb13c230e5de5e315d0ef5af974f43d"
+      },
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e",
+      "bytes": 3538
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+        "blobSha": "fd3f852c85d5b279c52cc30578493a6912807133"
+      },
+      "sha256": "022c99f65e4e327f26baa5d7f8e6a7d3d7eef441e781cb6e6deb2e49b9e8c56a",
+      "bytes": 1611
+    },
+    {
+      "path": "backend/app/api/deps.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/api/deps.py",
+        "blobSha": "e07546b2227390e3130c2f07faa2e255e9e624f7"
+      },
+      "sha256": "7be166a05252610e61e74e289d8de1cf97f758ebb5be1487c4651c5ecbeac0b7",
+      "bytes": 4038
+    },
+    {
+      "path": "backend/app/modules/model_assets/router.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/modules/model_assets/router.py",
+        "blobSha": "d547f7b9f51fe0286c78e14595c2113d4cb5224f"
+      },
+      "sha256": "57e040b05048fb7b30a7c94e064d2393fa1e3793cb58f5de986c450eb57c299e",
+      "bytes": 875
+    },
+    {
+      "path": "backend/app/modules/model_assets/service.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/modules/model_assets/service.py",
+        "blobSha": "15fb1be483df2fb52fe389d3e7bee44b258df770"
+      },
+      "sha256": "b26982e8f0420d5f00abdd3b080ced4b5f656f7224751cc4992007b4fc21e0e9",
+      "bytes": 2678
+    },
+    {
+      "path": "backend/app/modules/model_assets/schemas.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/modules/model_assets/schemas.py",
+        "blobSha": "23d8de8356da3b1a7612f1dc22978328b74567ec"
+      },
+      "sha256": "ce678147c1768f41fe199b6dc63dd929c34381ffb24b1d5bcf776fb509a9797b",
+      "bytes": 740
+    },
+    {
+      "path": "backend/app/core/settings/model_asset_delivery.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/core/settings/model_asset_delivery.py",
+        "blobSha": "f7abc7652ddef4e92ca6e618b40b8f7bd773cc13"
+      },
+      "sha256": "c2591a78534e85f0c395c6a9831dd6563c5d62529ff354f5b44a588534b4a41c",
+      "bytes": 647
+    },
+    {
+      "path": "backend/app/core/settings/browser_cors.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/core/settings/browser_cors.py",
+        "blobSha": "3e76c90ea6977ad479287ce8956c6289a6aed5b0"
+      },
+      "sha256": "075fdad696bbe790a51b6dade92668dab235d4a5dcd5e2bd50d23932e71609e1",
+      "bytes": 597
+    },
+    {
+      "path": "backend/app/core/settings/customer_session_security.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/app/core/settings/customer_session_security.py",
+        "blobSha": "3628735c24c9ade3eb14811a7a68872e628dca06"
+      },
+      "sha256": "8f4176bb8189bf3bb34eca3401d6050551c918f7b0f67039b2fbe6ddd0b15f03",
+      "bytes": 1438
+    },
+    {
+      "path": "backend/tests/test_practice_acoustic_model_asset.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/tests/test_practice_acoustic_model_asset.py",
+        "blobSha": "b3041c41589e7db9cf603948824ce363e421e5d4"
+      },
+      "sha256": "866ae71f45627d0c6bb692960058139f97a4d45b489d56e02cd5ced837667f3b",
+      "bytes": 3163
+    },
+    {
+      "path": "backend/tests/test_model_assets.py",
+      "domain": "GIT_OBJECT_CONTENT",
+      "representation": "SHA256_GIT_OBJECT_CONTENT",
+      "subject": {
+        "kind": "EXACT_GIT_SHOW_BYTES",
+        "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+        "path": "backend/tests/test_model_assets.py",
+        "blobSha": "ceb918f9e446618a3253f04be6f892f77e6d1c12"
+      },
+      "sha256": "9ea58a691476d469fb4cc668b155021ccf679dd86c8be93c06386c07dc6e3d70",
+      "bytes": 4823
+    }
+  ],
+  "facts": {
+    "frontendProtocolHasSameOriginApiBase": true,
+    "nextConfigurationUsesBackendInfrastructureRewrite": true,
+    "apiClientUsesCredentialsInclude": true,
+    "accessFunctionIsProductionFunction": true,
+    "backendRouteRequiresCurrentUser": true,
+    "backendServiceIsAssetPresigningOnly": true,
+    "productionStoreAndLoaderReadOnlyInspection": true,
+    "executedProductionCode": false
+  },
+  "proofScope": "Read-only pre-environment source inspection; not complete delivery qualification or browser execution"
+}

@@ -1,0 +1,23 @@
+{
+  "authority": "New prospective records above; historical values are additional sanity only",
+  "comparisons": [
+    {
+      "path": "backend/app/modules/model_assets/router.py",
+      "prospectiveBlobSha": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "independentlyReportedHistoricalBlob": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "equal": true
+    },
+    {
+      "path": "backend/app/modules/model_assets/service.py",
+      "prospectiveBlobSha": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "independentlyReportedHistoricalBlob": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "equal": true
+    },
+    {
+      "path": "backend/app/modules/model_assets/schemas.py",
+      "prospectiveBlobSha": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "independentlyReportedHistoricalBlob": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "equal": true
+    }
+  ]
+}

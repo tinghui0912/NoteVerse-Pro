@@ -1,0 +1,10 @@
+{
+  "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+  "entryCount": 3953,
+  "rawInventoryByteCount": 258078,
+  "rawInventorySha256": "cd00c744fe92b992f362c74a58890a19b1f103bfca16abe4f725c7b8d629806f",
+  "requiredPathCount": 19,
+  "allRequiredPathsPresent": true,
+  "inputAuthority": "DIRECT_CHILD_PROCESS_BINARY_BYTES",
+  "fullPathInventoryPersisted": false
+}

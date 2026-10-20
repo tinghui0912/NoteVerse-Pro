@@ -1,0 +1,46 @@
+{
+  "result": "LOCAL_PASS",
+  "tests": [
+    {
+      "name": "A exact required blob path passes independent Git plumbing",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "B absent required path fails closed",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "C long inventory with truncated display cannot affect exact path checks",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "D Warning truncated output is rejected as authority",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "E omitted-middle display marker is rejected as authority",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "F internal binary count and SHA256 are deterministic",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "G duplicate required-path record fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "H unexpected blob identity change fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "I nonzero Git command exit fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "J directory existence cannot substitute for a required file blob",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    }
+  ],
+  "syntheticOnly": true
+}

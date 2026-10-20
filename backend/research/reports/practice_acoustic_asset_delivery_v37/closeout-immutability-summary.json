@@ -1,0 +1,11 @@
+{
+  "startingHead": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+  "protectedObjectCount": 3953,
+  "protectedGitIdentityListSha256": "407c380b0e1a0c361d3e4cc8394477b45a5b47c73f4289c01db399de39a6c222",
+  "historicalLocalFileCount": 2124,
+  "historicalMaterializationIdentityListSha256": "27209e6b72a1c831decf3fedde59c5a51fbbf953544352d9df29f004b101516f",
+  "inputAuthority": "DIRECT_CHILD_PROCESS_BYTES_AND_EXACT_LOCAL_FILE_BYTES",
+  "completePathListsPersisted": false,
+  "productionDiff": [],
+  "V3ThroughV36Diff": []
+}

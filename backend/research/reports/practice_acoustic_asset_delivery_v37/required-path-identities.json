@@ -1,0 +1,141 @@
+{
+  "startingHead": "ae3ade29cfb35903c628b7433e5c1350d8004fe2",
+  "requiredPathCount": 19,
+  "allRequiredPathsPresent": true,
+  "authority": "PER_PATH_CAT_FILE_E_REV_PARSE_CAT_FILE_T_AND_EXACT_LS_TREE_BLOB",
+  "records": [
+    {
+      "path": "apps/customer-web/src/lib/app-protocol.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "ac462c9508511553143dca06b777f2079d0c9d4d",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/next.config.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "8216bc16e67ab7b429f1f235f1310284b8726380",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/api-client.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "5e9b70b14e172548facd6835c744f6d9dba18af2",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "511b9c60c22a1fc0e23f463693e0da4c8d4620c2",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "a091106903f35f1f66aa7affa8145ae865059407",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "b98652db79aa44b4ff32944f8da93b2f4c0b8707",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "19e390b81a400093b890b3e86664f620798656c4",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "7c781dee7edd4f27690419a37d59fe19426315fa",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "800e322f1cb13c230e5de5e315d0ef5af974f43d",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "fd3f852c85d5b279c52cc30578493a6912807133",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/api/deps.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "e07546b2227390e3130c2f07faa2e255e9e624f7",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/modules/model_assets/router.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/modules/model_assets/service.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/modules/model_assets/schemas.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/core/settings/model_asset_delivery.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "f7abc7652ddef4e92ca6e618b40b8f7bd773cc13",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/core/settings/browser_cors.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "3e76c90ea6977ad479287ce8956c6289a6aed5b0",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/app/core/settings/customer_session_security.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "3628735c24c9ade3eb14811a7a68872e628dca06",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/tests/test_practice_acoustic_model_asset.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "b3041c41589e7db9cf603948824ce363e421e5d4",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    },
+    {
+      "path": "backend/tests/test_model_assets.py",
+      "exists": true,
+      "objectType": "blob",
+      "blobSha": "ceb918f9e446618a3253f04be6f892f77e6d1c12",
+      "startCommit": "ae3ade29cfb35903c628b7433e5c1350d8004fe2"
+    }
+  ]
+}
