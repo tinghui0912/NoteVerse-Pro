@@ -1,0 +1,1680 @@
+{
+  "artifacts": [
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "94a042eb56bb6bea42521e65547cab632ab84b693379599a1d55dff4824fac35",
+      "bytes": 132684
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/worker.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526",
+      "bytes": 33908
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/browser-input.wav",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "47e9287126bd2b0f1589abb972c98bac467c1850b2ad620a7b3604d26d9b316b",
+      "bytes": 3685040
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/build-and-environment.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0d46a0b1a5b3ba4be3343ab99b6e07061d5600973c497eb093a755aba18e58d9",
+      "bytes": 6659
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/contract.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f983c5f9f234b6ec13d2e1bd30696a20b4d922c89a70dd3104bbdc5976221056",
+      "bytes": 6913
+    }
+  ],
+  "assets": [
+    {
+      "route": "/model.onnx",
+      "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "bytes": 98689283
+    },
+    {
+      "route": "/ort/ort.webgpu.min.mjs",
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+      "bytes": 333468
+    },
+    {
+      "route": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+      "bytes": 46839
+    },
+    {
+      "route": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+      "bytes": 21663894
+    },
+    {
+      "route": "/model-assets/practice-acoustic/fir-160-441.f32",
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+      "bytes": 35284
+    },
+    {
+      "route": "/model-assets/practice-acoustic/fir-1-3.f32",
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f",
+      "bytes": 244
+    },
+    {
+      "route": "/acoustic/source/capture.worklet.js",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "8fb151efdca3c6aff0a06c5843543aa2b493a0e6dca591bf053ac671c705f34e",
+      "bytes": 4356
+    }
+  ],
+  "sourceInputs": [
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+      "bytes": 5010
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa",
+      "bytes": 2188
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+      "bytes": 3633
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5",
+      "bytes": 2653
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109",
+      "bytes": 559
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353",
+      "bytes": 1977
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "49ea38c9a08bc81802f12d96dd2a531016f1c5f3da92ec649cf5b5f4bb02dbe9",
+      "bytes": 3251
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7",
+      "bytes": 11961
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6",
+      "bytes": 2997
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e815f34b6617490e6a3823572058a1acd78cf5e8a60d17535e12753bcdf657f4",
+      "bytes": 9691
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "956871490adc449af9964c7e4b1ff084890ebef98e85139e12f01dc94d5248f8",
+      "bytes": 2205
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts",
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ce6d84d8c42f2a36e7304d15a21dd357b9577b10ac113d2ef268ceca544bbedc",
+      "bytes": 2567
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "486f8f5ab6a5ea6c29cfed93660070815c281af4ef18cb6d9c7cc144222f9725",
+      "bytes": 11386
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/auth/return-url.ts",
+      "path": "apps/customer-web/src/lib/auth/return-url.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b81a1d63bca5680afbde187b58f63a2df2464632064d7d908b0b6850bda5a86d",
+      "bytes": 1257
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/app-protocol.ts",
+      "path": "apps/customer-web/src/lib/app-protocol.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "99a7e751cf168e41f8a9af0870ed427d293abc9a194df9991604aff15cf5cb02",
+      "bytes": 211
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/observability/client.ts",
+      "path": "apps/customer-web/src/lib/observability/client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5825155ef8242c9b3fd5cb8f3b24668c8c4ef74aaf33d6c0b9b8a0e15c3b73a5",
+      "bytes": 2291
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/observability/index.ts",
+      "path": "apps/customer-web/src/lib/observability/index.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4fdada31cc0d87f2d0b941dfa01d64b668f87f9d4709e2a52cecfb753dc27711",
+      "bytes": 80
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/api-client.ts",
+      "path": "apps/customer-web/src/lib/api-client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2b08bd76661e769eec0cdb8d632741e05baca4e476ae5905d3e24a1c2c36162a",
+      "bytes": 12330
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "path": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a34c1b372ca843f5f8b02d740893ca1eabbd66f54d52f5ffa87151f37442cb4f",
+      "bytes": 1631
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e",
+      "bytes": 3538
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e93d784efc58f6b90b4a79a2df230d074c2c82e8178753f4aae5ce3ce1027211",
+      "bytes": 330
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6d31409bca8f2210bcf7573f7c0ae6d53e0706252796eb1c73fa0892bbcf9c2b",
+      "bytes": 5431
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "022c99f65e4e327f26baa5d7f8e6a7d3d7eef441e781cb6e6deb2e49b9e8c56a",
+      "bytes": 1611
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6",
+      "bytes": 9183
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5",
+      "bytes": 513
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f227643ee07a338d7b21294819c0384d78377f10326994c45fe6599de1d5a70d",
+      "bytes": 2719
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1fe3c00c3ebaa1e56f0d7fc96143650cfa1105a757a24e02c7529b3e2a11c13d",
+      "bytes": 2349
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dab8396fbc9293d3f7c7926f5c39f28eaec01258a87f02b75a9212a1ae40352a",
+      "bytes": 12272
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5e53a616150666ef16760f6cc3672556c83ffe6ffcce7e5dad2dce73df14d886",
+      "bytes": 1184
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json",
+      "path": "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2411500a2b6b152bf70479e989cecf5ff56d4cbb12f4bed3659b1c79319cc080",
+      "bytes": 18582
+    },
+    {
+      "metafileInputName": "backend/research/step_microphone_browser_v26/contract.json",
+      "path": "backend/research/step_microphone_browser_v26/contract.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f983c5f9f234b6ec13d2e1bd30696a20b4d922c89a70dd3104bbdc5976221056",
+      "bytes": 6913
+    },
+    {
+      "metafileInputName": "backend/research/step_microphone_browser_v26/entry.ts",
+      "path": "backend/research/step_microphone_browser_v26/entry.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a7a2d1922901d0085021e1469b618ddc2a64075eb752f473e38ca6646b7784ad",
+      "bytes": 18977
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/model-assets/types.ts",
+      "path": "apps/customer-web/src/lib/model-assets/types.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "87aa36d41db9561640b7f396a1ef028baba55a0d484590081ee67e4963ee7131",
+      "bytes": 2098
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d",
+      "bytes": 17394
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "path": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d84a81506f45c708f9bce655f52f78dfe72016d4c0d5c506b6ae48c67e3f8f69",
+      "bytes": 493
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+      "bytes": 5010
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa",
+      "bytes": 2188
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+      "bytes": 3633
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe",
+      "bytes": 342
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e",
+      "bytes": 2780
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a",
+      "bytes": 1211
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3",
+      "bytes": 1132
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1",
+      "bytes": 5334
+    },
+    {
+      "metafileInputName": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218",
+      "bytes": 1183
+    }
+  ],
+  "frozenProductionAndSourceIdentities": [
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758",
+      "bytes": 46839
+    },
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b",
+      "bytes": 21663894
+    },
+    {
+      "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65",
+      "bytes": 333468
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f",
+      "bytes": 244
+    },
+    {
+      "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+      "bytes": 35284
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-local-practice.test.tsx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4f7bebfdab47f3f9ca97d57c02fd16c9dec3f798d0f725d67d0aa85d8dc2d7af",
+      "bytes": 18931
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-local-practice.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4900321545d554f7d11aeee58b7f6818f3512ddd33981bae6c283866774bd1b6",
+      "bytes": 6373
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-practice-ready-score-content.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e7a65b3fc0d571e59dadee84e2d217e28d94827b2ecc39c340083d8f7e9ece0c",
+      "bytes": 612
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-practice-score-artifact.test.tsx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "fd11cb8f5063366410d7623dc123287be483e1d26d96cfc2d836dbd0fafc996f",
+      "bytes": 2011
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-practice-score-artifact.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a523f867cd4d2d945ea7601cabcb1b00cdf95eee698498dae9dac3a9c8531d1c",
+      "bytes": 1019
+    },
+    {
+      "path": "apps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "cd6e32ac46fea17538fde9c40c5853e4d4ab14e6c0ba3bd2d6608a7286f19e23",
+      "bytes": 5218
+    },
+    {
+      "path": "apps/customer-web/src/lib/api-client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2b08bd76661e769eec0cdb8d632741e05baca4e476ae5905d3e24a1c2c36162a",
+      "bytes": 12330
+    },
+    {
+      "path": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a34c1b372ca843f5f8b02d740893ca1eabbd66f54d52f5ffa87151f37442cb4f",
+      "bytes": 1631
+    },
+    {
+      "path": "apps/customer-web/src/lib/app-protocol.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "99a7e751cf168e41f8a9af0870ed427d293abc9a194df9991604aff15cf5cb02",
+      "bytes": 211
+    },
+    {
+      "path": "apps/customer-web/src/lib/auth/return-url.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b81a1d63bca5680afbde187b58f63a2df2464632064d7d908b0b6850bda5a86d",
+      "bytes": 1257
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d",
+      "bytes": 17394
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/types.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "87aa36d41db9561640b7f396a1ef028baba55a0d484590081ee67e4963ee7131",
+      "bytes": 2098
+    },
+    {
+      "path": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d84a81506f45c708f9bce655f52f78dfe72016d4c0d5c506b6ae48c67e3f8f69",
+      "bytes": 493
+    },
+    {
+      "path": "apps/customer-web/src/lib/observability/client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5825155ef8242c9b3fd5cb8f3b24668c8c4ef74aaf33d6c0b9b8a0e15c3b73a5",
+      "bytes": 2291
+    },
+    {
+      "path": "apps/customer-web/src/lib/observability/index.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4fdada31cc0d87f2d0b941dfa01d64b668f87f9d4709e2a52cecfb753dc27711",
+      "bytes": 80
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/__fixtures__/continuous-truth.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "8e807a7a0aee5e9bb91b1838eece54ce81f969e48c0bc16bf7d5ab2aa525a354",
+      "bytes": 1452
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/README.md",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4f031c5952d5f2dce0bcc4181945fd1268b78b8e06b04f0d72f9a68a317d1220",
+      "bytes": 3867
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6d1126d528da72a8251a63ff7d2d65176d7adc0efcad77a5af89330864501df5",
+      "bytes": 5006
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "bc0561f01a6fd18b0cc7b87590e1ecbfa5a8fa74537c97cd287787941274b72c",
+      "bytes": 6445
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "11b0a44be5138de4ef32ed01818a8e967aaa43d8380bffb43ad2a7621530cf1d",
+      "bytes": 7170
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/publication.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "8ebadaadda772bb39b7c32bdfba2a16da5c4ea1dd80ef3c4e8e8bba21ce46068",
+      "bytes": 2392
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/continuous/runtime.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "cb28f73eec16f6237cc103e22226597c9f4db94fc5f350567a15504933b7d9f2",
+      "bytes": 25458
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+      "bytes": 5010
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b6e23d455acd80f9950e486e0593c126ce6f56591c914d5b6957d809eb0fb5d3",
+      "bytes": 1132
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218",
+      "bytes": 1183
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/decoder.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "def278782f5300862254f16761f60fcd116057605821d52a9b5ba36e7477291a",
+      "bytes": 1673
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "afa6a41b9449ad759df22205be98293519bdb1164e92e31009dfe3ca22976c7f",
+      "bytes": 4950
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+      "bytes": 3633
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1",
+      "bytes": 5334
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1b3b5cbacf7dd92378369051e5e3fda3fce2bfdc4d8f6d76c2bde4f9eb6c523a",
+      "bytes": 1211
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ec210bfcf46c28f32ed6e838aded2b2b63a687bd509a2eb324daed972d7853fe",
+      "bytes": 342
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "15049d5910377b6f55dc5d11403a2ed8b4022d7f17e0e609d5c47ce29ecd6e6e",
+      "bytes": 2780
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/window-geometry.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e37e1b4caca3de72f0f49c9e3f6bf8c6826c032ca79fcb8ea2cc5b60c64727a4",
+      "bytes": 1170
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e",
+      "bytes": 3538
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/inference-types.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "80dbe50620191795a19a255f0070614e1c600da141d6285aee0a440040202b0e",
+      "bytes": 692
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f07c1e5f10033ded408e5ee108e44982e13466427b81f9b536421d1a1a888109",
+      "bytes": 559
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f7440917cfaa9a87d8dafb667e7334d3849ab0cb498244d326b206edc5fe32f2",
+      "bytes": 2196
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7",
+      "bytes": 11961
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "844197fef19b2a764db9bd887caa14abb1fee471207ec9cef41b134f192929bd",
+      "bytes": 1976
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "49ea38c9a08bc81802f12d96dd2a531016f1c5f3da92ec649cf5b5f4bb02dbe9",
+      "bytes": 3251
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "41a8b073d94f6eaf57505da81078e9b710568858d9ebe6cb452d6d6e07f43353",
+      "bytes": 1977
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-architecture.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "cbababfa167d9f89f99857a28d7ee2a206cfab47eb8494cce70d588528179659",
+      "bytes": 2436
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-parity.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6bb2bdd3a36e63cf451708b486ad398d469a994434947fd387795d9138f2b6f8",
+      "bytes": 6202
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e93d784efc58f6b90b4a79a2df230d074c2c82e8178753f4aae5ce3ce1027211",
+      "bytes": 330
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a8eadfe0f4b8e4e7bf795a68edd12e84cf14f9c5a121f9628abd0cce0e8256f6",
+      "bytes": 6693
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture-types.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f130ce409374cc99f2a6511217f42255b1e6552a4a9b7c7fb340c805482a5c4a",
+      "bytes": 537
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6d31409bca8f2210bcf7573f7c0ae6d53e0706252796eb1c73fa0892bbcf9c2b",
+      "bytes": 5431
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "8fb151efdca3c6aff0a06c5843543aa2b493a0e6dca591bf053ac671c705f34e",
+      "bytes": 4356
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/dsp-parity.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9410643d03cf18edf99f2ba362c11f23f73f69cd197aa237bcf3b9cf85859bff",
+      "bytes": 2347
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-errors.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f7811d5ed12c07d7c2f1212bd66e6426abb461c82d4187916ef8b537d2691813",
+      "bytes": 1530
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5e53a616150666ef16760f6cc3672556c83ffe6ffcce7e5dad2dce73df14d886",
+      "bytes": 1184
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa",
+      "bytes": 2188
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5",
+      "bytes": 2653
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "956871490adc449af9964c7e4b1ff084890ebef98e85139e12f01dc94d5248f8",
+      "bytes": 2205
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/capture/performance-pcm-timeline.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2205a915f945bb21d9ca5f6855102934adb5ae8f913ae0d4954d233a7d7670f4",
+      "bytes": 14800
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/capture/performance-pcm-timeline.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1c57c9dc76f23834acc56acb6c1e3387a630db71b0f235b17c6983f82aee3c82",
+      "bytes": 13227
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/observed-attack.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "08d812f078d119080634a9530b98fda61e1f38450f419cb6426cb84b8bb3bcc5",
+      "bytes": 158
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1e4b30fe2664bef870756af56d2b6863393f164eb85fb206e481c7ac7ad06d87",
+      "bytes": 6355
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c2b6434d820ad168f5fdec4770d53b02435995a688a57aef4b19060f2a6b474e",
+      "bytes": 6327
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completion-outcome.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d3a01ded77a65d4e0dcd0f0ca83c78cb61455693866c1f80f69bfded5221df90",
+      "bytes": 201
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous-microphone-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e92132915728220ba4baa96b650e8bde619f014a3936b73fba4125b406435fb1",
+      "bytes": 457
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/audio-context-performance-clock.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a1e5687fd1b9d51dbc167d93c3685de34662a2eed5e4035e5e189436fee6780e",
+      "bytes": 927
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/audio-context-performance-clock.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e9ee7e761c3f4cf376e1ce5b77dfa07689721e5f5c7ccf9b269370fbd30cbf58",
+      "bytes": 907
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-architecture.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ac9def7359407cba1106ade837d68738684f39e4302961f1daf9121c2aac76fe",
+      "bytes": 3905
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-errors.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "49eed2d8b4f5d6b16944cc1e5e253877a9e511eacb7ea3456b5601905d3f2d59",
+      "bytes": 1650
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "90c53a9709d84174e8fb73f638f7aac30674ef729b5c72536c464ab6a16d2b35",
+      "bytes": 2502
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5043a453da25ae8d0fb98ac80727d62d582776aefe1db1003ca721dee854ed18",
+      "bytes": 5787
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-midi-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a3fb8b31837545852a1d28fbd4e6fd06ce8f8bc09712aaf139aa53797ecafa46",
+      "bytes": 625
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-platform.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9bf0da8a1d49b6c27d438e22ab1d663ab61c8d15c34ccd48e11d6993096b89ab",
+      "bytes": 1710
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5d5ea31e0882195cf88098bed3977d1e2086e6595eeb0230b35aa59ad6480176",
+      "bytes": 23625
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "90f5817590fb01e9b9806c4aac57c173404237912b558c29eb105284987f39f2",
+      "bytes": 20196
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-presentation.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a40770b7aeaba3dcc4599be2c0a1218a92400bf3c59787663a55665484c04957",
+      "bytes": 2111
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/continuous/continuous-presentation.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b277209d004f862f31ef8b08172d483a46aef68d8d11f013a67fc31902ce0726",
+      "bytes": 1125
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/cursor-scope.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "287f8e518ecf91bcd986060d34df8913b5b5aea1ef7a1ba1c8ef488f7f4ef11a",
+      "bytes": 5000
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/floating-score-svg.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "05a9a0241ffe92e29772d2ebf4f94610835258dbc49123deeded2875bb2adceb",
+      "bytes": 1327
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/floating-score-svg.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9d539daa222399bac056ccc2194d8be3a1f7e8e5cf8c2795b12b1307a5584f5f",
+      "bytes": 1210
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability-reasons.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f81130c7619bf6f7bf3ddbc729208ffbfbbad6120b0e62145967a0a6cb1ecffb",
+      "bytes": 184
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "049cb4d578ecfcf2b077c85c6fd76ea7b4018b3b5f5a0740763fd26a9718ad5d",
+      "bytes": 6902
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7",
+      "bytes": 6095
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/README.md",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "30d43822eeadbb5de8f46cb9bc4a861a77ef10f7ff32141d867f4b6ff82c2507",
+      "bytes": 5426
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2411500a2b6b152bf70479e989cecf5ff56d4cbb12f4bed3659b1c79319cc080",
+      "bytes": 18582
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/artifact.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a7b70e14137eea123f2e1074a2c8b20fbe17c39b61d09f62a0a29fbedb79afe6",
+      "bytes": 9183
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-assignment.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "487ac9da8af1fa4ed54cbd1e87b22acd898f3b8f5f2da3dc78ee2fc6b6b473bb",
+      "bytes": 2245
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-projection.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "8c79f043abca037f7017dfad48b484302e67887d5105fbfc9b4f79e4be71fcdb",
+      "bytes": 1082
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-session.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "cf86c00a0b48e091672eb78e4f954ffcf7d46dea242b7f03979adaaeb6a52011",
+      "bytes": 2523
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-session.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dcc0010e6871ddb873039c19914c1be96216e54e5779a9fa282db0c9cd0b302b",
+      "bytes": 1336
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-types.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d9dda83dd7d9c9632155374c68e107459c43878f2a21dddb43364b2d3cb315c6",
+      "bytes": 4293
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-expected-strikes.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "37f4908bdb9ed38513e6be91a0827f68d829fc90d93aa3491bc0b651668c65b4",
+      "bytes": 2788
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-policy.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2fbc3daeacdc5b250908b43f7db3918c81ab95c45574c6e8f117e33b82570ff6",
+      "bytes": 1799
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "765928ba396f899cd7a0fb5c2dbad15efdab82cb2a589cbed7dcc119738f4121",
+      "bytes": 11351
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b53730927d7875d34b5b2157dc4e847f03ec8350efb089f99442ba57350a05cb",
+      "bytes": 15145
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-midi-evidence.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1ed138a3e625e2b36c34bb9c5620d1bc726a28e4fd5dfb20bdf7d87cfe1b3b98",
+      "bytes": 1392
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-observation.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e915468afb986160e4b6f9d973a7d9d6668633b3eee8406238c13722fc8697eb",
+      "bytes": 4206
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/cursor-scope.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ab7494eefba9acf12d1ee2b27c233f972eddecbcd557796fc918f5ae3e7de584",
+      "bytes": 971
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/evidence.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "54695709573ea4ee36bc6432adf8536f44c693c5412af561e7cf3b2a8713b3d5",
+      "bytes": 513
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/index.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f25ecf4ae4bea06d3ff52de88b86e4ba23a3cd1bf698d3a845f57b949b5b308d",
+      "bytes": 515
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/local-practice-core.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2a18bd8a53982df34346c3a9478321b00451ca65b7644edf24af59d3150f62cd",
+      "bytes": 46335
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/performance-clock-numeric-identity.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "79ef4cbbf3d71fa38c9deafc46d0deeb051d2e7ea07db4425de27fd2eda62a95",
+      "bytes": 5755
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/performance-runtime.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1839e530e1c7e70515e401adc34558b038d4d6abddbadf9964ab64c8a0ceb92b",
+      "bytes": 21708
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/practice-tempo.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "66aa69c88b2a4fd658c4afb7a913f68270a50884e6517f5ea01fbbcfbc6cc31b",
+      "bytes": 8550
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/practice-tempo.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d3f7cb8bed7cd4cfb2f716c28d6d6fc0e262e4fd5c3445114024d53f8158a076",
+      "bytes": 9489
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/session.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f227643ee07a338d7b21294819c0384d78377f10326994c45fe6599de1d5a70d",
+      "bytes": 2719
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b24137766add88eb48b839063db07fcf84879f404c0245906e6bce872384c05c",
+      "bytes": 8777
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1fe3c00c3ebaa1e56f0d7fc96143650cfa1105a757a24e02c7529b3e2a11c13d",
+      "bytes": 2349
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-paced-lifecycle.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c24df6ef88531f4d876e06329a4c0557fde31bc84d24c70ee412274a1c01d341",
+      "bytes": 6867
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-rearm-watermark.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "fd31330c1759fdd2db8e9e364e76c8778bfc6929f4f8384bf6a16f2821f08aab",
+      "bytes": 3814
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime-status.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "3f27cd5848abf130fc16031da5450e538bf617c56f99c14d690c1d4968d8e061",
+      "bytes": 5111
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dab8396fbc9293d3f7c7926f5c39f28eaec01258a87f02b75a9212a1ae40352a",
+      "bytes": 12272
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/step-verdict-policy.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d73a30f5f303b1d36333c04494bcb173b6c9e1baceafd6530f76a5994e2d1272",
+      "bytes": 7393
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/timebase.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "bcd9cf511826cb6c70487e1280b03bb4d3570e010935d36fd57448a38427bbc6",
+      "bytes": 2997
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/metronome/metronome-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "465df11fd1b22b885bf78d606065ede05471553844a9a576b51b882f5404198f",
+      "bytes": 14667
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/metronome/metronome-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "004c8433ef33f10ac922bd5126477cad4b069662a13dec0e8dc4ee7b84afa938",
+      "bytes": 15532
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/metronome/metronome-pulse-planner.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "3bfde77dacee5bf01396c5cc06c7a2db4a4a8c4ecf48bb9b5d6b4e673ca10575",
+      "bytes": 21115
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/metronome/metronome-pulse-planner.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "89e7a0a2fd67c87ae2a396fcf8101159a99ee61bb9e8435d83288bc515debf82",
+      "bytes": 18132
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/midi/browser-midi-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "115161ef9fe0a41ed9ebc3ae7d12fe933a3b6297748b5dd38723fffc02a5079f",
+      "bytes": 7602
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/midi/browser-midi-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c4cf607ac569c69511111850f7eb7d487183451353062db4c6127caf385a5ba7",
+      "bytes": 6701
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0b896447873abfc074ea6525c852cf617f5e33b0d730159a4069b319e0ae32a0",
+      "bytes": 5275
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-annotation-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c5c91a35e8b9d948344fe39b86a8b531903001c26a13693586718e8588e3a7e0",
+      "bytes": 5970
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-playhead-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "7d381da2e2a43249a978a37878334c340704846c4ac02a13beff787d2e3c55fc",
+      "bytes": 5463
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-playhead-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "41d0ab3b98c203b168032ef24c726eb5703b9038fef3760bf295d9bc246e2203",
+      "bytes": 3246
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-recorder.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b9dac2811957a18dde2392d908828b3bea7a0c02f141dd2531395abb12958d3d",
+      "bytes": 8736
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-recorder.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "441cae0def075fe0bb7ee7708d3b5e5674c5b66bc76d13ffd12a16bab59eb713",
+      "bytes": 11635
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/performance-replay.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "29a2db6b435bd656f38e76652aab19632f6bf5c0deeff8b3bb80f5d1b867b21e",
+      "bytes": 520
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/playhead-cursor.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "40fd432bde00ccec9cb82efe44db2cdf68ec2afd50274e453ca22e7cce8ca4fa",
+      "bytes": 26675
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/practice-architecture-boundaries.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0bd6e560395dc456a7f23a10e7fd9234864d7eff023a683d43ea648c02fe17dd",
+      "bytes": 15145
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/practice-render-identity-contract.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "87e27a475456b0443509110d6f97a7e040311e1712a538afe45afd5ad1c6c898",
+      "bytes": 1607
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/practice-scroll.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0c6398f137a7ec005da59053fe539d0c111f9fe6dc4d1c8064a12fa0eafbd322",
+      "bytes": 2211
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/range-selection.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "efc618b85a7e33c83d2c5eb8fdb56ec873383581cb0fd5844c7f9caed00f2359",
+      "bytes": 5547
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/range-selection.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b093d790c93c0cb9a9fb43eb15bedf79b411af6ff1e6476c7a183d6928e62822",
+      "bytes": 4248
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/scope-timing.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d2f3261e795d09ebc25b33055d143e4cd1f2db8b6a8fb960e58f207c5d98755c",
+      "bytes": 748
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-export.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5102f07ec2fa99cbfc3897124ed87088eed740ba2e43d6494d0690b784da9e8c",
+      "bytes": 38041
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-export.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "087bcc66c53ca318917aeb0a8724dbcfe45eb608dadf9676e2c17de06c8503b5",
+      "bytes": 15208
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-frame-renderer.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "655d2f77098acba9984a8f578c5b5ad384f350b27e4a834a4ecdaefada64597f",
+      "bytes": 7700
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-playback-position.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2165349a01a4716564c066d024f7be213ac97920681f7db9764769f5521092e1",
+      "bytes": 2117
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-preview.test.tsx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2a08bcea8031332ec819f9e57cd0efa815f4f47b4e9ad2cc437acf701f619fa7",
+      "bytes": 7128
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-preview.tsx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1d631ea2a44f6bbd9f5fff1ddede1147b2877655fe353ff3de676e42f45fd11e",
+      "bytes": 14508
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-score-camera.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "3023a532ef9de43e6800510c43cb0e33a5fa864be0b17cd744258b3592c16cfd",
+      "bytes": 517
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-score-model.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0aa8a7eb9e776d7ab3a4e2cb9563ecc109626c666357d3360a3e687f9d7f28ae",
+      "bytes": 18892
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-session.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "2137216180b8feda7b0237d8d7a79b15649eeabf5c3d1391e786163fdae00fdb",
+      "bytes": 8154
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-session.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "074f3819023c01e1359a705b153127e49c8ee149298f15bba2827ab501baea6c",
+      "bytes": 10515
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-templates.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0cc905d8f905e6114ef5f68c49f4ec3fd63d21fd7ebeba946118b8cec961dcc6",
+      "bytes": 3727
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/share-video-templates.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "290bc62ea4bac51aecbb9202416dcadbed3949c7d48556cdc28366988996d74f",
+      "bytes": 2591
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step-playhead-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "7c32fcf841026138329f80b5f9f94b63eb8a0d77bf14366a10d002988e178b20",
+      "bytes": 3996
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step-playhead-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d4e76b44dd51a34fe9d4558dbd53d5406bfb4b1d05c7f46d77db65ee58fa64e2",
+      "bytes": 2838
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/README.md",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "3cae3a3498ff5b71ca21be989019c25907619c205f87c27b7e3d2814dbf6a08f",
+      "bytes": 5167
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/exclusive-boundary.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "31cb9eb9cfe24c59550ecdd4821a8cb72bb04c4ff7c390dc6c8342d98a10fee3",
+      "bytes": 1002
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/input-time-contract.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "7c51fb3627ae134cd1fbe1b330c6b1caecca21f1bc978f71d81b0c4fc432a4f5",
+      "bytes": 2073
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "df686bd26ceaf922d40694a25690e4e45dd1c537826952a0e0014595306fc4c2",
+      "bytes": 14547
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e815f34b6617490e6a3823572058a1acd78cf5e8a60d17535e12753bcdf657f4",
+      "bytes": 9691
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ce6d84d8c42f2a36e7304d15a21dd357b9577b10ac113d2ef268ceca544bbedc",
+      "bytes": 2567
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "fa472cf84cdc30964e1169223125012b9fca3b8f1b61de1324679be4cf4bced3",
+      "bytes": 13622
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-errors.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dd0268cfbc7c5f0a18350b9ed5b2eb27929b706d493e77a72f548e04a9529366",
+      "bytes": 1304
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-architecture.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6bc9184ae1a5f03922eb95eaa757c570db2366708d77180d63bbf8b35fc8d957",
+      "bytes": 4231
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.integration.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c2937a4381ab78d9effe62747562770c275868a676beaf4fc083c96cea2e5d2a",
+      "bytes": 18766
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "486f8f5ab6a5ea6c29cfed93660070815c281af4ef18cb6d9c7cc144222f9725",
+      "bytes": 11386
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "022c99f65e4e327f26baa5d7f8e6a7d3d7eef441e781cb6e6deb2e49b9e8c56a",
+      "bytes": 1611
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "d662cbf787e57baa7bdbd52f1eb658ddfdca80997588fad36f4d164d150b4b19",
+      "bytes": 2900
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-paced-midi.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dd797103ec9a976fd130623ff6ed3fe507f0c05aea7b9a53ac744e94176adb89",
+      "bytes": 2305
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-platform.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9b766164f8d81dabed8ca49a9b2c9d2b235f9dec5a9da9907484248408bb048a",
+      "bytes": 1156
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a155b60fb3f6232786a7fd1ac0104b5a9a2f753abc28ff283486bf45e4d7b159",
+      "bytes": 19370
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "41dc5d6661d2154bb780e7f3455b3d5e765521427f35a4be6c48b1d87bd39af2",
+      "bytes": 9733
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "44243a084ff071e60cccffcbe16cdd64e5b4ce4625ebad81150465a4cad46ac0",
+      "bytes": 1105
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/waiting-contract.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0889e856b493c904e461f099c3fa7b6790c70b06425bd01a2b2fef91a801979f",
+      "bytes": 2546
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/verovio-adapter.test.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e8d02aa42289127e55df2dd3204f0e6d697b3df7e53ea2fcb37c1951a34fb6ab",
+      "bytes": 1979
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/verovio-adapter.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "80c9e3502c67f20e71a28aa745b733cc17cb2c0e07403b67803c49fda642cf9b",
+      "bytes": 5360
+    },
+    {
+      "path": "apps/customer-web/tsconfig.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "ad5286875d6909d6f632ca01361781a256a3bf75798e6ccc78addebc53c32eca",
+      "bytes": 743
+    },
+    {
+      "path": "backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/lib/main.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0d1241812c443111d39475dfc66836003e9ef8b87e54d990dd67df29d20010e1",
+      "bytes": 88706
+    },
+    {
+      "path": "backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/package.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "cb7d5b1fe478f8cbaae566a86031b6fdf5f7d444354f35d1cb3cba9adf6d2935",
+      "bytes": 1490
+    },
+    {
+      "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "bytes": 98689283
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/browser-input.wav",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "47e9287126bd2b0f1589abb972c98bac467c1850b2ad620a7b3604d26d9b316b",
+      "bytes": 3685040
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/build-and-environment.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "0d46a0b1a5b3ba4be3343ab99b6e07061d5600973c497eb093a755aba18e58d9",
+      "bytes": 6659
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "94a042eb56bb6bea42521e65547cab632ab84b693379599a1d55dff4824fac35",
+      "bytes": 132684
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v26/bundles/worker.js",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "fa72177cc90c3d91a7b48ef57225624cedd69e8dc232eb6bd8cc83ad502b0526",
+      "bytes": 33908
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v27/historical-identities.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "01862ef554ebfeccfc299dc9cb6832de151953776a6647d65a2e300cd86da574",
+      "bytes": 351719
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v27/local-verification.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "c1c570b61a2fd52d614dcb98ee444815516d25e755e94303c22eecbdae420e68",
+      "bytes": 1222
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v27/product-regressions.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a8c7733fc4d52366bd5e0244b793615899426ca17bac304ab49067145427d2ee",
+      "bytes": 186685
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v27/starting-gate.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e8443daf936171afcfeb4afbd7a6caa2d19dcb25ce5a8c1349ba202275706cad",
+      "bytes": 573
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v27/tooling-tests.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "75c33a94134fe9dab587f1757b8896f08594106cb7cc3f325bed35bd7fb90e7e",
+      "bytes": 1752
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/campaign.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "33889c35aa26892949c86b00d9049c1a3d3170890104c2429502df5f30ceb14a",
+      "bytes": 7051
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/closure.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "41dfbd260c891da62c38f0084184be1bd961fa856586d9ef2a1d989ce749d5d0",
+      "bytes": 3780
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/contract.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "f983c5f9f234b6ec13d2e1bd30696a20b4d922c89a70dd3104bbdc5976221056",
+      "bytes": 6913
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/entry.ts",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "a7a2d1922901d0085021e1469b618ddc2a64075eb752f473e38ca6646b7784ad",
+      "bytes": 18977
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/eslint.config.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "1efaf9b99632967844e64d5f5757d8e87f429f0c1232a916042808ad53ea1cb4",
+      "bytes": 736
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/run.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "283b7667815f326334f1f6ed2acd1eba3621018a4ad1effaea8d698696f71148",
+      "bytes": 18871
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v26/tsconfig.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "3383306938ff109daaab45481597c04650b5e9fcd9ca1e2ea3ce9e308fa904a8",
+      "bytes": 165
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/campaign.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "6c98321dfd6c538ba8ed700be9a4e6a2b0d2e4014a8ea8e8fe6450fe6bd9b179",
+      "bytes": 14272
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/classification.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "334488efbae1fd7b66dab7930ee8106eb5738e139b3384b9fea9d4478bc9c1b6",
+      "bytes": 2842
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/contract.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5abcadb53000c05daee3e8228ec357c4ebc119a838fcf914804911d42d4485f8",
+      "bytes": 3655
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/control.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "b358e8ec24cd8075c45de17c16d8adcd94164d13edb0458f953f5be3da3e1d4e",
+      "bytes": 6342
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/eslint.config.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "9f41e63f0c790ea3828ae826c50ab26aec14eeb145ef7e045be8c1a9fde8c425",
+      "bytes": 319
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/io.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "23bcbe3c20e71999da35aa169d75d0c45624949c375f0af4cd93a007a8c428e9",
+      "bytes": 2193
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/manifest.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "dbac0d9781c3c16023a6f69d51446ae844b6a2f60b6936f95dae34353dae0b7e",
+      "bytes": 5191
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/report.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "32120976d48611a2f6bbcfc9d39fa466be5e37606f869adf2b475dcef587bac5",
+      "bytes": 10966
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v27/tests.mjs",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "5d4e934368ca8060caa3b720d2fae8de51f4a2f4b7430d882778704484bd9402",
+      "bytes": 8244
+    }
+  ],
+  "coreRaw": {
+    "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+    "representation": "RAW_FILE_BYTES_SHA256",
+    "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb",
+    "bytes": 5010
+  },
+  "productionCanonicalDefinition": {
+    "path": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+    "representation": "RAW_FILE_BYTES_SHA256",
+    "sha256": "dca6d9c5feda834f356f3243e500c8542d1b83a65c724de815cb068d72c57ad5",
+    "bytes": 3633
+  },
+  "chrome": {
+    "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "path": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "representation": "RAW_FILE_BYTES_SHA256",
+    "sha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532",
+    "bytes": 4600472,
+    "staticFileVersion": "155.0.8059.80",
+    "versionProvenance": "Exact executable RAW SHA matches V26 FileVersionInfo identity; no browser launch during preflight"
+  },
+  "playwright": {
+    "path": "backend/research/browser_runtime/dr3r_browser_runtime/node_modules/playwright",
+    "version": "1.48.2",
+    "packageIdentity": {
+      "path": "backend/research/browser_runtime/dr3r_browser_runtime/node_modules/playwright/package.json",
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "sha256": "e0596151ae1f2776a59eeb8770a0b16664b07e5cf3282ccc10d74ad2c1952573",
+      "bytes": 1800
+    }
+  },
+  "ortPackage": {
+    "path": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+    "representation": "RAW_FILE_BYTES_SHA256",
+    "sha256": "c303615e5005055b8aac7fcaa196a1795fc5495c54c24b5250c7fa6bb0b915ed",
+    "bytes": 3355
+  },
+  "virtualInputs": [
+    {
+      "kind": "ESBUILD_VIRTUAL_INPUT",
+      "identifier": "<define:process.env>",
+      "bundles": [
+        "backend/research/reports/step_microphone_browser_v26/bundles/entry.js",
+        "backend/research/reports/step_microphone_browser_v26/bundles/worker.js"
+      ],
+      "semanticProvenance": "esbuild process.env define expression {}; not a filesystem file and has no filesystem SHA",
+      "buildSemanticDigestReference": {
+        "representation": "CANONICAL_JSON_UTF8_SHA256",
+        "sha256": "3ab14acfa29c94a10c8ae99822cca442076637ffb571ef3083b03be2b9f64a8a"
+      },
+      "filesystemReadAttempted": false
+    }
+  ],
+  "oldFreezeIdentity": {
+    "path": "backend/research/reports/step_microphone_browser_v27/browser-protocol-freeze.json",
+    "representation": "RAW_FILE_BYTES_SHA256",
+    "sha256": "c3a253f8cb8a7d0e5a79b3d6e67fc60975dec0511014d71485b9d4f9054e8e1e",
+    "bytes": 98659
+  },
+  "bundleRebuilds": 0,
+  "build": {
+    "environment": {
+      "representation": "RAW_FILE_BYTES_SHA256",
+      "chromeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "chromeExecutableSha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532",
+      "chromeFileVersion": "155.0.8059.80"
+    },
+    "semanticProvenance": {
+      "platform": "browser",
+      "format": "esm",
+      "target": "es2022",
+      "bundle": true,
+      "metafile": true,
+      "define": {
+        "process.env.NODE_ENV": "\"production\"",
+        "process.env": "{}"
+      },
+      "externalResolver": "onnxruntime-web/webgpu -> /ort/ort.webgpu.min.mjs",
+      "nodePaths": [
+        "apps/customer-web/node_modules"
+      ],
+      "provenanceSourceRawIdentity": {
+        "path": "backend/research/reports/step_microphone_browser_v26/build-and-environment.json",
+        "representation": "RAW_FILE_BYTES_SHA256",
+        "sha256": "0d46a0b1a5b3ba4be3343ab99b6e07061d5600973c497eb093a755aba18e58d9",
+        "bytes": 6659
+      }
+    }
+  }
+}
