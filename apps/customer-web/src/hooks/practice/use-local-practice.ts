@@ -6,7 +6,6 @@ import type { ContinuousPracticeLifecycle, LocalPracticeInputState, LocalPractic
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
-import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from '@/lib/practice/input-capability-reasons';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { useStepLocalPractice } from './use-step-local-practice';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
@@ -53,8 +52,6 @@ function usePracticeModeBinding(options: UseLocalPracticeOptions) {
       await dispose();
     }
     try {
-      // Product capability remains closed; qualification constructs the controller directly.
-      if (options.inputSource === 'MICROPHONE') throw new Error(CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON);
       if (!options.artifact || !options.scope) throw new Error('Score artifact is not available yet.');
       const current = new ContinuousPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,

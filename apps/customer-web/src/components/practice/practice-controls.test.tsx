@@ -214,8 +214,8 @@ describe('ContinuousPracticeControls', () => {
     const { rerender } = renderControls(false, {
       selectedInputCapability: {
         supported: false,
-        status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
-        reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+        status: 'BROWSER_UNSUPPORTED',
+        reason: 'BROWSER_UNSUPPORTED',
       },
     });
 

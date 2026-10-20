@@ -59,5 +59,4 @@ it('browser STEP startup and capability remain closed; no application consumer i
   expect(hook).not.toMatch(/StepMicrophoneInput|browserStepMicrophonePlatform|\.rearm\(/);
   const capability = readFileSync(path.join(__dirname, '../input-capability.ts'), 'utf8');
   expect(capability).toContain('ATTEMPT_ANALYZER_NOT_VALIDATED');
-  expect(capability).toContain('MODEL_NOT_VALIDATED');
 });

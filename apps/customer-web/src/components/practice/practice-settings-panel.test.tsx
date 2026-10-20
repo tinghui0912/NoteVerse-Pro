@@ -2,12 +2,61 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
 import { PracticeSettingsPanel } from './practice-settings-panel';
+import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
+import { evaluatePracticeInputCapabilities, getSelectedInputCapability, getSelectedMicrophoneCapability } from '@/lib/practice/input-capability';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 
 describe('PracticeSettingsPanel', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('enables explicit Continuous microphone Start, keeps STEP closed, and locks mode/input while active', () => {
+    vi.stubGlobal('AudioContext', class MockAudioContext {});
+    vi.stubGlobal('AudioWorkletNode', class MockAudioWorkletNode {});
+    vi.stubGlobal('Worker', class MockWorker {});
+    vi.stubGlobal('crypto', { subtle: { digest: vi.fn() } });
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn() }, storage: { getDirectory: vi.fn() },
+      gpu: { requestAdapter: vi.fn() }, requestMIDIAccess: vi.fn() });
+    const start = vi.fn();
+    function PracticeAvailability() {
+      const [mode, setMode] = useState<PracticeMode>('STEP_BY_STEP');
+      const [input, setInput] = useState<PracticeInputSource>('MICROPHONE');
+      const [active, setActive] = useState(false);
+      const capabilities = evaluatePracticeInputCapabilities();
+      const controls = { isLoading: false, isPreparingSession: false, canPrepareSession: true,
+        selectedInputCapability: getSelectedInputCapability(input, capabilities, mode),
+        rangeSelectionActive: false, canSelectRange: !active, onStart: () => { start(); setActive(true); },
+        onFinish: vi.fn(), onOpenSettings: vi.fn(), onToggleRangeSelection: vi.fn() };
+      return <>
+        <PracticeSettingsPanel practiceMode={mode} practiceModeLocked={active} inputSource={input}
+          microphoneCapability={getSelectedMicrophoneCapability(capabilities, mode)} midiCapability={capabilities.midi}
+          microphoneInputLocked={active} midiInputLocked={active} onPracticeModeChange={setMode} onInputSourceChange={setInput} />
+        {mode === 'CONTINUOUS_PLAY'
+          ? <ContinuousPracticeControls {...controls} lifecycle={active ? 'ACTIVE' : 'READY'} onPause={vi.fn()} onResume={vi.fn()} />
+          : <StepPracticeControls {...controls} lifecycle="IDLE" />}
+      </>;
+    }
+    render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}><PracticeAvailability /></NextIntlClientProvider>);
+    expect(screen.getByRole('button', { name: /^step-by-step/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Step-by-step microphone analysis is temporarily unavailable')).toBeVisible();
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /midi keyboard/i }));
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /^microphone/i }));
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^step-by-step/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /^continuous play/i }));
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }));
+    expect(start).toHaveBeenCalledOnce();
+    for (const name of [/^step-by-step/i, /^continuous play/i, /^microphone/i, /midi keyboard/i]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+  });
   it('keeps microphone and MIDI selectable before step-by-step practice starts', () => {
     const onInputSourceChange = vi.fn();
     render(

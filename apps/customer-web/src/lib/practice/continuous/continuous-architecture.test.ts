@@ -35,7 +35,7 @@ function constructions(file: string) {
 const controller = path.join(__dirname, 'continuous-practice-controller.ts');
 it('the React Continuous hook constructs only its application owner', () => {
   const hook = path.join(source, 'hooks/practice/use-local-practice.ts');
-  expect(constructions(hook)).toEqual(['Error', 'Error', 'ContinuousPracticeController']);
+  expect(constructions(hook)).toEqual(['Error', 'ContinuousPracticeController']);
   expect(imports(hook).filter(p => /acoustic-inference|model-assets/.test(p))).toEqual([]);
 });
 it('one controller constructs one product session, never a second evaluator', () => {
@@ -54,8 +54,8 @@ it('active Continuous has no old worker, research namespace, or output timestamp
   for (const file of product) expect(readFileSync(file, 'utf8')).not.toContain('getOutputTimestamp');
   expect(all.filter(p => /bytedance-worker-(entry|client|factory|protocol)/.test(p))).toEqual([]);
 });
-it('both microphone product capabilities stay unavailable', () => {
+it('Continuous fails closed outside a browser while STEP analysis remains unvalidated', () => {
   const capabilities = evaluatePracticeInputCapabilities();
-  expect(capabilities.acousticAnalysis.continuous.status).toBe('MODEL_NOT_VALIDATED');
+  expect(capabilities.acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
   expect(capabilities.acousticAnalysis.step.status).toBe('ATTEMPT_ANALYZER_NOT_VALIDATED');
 });

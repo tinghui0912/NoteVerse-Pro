@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
 import { renderHook, act } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
+import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
+import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
 import { useLocalPractice } from './use-local-practice';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -90,6 +92,7 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
 });
 
 describe('useLocalPractice', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
   beforeEach(() => {
     vi.clearAllMocks();
     recorderEvents.events = [];
@@ -627,25 +630,93 @@ describe('useLocalPractice', () => {
     expect(onCompletion).toHaveBeenCalledTimes(1);
   });
 
-  it('does not start legacy rolling microphone analysis for CONTINUOUS practice', async () => {
-    const { result } = renderHook(() =>
-      useLocalPractice({
-        artifact,
-        mode: 'CONTINUOUS_PLAY',
-        inputSource: 'MICROPHONE',
-        scope: { kind: 'FULL' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.start();
+  it('delegates microphone Start to the Continuous owner and reflects its lifecycle without fabricated evidence', async () => {
+    let snapshot: ContinuousControllerSnapshot = { session: 'PREPARING', transport: null, analysis: 'PREPARING',
+      analysisError: null, inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null };
+    const listeners = new Set<() => void>();
+    const unsubscribe = vi.fn(() => listeners.clear());
+    vi.spyOn(ContinuousPracticeController.prototype, 'subscribe').mockImplementation(listener => { listeners.add(listener); return unsubscribe; });
+    vi.spyOn(ContinuousPracticeController.prototype, 'snapshot').mockImplementation(() => snapshot);
+    const start = vi.spyOn(ContinuousPracticeController.prototype, 'start').mockResolvedValue();
+    const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose').mockResolvedValue();
+    const { result, unmount } = renderHook(() => useLocalPractice({ artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', scope: { kind: 'FULL' } }));
+    await act(async () => { await result.current.start(); });
+    expect(start).toHaveBeenCalledOnce();
+    expect(start.mock.contexts[0]).toBeInstanceOf(ContinuousPracticeController);
+    expect(result.current.inputState).toBe('STARTING');
+    expect(result.current.inputError).toBeNull();
+    act(() => {
+      snapshot = { ...snapshot, session: 'ACTIVE', analysis: 'RUNNING', transport: {
+        state: 'RUNNING', nowMs: 0, musicalBeat: 0, performanceTimeMs: 0, countInTotalMs: 0, countInRemainingMs: 0,
+        countInBeats: 0, countInPulses: 0, countInPulse: 0, scopeCompleted: false, scopeStartBeat: 0,
+        scopeTerminalBeat: artifact.scoreEndBeat, completionReason: null,
+      } };
+      listeners.forEach(listener => listener());
     });
-
-    expect(result.current.lifecycle).toBe('READY');
-    expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('CONTINUOUS_ANALYSIS_UNAVAILABLE');
+    expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(result.current.inputState).toBe('RUNNING');
     expect(result.current.performanceEvaluation).toBeNull();
-    expect(recorderEvents.events).toEqual([]);
     expect(completedPerformanceStore.getPerformance()).toBeNull();
+    act(() => {
+      snapshot = { ...snapshot, analysis: 'PAUSED', transport: { ...snapshot.transport!, state: 'PAUSED' } };
+      listeners.forEach(listener => listener());
+    });
+    expect(result.current.lifecycle).toBe('PAUSED');
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  for (const failure of ['model-load', 'microphone-permission'] as const) {
+    it(`surfaces real Continuous controller ${failure} failure and releases its worker once`, async () => {
+      const worker = { load: vi.fn(async () => ({})), run: vi.fn(async () => { throw new Error('UNEXPECTED_INFERENCE'); }),
+        dispose: vi.fn(async () => {}), onFailure: vi.fn(() => () => {}) };
+      vi.spyOn(browserContinuousPlatform, 'modelUrl').mockResolvedValue('/test-model');
+      vi.spyOn(browserContinuousPlatform, 'createWorker').mockReturnValue(worker);
+      const acquire = vi.spyOn(browserContinuousPlatform, 'acquireMicrophone');
+      if (failure === 'model-load') worker.load.mockRejectedValueOnce(new Error('MODEL_LOAD_FAILED'));
+      else acquire.mockRejectedValueOnce(new DOMException('Test permission denial', 'NotAllowedError'));
+      const start = vi.spyOn(ContinuousPracticeController.prototype, 'start');
+      const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose');
+      const { result, unmount } = renderHook(() => useLocalPractice({ artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', scope: { kind: 'FULL' } }));
+      await act(async () => { await result.current.start(); });
+      expect(start).toHaveBeenCalledOnce();
+      expect(worker.load).toHaveBeenCalledWith('/test-model');
+      expect(result.current.lifecycle).toBe('ENDED');
+      expect(result.current.inputState).toBe('ERROR');
+      expect(result.current.inputError).toBe(failure === 'model-load' ? 'MODEL_LOAD_FAILED' : 'MICROPHONE_PERMISSION_DENIED');
+      expect(result.current.inputError).not.toBe('CONTINUOUS_ANALYSIS_UNAVAILABLE');
+      if (failure === 'model-load') expect(acquire).not.toHaveBeenCalled();
+      else expect(acquire).toHaveBeenCalledOnce();
+      expect(worker.run).not.toHaveBeenCalled();
+      expect(worker.dispose).toHaveBeenCalledOnce();
+      unmount();
+      await act(async () => {});
+      expect(dispose).toHaveBeenCalledOnce();
+      expect(worker.dispose).toHaveBeenCalledOnce();
+      expect(completedPerformanceStore.getPerformance()).toBeNull();
+    });
+  }
+
+  it('disposes a pending microphone preparation on unmount without starting capture after it settles', async () => {
+    let settleLoad!: () => void;
+    const worker = { load: vi.fn(() => new Promise<void>(resolve => { settleLoad = resolve; })),
+      run: vi.fn(async () => { throw new Error('UNEXPECTED_INFERENCE'); }), dispose: vi.fn(async () => {}), onFailure: vi.fn(() => () => {}) };
+    vi.spyOn(browserContinuousPlatform, 'modelUrl').mockResolvedValue('/test-model');
+    vi.spyOn(browserContinuousPlatform, 'createWorker').mockReturnValue(worker);
+    const acquire = vi.spyOn(browserContinuousPlatform, 'acquireMicrophone');
+    const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose');
+    const { result, unmount } = renderHook(() => useLocalPractice({ artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', scope: { kind: 'FULL' } }));
+    let started!: Promise<void>;
+    await act(async () => { started = result.current.start(); });
+    expect(result.current.inputState).toBe('STARTING');
+    expect(result.current.inputError).toBeNull();
+    expect(worker.load).toHaveBeenCalledOnce();
+    unmount();
+    await act(async () => { settleLoad(); await started; });
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(worker.dispose).toHaveBeenCalledOnce();
+    expect(acquire).not.toHaveBeenCalled();
+    expect(worker.run).not.toHaveBeenCalled();
   });
 });
