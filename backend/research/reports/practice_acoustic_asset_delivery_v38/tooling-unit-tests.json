@@ -1,0 +1,162 @@
+{
+  "result": "LOCAL_PASS_NOT_CI",
+  "tests": [
+    {
+      "name": "exact required blob",
+      "result": "PASS"
+    },
+    {
+      "name": "missing blob fails",
+      "result": "PASS"
+    },
+    {
+      "name": "truncated display cannot change per-path result",
+      "result": "PASS"
+    },
+    {
+      "name": "truncation marker rejected as authority",
+      "result": "PASS"
+    },
+    {
+      "name": "omitted middle rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "internal binary digest deterministic",
+      "result": "PASS"
+    },
+    {
+      "name": "duplicate required records fail",
+      "result": "PASS"
+    },
+    {
+      "name": "unexpected blob fails",
+      "result": "PASS"
+    },
+    {
+      "name": "git nonzero fails",
+      "result": "PASS"
+    },
+    {
+      "name": "directory is not required blob",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 0 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 1 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 2 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 3 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 4 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 5 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 6 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 7 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 8 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 9 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 10 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "secret leakage 11 blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "opaque in-memory value blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "sanitized URL has no query values",
+      "result": "PASS"
+    },
+    {
+      "name": "same-origin access classification",
+      "result": "PASS"
+    },
+    {
+      "name": "OSS query redacted",
+      "result": "PASS"
+    },
+    {
+      "name": "unknown alternate model blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "descriptor requests differ from model GETs",
+      "result": "PASS"
+    },
+    {
+      "name": "canonical key order",
+      "result": "PASS"
+    },
+    {
+      "name": "canonical whitespace invariant",
+      "result": "PASS"
+    },
+    {
+      "name": "array order preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "primitive identity distinct",
+      "result": "PASS"
+    },
+    {
+      "name": "raw and canonical are different subjects",
+      "result": "PASS"
+    },
+    {
+      "name": "incorrect expected raw identity fails",
+      "result": "PASS"
+    },
+    {
+      "name": "incorrect expected semantic identity fails",
+      "result": "PASS"
+    },
+    {
+      "name": "cold activation independent accounting",
+      "result": "PASS"
+    },
+    {
+      "name": "warm zero payload independent accounting",
+      "result": "PASS"
+    },
+    {
+      "name": "warm redownload rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "early marker rejected",
+      "result": "PASS"
+    }
+  ],
+  "discoveryTests": 10
+}

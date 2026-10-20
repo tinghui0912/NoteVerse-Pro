@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-20T08:56:44.808Z",
+  "startingHead": "24235c53a99b5c09d7d725b41a0f6f63cd0b5f47",
+  "changed": [
+    "backend/research/practice_acoustic_asset_delivery_v38/audit.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/browser-entry.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/campaign.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/closeout-machine.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/closeout.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/contract.json",
+    "backend/research/practice_acoustic_asset_delivery_v38/control.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/discovery.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/eslint.config.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/identities.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/io.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/network.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/post-stop-diagnostics.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/security.mjs",
+    "backend/research/practice_acoustic_asset_delivery_v38/tests.mjs",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/acoustic-dual-identity.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/assessment.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/closeout-unit-tests.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/first-failure.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/post-stop-availability-diagnostics.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/preflight-started.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/production-static-proof.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/result.md",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/source-discovery.json",
+    "backend/research/reports/practice_acoustic_asset_delivery_v38/tooling-unit-tests.json"
+  ],
+  "productionDiff": [],
+  "V3ThroughV37Diff": [],
+  "capabilitiesUnchanged": true,
+  "security": {
+    "result": "PASS",
+    "filesScanned": 25,
+    "persistedSecretValues": 0
+  }
+}

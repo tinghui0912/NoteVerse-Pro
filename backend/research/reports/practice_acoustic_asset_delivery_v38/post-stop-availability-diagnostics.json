@@ -1,0 +1,42 @@
+{
+  "observedAt": "2026-10-20T08:55:39.218Z",
+  "firstFailureUnchanged": true,
+  "purpose": "Read-only availability observations after permanent stop; not a qualification gate or test retry",
+  "failedCommandRepeated": false,
+  "browserLaunches": 0,
+  "accessRequests": 0,
+  "ossRequests": 0,
+  "observations": [
+    {
+      "name": "RUNNING_API_CONTAINER",
+      "exitCode": 0,
+      "available": true,
+      "present": true
+    },
+    {
+      "name": "PYTHON_RUNTIME",
+      "exitCode": 0,
+      "available": true,
+      "version": "Python 3.12.14"
+    },
+    {
+      "name": "PYTEST_PACKAGE_AVAILABILITY",
+      "exitCode": 1,
+      "available": false,
+      "version": null
+    },
+    {
+      "name": "CONTAINER_REQUIRED_TEST_FILE",
+      "exitCode": 0,
+      "available": true,
+      "path": "tests/test_practice_acoustic_model_asset.py"
+    },
+    {
+      "name": "CONTAINER_REQUIRED_TEST_FILE",
+      "exitCode": 0,
+      "available": true,
+      "path": "tests/test_model_assets.py"
+    }
+  ],
+  "causalLimit": "Original child stderr was not retained by the frozen-in-preparation runner. No raw stderr or secret-bearing text is reconstructed or persisted."
+}
