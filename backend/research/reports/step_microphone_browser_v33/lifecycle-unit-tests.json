@@ -1,0 +1,77 @@
+{
+  "result": "LOCAL_PASS",
+  "results": [
+    {
+      "name": "A all 71 authorized requests complete sequentially with publication",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "B/P 70 receipts and one fully witnessed final cancellation conserve authorization and report [70,71]",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "C two unresolved started requests fail",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "D missing receipt without every terminal witness fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "E ordinary worker error cannot be reclassified as terminal cancellation",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "F crash or messageerror fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "G unknown response/execution fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "H sequence 1..69,71 fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "I duplicate completed count fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "J more completion receipts than authorized requests fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "K cancellation during ordinary running fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "L completed after terminal closure with publication suppressed stays in C, not K",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "M cancelled request with publication fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "N cancelled request producing EVIDENCE fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "O request budget exceeds 96 fails",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "context terminal cancellation only with expected context witness",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "infer after disposal, second session and hidden warmup fail",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    },
+    {
+      "name": "observational Worker tap forwards exact objects, responses, return values and termination",
+      "result": "LOCAL_PASS_SYNTHETIC_ONLY"
+    }
+  ]
+}

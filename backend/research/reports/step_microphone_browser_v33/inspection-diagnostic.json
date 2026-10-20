@@ -1,0 +1,10 @@
+{
+  "kind": "NONMANDATORY_NEW_RESEARCH_FILE_HISTORICAL_LOOKUP_ERROR",
+  "command": ["git", "show", "fdd54abb09c4a82309127ff828f3c9a41126ab9c:backend/research/step_microphone_browser_v33/contract.json"],
+  "exitCode": 1,
+  "error": "fatal: path 'backend/research/step_microphone_browser_v33/contract.json' exists on disk, but not in 'fdd54abb09c4a82309127ff828f3c9a41126ab9c'",
+  "scope": "An unnecessary read-only lookup of a newly created V33 research file at the pre-V33 START commit; not a required production source discovery or qualification gate",
+  "requiredProductionInventoryStatus": "All six authoritative production paths were enumerated and validated before reads; none absent",
+  "effect": "No source bytes returned from this optional lookup. No retry, historical edit, false identity or qualification evidence. Mandatory V33 validation has not yet executed.",
+  "notCountedAsLocalTestPass": true
+}
