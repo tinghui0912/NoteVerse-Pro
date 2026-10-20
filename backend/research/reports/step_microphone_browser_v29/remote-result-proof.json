@@ -1,0 +1,161 @@
+{
+  "at": "2026-10-20T03:30:27.737Z",
+  "startingHead": "aa1253b221e47b8852ece107b5d13a8bda551765",
+  "resultCommit": "32c0db3ff88ceb1ed063da62a5f8487412e527bf",
+  "remoteHead": "32c0db3ff88ceb1ed063da62a5f8487412e527bf",
+  "exactChangedFiles": [
+    "backend/research/reports/step_microphone_browser_v29/assessment.json",
+    "backend/research/reports/step_microphone_browser_v29/assessment.md",
+    "backend/research/reports/step_microphone_browser_v29/closeout-raw-historical-identities.json",
+    "backend/research/reports/step_microphone_browser_v29/failure-cause.json",
+    "backend/research/reports/step_microphone_browser_v29/failure-cause.md",
+    "backend/research/reports/step_microphone_browser_v29/preflight-failure.json",
+    "backend/research/reports/step_microphone_browser_v29/research-eslint.log",
+    "backend/research/reports/step_microphone_browser_v29/starting-gate.json",
+    "backend/research/reports/step_microphone_browser_v29/tooling-execution-started.json",
+    "backend/research/step_microphone_browser_v29/audit.mjs",
+    "backend/research/step_microphone_browser_v29/campaign.mjs",
+    "backend/research/step_microphone_browser_v29/classification.mjs",
+    "backend/research/step_microphone_browser_v29/contract.json",
+    "backend/research/step_microphone_browser_v29/control.mjs",
+    "backend/research/step_microphone_browser_v29/eslint.config.mjs",
+    "backend/research/step_microphone_browser_v29/failure-closeout.mjs",
+    "backend/research/step_microphone_browser_v29/io.mjs",
+    "backend/research/step_microphone_browser_v29/isolation.mjs",
+    "backend/research/step_microphone_browser_v29/manifest.mjs",
+    "backend/research/step_microphone_browser_v29/report.mjs",
+    "backend/research/step_microphone_browser_v29/tests.mjs"
+  ],
+  "identities": [
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/assessment.json",
+      "sha256": "571fcc5fc2259a1db0ce1995cdb4c940ef25c8b7830644ec4bc1de1189865b22",
+      "bytes": 6488
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/assessment.md",
+      "sha256": "be5ec5435c89be071bd5813cdc14a7a954a9bcc91efd862c94d7209307ecac0a",
+      "bytes": 4218
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/closeout-raw-historical-identities.json",
+      "sha256": "7ef0246a2ae2283d9a19a1a4e0fc499cda8bf623578a3e48e5fa89dbbb011e6d",
+      "bytes": 357781
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/failure-cause.json",
+      "sha256": "a67ba07a897ae976fb077b388a9b95fddeae612dd04137b7a1716c33a16ef940",
+      "bytes": 4308
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/failure-cause.md",
+      "sha256": "0be3202ec0301caf8faedc5380921d83b083d473eb298b48a75da9adbb9bd7bb",
+      "bytes": 1353
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/preflight-failure.json",
+      "sha256": "eb216294c09f5e00a9e3443b7b7c53de281a73e57d9d25ae44aeea2c065a1b36",
+      "bytes": 2165
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/research-eslint.log",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/starting-gate.json",
+      "sha256": "551f6d8e45528f94271de200694d832bfc8ace6f65619da5e20246cff6d69fc7",
+      "bytes": 488
+    },
+    {
+      "path": "backend/research/reports/step_microphone_browser_v29/tooling-execution-started.json",
+      "sha256": "4d2436b3a12cee2f1380f3bfca62b2e9f674cce3c9e2c31a71e3d430ad5acbec",
+      "bytes": 382
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/audit.mjs",
+      "sha256": "909ba12e7d133b9ba8906c8cbb502c43cc77e7e774c25448f6a3c0813568e00d",
+      "bytes": 11659
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/campaign.mjs",
+      "sha256": "a4f1adcaa9b441f144818ac12f682aa4da3afb6db6cb94f1d63898527bf9033b",
+      "bytes": 9436
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/classification.mjs",
+      "sha256": "a7e0a673b08c4244cbd9b8ecbba50455694c234f28c1d3e818f51667ede87866",
+      "bytes": 1278
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/contract.json",
+      "sha256": "e2e40d7344f607c912b163d15e9b20cc2ea137d628931092fb122b9be46e84f1",
+      "bytes": 5476
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/control.mjs",
+      "sha256": "80f76b9d3f4439c2b94989b14ec1ee4b4f670c7b60b17ee433ea298da84287a4",
+      "bytes": 10905
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/eslint.config.mjs",
+      "sha256": "5835811d1bcfdbf24a96541af2d50550786e92d1ecaa7e2afff1634fe4f3ca93",
+      "bytes": 400
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/failure-closeout.mjs",
+      "sha256": "8d1ea1c4b4fd378d5559d0e15b34c466aabea468933f4e3ad1c48955de56741b",
+      "bytes": 6940
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/io.mjs",
+      "sha256": "01875e8302bf327bd29130379a724455955e980a85990cb30697fce28d64ca9b",
+      "bytes": 4132
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/isolation.mjs",
+      "sha256": "ae9d61ccb305acfb023c8ee9e202b86ee8fd2e9f648aa46495b124c428fb8ee5",
+      "bytes": 8797
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/manifest.mjs",
+      "sha256": "e6d07c7d173c09a98f4561eeed4bd04165518a7dbca2aeff598fb9c5b0d37d30",
+      "bytes": 4352
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/report.mjs",
+      "sha256": "bd980a37f1b0eb04af64c4fd0dc39135d440023d775171772b46615c678d3fae",
+      "bytes": 6288
+    },
+    {
+      "path": "backend/research/step_microphone_browser_v29/tests.mjs",
+      "sha256": "a9b8128a748099892d02578c14c49d2a479aaf0064e1284984b82a8c1e926ef7",
+      "bytes": 5566
+    }
+  ],
+  "productionDiff": [],
+  "V3ThroughV28Diff": [],
+  "historicalRawFilesReverified": 1889,
+  "immutableV26ArtifactsAndAssetsExact": true,
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "disposition": "STEP_V29_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "github": {
+    "head": "32c0db3ff88ceb1ed063da62a5f8487412e527bf",
+    "queriedAt": "2026-10-20T03:30:27.735Z",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "cleanBeforeReceipt": true,
+  "noBrowserFreezeOrAuthorization": true,
+  "noBrowserCampaign": true,
+  "noRepairOrRetry": true,
+  "note": "Additive remote-result receipt only; final receipt commit independently refetched/queried, not self-referential. STOP for independent audit."
+}
