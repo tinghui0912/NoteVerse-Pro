@@ -1,0 +1,374 @@
+{
+  "evidenceSchema": "REMOTE_FREEZE_AUTHORIZATION",
+  "qualificationAuthorizationState": "V43_FROZEN_DELIVERY_AUTHORIZED",
+  "freezeCommit": "edd262239d7f42c045db43ee76346f346c3287a3",
+  "protocolHash": "0701b1db2c04a8301af0f3284ae5760bf07f1dec6234197078a5083b2ed83ccc",
+  "remote": {
+    "localHead": "edd262239d7f42c045db43ee76346f346c3287a3",
+    "originHead": "edd262239d7f42c045db43ee76346f346c3287a3",
+    "liveRemoteHead": "edd262239d7f42c045db43ee76346f346c3287a3",
+    "aheadBehind": [
+      0,
+      0
+    ],
+    "cleanWorktree": true
+  },
+  "remoteVerifiedAt": "2026-10-20T11:22:24.183Z",
+  "serializedNetworkEvents": [
+    {
+      "event": "FREEZE_PUSH_STARTED",
+      "at": "2026-10-20T11:22:05.162Z"
+    },
+    {
+      "event": "FREEZE_PUSH_EXITED_SUCCESS",
+      "at": "2026-10-20T11:22:08.604Z",
+      "exitCode": 0
+    },
+    {
+      "event": "FREEZE_FETCH_STARTED",
+      "at": "2026-10-20T11:22:08.604Z"
+    },
+    {
+      "event": "FREEZE_FETCH_EXITED_SUCCESS",
+      "at": "2026-10-20T11:22:11.785Z",
+      "exitCode": 0
+    }
+  ],
+  "protectedObjects": [
+    {
+      "subject": "apps/customer-web/src/lib/app-protocol.ts",
+      "startingGitObject": "ac462c9508511553143dca06b777f2079d0c9d4d",
+      "currentGitObject": "ac462c9508511553143dca06b777f2079d0c9d4d",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/next.config.ts",
+      "startingGitObject": "8216bc16e67ab7b429f1f235f1310284b8726380",
+      "currentGitObject": "8216bc16e67ab7b429f1f235f1310284b8726380",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api-client.ts",
+      "startingGitObject": "5e9b70b14e172548facd6835c744f6d9dba18af2",
+      "currentGitObject": "5e9b70b14e172548facd6835c744f6d9dba18af2",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+      "startingGitObject": "511b9c60c22a1fc0e23f463693e0da4c8d4620c2",
+      "currentGitObject": "511b9c60c22a1fc0e23f463693e0da4c8d4620c2",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+      "startingGitObject": "a091106903f35f1f66aa7affa8145ae865059407",
+      "currentGitObject": "a091106903f35f1f66aa7affa8145ae865059407",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+      "startingGitObject": "b98652db79aa44b4ff32944f8da93b2f4c0b8707",
+      "currentGitObject": "b98652db79aa44b4ff32944f8da93b2f4c0b8707",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "startingGitObject": "19e390b81a400093b890b3e86664f620798656c4",
+      "currentGitObject": "19e390b81a400093b890b3e86664f620798656c4",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "startingGitObject": "7c781dee7edd4f27690419a37d59fe19426315fa",
+      "currentGitObject": "7c781dee7edd4f27690419a37d59fe19426315fa",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "startingGitObject": "800e322f1cb13c230e5de5e315d0ef5af974f43d",
+      "currentGitObject": "800e322f1cb13c230e5de5e315d0ef5af974f43d",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "startingGitObject": "fd3f852c85d5b279c52cc30578493a6912807133",
+      "currentGitObject": "fd3f852c85d5b279c52cc30578493a6912807133",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/api/deps.py",
+      "startingGitObject": "e07546b2227390e3130c2f07faa2e255e9e624f7",
+      "currentGitObject": "e07546b2227390e3130c2f07faa2e255e9e624f7",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/modules/model_assets/router.py",
+      "startingGitObject": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "currentGitObject": "d547f7b9f51fe0286c78e14595c2113d4cb5224f",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/modules/model_assets/service.py",
+      "startingGitObject": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "currentGitObject": "15fb1be483df2fb52fe389d3e7bee44b258df770",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/modules/model_assets/schemas.py",
+      "startingGitObject": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "currentGitObject": "23d8de8356da3b1a7612f1dc22978328b74567ec",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/core/settings/model_asset_delivery.py",
+      "startingGitObject": "f7abc7652ddef4e92ca6e618b40b8f7bd773cc13",
+      "currentGitObject": "f7abc7652ddef4e92ca6e618b40b8f7bd773cc13",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/core/settings/browser_cors.py",
+      "startingGitObject": "3e76c90ea6977ad479287ce8956c6289a6aed5b0",
+      "currentGitObject": "3e76c90ea6977ad479287ce8956c6289a6aed5b0",
+      "equal": true
+    },
+    {
+      "subject": "backend/app/core/settings/customer_session_security.py",
+      "startingGitObject": "3628735c24c9ade3eb14811a7a68872e628dca06",
+      "currentGitObject": "3628735c24c9ade3eb14811a7a68872e628dca06",
+      "equal": true
+    },
+    {
+      "subject": "backend/tests/test_practice_acoustic_model_asset.py",
+      "startingGitObject": "b3041c41589e7db9cf603948824ce363e421e5d4",
+      "currentGitObject": "b3041c41589e7db9cf603948824ce363e421e5d4",
+      "equal": true
+    },
+    {
+      "subject": "backend/tests/test_model_assets.py",
+      "startingGitObject": "ceb918f9e446618a3253f04be6f892f77e6d1c12",
+      "currentGitObject": "ceb918f9e446618a3253f04be6f892f77e6d1c12",
+      "equal": true
+    },
+    {
+      "subject": "docker-compose.backend-dev.yml",
+      "startingGitObject": "96d38592465976f88eb5b51186512e9fd1de573d",
+      "currentGitObject": "96d38592465976f88eb5b51186512e9fd1de573d",
+      "equal": true
+    },
+    {
+      "subject": "docker/backend/Dockerfile.api",
+      "startingGitObject": "b7ad1c205a8af4289508f2566eddd31a7bdaf5a2",
+      "currentGitObject": "b7ad1c205a8af4289508f2566eddd31a7bdaf5a2",
+      "equal": true
+    },
+    {
+      "subject": "docker/backend/Dockerfile.quality",
+      "startingGitObject": "49dd3327def1af07cdd7239223484e2e3955514e",
+      "currentGitObject": "49dd3327def1af07cdd7239223484e2e3955514e",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/api.txt",
+      "startingGitObject": "5cce735978a968d0fd12434a0dd8ea033a91c11c",
+      "currentGitObject": "5cce735978a968d0fd12434a0dd8ea033a91c11c",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/quality-core.txt",
+      "startingGitObject": "364dbcb9e20c1e2c1f2db15ebec25e2e97129d71",
+      "currentGitObject": "364dbcb9e20c1e2c1f2db15ebec25e2e97129d71",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/quality-tools.txt",
+      "startingGitObject": "dc3a1ae072f6fddb89b0b7592f36ee637922c42d",
+      "currentGitObject": "dc3a1ae072f6fddb89b0b7592f36ee637922c42d",
+      "equal": true
+    },
+    {
+      "subject": "scripts/backend_quality_docker.ps1",
+      "startingGitObject": "f818f2a82db56710e959dfca15fb725dfa33d77c",
+      "currentGitObject": "f818f2a82db56710e959dfca15fb725dfa33d77c",
+      "equal": true
+    },
+    {
+      "subject": "backend/README.md",
+      "startingGitObject": "1309d3621f31fa245445a9cf7e9c63a63e5d269e",
+      "currentGitObject": "1309d3621f31fa245445a9cf7e9c63a63e5d269e",
+      "equal": true
+    },
+    {
+      "subject": ".github/workflows/backend-quality.yml",
+      "startingGitObject": "46ec239d786358382940ae6003aabc9a10031400",
+      "currentGitObject": "46ec239d786358382940ae6003aabc9a10031400",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/package.json",
+      "startingGitObject": "5cfa11951a9590f5a6414c6425b30bb499a9c881",
+      "currentGitObject": "5cfa11951a9590f5a6414c6425b30bb499a9c881",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/package-lock.json",
+      "startingGitObject": "66a609f06aed5bf6f20e1a4e690c0386a1e6af9a",
+      "currentGitObject": "66a609f06aed5bf6f20e1a4e690c0386a1e6af9a",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/tsconfig.json",
+      "startingGitObject": "b575f7dac742447c79dd92f8b471b7d5e18c32cc",
+      "currentGitObject": "b575f7dac742447c79dd92f8b471b7d5e18c32cc",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/http.txt",
+      "startingGitObject": "4d55c6f80f911cc56ee9976a1ba25e02346d61d9",
+      "currentGitObject": "4d55c6f80f911cc56ee9976a1ba25e02346d61d9",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/core.txt",
+      "startingGitObject": "9c598c133da013da876538243dd6204e504b7d3c",
+      "currentGitObject": "9c598c133da013da876538243dd6204e504b7d3c",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/tracing.txt",
+      "startingGitObject": "eaa015afbe2d2c9ea9cac6ae94dc1e5706903207",
+      "currentGitObject": "eaa015afbe2d2c9ea9cac6ae94dc1e5706903207",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/db.txt",
+      "startingGitObject": "76ca1b3b75fa39f2e56291353effe86a503869c5",
+      "currentGitObject": "76ca1b3b75fa39f2e56291353effe86a503869c5",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/migrations.txt",
+      "startingGitObject": "43be5bcccd86587007ac6e9f1e1473118af91ee7",
+      "currentGitObject": "43be5bcccd86587007ac6e9f1e1473118af91ee7",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/storage.txt",
+      "startingGitObject": "31069b30d452ca97b8932ad695a727737d39af46",
+      "currentGitObject": "31069b30d452ca97b8932ad695a727737d39af46",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/celery.txt",
+      "startingGitObject": "16d8f3bc3616c282b00620240f980856a106315c",
+      "currentGitObject": "16d8f3bc3616c282b00620240f980856a106315c",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/cache.txt",
+      "startingGitObject": "698043c9ef3321f7eefb817829fec9fd81d34217",
+      "currentGitObject": "698043c9ef3321f7eefb817829fec9fd81d34217",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/auth.txt",
+      "startingGitObject": "6e101b78ac06b9098963b0e9bf477c715c4ac955",
+      "currentGitObject": "6e101b78ac06b9098963b0e9bf477c715c4ac955",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/image.txt",
+      "startingGitObject": "6722975e0726756191f394c6d3ab1d70b9f8e5a3",
+      "currentGitObject": "6722975e0726756191f394c6d3ab1d70b9f8e5a3",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/fingering.txt",
+      "startingGitObject": "27f945a186d3af356ad3b68fabc66c857396b17e",
+      "currentGitObject": "27f945a186d3af356ad3b68fabc66c857396b17e",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/practice-score.txt",
+      "startingGitObject": "7b58b5e8112d69e1958317523845e30339df9239",
+      "currentGitObject": "7b58b5e8112d69e1958317523845e30339df9239",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/beat.txt",
+      "startingGitObject": "720f5fca285a218c1146340a725ec9fe15311fc8",
+      "currentGitObject": "720f5fca285a218c1146340a725ec9fe15311fc8",
+      "equal": true
+    },
+    {
+      "subject": "backend/requirements/render.txt",
+      "startingGitObject": "eabdb5dad920ae8372b361cc6c3fd670d519eaf0",
+      "currentGitObject": "eabdb5dad920ae8372b361cc6c3fd670d519eaf0",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "startingGitObject": "5acff684245d5d6db38894e6d9c884ccc7cc5593",
+      "currentGitObject": "5acff684245d5d6db38894e6d9c884ccc7cc5593",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/index.ts",
+      "startingGitObject": "72adb4620c229151e86005ba4ef57b790223540a",
+      "currentGitObject": "72adb4620c229151e86005ba4ef57b790223540a",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/auth/return-url.ts",
+      "startingGitObject": "f8c7a75e78b7c1d38091da2c000b1cffb42ca18f",
+      "currentGitObject": "f8c7a75e78b7c1d38091da2c000b1cffb42ca18f",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "startingGitObject": "202daa1ed41861588e5cb2b6e7a54db8d1f2563c",
+      "currentGitObject": "202daa1ed41861588e5cb2b6e7a54db8d1f2563c",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "startingGitObject": "3074d6571b8de20ccd0da154730d598f6928b425",
+      "currentGitObject": "3074d6571b8de20ccd0da154730d598f6928b425",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/observability/client.ts",
+      "startingGitObject": "40ca4b16e7ab8d68ceaee575bfae7328d97a45c2",
+      "currentGitObject": "40ca4b16e7ab8d68ceaee575bfae7328d97a45c2",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "startingGitObject": "aaf5ab3da2318303516713ff4ba932957946f176",
+      "currentGitObject": "aaf5ab3da2318303516713ff4ba932957946f176",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "startingGitObject": "38b9291e3169e63ede575cc5b5d30ef108fa9b1c",
+      "currentGitObject": "38b9291e3169e63ede575cc5b5d30ef108fa9b1c",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "startingGitObject": "4bdb423e72517ff303fc2c44d06c3ad1931a3729",
+      "currentGitObject": "4bdb423e72517ff303fc2c44d06c3ad1931a3729",
+      "equal": true
+    },
+    {
+      "subject": "apps/customer-web/src/lib/model-assets/types.ts",
+      "startingGitObject": "dc05480730a9c0a9a6c553da694b58ea4c953a61",
+      "currentGitObject": "dc05480730a9c0a9a6c553da694b58ea4c953a61",
+      "equal": true
+    }
+  ],
+  "frozenIndexIdentitiesVerified": 30,
+  "committedSecretScan": "PASS",
+  "productionDiff": [],
+  "V3ThroughV42Diff": [],
+  "capabilitiesUnchanged": true
+}
