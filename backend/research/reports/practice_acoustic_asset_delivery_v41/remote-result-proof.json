@@ -1,0 +1,55 @@
+{
+  "subjectCommit": "5917808754e50faa91fb90958bf213461bd72b35",
+  "identity": {
+    "localHead": "5917808754e50faa91fb90958bf213461bd72b35",
+    "originHead": "5917808754e50faa91fb90958bf213461bd72b35",
+    "liveRemoteHead": "5917808754e50faa91fb90958bf213461bd72b35",
+    "aheadBehind": [
+      0,
+      0
+    ],
+    "cleanWorktree": true
+  },
+  "github": {
+    "head": "5917808754e50faa91fb90958bf213461bd72b35",
+    "queriedAt": "2026-10-20T10:34:31.460Z",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflowRuns": [],
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "checkedAt": "2026-10-20T10:34:31.460Z",
+  "protectedGitObjectsVerified": 55,
+  "secretScan": "PASS",
+  "productionDiff": [],
+  "V3ThroughV40Diff": [],
+  "capabilitiesUnchanged": true,
+  "resultDisposition": "PRACTICE_ACOUSTIC_V41_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "serializedEvents": [
+    {
+      "state": "RESULT_LOCAL_COMMITTED",
+      "at": "2026-10-20T10:34:18.325Z"
+    },
+    {
+      "state": "RESULT_PUSH_STARTED",
+      "at": "2026-10-20T10:34:18.326Z"
+    },
+    {
+      "state": "RESULT_PUSH_EXITED_SUCCESS",
+      "at": "2026-10-20T10:34:22.357Z"
+    },
+    {
+      "state": "RESULT_FETCH_STARTED",
+      "at": "2026-10-20T10:34:22.357Z"
+    },
+    {
+      "state": "RESULT_REMOTE_VERIFIED",
+      "at": "2026-10-20T10:34:27.399Z"
+    },
+    {
+      "state": "RESULT_GITHUB_QUERIED",
+      "at": "2026-10-20T10:34:31.460Z"
+    }
+  ],
+  "selfReference": "RESULT commit only; final RECEIPT commit is independently verified and emitted to stdout without another repository write"
+}
