@@ -1,2 +1,0 @@
-FROM noteverse-backend-api:dev
-RUN python -m pip install --no-cache-dir pytest==8.3.5 httpx2==2.13.1

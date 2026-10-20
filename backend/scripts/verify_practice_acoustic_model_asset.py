@@ -1,4 +1,4 @@
-"""Verify/publish the exact qualified Continuous model, never convert or overwrite it.
+"""Verify or publish the exact Practice acoustic asset without conversion or overwrite.
 
 Run in the backend Docker image with its existing OSS environment. Reports omit
 credentials, signed URLs and SDK exception bodies.
@@ -17,8 +17,6 @@ import alibabacloud_oss_v2 as oss
 SHA = "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
 SIZE = 98_689_283
 KEY = f"models/continuous/robust-browser-v1/{SHA}/model.onnx"
-ROOT = Path(__file__).resolve().parents[2]
-REPORT = ROOT / "research/reports/continuous_microphone_asset_gate.json"
 
 
 def digest_file(path: Path) -> tuple[int, str]:
@@ -39,7 +37,7 @@ def underlying(error: Exception) -> Exception:
     return error
 
 
-def qualify(publish: bool, report: Path, model: Path) -> dict:
+def verify_asset(publish: bool, report: Path, model: Path) -> dict:
     if report.exists():
         raise RuntimeError("APPEND_ONLY_REPORT_ALREADY_EXISTS")
     result = {
@@ -122,8 +120,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--model", type=Path, required=True)
-    parser.add_argument("--report", type=Path, default=REPORT)
+    parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
-    receipt = qualify(args.publish, args.report, args.model)
+    receipt = verify_asset(args.publish, args.report, args.model)
     print(json.dumps(receipt))
     raise SystemExit(0 if receipt["status"] == "EXACT_VALIDATED_ASSET_DELIVERY_VERIFIED" else 1)
