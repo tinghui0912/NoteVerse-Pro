@@ -1,0 +1,47 @@
+{
+  "evidenceSchema": "TERMINAL_ASSESSMENT",
+  "scope": "MODEL_ASSET_DELIVERY_ONLY",
+  "independentAudit": null,
+  "coldWarmNotStartedOrStoppedCells": [
+    "authenticated-warm-opfs-cache"
+  ],
+  "history": [
+    "V34 BROWSER CORE QUALIFICATION REMAINS ESTABLISHED",
+    "V35 THROUGH V41 MODEL-ASSET DELIVERY QUALIFICATION REMAINS BLOCKED",
+    "V35 THROUGH V41 WERE NOT REPAIRED OR RETRIED",
+    "V42 IS A NEW PROSPECTIVE MODEL-ASSET-DELIVERY PHASE"
+  ],
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "disclaimers": [
+    "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+    "MICROPHONE_PERMISSION_UX_NOT_QUALIFIED",
+    "PHYSICAL_MICROPHONE_UX_LATENCY_NOT_QUALIFIED",
+    "FRESH_ACOUSTIC_RECOGNITION_QUALIFICATION_NOT_PERFORMED",
+    "ROOT_SOURCE_LOSS_NOT_EVALUATED"
+  ],
+  "noFrozenRetry": true,
+  "productionDiff": [],
+  "V3ThroughV41Diff": [],
+  "capabilitiesUnchanged": true,
+  "disposition": "PRACTICE_ACOUSTIC_V42_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "firstFailure": {
+    "activeLocalGate": "authenticated-cold-network-delivery",
+    "orchestratorBoundary": "NONE",
+    "at": "2026-10-20T10:49:39.938Z",
+    "errorClass": "AssertionError",
+    "safeCode": "FROZEN_GATE_FAILURE_UNSAFE_DETAIL_OMITTED",
+    "detail": "AssertionError [ERR_ASSERTION]: EXECUTION_DID_NOT_COMPLETE\n+ actual - expected\n\n+ 'CELL_EXECUTION_BLOCKED'\n- 'RECEIPTS_READY_FOR_INDEPENDENT_AUDIT'\n\n    at auditCell (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/practice_acoustic_asset_delivery_v42/audit.mjs:4:10)\n    at file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/practice_acoustic_asset_delivery_v42/campaign.mjs:78:5",
+    "productionDefectEstablished": false
+  },
+  "counters": {
+    "browserLaunches": 1,
+    "modelAccessRequests": 2,
+    "ossModelGets": 0,
+    "inferenceRuns": 0
+  }
+}

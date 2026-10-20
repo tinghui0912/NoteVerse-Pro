@@ -1,0 +1,1031 @@
+{
+  "evidenceSchema": "BROWSER_CAMPAIGN",
+  "phase": "V42",
+  "stage": "FROZEN_QUALIFICATION",
+  "startedAt": "2026-10-20T10:49:32.891Z",
+  "browserLaunches": 1,
+  "network": [
+    {
+      "ordinal": 1,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/zh/auth/login",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 30520
+    },
+    {
+      "ordinal": 2,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/inter-s.p.0gsaq8ukbf34m.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 48256
+    },
+    {
+      "ordinal": 3,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/manrope-s.p.1p_a2k8qd5zhp.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 24836
+    },
+    {
+      "ordinal": 4,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/source_code_pro-s.p.32urh1kkfy9j6.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 22044
+    },
+    {
+      "ordinal": 5,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_globals_162hn9o.css",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 18203
+    },
+    {
+      "ordinal": 6,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_1ynq9-h._.css",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 593
+    },
+    {
+      "ordinal": 7,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 675
+    },
+    {
+      "ordinal": 8,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 217997
+    },
+    {
+      "ordinal": 9,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 183891
+    },
+    {
+      "ordinal": 10,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 31819
+    },
+    {
+      "ordinal": 11,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 28374
+    },
+    {
+      "ordinal": 12,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 152472
+    },
+    {
+      "ordinal": 13,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 46169
+    },
+    {
+      "ordinal": 14,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 757
+    },
+    {
+      "ordinal": 15,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_1anvha4._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 756
+    },
+    {
+      "ordinal": 16,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/turbopack-_01_ro95._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 22430
+    },
+    {
+      "ordinal": 17,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 36698
+    },
+    {
+      "ordinal": 18,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_layout_tsx_007e4b2._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 307
+    },
+    {
+      "ordinal": 19,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_1lfdtye._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 448
+    },
+    {
+      "ordinal": 20,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_0gu9z5b._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 123497
+    },
+    {
+      "ordinal": 21,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_15ay3ad._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 14872
+    },
+    {
+      "ordinal": 22,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_layout_tsx_1r2tbvd._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 406
+    },
+    {
+      "ordinal": 23,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_19ir4wm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 10215
+    },
+    {
+      "ordinal": 24,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_error_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 25,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_09a-as6._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 68830
+    },
+    {
+      "ordinal": 26,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_0gf7qor._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5053
+    },
+    {
+      "ordinal": 27,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_not-found_tsx_1r2tbvd._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 286
+    },
+    {
+      "ordinal": 28,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_1xm_jww._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 3009
+    },
+    {
+      "ordinal": 29,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_loading_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 30,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_0dwamel._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 29067
+    },
+    {
+      "ordinal": 31,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_1l8pm7g._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 89152
+    },
+    {
+      "ordinal": 32,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_(auth)_layout_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 286
+    },
+    {
+      "ordinal": 33,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_0-3fzyx._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5698
+    },
+    {
+      "ordinal": 34,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_(auth)_auth_login_page_tsx_0tzo0bv._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 35,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_client_components_builtin_global-error_1r2tbvd.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 212
+    },
+    {
+      "ordinal": 36,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_0og1m_r._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 8981
+    },
+    {
+      "ordinal": 37,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_not-found_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 38,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 3893
+    },
+    {
+      "ordinal": 39,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 289
+    },
+    {
+      "ordinal": 40,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "MODEL_ACCESS_DESCRIPTOR_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access",
+      "method": "GET",
+      "status": 401,
+      "responseBodyBytes": null
+    },
+    {
+      "ordinal": 41,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/favicon.ico",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5118
+    },
+    {
+      "ordinal": 42,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "AUTH_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/me/profile",
+      "method": "GET",
+      "status": null,
+      "responseBodyBytes": null
+    },
+    {
+      "ordinal": 43,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_00iqiyi._.js",
+      "method": "GET",
+      "status": null,
+      "responseBodyBytes": null
+    },
+    {
+      "ordinal": 44,
+      "cell": "UNAUTHENTICATED_SECURITY_WITNESS",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_DevtoolsComponent_VKXKX7EQ_0zd1fvh.js",
+      "method": "GET",
+      "status": null,
+      "responseBodyBytes": null
+    },
+    {
+      "ordinal": 45,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/zh/auth/login",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 30521
+    },
+    {
+      "ordinal": 46,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/inter-s.p.0gsaq8ukbf34m.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 48256
+    },
+    {
+      "ordinal": 47,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/manrope-s.p.1p_a2k8qd5zhp.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 24836
+    },
+    {
+      "ordinal": 48,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/media/source_code_pro-s.p.32urh1kkfy9j6.woff2",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 22044
+    },
+    {
+      "ordinal": 49,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_globals_162hn9o.css",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 18203
+    },
+    {
+      "ordinal": 50,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_1ynq9-h._.css",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 593
+    },
+    {
+      "ordinal": 51,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 675
+    },
+    {
+      "ordinal": 52,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 217997
+    },
+    {
+      "ordinal": 53,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 183891
+    },
+    {
+      "ordinal": 54,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 31819
+    },
+    {
+      "ordinal": 55,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 28374
+    },
+    {
+      "ordinal": 56,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 152472
+    },
+    {
+      "ordinal": 57,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 46169
+    },
+    {
+      "ordinal": 58,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 757
+    },
+    {
+      "ordinal": 59,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_1anvha4._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 756
+    },
+    {
+      "ordinal": 60,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/turbopack-_01_ro95._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 22430
+    },
+    {
+      "ordinal": 61,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 36698
+    },
+    {
+      "ordinal": 62,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_layout_tsx_007e4b2._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 307
+    },
+    {
+      "ordinal": 63,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_1lfdtye._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 448
+    },
+    {
+      "ordinal": 64,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_0gu9z5b._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 123497
+    },
+    {
+      "ordinal": 65,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_15ay3ad._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 14872
+    },
+    {
+      "ordinal": 66,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_layout_tsx_1r2tbvd._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 406
+    },
+    {
+      "ordinal": 67,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_19ir4wm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 10215
+    },
+    {
+      "ordinal": 68,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_error_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 69,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_09a-as6._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 68830
+    },
+    {
+      "ordinal": 70,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_0gf7qor._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5053
+    },
+    {
+      "ordinal": 71,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_not-found_tsx_1r2tbvd._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 286
+    },
+    {
+      "ordinal": 72,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_1xm_jww._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 3009
+    },
+    {
+      "ordinal": 73,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_loading_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 74,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_0dwamel._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 29067
+    },
+    {
+      "ordinal": 75,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_1l8pm7g._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 89152
+    },
+    {
+      "ordinal": 76,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_(auth)_layout_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 286
+    },
+    {
+      "ordinal": 77,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_0-3fzyx._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5698
+    },
+    {
+      "ordinal": 78,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_(auth)_auth_login_page_tsx_0tzo0bv._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 79,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_next_dist_client_components_builtin_global-error_1r2tbvd.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 212
+    },
+    {
+      "ordinal": 80,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/_0og1m_r._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 8981
+    },
+    {
+      "ordinal": 81,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/src_app_%5Blocale%5D_not-found_tsx_15h7jyr._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 241
+    },
+    {
+      "ordinal": 82,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 3893
+    },
+    {
+      "ordinal": 83,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 289
+    },
+    {
+      "ordinal": 84,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/__v42/entry.mjs",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 52765
+    },
+    {
+      "ordinal": 85,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "ORT_SUBORDINATE_RESOURCE",
+      "hostname": "localhost",
+      "pathname": "/__v42/ort/ort.webgpu.min.mjs",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 333462
+    },
+    {
+      "ordinal": 86,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "AUTH_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/me/profile",
+      "method": "GET",
+      "status": 401,
+      "responseBodyBytes": 144
+    },
+    {
+      "ordinal": 87,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_00iqiyi._.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 98669
+    },
+    {
+      "ordinal": 88,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/_next/static/chunks/node_modules_%40tanstack_query-devtools_build_DevtoolsComponent_VKXKX7EQ_0zd1fvh.js",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 284
+    },
+    {
+      "ordinal": 89,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "AUTH_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/auth/refresh",
+      "method": "POST",
+      "status": 401,
+      "responseBodyBytes": 144
+    },
+    {
+      "ordinal": 90,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "AUTH_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 200,
+      "responseBodyBytes": 42
+    },
+    {
+      "ordinal": 91,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "CUSTOMER_WEB_DOCUMENT_OR_STATIC",
+      "hostname": "localhost",
+      "pathname": "/favicon.ico",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 5118
+    },
+    {
+      "ordinal": 92,
+      "cell": "REAL_CUSTOMER_LOGIN",
+      "classification": "AUTH_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/me/profile",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 198
+    },
+    {
+      "ordinal": 93,
+      "cell": "authenticated-cold-network-delivery",
+      "classification": "MODEL_ACCESS_DESCRIPTOR_API",
+      "hostname": "localhost",
+      "pathname": "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access",
+      "method": "GET",
+      "status": 200,
+      "responseBodyBytes": 781
+    }
+  ],
+  "cells": [
+    {
+      "evidenceSchema": "DELIVERY_CELL",
+      "name": "authenticated-cold-network-delivery",
+      "result": "CELL_EXECUTION_BLOCKED",
+      "events": [
+        {
+          "order": 1,
+          "cell": "authenticated-cold-network-delivery",
+          "kind": "CELL_BEGIN",
+          "exactTargetEntryAbsent": true,
+          "unrelatedStorageCleared": false
+        },
+        {
+          "order": 2,
+          "cell": "authenticated-cold-network-delivery",
+          "kind": "ACCESS_RESPONSE",
+          "status": 200,
+          "credentials": "include",
+          "success": true,
+          "pathname": "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access"
+        },
+        {
+          "order": 3,
+          "cell": "authenticated-cold-network-delivery",
+          "kind": "SESSION_DISPOSED_AFTER_FAILURE"
+        }
+      ],
+      "errorClass": "Error",
+      "safeCode": "OSS_EXPIRY_MISMATCH",
+      "inferenceRuns": 0
+    }
+  ],
+  "pageErrors": 0,
+  "unknownNetwork": 0,
+  "inferenceRuns": 0,
+  "unauthenticatedWitness": {
+    "evidenceSchema": "ANONYMOUS_401",
+    "status": 401,
+    "isolated": true,
+    "pathname": "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access"
+  },
+  "authenticated": {
+    "authenticated": true,
+    "mechanism": "UNCHANGED_API_CLIENT_REAL_CUSTOMER_LOGIN"
+  },
+  "browserLaunchAt": "2026-10-20T10:49:37.787Z",
+  "browser": {
+    "version": "155.0.8059.80",
+    "cdpVersion": {
+      "protocolVersion": "1.3",
+      "product": "Chrome/155.0.8059.80",
+      "revision": "@43a195105613ac83c21d3f14de279f4a045c7da0",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+      "jsVersion": "15.5.35.23"
+    },
+    "headed": true,
+    "playwrightVersion": "1.48.2",
+    "executableSha256": "36a30716f0994b377f1ce6b47cfe35399b9719e31d597fe0ea0d8f3b62aed532",
+    "gpuDevices": [
+      {
+        "vendorId": 4318,
+        "deviceId": 10208,
+        "vendorString": "",
+        "deviceString": "NVIDIA GeForce RTX 4080 Laptop GPU"
+      },
+      {
+        "vendorId": 32902,
+        "deviceId": 42912,
+        "vendorString": "",
+        "deviceString": "Intel(R) Iris(R) Xe Graphics"
+      },
+      {
+        "vendorId": 5140,
+        "deviceId": 140,
+        "vendorString": "",
+        "deviceString": "Microsoft Basic Render Driver"
+      }
+    ]
+  },
+  "firstFailure": {
+    "activeLocalGate": "authenticated-cold-network-delivery",
+    "orchestratorBoundary": "NONE",
+    "at": "2026-10-20T10:49:39.938Z",
+    "errorClass": "AssertionError",
+    "safeCode": "FROZEN_GATE_FAILURE_UNSAFE_DETAIL_OMITTED",
+    "detail": "AssertionError [ERR_ASSERTION]: EXECUTION_DID_NOT_COMPLETE\n+ actual - expected\n\n+ 'CELL_EXECUTION_BLOCKED'\n- 'RECEIPTS_READY_FOR_INDEPENDENT_AUDIT'\n\n    at auditCell (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/practice_acoustic_asset_delivery_v42/audit.mjs:4:10)\n    at file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/practice_acoustic_asset_delivery_v42/campaign.mjs:78:5",
+    "productionDefectEstablished": false
+  },
+  "browserClosed": true,
+  "finishedAt": "2026-10-20T10:49:40.105Z",
+  "disposition": "PRACTICE_ACOUSTIC_V42_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED"
+}
