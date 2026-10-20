@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {WaitingTopologyGate,GESTURE_WIDTH_MS,type Receipt} from '../../../../backend/research/step_waiting_topology_v3/assembly';
-import {replayProduct,type AcousticCell,type PhysicalCase} from '../../../../backend/research/step_waiting_topology_v3/product-scoring';
+import {microphoneV6} from '../helpers/step-microphone-v6';
 import type {AudioJob} from '../../../../backend/research/step_waiting_topology_v3/audio-entry';
 const receipt=(frontier:number,captured:number,events:readonly [number,string][],wallMs=100):Receipt=>({publicationId:`p:${frontier}`,frontier,capturedThrough:captured,wallMs,
  observations:events.map(([sourceEventSample,pitch],i)=>({observationId:`o:${sourceEventSample}:${i}`,pitch,midiPitch:60,confidence:1,
@@ -36,14 +36,21 @@ it('wall availability cannot change physical anchor/end or observation ownership
  const run=(shift:number)=>{const gate=new WaitingTopologyGate(48000,'s',0,200000,0,0);gate.arm(0,1+shift);gate.captureThrough(80000,2+shift);gate.accept(receipt(70000,80000,[[60000,'C4']],100+shift));return gate.actions.find(a=>a.type==='SEAL')!.attempt!;};
  const a=run(0),b=run(200);expect([a.id,a.anchor,a.end,a.observations]).toEqual([b.id,b.anchor,b.end,b.observations]);expect(a.lockWallMs).not.toBe(b.lockWallMs);
 });
-it('post-seal scoring invokes the production STEP runtime and rejects subset target',()=>{
+it('post-seal scoring invokes current v6 STEP policy and conservatively retries a covered subset target',()=>{
  const gate=new WaitingTopologyGate(48000,'s',0,200000,0,0);gate.arm(0,1);gate.captureThrough(80000,2);gate.accept(receipt(70000,80000,[[60000,'E4'],[61920,'G#4']]));
- const cell:AcousticCell={id:'s',rate:48000,actions:gate.actions,sourceOriginSample:0,captureTrace:[[80000,2,'READY']],ready:{sourceSample:0,wallMs:1},warm:{wallMs:.5,sourceFrontier:0},receipts:gate.receipts};
- const physical:PhysicalCase={id:'s',topology:'chord',intendedTime:1.25,physicalPitches:[64,68],truth:[{time:1.25,notes:[{pitch:64,time:1.25},{pitch:68,time:1.29}]}],scoredEnd:3,arm:0,selected:{},source:{recordingId:'unit'}};
- const exact=replayProduct(cell,physical,[64,68]),subset=replayProduct(cell,physical,[64]);
- expect(exact.outcomes[0].verdict).toBe('MATCH');expect(exact.outcomes[0].fullPhysicalSupport).toBe(true);expect(exact.snapshot.step.currentIndex).toBe(1);
- expect(subset.outcomes[0].verdict).toBe('MISMATCH');expect(subset.snapshot.step.currentIndex).toBe(0);
- expect(Object.values(exact.architecture).every(v=>v===0)).toBe(true);
+ const sealed=gate.actions.find(a=>a.type==='SEAL')!.attempt!;
+ expect(sealed.end).toBe(sealed.anchor+48000*50/1000);
+ expect(new Set(sealed.observations.map(o=>o.observationId)).size).toBe(sealed.observations.length);
+ for(const [target,verdict] of [[['E4','G#4'],'MATCH'],[['E4'],'RETRY'],[['D4'],'MISMATCH']] as const){
+  const current=microphoneV6(target,0);
+  const record=current.complete({anchorMs:sealed.anchor/48,endMs:sealed.end/48,
+   pitches:sealed.pitches,confidence:sealed.confidence},80000/48);
+  expect(record.verdict).toBe(verdict);expect(record.retryReason).toBe(verdict==='RETRY'?'UNCERTAIN':null);
+  expect(current.runtime.currentStepIndex).toBe(verdict==='MATCH'?1:0);
+  expect(current.runtime.openAttempt(current.time(70000/48))).toBeNull();
+  expect(current.runtime.snapshot().step.attempts).toHaveLength(1);
+ }
+ expect(gate.actions.filter(a=>a.type==='OPEN')).toHaveLength(1);
 });
 it('frozen audio jobs expose numeric control only and Stage A has no truth/product imports',()=>{
  const root=path.resolve(__dirname,'../../../..');
@@ -61,9 +68,16 @@ it('every eligible terminal anchor has full real owned coverage for its entire50
 it('an old pre-watermark physical gesture cannot corroborate a new decoded MATCH even with identical pitches',()=>{
  const gate=new WaitingTopologyGate(48000,'s',0,200000,0,0);gate.captureThrough(58000,.8);gate.arm(58000,1);
  gate.captureThrough(80000,2);gate.accept(receipt(70000,80000,[[60000,'C4']]));
- const cell:AcousticCell={id:'s',rate:48000,actions:gate.actions,sourceOriginSample:0,captureTrace:[[58000,.8,'UNAVAILABLE'],[80000,2,'READY']],ready:{sourceSample:58000,wallMs:1},warm:{wallMs:.5,sourceFrontier:50000},receipts:gate.receipts};
- const physical:PhysicalCase={id:'s',topology:'held_note',intendedTime:null,physicalPitches:[60],truth:[{time:1.2,notes:[{pitch:60,time:1.2}]}],scoredEnd:3,arm:58000/48000,selected:{},source:{recordingId:'unit'}};
- const result=replayProduct(cell,physical,[60]);expect(result.outcomes[0].verdict).toBe('MATCH');
- expect(result.outcomes[0].physicalGestureEligible).toBe(false);expect(result.outcomes[0].fullPhysicalSupport).toBe(false);expect(result.unsupported).toBe(1);
- expect(result.outcomes[0].physicalEventCapture!.state).toBe('UNAVAILABLE');expect(result.outcomes[0].decodedEventCapture!.state).toBe('READY');
+ const current=microphoneV6(['C4'],58000/48),physicalAttack=1.2*48000;
+ expect(physicalAttack).toBeLessThan(58000);
+ expect(current.runtime.openAttempt(current.time(physicalAttack/48))).toBeNull();
+ expect(current.runtime.openAttempt(current.time(58000/48))).toBeNull();
+ const sealed=gate.actions.find(a=>a.type==='SEAL')!.attempt!;
+ const record=current.complete({anchorMs:sealed.anchor/48,endMs:sealed.end/48,
+  pitches:sealed.pitches,confidence:sealed.confidence},80000/48);
+ expect(record.verdict).toBe('MATCH');expect(record.attemptStartSessionTime.ms).toBe(60000/48);
+ // A post-boundary decoded MATCH is not evidence that the earlier physical attack was eligible.
+ expect(physicalAttack).toBeLessThan(sealed.eligibleAfter);
+ expect(current.runtime.openAttempt(current.time(physicalAttack/48))).toBeNull();
+ expect(current.runtime.currentStepIndex).toBe(1);
 });

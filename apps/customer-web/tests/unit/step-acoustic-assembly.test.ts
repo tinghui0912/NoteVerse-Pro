@@ -26,7 +26,9 @@ describe('research fixed first-anchor acoustic assembly',()=>{
     const a=new BoundedAcousticAssembler(50),r=a.push(pub(0,4500,[[4260,'E4'],[4300,'G#4']]),ready);
     expect(r.sealed!.pitches).toEqual(['E4','G#4']);
     const result=replay('bach',{name:'extra_note_in_gesture',targets:[[64]]},[pub(0,4500,[[4260,'E4'],[4300,'G#4']])],4000,48000,50);
-    expect(result.outcomes[0].verdict).toBe('MISMATCH');
+    expect(result.outcomes[0].verdict).toBe('RETRY');
+    expect(result.snapshot.step.attempts[0].retryReason).toBe('UNCERTAIN');
+    expect(result.snapshot.step.currentIndex).toBe(0);
   });
   it('excludes equal/old watermark, has no busy attempt queue',()=>{
     const a=new BoundedAcousticAssembler(50);
@@ -35,7 +37,10 @@ describe('research fixed first-anchor acoustic assembly',()=>{
   });
   it('same publication opens at most one attempt and preserves extra pitches',()=>{
     const r=replay('one',{name:'single',targets:[[60],[60],[60]]},[pub(0,600,[[100,'C4'],[120,'C#4'],[400,'C4']])],0,48000,50);
-    expect(r.outcomes).toHaveLength(1);expect(r.outcomes[0].verdict).toBe('MISMATCH');
+    expect(r.outcomes).toHaveLength(1);expect(r.outcomes[0].verdict).toBe('RETRY');
+    expect(r.snapshot.step.attempts[0].retryReason).toBe('UNCERTAIN');
+    expect(r.outcomes[0].observedPitches).toEqual(['C#4','C4']);
+    expect(r.snapshot.step.currentIndex).toBe(0);
   });
   it('source sample watermark retires a delayed busy physical attack',()=>{
     const result=replay('busy',{name:'busy_period_input',targets:[[60],[60]]},[

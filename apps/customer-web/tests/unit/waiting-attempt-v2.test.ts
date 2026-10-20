@@ -5,7 +5,7 @@ import {WaitingAcousticAssembly,STEP_ACOUSTIC_GESTURE_WIDTH_MS} from '../../../.
 import type {SourceDecodedPublication} from '../../../../backend/research/step_waiting_attempt_v2/waiting-assembly';
 import {installChronologyDiagnostics,chronologyFailures} from '../../scripts/qualification/chronology-diagnostics';
 import {SourceChronology} from '../../src/lib/practice/acoustic/source/source-chronology';
-import {scoreProduct,targetVariants,type TruthCase} from '../../../../backend/research/step_waiting_attempt_v2/product-scoring';
+import {microphoneV6} from '../helpers/step-microphone-v6';
 import {SharedWorkerJobs} from '../../../../backend/research/step_waiting_attempt_v2/shared-worker-jobs';
 import type {AcousticInferenceInput} from '../../src/lib/practice/acoustic/runtime/inference-types';
 const p=(n:number,end:number,events:readonly [number,string][],delay=0):SourceDecodedPublication=>({publicationId:`s:w${n}`,frontierMs:end,analyzedThroughSourceSample:end*48,availabilityMs:end+170+delay,
@@ -55,15 +55,24 @@ it('Stage A and assembly cannot import product targets or read truth files',()=>
  for(const file of ['audio-entry.ts','waiting-assembly.ts'])expect(readFileSync(path.join(dir,file),'utf8')).not.toMatch(/StepPracticeRuntime|StepTarget|expectedPitch|truth\.json|targetGeneration|MISMATCH|MATCH/);
 });
 it('post-seal product verification uses the actual STEP runtime, with full pitch sets and physical rearm',()=>{
- const evidence={id:'s',rate:48000,assembly:{warmWitness:{availableMs:770}},publications:[p(0,600,[]),p(1,1200,[[900,'E4'],[940,'G#4']]),p(2,1800,[[1500,'E4']]),p(3,2400,[])]};
- const truth:TruthCase={id:'s',family:'busy_period_input',physicalPitches:[64,68],ownedStart:0,ownedEnd:2.4,
-  scoredEnd:2.4,eventTime:.9,warmBoundary:.6,truth:[{time:.9,notes:[{pitch:64,time:.9},{pitch:68,time:.94}]}],guards:[]};
- expect(targetVariants([64,68]).map(v=>v.name)).toEqual(['exact','subset','superset','semitone','octave']);
- const full=scoreProduct(evidence,truth,[64,68],'late');
- expect(full.outcomes.map(o=>o.verdict)).toEqual(['MATCH']);expect(full.outcomes[0].corroborated).toBe(true);
- expect(Object.values(full.architecture)).toEqual([0,0,0,0,0,0]);
- expect(full.outcomes[0].watermark).toBe(2370);expect(full.snapshot.step.attempts).toHaveLength(1);
- const subset=scoreProduct(evidence,truth,[64]);expect(subset.outcomes[0].verdict).toBe('MISMATCH');
+ const gate=new WaitingAcousticAssembly(48000,'s',0,2400*48);gate.push(p(0,600,[]));
+ const sealed=gate.push(p(1,1200,[[900,'E4'],[940,'G#4']])).sealed!;
+ expect(sealed.pitches).toEqual(['E4','G#4']);expect(sealed.captureEndMs).toBe(sealed.eventMs+50);
+ expect(gate.push(p(2,1800,[[1500,'E4']])).opened).toBeNull();
+ const physical=gate.commit(2370);
+ expect(physical.capturedThroughSourceSample).toBe(2370*48);
+ const evidence={anchorMs:sealed.eventMs,endMs:sealed.captureEndMs,pitches:sealed.pitches,confidence:sealed.confidence};
+ for(const [target,verdict] of [[['E4','G#4'],'MATCH'],[['E4'],'RETRY'],[['D4'],'MISMATCH']] as const){
+  const current=microphoneV6(target,600),record=current.complete(evidence,physical.inputEligibleAfter);
+  expect(record.verdict).toBe(verdict);expect(record.retryReason).toBe(verdict==='RETRY'?'UNCERTAIN':null);
+  expect(record.observedAttackPitches).toEqual(sealed.pitches);
+  expect(current.runtime.currentStepIndex).toBe(verdict==='MATCH'?1:0);
+  expect(current.runtime.openAttempt(current.time(1500))).toBeNull();
+  expect(current.runtime.snapshot().step.attempts).toHaveLength(1);
+ }
+ expect(gate.push({...p(1,1200,[[900,'E4'],[940,'G#4']]),availabilityMs:2371}).opened).toBeNull();
+ expect(gate.push(p(3,2400,[[2370,'E4'],[2380,'E4']])).opened).not.toBeNull();
+ expect(gate.snapshot().active!.eventMs).toBe(2380);
 });
 it('Stage B verifies the acoustic seal before opening truth; Stage A has an asset-only HTTP allowlist',()=>{
  const dir=path.resolve(__dirname,'../../../../backend/research/step_waiting_attempt_v2');
