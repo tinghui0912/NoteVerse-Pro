@@ -1,0 +1,52 @@
+{
+  "resultCommit": "a6768acfc653c368cabe2327d7085c4856c6c04a",
+  "remotelyVerifiedAt": "2026-10-20T08:57:00.696Z",
+  "resultRemote": {
+    "localHead": "a6768acfc653c368cabe2327d7085c4856c6c04a",
+    "originHead": "a6768acfc653c368cabe2327d7085c4856c6c04a",
+    "lsRemoteHead": "a6768acfc653c368cabe2327d7085c4856c6c04a",
+    "aheadBehind": [
+      0,
+      0
+    ],
+    "cleanWorktree": true
+  },
+  "resultGithub": {
+    "head": "a6768acfc653c368cabe2327d7085c4856c6c04a",
+    "queriedAt": "2026-10-20T08:57:00.696Z",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflowRuns": [],
+    "ciInterpretation": "NOT CI PASS"
+  },
+  "serializedEvents": [
+    {
+      "state": "RESULT_LOCAL_COMMITTED",
+      "at": "2026-10-20T08:56:45.139Z"
+    },
+    {
+      "state": "RESULT_PUSH_STARTED",
+      "at": "2026-10-20T08:56:45.139Z"
+    },
+    {
+      "state": "RESULT_PUSH_EXITED_SUCCESS",
+      "at": "2026-10-20T08:56:50.637Z"
+    },
+    {
+      "state": "RESULT_FETCH_STARTED",
+      "at": "2026-10-20T08:56:50.637Z"
+    },
+    {
+      "state": "RESULT_REMOTE_VERIFIED",
+      "at": "2026-10-20T08:56:57.008Z"
+    },
+    {
+      "state": "RESULT_GITHUB_QUERIED",
+      "at": "2026-10-20T08:57:00.696Z"
+    }
+  ],
+  "productionDiff": [],
+  "V3ThroughV37Diff": [],
+  "disposition": "PRACTICE_ACOUSTIC_V38_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "selfReference": "This proof describes RESULT_COMMIT only; final RECEIPT verification is terminal stdout only"
+}
