@@ -67,22 +67,21 @@ describe('evaluatePracticeInputCapabilities', () => {
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphoneCapture.supported).toBe(true);
     expect(caps.microphoneCapture.status).toBe('AVAILABLE');
-    expect(caps.acousticAnalysis.step.status).toBe('ATTEMPT_ANALYZER_NOT_VALIDATED');
+    expect(caps.acousticAnalysis.step.status).toBe('AVAILABLE');
     expect(caps.acousticAnalysis.continuous.status).toBe('AVAILABLE');
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
     expect(getSelectedInputCapability('MIDI', caps, 'STEP_BY_STEP').status).toBe('AVAILABLE');
   });
 
-  it('disables STEP microphone until bounded-attempt analysis is available', () => {
+  it('enables STEP microphone through the integrated controller on a full acoustic runtime', () => {
     const caps = evaluatePracticeInputCapabilities();
 
     expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
-      supported: false,
-      status: 'STEP_ANALYSIS_UNAVAILABLE',
-      reason: 'STEP_ANALYSIS_UNAVAILABLE',
+      supported: true,
+      status: 'AVAILABLE',
     });
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
   });
 
   it('enables Continuous microphone with the full acoustic runtime while leaving MIDI independent', () => {
@@ -105,11 +104,12 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
     expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(true);
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
     expect(isInputSourceSupported('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toBe(true);
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(navigator.storage.getDirectory).not.toHaveBeenCalled();
     expect(crypto.subtle.digest).not.toHaveBeenCalled();
+    expect(navigator.gpu.requestAdapter).not.toHaveBeenCalled();
   });
 
   it('does not make OPFS a browser microphone capture prerequisite', () => {
@@ -150,7 +150,7 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(caps.midi.supported).toBe(false);
     expect(caps.midi.status).toBe('BROWSER_UNSUPPORTED');
     expect(caps.midi.reason).toBe('BROWSER_UNSUPPORTED');
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
     expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(false);
   });
 
@@ -174,16 +174,17 @@ describe('evaluatePracticeInputCapabilities', () => {
     ['Web Crypto SHA-256 digest', () => { vi.stubGlobal('crypto', { subtle: {} }); }, true],
   ] as const;
   for (const [name, remove, pcmSupported] of missingRuntimeCases) {
-    it(`fails Continuous closed without ${name}, without disabling MIDI or redefining PCM capture`, () => {
+    it(`fails both acoustic modes closed without ${name}, without disabling MIDI or redefining PCM capture`, () => {
       remove();
       const caps = evaluatePracticeInputCapabilities();
       expect(caps.microphoneCapture.supported).toBe(pcmSupported);
       expect(caps.acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
-      expect(caps.acousticAnalysis.step.status).toBe('ATTEMPT_ANALYZER_NOT_VALIDATED');
+      expect(caps.acousticAnalysis.step.status).toBe('BROWSER_UNSUPPORTED');
       expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toEqual({
         supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED',
       });
       expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+      expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP').status).toBe('BROWSER_UNSUPPORTED');
       expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
     });
   }

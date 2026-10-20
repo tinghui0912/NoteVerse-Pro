@@ -50,12 +50,10 @@ type ContinuousAcousticAnalysisCapability =
   | { status: 'AVAILABLE' };
 
 type StepAcousticAnalysisCapability =
+  // Preserved for historical qualification consumers; never emitted by product detection.
   | { status: 'ATTEMPT_ANALYZER_NOT_VALIDATED' }
+  | { status: 'BROWSER_UNSUPPORTED' }
   | { status: 'AVAILABLE' };
-
-const STEP_ACOUSTIC_ANALYSIS_CAPABILITY: StepAcousticAnalysisCapability = {
-  status: 'ATTEMPT_ANALYZER_NOT_VALIDATED',
-};
 
 export type EvaluatePracticeInputOptions = {
   connectedMidiInputs?: number;
@@ -69,7 +67,7 @@ export function evaluatePracticeInputCapabilities(
       microphoneCapture: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       midi: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       acousticAnalysis: {
-        step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
+        step: { status: 'BROWSER_UNSUPPORTED' },
         continuous: { status: 'BROWSER_UNSUPPORTED' },
       },
     };
@@ -92,12 +90,12 @@ export function evaluatePracticeInputCapabilities(
     microphoneCapture = { supported: true, status: 'AVAILABLE' };
   }
 
-  // Continuous uses the standard context constructor and verified worker-backed
+  // Both acoustic modes use the standard context constructor and verified worker-backed
   // model loading; PCM capture alone does not establish these prerequisites.
   const gpu = typeof navigator === 'undefined'
     ? undefined
     : (navigator as Navigator & { gpu?: { requestAdapter?: unknown } }).gpu;
-  const hasContinuousRuntime = isBrowserAudioSupported
+  const hasAcousticRuntime = isBrowserAudioSupported
     && typeof audioWindow.AudioContext === 'function'
     && typeof Worker === 'function'
     && typeof gpu?.requestAdapter === 'function'
@@ -105,7 +103,7 @@ export function evaluatePracticeInputCapabilities(
     && typeof crypto !== 'undefined'
     && typeof crypto.subtle?.digest === 'function';
   const continuous: ContinuousAcousticAnalysisCapability = {
-    status: hasContinuousRuntime ? 'AVAILABLE' : 'BROWSER_UNSUPPORTED',
+    status: hasAcousticRuntime ? 'AVAILABLE' : 'BROWSER_UNSUPPORTED',
   };
 
   // Evaluate MIDI (completely independent of AudioWorklet, OPFS, or microphone model)
@@ -126,7 +124,7 @@ export function evaluatePracticeInputCapabilities(
     microphoneCapture,
     midi,
     acousticAnalysis: {
-      step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
+      step: { status: hasAcousticRuntime ? 'AVAILABLE' : 'BROWSER_UNSUPPORTED' },
       continuous,
     },
   };
@@ -167,6 +165,9 @@ export function getSelectedMicrophoneCapability(
     mode === 'STEP_BY_STEP'
     && capabilities.acousticAnalysis.step.status !== 'AVAILABLE'
   ) {
+    if (capabilities.acousticAnalysis.step.status === 'BROWSER_UNSUPPORTED') {
+      return { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
+    }
     return {
       supported: false,
       status: STEP_ANALYSIS_UNAVAILABLE_REASON,

@@ -416,6 +416,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const isStepMode = practiceMode === 'STEP_BY_STEP';
   const isActive =
+    localPractice.inputState === 'STARTING' ||
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
 

@@ -47,9 +47,12 @@ it('Original provider, loaders, endpoints and old active FIR/capture paths are a
   expect(router).not.toMatch(/bytedance-note|continuous-robust-browser-v1/);
   for (const f of active) expect(imports(f).join('\n')).not.toMatch(/research|bytedance-onnx-provider|bytedance-model-loader|acoustic-inference[/\\]continuous/);
 });
-it('product domain cannot reach model infrastructure and MIDI STEP cannot reach acoustic execution', () => {
+it('domain and MIDI gestures cannot reach model infrastructure; STEP application composes the shared acoustic foundation', () => {
   const finalizer = path.join(root, 'lib/practice/local-core/continuous-finalizer.ts');
   expect(reach(finalizer).filter(f => f.startsWith(acoustic))).toEqual([]);
-  const step = path.join(root, 'hooks/practice/use-step-local-practice.ts');
-  expect(reach(step).filter(f => f.startsWith(acoustic))).toEqual([]);
+  const midi = path.join(root, 'lib/practice/step/step-midi-attempt-input.ts');
+  expect(reach(midi).filter(f => f.startsWith(acoustic))).toEqual([]);
+  const step = reach(path.join(root, 'hooks/practice/use-step-local-practice.ts'));
+  expect(step).toContain(path.join(acoustic, 'runtime/source-analysis-runtime.ts'));
+  expect(step.filter(f => /continuous-practice-controller|acoustic[/\\]continuous/.test(f))).toEqual([]);
 });

@@ -14,7 +14,7 @@ import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-cor
 describe('PracticeSettingsPanel', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
-  it('enables explicit Continuous microphone Start, keeps STEP closed, and locks mode/input while active', () => {
+  it('enables default STEP and explicit Continuous microphone Start, and locks mode/input while active', () => {
     vi.stubGlobal('AudioContext', class MockAudioContext {});
     vi.stubGlobal('AudioWorkletNode', class MockAudioWorkletNode {});
     vi.stubGlobal('Worker', class MockWorker {});
@@ -42,12 +42,12 @@ describe('PracticeSettingsPanel', () => {
     }
     render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}><PracticeAvailability /></NextIntlClientProvider>);
     expect(screen.getByRole('button', { name: /^step-by-step/i })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Step-by-step microphone analysis is temporarily unavailable')).toBeVisible();
-    expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled();
+    expect(screen.queryByText('Step-by-step microphone analysis is temporarily unavailable')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /midi keyboard/i }));
     expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /^microphone/i }));
-    expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /^step-by-step/i })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: /^continuous play/i }));
     expect(screen.getByRole('button', { name: /^start$/i })).toBeEnabled();

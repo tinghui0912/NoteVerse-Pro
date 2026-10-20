@@ -1,6 +1,7 @@
 import { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '../local-core/timebase';
+import type { StepAttemptEvidence } from '../local-core/step-attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';
 import type { StepMicrophonePlatform, StepMicrophoneWorker } from './step-microphone-platform';
@@ -31,6 +32,8 @@ export class StepMicrophoneInput<Identity> {
   private failure: Error | null = null;
   private captureConnected = false;
   private delivering = false;
+  private notifying = false;
+  private completed: { identity: Identity; evidence: StepAttemptEvidence } | null = null;
   private regionStarted = false;
   private publications = 0;
   private sequence = 0;
@@ -74,6 +77,18 @@ export class StepMicrophoneInput<Identity> {
       this.issued = Object.freeze({ sourceDomainId: this.connection!.sourceDomainId, sourceSampleRateHz: capture.sourceSampleRateHz,
         capturedThroughSourceSample: sample, sessionTime: Object.freeze(this.timebase!.sampleIndexToSessionTime(sample)), sequence: ++this.sequence });
       return this.issued;
+    } catch (error) { this.fail(error); throw error; }
+  }
+
+  /** Retire an armed, idle input before an application target transition, never an active gesture. */
+  transitionBoundary(): StepMicrophoneRetirementBoundary {
+    try {
+      this.check();
+      if (this.delivering || this.notifying || this.state !== 'AVAILABLE' || this.assembler?.snapshot().phase !== 'READY') {
+        throw new Error('STEP_MICROPHONE_TRANSITION_NOT_AVAILABLE');
+      }
+      this.assembler.suspend();
+      return this.retirementBoundary();
     } catch (error) { this.fail(error); throw error; }
   }
 
@@ -153,7 +168,7 @@ export class StepMicrophoneInput<Identity> {
       this.assembler = new StepAcousticAttemptAssembler({ sourceDomainId: c.sourceDomainId, sourceSampleRateHz: rate,
         localSessionId: c.localSessionId, sourceAnchorSample: 0, sessionAnchorTime: this.timebase.sampleIndexToSessionTime(0), sink: {
           open: time => { this.check(); return this.sink.open(time); },
-          complete: (identity, evidence) => { this.check(); this.sink.complete(identity, evidence); this.check(); },
+          complete: (identity, evidence) => { this.check(); this.completed = { identity, evidence }; },
         } });
     }
     if (!this.regionStarted && this.runtime!.prerollReady) {
@@ -171,14 +186,23 @@ export class StepMicrophoneInput<Identity> {
   private publication(publication: SourceAcousticPublication): void {
     if (this.closed()) return;
     try {
-      if (this.delivering || !this.assembler || !this.bridge
+      if (this.delivering || this.notifying || !this.assembler || !this.bridge
         || publication.ownedThroughSourceSample > this.bridge.snapshot().capturedThroughSourceSample) {
         throw new Error('STEP_MICROPHONE_PUBLICATION_INVALID');
       }
       this.delivering = true;
       this.assembler.accept(publication); this.check(); this.publications++;
+      this.delivering = false;
+      // The assembler must unwind before the application commits retirement and arms it.
+      // Keep notification reentrancy forbidden, without inserting an asynchronous gap.
+      const completed = this.completed; this.completed = null;
+      if (completed) {
+        this.notifying = true;
+        this.sink.complete(completed.identity, completed.evidence);
+        if (this.state !== 'DISPOSED') this.check();
+      }
     } catch (error) { this.fail(error); throw error; }
-    finally { this.delivering = false; }
+    finally { this.delivering = false; this.notifying = false; this.completed = null; }
   }
 
   private readonly contextChanged = () => {

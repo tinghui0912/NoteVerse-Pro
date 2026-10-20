@@ -37,8 +37,8 @@ it('generic MIDI has neither target knowledge nor acoustic dependencies', () => 
   for (const token of ['StepTarget','StepPracticeRuntime','targetGeneration','expected','getCurrentStepTarget','onStepObservation','setTargetGetter']) expect(read(midi)).not.toContain(token);
   expect(reach(midi).filter(p => /[\\/]acoustic[\\/]|step-runtime/.test(p))).toEqual([]);
 });
-it('STEP MIDI reachability is entirely independent of acoustic/Continuous execution', () => {
-  const reached = reach(path.join(__dirname,'step-practice-controller.ts'));
+it('STEP MIDI gesture input stays independent of acoustic/Continuous execution', () => {
+  const reached = reach(path.join(__dirname,'step-midi-attempt-input.ts'));
   expect(reached.filter(p => /[\\/]acoustic[\\/]|model-assets|continuous-practice-controller|continuous-finalizer|continuous-capture|onnx/i.test(p))).toEqual([]);
   expect(read(path.join(__dirname,'step-midi-attempt-input.ts'))).not.toMatch(/attackPitches|expected|currentTarget|StepTarget|advance/);
 });
@@ -132,7 +132,7 @@ it('target-relative verdict policy has only the runtime owner; producers remain 
     expect(read(p)).not.toMatch(/MICROPHONE_CONSERVATIVE_TRISTATE|MIDI_EXACT_SET|pitchSetsEqual|\bp2\(|targetCovered|expected\.every/);
   }
   expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('runtime.completeAttempt(identity, evidence)');
-  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).not.toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
 });
 it('application ownership and domain status have separate types and truthful STEP snapshots', () => {
   const domain = read(path.join(practice, 'local-core/session.ts'));
@@ -171,6 +171,6 @@ it('one production H50 assembler is target-blind, source-frontier sealed and not
   expect(source).toContain('o.sourceEventSample < active.end');
   expect(source).toContain('Math.min(...bounded.map(o => o.confidence))');
   expect(read(path.join(__dirname, 'step-practice-controller.ts'))).not.toContain('StepAcousticAttemptAssembler');
-  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
+  expect(read(path.join(__dirname, 'step-practice-controller.ts'))).toContain('StepMicrophoneInput');
   expect(read(path.join(src, 'hooks/practice/use-step-local-practice.ts'))).not.toContain('StepAcousticAttemptAssembler');
 });

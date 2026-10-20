@@ -258,9 +258,9 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(fresh.snapshot().sessionSnapshot?.localSessionId).not.toBe(old.localSessionId);
     expect(fresh.snapshot().sessionSnapshot?.step.currentIndex).toBe(0); fresh.dispose();
   });
-  it('microphone start rejected without constructing MIDI/metronome or acoustic resources', async () => {
+  it('missing microphone platform fails truthfully without constructing MIDI or metronome', async () => {
     const s = setup(0, 'MICROPHONE'); await s.controller.start();
-    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_ANALYSIS_UNAVAILABLE', sessionSnapshot: null });
+    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_UNAVAILABLE', sessionSnapshot: null });
     expect(s.midi.start).not.toHaveBeenCalled(); expect(s.metronome.start).not.toHaveBeenCalled(); s.controller.dispose();
   });
 });

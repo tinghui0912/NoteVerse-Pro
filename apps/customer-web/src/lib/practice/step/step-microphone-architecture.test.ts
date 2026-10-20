@@ -51,12 +51,31 @@ it('physical retirement is issued from capture chronology, never acoustic proces
   expect(source).toContain('this.connection.context.currentTime * 1000');
 });
 
-it('browser STEP startup and capability remain closed; no application consumer imports new resources', () => {
+it('only the STEP application owner wires microphone resources; hooks never own acoustic resources or rearm', () => {
   const controller = read('step-practice-controller.ts');
-  expect(controller).toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
-  expect(controller).not.toMatch(/StepMicrophoneInput|browserStepMicrophonePlatform|createAudioContext|getUserMedia/);
+  expect(controller).not.toContain('STEP_ANALYSIS_UNAVAILABLE_REASON');
+  expect(calls('step-practice-controller.ts', 'StepMicrophoneInput', true)).toHaveLength(1);
+  expect(controller).toContain('new StepMicrophoneInput<StepAttemptIdentity>');
+  expect(controller).not.toMatch(/new SourceAnalysisRuntime|new StepAcousticAttemptAssembler|getUserMedia/);
+  expect(read('step-platform.ts')).toContain('browserStepMicrophonePlatform');
   const hook = readFileSync(path.join(__dirname, '../../../hooks/practice/use-step-local-practice.ts'), 'utf8');
   expect(hook).not.toMatch(/StepMicrophoneInput|browserStepMicrophonePlatform|\.rearm\(/);
   const capability = readFileSync(path.join(__dirname, '../input-capability.ts'), 'utf8');
   expect(capability).toContain('ATTEMPT_ANALYZER_NOT_VALIDATED');
+});
+
+it('post-verdict domain rearm and input arm form one synchronous controller commit', () => {
+  const source = read('step-practice-controller.ts');
+  const ast = ts.createSourceFile('controller.ts', source, ts.ScriptTarget.Latest, true);
+  let commit: ts.MethodDeclaration | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isMethodDeclaration(node) && node.name.getText(ast) === 'commitPostVerdict') commit = node;
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  const text = commit!.getText(ast).replace(/\r\n/g, '\n');
+  expect(text).not.toMatch(/\basync\b|\bawait\b|Promise|queueMicrotask|setTimeout|setInterval/);
+  expect(text).toContain('this.microphone?.retirementBoundary()');
+  expect(text).toContain('this.runtime.rearm(watermark);\n    if (boundary) this.microphone!.arm(boundary);');
+  expect(text).not.toMatch(/ownedThroughSourceSample|processedThroughSourceSample/);
 });

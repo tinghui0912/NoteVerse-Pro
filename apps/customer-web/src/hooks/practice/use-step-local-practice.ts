@@ -7,9 +7,12 @@ import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
 
 /** Presentation/commands only. Every STEP resource belongs to its application owner. */
-export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null) {
+export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
+  resourceBarrier: { current: Promise<void> }) {
   const owner = useRef<StepPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
+  const generation = useRef(0);
+  const starting = useRef(false);
   const completion = useRef(options.onCompletion);
   useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
@@ -22,9 +25,14 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const setSnapshot = useCallback((value: Snapshot) => saveSnapshot({ key, artifact: options.artifact, value }), [key, options.artifact]);
   const setPreparationError = useCallback((value: string | null) => saveError({ key, artifact: options.artifact, value }), [key, options.artifact]);
   const dispose = useCallback(() => {
-    unsubscribe.current?.(); unsubscribe.current = null; owner.current?.dispose(); owner.current = null;
-  }, []);
-  useEffect(() => dispose, [key, options.artifact, dispose]);
+    generation.current++; starting.current = false;
+    unsubscribe.current?.(); unsubscribe.current = null;
+    const old = owner.current; owner.current = null;
+    const pending = old?.dispose();
+    resourceBarrier.current = Promise.all([resourceBarrier.current, pending]).then(() => {});
+    return resourceBarrier.current;
+  }, [resourceBarrier]);
+  useEffect(() => () => { void dispose(); }, [key, options.artifact, dispose]);
   useEffect(() => { owner.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
   useEffect(() => {
     if (options.mode !== 'STEP_BY_STEP') return;
@@ -34,19 +42,30 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
   }, [options.mode, setSnapshot]);
   const start = useCallback(async () => {
-    if (owner.current && owner.current.snapshot().state !== 'IDLE') return;
+    if (starting.current || (owner.current && ['PREPARING', 'ACTIVE'].includes(owner.current.snapshot().state))) return;
     if (!options.artifact || !options.scope || !tempoPlan) { setPreparationError('STEP_SCORE_UNAVAILABLE'); return; }
-    if (!owner.current) {
+    const released = dispose(), operation = generation.current;
+    starting.current = true;
+    try {
+      await released;
+      if (operation !== generation.current) return;
       const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         onCompletion: result => completion.current?.(result) });
       owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
+      setPreparationError(null); await controller.start();
+    } finally {
+      if (operation === generation.current) starting.current = false;
     }
-    setPreparationError(null); await owner.current.start();
-  }, [options, tempoPlan, setPreparationError, setSnapshot]);
-  const finish = useCallback(async () => { owner.current?.finish(); }, []);
+  }, [options, tempoPlan, setPreparationError, setSnapshot, dispose]);
+  const finish = useCallback(async () => { await owner.current?.finish(); }, []);
   const skip = useCallback(() => { owner.current?.skip(); }, []);
-  const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start, setSnapshot, setPreparationError]);
+  const restart = useCallback(async () => {
+    const released = dispose(), operation = generation.current;
+    await released;
+    if (operation !== generation.current) return;
+    completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start();
+  }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
   const applicationState: StepControllerState = snapshot?.state ?? 'IDLE';
   const inputError = preparationError ?? snapshot?.error ?? null;

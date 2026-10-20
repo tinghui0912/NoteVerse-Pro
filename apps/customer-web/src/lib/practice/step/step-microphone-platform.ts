@@ -12,7 +12,7 @@ export interface StepMicrophonePlatform {
   connectCapture(options: Parameters<typeof BrowserAcousticCapture.connect>[0]): Promise<Pick<BrowserAcousticCapture, 'stop'>>;
 }
 
-/** Internal infrastructure, deliberately not registered with STEP product startup. */
+/** Score-blind acoustic infrastructure, composed by the STEP application platform. */
 export const browserStepMicrophonePlatform: StepMicrophonePlatform = {
   modelUrl: async signal => (await getPracticeAcousticModelAccess(signal)).downloadUrl,
   createWorker: createAcousticModelWorker,

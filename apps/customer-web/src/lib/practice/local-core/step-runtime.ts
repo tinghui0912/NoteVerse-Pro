@@ -127,10 +127,14 @@ export class StepPracticeRuntime {
     if (capturedThrough.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     this.boundary = Object.freeze({ ...capturedThrough }); this.inputAvailable = true;
   }
-  skip(): boolean {
+  skip(capturedThrough?: SessionTime): boolean {
     const target = this.currentTarget(); if (!target || !this.canAcceptAttempt) return false;
+    // A physical input owner may retire capture at a different frontier than the live clock.
+    // MIDI callers retain their existing clock-based transition.
+    const skippedAt = Object.freeze({ ...(capturedThrough ?? this.now()) });
+    this.validateTime(skippedAt);
+    if (capturedThrough && skippedAt.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     this.assertHistoryRoom(); this.cancelAttempt();
-    const skippedAt = this.now();
     if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
     this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));
     this.advance(); return true;

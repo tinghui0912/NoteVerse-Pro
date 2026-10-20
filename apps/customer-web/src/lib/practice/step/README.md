@@ -4,7 +4,7 @@ STEP is one target / one bounded attempt / one verdict. It has no Continuous
 performance clock, streaming evidence store, or transitive finalizer.
 
 - `StepPracticeController` is the sole application owner. It composes the pure
-  domain, generic browser MIDI input, gesture assembler and STEP metronome.
+  domain, selected MIDI/microphone input and STEP metronome.
 - `StepMidiAttemptInput` opens at the first NOTE_ON while READY and closes the
   complete fixed 35ms gesture. It knows no target pitches. No early acceptance,
   timer extension, cross-attempt pitch bag, or busy-input queue is allowed.
@@ -36,7 +36,7 @@ MATCH completes the scope there. Snapshot readiness is derived, never hook-owned
 Re-arm requires an explicit same-session monotonic accepted-input watermark.
 The controller requests it from `StepRetirementPolicy`. MIDI uses current session
 time at the READY transition, with zero minimum technical delay and no extra timer.
-Future microphone input must use authoritative physical capture/session time
+Microphone input uses authoritative physical capture/session time
 through which input has already occurred, not the analysis frontier, Worker
 completion or publication availability. No busy evidence may open a later attempt.
 The fixed MIDI policy is STEP_MIDI_CHORD_COHERENCE_MS=35. Native MIDI event
@@ -63,10 +63,21 @@ same target/session and MIDIAccess owner. Reconnection automatically establishes
 a fresh capture-time eligibility boundary without a Resume command. Cleanup detaches/disposes
 input and destroys the metronome once before reporting completion.
 
-Microphone start remains STEP_ANALYSIS_UNAVAILABLE; capability is
-ATTEMPT_ANALYZER_NOT_VALIDATED. No model/FIR/Worker/Worklet/microphone permission is
-reachable from STEP MIDI. Future acoustic input must share this semantic runtime,
-continue capture without Pause/Resume, and supply physical capturedThrough after
-its retirement condition. MICROPHONE_POST_VERDICT_MINIMUM_NOT_YET_ENGINEERING_QUALIFIED:
-no microphone duration is selected. H50 is only within-gesture grouping, not a cooldown.
+Microphone startup composes `StepMicrophoneInput` through the application platform.
+The controller owns the root stream, borrowed AudioContext, metronome and runtime;
+the input owns its analysis clone, capture bridge, assembler and worker graph.
+No microphone resources are constructed on the MIDI execution path.
+The microphone clock is AudioContext-backed. Initial readiness keeps runtime input
+unavailable until a genuine physical boundary is accepted and the input is armed.
+After each verdict, `runtime.rearm(boundary.sessionTime)` and `input.arm(boundary)`
+run synchronously, without a timer, notification or Promise hop between them.
+Skip blocks the idle assembler first and commits the target transition at the same
+physical boundary before rearming. No active gesture may be skipped.
+Finish/dispose return promises; hook restart and mode/input changes await resource
+release before constructing another owner. Infrastructure loss is terminal, not a
+reconnect. Capability detection is side-effect-free and requires the full acoustic
+browser runtime independently of MIDI support. H50 is within-gesture grouping, not a cooldown.
 No RMS, flux or second strike detector is added. TOO_QUIET classification is not implemented.
+
+Product availability does not claim fresh physical-device recognition quality,
+permission UX across browsers, physical latency or root-loss qualification.

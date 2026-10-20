@@ -200,7 +200,7 @@ describe('useLocalPractice', () => {
     expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
   });
 
-  it('fails STEP microphone closed until bounded-attempt analysis is available', async () => {
+  it('reaches STEP microphone acquisition and reports an unavailable device rather than a product gate', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -216,7 +216,7 @@ describe('useLocalPractice', () => {
 
     expect(result.current.lifecycle).toBe('IDLE');
     expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('STEP_ANALYSIS_UNAVAILABLE');
+    expect(result.current.inputError).toBe('STEP_MICROPHONE_UNAVAILABLE');
   });
 
   it('handles MIDI input start failure by keeping IDLE lifecycle and setting ERROR inputState', async () => {

@@ -59,4 +59,22 @@ describe('explicit STEP accepted-input watermark', () => {
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
     expect(s.runtime.openAttempt(s.time(701))).not.toBeNull();
   });
+  it('physical skip uses an immutable capture boundary rather than the later live clock', () => {
+    const s = harness(); s.finish('MISMATCH'); s.runtime.rearm(s.time(700));
+    s.clock.set(9000);
+    const boundary = { ...s.time(800), sampleIndex: 38400 };
+    expect(s.runtime.skip(boundary)).toBe(true); boundary.ms = 1;
+    expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(800);
+    expect(s.runtime.snapshot().step.skips[0].sessionTime).toEqual({ ...s.time(800), sampleIndex: 38400 });
+    expect(s.runtime.openAttempt(s.time(800))).toBeNull();
+    expect(s.runtime.openAttempt(s.time(801))).not.toBeNull();
+  });
+  it('rejects invalid physical skip boundaries before changing the target or recording a skip', () => {
+    const s = harness(); s.finish('MISMATCH'); s.runtime.rearm(s.time(700));
+    for (const boundary of [s.time(699), s.time(NaN), { domainId: 'foreign', ms: 800 }]) {
+      expect(() => s.runtime.skip(boundary)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+      expect(s.runtime.currentStepIndex).toBe(0); expect(s.runtime.snapshot().step.skips).toEqual([]);
+      expect(s.runtime.canAcceptAttempt).toBe(true);
+    }
+  });
 });

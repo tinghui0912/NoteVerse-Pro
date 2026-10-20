@@ -54,8 +54,8 @@ it('active Continuous has no old worker, research namespace, or output timestamp
   for (const file of product) expect(readFileSync(file, 'utf8')).not.toContain('getOutputTimestamp');
   expect(all.filter(p => /bytedance-worker-(entry|client|factory|protocol)/.test(p))).toEqual([]);
 });
-it('Continuous fails closed outside a browser while STEP analysis remains unvalidated', () => {
+it('both acoustic modes fail closed outside a browser', () => {
   const capabilities = evaluatePracticeInputCapabilities();
   expect(capabilities.acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
-  expect(capabilities.acousticAnalysis.step.status).toBe('ATTEMPT_ANALYZER_NOT_VALIDATED');
+  expect(capabilities.acousticAnalysis.step.status).toBe('BROWSER_UNSUPPORTED');
 });
