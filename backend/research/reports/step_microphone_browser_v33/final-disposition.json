@@ -1,0 +1,58 @@
+{
+  "phase": "V33",
+  "disposition": "STEP_V33_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "authority": "Additive final closeout result; supersedes the phase-success interpretation of the earlier immutable browser assessment without changing its raw receipts or browser gates",
+  "startingHead": "fdd54abb09c4a82309127ff828f3c9a41126ab9c",
+  "freezeCommit": "d8e642c7d3c5a414fc165eb8db175cd4eceec714",
+  "sealedBrowserResultCommit": "72ca02afa0bef92cb98b8473471eadedf2bac1e2",
+  "firstFailure": {
+    "artifact": "closeout-final-head-failure.json",
+    "at": "2026-10-20T06:30:20.368Z",
+    "operation": "seal.mjs final-head",
+    "observedOriginTrackingHead": "72ca02afa0bef92cb98b8473471eadedf2bac1e2",
+    "expectedLocalHead": "27275a209f6205e7e118610d3b793433e8084f99",
+    "cause": "Final refetch and HEAD audit were started while the receipt push exec session 64774 was still running. The fetch saw the previous remote commit. The first final-head assertion failed before GitHub queries.",
+    "category": "RESEARCH_CLOSEOUT_ORCHESTRATION_INTEGRITY_FAILURE",
+    "productionDefectEstablished": false,
+    "originalFailureFilePhaseDispositionUnchangedField": "Historical frozen helper field is preserved verbatim; this additive final record applies the mandatory integrity-blocked disposition"
+  },
+  "pushSubsequentlyCompleted": {
+    "samePendingPushNotRetried": true,
+    "from": "72ca02af",
+    "to": "27275a20",
+    "doesNotWaiveFailedMandatoryCloseoutGate": true
+  },
+  "browserEvidencePreserved": {
+    "campaigns": 1,
+    "cellRetries": 0,
+    "cells": [
+      {"id": "normal-44100", "frozenBrowserAudit": "PASS", "A": 71, "C": 71, "K": 0, "internalSessionRunInvocationInterval": [71, 71], "ordinaryEvidenceAttempts": 20},
+      {"id": "normal-48000", "frozenBrowserAudit": "PASS", "A": 71, "C": 71, "K": 0, "internalSessionRunInvocationInterval": [71, 71], "ordinaryEvidenceAttempts": 21},
+      {"id": "context-loss-44100", "frozenBrowserAudit": "PASS", "A": 2, "C": 2, "K": 0, "internalSessionRunInvocationInterval": [2, 2], "ordinaryEvidenceAttempts": 0},
+      {"id": "context-loss-48000", "frozenBrowserAudit": "PASS", "A": 2, "C": 2, "K": 0, "internalSessionRunInvocationInterval": [2, 2], "ordinaryEvidenceAttempts": 0}
+    ],
+    "authorizedInferRequests": 146,
+    "acknowledgedCompletedSessionRuns": 146,
+    "terminalTeardownCancellations": 0,
+    "failedOrRejectedRunPromises": 0,
+    "unattributedRequestLifecycle": 0,
+    "unattributedOrHiddenNeuralExecution": 0,
+    "noQualificationClaimAfterCloseoutFailure": true
+  },
+  "noRepairOrRetry": true,
+  "failedFinalHeadCommandNotRerun": true,
+  "noSecondBrowserCampaign": true,
+  "frozenSourcesUnchanged": true,
+  "productionDiff": [],
+  "V3ThroughV32Diff": [],
+  "capabilities": {"Continuous": "MODEL_NOT_VALIDATED", "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED", "productionMicrophone": false, "D4": false},
+  "rootLoss": "ROOT_SOURCE_LOSS_NOT_EVALUATED_IN_V33",
+  "disclaimers": [
+    "BACKEND_MODEL_ASSET_DELIVERY_NOT_QUALIFIED",
+    "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+    "MICROPHONE_PERMISSION_UX_NOT_QUALIFIED",
+    "PHYSICAL_MICROPHONE_UX_LATENCY_NOT_QUALIFIED",
+    "FRESH_ACOUSTIC_RECOGNITION_QUALIFICATION_NOT_PERFORMED"
+  ],
+  "closeoutOnly": "Preserve failure, add evidence, commit/push/refetch and query final remote metadata. No audit correction, browser retry, production integration or capability promotion. STOP_FOR_INDEPENDENT_AUDIT"
+}
