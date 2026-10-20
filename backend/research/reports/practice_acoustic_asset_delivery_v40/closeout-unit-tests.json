@@ -1,0 +1,18 @@
+[
+  {
+    "name": "slow push prevents fetch before execution",
+    "result": "PASS"
+  },
+  {
+    "name": "failed push is permanent",
+    "result": "PASS"
+  },
+  {
+    "name": "full monotonic sequence and no terminal writes",
+    "result": "PASS"
+  },
+  {
+    "name": "fetch failure blocks later states",
+    "result": "PASS"
+  }
+]

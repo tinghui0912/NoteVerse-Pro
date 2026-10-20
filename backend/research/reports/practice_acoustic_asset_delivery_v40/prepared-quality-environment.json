@@ -1,0 +1,50 @@
+{
+  "image": {
+    "domain": "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+    "representation": "DOCKER_CONTENT_ADDRESSED_IMAGE_ID",
+    "subject": "noteverse-backend-quality:dev",
+    "imageName": "noteverse-backend-quality:dev",
+    "imageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179",
+    "repoTags": [
+      "noteverse-backend-quality:dev"
+    ],
+    "createdAt": "2026-10-20T09:43:29.374015184Z",
+    "architecture": "amd64",
+    "os": "linux",
+    "entrypoint": null,
+    "cmd": [
+      "bash"
+    ]
+  },
+  "phase0Availability": {
+    "domain": "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+    "imageName": "noteverse-backend-quality:dev",
+    "imageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179",
+    "repoTags": [
+      "noteverse-backend-quality:dev"
+    ],
+    "architecture": "amd64",
+    "os": "linux",
+    "createdAt": "2026-10-20T09:43:29.374015184Z",
+    "entrypoint": null,
+    "cmd": [
+      "bash"
+    ],
+    "pytestVersion": "9.0.3",
+    "phase0B": "V40_PHASE0B_QUALITY_ENVIRONMENT_READY",
+    "collection": {
+      "exitCode": 0,
+      "signal": null,
+      "firstModuleCollected": true,
+      "secondModuleCollected": true,
+      "collectedCount": 7,
+      "collectionError": false,
+      "testBodiesExecuted": 0,
+      "cacheProviderDisabled": true
+    },
+    "repositoryWasClean": true,
+    "preparedAtCommit": "c93b6181535d583ccaf4d1bb9ac5ff7359fcaa4f"
+  },
+  "noQualificationEvidenceReused": true,
+  "capturedAtStartCommit": "c93b6181535d583ccaf4d1bb9ac5ff7359fcaa4f"
+}

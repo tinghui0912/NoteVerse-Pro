@@ -1,0 +1,13 @@
+{
+  "disposition": "PRACTICE_ACOUSTIC_V40_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "activeLocalGate": "BUILD_READ_ONLY_PRODUCTION_DELIVERY_ENTRY",
+  "orchestratorBoundary": "NONE",
+  "firstTerminalCause": "LOCAL_GATE_FAILURE",
+  "at": "2026-10-20T10:09:00.072Z",
+  "safeCode": "MANDATORY_GATE_FAILED",
+  "errorClass": "Error",
+  "unsafeErrorTextOmitted": true,
+  "processDiagnostic": null,
+  "noRetry": true,
+  "productionDefectEstablished": false
+}

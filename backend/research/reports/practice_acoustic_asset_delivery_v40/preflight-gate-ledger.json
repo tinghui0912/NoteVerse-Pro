@@ -1,0 +1,205 @@
+{
+  "completedGates": [
+    {
+      "name": "EXACT_START_AND_SCOPE",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "changed": [
+          "backend/research/practice_acoustic_asset_delivery_v40/audit.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/browser-entry.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/campaign.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/closeout-machine.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/closeout.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/contract.json",
+          "backend/research/practice_acoustic_asset_delivery_v40/control.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/discovery.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/eslint.config.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/identities.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/io.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/network.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/prepare-sources.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/process-result-tests.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/process-result.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/quality-image.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/quality-runtime-proof.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/security.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v40/tests.mjs",
+          "backend/research/reports/practice_acoustic_asset_delivery_v40/gate-01-entered.json",
+          "backend/research/reports/practice_acoustic_asset_delivery_v40/preflight-started.json",
+          "backend/research/reports/practice_acoustic_asset_delivery_v40/source-discovery.json"
+        ],
+        "productionDiff": [],
+        "V3ThroughV39Diff": [],
+        "capabilitiesUnchanged": true
+      }
+    },
+    {
+      "name": "EXACT_SOURCE_OBJECT_DISCOVERY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "requiredPathsVerified": 28
+      }
+    },
+    {
+      "name": "V38_TEST_RUNTIME_SELECTION_REGRESSION_PROOF",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "facts": {
+          "apiDockerDoesNotInstallQualityTools": true,
+          "apiDependencyClosureDoesNotEstablishPytest": true,
+          "qualityCoreIncludesQualityTools": true,
+          "qualityToolsPinsPytest": true,
+          "qualityDockerInstallsQualityCore": true,
+          "composeDedicatedQualityService": true,
+          "wrapperUsesQualityServiceForPytest": true,
+          "backendCiBuildsAndUsesQualityImageForPytest": true,
+          "documentationSeparatesRuntimeAndQuality": true
+        },
+        "sourceObjects": 23,
+        "invariant": "BACKEND_TESTS_MUST_NOT_EXECUTE_IN_API_RUNTIME_CONTAINER"
+      }
+    },
+    {
+      "name": "V39_OUTER_TIMEOUT_AND_COLD_BUILD_REGRESSION",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "longConstructionIsPreparationNotQualification": true,
+        "invariant": "LONG_RUNNING_QUALITY_IMAGE_CONSTRUCTION_IS_ENVIRONMENT_PREPARATION_NOT_QUALIFICATION_EXECUTION",
+        "qualificationInvariant": "NO_IMAGE_BUILD_DURING_V40_QUALIFICATION",
+        "V39HistoricalDispositionUnchanged": true,
+        "localGateAndOrchestratorAreSeparate": true,
+        "outerTransportEnvelopeMs": 300000,
+        "backendInnerLimitMs": 90000,
+        "completePreflightOuterBudgetMs": 240000,
+        "noBuildOrPullOrDependencyStartup": true,
+        "preparedImageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179"
+      }
+    },
+    {
+      "name": "PREPARED_QUALITY_IMAGE_ID_CAPTURE",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "imageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179",
+        "domain": "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+        "pytestVersion": "9.0.3"
+      }
+    },
+    {
+      "name": "SYNTAX_ALL_MODULES",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "checked": 18
+      }
+    },
+    {
+      "name": "RESEARCH_ESLINT",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "errors": 0
+      }
+    },
+    {
+      "name": "SHELL_BOUNDARY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "directArgvOnly": true,
+        "renderedInventoryAuthority": false
+      }
+    },
+    {
+      "name": "DISCOVERY_SECURITY_NETWORK_IDENTITY_OPFS_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 39,
+        "antiTruncation": 10
+      }
+    },
+    {
+      "name": "QUALITY_RUNTIME_AND_CHILD_CAPTURE_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 21
+      }
+    },
+    {
+      "name": "SERIALIZED_CLOSEOUT_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 4
+      }
+    },
+    {
+      "name": "PRODUCTION_STATIC_DELIVERY_AUTH_ACTIVATION_PROOF",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "requiredObjects": 28,
+        "astWitnesses": 14
+      }
+    },
+    {
+      "name": "DUAL_ACOUSTIC_IDENTITY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 3
+      }
+    },
+    {
+      "name": "EXISTING_BACKEND_MODEL_ASSET_TESTS_IN_QUALITY_SERVICE",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 7,
+        "service": "quality",
+        "hermeticLocalNotDeliveryEvidence": true,
+        "noDatabaseMutation": true
+      }
+    },
+    {
+      "name": "QUALITY_IMAGE_ID_UNCHANGED_AFTER_TEST",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "domain": "EXTERNAL_LOCAL_CONTAINER_IMAGE",
+        "representation": "DOCKER_CONTENT_ADDRESSED_IMAGE_ID",
+        "subject": "noteverse-backend-quality:dev",
+        "imageName": "noteverse-backend-quality:dev",
+        "imageId": "sha256:efb0914799cf5ddd26d9f319f85c87a9af7c261597b19b0d639e3c551372f179",
+        "repoTags": [
+          "noteverse-backend-quality:dev"
+        ],
+        "createdAt": "2026-10-20T09:43:29.374015184Z",
+        "architecture": "amd64",
+        "os": "linux",
+        "entrypoint": null,
+        "cmd": [
+          "bash"
+        ]
+      }
+    },
+    {
+      "name": "EXISTING_FRONTEND_MODEL_ASSET_REGRESSIONS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 65,
+        "suites": 9,
+        "deterministicTestsNotBrowserQualification": true
+      }
+    },
+    {
+      "name": "APPLICATION_TYPECHECK",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "errors": 0
+      }
+    },
+    {
+      "name": "RELEVANT_PRODUCTION_LINT",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "errors": 0
+      }
+    }
+  ],
+  "activeLocalGate": "BUILD_READ_ONLY_PRODUCTION_DELIVERY_ENTRY",
+  "orchestratorBoundary": "NONE",
+  "noRetry": true,
+  "rawChildOutputLost": false
+}
