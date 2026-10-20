@@ -1,8 +1,0 @@
-{
-  "at": "2026-10-20T07:16:23.013Z",
-  "qualificationPermanentlyStopped": true,
-  "closeoutOnly": true,
-  "retries": 0,
-  "deliveryEndpointRequestsAuthorized": false,
-  "subsequentOperations": "Sanitized immutable failure evidence and serialized Git closure only"
-}
