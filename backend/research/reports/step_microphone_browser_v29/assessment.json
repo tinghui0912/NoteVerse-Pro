@@ -1,0 +1,192 @@
+{
+  "phase": "STEP_BROWSER_QUALIFICATION_INTEGRITY_NORMAL_AND_CONTEXT_INTERRUPTION_V29",
+  "disposition": "STEP_V29_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "at": "2026-10-20T03:29:27.696Z",
+  "startingHead": "aa1253b221e47b8852ece107b5d13a8bda551765",
+  "historicalStatements": [
+    "V26 WAS NOT RESUMED",
+    "V27 WAS NOT REPAIRED",
+    "V27 WAS NOT RETRIED",
+    "V28 WAS NOT REPAIRED",
+    "V28 WAS NOT RETRIED",
+    "V29 IS A NEW PROSPECTIVE PHASE"
+  ],
+  "historicalDispositions": {
+    "V26": "STEP_V26_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+    "V27": "STEP_V27_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+    "V28": "STEP_V28_BROWSER_EXECUTION_INTEGRITY_BLOCKED"
+  },
+  "browser": null,
+  "GPU": null,
+  "freezeProof": null,
+  "cells": [
+    {
+      "id": "normal-44100",
+      "rate": 44100,
+      "status": "NOT_EXECUTED",
+      "error": null,
+      "modelReceipt": null,
+      "accounting": null,
+      "chronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "teardown": null,
+      "infrastructure": null,
+      "attempts": []
+    },
+    {
+      "id": "normal-48000",
+      "rate": 48000,
+      "status": "NOT_EXECUTED",
+      "error": null,
+      "modelReceipt": null,
+      "accounting": null,
+      "chronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "teardown": null,
+      "infrastructure": null,
+      "attempts": []
+    },
+    {
+      "id": "context-loss-44100",
+      "rate": 44100,
+      "status": "NOT_EXECUTED",
+      "error": null,
+      "modelReceipt": null,
+      "accounting": null,
+      "chronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "teardown": null,
+      "infrastructure": null,
+      "attempts": []
+    },
+    {
+      "id": "context-loss-48000",
+      "rate": 48000,
+      "status": "NOT_EXECUTED",
+      "error": null,
+      "modelReceipt": null,
+      "accounting": null,
+      "chronology": null,
+      "gates": null,
+      "diagnostics": null,
+      "teardown": null,
+      "infrastructure": null,
+      "attempts": []
+    }
+  ],
+  "totals": {
+    "chromeLaunches": 0,
+    "modelSessionLoads": 0,
+    "neuralRuns": 0,
+    "decoderRuns": 0,
+    "browserProductVerdictRuns": 0,
+    "hiddenWarmups": 0,
+    "unknownExecutions": 0,
+    "freshHoldoutAccess": 0,
+    "bundleRebuilds": 0
+  },
+  "failure": {
+    "disposition": "STEP_V29_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+    "at": "2026-10-20T03:27:59.466Z",
+    "firstFailedGate": "immutable-identities",
+    "error": "AssertionError [ERR_ASSERTION]: IMMUTABLE_SHA:apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json\n+ actual - expected\n\n+ 'ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb'\n- '93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443'\n\n    at identity (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/manifest.mjs:14:50)\n    at async immutable (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/manifest.mjs:33:16)\n    at async file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/control.mjs:48:63\n    at async run (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/control.mjs:26:66)\n    at async preflight (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/control.mjs:48:5)\n    at async file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v29/control.mjs:127:29",
+    "stdout": "",
+    "stderr": "",
+    "completedGates": [
+      {
+        "name": "starting-gate",
+        "result": "LOCAL_PASS",
+        "details": null
+      },
+      {
+        "name": "every-v29-module-node-check",
+        "result": "LOCAL_PASS",
+        "details": {
+          "modules": 10
+        }
+      },
+      {
+        "name": "research-eslint",
+        "result": "LOCAL_PASS",
+        "details": {
+          "errors": 0
+        }
+      },
+      {
+        "name": "no-shell-inline-and-scope",
+        "result": "LOCAL_PASS",
+        "details": {
+          "inlineExecution": false,
+          "shells": false,
+          "directArgvOnly": true
+        }
+      }
+    ],
+    "counters": {
+      "chromeLaunches": 0,
+      "modelSessionLoads": 0,
+      "neuralRuns": 0,
+      "decoderRuns": 0,
+      "browserProductVerdictRuns": 0,
+      "hiddenWarmups": 0,
+      "unknownExecutions": 0,
+      "freshHoldoutAccess": 0,
+      "bundleRebuilds": 0
+    },
+    "noRepairOrRetry": true
+  },
+  "rawReceiptAuthority": "browser-campaign.json; independent audit recomputes gates; entry PASS is necessary but not sufficient",
+  "oracleIsolation": "NOT_EXECUTED",
+  "localEvidence": "PRE_EXECUTION_STOP",
+  "defaults": {
+    "modelIdentity": "robust-browser-engineering-default-xc4-v1",
+    "modelSHA256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "modelBytes": 98689283,
+    "coreSHA256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+    "ORT": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false,
+    "sampleRate": 16000,
+    "inputSamples": 29120,
+    "inputMs": 1820,
+    "output": [
+      183,
+      88
+    ],
+    "decoder": "A",
+    "onset": 0.3,
+    "frame": 0.05,
+    "ownedMs": 600,
+    "pastMs": 1050,
+    "futureMs": 170,
+    "schemaVersion": 6,
+    "runtimeVersion": "step-source-sensitive-verdict-v6",
+    "MIDI": "MIDI_EXACT_SET",
+    "MICROPHONE": "MICROPHONE_CONSERVATIVE_TRISTATE"
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "cooldown": "FIXED_MICROPHONE_COOLDOWN_NOT_ESTABLISHED",
+  "rootLoss": "ROOT_SOURCE_LOSS_NOT_EVALUATED_IN_V29",
+  "disclaimers": [
+    "BACKEND_MODEL_ASSET_DELIVERY_NOT_QUALIFIED",
+    "REAL_PHYSICAL_MICROPHONE_DEVICE_NOT_QUALIFIED",
+    "MICROPHONE_PERMISSION_UX_NOT_QUALIFIED",
+    "PHYSICAL_MICROPHONE_UX_LATENCY_NOT_QUALIFIED",
+    "FRESH_ACOUSTIC_RECOGNITION_QUALIFICATION_NOT_PERFORMED"
+  ],
+  "assetDelivery": "CORE_GRAPH_ONLY_RESEARCH_MODEL_URL_OVERRIDE",
+  "freshHoldoutAccess": 0,
+  "tuning": false,
+  "productionDiff": [],
+  "V3ThroughV28Diff": [],
+  "CI": "Deferred by product owner, not a browser gate. Local checks are not CI. Query final remote statuses/workflows; absent means NOT CI PASS",
+  "stop": "STOP_FOR_INDEPENDENT_AUDIT_NO_CONTROLLER_OR_CAPABILITY_INTEGRATION"
+}
