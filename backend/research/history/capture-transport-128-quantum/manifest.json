@@ -1,8 +1,0 @@
-{
-  "originalPath": "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
-  "sourceCommit": "15b8f0da94555af91c7d88eb28f151f566e75ff5",
-  "gitBlob": "2b9b608a525a7674f1031e9c0555e20ac75d80a0",
-  "bytes": 2055,
-  "sha256": "f987d9a892f104381391a36d8ca2e610f8b95728aa5348ed28b65b960bd14225",
-  "purpose": "Immutable qualification-only pre-repair PCM parity reference; never product-importable"
-}

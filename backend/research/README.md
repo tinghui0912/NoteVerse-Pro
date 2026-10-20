@@ -1,19 +1,17 @@
 # Backend Research
 
-Research is separate from the backend production runtime and core quality image.
-Core application code, operational scripts and behavior tests do not depend on this tree.
+This tree contains current research tooling and reusable fixtures. It is separate
+from backend production runtime and core quality; core code does not depend on it.
 
-- `tools/`: current runnable research tools with source dependencies present.
-- `tests/`: current collectable research tests.
-- `browser_runtime/`, `fixtures/`, `qualification/`: current harnesses, inputs and protocols.
-- `reports/`: recorded evidence with immutable identities and paths; see the
-  [evidence storage contract](reports/README.md).
-- `history/`: closed, frozen and reference-only source and evidence.
+- `tools/`: parameterized analysis, dataset preparation and model validation.
+- `tests/`: research behavior tests.
+- `browser_runtime/`: reusable browser inference, DSP and analysis helpers.
+- `fixtures/`: small research inputs.
+- `reports/`: local generated outputs; see the [report policy](reports/README.md).
 
-Run a tool in its declared environment with its explicit inputs; one Docker image
-does not support every experiment. Python tools run from the backend working directory
-unless their CLI specifies `--repo-root` or another working directory.
+Run tools with their declared libraries, models, datasets and explicit inputs.
+No single environment supports every tool. Source dependencies must exist in the
+current tree; model checkpoints and datasets are environment prerequisites.
 
-Current tools and tests do not execute sources in `history/`. Reproduce historical
-experiments from their recorded commit and environment, rather than adapting them
-to the current HEAD. Reference sources are inert; see [history](history/).
+Closed experiments and historical evidence are available from Git history, with
+their recorded commit and environment.

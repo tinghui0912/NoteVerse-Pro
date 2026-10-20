@@ -1,8 +1,0 @@
-{
-  "freezeCommit": "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857",
-  "remoteHead": "aed457e140ff2fde9d4e9d5d6d4ccdaedce83857",
-  "freezeSha256": "5baaa6cfa0cc49a5432c9dfaffac008a575bf2407444cea2bdfc44ddeb7dc49c",
-  "remoteVerifiedAt": "2026-10-18T09:10:33.089260+00:00",
-  "batikMidiEventsParsed": false,
-  "role": "PRE_BATIK_EVENT_PARSE_SOURCE_DISCOVERY_PROOF_NOT_ACOUSTIC_QUALIFICATION"
-}

@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/workspace/backend/research/step_next_acoustic_wave1_v14/inspect_onnx.py", line 4, in <module>
-    import onnx
-ModuleNotFoundError: No module named 'onnx'

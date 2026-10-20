@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "artifact": "xc1_r3b_f3_canonical_pcm_verification",
-  "takeCount": 50,
-  "status": "PASS",
-  "rowsDigest": "7c84af865c73c9bc12e1ba99d48e2aeac20668ffc2fc3079e3c21830dd1e7e3d"
-}

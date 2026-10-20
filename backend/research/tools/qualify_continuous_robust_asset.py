@@ -9,7 +9,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,8 +18,7 @@ SHA = "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
 SIZE = 98_689_283
 KEY = f"models/continuous/robust-browser-v1/{SHA}/model.onnx"
 ROOT = Path(__file__).resolve().parents[2]
-LOCAL = ROOT / "data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx"
-REPORT = ROOT / "research/reports/continuous_microphone_asset_gate_2026-10-16.json"
+REPORT = ROOT / "research/reports/continuous_microphone_asset_gate.json"
 
 
 def digest_file(path: Path) -> tuple[int, str]:
@@ -41,25 +39,19 @@ def underlying(error: Exception) -> Exception:
     return error
 
 
-def qualify(publish: bool, report: Path) -> dict:
+def qualify(publish: bool, report: Path, model: Path) -> dict:
     if report.exists():
         raise RuntimeError("APPEND_ONLY_REPORT_ALREADY_EXISTS")
     result = {
-        "phase": "PRACTICE_CONTINUOUS_MICROPHONE_RUNTIME_CLEAN_PROMOTION_DISABLED",
-        "startingHead": "ae0408df03dfd19447b6191fbee7688cd0fd4edf",
+        "assetIdentity": "practice-acoustic-robust-browser@v1",
         "startedAt": datetime.now(timezone.utc).isoformat(),
         "status": "ASSET_GATE_PENDING",
         "expectedBytes": SIZE, "expectedSha256": SHA, "objectKey": KEY,
-        "priorArtifact": {"bytes": 98_691_493,
-            "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-            "classification": "DISTINCT_HISTORICAL_ARTIFACT_NOT_ACCEPTED_BY_CONTINUOUS_RUNTIME"},
-        "provenanceReport": "backend/research/reports/phase9g_d1r_robust_browser_candidate_identity_export_2026-10-12.json",
-        "provenanceCommit": "4d8dbed42ece16b18f422ee834947027b1f84be0",
         "newNeuralInferenceCount": 0,
         "uploaded": False,
     }
     try:
-        size, sha = digest_file(LOCAL)
+        size, sha = digest_file(model)
         result["localBytes"], result["localSha256"] = size, sha
         if (size, sha) != (SIZE, SHA):
             raise RuntimeError("EXACT_VALIDATED_ARTIFACT_UNAVAILABLE")
@@ -94,7 +86,7 @@ def qualify(publish: bool, report: Path) -> dict:
         if not exists:
             if not publish:
                 raise RuntimeError("EXACT_DELIVERY_OBJECT_NOT_PUBLISHED")
-            with LOCAL.open("rb") as handle:
+            with model.open("rb") as handle:
                 client.put_object(oss.models.PutObjectRequest(bucket=bucket, key=KEY,
                     body=handle, content_type="application/octet-stream", forbid_overwrite=True))
             result["uploaded"] = True
@@ -129,10 +121,9 @@ def qualify(publish: bool, report: Path) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--publish", action="store_true")
-    parser.add_argument("--report-name", default=REPORT.name)
+    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--report", type=Path, default=REPORT)
     args = parser.parse_args()
-    if not re.fullmatch(r"continuous_microphone_asset_gate[a-zA-Z0-9_.-]*\.json", args.report_name):
-        raise SystemExit("INVALID_REPORT_NAME")
-    receipt = qualify(args.publish, REPORT.parent / args.report_name)
+    receipt = qualify(args.publish, args.report, args.model)
     print(json.dumps(receipt))
     raise SystemExit(0 if receipt["status"] == "EXACT_VALIDATED_ASSET_DELIVERY_VERIFIED" else 1)

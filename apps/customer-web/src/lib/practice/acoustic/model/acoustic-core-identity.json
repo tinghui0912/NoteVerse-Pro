@@ -27,7 +27,7 @@
     "semantics": "Contiguous >=onset threshold region; first maximum peak; reject peak if frame support <threshold; confidence=min(onset,frame); piano MIDI21..108; sort by time,pitch,stable ID.",
     "timeMapping": "inputWindowStartMs + round(peakFrame/100*16000)/16000*1000"
   },
-  "identityName": "practice-acoustic-robust-browser-v1",
+  "identityName": "practice-acoustic-robust-browser@v1",
   "input": {
     "dtype": "float32",
     "modelInputMs": 1820,

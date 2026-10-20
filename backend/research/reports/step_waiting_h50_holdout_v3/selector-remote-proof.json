@@ -1,8 +1,0 @@
-{
-  "freezeCommit": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
-  "remoteHead": "cb6d8c75e37e1391e6dc7856c8610cc7369f3df6",
-  "freezeCanonicalSha256": "8b78b3f4f74db5ab4e104323e94cc94828777c3fde58585330bcbae882178caf",
-  "remoteVerifiedAt": "2026-10-18T05:42:54.236026+00:00",
-  "candidateMidiEventsParsed": false,
-  "role": "SELECTOR_ONLY_PRE_MIDI_REMOTE_PROOF_NOT_ACOUSTIC_QUALIFICATION"
-}

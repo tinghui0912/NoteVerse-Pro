@@ -1,8 +1,0 @@
-{
-  "at": "2026-10-20T06:30:20.368Z",
-  "mode": "final-head",
-  "phaseDispositionUnchanged": true,
-  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ '72ca02afa0bef92cb98b8473471eadedf2bac1e2'\n- '27275a209f6205e7e118610d3b793433e8084f99'\n\n    at remote (file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v33/io.mjs:30:49)\n    at file:///C:/Users/tinghuilin/Downloads/NoteVerse-Pro/backend/research/step_microphone_browser_v33/seal.mjs:54:18\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async node:internal/modules/esm/loader:643:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
-  "stderr": "",
-  "noRepairOrRetry": true
-}
