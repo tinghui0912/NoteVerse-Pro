@@ -1,0 +1,101 @@
+{
+  "recordType": "ADDITIVE_RESULT_REMOTE_AND_GITHUB_RECEIPT_NOT_BROWSER_AUTHORIZATION",
+  "startingHead": "78d47eeb4294c5d3f7d9aeffb41eb6c3815bf728",
+  "resultCommit": "77e2124ecd18fc5c0fe746a1a298c6a425570ed2",
+  "remoteTrackingHeadAfterSuccessfulFetch": "77e2124ecd18fc5c0fe746a1a298c6a425570ed2",
+  "successfulResultPush": true,
+  "successfulResultRefetch": true,
+  "localHeadMatchedRemoteTrackingHead": true,
+  "cleanWorktreeBeforeReceipt": true,
+  "exactChangedFiles": [
+    "backend/research/reports/step_microphone_browser_v30/assessment.json",
+    "backend/research/reports/step_microphone_browser_v30/assessment.md",
+    "backend/research/reports/step_microphone_browser_v30/authorization-failure.json",
+    "backend/research/reports/step_microphone_browser_v30/browser-protocol-freeze.json",
+    "backend/research/reports/step_microphone_browser_v30/closeout-history-and-dual-identities.json",
+    "backend/research/reports/step_microphone_browser_v30/core-dual-identity.json",
+    "backend/research/reports/step_microphone_browser_v30/historical-identities.json",
+    "backend/research/reports/step_microphone_browser_v30/identity-unit-tests.json",
+    "backend/research/reports/step_microphone_browser_v30/local-verification.json",
+    "backend/research/reports/step_microphone_browser_v30/oracle-isolation.json",
+    "backend/research/reports/step_microphone_browser_v30/product-regressions.json",
+    "backend/research/reports/step_microphone_browser_v30/product-regressions.log",
+    "backend/research/reports/step_microphone_browser_v30/production-eslint.log",
+    "backend/research/reports/step_microphone_browser_v30/raw-immutable-inputs.json",
+    "backend/research/reports/step_microphone_browser_v30/research-eslint.log",
+    "backend/research/reports/step_microphone_browser_v30/starting-gate.json",
+    "backend/research/reports/step_microphone_browser_v30/tooling-execution-started.json",
+    "backend/research/reports/step_microphone_browser_v30/tooling-tests.json",
+    "backend/research/reports/step_microphone_browser_v30/typecheck.log",
+    "backend/research/step_microphone_browser_v30/audit.mjs",
+    "backend/research/step_microphone_browser_v30/campaign.mjs",
+    "backend/research/step_microphone_browser_v30/classification.mjs",
+    "backend/research/step_microphone_browser_v30/contract.json",
+    "backend/research/step_microphone_browser_v30/control.mjs",
+    "backend/research/step_microphone_browser_v30/eslint.config.mjs",
+    "backend/research/step_microphone_browser_v30/identities.mjs",
+    "backend/research/step_microphone_browser_v30/identity-tests.mjs",
+    "backend/research/step_microphone_browser_v30/io.mjs",
+    "backend/research/step_microphone_browser_v30/isolation.mjs",
+    "backend/research/step_microphone_browser_v30/manifest.mjs",
+    "backend/research/step_microphone_browser_v30/report.mjs",
+    "backend/research/step_microphone_browser_v30/seal.mjs",
+    "backend/research/step_microphone_browser_v30/tests.mjs"
+  ],
+  "productionDiff": [],
+  "V3ThroughV29Diff": [],
+  "frozenV30SourceDiff": [],
+  "rawHistoryFilesReverified": 1911,
+  "acceptedHistoricalRawComparisons": 2056,
+  "rawComparisonMismatches": 0,
+  "coreDualIdentitiesExact": true,
+  "freezeCommit": "a398644e367571229b48ec45892cefe0744e38c2",
+  "firstQualificationFailurePreserved": "authorization-failure.json",
+  "disposition": "STEP_V30_BROWSER_EXECUTION_INTEGRITY_BLOCKED",
+  "remoteBrowserAuthorizationCreated": false,
+  "browserCampaigns": 0,
+  "neuralRuns": 0,
+  "decoderRuns": 0,
+  "browserProductVerdictRuns": 0,
+  "unknownExecutions": 0,
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "github": {
+    "head": "77e2124ecd18fc5c0fe746a1a298c6a425570ed2",
+    "combinedState": "pending",
+    "statuses": [],
+    "workflow_runs": [],
+    "workflowRunTotalCount": 0,
+    "ciInterpretation": "NOT CI PASS",
+    "provenance": {
+      "connector": "GitHub read-only fetch",
+      "combinedURL": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/77e2124ecd18fc5c0fe746a1a298c6a425570ed2/status",
+      "statusesURL": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/77e2124ecd18fc5c0fe746a1a298c6a425570ed2/statuses?per_page=100",
+      "workflowRunsURL": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/actions/runs?head_sha=77e2124ecd18fc5c0fe746a1a298c6a425570ed2&per_page=100"
+    }
+  },
+  "supplementaryCloseoutFailures": {
+    "frozenSealReceipt": {
+      "command": [
+        "node",
+        "backend/research/step_microphone_browser_v30/seal.mjs",
+        "receipt"
+      ],
+      "exitCode": 1,
+      "failedOperation": "git ls-remote origin refs/heads/codex/customer-web-delivery-boundary",
+      "error": "schannel: failed to receive handshake, SSL/TLS connection failed",
+      "effect": "The helper did not create a receipt and was not repaired/retried. The preceding result push/fetch succeeded. CI statuses/workflows were subsequently read using the existing GitHub connector, not by rerunning the failed qualification/proof/receipt command."
+    },
+    "connectorBranchRead": {
+      "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/branches/codex%2Fcustomer-web-delivery-boundary",
+      "error": "HTTPError: 400: GitHub Fetch URL contains an invalid repository path.",
+      "effect": "No independent live branch response from that connector request; result push and fetch/local remote-tracking equality remain the recorded Git evidence. No corrected branch query was executed."
+    }
+  },
+  "scopeOfThisReceipt": "Result publication/CI facts only. It does not waive or repair the failed browser authorization proof.",
+  "note": "Final additive receipt commit separately pushed/refetched and its CI queried; no self-referential result hash. STOP for independent audit."
+}
