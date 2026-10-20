@@ -1,0 +1,15 @@
+{
+  "disposition": "PRACTICE_ACOUSTIC_V39_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "firstFailedGate": "PREFLIGHT_ORCHESTRATOR_RESULT_TRANSPORT",
+  "at": "2026-10-20T09:17:47.634Z",
+  "safeCode": "MCP_TOOLS_CALL_TIMEOUT_AFTER_300_SECONDS",
+  "errorClass": "ToolTransportTimeout",
+  "resultProcessWasStillPending": true,
+  "noRetry": true,
+  "productionDefectEstablished": false,
+  "browserLaunches": 0,
+  "modelAccessRequests": 0,
+  "ossRequests": 0,
+  "modelSessions": 0,
+  "inferenceRuns": 0
+}

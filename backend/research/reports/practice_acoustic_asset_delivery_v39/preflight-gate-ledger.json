@@ -1,0 +1,123 @@
+{
+  "completedGates": [
+    {
+      "name": "EXACT_START_AND_SCOPE",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "changed": [
+          "backend/research/practice_acoustic_asset_delivery_v39/audit.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/browser-entry.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/campaign.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/closeout-machine.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/closeout.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/contract.json",
+          "backend/research/practice_acoustic_asset_delivery_v39/control.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/discovery.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/eslint.config.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/identities.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/io.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/network.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/prepare-sources.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/process-result-tests.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/process-result.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/quality-runtime-proof.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/security.mjs",
+          "backend/research/practice_acoustic_asset_delivery_v39/tests.mjs",
+          "backend/research/reports/practice_acoustic_asset_delivery_v39/preflight-started.json",
+          "backend/research/reports/practice_acoustic_asset_delivery_v39/source-discovery.json"
+        ],
+        "productionDiff": [],
+        "V3ThroughV38Diff": [],
+        "capabilitiesUnchanged": true
+      }
+    },
+    {
+      "name": "EXACT_SOURCE_OBJECT_DISCOVERY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "requiredPathsVerified": 28
+      }
+    },
+    {
+      "name": "V38_TEST_RUNTIME_SELECTION_REGRESSION_PROOF",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "facts": {
+          "apiDockerDoesNotInstallQualityTools": true,
+          "apiDependencyClosureDoesNotEstablishPytest": true,
+          "qualityCoreIncludesQualityTools": true,
+          "qualityToolsPinsPytest": true,
+          "qualityDockerInstallsQualityCore": true,
+          "composeDedicatedQualityService": true,
+          "wrapperUsesQualityServiceForPytest": true,
+          "backendCiBuildsAndUsesQualityImageForPytest": true,
+          "documentationSeparatesRuntimeAndQuality": true
+        },
+        "sourceObjects": 21,
+        "invariant": "BACKEND_TESTS_MUST_NOT_EXECUTE_IN_API_RUNTIME_CONTAINER"
+      }
+    },
+    {
+      "name": "SYNTAX_ALL_MODULES",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "checked": 17
+      }
+    },
+    {
+      "name": "RESEARCH_ESLINT",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "errors": 0
+      }
+    },
+    {
+      "name": "SHELL_BOUNDARY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "directArgvOnly": true,
+        "renderedInventoryAuthority": false
+      }
+    },
+    {
+      "name": "DISCOVERY_SECURITY_NETWORK_IDENTITY_OPFS_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 39,
+        "antiTruncation": 10
+      }
+    },
+    {
+      "name": "QUALITY_RUNTIME_AND_CHILD_CAPTURE_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 12
+      }
+    },
+    {
+      "name": "SERIALIZED_CLOSEOUT_UNIT_TESTS",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 4
+      }
+    },
+    {
+      "name": "PRODUCTION_STATIC_DELIVERY_AUTH_ACTIVATION_PROOF",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "requiredObjects": 28,
+        "astWitnesses": 14
+      }
+    },
+    {
+      "name": "DUAL_ACOUSTIC_IDENTITY",
+      "result": "LOCAL_PASS_NOT_CI",
+      "details": {
+        "passed": 3
+      }
+    }
+  ],
+  "firstFailedGate": "EXISTING_BACKEND_MODEL_ASSET_TESTS_IN_QUALITY_SERVICE",
+  "noRetry": true,
+  "rawChildOutputLost": false
+}
