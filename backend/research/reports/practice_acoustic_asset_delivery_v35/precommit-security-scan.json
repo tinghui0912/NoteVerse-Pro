@@ -1,0 +1,63 @@
+{
+  "at": "2026-10-20T07:05:16.731Z",
+  "result": "PASS",
+  "files": [
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/blocked-closeout.mjs",
+      "bytes": 11749
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/closeout-machine.mjs",
+      "bytes": 6101
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/environment-discovery.mjs",
+      "bytes": 5211
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/git-identities.mjs",
+      "bytes": 3403
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/identities.mjs",
+      "bytes": 2909
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/io.mjs",
+      "bytes": 3399
+    },
+    {
+      "path": "backend/research/practice_acoustic_asset_delivery_v35/security.mjs",
+      "bytes": 3850
+    },
+    {
+      "path": "backend/research/reports/practice_acoustic_asset_delivery_v35/assessment.json",
+      "bytes": 3815
+    },
+    {
+      "path": "backend/research/reports/practice_acoustic_asset_delivery_v35/assessment.md",
+      "bytes": 1274
+    },
+    {
+      "path": "backend/research/reports/practice_acoustic_asset_delivery_v35/blocked-closeout-started.json",
+      "bytes": 257
+    },
+    {
+      "path": "backend/research/reports/practice_acoustic_asset_delivery_v35/environment-availability.json",
+      "bytes": 3930
+    },
+    {
+      "path": "backend/research/reports/practice_acoustic_asset_delivery_v35/source-and-history-identities.json",
+      "bytes": 2872420
+    }
+  ],
+  "findings": [],
+  "secretValuesEmitted": false,
+  "scope": "ALL_NEW_V35_SOURCE_AND_REPORT_BYTES",
+  "localConfigurationReadOnly": true,
+  "securityTests": {
+    "result": "PASS",
+    "syntheticCases": 7,
+    "purpose": "Security of additive blocked-phase closeout only; not delivery qualification"
+  }
+}

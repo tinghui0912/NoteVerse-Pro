@@ -1,0 +1,105 @@
+{
+  "startingHead": "3d36e39cb9857d8b170f18a1d0cee9744296fa7f",
+  "observedAt": "2026-10-20T07:01:40.674Z",
+  "requiredPaths": [
+    "apps/customer-web/src/lib/api/practice-acoustic-model-asset.ts",
+    "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+    "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+    "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+    "backend/app/modules/model_assets/router.py",
+    "backend/app/modules/model_assets/service.py",
+    "backend/app/modules/model_assets/schemas.py",
+    "backend/app/core/settings/model_asset_delivery.py",
+    "backend/tests/test_practice_acoustic_model_asset.py",
+    "backend/tests/test_model_assets.py"
+  ],
+  "requiredPathsMissing": [],
+  "sourceInventoryValidatedBeforeReads": true,
+  "observations": [
+    {
+      "source": "INHERITED_PROCESS_ENVIRONMENT",
+      "facts": {
+        "ossCredentialPairPresent": false,
+        "credentialPairNonempty": false,
+        "modelBucketConfigured": false,
+        "modelRegionConfigured": false,
+        "authCookieContractConfigured": false,
+        "databaseConfigurationPresent": false,
+        "legitimateTestLoginSupplied": false,
+        "existingBrowserSessionPathSupplied": false,
+        "backendOriginSupplied": false,
+        "customerWebOriginSupplied": false
+      }
+    },
+    {
+      "source": "backend/.env.docker",
+      "facts": {
+        "ossCredentialPairPresent": true,
+        "credentialPairNonempty": true,
+        "modelBucketConfigured": false,
+        "modelRegionConfigured": false,
+        "authCookieContractConfigured": true,
+        "databaseConfigurationPresent": true,
+        "legitimateTestLoginSupplied": false,
+        "existingBrowserSessionPathSupplied": false,
+        "backendOriginSupplied": false,
+        "customerWebOriginSupplied": false
+      },
+      "valuesNeverPersisted": true
+    },
+    {
+      "source": "backend/.env.docker.control-plane",
+      "facts": {
+        "ossCredentialPairPresent": false,
+        "credentialPairNonempty": false,
+        "modelBucketConfigured": false,
+        "modelRegionConfigured": false,
+        "authCookieContractConfigured": false,
+        "databaseConfigurationPresent": false,
+        "legitimateTestLoginSupplied": false,
+        "existingBrowserSessionPathSupplied": false,
+        "backendOriginSupplied": false,
+        "customerWebOriginSupplied": false
+      },
+      "valuesNeverPersisted": true
+    },
+    {
+      "source": "backend/.env.docker.worker",
+      "facts": {
+        "ossCredentialPairPresent": false,
+        "credentialPairNonempty": false,
+        "modelBucketConfigured": false,
+        "modelRegionConfigured": false,
+        "authCookieContractConfigured": false,
+        "databaseConfigurationPresent": false,
+        "legitimateTestLoginSupplied": false,
+        "existingBrowserSessionPathSupplied": false,
+        "backendOriginSupplied": false,
+        "customerWebOriginSupplied": false
+      },
+      "valuesNeverPersisted": true
+    }
+  ],
+  "availability": {
+    "realOssCredentialPairAvailable": true,
+    "suppliedLegitimateAuthMaterialAvailable": false,
+    "explicitlyIdentifiedBackendAndWebOriginsAvailable": false
+  },
+  "conclusion": "REQUIRED_REAL_DELIVERY_ENVIRONMENT_NOT_ESTABLISHED",
+  "disposition": "PRACTICE_ACOUSTIC_V35_MODEL_ASSET_DELIVERY_EXECUTION_INTEGRITY_BLOCKED",
+  "productionDefectEstablished": false,
+  "counts": {
+    "accessRequests": 0,
+    "signedUrlsCreated": 0,
+    "ossModelGets": 0,
+    "browserLaunches": 0,
+    "modelSessions": 0,
+    "inferenceRuns": 0
+  },
+  "noSecretsPersisted": true,
+  "noEnvironmentFilesModified": true,
+  "noRepairOrRetryIfBlocked": true
+}
