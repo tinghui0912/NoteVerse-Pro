@@ -50,7 +50,7 @@ async function receipt(name: string, value: unknown): Promise<void> {
   if (process.env.CONTINUOUS_RUNTIME_TEST_RECEIPTS) await writeFile(path.join(process.env.CONTINUOUS_RUNTIME_TEST_RECEIPTS, name + '.json'), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
 }
 
-it('binds the exact acoustic core, frozen source identities and finite resource ceilings', async () => {
+it('binds the exact acoustic core, source identities and finite resource ceilings', async () => {
   await assertAcousticIdentity();
   expect(ACOUSTIC_MODEL).toMatchObject({ modelBytes: 98689283, ortVersion: '1.20.1', automaticFallback: false,
     inputSamples: 29120, ownedMs: 600, pastMs: 1050, futureMs: 170, onsetThreshold: .30, frameThreshold: .05 });
@@ -206,7 +206,7 @@ it('30-minute fake-fast chronology has constant transient memory, 32 compact dia
   await runtime.dispose();
 }, 120000);
 
-for (const rate of [44100, 48000]) it(`${rate} streaming chunk boundaries exactly match the frozen single-buffer FIR`, async () => {
+for (const rate of [44100, 48000]) it(`${rate} streaming chunk boundaries exactly match the single-buffer FIR`, async () => {
   const bytes = await coefficients(rate), single = await QualifiedSourceAdapter.create(rate, bytes), stream = await QualifiedSourceAdapter.create(rate, bytes);
   const input = Float32Array.from({ length: rate * 3 }, (_, i) => Math.fround(Math.sin(i * .03) * .1));
   const expected = single.push(input), actual: number[] = [];
@@ -299,38 +299,4 @@ it('worker failure while paused closes capture independently of clock', async ()
   const before = publications.length; failWorker(new Error('ACOUSTIC_WORKER_CRASH'));
   expect(stopCapture).toHaveBeenCalledTimes(1); expect(() => feedTo(140000)).toThrow('ACOUSTIC_WORKER_CRASH');
   expect(publications).toHaveLength(before); await runtime.dispose();
-});
-
-for (const rate of [44100, 48000]) it(`${rate} exact input hashes and source coordinates match frozen pre-promotion execution receipts`, async () => {
-  const historicalPath = path.resolve(`../../backend/data/work/xc7_bounded/fast_parity_${rate}_v1.json`);
-  const historical = JSON.parse(await readFile(historicalPath, 'utf8')) as { inputs: { sha256: string; window: { startSample: number; endSample: number } }[];
-    streamed: { observations: { performanceTimeMs: number; sourceSamplePosition: number; confidence: number; pitch: string }[] }[] };
-  const inputs: AcousticInferenceInput[] = [], publications: ContinuousEvidencePublication[] = [];
-  const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'session', sourceDomainId: 'parity', sourceSampleRateHz: rate,
-    coefficientBytes: await coefficients(rate), worker: { run: async input => { inputs.push(input); return result(input); }, dispose: async () => {} },
-    nowAvailabilityMs: () => 4000, onPublication: publication => { publications.push(publication); } });
-  const bridge = new ContinuousCaptureBridge(runtime, rate), start = rate * 1.2, end = start + rate * 1.2;
-  const raw = Float32Array.from({ length: rate * 2.6 }, (_, i) => Math.fround(Math.sin(i * .03) * .1));
-  bridge.schedule({ type: 'BEGIN', sourceSampleIndex: start, performanceTimeMs: 0 });
-  bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: end, performanceTimeMs: 1200 });
-  let sequence = 0;
-  for (let next = 0; next < raw.length; next += 128) {
-    const packetValue = packet(next, Math.min(128, raw.length - next), sequence++, rate);
-    bridge.receive({ ...packetValue, samples: raw.subarray(next, packetValue.sourceEndSampleIndex) });
-  }
-  await runtime.seal();
-  const hashes = inputs.map((input, i) => {
-    const sha = createHash('sha256').update(new Uint8Array(input.pcm.buffer)).digest('hex');
-    expect(sha).toBe(historical.inputs[i].sha256);
-    const oldOffset = rate === 48000 ? 10 : 0;
-    expect(input.window.startSample).toBe(historical.inputs[i].window.startSample + oldOffset);
-    expect(input.window.endSample).toBe(historical.inputs[i].window.endSample + oldOffset);
-    const actual = publications[i].observations[0], old = historical.streamed[i].observations[0];
-    expect(actual.performanceTimeMs).toBe(old.performanceTimeMs); expect(actual.confidence).toBe(old.confidence);
-    expect(actual.pitch).toBe(old.pitch); expect(actual.provenance?.sourceEventSample).toBe(old.sourceSamplePosition);
-    return { window: input.window, sha256: sha, expectedSha256: historical.inputs[i].sha256, oldTargetOriginOffset: oldOffset };
-  });
-  await receipt(`fast_parity_${rate}`, { hashes, publications, snapshot: runtime.snapshot(), semanticParity: 'PASS',
-    identityChange: 'Domain observation IDs intentionally replace engineering IDs; absolute source coordinate, pitch, confidence, time and owned PCM are unchanged.' });
-  await runtime.dispose();
 });

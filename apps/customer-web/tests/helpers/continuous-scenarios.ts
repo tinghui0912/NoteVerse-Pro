@@ -3,7 +3,7 @@ import type { ContinuousEvidencePublication, ContinuousExpectedStrike } from '..
 export type TruthNote={id:string;pitch:number;timeMs:number;velocity:number;endMs:number};
 export const pitchName=(n:number)=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n%12]+(Math.floor(n/12)-1);
 
-/** Recipe is frozen before model execution; only truth determines transformations. */
+/** Deterministic expected-strike transformations for Continuous behavior tests. */
 export function replayProductScenarios(notes:TruthNote[], publications:ContinuousEvidencePublication[]) {
   const groups:{id:string;timeMs:number;notes:TruthNote[]}[]=[];
   for(const note of [...notes].sort((a,b)=>a.timeMs-b.timeMs||a.id.localeCompare(b.id))) {

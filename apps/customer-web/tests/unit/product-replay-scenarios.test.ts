@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
-import {replayProductScenarios,pitchName} from '../../scripts/continuous-product-replay/product-scenarios';
+import {replayProductScenarios,pitchName} from '../helpers/continuous-scenarios';
 import type {ContinuousEvidencePublication} from '../../src/lib/practice/local-core/continuous-evaluation-types';
-import {replayAvailabilityMs} from '../../scripts/continuous-product-replay/replay-clock';
+import {replayAvailabilityMs} from '../helpers/replay-clock';
 describe('truth-side replay recipe uses the unique product finalizer',()=>{
   it('accelerated source availability never precedes coverage; remains monotonic without retiming attacks',()=>{
     const values=[[-100,0],[770,600],[1370,800],[1970,1000],[6500,2000]];

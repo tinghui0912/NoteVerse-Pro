@@ -1,27 +1,38 @@
 {
   "44100": {
     "identity": {
-      "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+      "acousticCoreIdentitySha256": "aead6493ba96b1c9e92e998d0c39d0f84f202491de93f4084e4f91f6e1c9f9de",
       "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
       "down": 441,
       "realSourceLookaheadSamples": 28,
-      "runtimeFeed": "Unchanged XC5 CAPTURE branch and frozen XC4 FIR.",
+      "runtimeFeed": "44100 Hz source PCM -> shipped FIR rational adapter -> 16000 Hz; publications retain original source coordinates.",
       "schemaVersion": 1,
       "sourceRateHz": 44100,
       "tapCount": 8821,
       "targetRateHz": 16000,
-      "up": 160
+      "up": 160,
+      "implementation": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+        "bytes": 2653,
+        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+      },
+      "coefficients": {
+        "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+        "bytes": 35284,
+        "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+      }
     },
-    "identitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+    "identitySha256": "aeb784fa43b2c5ecdcd100bbb1a0e156fd3d967881a5abd122f8191d45333e76"
   },
   "48000": {
     "identity": {
-      "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+      "acousticCoreIdentitySha256": "aead6493ba96b1c9e92e998d0c39d0f84f202491de93f4084e4f91f6e1c9f9de",
       "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
       "coefficients": {
         "bytes": 244,
         "dtype": "float32-le",
-        "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+        "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f",
+        "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32"
       },
       "down": 3,
       "firstFullyRealOutputIndex": 10,
@@ -36,21 +47,21 @@
         ]
       },
       "implementation": {
-        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
-        "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+        "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+        "bytes": 2653,
+        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
       },
       "precision": "float32 input/coefficients/product/each accumulation",
       "realSourceLookaheadMs": 0.625,
       "realSourceLookaheadSamples": 30,
-      "runtimeFeed": "Qualified adapter uses the explicit already16k injection boundary; never assumes physical microphone16k. Outer publications retain original48k source coordinates.",
+      "runtimeFeed": "48000 Hz source PCM -> shipped FIR rational adapter -> 16000 Hz; publications retain original source coordinates.",
       "schemaVersion": 1,
-      "scipyVersion": "1.14.1",
       "sourceRateHz": 48000,
       "tapCount": 61,
       "targetRateHz": 16000,
       "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
       "up": 1
     },
-    "identitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+    "identitySha256": "306974233695fee4b11a8ff125cc3d0b265389f043f3c57de3731d103f63d68f"
   }
 }

@@ -75,12 +75,3 @@ export function accumulationWitness() {
   assert.equal(h.state().currentIndex,3);
   return {name:'no cross-target accumulation',status:'PASS',attempts:h.state().attempts,currentIndex:h.state().currentIndex};
 }
-export function runBoundaryWitnesses() {
-  const races = (['MATCH','MISMATCH','RETRY'] as const).flatMap(verdict=>{
-    const before=raceWitness(verdict,'BEFORE'),after=raceWitness(verdict,'AFTER');
-    assert.deepEqual(before.afterBoundary,after.afterBoundary);
-    assert.deepEqual(before.laterAttempt,after.laterAttempt);
-    return [before,after];
-  });
-  return {status:'PASS',races,lifecycle:lifecycleWitnesses(),accumulation:accumulationWitness()};
-}
