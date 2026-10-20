@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-20T06:50:29.956Z",
+  "startingHead": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+  "browserPassed": true,
+  "campaignRetries": 0,
+  "closeoutRetries": 0,
+  "stateMachine": "closeout-machine.mjs",
+  "finalProof": "Result proof is committed once; final receipt verification is terminal external stdout only"
+}
