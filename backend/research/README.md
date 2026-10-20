@@ -6,7 +6,8 @@ Core application code, operational scripts and behavior tests do not depend on t
 - `tools/`: current runnable research tools with source dependencies present.
 - `tests/`: current collectable research tests.
 - `browser_runtime/`, `fixtures/`, `qualification/`: current harnesses, inputs and protocols.
-- `reports/`: recorded evidence with immutable identities and paths.
+- `reports/`: recorded evidence with immutable identities and paths; see the
+  [evidence storage contract](reports/README.md).
 - `history/`: closed, frozen and reference-only source and evidence.
 
 Run a tool in its declared environment with its explicit inputs; one Docker image
