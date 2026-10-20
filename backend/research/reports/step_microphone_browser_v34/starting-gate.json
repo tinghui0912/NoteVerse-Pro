@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-20T06:47:08.638Z",
+  "branch": "codex/customer-web-delivery-boundary",
+  "localHead": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+  "remoteHead": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+  "mergeBase": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+  "aheadBehind": "0\t0",
+  "fetchBeforeEdits": true,
+  "cleanBeforeEdits": true,
+  "provenance": "Successful outer fetch/clean Git gate before V34 edits; all subsequent changes are V34 only"
+}

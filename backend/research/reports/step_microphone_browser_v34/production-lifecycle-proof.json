@@ -1,0 +1,296 @@
+{
+  "inventory": {
+    "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+    "enumeration": [
+      "git",
+      "ls-tree",
+      "-r",
+      "--name-only",
+      "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+      "--",
+      "apps/customer-web/src/lib/practice/acoustic",
+      "apps/customer-web/src/lib/practice/step"
+    ],
+    "paths": [
+      "apps/customer-web/src/lib/practice/acoustic/README.md",
+      "apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts",
+      "apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts",
+      "apps/customer-web/src/lib/practice/acoustic/continuous/publication.ts",
+      "apps/customer-web/src/lib/practice/acoustic/continuous/runtime.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+      "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/decoder.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/window-geometry.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/inference-types.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture-architecture.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture-parity.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture-types.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js",
+      "apps/customer-web/src/lib/practice/acoustic/source/dsp-parity.test.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/microphone-errors.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/microphone-infrastructure.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+      "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "apps/customer-web/src/lib/practice/acoustic/source/source-chronology.ts",
+      "apps/customer-web/src/lib/practice/step/README.md",
+      "apps/customer-web/src/lib/practice/step/exclusive-boundary.test.ts",
+      "apps/customer-web/src/lib/practice/step/input-time-contract.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts",
+      "apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts",
+      "apps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-errors.ts",
+      "apps/customer-web/src/lib/practice/step/step-microphone-architecture.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-microphone-input.integration.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+      "apps/customer-web/src/lib/practice/step/step-microphone-platform.ts",
+      "apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts",
+      "apps/customer-web/src/lib/practice/step/step-paced-midi.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-platform.ts",
+      "apps/customer-web/src/lib/practice/step/step-practice-controller.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+      "apps/customer-web/src/lib/practice/step/step-retirement-policy.ts",
+      "apps/customer-web/src/lib/practice/step/waiting-contract.test.ts"
+    ],
+    "requiredPaths": [
+      "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "apps/customer-web/src/lib/practice/step/step-microphone-input.ts"
+    ],
+    "allRequiredPresentBeforeReading": true
+  },
+  "sourceRecords": [
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts"
+      },
+      "sha256": "22bb6a20d77a30b37e986f224e9b66bdc5ef0735b9b57b8279271ba21ea7118e",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts"
+        },
+        "gitObject": "800e322f1cb13c230e5de5e315d0ef5af974f43d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts"
+      },
+      "sha256": "2ace2be947a7c869a6eb46c9d104c17664b6fa16d27731489d0064dfe6b11218",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts"
+        },
+        "gitObject": "39dcf238c3e03fefdff8e81e689d722ea2e3fe77",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts"
+      },
+      "sha256": "a53aa55a735fec1d35b77d9e0a4ff4ef92027d3cb356b1ddab125a91c562e3d1",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts"
+        },
+        "gitObject": "7c781dee7edd4f27690419a37d59fe19426315fa",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts"
+      },
+      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts"
+        },
+        "gitObject": "e7c1766471c6d1237f8fd727037ce851656131bd",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts"
+      },
+      "sha256": "afa6a41b9449ad759df22205be98293519bdb1164e92e31009dfe3ca22976c7f",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts"
+        },
+        "gitObject": "4a96956bc6fb7e66463a2fad80190bdff65d1c54",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+      "domain": "WORKTREE_MATERIALIZATION",
+      "representation": "SHA256_WORKTREE_MATERIALIZATION",
+      "subject": {
+        "kind": "VALIDATED_LOCAL_SOURCE_BYTES",
+        "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts"
+      },
+      "sha256": "486f8f5ab6a5ea6c29cfed93660070815c281af4ef18cb6d9c7cc144222f9725",
+      "git": {
+        "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts",
+        "domain": "GIT_OBJECT_CONTENT",
+        "representation": "GIT_BLOB_OBJECT_ID",
+        "subject": {
+          "kind": "COMMITTED_BLOB",
+          "commit": "146d29b04a7dbf5c16c4d6206d9e6a96a3588297",
+          "path": "apps/customer-web/src/lib/practice/step/step-microphone-input.ts"
+        },
+        "gitObject": "d35f1799590d75dc0736efcd4a2f5189e4113c6d",
+        "mode": "100644"
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "className": "AcousticModelWorker",
+      "methodName": "run",
+      "position": {
+        "start": 1522,
+        "end": 1919,
+        "line": 28
+      },
+      "text": "async run(input: AcousticInferenceInput): Promise<AcousticInferenceResult> {\n    if (this.state !== 'READY' || this.busy) throw new AcousticAnalysisError('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');\n    this.busy = true;\n    try { return await this.send({ type: 'INFER', input }) as AcousticInferenceResult; }\n    catch (error) { this.terminate(); throw error; }\n    finally { this.busy = false; }\n  }"
+    },
+    {
+      "className": "AcousticModelWorker",
+      "methodName": "dispose",
+      "position": {
+        "start": 1922,
+        "end": 2154,
+        "line": 35
+      },
+      "text": "async dispose(): Promise<void> {\n    if (this.state === 'CLOSED') return;\n    if (this.busy) { this.terminate('ACOUSTIC_WORKER_DISPOSED'); return; }\n    try { await this.send({ type: 'DISPOSE' }); } finally { this.terminate(); }\n  }"
+    },
+    {
+      "className": "AcousticModelWorker",
+      "methodName": "terminate",
+      "position": {
+        "start": 2157,
+        "end": 2574,
+        "line": 40
+      },
+      "text": "terminate(code = 'ACOUSTIC_WORKER_TERMINATED'): void {\n    if (this.state === 'CLOSED') return;\n    this.state = 'CLOSED';\n    const error = new AcousticAnalysisError(code);\n    for (const pending of this.pending.values()) pending.reject(error);\n    this.pending.clear(); this.worker.terminate();\n    if (code !== 'ACOUSTIC_WORKER_TERMINATED' && code !== 'ACOUSTIC_WORKER_DISPOSED') this.failureListener?.(error);\n  }"
+    },
+    {
+      "className": "AcousticModelSession",
+      "methodName": "run",
+      "position": {
+        "start": 3432,
+        "end": 5126,
+        "line": 54
+      },
+      "text": "async run(input: AcousticInferenceInput): Promise<AcousticInferenceResult> {\n    onlyFields(input, ['window', 'pcm']);\n    onlyFields(input.window, ['jobIndex', 'regionIndex', 'windowIndex', 'ownedStartTarget', 'ownedEndTarget', 'startSample', 'endSample']);\n    if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');\n    if (this.state !== 'READY' || !this.session) fail('ACOUSTIC_WORKER_NOT_READY');\n    const w = input.window;\n    assertWindowGeometry(w);\n    if (w.jobIndex !== this.nextJob || !(input.pcm instanceof Float32Array) || input.pcm.length !== M.inputSamples\n      || input.pcm.some(v => !Number.isFinite(v))) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');\n    this.busy = true;\n    try {\n      const started = performance.now();\n      const audio = new ort.Tensor('float32', input.pcm, [1, 29120]);\n      let tensors: ort.InferenceSession.OnnxValueMapType | undefined;\n      let raw: PianoRawOutputs;\n      try {\n        this.runs++;\n        tensors = await this.session.run({ audio }, ['reg_onset_output', 'frame_output']);\n        raw = { reg_onset_output: outputData(tensors.reg_onset_output), reg_onset_shape: [1, 183, 88],\n          frame_output: outputData(tensors.frame_output), frame_shape: [1, 183, 88] };\n      } finally { audio.dispose(); for (const tensor of Object.values(tensors ?? {})) tensor.dispose(); }\n      const inferred = performance.now(), events = decodeAcousticOutputs(raw, input), decoded = performance.now();\n      this.nextJob++;\n      return { events, inferenceMs: inferred - started, decodeMs: decoded - inferred, actualSessionRunCount: this.runs };\n    } catch (error) { this.state = 'FAILED'; throw error; }\n    finally { this.busy = false; }\n  }"
+    },
+    {
+      "className": "SourceAnalysisRuntime",
+      "methodName": "dispose",
+      "position": {
+        "start": 7509,
+        "end": 7884,
+        "line": 113
+      },
+      "text": "async dispose(): Promise<void> {\n    if (this.delivering) fail('ACOUSTIC_PUBLICATION_REENTRANCY');\n    if (this.state === 'DISPOSED') return;\n    this.state = 'DISPOSED'; this.regions.length = 0; this.active = null;\n    this.cleanup?.(); this.cleanup = null; this.detachWorker?.(); this.detachWorker = undefined;\n    await this.options.worker.dispose(); await this.chain;\n  }"
+    },
+    {
+      "className": "SourceAnalysisRuntime",
+      "methodName": "enqueue",
+      "position": {
+        "start": 9942,
+        "end": 11867,
+        "line": 150
+      },
+      "text": "private enqueue(window: AcousticWindow, pcm: Float32Array): void {\n    const queued = this.clock(), depth = ++this.outstanding;\n    this.queuedRegions.set(window.regionIndex, (this.queuedRegions.get(window.regionIndex) ?? 0) + 1);\n    this.counts.windowsQueued++; this.counts.peakOutstanding = Math.max(this.counts.peakOutstanding, depth);\n    this.chain = this.chain.then(async () => {\n      try {\n        if (this.closed()) return;\n        const started = this.clock(); this.counts.windowsStarted++;\n        const result = await this.options.worker.run({ window, pcm }); if (this.closed()) return;\n        const available = this.clock(), publication = sourcePublication(this.options.sourceDomainId, this.adapter.rate, this.base!, window, result, available);\n        this.delivering = true;\n        try { deliverSynchronously(this.options.onPublication, publication); } finally { this.delivering = false; }\n        const delivered = this.clock(); this.counts.windowsPublished++; this.counts.observationsPublished += publication.observations.length;\n        retainCompact(this.diagnostics, Object.freeze({ jobIndex: window.jobIndex, regionIndex: window.regionIndex,\n          ownedStartTarget: window.ownedStartTarget, ownedEndTarget: window.ownedEndTarget, inputStartSample: window.startSample,\n          inputEndSample: window.endSample, queueDelayMs: started - queued, inferenceMs: result.inferenceMs, decodeMs: result.decodeMs,\n          publicationMs: delivered - available, eventCount: publication.observations.length, outstandingAtEnqueue: depth, actualSessionRunCount: result.actualSessionRunCount }));\n      } catch (error) { this.failAnalysis(error); } finally {\n        this.outstanding--;\n        const remaining = this.queuedRegions.get(window.regionIndex)! - 1;\n        if (remaining) this.queuedRegions.set(window.regionIndex, remaining); else this.queuedRegions.delete(window.regionIndex);\n      }\n    });\n  }"
+    }
+  ],
+  "dispatch": {
+    "INFER": "AcousticModelSession.run(input)",
+    "DISPOSE": "AcousticModelSession.dispose()"
+  },
+  "supportingExistingProductTest": {
+    "name": "disposing active worker rejects pending inference instead of hanging",
+    "text": "it('disposing active worker rejects pending inference instead of hanging', async () => {\n  const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker);\n  const load = client.load('/exact-model'); worker.answer(); await load;\n  const run = client.run(input); await client.dispose(); await expect(run).rejects.toThrow('ACOUSTIC_WORKER_DISPOSED');\n});"
+  },
+  "sessionInvocationBoundary": {
+    "incrementPosition": 4369,
+    "sessionRunPosition": 4406,
+    "uncertainty": "A terminated authorized request may or may not cross this boundary; never infer completion or zero GPU work"
+  },
+  "completedButNotPublished": "Source runtime closed() guard after awaited real worker.run suppresses publication after closure",
+  "noProductionCodeExecuted": true,
+  "repositoryRoot": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro",
+  "proofStatus": "STATIC_LOCAL_PASS"
+}
