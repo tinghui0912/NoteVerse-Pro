@@ -183,6 +183,20 @@ class QualityReuseTests(unittest.TestCase):
 
 
 class ImagePolicyTests(unittest.TestCase):
+    def test_quality_workflow_alone_requires_full_pr_image_validation(self):
+        self.assertIn(policy.QUALITY_WORKFLOW, policy.IMAGE_INPUTS)
+        self.assertTrue(policy.image_risk(policy.QUALITY_WORKFLOW))
+        self.assertTrue(policy.runtime_relevant(policy.QUALITY_WORKFLOW))
+        self.assertEqual(policy.image_policy("pull_request", [policy.QUALITY_WORKFLOW]),
+                         {"runtime_changed": True, "pr_image_validation_required": True,
+                          "image_pipeline_required": True})
+
+    def test_quality_workflow_with_source_cannot_use_source_only_fast_path(self):
+        self.assertEqual(policy.image_policy("pull_request", [policy.QUALITY_WORKFLOW,
+                                                              "apps/customer-web/src/page.tsx"]),
+                         {"runtime_changed": True, "pr_image_validation_required": True,
+                          "image_pipeline_required": True})
+
     def test_source_only_pr_skips_image_but_is_runtime_relevant(self):
         self.assertEqual(policy.image_policy("pull_request", ["apps/customer-web/src/page.tsx"]),
                          {"runtime_changed": True, "pr_image_validation_required": False,

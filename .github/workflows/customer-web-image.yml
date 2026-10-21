@@ -9,6 +9,7 @@ on:
       - "docker/customer-web/**"
       - ".dockerignore"
       - ".github/workflows/customer-web-image.yml"
+      - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
       - ".github/scripts/test_customer_web_ci_policy.py"
   pull_request:
@@ -17,6 +18,7 @@ on:
       - "docker/customer-web/**"
       - ".dockerignore"
       - ".github/workflows/customer-web-image.yml"
+      - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
       - ".github/scripts/test_customer_web_ci_policy.py"
 

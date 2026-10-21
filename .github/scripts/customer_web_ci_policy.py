@@ -25,7 +25,7 @@ POLICY_PATHS = {
     ".github/scripts/test_customer_web_ci_policy.py",
 }
 IMAGE_INPUTS = {
-    ".dockerignore", IMAGE_WORKFLOW, *POLICY_PATHS,
+    ".dockerignore", IMAGE_WORKFLOW, QUALITY_WORKFLOW, *POLICY_PATHS,
     "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
     "apps/customer-web/next.config.ts",
     # npm reads these before resolving/installing dependencies, if present.
@@ -34,7 +34,7 @@ IMAGE_INPUTS = {
 
 
 def runtime_relevant(path: str) -> bool:
-    if path in {".dockerignore", IMAGE_WORKFLOW, *POLICY_PATHS}:
+    if path in {".dockerignore", IMAGE_WORKFLOW, QUALITY_WORKFLOW, *POLICY_PATHS}:
         return True
     if path.startswith("docker/customer-web/"):
         return True
