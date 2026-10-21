@@ -17,16 +17,18 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const preparation = useRef<Promise<void> | null>(null);
   const controller = useRef<ContinuousPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
-  const [binding, setBinding] = useState({ key, artifact: options.artifact,
+  const [binding, setBinding] = useState({ identity: { key, artifact: options.artifact },
     snapshot: null as ContinuousControllerSnapshot | null, error: null as string | null });
   // Reset presentation when ownership changes, including a return to an earlier input/key.
   // This conditional render adjustment avoids an effect publishing the previous owner's state.
-  if (binding.key !== key || binding.artifact !== options.artifact) {
-    setBinding({ key, artifact: options.artifact, snapshot: null, error: null });
+  if (binding.identity.key !== key || binding.identity.artifact !== options.artifact) {
+    setBinding({ identity: { key, artifact: options.artifact }, snapshot: null, error: null });
   }
-  const { snapshot, error } = binding;
-  const setSnapshot = useCallback((value: ContinuousControllerSnapshot | null) => setBinding(current => ({ ...current, snapshot: value })), []);
-  const setError = useCallback((value: string | null) => setBinding(current => ({ ...current, error: value })), []);
+  const { identity, snapshot, error } = binding;
+  const setSnapshot = useCallback((value: ContinuousControllerSnapshot | null) => setBinding(current =>
+    current.identity === identity ? { ...current, snapshot: value } : current), [identity]);
+  const setError = useCallback((value: string | null) => setBinding(current =>
+    current.identity === identity ? { ...current, error: value } : current), [identity]);
   const completion = useRef(options.onCompletion);
   useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
   const dispose = useCallback(() => {
@@ -58,7 +60,9 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         recordingMode: options.recordingMode, cameraStream: options.cameraMediaStream,
         onCompletion: value => completion.current?.(value) });
-      controller.current = current; unsubscribe.current = current.subscribe(() => setSnapshot(current.snapshot()));
+      controller.current = current; unsubscribe.current = current.subscribe(() => {
+        if (operation === generation.current) setSnapshot(current.snapshot());
+      });
       setError(null); preparation.current = current.start(); await preparation.current;
       if (operation === generation.current) setSnapshot(current.snapshot());
     } catch (failure) { if (operation === generation.current) setError((failure as Error).message); }

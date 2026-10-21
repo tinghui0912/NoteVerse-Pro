@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import artifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
@@ -115,6 +116,7 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   let starting!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
   const first = owner.start.mock.contexts[0];
+  const stalePublish = owner.subscribe.mock.calls[0][0];
   await act(async () => { restarting = result.current.restart(); });
   expect(owner.dispose).toHaveBeenCalledOnce(); expect(owner.start).toHaveBeenCalledOnce();
   expect(clear).not.toHaveBeenCalled();
@@ -125,6 +127,9 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   expect(owner.start.mock.contexts[1]).not.toBe(first);
   expect(owner.subscribe).toHaveBeenCalledTimes(2);
   expect(owner.subscribe.mock.contexts[1]).toBe(owner.start.mock.contexts[1]);
+  const reads = owner.snapshots.mock.calls.length;
+  act(() => stalePublish());
+  expect(owner.snapshots).toHaveBeenCalledTimes(reads);
   unmount(); await barrier.waitForRelease();
   expect(owner.dispose).toHaveBeenCalledTimes(2); expect(owner.unsubscribe).toHaveBeenCalledTimes(2);
 });
@@ -154,12 +159,47 @@ it('does not restore a previous snapshot when an input identity is revisited', a
   const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
     { initialProps: options });
   await act(async () => { await result.current.start(); });
+  const stalePublish = owner.subscribe.mock.calls[0][0];
   act(() => owner.publish({ ...owner.snapshot(), inputError: 'PREVIOUS_OWNER' }));
   expect(result.current.inputError).toBe('PREVIOUS_OWNER');
   rerender({ ...options, inputSource: 'MICROPHONE' });
   expect(result.current.inputState).toBe('IDLE');
   rerender(options);
+  act(() => stalePublish());
   expect(result.current).toMatchObject({ lifecycle: 'READY', inputState: 'IDLE', inputError: null, performanceClock: null });
   expect(owner.start).toHaveBeenCalledOnce();
+  unmount(); await barrier.waitForRelease();
+});
+
+it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription during a %s identity commit before passive cleanup', async change => {
+  const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
+  let requestPublication = false, published = false;
+  const clean = { inputState: 'IDLE', inputError: null, performanceClock: null, isFinalizingPerformance: false };
+  const { result, rerender, unmount } = renderHook(props => {
+    const practice = useContinuousLocalPractice(props, tempoPlan, barrier);
+    // Layout runs after B's binding commits but before A's passive unsubscribe.
+    // Keep the actual captured callback so cleanup cannot erase the queued publication.
+    useLayoutEffect(() => {
+      if (!requestPublication || published) return;
+      published = true;
+      expect(practice).toMatchObject(clean);
+      expect(owner.unsubscribe).not.toHaveBeenCalled();
+      const stalePublish = owner.subscribe.mock.calls[0][0];
+      stalePublish();
+    });
+    return practice;
+  }, { initialProps: options });
+  await act(async () => { await result.current.start(); });
+  act(() => owner.publish({ ...owner.snapshot(), session: 'FINALIZING', inputError: 'OWNER_A_ERROR' }));
+  expect(result.current).toMatchObject({ inputError: 'OWNER_A_ERROR', isFinalizingPerformance: true });
+  const next: UseLocalPracticeOptions = change === 'input' ? { ...options, inputSource: 'MICROPHONE' }
+    : change === 'artifact' ? { ...options, artifact: { ...artifact } }
+    : { ...options, scope: { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups[0].groupId,
+      endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId } };
+  requestPublication = true;
+  rerender(next);
+  expect(published).toBe(true);
+  expect(result.current).toMatchObject(clean);
+  expect(owner.events).toEqual(['unsubscribe', 'dispose']);
   unmount(); await barrier.waitForRelease();
 });
