@@ -220,10 +220,8 @@ export class ContinuousPracticeController {
   private complete(mediaStop: Promise<unknown>): Promise<void> {
     if (this.completion) return this.completion;
     this.state = 'FINALIZING'; if (this.timer) clearInterval(this.timer); this.timer = null; this.metronome?.stop(); this.notify();
-    // Observe stop rejection immediately, even while acoustic tail work is pending.
-    const stopped = mediaStop.then(result => {
-      if (result === 'FAILED' || result === 'TIMEOUT') return this.failSession('RECORDER_UNAVAILABLE');
-    }, error => this.failSession('RECORDER_UNAVAILABLE', error));
+    // Observe unexpected stop rejection immediately, even while acoustic tail work is pending.
+    const stopped = mediaStop.catch(error => this.failSession('RECORDER_UNAVAILABLE', error));
     this.completion = (async () => {
       try {
         if (this.microphone && !this.analysisError) {
@@ -231,8 +229,8 @@ export class ContinuousPracticeController {
           catch (error) { if (this.disposed) return; this.analysisFailed((error as Error).message); }
         }
         await stopped; this.checkAlive();
+        // Optional media availability is independent of Practice evaluation and completion.
         const media = await this.recorder!.finalize(); this.checkAlive();
-        if (media.media.status === 'UNAVAILABLE') throw new Error('RECORDER_UNAVAILABLE');
         const session = this.session!; this.finalSession = session.snapshotSession();
         const evaluation = this.analysisError ? Object.freeze({ status: 'UNAVAILABLE' as const, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const })
           : session.completedEvaluation();
