@@ -159,9 +159,11 @@ export class PerformanceClockRuntime {
     if (this.state !== 'PAUSED') {
       throw new Error('Performance clock can only resume from PAUSED.');
     }
+    // Anchor the segment and immediate snapshot to one resume boundary.
+    const nowMs = this.nowSessionMs();
     this.state = this.stateBeforePause;
-    this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
-    return this.snapshot();
+    this.currentSegment = this.startClockSegmentAt(this.state, this.activeElapsedMs, nowMs);
+    return this.snapshotAt(nowMs);
   }
 
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
@@ -180,7 +182,11 @@ export class PerformanceClockRuntime {
   }
 
   snapshot(): PerformanceClockSnapshot {
-    const activeElapsedMs = this.advanceState();
+    return this.snapshotAt(this.nowSessionMs());
+  }
+
+  private snapshotAt(nowMs: number): PerformanceClockSnapshot {
+    const activeElapsedMs = this.advanceState(nowMs);
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
     const countInTotalMs = this.countInMs;
     const countInRemainingMs = Math.max(0, this.countInMs - activeElapsedMs);
@@ -192,7 +198,7 @@ export class PerformanceClockRuntime {
       : 1;
     return {
       state: this.state,
-      nowMs: this.nowSessionMs(),
+      nowMs,
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
       countInTotalMs,
@@ -275,23 +281,23 @@ export class PerformanceClockRuntime {
     return Math.max(0, this.scope.nominalEndTimeMs - this.scope.nominalStartTimeMs);
   }
 
-  private advanceState(): number {
+  private advanceState(nowMs = this.nowSessionMs()): number {
     if (this.state === 'READY') {
       return 0;
     }
-    const activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
+    const activeElapsedMs = this.activeElapsedAt(nowMs);
     if (this.state === 'PAUSED' || this.state === 'ENDED') {
       return activeElapsedMs;
     }
     if (this.state === 'COUNT_IN' && activeElapsedMs >= this.countInMs) {
-      const boundarySessionMs = this.sessionMsForActiveElapsed(this.countInMs);
+      const boundarySessionMs = this.sessionMsForActiveElapsed(this.countInMs, nowMs);
       this.finishCurrentSegment(boundarySessionMs);
       this.state = 'RUNNING';
       this.currentSegment = this.startClockSegmentAt('RUNNING', this.countInMs, boundarySessionMs);
     }
     const terminalActiveElapsedMs = this.countInMs + this.scopeDurationMs();
     if (this.state === 'RUNNING' && activeElapsedMs >= terminalActiveElapsedMs) {
-      const boundarySessionMs = this.sessionMsForActiveElapsed(terminalActiveElapsedMs);
+      const boundarySessionMs = this.sessionMsForActiveElapsed(terminalActiveElapsedMs, nowMs);
       this.activeElapsedMs = terminalActiveElapsedMs;
       this.finishCurrentSegment(boundarySessionMs);
       this.state = 'ENDED';
@@ -328,10 +334,10 @@ export class PerformanceClockRuntime {
     return null;
   }
 
-  private sessionMsForActiveElapsed(activeElapsedMs: number): number {
+  private sessionMsForActiveElapsed(activeElapsedMs: number, nowMs?: number): number {
     for (const segment of this.clockSegments) {
       const segmentEndActiveElapsed = segment.clockEndMs === undefined
-        ? this.activeElapsedAt(this.nowSessionMs())
+        ? this.activeElapsedAt(nowMs ?? this.nowSessionMs())
         : this.activeElapsedAtSessionTime(segment, segment.clockEndMs);
       if (
         segment.activeElapsedStartMs <= activeElapsedMs &&
@@ -340,7 +346,7 @@ export class PerformanceClockRuntime {
         return this.sessionTimeAtActiveElapsed(segment, activeElapsedMs);
       }
     }
-    return this.nowSessionMs();
+    return nowMs ?? this.nowSessionMs();
   }
 
   // Subtract in one time domain before adding the other domain's anchor. In
