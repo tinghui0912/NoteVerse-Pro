@@ -671,6 +671,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
   test('CONTINUOUS_PLAY + MIDI: Complete performance, navigate to review, factual cards rendered', async ({
     page,
   }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     const disallowedRequests: string[] = [];
     page.on('request', (request) => {
       const url = request.url();
@@ -703,12 +704,17 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(sheetClose).toBeVisible();
     await sheetClose.click();
 
+    // Freeze before starting: wall-clock/CI latency must not consume this 2-second scope.
+    await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
+
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
 
-    // Wait until running
+    // Advance exactly the four count-in beats at 120 BPM, leaving performance time at 0.
+    await expect(page.getByRole('status')).toContainText('预备拍');
+    await page.clock.runFor(2000);
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
     // Emit notes
@@ -716,10 +722,11 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
       (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
     });
 
-    // Finish practice
+    // Manually stop at the first target, before the targets at 500ms and 1000ms.
     const finishButton = page.getByRole('button', { name: '结束', exact: true });
     await expect(finishButton).toBeEnabled();
     await finishButton.click();
+    await page.clock.resume();
 
     // Assert completion dialog opened with "查看报告"
     await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
@@ -736,11 +743,18 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('演奏速度')).toBeVisible();
     await expect(page.getByText('练习范围')).toBeVisible();
     await expect(page.getByText('输入方式')).toBeVisible();
-    await expect(page.getByText('目标音', { exact: true })).toBeVisible();
-    await expect(page.getByText('正确击键')).toBeVisible();
-    await expect(page.getByText('漏弹', { exact: true })).toBeVisible();
-    await expect(page.getByText('额外演奏')).toBeVisible();
-    await expect(page.getByText('未完成')).toBeVisible();
+    for (const [label, value] of [
+      ['目标音', '3'],
+      ['正确击键', '1'],
+      ['漏弹', '0'],
+      ['额外演奏', '0'],
+      ['未完成', '2'],
+    ]) {
+      const title = page.getByText(label, { exact: true });
+      await expect(title).toBeVisible();
+      const card = title.locator('..').locator('..');
+      await expect(card.getByText(value, { exact: true })).toBeVisible();
+    }
     await expect(page.getByText('本次演奏未录制')).toBeVisible();
 
     // Zero backend session or take requests
