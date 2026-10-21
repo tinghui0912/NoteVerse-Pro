@@ -170,11 +170,12 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
         assert "ImportArtifactKind" not in item["storage_key"]
 
 
-def test_avatar_service_stores_processed_image_through_storage() -> None:
+@pytest.mark.parametrize("mode", ("RGB", "RGBA", "L"))
+def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = LocalFileStorage(storage_root=temp_dir)
         service = AvatarService(storage=storage)
-        image = Image.new("RGB", (20, 20), (255, 0, 0))
+        image = Image.new(mode, (400, 100), 128 if mode == "L" else "red")
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
 
@@ -187,6 +188,13 @@ def test_avatar_service_stores_processed_image_through_storage() -> None:
         assert filename.startswith("7_")
         assert filename.endswith(".jpg")
         assert avatar_url == f"/api/v1/uploads/avatars/{filename}"
+        with Image.open(io.BytesIO(storage.read_bytes(f"avatars/{filename}"))) as avatar:
+            assert avatar.format == "JPEG"
+            assert avatar.mode == "RGB"
+            assert avatar.size == (200, 200)
+            # A wide image is fitted and centered on the white avatar canvas.
+            assert avatar.getpixel((100, 50)) == (255, 255, 255)
+            assert avatar.getpixel((100, 100)) != (255, 255, 255)
         assert storage.delete_avatar(filename) is True
 
 
