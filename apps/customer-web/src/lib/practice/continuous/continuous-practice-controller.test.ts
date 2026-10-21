@@ -119,7 +119,7 @@ describe('Continuous application owner', () => {
       expect(f.worker.dispose).toHaveBeenCalledTimes(1); await controller.dispose(); store.mockRestore();
     });
   }
-  for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize', 'recorder-cleanup']) {
+  for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize-throw', 'recorder-finalize', 'recorder-cleanup']) {
     it(`settles ${fault} failure without COMPLETE, unhandled rejection or double cleanup`, async () => {
       const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
       const f = environment(); const recorder = new PerformanceRecorder('AUDIO');
@@ -129,6 +129,7 @@ describe('Continuous application owner', () => {
       if (fault === 'context-close') f.context.close = vi.fn(async () => { throw new Error('close rejected'); });
       if (fault === 'recorder-stop') recorder.freeze = () => { throw new Error('RECORDER_STOP_FAILED'); };
       if (fault === 'recorder-stop-reject') recorder.freeze = async () => { throw new Error('RECORDER_STOP_FAILED'); };
+      if (fault === 'recorder-finalize-throw') recorder.finalize = () => { throw new Error('RECORDER_FINALIZE_FAILED'); };
       if (fault === 'recorder-finalize') recorder.finalize = async () => { throw new Error('RECORDER_FINALIZE_FAILED'); };
       if (fault === 'recorder-cleanup') {
         const release = recorder.stopAndCleanup.bind(recorder);
@@ -154,6 +155,80 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().completed?.evaluation.status).toBe('COMPLETE');
     expect(f.platform.createWorker).not.toHaveBeenCalled(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
     expect(f.platform.createAudioContext).not.toHaveBeenCalled(); await controller.dispose();
+  });
+  for (const natural of [false, true]) it(`MIDI ${natural ? 'natural' : 'manual'} completion preserves evaluation when optional recording permission is denied`, async () => {
+    const getUserMedia = vi.fn(async () => { throw new DOMException('Permission denied', 'NotAllowedError'); });
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+    const f = environment(), controller = f.create('MIDI', 0, 'AUDIO');
+    try {
+      await controller.start();
+      expect(controller.snapshot().session).toBe('ACTIVE');
+      expect(controller.snapshot().recording).toMatchObject({ state: 'UNAVAILABLE', unavailableReason: 'NotAllowedError' });
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(f.platform.createMidi).toHaveBeenCalledTimes(1);
+      expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
+      expect(f.platform.createWorker).not.toHaveBeenCalled();
+      expect(f.platform.createAudioContext).not.toHaveBeenCalled();
+
+      f.clock.set(natural ? 1201 : 100);
+      if (natural) controller.refresh();
+      await controller.finish(); await controller.finish();
+
+      const completed = controller.snapshot().completed;
+      expect(controller.snapshot().session).toBe('COMPLETE');
+      expect(controller.snapshot().inputError).toBeNull();
+      expect(controller.snapshot().analysisError).toBeNull();
+      expect(completed?.inputSource).toBe('MIDI');
+      expect(completed?.evaluation.status).toBe('COMPLETE');
+      expect(completed?.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+      expect(store).toHaveBeenCalledExactlyOnceWith(completed);
+      expect(completedPerformanceStore.getPerformance()).toMatchObject({ evaluation: { status: 'COMPLETE' }, media: completed!.media });
+    } finally {
+      await controller.dispose(); store.mockRestore(); completedPerformanceStore.clearPerformance();
+    }
+  });
+  for (const outcome of ['FAILED', 'TIMEOUT'] as const) it(`MIDI completion degrades optional media when recorder freeze resolves ${outcome}`, async () => {
+    class StopFaultRecorder extends Recorder {
+      stop() {
+        this.state = 'inactive';
+        if (outcome === 'FAILED') throw new Error('stop failed');
+        // Without a stop event, PerformanceRecorder settles through its bounded timeout.
+      }
+    }
+    vi.stubGlobal('MediaRecorder', StopFaultRecorder);
+    const f = environment();
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => f.root.media) } });
+    const recorder = new PerformanceRecorder('AUDIO');
+    const freeze = vi.spyOn(recorder, 'freeze'), finalize = vi.spyOn(recorder, 'finalize');
+    const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+    f.platform.createRecorder = () => recorder;
+    const controller = f.create('MIDI', 0, 'AUDIO');
+    try {
+      await controller.start();
+      expect(controller.snapshot().recording?.state).toBe('RECORDING');
+      f.clock.set(100);
+      const completion = controller.finish();
+      if (outcome === 'TIMEOUT') {
+        await vi.advanceTimersByTimeAsync(1499);
+        expect(controller.snapshot().session).toBe('FINALIZING');
+        expect(store).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+      }
+      await completion;
+
+      expect(freeze).toHaveBeenCalledTimes(1);
+      await expect(freeze.mock.results[0].value).resolves.toBe(outcome);
+      expect(finalize).toHaveBeenCalledTimes(1);
+      expect(controller.snapshot().session).toBe('COMPLETE');
+      const completed = controller.snapshot().completed;
+      expect(completed?.evaluation.status).toBe('COMPLETE');
+      expect(completed?.media).toEqual({ status: 'UNAVAILABLE', reason: outcome === 'FAILED' ? 'RECORDER_STOP_FAILED' : 'RECORDER_STOP_TIMEOUT' });
+      expect(store).toHaveBeenCalledExactlyOnceWith(completed);
+      expect(completedPerformanceStore.getPerformance()?.media).toEqual(completed!.media);
+    } finally {
+      await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); completedPerformanceStore.clearPerformance();
+    }
   });
   it('MIDI pause/resume and manual Stop preserve identity and accumulated result', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();

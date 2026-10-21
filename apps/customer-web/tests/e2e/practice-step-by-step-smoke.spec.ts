@@ -6,6 +6,7 @@ import {
 
 const scoreId = 'practice-smoke-score';
 const revisionId = 'practice-smoke-revision';
+const practiceModelAccessPath = '/api/v1/model-assets/practice-acoustic-robust-browser-v1/access';
 
 const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -294,8 +295,8 @@ async function setupPracticeMocks(
     })
   );
 
-  // Mock ByteDance Model Asset Access
-  await page.route('**/api/v1/model-assets/bytedance-note/access', (route) => {
+  // Mock the practice-acoustic-robust-browser@v1 access contract.
+  await page.route(`**${practiceModelAccessPath}`, (route) => {
     if (options.modelAccessOverride === 'error') {
       return route.fulfill({
         status: 500,
@@ -308,12 +309,12 @@ async function setupPracticeMocks(
       contentType: 'application/json',
       body: apiResponse({
         schemaVersion: 1,
-        assetId: 'bytedance-piano-transcription-note-model',
-        assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186',
-        expectedByteSize: 98_691_493,
-        sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
+        assetId: 'practice-acoustic-robust-browser',
+        assetVersion: 'v1',
+        expectedByteSize: 98_689_283,
+        sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
         mediaType: 'application/octet-stream',
-        downloadUrl: 'http://127.0.0.1:9/fake-model.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
+        downloadUrl: 'https://model-assets.example.test/practice-acoustic-robust-browser-v1.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
         downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
       }),
     });
@@ -825,7 +826,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
   });
 
-  test('START CAPABILITY GATING & MIDI RETRY: microphone analysis unavailable, MIDI 0-device fails start, connecting device enables retry', async ({
+  test('STEP microphone is capability-available without prefetch; MIDI retries after a device connects without acoustic loading', async ({
     page,
   }) => {
     const modelAssetRequests: string[] = [];
@@ -841,18 +842,23 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // 1. Initial load with default MICROPHONE: STEP analysis is unavailable by product policy.
+    // Microphone capability is ready before any model access or session preparation.
     const status = page.getByRole('status');
     await expect(status).toBeVisible();
-    await expect(status).toContainText('逐步练习的麦克风分析暂不可用');
+    await expect(status).toContainText('已准备就绪，请点击开始');
 
     const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeDisabled();
+    await expect(startButton).toBeEnabled();
     expect(modelAssetRequests).toEqual([]);
 
     // 2. Open Settings, switch to MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
     await settingsButton.click();
+    const microphoneOption = page.getByRole('button', { name: /^麦克风/ });
+    await expect(microphoneOption).toBeEnabled();
+    await expect(microphoneOption).toHaveAttribute('aria-pressed', 'true');
+    await expect(microphoneOption).toContainText('使用浏览器默认麦克风');
+    expect(modelAssetRequests).toEqual([]);
     const midiOption = page.getByRole('button', { name: /MIDI/i }).first();
     await midiOption.click();
 
@@ -873,6 +879,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Practice does NOT enter ACTIVE, stays READY, displays 0-device error
     await expect(status).toContainText('未检测到 MIDI 输入设备，请连接 MIDI 键盘后重试');
     await expect(status).not.toContainText('可以开始，请弹奏当前音符');
+    expect(modelAssetRequests).toEqual([]);
 
     // 4. User plugs in MIDI keyboard
     await page.evaluate(() => {
@@ -894,39 +901,55 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     expect(modelAssetRequests).toEqual([]);
   });
 
-  test('MICROPHONE ANALYSIS: continuous microphone remains unavailable without model-asset fetch', async ({
+  test('Continuous microphone is capability-available without prefetch and fails closed if asset access fails during preparation', async ({
     page,
   }) => {
     const modelAssetRequests: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('/model-assets')) {
-        modelAssetRequests.push(`${request.method()} ${request.url()}`);
+        modelAssetRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
       }
     });
 
     await setupPracticeMocks(page, { modelAccessOverride: 'error' });
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // Page load must not preload or fetch retired ByteDance model assets.
-    await page.waitForTimeout(300);
-    expect(modelAssetRequests.length).toBe(0);
+    const status = page.getByRole('status');
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(status).toContainText('已准备就绪，请点击开始');
+    await expect(startButton).toBeEnabled();
+    expect(modelAssetRequests).toEqual([]);
 
     const settingsButton = page.getByRole('button', { name: '设置' });
     await settingsButton.click();
     const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
     await expect(continuousOption).toBeEnabled();
     await continuousOption.click();
+    const microphoneOption = page.getByRole('button', { name: /^麦克风/ });
+    await expect(microphoneOption).toBeEnabled();
+    await microphoneOption.click();
+    await expect(microphoneOption).toHaveAttribute('aria-pressed', 'true');
+    await expect(microphoneOption).toContainText('使用浏览器默认麦克风');
+    expect(modelAssetRequests).toEqual([]);
 
     const sheetClose = page.getByRole('button', { name: /close/i });
     await expect(sheetClose).toBeVisible();
     await sheetClose.click();
 
-    const status = page.getByRole('status');
-    await expect(status).toContainText('连贯演奏的麦克风分析暂不可用');
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeDisabled();
-    await page.waitForTimeout(300);
+    await expect(status).toContainText('已准备就绪，请点击开始');
+    await expect(startButton).toBeEnabled();
     expect(modelAssetRequests).toEqual([]);
+
+    const assetAccessResponse = page.waitForResponse(
+      response => new URL(response.url()).pathname === practiceModelAccessPath
+    );
+    await startButton.click();
+    expect((await assetAccessResponse).status()).toBe(500);
+    await expect(status).toContainText('无法加载已校验的分析模型。请开始新会话重试。');
+    await expect(status).not.toContainText(/预备拍|连贯演奏中/);
+    await expect(page.getByRole('button', { name: '暂停', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    expect(modelAssetRequests).toEqual([`GET ${practiceModelAccessPath}`]);
   });
 
   test('CONTINUOUS ACTIVE SESSION: survives backend API loss after score assets load', async ({
