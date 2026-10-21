@@ -8,6 +8,7 @@ import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-read
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
 import { usePracticeCameraRecording } from '@/hooks/practice/use-practice-camera-recording';
+import { usePracticeRangeSelection } from '@/hooks/practice/use-practice-range-selection';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
 import { StepPracticeControls, ContinuousPracticeControls } from '@/components/practice/practice-controls';
@@ -26,7 +27,6 @@ import {
   type ExpectedPracticeGroup,
   type PracticeInputSource,
   type PracticeMode,
-  type PracticeScope,
 } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import {
@@ -34,15 +34,6 @@ import {
   getSelectedInputCapability,
   getSelectedMicrophoneCapability,
 } from '@/lib/practice/input-capability';
-import {
-  fullPiecePracticeRangeSelection,
-  groupById,
-  practiceGroupsInRangeSelection,
-  practiceScopeFromRangeSelection,
-  groupForRenderNoteId,
-  transitionPracticeRangeSelection,
-  type PracticeRangeSelection,
-} from '@/lib/practice/range-selection';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 
 function CameraPreview({
@@ -96,13 +87,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
-  const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
-    fullPiecePracticeRangeSelection
-  );
-  const [isSelectingRange, setIsSelectingRange] = useState(false);
-
-  const hasCompletedRange =
-    rangeSelection.kind === 'RANGE';
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -135,21 +119,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   );
   const artifact = artifactQuery.data ?? null;
 
-  // Range scope calculation from artifact
+  // Range interaction uses the artifact's expected groups.
   const expectedGroups: readonly ExpectedPracticeGroup[] = useMemo(
     () => artifact?.expectedPracticeGroups ?? [],
     [artifact]
   );
 
-  const practiceScopeResolution = useMemo(
-    () => practiceScopeFromRangeSelection(rangeSelection, expectedGroups),
-    [expectedGroups, rangeSelection]
-  );
-  const practiceScope: PracticeScope | null =
-    practiceScopeResolution.status === 'ready'
-      ? practiceScopeResolution.scope
-      : null;
-  const hasIncompleteRangeSelection = rangeSelection.kind === 'SELECTING_END';
+  const range = usePracticeRangeSelection(expectedGroups);
+  const { practiceScope, selectedRangeRenderNoteIds } = range;
 
   const resolvedScope = useMemo(() => {
     if (!artifact || expectedGroups.length === 0) return null;
@@ -158,28 +135,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }, [artifact, expectedGroups.length, practiceScope]);
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
-
-  const pendingStartGroup = useMemo(
-    () =>
-      rangeSelection.kind === 'SELECTING_END'
-        ? groupById(expectedGroups, rangeSelection.startGroupId)
-        : null,
-    [expectedGroups, rangeSelection]
-  );
-
-  const selectedRangeGroups = useMemo(
-    () => practiceGroupsInRangeSelection(rangeSelection, expectedGroups),
-    [expectedGroups, rangeSelection]
-  );
-
-  const selectedRangeRenderNoteIds = useMemo(() => {
-    if (
-      rangeSelection.kind === 'SELECTING_END'
-    ) {
-      return pendingStartGroup ? pendingStartGroup.renderNoteIds : [];
-    }
-    return selectedRangeGroups.flatMap((group) => group.renderNoteIds);
-  }, [pendingStartGroup, rangeSelection, selectedRangeGroups]);
 
   const cameraMessages = useMemo(() => ({
     continuousOnly: t('settingCameraContinuousOnly'),
@@ -235,43 +190,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     canEnterPractice &&
     Boolean(selectedRevisionId && xmlContent && artifact) &&
     Boolean(practiceScope) &&
-    !hasIncompleteRangeSelection &&
+    !range.isIncomplete &&
     !isResourceLoading &&
     !loadError;
-
-  const handleToggleRangeSelection = () => {
-    if (hasCompletedRange || isSelectingRange) {
-      // Clear current range or cancel in-progress selection, restoring full piece
-      setIsSelectingRange(false);
-      setRangeSelection(fullPiecePracticeRangeSelection);
-    } else {
-      // Begin selecting start note
-      setIsSelectingRange(true);
-      setRangeSelection(fullPiecePracticeRangeSelection);
-    }
-  };
-
-  const handleRenderNoteClick = useCallback(
-    (renderNoteId: string) => {
-      if (!isSelectingRange) {
-        return;
-      }
-      const targetGroup = groupForRenderNoteId(expectedGroups, renderNoteId);
-      if (!targetGroup) {
-        return;
-      }
-      const { nextSelection, completed } = transitionPracticeRangeSelection(
-        rangeSelection,
-        expectedGroups,
-        targetGroup.groupId
-      );
-      setRangeSelection(nextSelection);
-      if (completed) {
-        setIsSelectingRange(false);
-      }
-    },
-    [expectedGroups, isSelectingRange, rangeSelection]
-  );
 
   const handleRestart = async () => {
     setIsCompletionDialogOpen(false);
@@ -286,12 +207,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const handleAdjustSelectedSection = () => {
     setIsCompletionDialogOpen(false);
     void localPractice.finish();
-    setIsSelectingRange(true);
-    setRangeSelection(fullPiecePracticeRangeSelection);
+    range.beginSelection();
   };
 
   const completionOutcome: PracticeCompletionOutcome = useMemo(() => {
-    if (practiceScope?.kind === 'RANGE') {
+    if (range.isRangeScopeReady) {
       return {
         kind: 'selected-section',
       };
@@ -299,7 +219,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return {
       kind: practiceMode === 'CONTINUOUS_PLAY' ? 'full-piece-performance' : 'full-piece-learning',
     };
-  }, [practiceMode, practiceScope]);
+  }, [practiceMode, range.isRangeScopeReady]);
 
   const isStepMode = practiceMode === 'STEP_BY_STEP';
   const isActive =
@@ -318,29 +238,22 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   );
 
   const rangeSelectionPrompt = useMemo(() => {
-    if (!isSelectingRange) {
-      if (
-        hasCompletedRange &&
-        selectedRangeGroups.length > 0
-      ) {
-        const startMeasure = selectedRangeGroups[0]?.measureNumbers[0];
-        const endMeasure = selectedRangeGroups.at(-1)?.measureNumbers.at(-1);
-        const rangeText =
-          startMeasure && endMeasure && startMeasure !== endMeasure
-            ? `${startMeasure}–${endMeasure}`
-            : (startMeasure ?? '');
-        return t('sectionSelectedRange', { range: rangeText });
-      }
-      return null;
+    if (range.phase === 'selected' && range.selectedMeasureRange) {
+      const { start: startMeasure, end: endMeasure } = range.selectedMeasureRange;
+      const rangeText =
+        startMeasure && endMeasure && startMeasure !== endMeasure
+          ? `${startMeasure}–${endMeasure}`
+          : (startMeasure ?? '');
+      return t('sectionSelectedRange', { range: rangeText });
     }
-    if (
-      rangeSelection.kind === 'FULL_PIECE' ||
-      rangeSelection.kind === 'RANGE'
-    ) {
+    if (range.phase === 'selecting-start') {
       return t('sectionSelectingStart');
     }
-    return t('sectionSelectingEnd');
-  }, [hasCompletedRange, isSelectingRange, rangeSelection, selectedRangeGroups, t]);
+    if (range.phase === 'selecting-end') {
+      return t('sectionSelectingEnd');
+    }
+    return null;
+  }, [range.phase, range.selectedMeasureRange, t]);
 
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
@@ -348,7 +261,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       canPrepareSession: canPreparePractice,
       selectedInputCapability,
       selectedInputSupported: selectedInputCapability.supported,
-      rangeSelectionActive: isSelectingRange || hasCompletedRange,
+      rangeSelectionActive: range.rangeSelectionActive,
       canSelectRange: !isActive,
       tempoSelection,
       scoreTempoSegments: artifact?.scoreTempoSegments,
@@ -363,7 +276,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         setIsCompletionDialogOpen(true);
       },
       onOpenSettings: () => setIsSettingsOpen(true),
-      onToggleRangeSelection: handleToggleRangeSelection,
+      onToggleRangeSelection: range.toggleSelection,
   };
   const practiceControls = localPractice.mode === 'STEP_BY_STEP'
     ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} />
@@ -437,7 +350,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     performanceEvaluation={localPractice.performanceEvaluation}
                     performanceScope={
                       localPractice.performanceClock
-                        ? rangeSelection.kind === 'RANGE' || rangeSelection.kind === 'SELECTING_END'
+                        ? range.hasRangeSelection
                           ? {
                               kind: 'RANGE' as const,
                               startBeat: localPractice.performanceClock.scopeStartBeat,
@@ -452,7 +365,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                         : null
                     }
                     selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}
-                    onRenderNoteClick={isSelectingRange ? handleRenderNoteClick : undefined}
+                    onRenderNoteClick={range.isSelecting ? range.selectRenderNote : undefined}
                   />
                 </ClientOnly>
 
@@ -512,7 +425,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             isLoading={localPractice.isFinalizingPerformance}
             onOpenChange={setIsCompletionDialogOpen}
             onRestart={handleRestart}
-            onAdjustSection={practiceScope?.kind === 'RANGE' ? handleAdjustSelectedSection : undefined}
+            onAdjustSection={range.isRangeScopeReady ? handleAdjustSelectedSection : undefined}
             onViewSummary={handleViewSummary}
           />
         </>
