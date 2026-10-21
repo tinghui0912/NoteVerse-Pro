@@ -1,0 +1,18 @@
+{
+  "input": {
+    "samples": 2048,
+    "seed": 246813579,
+    "algorithm": "LCG uint32 state=1664525*state+1013904223; sample=((state>>>8)-8388608)/16777216"
+  },
+  "reference": "Independent full-array FIR convolution using shipped coefficients; round each product and accumulation to float32; emit only outputs with real right context. Hash float32 little-endian bytes, without finish padding.",
+  "outputs": {
+    "44100": {
+      "samples": 734,
+      "sha256": "7edaa774e889ee88c3460c56405c0b97685e296553c5a4e0761d45fc2535623d"
+    },
+    "48000": {
+      "samples": 673,
+      "sha256": "9194b36fc65560344b6889733ef72400b753d6d0cb4c3e20e0c7968204620808"
+    }
+  }
+}

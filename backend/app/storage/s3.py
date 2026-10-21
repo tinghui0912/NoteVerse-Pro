@@ -181,6 +181,12 @@ class S3CompatibleStorage:
         self.client.delete_object(Bucket=self.bucket, Key=normalized_key)
         return existed
 
+    def copy(self, source_key: str, target_key: str) -> None:
+        source_normalized = self._normalize_key(source_key)
+        target_normalized = self._normalize_key(target_key)
+        copy_source = {"Bucket": self.bucket, "Key": source_normalized}
+        self.client.copy_object(CopySource=copy_source, Bucket=self.bucket, Key=target_normalized)
+
     def local_path(self, key: str) -> str:
         normalized_key = self._normalize_key(key)
         return os.path.abspath(
@@ -222,8 +228,6 @@ class S3CompatibleStorage:
             params["ResponseContentDisposition"] = (
                 f'attachment; filename="{filename.replace(chr(34), "")}"'
             )
-        if content_type:
-            params["ResponseContentType"] = content_type
         return self.client.generate_presigned_url(
             ClientMethod="get_object",
             Params=params,

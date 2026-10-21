@@ -3,11 +3,6 @@
  * Import transport primitives from `@/lib/api-client` and HTTP DTOs from generated contracts.
  */
 
-export {
-    apiClient,
-    ApiError,
-} from '../api-client';
-
 // Authentication API.
 export { authApi } from './auth';
 

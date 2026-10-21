@@ -1,11 +1,11 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type { UploadFileRead } from '@/generated/api';
 
-export async function uploadFile(file: File): Promise<ApiResponse<UploadFileRead>> {
+async function uploadFile(file: File): Promise<ApiResponse<UploadFileRead>> {
     return apiClient.upload<ApiResponse<UploadFileRead>>('/files/upload', file);
 }
 
-export async function uploadFiles(
+async function uploadFiles(
     files: File[],
     onProgress?: (current: number, total: number) => void
 ): Promise<UploadFileRead[]> {
@@ -18,11 +18,11 @@ export async function uploadFiles(
     return results;
 }
 
-export async function deleteFile(filename: string): Promise<ApiResponse> {
+async function deleteFile(filename: string): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>(`/files/${filename}`);
 }
 
-export function triggerDownload(blob: Blob, filename: string): void {
+function triggerDownload(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;

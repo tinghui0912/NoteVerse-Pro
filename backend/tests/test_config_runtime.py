@@ -6,7 +6,6 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.core.settings.practice_runtime import PracticeRuntimeSettings
 from app.core.settings.worker_runtime import WorkerRuntimeSettings
 
 
@@ -56,36 +55,6 @@ def test_settings_compose_public_frontend_url_policy() -> None:
     assert Settings(FRONTEND_BASE_URL="https://app.example.com").FRONTEND_BASE_URL == (
         "https://app.example.com"
     )
-
-
-def test_practice_diagnostic_intervals_must_be_positive() -> None:
-    settings = PracticeRuntimeSettings(
-        PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
-        PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15,
-        PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=15,
-    )
-
-    assert settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL == 15
-    assert settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL == 15
-
-    with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        PracticeRuntimeSettings(
-            PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0
-        )
-
-    with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        PracticeRuntimeSettings(
-            PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
-            PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0,
-        )
-
-
-def test_practice_soundfont_path_expands_user_home() -> None:
-    settings = PracticeRuntimeSettings(
-        PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
-    )
-
-    assert settings.PRACTICE_SOUNDFONT_PATH == str(Path("~/sounds/default.sf2").expanduser())
 
 
 def test_playback_soundfont_path_is_required() -> None:

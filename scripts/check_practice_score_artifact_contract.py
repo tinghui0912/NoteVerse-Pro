@@ -75,8 +75,8 @@ def _canonical_artifact() -> dict[str, Any]:
     sys.path.insert(0, str(BACKEND_ROOT))
     import tempfile
 
-    from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
-    from app.processing.performance.timeline import TempoSegment
+    from app.processing.practice_score.score_timeline import PracticeScoreTimeline
+    from app.processing.practice_score.tempo import PracticeTempoSegment
     from app.processing.practice_score.practice_score_artifact import (
         practice_score_artifact_from_timeline,
     )
@@ -94,7 +94,10 @@ def _canonical_artifact() -> dict[str, Any]:
         timeline,
         score_id="canonical-local-core-score",
         revision_id="canonical-local-core-revision",
-        tempo_segments=(TempoSegment(0.0, 120.0), TempoSegment(3.0, 90.0)),
+        score_tempo_segments=(
+            PracticeTempoSegment(start_beat=0.0, bpm=120.0),
+            PracticeTempoSegment(start_beat=3.0, bpm=90.0),
+        ),
     )
 
 

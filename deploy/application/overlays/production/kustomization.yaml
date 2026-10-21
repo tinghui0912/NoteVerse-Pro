@@ -7,10 +7,8 @@ resources:
   - ../../base
   - gateway.yaml
   - pdb-backend-api.yaml
-  - pdb-backend-practice.yaml
   - pdb-customer-web.yaml
   - hpa-backend-api.yaml
-  - hpa-backend-practice.yaml
   - hpa-customer-web.yaml
 
 labels:
@@ -23,9 +21,6 @@ labels:
 images:
   - name: noteverse-backend-api
     newName: registry.example.invalid/noteverse/backend-api
-    newTag: production-replace-me
-  - name: noteverse-backend-practice
-    newName: registry.example.invalid/noteverse/backend-practice
     newTag: production-replace-me
   - name: noteverse-backend-worker
     newName: registry.example.invalid/noteverse/backend-worker
@@ -47,9 +42,6 @@ configMapGenerator:
   - name: noteverse-backend-worker-config
     envs:
       - backend-worker-config.env
-  - name: noteverse-backend-practice-config
-    envs:
-      - backend-practice-config.env
   - name: noteverse-customer-web-config
     envs:
       - customer-web-config.env
@@ -63,8 +55,6 @@ generatorOptions:
 replicas:
   - name: noteverse-backend-api
     count: 3
-  - name: noteverse-backend-practice
-    count: 2
   - name: noteverse-backend-worker
     count: 1
   - name: noteverse-customer-web
@@ -72,7 +62,6 @@ replicas:
 
 patches:
   - path: patch-backend-api-runtime-volumes.yaml
-  - path: patch-backend-practice-runtime-volumes.yaml
   - path: patch-backend-worker-runtime-volumes.yaml
   - path: patch-backend-beat-runtime-volumes.yaml
   - path: patch-backend-worker-scheduling.yaml

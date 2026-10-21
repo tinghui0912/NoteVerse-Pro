@@ -26,7 +26,7 @@ export function getLoginHrefForReturnUrl(returnUrl: string): string {
   return withReturnUrl(getLoginPath(returnUrl), returnUrl);
 }
 
-export function getCurrentPathWithSearch(): string {
+function getCurrentPathWithSearch(): string {
   if (typeof window === 'undefined') return '/';
   const { pathname, search } = window.location;
   return `${pathname}${search}`;

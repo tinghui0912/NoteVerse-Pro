@@ -1,4 +1,4 @@
-export type Brand<TValue, TBrand extends string> = TValue & { readonly __brand: TBrand };
+type Brand<TValue, TBrand extends string> = TValue & { readonly __brand: TBrand };
 
 export type ScoreDocumentId = Brand<string, 'ScoreDocumentId'>;
 export type PartId = Brand<string, 'PartId'>;
@@ -8,7 +8,7 @@ export type MeasureId = Brand<string, 'MeasureId'>;
 export type EventId = Brand<string, 'EventId'>;
 export type NoteAtomId = Brand<string, 'NoteAtomId'>;
 export type NotationId = Brand<string, 'NotationId'>;
-export type TupletId = Brand<string, 'TupletId'>;
+type TupletId = Brand<string, 'TupletId'>;
 export type TieId = Brand<string, 'TieId'>;
 export type BeamId = Brand<string, 'BeamId'>;
 
@@ -22,7 +22,7 @@ export type MusicalPosition = {
   offset: Rational;
 };
 
-export type DurationBase =
+type DurationBase =
   | 'whole'
   | 'half'
   | 'quarter'
@@ -129,40 +129,40 @@ export type DerivedRest = {
   sourceGap: TimelineGap;
 };
 
-export type EventSelection = {
+type EventSelection = {
   kind: 'event';
   eventId: EventId;
 };
 
-export type NoteAtomSelection = {
+type NoteAtomSelection = {
   kind: 'noteAtom';
   eventId: EventId;
   noteAtomId: NoteAtomId;
 };
 
-export type CaretSelection = {
+type CaretSelection = {
   kind: 'caret';
   position: MusicalPosition;
   voiceId: VoiceId;
   staffId: StaffId;
 };
 
-export type TimelineGapSelection = {
+type TimelineGapSelection = {
   kind: 'timelineGap';
   gap: TimelineGap;
 };
 
-export type DerivedRestSelection = {
+type DerivedRestSelection = {
   kind: 'derivedRest';
   rest: DerivedRest;
 };
 
-export type NotationSelection = {
+type NotationSelection = {
   kind: 'notation';
   notationId: NotationId;
 };
 
-export type RangeSelection = {
+type RangeSelection = {
   kind: 'range';
   start: MusicalPosition;
   end: MusicalPosition;
@@ -330,7 +330,7 @@ export function subtractRational(left: Rational, right: Rational): Rational {
   });
 }
 
-export function getEventEndPosition(event: VoiceEvent): MusicalPosition {
+function getEventEndPosition(event: VoiceEvent): MusicalPosition {
   return {
     measureId: event.position.measureId,
     offset: addRational(event.position.offset, event.rhythm.timelineDuration),

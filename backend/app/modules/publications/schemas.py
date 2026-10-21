@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.db.models.score_access import PublicationStatus
+from app.db.models.score_access import PublicationStatus, ScoreAudienceAccessMode
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
@@ -17,7 +17,7 @@ class PublicationUpsertRequest(BaseModel):
         default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=128
     )
     allow_download: bool = False
-    allow_practice: bool = True
+    access_mode: ScoreAudienceAccessMode = ScoreAudienceAccessMode.PRACTICE
 
 
 class PublicationRead(BaseModel):
@@ -26,7 +26,7 @@ class PublicationRead(BaseModel):
     revision_id: str
     status: PublicationStatus
     allow_download: bool
-    allow_practice: bool
+    access_mode: ScoreAudienceAccessMode
     published_at: datetime
     updated_at: datetime
 

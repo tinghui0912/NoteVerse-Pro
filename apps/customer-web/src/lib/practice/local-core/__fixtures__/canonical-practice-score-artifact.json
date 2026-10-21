@@ -1,5 +1,5 @@
 {
-  "artifactId": "practice-score-artifact-v1:0529eb0f2b5dfe1a",
+  "artifactId": "practice-score-artifact:ec2262af8d689ffb",
   "expectedPracticeGroups": [
     {
       "canonicalEndBeat": 1.0,
@@ -818,7 +818,7 @@
   "schemaVersion": 1,
   "scoreEndBeat": 6.0,
   "scoreId": "canonical-local-core-score",
-  "tempoSegments": [
+  "scoreTempoSegments": [
     {
       "bpm": 120.0,
       "startBeat": 0.0

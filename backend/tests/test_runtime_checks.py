@@ -22,18 +22,6 @@ def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
     )
 
 
-def test_practice_runtime_checks_cover_practice_owned_dependencies() -> None:
-    assert ROLE_CHECK_NAMES[RuntimeRole.PRACTICE] == (
-        "settings",
-        "database",
-        "storage_quota_policy",
-        "redis",
-        "storage",
-        "soundfont",
-        "practice_alignment",
-    )
-
-
 def test_control_plane_runtime_checks_require_independent_identity_configuration() -> None:
     assert ROLE_CHECK_NAMES[RuntimeRole.CONTROL_PLANE] == (
         "settings",
@@ -83,7 +71,6 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
         RuntimeRole.OBSERVABILITY_EXPORTER,
         RuntimeRole.WORKER,
         RuntimeRole.BEAT,
-        RuntimeRole.PRACTICE,
     ):
         assert set(ROLE_CHECK_NAMES[role]).issubset(all_checks)
 

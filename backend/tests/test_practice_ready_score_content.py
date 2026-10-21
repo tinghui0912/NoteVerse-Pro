@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.db.models.score_access import AccessOrigin
-from app.modules.practice.service import PracticeService
+from app.modules.practice.source_service import PracticeSourceService
 
 
 @pytest.mark.asyncio
@@ -36,7 +36,7 @@ async def test_practice_service_returns_practice_ready_musicxml_content() -> Non
         score_path = file.name
     storage.local_path.return_value = score_path
     storage.materialize_to_local.return_value = score_path
-    service = PracticeService(
+    service = PracticeSourceService(
         access_policy=access_policy,
         asset_repository=asset_repository,
         storage=storage,

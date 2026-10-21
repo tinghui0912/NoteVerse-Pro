@@ -64,6 +64,7 @@ class FileErrorCode:
     FILE_COPY_FAILED = "file_copy_failed"
     FILE_DELETE_FAILED = "file_delete_failed"
     FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
+    STORAGE_BACKEND_UNAVAILABLE = "storage_backend_unavailable"
     NO_FILE_SELECTED = "no_file_selected"
     STORAGE_QUOTA_EXCEEDED = "storage_quota_exceeded"
     QUOTA_CHECK_UNAVAILABLE = "quota_check_unavailable"
@@ -88,15 +89,8 @@ class NotificationErrorCode:
 
 
 class PracticeErrorCode:
-    PRACTICE_SESSION_NOT_FOUND = "practice_session_not_found"
-    PRACTICE_REPLAY_ARTIFACT_NOT_FOUND = "practice_replay_artifact_not_found"
-    PRACTICE_SESSION_INVALID_STATE = "practice_session_invalid_state"
-    PRACTICE_STREAM_NOT_READY = "practice_stream_not_ready"
-    PRACTICE_STREAM_CLOSED = "practice_stream_closed"
-    PRACTICE_AUDIO_FORMAT_UNSUPPORTED = "practice_audio_format_unsupported"
-    PRACTICE_ALIGNMENT_FAILED = "practice_alignment_failed"
+    PRACTICE_SOURCE_FAILED = "practice_source_failed"
     PRACTICE_SCOPE_INVALID = "practice_scope_invalid"
-    PRACTICE_SCOPE_TARGET_NOT_FOUND = "practice_scope_target_not_found"
     NO_PRACTICE_ACCESS = "no_practice_access"
 
 

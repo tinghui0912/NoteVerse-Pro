@@ -1,0 +1,219 @@
+// @vitest-environment jsdom
+
+import React, { type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  performanceTakesApi,
+  uploadMediaToSignedUrl,
+  type PerformanceTakeRead,
+  type RecordingTimebase,
+  type PerformanceTakeTempoPlan,
+} from '@/lib/api/performance-takes';
+import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
+
+vi.mock('@/lib/api/performance-takes', () => ({
+  performanceTakesApi: {
+    authorizeUpload: vi.fn(),
+    cancelUploadAuthorization: vi.fn(),
+    finalizeTake: vi.fn(),
+    listTakes: vi.fn(),
+    getTake: vi.fn(),
+    getPlaybackUrl: vi.fn(),
+    deleteTake: vi.fn(),
+  },
+  uploadMediaToSignedUrl: vi.fn(),
+}));
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+const tempoPlan: PerformanceTakeTempoPlan = {
+  selection: { mode: 'SCORE' },
+  segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
+};
+
+const recordingTimebase: RecordingTimebase = {
+  nominalMediaDurationMs: 1000,
+  activeSegments: [
+    { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },
+  ],
+};
+
+function createInput() {
+  return {
+    scoreId: 'score-1',
+    revisionId: 'revision-1',
+    artifactId: 'artifact-1',
+    clientRequestId: 'request-1',
+    mediaKind: 'AUDIO' as const,
+    mediaBlob: new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
+    mimeType: 'audio/wav',
+    durationMs: 1000,
+    scope: {
+      kind: 'FULL' as const,
+      startBeat: 0,
+      terminalBeat: 4,
+    },
+    tempoPlan,
+    recordingTimebase,
+  };
+}
+
+const savedTake: PerformanceTakeRead = {
+  take_id: 'take-1',
+  source_score_id: 'score-1',
+  score_title_snapshot: 'Etude',
+  source_revision_id: 'revision-1',
+  source_artifact_id: 'artifact-1',
+  media_kind: 'AUDIO',
+  media_mime_type: 'audio/wav',
+  media_byte_size: 12,
+  duration_ms: 1000,
+  scope_type: 'FULL',
+  scope_start_beat: 0,
+  scope_terminal_beat: 4,
+  deletion_status: 'ACTIVE',
+  tempo_plan: tempoPlan,
+  recording_timebase: recordingTimebase,
+  created_at: '2026-09-21T00:00:00Z',
+};
+
+describe('useSavePerformanceTake', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns an archived take without uploading again', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: savedTake.take_id,
+        status: 'ARCHIVED',
+        upload_headers: {},
+        take: savedTake,
+      },
+    } as never);
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    let response: PerformanceTakeRead | undefined;
+    await act(async () => {
+      response = await result.current.mutateAsync(createInput());
+    });
+
+    expect(response).toEqual(savedTake);
+    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel the authorization when finalize result is unknown', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: 'take-1',
+        status: 'AUTHORIZED',
+        upload_url: '/uploads/staging.wav',
+        upload_method: 'PUT',
+        upload_headers: {},
+        object_key: 'staging/performance-takes/1/take-1/recording.wav',
+        reservation_id: 'reservation-1',
+        expires_in: 3600,
+      },
+    } as never);
+    vi.mocked(uploadMediaToSignedUrl).mockResolvedValue(undefined);
+    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue(new Error('network lost'));
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.mutateAsync(createInput());
+      })
+    ).rejects.toThrow('network lost');
+
+    expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.authorizeUpload).toHaveBeenCalledWith(
+      expect.not.objectContaining({ evaluation: expect.anything() })
+    );
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
+      expect.not.objectContaining({ evaluation: expect.anything() })
+    );
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('retries finalize without uploading again when authorization is finalizing', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: 'take-1',
+        status: 'FINALIZING',
+        upload_headers: {},
+        reservation_id: 'reservation-1',
+        expires_in: 0,
+      },
+    } as never);
+    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
+      data: savedTake,
+    } as never);
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    let response: PerformanceTakeRead | undefined;
+    await act(async () => {
+      response = await result.current.mutateAsync(createInput());
+    });
+
+    expect(response).toEqual(savedTake);
+    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
+      expect.not.objectContaining({ evaluation: expect.anything() })
+    );
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel after a masked finalize 4xx because save may still be recoverable', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: 'take-1',
+        status: 'AUTHORIZED',
+        upload_url: '/uploads/staging.wav',
+        upload_method: 'PUT',
+        upload_headers: {},
+        object_key: 'staging/performance-takes/1/take-1/recording.wav',
+        reservation_id: 'reservation-1',
+        expires_in: 3600,
+      },
+    } as never);
+    vi.mocked(uploadMediaToSignedUrl).mockResolvedValue(undefined);
+    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue({
+      response: { status: 422 },
+    });
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.mutateAsync(createInput());
+      })
+    ).rejects.toBeTruthy();
+
+    expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
+});

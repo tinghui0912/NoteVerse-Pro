@@ -398,7 +398,6 @@ if ($Apply) {
 
         if ($Wait) {
             Wait-ForActiveDeployment -DeploymentName "noteverse-backend-api" -TimeoutSeconds $WaitTimeoutSeconds
-            Wait-ForActiveDeployment -DeploymentName "noteverse-backend-practice" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-backend-beat" -TimeoutSeconds $WaitTimeoutSeconds
             if (-not $SkipWorkerWait -and -not $ScaleWorkerToZero) {
                 Invoke-Checked "rollout:backend-worker" {

@@ -11,7 +11,7 @@ spec:
       rules:
         - alert: NoteVerseBackendTargetDown
           expr: |
-            up{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"} == 0
+            up{namespace=~"noteverse-.*", job=~".*noteverse-backend-api.*"} == 0
           for: 5m
           labels:
             severity: critical
@@ -23,12 +23,12 @@ spec:
           expr: |
             (
               sum by (namespace, job) (
-                rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*", status_code=~"5.."}[5m])
+                rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-api.*", status_code=~"5.."}[5m])
               )
               /
               clamp_min(
                 sum by (namespace, job) (
-                  rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"}[5m])
+                  rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-api.*"}[5m])
                 ),
                 0.001
               )
@@ -45,7 +45,7 @@ spec:
             histogram_quantile(
               0.95,
               sum by (namespace, job, le) (
-                rate(noteverse_http_request_duration_seconds_bucket{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"}[5m])
+                rate(noteverse_http_request_duration_seconds_bucket{namespace=~"noteverse-.*", job=~".*noteverse-backend-api.*"}[5m])
               )
             ) > 2.5
           for: 10m

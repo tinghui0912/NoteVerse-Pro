@@ -37,8 +37,9 @@ diagnostics, but they must remain structured, searchable, and safe for Loki card
 - Avatar processing logs now use structured events under `account.avatar.*`.
 - Notification and realtime best-effort failures now use structured loguru events rather
   than standard-library `logging` extras.
-- Practice runtime registration failure is now structured as
-  `practice.session_runtime.registration_failed`.
+- Historical Practice runtime registration failures were structured as
+  `practice.session_runtime.registration_failed`; current Practice execution is
+  browser-local and does not have an active backend Practice runtime.
 - Import job execution start/failure is structured as:
   - `import_job.pipeline_started`
   - `import_job.pipeline_failed`
@@ -53,11 +54,11 @@ diagnostics, but they must remain structured, searchable, and safe for Loki card
   events under `derived_asset_retention.*`.
 - Orphan upload cleanup and score fingering failures now use structured events.
 - Text recognition, text integration, OCR subprocess execution, LEGATO OMR, and
-  practice matchmaker diagnostics now use structured events and avoid logging
-  recognized user text as ordinary message content.
-- High-volume practice diagnostics are disabled by default and additionally
-  sampled through `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL` and
-  `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL` when enabled.
+  the historical practice matchmaker diagnostics used structured events and
+  avoided logging recognized user text as ordinary message content.
+- The historical high-volume practice diagnostics were sampled by retired
+  environment switches. Current Practice execution is browser-local, and those
+  switches are not part of the active backend runtime configuration.
 
 ## Current Field Policy
 

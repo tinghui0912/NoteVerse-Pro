@@ -1,18 +1,24 @@
 # NoteVerse Pro
 
-NoteVerse Pro is a sheet-music processing and practice platform. It combines MusicXML import and review, immutable score revisions, collaboration and public sharing, browser-based editing, and realtime practice.
+NoteVerse Pro is a sheet-music processing and practice platform. It combines MusicXML import and review, immutable score revisions, collaboration and public sharing, browser-based editing, and browser-local practice.
 
 ## System map
 
 ```text
 Customer Web ──same-origin proxy──> Backend API ──> PostgreSQL / Redis / Object Storage
-       |                                   |
-       └──────────────> Practice API       └──> Celery Worker / Beat
+       |
+       └──────────────> browser-local Practice execution
 
 Platform Admin ──same-origin proxy──> Control Plane API
 ```
 
-The backend is a modular monolith deployed as separately scalable API, practice, worker, beat, and control-plane runtimes. It is not a collection of microservices or separate repositories.
+The backend is a modular monolith deployed as separately scalable API, worker,
+beat, and control-plane runtimes. It is not a collection of microservices or
+separate repositories. The backend Practice module owns score/source/artifact
+delivery. Live `STEP_BY_STEP` and `CONTINUOUS_PLAY` Practice execution is owned
+by Customer Web after the required score assets are loaded; it does not require
+a Practice WebSocket, backend clock synchronization, Matchmaker, score-following,
+or a backend PracticeSession runtime.
 
 ## Repository layout
 

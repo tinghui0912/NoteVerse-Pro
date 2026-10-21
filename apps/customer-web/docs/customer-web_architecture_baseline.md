@@ -1,17 +1,12 @@
 # Customer Web Architecture Baseline
 
-> Status: current baseline, not a migration task board.
-> Last updated: 2026-07-13.
-
-This document records the frontend architecture that new work should preserve. Historical
-renderer, route, and page-decomposition migration details live in the git history and older
-cross-stack plans under `../../docs/`.
+This document records the current frontend domains, contracts and lifecycle ownership.
 
 ## Purpose
 
 The frontend should stay organized around stable product domains, explicit route shells,
 typed API contracts, and reusable state components. The goal is to make feature work easy
-to place without recreating historical compatibility paths.
+to place within clear ownership boundaries.
 
 ## API Contract Ownership
 
@@ -23,9 +18,7 @@ change; CI runs `npm run check:api-types` to reject stale output.
 Keep `src/lib/api/*` as the application request boundary.
 Frontend view models, form state, browser-only protocol messages, and display
 helpers remain frontend-owned. HTTP DTO consumers must import the generated
-types directly; do not add aliases, compatibility re-exports, or parallel
-hand-maintained DTO declarations. Replace and delete each domain's former DTOs
-in the same change.
+types directly. View models and form state stay frontend-owned.
 
 ## Route Shells
 
@@ -62,12 +55,20 @@ They use:
 - backend-generated render assets for thumbnails and downloadable images;
 - backend-generated playback audio for cover playback.
 
-They do not use the old full Verovio score viewer or bottom playback transport on the detail
-page. Practice remains the focused interactive score-following surface.
+Practice is the focused browser-local practice surface.
+
+Practice execution is owned by Customer Web once the required score artifacts are loaded.
+`STEP_BY_STEP` progresses by local correctness decisions for bounded attempts.
+`CONTINUOUS_PLAY` progresses from the fixed local tempo clock; the user follows the
+score cursor, and MIDI or acoustic evidence is downstream correctness/timing evidence
+only. `StepPracticeController` and `ContinuousPracticeController` own their respective
+application lifecycles; React subscribes to snapshots and sends commands. The shared
+acoustic foundation is score-blind. Both modes support browser-local microphone
+analysis when browser/runtime prerequisites are available. Capability detection does
+not qualify physical-device recognition quality, permission UX or end-to-end latency.
+See [Practice Product Contract](../../../docs/architecture/practice-product-contract.md).
 
 ## Asset Vocabulary
-
-Do not reintroduce the old generic score artifact model in frontend code.
 
 Current score asset types are:
 
@@ -174,7 +175,7 @@ downloads, realtime invalidation, score editing, shell layout, or user-visible s
 
 ## Guardrails
 
-- Do not add compatibility re-exports for removed route or API names.
+- Keep route and API ownership explicit through their domain interfaces.
 - Do not add fallback URLs or default backend origins for required runtime config.
 - Do not expose MusicXML in external share/public flows unless the backend explicitly grants
   download permission.

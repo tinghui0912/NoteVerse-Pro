@@ -9,7 +9,6 @@ param(
         "backend-critical-import-execution-coverage",
         "backend-critical-import-job-service-coverage",
         "backend-critical-import-worker-service-coverage",
-        "backend-critical-practice-service-coverage",
         "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
@@ -119,7 +118,6 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --environment staging `
             --output $OutputDir `
             --backend-api-image "ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
-            --backend-practice-image "ghcr.io/example/noteverse/backend-practice@sha256:5555555555555555555555555555555555555555555555555555555555555555" `
             --backend-beat-image "ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444" `
             --backend-worker-image "ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333" `
             --customer-web-image "ghcr.io/example/noteverse/customer-web@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
@@ -189,9 +187,6 @@ switch ($Check) {
     }
     "backend-critical-import-worker-service-coverage" {
         Invoke-BackendQuality "critical-import-worker-service-coverage"
-    }
-    "backend-critical-practice-service-coverage" {
-        Invoke-BackendQuality "critical-practice-service-coverage"
     }
     "backend-contracts" {
         Invoke-BackendQuality "contracts"

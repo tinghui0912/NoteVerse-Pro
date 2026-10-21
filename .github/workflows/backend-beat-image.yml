@@ -6,13 +6,17 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "docker/backend/Dockerfile.beat"
+      - "docker/backend/Dockerfile.beat.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "!backend/research/**"
       - "docker/backend/Dockerfile.beat"
+      - "docker/backend/Dockerfile.beat.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
 

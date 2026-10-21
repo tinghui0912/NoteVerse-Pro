@@ -20,7 +20,7 @@ export function getVerovioRenderElementIdFromTarget(target: EventTarget | null):
   return candidate ? getCandidateId(candidate) : null;
 }
 
-export function getVerovioElementFromTarget(target: EventTarget | null): Element | null {
+function getVerovioElementFromTarget(target: EventTarget | null): Element | null {
   if (!(target instanceof Element)) return null;
 
   const event = target.closest(VEROVIO_EVENT_SELECTOR);

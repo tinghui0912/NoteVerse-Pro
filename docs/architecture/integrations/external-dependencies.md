@@ -40,7 +40,7 @@ backend/app/processing/engines/omr/legato_manifest.py
 `LEGATO_REPO_PATH` remains a deployment path setting; repository URL and commit
 are immutable build/runtime identity, not environment configuration.
 
-### Why It Is Not Installed Like `pymatchmaker`
+### Source Packaging
 
 LEGATO currently does not provide standard packaging metadata such as:
 

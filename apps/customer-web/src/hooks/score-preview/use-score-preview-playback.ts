@@ -208,20 +208,21 @@ export function useScorePreviewPlayback({
     if (!controller) return;
     const generation = ++loadGenerationRef.current;
     let cancelled = false;
-    queueMicrotask(() => {
+    void (async () => {
       if (cancelled || generation !== loadGenerationRef.current) return;
       resetState();
       setIsLoading(true);
       setLoadError(null);
       updateFollowSuspended(false);
-      void controller.loadScore(xmlString).then(() => {
+      try {
+        await controller.loadScore(xmlString);
         if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
         loadedXmlRef.current = xmlString;
         const duration = controller.getPlaybackSnapshot().duration;
         setTotalTime(duration > 0 ? duration : 0);
         setHasRenderedScore(true);
         setIsLoading(false);
-      }).catch((error) => {
+      } catch (error) {
         if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
         reportUnexpectedClientError(error, {
           area: 'score_preview_playback',
@@ -229,8 +230,8 @@ export function useScorePreviewPlayback({
         });
         setLoadError(t('errorBoundaryDesc'));
         setIsLoading(false);
-      });
-    });
+      }
+    })();
     return () => { cancelled = true; };
   }, [isOpen, resetState, t, updateFollowSuspended, xmlString]);
 

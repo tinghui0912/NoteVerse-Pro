@@ -20,6 +20,7 @@ from app.db.models import (
     ShareGrantRedemption,
     User,
 )
+from app.db.models.score_access import ScoreAudienceAccessMode
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -34,6 +35,7 @@ from app.modules.score_sharing.schemas import (
     GrantAccessRead,
     GrantCreateRequest,
     GrantCreatedRead,
+    GrantRedeemRead,
     GrantRead,
     ShareActorRead,
 )
@@ -90,7 +92,7 @@ class ScoreSharingService:
             score_id=require_persisted_id(access.score.id, entity="score"),
             token_hash=hash_share_token(token),
             allow_download=request.allow_download,
-            allow_practice=request.allow_practice,
+            access_mode=request.access_mode.value,
             expires_at=expires_at,
             created_by_user_id=user_id,
             created_at=now,
@@ -100,8 +102,8 @@ class ScoreSharingService:
         return GrantCreatedRead(
             grant_id=grant.grant_uuid,
             token=token,
+            access_mode=ScoreAudienceAccessMode(grant.access_mode),
             allow_download=grant.allow_download,
-            allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,
             created_at=grant.created_at,
         )
@@ -124,8 +126,8 @@ class ScoreSharingService:
                 GrantRead(
                     grant_id=grant.grant_uuid,
                     token=None,
+                    access_mode=ScoreAudienceAccessMode(grant.access_mode),
                     allow_download=grant.allow_download,
-                    allow_practice=grant.allow_practice,
                     expires_at=grant.expires_at,
                     revoked_at=grant.revoked_at,
                     created_at=grant.created_at,
@@ -165,8 +167,8 @@ class ScoreSharingService:
         return GrantRead(
             grant_id=grant.grant_uuid,
             token=None,
+            access_mode=ScoreAudienceAccessMode(grant.access_mode),
             allow_download=grant.allow_download,
-            allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,
             revoked_at=grant.revoked_at,
             created_at=grant.created_at,
@@ -310,6 +312,28 @@ class ScoreSharingService:
             available=True,
             unavailable_reason=None,
             created_at=entry.created_at,
+        )
+
+    async def redeem_grant(
+        self, db: AsyncSession, token: str, user_id: int
+    ) -> GrantRedeemRead:
+        grant = await self._grant_by_token(db, token)
+        score = await db.get(Score, grant.score_id)
+        if not score:
+            raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
+        access = await self.access_policy.resolve(
+            db, score.score_uuid, user_id=user_id, share_token=token
+        )
+        if not access.capabilities.can_practice:
+            raise ValidationException(ErrorCode.NO_SHARE_ACCESS, field="token")
+        grant_id = require_persisted_id(grant.id, entity="share grant")
+        if not await self.repository.redemption(db, grant_id, user_id):
+            db.add(ShareGrantRedemption(grant_id=grant_id, user_id=user_id))
+        await db.commit()
+        return GrantRedeemRead(
+            score_id=score.score_uuid,
+            title=score.title,
+            can_practice=access.capabilities.can_practice,
         )
 
     async def _grant_by_token(

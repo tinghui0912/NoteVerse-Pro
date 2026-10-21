@@ -31,5 +31,6 @@ RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/quality-core.txt
 
 COPY backend/ /app/
+RUN test ! -e /app/research
 
 CMD ["bash"]

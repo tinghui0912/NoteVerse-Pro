@@ -16,25 +16,6 @@ from .realtime import RealtimeEvent
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
 from .scheduler import SchedulerHeartbeat, SchedulerLeaderStatus
-from .practice import (
-    PracticeAttempt,
-    PracticeAttemptCompletionStatus,
-    PracticeAttemptResolutionReason,
-    PracticeAttemptResult,
-    PracticeEvaluationProfile,
-    PracticeInputSource,
-    PracticeReplayArtifact,
-    PracticeReplayArtifactKind,
-    PracticeReplayObjectDeletionOutbox,
-    PracticeReplayObjectDeletionStatus,
-    PracticeProgressionMode,
-    PracticeRealtimeGuidance,
-    PracticeSessionCompletionReason,
-    PracticeStepMicrophoneVerificationProvider,
-    PracticeSessionSummaryStatus,
-    PracticeSession,
-    PracticeSessionState,
-)
 from .library import (
     LibraryEntrySourceType,
     LibraryPracticeState,
@@ -96,6 +77,24 @@ from .storage_usage import (
     StorageUsageReservation,
     StorageUsageReservationStatus,
 )
+from .performance_take import (
+    PerformanceTake,
+    PerformanceTakeDeletionStatus,
+    PerformanceTakeMediaKind,
+)
+from .practice_source_snapshot import PracticeSourceSnapshot, PracticeSourceSnapshotStatus
+from .practice_source_snapshot_delete_outbox import (
+    PracticeSourceSnapshotDeleteOutbox,
+    PracticeSourceSnapshotDeleteOutboxStatus,
+)
+from .performance_take_upload_authorization import (
+    PerformanceTakeUploadAuthorization,
+    PerformanceTakeUploadAuthorizationStatus,
+)
+from .performance_take_delete_outbox import (
+    PerformanceTakeDeleteOutbox,
+    PerformanceTakeDeleteOutboxStatus,
+)
 
 __all__ = [
     "User",
@@ -119,23 +118,6 @@ __all__ = [
     "ScoreRevisionNote",
     "SchedulerHeartbeat",
     "SchedulerLeaderStatus",
-    "PracticeSession",
-    "PracticeAttempt",
-    "PracticeAttemptCompletionStatus",
-    "PracticeAttemptResolutionReason",
-    "PracticeAttemptResult",
-    "PracticeSessionState",
-    "PracticeProgressionMode",
-    "PracticeRealtimeGuidance",
-    "PracticeEvaluationProfile",
-    "PracticeInputSource",
-    "PracticeStepMicrophoneVerificationProvider",
-    "PracticeReplayArtifact",
-    "PracticeReplayArtifactKind",
-    "PracticeReplayObjectDeletionOutbox",
-    "PracticeReplayObjectDeletionStatus",
-    "PracticeSessionCompletionReason",
-    "PracticeSessionSummaryStatus",
     "LibraryEntrySourceType",
     "LibraryPracticeState",
     "ScoreLibraryEntry",
@@ -188,4 +170,15 @@ __all__ = [
     "StorageUsageEvent",
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
+    "PerformanceTake",
+    "PerformanceTakeDeletionStatus",
+    "PerformanceTakeMediaKind",
+    "PracticeSourceSnapshot",
+    "PracticeSourceSnapshotStatus",
+    "PracticeSourceSnapshotDeleteOutbox",
+    "PracticeSourceSnapshotDeleteOutboxStatus",
+    "PerformanceTakeUploadAuthorization",
+    "PerformanceTakeUploadAuthorizationStatus",
+    "PerformanceTakeDeleteOutbox",
+    "PerformanceTakeDeleteOutboxStatus",
 ]

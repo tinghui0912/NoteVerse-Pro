@@ -6,7 +6,7 @@ import type {
   ImportJobSubmitRequest,
 } from '@/generated/api';
 
-export async function submitImportJob(
+async function submitImportJob(
   fileIds: string[],
   options?: ImportJobProcessingOptions,
   idempotencyKey?: string
@@ -19,14 +19,14 @@ export async function submitImportJob(
   return apiClient.post<ApiResponse<ImportJobSubmitRead>>('/import-jobs', request);
 }
 
-export async function getImportJob(
+async function getImportJob(
   jobId: string,
   signal?: AbortSignal
 ): Promise<ApiResponse<ImportJobRead>> {
   return apiClient.get<ApiResponse<ImportJobRead>>(`/import-jobs/${jobId}`, undefined, { signal });
 }
 
-export async function listImportJobs(
+async function listImportJobs(
   page: number,
   pageSize: number,
   signal?: AbortSignal
@@ -38,11 +38,11 @@ export async function listImportJobs(
   );
 }
 
-export async function downloadImportJobArtifact(jobId: string, artifactId: string): Promise<Blob> {
+async function downloadImportJobArtifact(jobId: string, artifactId: string): Promise<Blob> {
   return apiClient.download(`/import-jobs/${jobId}/artifacts/${artifactId}/download`);
 }
 
-export async function deleteImportJob(jobId: string): Promise<ApiResponse<never>> {
+async function deleteImportJob(jobId: string): Promise<ApiResponse<never>> {
   return apiClient.delete<ApiResponse<never>>(`/import-jobs/${jobId}`);
 }
 

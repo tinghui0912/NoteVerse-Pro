@@ -2,7 +2,7 @@ import type { LibraryFolderRead, LibraryView } from '@/generated/api';
 
 export const MAX_LIBRARY_FOLDER_LEVEL = 2;
 
-export const LIBRARY_VIEWS = [
+const LIBRARY_VIEWS = [
   'all',
   'favorites',
   'recent_practice',

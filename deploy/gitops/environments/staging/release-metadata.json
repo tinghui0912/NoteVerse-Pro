@@ -10,7 +10,6 @@
   "images": {
     "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api@sha256:5e8775ae5f2221d9f5a7827c44a266a3611bde27fb814b5e670923f855880906",
     "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat@sha256:60bd528fa4955ded97ef86290106e7909a65040cec7303830d30108bb0b6e2b8",
-    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice@sha256:cf58daa89cfe58b2b87c19f64ee285beab26ad3c82cbeecf1113fddb1cac8c5b",
     "backend_worker": "ghcr.io/tinghui0912/noteverse/backend-worker@sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2",
     "customer_web": "ghcr.io/tinghui0912/noteverse/customer-web@sha256:ffeb5b91a26099a796368cda8236cf55ceaf562b77d5b19ac545b8c6381c56f0",
     "platform_admin": "ghcr.io/tinghui0912/noteverse/platform-admin@sha256:9623c108b0632fd36c10efcb95cd814872fd2e30cbb7fc1e0fccfc50bfeb0f36"
@@ -20,7 +19,6 @@
   "requested_images": {
     "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api:3aede931f19d3a350cd7400d2fa18a2947230191",
     "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat:3aede931f19d3a350cd7400d2fa18a2947230191",
-    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice:3aede931f19d3a350cd7400d2fa18a2947230191",
     "backend_worker": "ghcr.io/tinghui0912/noteverse/backend-worker@sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2",
     "customer_web": "ghcr.io/tinghui0912/noteverse/customer-web@sha256:ffeb5b91a26099a796368cda8236cf55ceaf562b77d5b19ac545b8c6381c56f0",
     "platform_admin": "ghcr.io/tinghui0912/noteverse/platform-admin@sha256:9623c108b0632fd36c10efcb95cd814872fd2e30cbb7fc1e0fccfc50bfeb0f36"

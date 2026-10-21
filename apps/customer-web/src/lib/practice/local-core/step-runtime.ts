@@ -1,274 +1,194 @@
-import {
-  attackPitchesForStep,
-  assertPracticeScoreArtifact,
-  continuationPitchesForStep,
-  groupForStep,
-  resolvePracticeScope,
-  type PracticeScoreArtifact,
-  type PracticeScope,
-} from './artifact';
-import { pitchSetsEqual, type StepVerifierObservation, type StepVerifierTarget } from './evidence';
-import { PracticeTimebase, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
-import type { DurableClock } from './timebase';
-import {
-  createLocalSessionId,
-  type LocalPracticeAttempt,
-  type LocalStepSessionSnapshot,
-} from './session';
-
-export type StepRuntimeDecision =
-  | { kind: 'WAIT'; reason: StepWaitReason; currentTarget: StepVerifierTarget | null }
-  | { kind: 'MATCH'; reason: 'accepted_current_step'; advancedTo: StepVerifierTarget | null }
-  | { kind: 'SKIP'; reason: 'user_skip'; advancedTo: StepVerifierTarget | null };
-
-export type StepWaitReason =
-  | 'no_observation'
-  | 'scope_completed'
-  | 'stale_step'
-  | 'stale_activation'
-  | 'stale_attack'
-  | 'wrong_or_partial_attack_set';
+import { attackPitchesForStep, assertPracticeScoreArtifact, continuationPitchesForStep, groupForStep,
+  resolvePracticeScope, type PracticeScoreArtifact, type PracticeScope } from './artifact';
+import { normalizePitchSet, pitchSetsEqual } from './evidence';
+import { PracticeTimebase, type LocalClock, type DurableClock, type SessionTime } from './timebase';
+import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalStepSessionSnapshot,
+  type StepRuntimeStatus } from './session';
+import type { PracticeTempoSelection } from './practice-tempo';
+import { MAX_STEP_HISTORY_RECORDS, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence,
+  type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget,
+  type StepVerdictPolicy } from './step-attempt';
 
 export type StepPracticeRuntimeOptions = {
-  artifact: PracticeScoreArtifact;
-  scope?: PracticeScope;
-  inputSource?: 'MICROPHONE' | 'MIDI';
-  localSessionId?: string;
-  clock: LocalClock;
-  timebase?: PracticeTimebase;
-  metadataClock?: DurableClock;
-  version?: RuntimeVersionIdentity;
-  snapshot?: LocalStepSessionSnapshot;
+  artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
+  localSessionId?: string; clock: LocalClock; timebase?: PracticeTimebase; metadataClock?: DurableClock;
+  tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
 };
+export type StepAttemptCompletion = Readonly<{ kind: 'REJECTED'; reason: 'STALE_ATTEMPT' }>
+  | Readonly<{ kind: 'FINALIZED'; record: StepAttemptRecord }>;
 
+/** Pure target progression. No input acquisition, timers, or browser resources. */
 export class StepPracticeRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
-
-  private readonly scope = resolvePracticeScope;
-  private readonly clock: LocalClock;
-  private readonly timebase: PracticeTimebase;
-  private readonly metadataClock: DurableClock;
+  private readonly inputSource: StepPracticeRuntimeOptions['inputSource'];
   private readonly resolvedScope;
-  private currentIndex: number;
-  private activationGeneration: number;
-  private activationBoundary: SessionTime;
-  private attempts: LocalPracticeAttempt[];
-  private completed: boolean;
-  private readonly version: RuntimeVersionIdentity;
-  private readonly inputSource: 'MICROPHONE' | 'MIDI';
+  private readonly timebase: PracticeTimebase;
   private readonly createdAtMs: number;
+  private currentIndex: number;
+  private generation = 1;
+  private boundary: Readonly<SessionTime>;
+  private status: StepRuntimeStatus = 'ACTIVE';
+  private completed = false;
+  private completionReason: LocalPracticeCompletionReason | null = null;
+  private attemptState: StepAttemptState = 'READY';
+  private active: StepAttemptIdentity | null = null;
+  private pendingPostVerdict: StepAttemptRecord | null = null;
+  private sequence = 0;
+  private inputAvailable = true;
+  private readonly attempts: StepAttemptRecord[] = [];
+  private readonly skips: StepSkipRecord[] = [];
+  private metronomeEnabled: boolean;
 
-  constructor(options: StepPracticeRuntimeOptions) {
-    assertPracticeScoreArtifact(options.artifact);
-    this.artifact = options.artifact;
-    this.clock = options.clock;
-    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
-    this.version = options.version ?? {
-      schemaVersion: 1,
-      runtimeVersion: 'local-practice-core-v1',
-    };
-    if (options.snapshot) {
-      validateStepSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
-    }
-    this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
-    this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
-    this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
-    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
-    this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
-    this.currentIndex = options.snapshot?.step.currentIndex ?? this.resolvedScope.startIndex;
-    this.activationGeneration = options.snapshot
-      ? options.snapshot.step.activationGeneration + 1
-      : 1;
-    this.activationBoundary = options.snapshot
-      ? this.timebase.runtimeToSessionTime(this.clock.nowMs())
-      : this.timebase.atSessionMs(-1);
-    this.attempts = [...(options.snapshot?.step.attempts ?? [])];
-    this.completed = options.snapshot?.step.completed ?? false;
-  }
-
-  currentTarget(): StepVerifierTarget | null {
-    const step = this.currentStep();
-    if (!step || this.completed) {
-      return null;
-    }
-    return {
-      stepId: step.stepId,
-      activationGeneration: this.activationGeneration,
-      activationBoundary: this.activationBoundary,
-      attackPitches: attackPitchesForStep(step),
-      continuationPitches: continuationPitchesForStep(step),
-    };
-  }
-
-  observe(observation?: StepVerifierObservation | null): StepRuntimeDecision {
-    const target = this.currentTarget();
-    if (!target) {
-      return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
-    }
-    if (!observation) {
-      return { kind: 'WAIT', reason: 'no_observation', currentTarget: target };
-    }
-    if (observation.stepId !== target.stepId) {
-      return { kind: 'WAIT', reason: 'stale_step', currentTarget: target };
-    }
-    if (observation.activationGeneration !== target.activationGeneration) {
-      return { kind: 'WAIT', reason: 'stale_activation', currentTarget: target };
-    }
-    if (!pitchSetsEqual(observation.observedAttackPitches, target.attackPitches)) {
-      return { kind: 'WAIT', reason: 'wrong_or_partial_attack_set', currentTarget: target };
-    }
-    try {
-      this.timebase.assertSameSessionTimeDomain(observation.attackOnsetTime, target.activationBoundary);
-    } catch {
-      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
-    }
-    if (observation.attackOnsetTime.ms <= target.activationBoundary.ms) {
-      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
-    }
-
-    this.recordAttempt({
-      stepId: target.stepId,
-      result: 'MATCH',
-      observedAttackPitches: observation.observedAttackPitches,
-      confidence: observation.confidence,
-    });
-    this.advanceOne();
-    return {
-      kind: 'MATCH',
-      reason: 'accepted_current_step',
-      advancedTo: this.currentTarget(),
-    };
-  }
-
-  skip(): StepRuntimeDecision {
-    const target = this.currentTarget();
-    if (!target) {
-      return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
-    }
-    this.recordAttempt({
-      stepId: target.stepId,
-      result: 'SKIPPED',
-      observedAttackPitches: [],
-      confidence: 1,
-    });
-    this.advanceOne();
-    return { kind: 'SKIP', reason: 'user_skip', advancedTo: this.currentTarget() };
-  }
-
-  reset(): void {
+  constructor(private readonly options: StepPracticeRuntimeOptions) {
+    assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
+    this.inputSource = options.inputSource;
+    this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
     this.currentIndex = this.resolvedScope.startIndex;
-    this.completed = false;
-    this.activationGeneration += 1;
-    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
+    this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
+    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
+    if (this.timebase.domainId !== this.localSessionId) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    this.boundary = this.now(); this.createdAtMs = this.epoch();
+    this.metronomeEnabled = options.metronomeEnabled ?? false;
   }
-
+  currentTarget(): StepTarget | null {
+    const step = this.artifact.practiceAttackSteps[this.currentIndex];
+    if (!step || this.completed || this.status !== 'ACTIVE') return null;
+    return Object.freeze({ stepId: step.stepId, targetGeneration: this.generation, inputEligibleAfter: this.boundary,
+      attackPitches: Object.freeze(attackPitchesForStep(step)), continuationPitches: Object.freeze(continuationPitchesForStep(step)) });
+  }
+  openAttempt(start: SessionTime): StepAttemptIdentity | null {
+    const target = this.currentTarget();
+    if (!target || !this.canAcceptAttempt) return null;
+    this.validateTime(start);
+    // Input eligibility is exclusive: an event at the prior gesture end cannot be
+    // rebound to a fresh attempt depending on timer/message callback order.
+    if (start.ms <= this.boundary.ms) return null;
+    this.assertHistoryRoom();
+    this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
+      localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,
+      inputSource: this.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
+    this.attemptState = 'CAPTURING'; return this.active;
+  }
+  analyzeAttempt(identity: StepAttemptIdentity): boolean {
+    if (!this.owns(identity) || this.attemptState !== 'CAPTURING') return false;
+    this.attemptState = 'ANALYZING'; return true;
+  }
+  completeAttempt(identity: StepAttemptIdentity, evidence: StepAttemptEvidence): StepAttemptCompletion {
+    if (!this.owns(identity) || this.attemptState !== 'ANALYZING') return Object.freeze({ kind: 'REJECTED', reason: 'STALE_ATTEMPT' });
+    this.validateTime(evidence.captureEndSessionTime);
+    if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    if (evidence.kind === 'EVIDENCE' && (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
+      || evidence.observedAttackPitches.length > 128 || evidence.observedAttackPitches.some(p => !/^[A-G]#?-?\d$/.test(p)))) {
+      throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    }
+    if (evidence.kind === 'RETRY' && evidence.reason !== 'UNCERTAIN' && evidence.reason !== 'TOO_QUIET') throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    const pitches = Object.freeze(evidence.kind === 'EVIDENCE' ? normalizePitchSet(evidence.observedAttackPitches) : []);
+    const expected = this.currentTarget()!.attackPitches;
+    // Target-relative uncertainty belongs here, not in an evidence producer.
+    const verdict = evidence.kind === 'RETRY' ? 'RETRY' : pitchSetsEqual(pitches, expected) ? 'MATCH'
+      : this.verdictPolicy === 'MICROPHONE_CONSERVATIVE_TRISTATE' && expected.every(pitch => pitches.includes(pitch))
+        ? 'RETRY' : 'MISMATCH';
+    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
+      confidence: evidence.kind === 'EVIDENCE' ? evidence.confidence : null,
+      captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }),
+      retryReason: evidence.kind === 'RETRY' ? evidence.reason : verdict === 'RETRY' ? 'UNCERTAIN' : null });
+    this.attempts.push(record); this.active = null; this.attemptState = 'POST_VERDICT';
+    this.pendingPostVerdict = record;
+    this.boundary = record.captureEndSessionTime;
+    return Object.freeze({ kind: 'FINALIZED', record });
+  }
+  rearm(acceptAfterSessionTime: SessionTime): void {
+    if (this.status !== 'ACTIVE' || !this.inputAvailable || this.attemptState !== 'POST_VERDICT' || !this.pendingPostVerdict) throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    this.validateTime(acceptAfterSessionTime);
+    if (acceptAfterSessionTime.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    // The caller owns physical capture coverage, not model analysis coverage.
+    // Busy-period source evidence cannot be
+    // rebound merely because its publication arrives after this transition.
+    this.boundary = Object.freeze({ ...acceptAfterSessionTime });
+    const verdict = this.pendingPostVerdict.verdict;
+    this.pendingPostVerdict = null;
+    this.attemptState = 'READY';
+    if (verdict === 'MATCH') this.advance();
+  }
+  private cancelAttempt(): void {
+    // A finalized verdict is not an unfinished capture and cannot be cancelled by input loss.
+    this.active = null;
+    if (this.attemptState !== 'POST_VERDICT') this.attemptState = 'READY';
+  }
+  setInputUnavailable(): void {
+    if (this.status !== 'ACTIVE') return;
+    this.cancelAttempt(); this.inputAvailable = false;
+  }
+  acceptInputAfter(capturedThrough: SessionTime): void {
+    if (this.status !== 'ACTIVE' || this.inputAvailable || this.active
+      || (this.attemptState !== 'READY' && this.attemptState !== 'POST_VERDICT')) throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    this.validateTime(capturedThrough);
+    if (capturedThrough.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    this.boundary = Object.freeze({ ...capturedThrough }); this.inputAvailable = true;
+  }
+  skip(capturedThrough?: SessionTime): boolean {
+    const target = this.currentTarget(); if (!target || !this.canAcceptAttempt) return false;
+    // A physical input owner may retire capture at a different frontier than the live clock.
+    // MIDI callers retain their existing clock-based transition.
+    const skippedAt = Object.freeze({ ...(capturedThrough ?? this.now()) });
+    this.validateTime(skippedAt);
+    if (capturedThrough && skippedAt.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    this.assertHistoryRoom(); this.cancelAttempt();
+    if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
+    this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));
+    this.advance(); return true;
+  }
+  end(): void {
+    if (this.status === 'ENDED') return;
+    this.cancelAttempt(); this.status = 'ENDED'; this.completionReason = 'STOPPED_BY_USER';
+  }
   snapshot(): LocalStepSessionSnapshot {
-    const nowMs = this.metadataClock.nowEpochMs();
-    return {
-      localSessionId: this.localSessionId,
-      scoreId: this.artifact.scoreId,
-      revisionId: this.artifact.revisionId,
-      artifactId: this.artifact.artifactId,
-      mode: 'STEP_BY_STEP',
-      inputSource: this.inputSource,
-      practiceScope: {
-        startGroupId: this.resolvedScope.startGroupId,
-        endGroupId: this.resolvedScope.endGroupId,
-      },
-      lifecycleState: this.completed ? 'ENDED' : 'ACTIVE',
-      version: this.version,
-      createdAtMs: this.createdAtMs,
-      updatedAtMs: nowMs,
-      step: {
-        currentIndex: this.currentIndex,
-        activationGeneration: this.activationGeneration,
-        completed: this.completed,
-        attempts: [...this.attempts],
-      },
-    };
+    return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,
+      artifactId: this.artifact.artifactId, mode: 'STEP_BY_STEP', inputSource: this.inputSource,
+      practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
+      metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,
+      version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
+      step: Object.freeze({ verdictPolicy: this.verdictPolicy, currentIndex: this.currentIndex, targetGeneration: this.generation,
+        inputEligibleAfter: this.boundary, inputAvailable: this.inputAvailable, completed: this.completed,
+        attemptState: this.attemptState, activeAttempt: this.active, pendingPostVerdict: this.pendingPostVerdict,
+        canAcceptAttempt: this.canAcceptAttempt, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
   }
-
-  get currentStepIndex(): number {
-    return this.currentIndex;
+  setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
+  get currentStepIndex(): number { return this.currentIndex; }
+  get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
+  get isCompleted(): boolean { return this.completed; }
+  get state(): StepRuntimeStatus { return this.status; }
+  get verdictPolicy(): StepVerdictPolicy {
+    return this.inputSource === 'MIDI' ? 'MIDI_EXACT_SET' : 'MICROPHONE_CONSERVATIVE_TRISTATE';
   }
-
-  get isCompleted(): boolean {
-    return this.completed;
+  get canAcceptAttempt(): boolean {
+    return this.status === 'ACTIVE' && this.inputAvailable && this.attemptState === 'READY' && this.currentTarget() !== null;
   }
-
-  get attemptHistory(): LocalPracticeAttempt[] {
-    return [...this.attempts];
-  }
-
-  private currentStep() {
-    if (this.completed || this.currentIndex > this.resolvedScope.endIndex) {
-      return null;
-    }
-    return this.artifact.practiceAttackSteps[this.currentIndex] ?? null;
-  }
-
-  private advanceOne(): void {
-    this.currentIndex += 1;
-    this.activationGeneration += 1;
-    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
+  private advance(): void {
+    this.currentIndex++; this.generation++;
     if (this.currentIndex > this.resolvedScope.endIndex) {
-      this.completed = true;
+      this.completed = true; this.status = 'ENDED'; this.completionReason = 'SCOPE_COMPLETED';
     }
   }
-
-  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId' | 'sessionTime'>): void {
-    this.attempts.push({
-      attemptId: `${this.localSessionId}:attempt:${this.attempts.length + 1}`,
-      sessionTime: this.timebase.runtimeToSessionTime(this.clock.nowMs()),
-      ...input,
-    });
+  private owns(identity: StepAttemptIdentity): boolean {
+    return this.status === 'ACTIVE' && this.active !== null && identity.attemptId === this.active.attemptId
+      && identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId
+      && identity.targetGeneration === this.generation && identity.inputSource === this.inputSource
+      && identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId
+      && identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;
   }
+  private assertHistoryRoom(): void {
+    if (this.attempts.length + this.skips.length >= MAX_STEP_HISTORY_RECORDS) {
+      this.end(); throw new StepDomainError('STEP_HISTORY_LIMIT_EXCEEDED');
+    }
+  }
+  private validateTime(time: SessionTime): void {
+    if (!time || time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+  }
+  private now(): Readonly<SessionTime> { return Object.freeze(this.timebase.runtimeToSessionTime(this.options.clock.nowMs())); }
+  private epoch(): number { return this.options.metadataClock?.nowEpochMs() ?? Date.now(); }
 }
-
 export function groupForCurrentStep(runtime: StepPracticeRuntime) {
-  return groupForStep(runtime.artifact, runtime.currentStepIndex);
-}
-
-function validateStepSnapshot(
-  artifact: PracticeScoreArtifact,
-  snapshot: LocalStepSessionSnapshot,
-  inputSource?: 'MICROPHONE' | 'MIDI',
-  scope?: PracticeScope
-): void {
-  if (snapshot.mode !== 'STEP_BY_STEP') {
-    throw new Error('Cannot restore non-STEP snapshot into StepPracticeRuntime.');
-  }
-  validateCommonSnapshot(artifact, snapshot, inputSource, scope);
-  if (!Number.isInteger(snapshot.step.currentIndex) || snapshot.step.currentIndex < 0) {
-    throw new Error('Invalid STEP snapshot current index.');
-  }
-  if (snapshot.step.currentIndex > artifact.practiceAttackSteps.length) {
-    throw new Error('STEP snapshot current index is outside the artifact.');
-  }
-  if (!Number.isInteger(snapshot.step.activationGeneration) || snapshot.step.activationGeneration < 1) {
-    throw new Error('Invalid STEP snapshot activation generation.');
-  }
-}
-
-function validateCommonSnapshot(
-  artifact: PracticeScoreArtifact,
-  snapshot: LocalStepSessionSnapshot,
-  inputSource?: 'MICROPHONE' | 'MIDI',
-  scope?: PracticeScope
-): void {
-  if (snapshot.scoreId !== artifact.scoreId
-    || snapshot.revisionId !== artifact.revisionId
-    || snapshot.artifactId !== artifact.artifactId) {
-    throw new Error('Practice session snapshot does not belong to this score artifact.');
-  }
-  if (snapshot.version.schemaVersion !== 1 || snapshot.version.runtimeVersion !== 'local-practice-core-v1') {
-    throw new Error('Unsupported local practice runtime snapshot version.');
-  }
-  if (inputSource && snapshot.inputSource !== inputSource) {
-    throw new Error('Practice session snapshot input source mismatch.');
-  }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
-    throw new Error('Practice session snapshot scope mismatch.');
-  }
+  return runtime.isCompleted ? null : groupForStep(runtime.artifact, runtime.currentStepIndex);
 }

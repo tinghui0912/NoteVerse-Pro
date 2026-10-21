@@ -2,3 +2,4 @@
 
 # Object storage.
 boto3==1.43.29
+alibabacloud-oss-v2==1.4.0

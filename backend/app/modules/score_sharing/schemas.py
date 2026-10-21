@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.db.models.score_access import ScoreAudienceAccessMode
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
@@ -11,16 +12,16 @@ from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class GrantCreateRequest(BaseModel):
-    allow_download: bool = True
-    allow_practice: bool = True
+    access_mode: ScoreAudienceAccessMode = ScoreAudienceAccessMode.PRACTICE
+    allow_download: bool = False
     expires_at: datetime | None = None
 
 
 class GrantCreatedRead(BaseModel):
     grant_id: str
     token: str
+    access_mode: ScoreAudienceAccessMode
     allow_download: bool
-    allow_practice: bool
     expires_at: datetime | None
     created_at: datetime
 
@@ -28,8 +29,8 @@ class GrantCreatedRead(BaseModel):
 class GrantRead(BaseModel):
     grant_id: str
     token: str | None = None
+    access_mode: ScoreAudienceAccessMode
     allow_download: bool
-    allow_practice: bool
     expires_at: datetime | None
     revoked_at: datetime | None
     created_at: datetime
@@ -60,3 +61,9 @@ class GrantBookmarkRead(BaseModel):
     available: bool
     unavailable_reason: str | None
     created_at: datetime
+
+
+class GrantRedeemRead(BaseModel):
+    score_id: str
+    title: str
+    can_practice: bool

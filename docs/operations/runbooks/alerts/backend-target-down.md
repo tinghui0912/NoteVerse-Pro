@@ -6,14 +6,14 @@ Severity: `critical`
 
 ## Meaning
 
-Prometheus has not been able to scrape one of the NoteVerse backend targets for
-at least 5 minutes. This usually means an API or practice backend Pod, Service,
-ServiceMonitor, or network path is unavailable.
+Prometheus has not been able to scrape the NoteVerse backend API target for at
+least 5 minutes. This usually means the API Pod, Service, ServiceMonitor, or
+network path is unavailable.
 
 ## User Impact
 
 Users may see failed requests, broken realtime connections, or unavailable
-practice flows depending on which target is down.
+practice source flows.
 
 ## First Checks
 
@@ -28,7 +28,7 @@ For production, replace `noteverse-staging` with the production namespace.
 
 ## Triage
 
-1. Confirm whether the affected target is backend API or practice backend.
+1. Confirm the backend API target is missing or unhealthy.
 2. Check Pod readiness and recent restarts.
 3. Check Deployment rollout status.
 4. Check Service selectors and endpoint population.
@@ -39,9 +39,7 @@ Useful commands:
 
 ```powershell
 kubectl rollout status deploy/noteverse-backend-api -n noteverse-staging
-kubectl rollout status deploy/noteverse-backend-practice -n noteverse-staging
 kubectl logs -n noteverse-staging deploy/noteverse-backend-api --tail=100
-kubectl logs -n noteverse-staging deploy/noteverse-backend-practice --tail=100
 ```
 
 ## Mitigation
@@ -55,5 +53,5 @@ kubectl logs -n noteverse-staging deploy/noteverse-backend-practice --tail=100
 
 ## Escalation
 
-Escalate immediately if production API or practice traffic is user-impacting and
-there is no healthy replica.
+Escalate immediately if production API traffic is user-impacting and there is no
+healthy replica.

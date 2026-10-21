@@ -1,0 +1,67 @@
+{
+  "44100": {
+    "identity": {
+      "acousticCoreIdentitySha256": "6f57c7780ad8a16ea529c194de20d743fa124af82e1dea3a51be4cd9d24177ed",
+      "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+      "down": 441,
+      "realSourceLookaheadSamples": 28,
+      "runtimeFeed": "44100 Hz source PCM -> shipped FIR rational adapter -> 16000 Hz; publications retain original source coordinates.",
+      "schemaVersion": 1,
+      "sourceRateHz": 44100,
+      "tapCount": 8821,
+      "targetRateHz": 16000,
+      "up": 160,
+      "implementation": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+        "bytes": 2653,
+        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+      },
+      "coefficients": {
+        "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
+        "bytes": 35284,
+        "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+      }
+    },
+    "identitySha256": "27dc3ec4690d0e715ccc76481d056417eb913b4c64e1147880985795941d71fd"
+  },
+  "48000": {
+    "identity": {
+      "acousticCoreIdentitySha256": "6f57c7780ad8a16ea529c194de20d743fa124af82e1dea3a51be4cd9d24177ed",
+      "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
+      "coefficients": {
+        "bytes": 244,
+        "dtype": "float32-le",
+        "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f",
+        "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-1-3.f32"
+      },
+      "down": 3,
+      "firstFullyRealOutputIndex": 10,
+      "firwin": {
+        "cutoff": 0.3333333333333333,
+        "fs": 2,
+        "numtaps": 61,
+        "scale": true,
+        "window": [
+          "kaiser",
+          5
+        ]
+      },
+      "implementation": {
+        "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+        "bytes": 2653,
+        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+      },
+      "precision": "float32 input/coefficients/product/each accumulation",
+      "realSourceLookaheadMs": 0.625,
+      "realSourceLookaheadSamples": 30,
+      "runtimeFeed": "48000 Hz source PCM -> shipped FIR rational adapter -> 16000 Hz; publications retain original source coordinates.",
+      "schemaVersion": 1,
+      "sourceRateHz": 48000,
+      "tapCount": 61,
+      "targetRateHz": 16000,
+      "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
+      "up": 1
+    },
+    "identitySha256": "d0bd52cbab51f00902d48ddcf2e2d9160435ccf3eb5f33ed29ba1cdc8e7f7cf3"
+  }
+}

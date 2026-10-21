@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { QueryClient } from '@tanstack/react-query';
 
@@ -86,16 +86,25 @@ export const queryKeys = {
     },
     practice: {
         all: ['practice'] as const,
-        targets: (scoreId: string, revisionId: string) =>
-            ['practice', 'targets', { scoreId, revisionId }] as const,
+        artifact: (scoreId: string, revisionId: string) =>
+            ['practice', 'artifact', { scoreId, revisionId }] as const,
         readyContent: (scoreId: string, revisionId: string) =>
             ['practice', 'ready-content', { scoreId, revisionId }] as const,
-        savedPerformances: (scoreId: string) =>
-            ['practice', 'saved-performances', { scoreId }] as const,
     },
     storageUsage: {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,
     },
+    performanceTakes: {
+        all: ['performance-takes'] as const,
+        lists: () => ['performance-takes', 'list'] as const,
+        list: (params?: { score_id?: string; limit?: number; offset?: number }) =>
+            ['performance-takes', 'list', params ?? {}] as const,
+        detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
+        playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,
+        practiceSourceContent: (takeId: string) =>
+            ['performance-takes', 'practice-source-content', { takeId }] as const,
+        practiceSourceArtifact: (takeId: string) =>
+            ['performance-takes', 'practice-source-artifact', { takeId }] as const,
+    },
 } as const;
-

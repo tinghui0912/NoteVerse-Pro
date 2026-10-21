@@ -5,7 +5,7 @@ import type {
   ObservabilitySink,
 } from './types';
 
-let activeSink: ObservabilitySink | null = null;
+const activeSink: ObservabilitySink | null = null;
 
 const SENSITIVE_KEY_PATTERN = /(password|token|secret|cookie|musicxml|xml|content|body|file|image|audio)/i;
 
@@ -55,10 +55,6 @@ function normalizeError(error: unknown): NormalizedClientError {
   };
 }
 
-export function configureObservabilitySink(sink: ObservabilitySink | null): void {
-  activeSink = sink;
-}
-
 export function reportClientError(
   error: unknown,
   context: ObservabilityContext = {}
@@ -80,19 +76,4 @@ export function reportUnexpectedClientError(
   }
 
   reportClientError(error, context);
-}
-
-export function reportClientEvent(
-  event: string,
-  context: ObservabilityContext = {}
-): void {
-  activeSink?.captureEvent(event, sanitizeContext(context));
-}
-
-export function reportClientPerformance(
-  metric: string,
-  value: number,
-  context: ObservabilityContext = {}
-): void {
-  activeSink?.capturePerformance(metric, value, sanitizeContext(context));
 }

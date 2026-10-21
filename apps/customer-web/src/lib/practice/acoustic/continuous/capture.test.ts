@@ -1,0 +1,82 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { BrowserAcousticCapture } from '../source/capture';
+import type { ContinuousCaptureBridge } from './capture-bridge';
+
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+function fixture() {
+  let cleanup: (() => void) | undefined;
+  const runtime = { attachCaptureCleanup: (fn: () => void) => { cleanup = fn; return () => { cleanup = undefined; }; } };
+  const bridge = { runtime, attachCaptureCleanup: runtime.attachCaptureCleanup, receive: vi.fn(), abort: vi.fn(() => cleanup?.()) };
+  const recordingTrack = { stop: vi.fn() }, analysisTrack = { stop: vi.fn() };
+  const clone = { getTracks: () => [analysisTrack] }, stream = { getTracks: () => [recordingTrack], clone: () => clone };
+  const node = { port: { onmessage: null as unknown, onmessageerror: null as unknown, postMessage: vi.fn(), close: vi.fn() },
+    onprocessorerror: null as unknown, connect: vi.fn(), disconnect: vi.fn() };
+  vi.stubGlobal('AudioWorkletNode', class { constructor() { return node; } });
+  const source = { connect: vi.fn(), disconnect: vi.fn() }, gain = { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() };
+  const context = Object.assign(new EventTarget(), { sampleRate: 48000, state: 'running', audioWorklet: { addModule: vi.fn(async () => {}) },
+    createMediaStreamSource: () => source, createGain: () => gain, destination: {} });
+  return { runtime, bridge, recordingTrack, analysisTrack, node, source, gain, stream, context };
+}
+async function connected(f: ReturnType<typeof fixture>, ownership: 'BORROWED_SESSION_STREAM' | 'OWNED_ANALYSIS') {
+  const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
+    stream: f.stream as unknown as MediaStream, ownership, context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+  await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
+  (f.node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 0, samples: new Float32Array(2048) } });
+  return pending;
+}
+it('borrowed recording stream is cloned; analysis failure stops only the owned clone and disconnects all nodes', async () => {
+  const f = fixture();
+  const capture = await connected(f, 'BORROWED_SESSION_STREAM');
+  f.bridge.abort();
+  expect(f.recordingTrack.stop).not.toHaveBeenCalled(); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
+  expect(f.source.disconnect).toHaveBeenCalledTimes(1); expect(f.node.port.close).toHaveBeenCalledTimes(1);
+  capture.stop(); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
+});
+it('AudioContext suspension invalidates analysis instead of resuming silently', async () => {
+  const f = fixture();
+  await connected(f, 'OWNED_ANALYSIS');
+  f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+  expect(f.bridge.abort).toHaveBeenCalled(); expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1);
+  expect(f.node.port.postMessage).toHaveBeenCalledWith({ type: 'STOP' });
+});
+it('connection stays pending until the first synchronous acceptance and ACK, not graph connection', async () => {
+  const f = fixture(); let ready = false;
+  const pending = connected(f, 'OWNED_ANALYSIS').then(capture => { ready = true; return capture; });
+  expect(ready).toBe(false);
+  const capture = await pending;
+  expect(f.bridge.receive).toHaveBeenCalledTimes(1);
+  expect(f.node.port.postMessage).toHaveBeenCalledWith({ type: 'ACK', sequence: 0 });
+  expect(ready).toBe(true); capture.stop();
+});
+it('cleanup during stabilization rejects readiness, releases once and does not report a false failure', async () => {
+  const f = fixture();
+  const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
+    stream: f.stream as unknown as MediaStream, ownership: 'OWNED_ANALYSIS', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+  await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
+  f.bridge.abort(); // Simulates the owner cancelling its attached capture cleanup.
+  await expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_STOPPED_BEFORE_READY');
+  expect(f.bridge.abort).toHaveBeenCalledTimes(1); expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1);
+});
+it('partial initialization failure releases already-constructed worklet and analysis track', async () => {
+  const f = fixture(); f.context.createMediaStreamSource = () => { throw new Error('source initialization failed'); };
+  await expect(BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
+    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' })).rejects.toThrow('source initialization failed');
+  expect(f.node.port.close).toHaveBeenCalledTimes(1); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
+  expect(f.recordingTrack.stop).not.toHaveBeenCalled();
+});
+it.each(['consumer', 'async-consumer', 'ACK'])('readiness rejects and cleans up once on %s failure', async kind => {
+  const f = fixture();
+  if (kind === 'consumer') f.bridge.receive.mockImplementation(() => { throw new Error('CONSUMER_FAILURE'); });
+  if (kind === 'async-consumer') f.bridge.receive.mockReturnValue(Promise.resolve());
+  if (kind === 'ACK') f.node.port.postMessage.mockImplementation(message => { if (message.type === 'ACK') throw new Error('PORT_FAILURE'); });
+  await expect(connected(f, 'OWNED_ANALYSIS')).rejects.toThrow(kind === 'consumer' ? 'CONSUMER_FAILURE' : kind === 'ACK' ? 'PORT_FAILURE' : 'ACOUSTIC_CAPTURE_ASYNC_CONSUMER');
+  expect(f.bridge.abort).toHaveBeenCalledTimes(1); expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1);
+});
+it('pre-domain readiness timeout is bounded and does not close the borrowed session context', async () => {
+  vi.useFakeTimers(); const f = fixture();
+  const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
+    stream: f.stream as unknown as MediaStream, ownership: 'OWNED_ANALYSIS', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+  const rejected = expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_READINESS_TIMEOUT');
+  await vi.advanceTimersByTimeAsync(10000); await rejected;
+  expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1); expect(f.context.state).toBe('running');
+});

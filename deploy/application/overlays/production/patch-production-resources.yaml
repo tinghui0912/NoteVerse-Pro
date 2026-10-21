@@ -14,24 +14,6 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: noteverse-backend-practice
-spec:
-  template:
-    spec:
-      containers:
-        - name: practice
-          resources:
-            requests:
-              cpu: 500m
-              memory: 1Gi
-            limits:
-              cpu: "2"
-              memory: 2Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

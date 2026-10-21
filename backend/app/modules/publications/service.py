@@ -74,7 +74,7 @@ class PublicationService:
             )
             publication.status = PublicationStatus.PUBLISHED
             publication.allow_download = request.allow_download
-            publication.allow_practice = request.allow_practice
+            publication.access_mode = request.access_mode.value
             publication.updated_at = now
         else:
             publication = ScorePublication(
@@ -85,7 +85,7 @@ class PublicationService:
                 ),
                 status=PublicationStatus.PUBLISHED,
                 allow_download=request.allow_download,
-                allow_practice=request.allow_practice,
+                access_mode=request.access_mode.value,
                 published_by_user_id=user_id,
                 published_at=now,
                 updated_at=now,
@@ -253,7 +253,7 @@ class PublicationService:
             revision_id=revision_uuid,
             status=publication.status,
             allow_download=publication.allow_download,
-            allow_practice=publication.allow_practice,
+            access_mode=publication.access_mode,
             published_at=publication.published_at,
             updated_at=publication.updated_at,
         )

@@ -1,22 +1,21 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
-import { PracticeControls } from './practice-controls';
+import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 
 function renderControls(
   rangeSelectionActive: boolean,
-  overrides: Partial<ComponentProps<typeof PracticeControls>> = {}
+  overrides: Partial<ComponentProps<typeof ContinuousPracticeControls>> = {}
 ) {
-  render(
+  return render(
     <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-      <PracticeControls
-        status="idle"
-        connectionStatus="ready"
+      <ContinuousPracticeControls
+        lifecycle="READY"
         isLoading={false}
         isPreparingSession={false}
         canPrepareSession
@@ -25,6 +24,7 @@ function renderControls(
         canSelectRange
         onStart={vi.fn()}
         onPause={vi.fn()}
+        onResume={vi.fn()}
         onFinish={vi.fn()}
         onOpenSettings={vi.fn()}
         onToggleRangeSelection={vi.fn()}
@@ -34,7 +34,17 @@ function renderControls(
   );
 }
 
-describe('PracticeControls', () => {
+describe('ContinuousPracticeControls', () => {
+  it('STEP active waiting renders Finish but never Pause or Resume', () => {
+    const finish = vi.fn();
+    render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+      <StepPracticeControls lifecycle="ACTIVE" isLoading={false} isPreparingSession={false} canPrepareSession
+        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onFinish={finish}
+        onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
+    </NextIntlClientProvider>);
+    expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: messages.finish })); expect(finish).toHaveBeenCalledOnce();
+  });
   it('keeps the section button label stable while active', () => {
     renderControls(true);
 
@@ -47,5 +57,193 @@ describe('PracticeControls', () => {
     renderControls(false);
 
     expect(screen.getByRole('button', { name: /settings/i })).toBeEnabled();
+  });
+
+  it('calls onPause when active and onResume when paused', () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <ContinuousPracticeControls
+          lifecycle="ACTIVE"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          audioWorkletSupported
+          rangeSelectionActive={false}
+          canSelectRange={false}
+          onStart={vi.fn()}
+          onPause={onPause}
+          onResume={onResume}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const pauseButton = screen.getByRole('button', { name: /pause/i });
+    fireEvent.click(pauseButton);
+    expect(onPause).toHaveBeenCalledTimes(1);
+    expect(onResume).not.toHaveBeenCalled();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <ContinuousPracticeControls
+          lifecycle="PAUSED"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          audioWorkletSupported
+          rangeSelectionActive={false}
+          canSelectRange={false}
+          onStart={vi.fn()}
+          onPause={onPause}
+          onResume={onResume}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const resumeButton = screen.getByRole('button', { name: /resume/i });
+    fireEvent.click(resumeButton);
+    expect(onResume).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders interactive metronome toggle inside tempo popover that switches state', () => {
+    const onMetronomeEnabledChange = vi.fn();
+    const { rerender } = renderControls(false, {
+      tempoSelection: { mode: 'SCORE' },
+      onTempoSelectionChange: vi.fn(),
+      metronomeEnabled: false,
+      onMetronomeEnabledChange,
+    });
+
+    const tempoBtn = screen.getByRole('button', { name: /tempo/i });
+    fireEvent.click(tempoBtn);
+
+    const metronomeBtn = screen.getByRole('button', { name: /metronome sound/i });
+    expect(metronomeBtn).toBeEnabled();
+    expect(metronomeBtn).toHaveTextContent('Off');
+
+    fireEvent.click(metronomeBtn);
+    expect(onMetronomeEnabledChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <ContinuousPracticeControls
+          lifecycle="ACTIVE"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          rangeSelectionActive={false}
+          canSelectRange={false}
+          tempoSelection={{ mode: 'SCORE' }}
+          onTempoSelectionChange={vi.fn()}
+          metronomeEnabled={true}
+          onMetronomeEnabledChange={onMetronomeEnabledChange}
+          onStart={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const activeMetronomeBtn = screen.getByRole('button', { name: /metronome sound/i });
+    expect(activeMetronomeBtn).toBeEnabled();
+    expect(activeMetronomeBtn).toHaveTextContent('On');
+    fireEvent.click(activeMetronomeBtn);
+    expect(onMetronomeEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it('renders real tempo control button in bottom bar', () => {
+    const onTempoSelectionChange = vi.fn();
+    renderControls(false, {
+      tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 84 },
+      onTempoSelectionChange,
+    });
+
+    const tempoBtn = screen.getByRole('button', { name: /tempo/i });
+    expect(tempoBtn).toBeInTheDocument();
+    expect(tempoBtn).toHaveTextContent('84 BPM');
+  });
+
+  it('enforces selectedInputSupported for start gating independently of audioWorkletSupported', () => {
+    // When MIDI is selected, selectedInputSupported is true even if audioWorkletSupported is false
+    const { rerender } = renderControls(false, {
+      audioWorkletSupported: false,
+      selectedInputSupported: true,
+    });
+
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    expect(startBtn).toBeEnabled();
+
+    // When microphone is selected but not supported, start is disabled
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <ContinuousPracticeControls
+          lifecycle="READY"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          audioWorkletSupported={false}
+          selectedInputSupported={false}
+          rangeSelectionActive={false}
+          canSelectRange
+          onStart={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const disabledStartBtn = screen.getByRole('button', { name: /start/i });
+    expect(disabledStartBtn).toBeDisabled();
+  });
+
+  it('enforces selectedInputCapability for start gating', () => {
+    const { rerender } = renderControls(false, {
+      selectedInputCapability: {
+        supported: false,
+        status: 'BROWSER_UNSUPPORTED',
+        reason: 'BROWSER_UNSUPPORTED',
+      },
+    });
+
+    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <ContinuousPracticeControls
+          lifecycle="READY"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          selectedInputCapability={{
+            supported: true,
+            status: 'AVAILABLE',
+          }}
+          rangeSelectionActive={false}
+          canSelectRange
+          onStart={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /start/i })).toBeEnabled();
   });
 });

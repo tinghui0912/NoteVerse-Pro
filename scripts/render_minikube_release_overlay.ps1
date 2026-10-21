@@ -27,7 +27,6 @@ if ($Environment -ne "staging") {
 }
 
 $backendApiImage = Get-RequiredEnv "NOTEVERSE_BACKEND_API_IMAGE"
-$backendPracticeImage = Get-RequiredEnv "NOTEVERSE_BACKEND_PRACTICE_IMAGE"
 $backendBeatImage = Get-RequiredEnv "NOTEVERSE_BACKEND_BEAT_IMAGE"
 $backendWorkerImage = Get-RequiredEnv "NOTEVERSE_BACKEND_WORKER_IMAGE"
 $customerWebImage = Get-RequiredEnv "NOTEVERSE_CUSTOMER_WEB_IMAGE"
@@ -49,7 +48,6 @@ $args = @(
     "--environment", $Environment,
     "--output", $Output,
     "--backend-api-image", $backendApiImage,
-    "--backend-practice-image", $backendPracticeImage,
     "--backend-beat-image", $backendBeatImage,
     "--backend-worker-image", $backendWorkerImage,
     "--customer-web-image", $customerWebImage,

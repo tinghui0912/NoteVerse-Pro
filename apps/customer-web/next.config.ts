@@ -6,12 +6,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 if (!process.env.NEXT_BACKEND_ORIGIN) {
   throw new Error('NEXT_BACKEND_ORIGIN is required.');
 }
-if (!process.env.NEXT_PRACTICE_ORIGIN) {
-  throw new Error('NEXT_PRACTICE_ORIGIN is required.');
-}
 
 const backendOrigin = process.env.NEXT_BACKEND_ORIGIN.replace(/\/$/, '');
-const practiceOrigin = process.env.NEXT_PRACTICE_ORIGIN.replace(/\/$/, '');
 const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   ? process.env.NEXT_ALLOWED_DEV_ORIGINS
       .split(',')
@@ -29,6 +25,13 @@ const nextConfig: NextConfig = {
       config.plugins.push(
         new webpack.IgnorePlugin({ resourceRegExp: /^node:module$/ })
       );
+    } else {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'onnxruntime-web/webgpu': false,
+        'onnxruntime-web': false,
+      };
     }
     return config;
   },
@@ -52,10 +55,6 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      {
-        source: '/api/v1/practice/:path*',
-        destination: `${practiceOrigin}/api/v1/practice/:path*`,
-      },
       {
         source: '/api/v1/:path*',
         destination: `${backendOrigin}/api/v1/:path*`,

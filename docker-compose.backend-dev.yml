@@ -69,42 +69,6 @@ services:
       retries: 3
       start_period: 20s
 
-  practice:
-    <<: *backend-common
-    env_file:
-      - path: backend/.env.docker
-        required: true
-      - path: backend/.env.docker.practice
-        required: true
-    image: noteverse-backend-practice:dev
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.practice
-      args:
-        PRACTICE_DEPS_IMAGE: noteverse-backend-practice-deps:dev
-    command: practice
-    ports:
-      - "${PRACTICE_PORT:-8001}:8000"
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-
-  practice-deps:
-    image: noteverse-backend-practice-deps:dev
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.practice-deps
-    entrypoint: []
-    command: bash
-    restart: "no"
-
   worker:
     <<: *backend-common
     env_file:
@@ -134,7 +98,6 @@ services:
     entrypoint: []
     command: bash
     restart: "no"
-
   beat:
     <<: *backend-common
     image: noteverse-backend-beat:dev
@@ -154,23 +117,6 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile.quality
-    entrypoint: []
-    command: bash
-    restart: "no"
-
-  practice-quality:
-    <<: *backend-common
-    env_file:
-      - path: backend/.env.docker
-        required: true
-      - path: backend/.env.docker.practice
-        required: true
-    image: noteverse-backend-practice-quality:dev
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.practice-quality
-      args:
-        PRACTICE_DEPS_IMAGE: noteverse-backend-practice-deps:dev
     entrypoint: []
     command: bash
     restart: "no"

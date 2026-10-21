@@ -139,7 +139,6 @@ Suggested alerts:
 Panels:
 
 - Active app SSE connections.
-- Active practice WebSocket connections.
 - Connection count trend by channel.
 
 PromQL starting points:
@@ -152,7 +151,7 @@ sum by (channel) (noteverse_realtime_active_connections)
 Suggested alerts:
 
 - Active realtime connections drop to zero unexpectedly during normal traffic.
-- Practice WebSocket connections grow unusually and do not return to baseline.
+- App realtime notification connections grow unusually and do not return to baseline.
 
 ## Storage And Quota
 
@@ -212,7 +211,6 @@ platform dashboard is the second-level diagnostic view.
 - completed duration average
 3. Realtime row:
    - active app SSE
-   - active practice WebSocket
 4. Storage row:
    - reserved for storage/quota metrics
 

@@ -1,0 +1,25 @@
+import { expect, it } from 'vitest';
+import { sourcePublication } from './source-publication';
+import { projectContinuousEvidence } from '../continuous/publication';
+
+it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
+  const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 19200, ownedEndTarget: 28800, startSample: 2400, endSample: 31520 };
+  const result = { events: [{ pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .9, frameScore: .8, targetSample: 20000 }],
+    inferenceMs: 1, decodeMs: 0, actualSessionRunCount: 1 };
+  const p = sourcePublication('source', rate, 100000, window, result, 1234567);
+  expect(p.ownedThroughSourceSample).toBe(100000 + 28800 * rate / 16000);
+  expect(p.observations[0].sourceEventSample).toBe((100000 * 16000 + 20000 * rate) / 16000);
+  expect(Object.isFrozen(p)).toBe(true);
+  expect(sourcePublication('source', rate, 100000, window, result, 9999999).observations).toEqual(p.observations);
+  expect(p).not.toHaveProperty('capturedThroughSourceSample');
+  expect(p).not.toHaveProperty('performanceTimeMs');
+});
+
+it('Continuous projection ignores the source frontier without changing its evaluation clock or observations', () => {
+  const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 19200, ownedEndTarget: 28800, startSample: 2400, endSample: 31520 };
+  const p = sourcePublication('source', 48000, 100000, window, { events: [{ pitch: 'C4', midiPitch: 60,
+    confidence: .8, onsetScore: .9, frameScore: .8, targetSample: 20000 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 1000);
+  const segment = { index: 0, sourceStart: 100000 + 19200 * 3, originTarget: 19200, performanceStartMs: 0 };
+  expect(projectContinuousEvidence({ ...p, ownedThroughSourceSample: p.ownedThroughSourceSample + 48000 }, segment, 'session'))
+    .toEqual(projectContinuousEvidence(p, segment, 'session'));
+});

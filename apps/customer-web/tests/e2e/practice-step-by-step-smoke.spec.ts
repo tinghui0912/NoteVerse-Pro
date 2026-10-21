@@ -1,22 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
-
 import {
   mockAuthenticatedSession,
   mockRealtimeEvents,
 } from './support/api-mocks';
-import type { PracticeAlignmentUpdateMessage } from '../../src/lib/practice/protocol';
 
 const scoreId = 'practice-smoke-score';
 const revisionId = 'practice-smoke-revision';
-const sessionId = 'practice-smoke-session';
-type PerformanceClockState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
-const musicXml = readFileSync(
-  resolve(process.cwd(), '../../backend/tests/fixtures/musicxml/score-domain-metadata.musicxml'),
-  'utf8'
-);
+
 const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
   <part-list>
@@ -47,2098 +37,951 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
   </part>
 </score-partwise>`;
 
+const smokeArtifact = {
+  schemaVersion: 1,
+  artifactId: 'practice-score-artifact:smoke-test',
+  scoreId,
+  revisionId,
+  firstPlayableBeat: 0.0,
+  scoreEndBeat: 4.0,
+  playableEvents: [],
+  scoreTempoSegments: [
+    { startBeat: 0.0, bpm: 100.0 },
+    { startBeat: 2.0, bpm: 90.0 },
+  ],
+  meterSegments: [
+    {
+      startBeat: 0.0,
+      numerator: 4,
+      denominator: 4,
+      measureDurationBeats: 4.0,
+      countInPulses: 4,
+      source: 'MUSICXML',
+    },
+  ],
+  expectedPracticeGroups: [
+    {
+      groupId: 'group-0',
+      onsetBeat: 0.0,
+      canonicalEndBeat: 1.0,
+      pitches: ['C4'],
+      renderNoteIds: ['select-start-note'],
+      measureNumbers: ['1'],
+      eventIds: ['e-0'],
+      expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
+      strikeTargets: [{ strikeId: 'strike-0', pitch: 'C4', eventIds: ['e-0'], expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
+      staffIds: ['1'],
+      voiceIds: ['1'],
+    },
+    {
+      groupId: 'group-1',
+      onsetBeat: 1.0,
+      canonicalEndBeat: 2.0,
+      pitches: ['D4'],
+      renderNoteIds: ['middle-note'],
+      measureNumbers: ['1'],
+      eventIds: ['e-1'],
+      expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
+      strikeTargets: [{ strikeId: 'strike-1', pitch: 'D4', eventIds: ['e-1'], expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
+      staffIds: ['1'],
+      voiceIds: ['1'],
+    },
+    {
+      groupId: 'group-2',
+      onsetBeat: 2.0,
+      canonicalEndBeat: 3.0,
+      pitches: ['E4'],
+      renderNoteIds: ['select-end-note'],
+      measureNumbers: ['1'],
+      eventIds: ['e-2'],
+      expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
+      strikeTargets: [{ strikeId: 'strike-2', pitch: 'E4', eventIds: ['e-2'], expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
+      staffIds: ['1'],
+      voiceIds: ['1'],
+    },
+  ],
+  practiceAttackSteps: [
+    {
+      stepId: 'step-0',
+      expectedGroupIndex: 0,
+      onsetBeat: 0.0,
+      attackTargets: [{ attackId: 'attack-0', pitch: 'C4', eventIds: ['e-0'], notes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
+      continuation: [],
+    },
+    {
+      stepId: 'step-1',
+      expectedGroupIndex: 1,
+      onsetBeat: 1.0,
+      attackTargets: [{ attackId: 'attack-1', pitch: 'D4', eventIds: ['e-1'], notes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
+      continuation: [],
+    },
+    {
+      stepId: 'step-2',
+      expectedGroupIndex: 2,
+      onsetBeat: 2.0,
+      attackTargets: [{ attackId: 'attack-2', pitch: 'E4', eventIds: ['e-2'], notes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
+      continuation: [],
+    },
+  ],
+};
+
 function apiResponse(data: unknown) {
   return JSON.stringify({ success: true, data });
 }
 
-const defaultPracticeTargets = [
-  {
-    index: 0,
-    group_id: 'entry-start',
-    onset_beat: 1,
-    event_ids: ['event-start'],
-    render_note_ids: ['select-start-note'],
-    pitches: ['C4'],
-    measure_numbers: ['1'],
-    staff_ids: ['1'],
-    voice_ids: ['1'],
-  },
-  {
-    index: 1,
-    group_id: 'entry-middle',
-    onset_beat: 2,
-    event_ids: ['event-middle'],
-    render_note_ids: ['middle-note'],
-    pitches: ['D4'],
-    measure_numbers: ['1'],
-    staff_ids: ['1'],
-    voice_ids: ['1'],
-  },
-  {
-    index: 2,
-    group_id: 'entry-end',
-    onset_beat: 3,
-    event_ids: ['event-end'],
-    render_note_ids: ['select-end-note'],
-    pitches: ['E4'],
-    measure_numbers: ['1'],
-    staff_ids: ['1'],
-    voice_ids: ['1'],
-  },
-];
+type SetupPracticeMocksOptions = {
+  artifactOverride?: unknown;
+  modelAccessOverride?: unknown;
+  disableOpfs?: boolean;
+  initialMidiInputs?: number;
+};
 
-async function mockPracticeTargets(page: Page, targets = defaultPracticeTargets) {
-  await page.route(
-    `**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/targets`,
-    (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: apiResponse({
-          score_id: scoreId,
-          revision_id: revisionId,
-          targets,
-        }),
-      })
-  );
-}
-
-async function mockPracticeScorePage(page: Page, content = selectableMusicXml) {
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-}
-
-function practiceSessionDetail(
-  state: 'CREATED' | 'STREAMING' | 'FINISHED' = 'CREATED',
-  inputSource: 'MICROPHONE' | 'MIDI' = 'MICROPHONE',
-  preset: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP'
+async function setupPracticeMocks(
+  page: Page,
+  artifactOrOptions?: unknown | SetupPracticeMocksOptions
 ) {
-  return {
-    session_id: sessionId,
-    score_id: scoreId,
-    revision_id: revisionId,
-    sample_rate: 16000,
-    channels: 1,
-    frame_format: 'pcm_s16le',
-    state,
-    access_origin: 'OWNER',
-    preset,
-    progression_mode: 'WAIT_FOR_NOTE',
-    realtime_guidance: 'GUIDED',
-    evaluation_profile: 'LEARNING',
-    input_source: inputSource,
-    started_at: null,
-    finished_at: null,
-    last_beat_position: null,
-    last_confidence: null,
-    summary_status: state === 'FINISHED' ? 'READY' : 'NOT_REQUESTED',
-    completion_outcome: state === 'FINISHED' ? selectedSectionCompletionOutcome() : null,
-  };
-}
+  const options: SetupPracticeMocksOptions =
+    artifactOrOptions &&
+    typeof artifactOrOptions === 'object' &&
+    !('schemaVersion' in (artifactOrOptions as object))
+      ? (artifactOrOptions as SetupPracticeMocksOptions)
+      : { artifactOverride: artifactOrOptions };
 
-function selectedSectionCompletionOutcome() {
-  return {
-    kind: 'SELECTED_SECTION',
-    scope_kind: 'SELECTED_RANGE',
-    summary_artifact_kind: 'SECTION_SUMMARY',
-    completion_reason: 'SCOPE_COMPLETED',
-    playback_expected: true,
-    summary_available: false,
-  };
-}
+  const artifactOverride = options.artifactOverride;
+  const initialMidiInputs = options.initialMidiInputs ?? 1;
+  const disableOpfs = Boolean(options.disableOpfs);
 
-function fullPiecePerformanceCompletionOutcome() {
-  return {
-    kind: 'FULL_PIECE_PERFORMANCE',
-    scope_kind: 'FULL_PIECE',
-    summary_artifact_kind: 'PERFORMANCE_SUMMARY',
-    completion_reason: 'SCOPE_COMPLETED',
-    playback_expected: true,
-    summary_available: false,
-  };
-}
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
 
-function performanceClockPayload(
-  overrides: Partial<{
-    state: PerformanceClockState;
-    musical_beat: number;
-    performance_time_ms: number;
-    scope_completed: boolean;
-    scope_start_group_id: string | null;
-    scope_end_group_id: string | null;
-    scope_start_beat: number;
-    scope_terminal_beat: number;
-    nominal_scope_duration_ms: number;
-    speed_ratio: number;
-  }> = {}
-) {
-  return {
-    state: overrides.state ?? 'RUNNING',
-    musical_beat: overrides.musical_beat ?? 1,
-    performance_time_ms: overrides.performance_time_ms ?? 0,
-    count_in_remaining_ms: 0,
-    scope_completed: overrides.scope_completed ?? false,
-    scope_start_group_id: overrides.scope_start_group_id ?? null,
-    scope_end_group_id: overrides.scope_end_group_id ?? null,
-    scope_start_beat: overrides.scope_start_beat ?? 1,
-    scope_terminal_beat: overrides.scope_terminal_beat ?? 4,
-    nominal_scope_duration_ms: overrides.nominal_scope_duration_ms ?? 3000,
-    speed_ratio: overrides.speed_ratio ?? 1,
-  };
-}
+  // Install mock Web MIDI API and capability overrides
+  await page.addInitScript(
+    ({ initInputs, disableOpfs }) => {
+      if (disableOpfs && typeof navigator !== 'undefined') {
+        Object.defineProperty(navigator, 'storage', {
+          value: undefined,
+          configurable: true,
+        });
+      }
 
-function practiceSummarySessionDetail() {
-  return {
-    ...practiceSessionDetail('STREAMING', 'MIDI'),
-    session_id: 'summary-source-session',
-    state: 'FINISHED',
-    summary_status: 'READY',
-  };
-}
-
-function practiceSessionSummaryPayload() {
-  return {
-    session_id: 'summary-source-session',
-    summary_status: 'READY',
-    summary_payload: {
-      summary: 'Measure 2 needs another focused pass.',
-      recommendations: ['Practice this spot slowly.'],
-      metrics: {
-        attempt_count: 3,
-        completed_targets: 1,
-        interrupted_attempts: 0,
-        match_rate: 0.5,
-        scorable_attempt_count: 3,
-        scorable_target_completion_rate: 0.5,
-        scorable_target_count: 2,
-        scoring_coverage: 1,
-        scoring_policy_version: 'practice-session-summary-scoring-v1',
-        target_completion_rate: 0.5,
-        target_count: 2,
-      },
-      attempts: [
-        {
-          action: 'hold',
-          attempt_index: 1,
-          attempt_uid: 'attempt-1',
-          beat_position: 2,
-          completion_status: 'COMPLETED',
-          confidence: 0.35,
-          correctness_scope: 'entry',
-          evidence_profile: 'MIDI_STRICT',
-          expected_group_id: 'entry-start',
-          input_source: 'MIDI',
-          measure_numbers: ['2'],
-          render_note_ids: ['note-start'],
-          resolution_reason: 'entry_mismatch',
-          result: 'MISMATCH',
-          scoring_included: true,
-        },
-      ],
-      targets: [
-        {
-          expected_group_id: 'entry-start',
-          measure_numbers: ['2'],
-          render_note_ids: ['note-start'],
-          attempt_count: 1,
-          scorable_attempt_count: 1,
-          interrupted_attempt_count: 0,
-          matched_attempt_count: 0,
-          partial_attempt_count: 0,
-          mismatch_attempt_count: 1,
-          completed: false,
-          completion_status: 'incomplete',
-          last_result: 'MISMATCH',
-          last_confidence: 0.35,
-        },
-        {
-          expected_group_id: 'entry-end',
-          measure_numbers: ['2'],
-          render_note_ids: ['note-end'],
-          attempt_count: 1,
-          scorable_attempt_count: 1,
-          interrupted_attempt_count: 0,
-          matched_attempt_count: 1,
-          partial_attempt_count: 0,
-          mismatch_attempt_count: 0,
-          completed: true,
-          completion_status: 'completed',
-          last_result: 'MATCH',
-          last_confidence: 0.94,
-        },
-      ],
-      problem_measures: [
-        {
-          measure_number: '2',
-          target_count: 2,
-          completed_target_count: 1,
-          incomplete_target_count: 1,
-          attempt_count: 2,
-          scorable_attempt_count: 2,
-          interrupted_attempt_count: 0,
-          partial_attempt_count: 0,
-          mismatch_attempt_count: 1,
-          average_confidence: 0.65,
-        },
-      ],
-    },
-  };
-}
-
-function alignmentUpdate(): PracticeAlignmentUpdateMessage {
-  return {
-    protocol_version: 1,
-    type: 'alignment.update',
-    payload: {
-      beat_position: 3,
-      confidence: 0.94,
-      alignment_confidence: 0.94,
-      audio_confidence: 0.91,
-      continuity_confidence: 0.95,
-      visual_confidence: 1,
-      timestamp_ms: 640,
-      scope_completed: false,
-      completion_reason: null,
-      audio_active: true,
-      input_rms: 0.12,
-      input_peak: 0.32,
-      input_health: {
-        available: true,
-        level: 'good',
-        noise: 'good',
-        confidence: 1,
-      },
-      match_state: 'matched',
-      feature_confidence: 0.9,
-      beat_delta: 0,
-      stream_state: 'matched',
-      frame_class: 'tonal',
-      gate_reason: 'wait_for_note_event',
-      queue_decision: 'evaluate',
-      tonal_signal: true,
-      onset_signal: true,
-      spectral_flatness: 0.2,
-      peak_prominence: 0.8,
-      spectral_flux: 0.3,
-      alignment_state: 'confirmed',
-      continuity_state: 'stable',
-      beat_velocity: null,
-      validation_confidence: 0.93,
-      input_weight: 1,
-      input_policy_confidence: 0.94,
-      decision: {
-        action: 'advance',
-        reason: 'stable_match',
-        experience_state: 'following',
-        display_anchor: {
-          beat: 3,
-          event_id: 'event-1',
-          group_id: 'group-1',
-          render_note_ids: ['note-1'],
-        },
-        confidence_summary: {
-          visual: 1,
-          alignment: 0.94,
-          audio: 0.91,
-          continuity: 0.95,
-          validation: 0.93,
-          input_policy: 0.94,
-        },
-      },
-    },
-  };
-}
-
-async function installRealtimeAudioMock(page: Page) {
-  await page.addInitScript(() => {
-    type PortHandler = ((event: MessageEvent<Float32Array>) => void) | null;
-
-    class FakeAudioContext {
-      sampleRate = 48000;
-      currentTime = 0;
-      state = 'running';
-      destination = {};
-      audioWorklet = {
-        addModule: async () => undefined,
+      const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
+      (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void }).__emitMidiNote = (
+        note: number,
+        velocity: number
+      ) => {
+        const data = new Uint8Array([velocity > 0 ? 0x90 : 0x80, note, velocity]);
+        for (const listener of midiListeners) {
+          listener({ data });
+        }
       };
 
-      async resume() {
-        this.state = 'running';
-      }
-
-      async close() {
-        this.state = 'closed';
-      }
-
-      createMediaStreamSource() {
-        return {
-          connect: () => undefined,
-          disconnect: () => undefined,
-        };
-      }
-
-      createGain() {
-        return {
-          gain: { value: 0 },
-          connect: () => undefined,
-          disconnect: () => undefined,
-        };
-      }
-    }
-
-    class FakeAudioWorkletNode {
-      port: { onmessage: PortHandler };
-      private intervalId: number;
-
-      constructor() {
-        this.port = { onmessage: null };
-        this.intervalId = window.setInterval(() => {
-          const samples = new Float32Array(1920);
-          for (let index = 0; index < samples.length; index += 1) {
-            samples[index] = Math.sin(index / 8) * 0.25;
+      const fakeInput = {
+        id: 'mock-midi-in-1',
+        name: 'Mock MIDI Keyboard',
+        manufacturer: 'Test',
+        state: 'connected',
+        connection: 'open',
+        addEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
+          midiListeners.add(handler);
+        },
+        removeEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
+          midiListeners.delete(handler);
+        },
+        set onmidimessage(handler: ((event: { data: Uint8Array }) => void) | null) {
+          if (handler) {
+            midiListeners.add(handler);
           }
-          this.port.onmessage?.(new MessageEvent('message', { data: samples }));
-        }, 80);
-      }
-
-      connect() {
-        return undefined;
-      }
-
-      disconnect() {
-        window.clearInterval(this.intervalId);
-      }
-    }
-
-    class FakeMediaRecorder {
-      state: 'inactive' | 'recording' | 'paused' = 'inactive';
-      ondataavailable: ((event: BlobEvent) => void) | null = null;
-      onstop: (() => void) | null = null;
-
-      constructor(_stream: MediaStream) {}
-
-      start() {
-        this.state = 'recording';
-      }
-
-      pause() {
-        this.state = 'paused';
-      }
-
-      resume() {
-        this.state = 'recording';
-      }
-
-      stop() {
-        this.state = 'inactive';
-        this.onstop?.();
-      }
-    }
-
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async () => new MediaStream(),
-      },
-    });
-    window.AudioContext = FakeAudioContext as unknown as typeof AudioContext;
-    window.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-    window.MediaRecorder = FakeMediaRecorder as unknown as typeof MediaRecorder;
-  });
-}
-
-async function installDeniedRealtimeAudioMock(page: Page) {
-  await page.addInitScript(() => {
-    class FakeAudioContext {
-      sampleRate = 48000;
-      currentTime = 0;
-      state = 'running';
-      destination = {};
-      audioWorklet = {
-        addModule: async () => undefined,
+        },
       };
 
-      async resume() {
-        this.state = 'running';
+      const inputsMap = new Map();
+      if (initInputs > 0) {
+        inputsMap.set('mock-midi-in-1', fakeInput);
       }
 
-      async close() {
-        this.state = 'closed';
-      }
-    }
-
-    class FakeAudioWorkletNode {
-      port = { onmessage: null };
-      connect() {
-        return undefined;
-      }
-      disconnect() {
-        return undefined;
-      }
-    }
-
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async () => {
-          throw new DOMException('Microphone permission denied.', 'NotAllowedError');
-        },
-      },
-    });
-    window.AudioContext = FakeAudioContext as unknown as typeof AudioContext;
-    window.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-  });
-}
-
-async function installMidiMock(page: Page) {
-  await page.addInitScript(() => {
-    type MidiMessageHandler = ((event: MIDIMessageEvent) => void) | null;
-    type MidiTestWindow = Window & {
-      __emitPracticeMidi?: (data: number[]) => void;
-      __practiceMidiHandlerAttached?: () => boolean;
-      __practiceMidiEmitCount?: number;
-    };
-
-    let midiMessageHandler: MidiMessageHandler = null;
-    const midiInput = {
-      id: 'practice-midi-input',
-      manufacturer: 'NoteVerse',
-      name: 'Practice Test MIDI',
-      type: 'input',
-      state: 'connected',
-      connection: 'open',
-      get onmidimessage() {
-        return midiMessageHandler;
-      },
-      set onmidimessage(handler: MidiMessageHandler) {
-        midiMessageHandler = handler;
-      },
-    };
-    const inputs = new Map<string, typeof midiInput>([[midiInput.id, midiInput]]);
-
-    Object.defineProperty(navigator, 'requestMIDIAccess', {
-      configurable: true,
-      value: async () => ({
-        inputs,
+      const mockAccess = {
+        inputs: inputsMap,
         outputs: new Map(),
         onstatechange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      };
+
+      (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice = () => {
+        inputsMap.set('mock-midi-in-1', fakeInput);
+        if (typeof mockAccess.onstatechange === 'function') {
+          (mockAccess.onstatechange as (e: unknown) => void)({ port: fakeInput });
+        }
+      };
+
+      (navigator as unknown as { requestMIDIAccess: () => Promise<unknown> }).requestMIDIAccess = async () =>
+        mockAccess;
+
+      // Ensure AudioWorklet capability exists in headless browser
+      if (typeof window !== 'undefined') {
+        if (!window.AudioContext && !(window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext) {
+          (window as unknown as { AudioContext: unknown }).AudioContext = class MockAudioContext {};
+        }
+        if (typeof AudioWorkletNode === 'undefined') {
+          (window as unknown as { AudioWorkletNode: unknown }).AudioWorkletNode = class MockAudioWorkletNode {};
+        }
+        if (!navigator.mediaDevices) {
+          (navigator as unknown as { mediaDevices: unknown }).mediaDevices = {
+            getUserMedia: async () => ({}),
+          };
+        } else if (!navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia = async () => ({}) as unknown as MediaStream;
+        }
+      }
+    },
+    { initInputs: initialMidiInputs, disableOpfs }
+  );
+
+  // Mock Score Detail
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        title: 'Practice Smoke Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+          can_download: true,
+          can_practice: true,
+          can_publish: true,
+          can_manage_members: true,
+        },
+      }),
+    })
+  );
+
+  // Mock Practice Content
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        revision_id: revisionId,
+        content: selectableMusicXml,
+      }),
+    })
+  );
+
+  // Mock PracticeScoreArtifact
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/artifact`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse(artifactOverride ?? smokeArtifact),
+    })
+  );
+
+  // Mock ByteDance Model Asset Access
+  await page.route('**/api/v1/model-assets/bytedance-note/access', (route) => {
+    if (options.modelAccessOverride === 'error') {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, error: { message: 'Model asset unavailable' } }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        schemaVersion: 1,
+        assetId: 'bytedance-piano-transcription-note-model',
+        assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186',
+        expectedByteSize: 98_691_493,
+        sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
+        mediaType: 'application/octet-stream',
+        downloadUrl: 'http://127.0.0.1:9/fake-model.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
+        downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
       }),
     });
-
-    (window as MidiTestWindow).__practiceMidiEmitCount = 0;
-    (window as MidiTestWindow).__practiceMidiHandlerAttached = () => midiMessageHandler !== null;
-    (window as MidiTestWindow).__emitPracticeMidi = (data: number[]) => {
-      (window as MidiTestWindow).__practiceMidiEmitCount =
-        ((window as MidiTestWindow).__practiceMidiEmitCount ?? 0) + 1;
-      midiMessageHandler?.({
-        data: new Uint8Array(data),
-      } as MIDIMessageEvent);
-    };
   });
 }
 
-test('step-by-step practice streams microphone frames and reacts to alignment updates', async ({
-  page,
-}) => {
-  let clientInitReceived = false;
-  let pcmFrameCount = 0;
-  let alignmentSent = false;
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installRealtimeAudioMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse(practiceSessionDetail()),
-    })
-  );
-  await mockPracticeTargets(page);
-
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        pcmFrameCount += 1;
-        if (clientInitReceived && !alignmentSent) {
-          alignmentSent = true;
-          ws.send(JSON.stringify(alignmentUpdate()));
-        }
-        return;
-      }
-
-      const parsed = JSON.parse(message) as { type?: string };
-      if (parsed.type === 'client.init') {
-        clientInitReceived = true;
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING' },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.armed',
-          payload: {
-            session_id: sessionId,
-            input_health: {
-              available: true,
-              level: 'good',
-              noise: 'good',
-              confidence: 1,
-            },
-          },
-        }));
-      }
-    });
-  });
-
-  await page.goto(`/zh/score/${scoreId}/practice`);
-
-  const startButton = page.getByRole('button', { name: '开始' });
-  await expect(startButton).toBeEnabled();
-  await startButton.click();
-
-  await expect
-    .poll(() => clientInitReceived)
-    .toBe(true);
-  await expect
-    .poll(() => pcmFrameCount)
-    .toBeGreaterThan(0);
-  await expect(page.getByRole('status')).toContainText('正在实时跟随');
-  await expect(page.getByRole('button', { name: '暂停' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: '结束' })).toBeEnabled();
-});
-
-test('practice setup does not create a session before start or when input preparation fails', async ({
-  page,
-}) => {
-  let createRequestCount = 0;
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installDeniedRealtimeAudioMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Setup Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    createRequestCount += 1;
-    await route.fulfill({
-      status: 500,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: false,
-        public_code: 'unexpected_error',
-        public_message: 'Unexpected error',
-      }),
-    });
-  });
-
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await expect(page.getByRole('button', { name: '开始' })).toBeEnabled();
-  await expect
-    .poll(() => createRequestCount)
-    .toBe(0);
-
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /连贯演奏/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
-  await expect
-    .poll(() => createRequestCount)
-    .toBe(0);
-
-  await page.getByRole('button', { name: '分段' }).click();
-  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
-  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
-  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
-  await expect
-    .poll(() => createRequestCount)
-    .toBe(0);
-
-  await page.getByRole('button', { name: '开始' }).click();
-  await expect(page.getByText('麦克风访问失败', { exact: true })).toBeVisible();
-  await expect
-    .poll(() => createRequestCount)
-    .toBe(0);
-});
-
-test('step-by-step practice can use MIDI input events instead of microphone frames', async ({
-  page,
-}) => {
-  let clientInitInputSource: string | null = null;
-  let createdInputSource: string | null = null;
-  let midiNoteOnReceived = false;
-  let binaryFrameCount = 0;
-  let alignmentSent = false;
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installRealtimeAudioMock(page);
-  await installMidiMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: musicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    const body = route.request().postDataJSON() as { input_source?: string };
-    createdInputSource = body.input_source ?? null;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse(practiceSessionDetail('CREATED', 'MIDI')),
-    })
-  );
-  await mockPracticeTargets(page);
-
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        binaryFrameCount += 1;
-        return;
-      }
-
-      const parsed = JSON.parse(message) as {
-        type?: string;
-        payload?: { input_source?: string; event_type?: string; note_number?: number };
-      };
-      if (parsed.type === 'client.init') {
-        clientInitInputSource = parsed.payload?.input_source ?? null;
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING', input_source: 'MIDI' },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.armed',
-          payload: {
-            session_id: sessionId,
-            input_health: {
-              available: true,
-              level: 'good',
-              noise: 'good',
-              confidence: 1,
-            },
-          },
-        }));
-      }
+test.describe('Browser-Local Practice E2E Smoke', () => {
+  test('STEP MIDI: runs locally with zero session requests and zero WebSockets', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    const modelAssetRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
       if (
-        parsed.type === 'client.midi_event' &&
-        parsed.payload?.event_type === 'note_on' &&
-        parsed.payload.note_number === 60
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
       ) {
-        midiNoteOnReceived = true;
-        if (!alignmentSent) {
-          alignmentSent = true;
-          ws.send(JSON.stringify(alignmentUpdate()));
-        }
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
+      if (url.includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${url}`);
       }
     });
-  });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
 
-  const startButton = page.getByRole('button', { name: '开始' });
-  await expect(startButton).toBeEnabled();
-  await startButton.click();
+    // Switch input to MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
 
-  await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
-  await expect
-    .poll(() => createdInputSource)
-    .toBe('MIDI');
-  await expect
-    .poll(() => clientInitInputSource)
-    .toBe('MIDI');
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Boolean((window as Window & { __practiceMidiHandlerAttached?: () => boolean }).__practiceMidiHandlerAttached?.())
-      )
-    )
-    .toBe(true);
+    // Close settings if sheet opened
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
-  await page.evaluate(() => {
-    (window as Window & { __emitPracticeMidi?: (data: number[]) => void }).__emitPracticeMidi?.([
-      0x90,
-      60,
-      96,
-    ]);
-  });
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
 
-  await expect
-    .poll(() => midiNoteOnReceived)
-    .toBe(true);
-  await expect
-    .poll(() => binaryFrameCount)
-    .toBe(0);
-  await expect(page.getByRole('status')).toContainText('正在实时跟随');
-});
+    // Verify waiting for first note
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-test('summary focuses problem positions without creating selected-section practice', async ({
-  page,
-}) => {
-  let createdPracticeSession = false;
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-
-  await page.route(`**/api/v1/practice/sessions/summary-source-session`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse(practiceSummarySessionDetail()),
-    })
-  );
-  await page.route(`**/api/v1/practice/sessions/summary-source-session/summary`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse(practiceSessionSummaryPayload()),
-    })
-  );
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: 'newer-head-revision',
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: musicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    createdPracticeSession = true;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
+    // Emit wrong note -> remains on first target
+    await page.evaluate(() => {
+      (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(50, 100);
     });
-  });
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-  await page.goto(`/zh/score/${scoreId}/practice/summary?sessionId=summary-source-session`);
-  await expect(page.getByRole('heading', { name: '学习总结' })).toBeVisible();
-  await expect(page.getByText('第 2 小节')).toBeVisible();
-  await page.waitForLoadState('networkidle');
-  await expect(page.getByRole('link', { name: '练此处' })).toHaveCount(0);
-
-  await page.getByRole('button', { name: '定位' }).click();
-  await expect(page).toHaveURL(
-    `/zh/score/${scoreId}/practice/summary?sessionId=summary-source-session`
-  );
-  await expect
-    .poll(() => createdPracticeSession)
-    .toBe(false);
-});
-
-test('practice page creates selected-section scope from score note clicks', async ({
-  page,
-}) => {
-  const createRequests: Array<{
-    input_source?: string;
-    practice_scope?: unknown;
-    preset?: string;
-  }> = [];
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installRealtimeAudioMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    createRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
+    // Emit correct note 60 (C4) -> advances
+    await page.evaluate(() => {
+      (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
     });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail(),
-        practice_scope: createRequests.at(-1)?.practice_scope ?? null,
-      }),
-    })
-  );
 
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
-      const parsed = JSON.parse(message) as { type?: string };
-      if (parsed.type === 'client.init') {
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING' },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.armed',
-          payload: {
-            session_id: sessionId,
-            input_health: {
-              available: true,
-              level: 'good',
-              noise: 'good',
-              confidence: 1,
-            },
-          },
-        }));
-        setTimeout(() => {
-          const completedUpdate = alignmentUpdate();
-          ws.send(JSON.stringify({
-            ...completedUpdate,
-            payload: {
-              ...completedUpdate.payload,
-              scope_completed: true,
-              completion_reason: 'FINAL_EXPECTED_GROUP_MATCHED',
-            },
-          }));
-          ws.send(JSON.stringify({
-            protocol_version: 1,
-            type: 'session.finished',
-            payload: {
-              state: 'FINISHED',
-              completion_outcome: selectedSectionCompletionOutcome(),
-            },
-          }));
-        }, 50);
+    // STEP is paced waiting, not Continuous transport.
+    await expect(page.getByRole('button', { name: '暂停', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '继续', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Skip
+    const skipButton = page.getByRole('button', { name: '跳过', exact: true });
+    await expect(skipButton).toBeEnabled();
+    await skipButton.click();
+
+    // Finish
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    // Assert dialog opened
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+
+    // Strict assertions: 0 /practice/sessions, 0 WebSockets, 0 /model-assets
+    expect(disallowedRequests).toEqual([]);
+    expect(modelAssetRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS MIDI: executes count-in and playhead advance browser-locally', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
       }
     });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Switch to Continuous play mode and MIDI input
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // Verify count-in or running status
+    await expect(page.getByRole('status')).toContainText(/预备拍|连贯演奏中/);
+
+    // Wait until running
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Pause
+    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+    await expect(pauseButton).toBeEnabled();
+    await pauseButton.click();
+    await expect(page.getByRole('status')).toContainText('练习已暂停');
+
+    // Resume
+    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+    await expect(resumeButton).toBeEnabled();
+    await resumeButton.click();
+    await expect(page.getByRole('status')).toContainText('连贯演奏中');
+
+    // Finish
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    // Assert dialog opened
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+
+    // Strict assertions: 0 /practice/sessions, 0 WebSockets
+    expect(disallowedRequests).toEqual([]);
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-
-  const selectSectionButton = page.getByRole('button', { name: '分段' });
-  await expect(selectSectionButton).toBeEnabled();
-  await selectSectionButton.click();
-  await expect(page.getByText('点击谱面上的音符，设置选段开始位置。')).toBeVisible();
-
-  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
-  await expect(page.getByText('已选择开始位置。请点击谱面上的音符，设置结束位置。')).toBeVisible();
-  await expect(page.locator('[data-practice-range-start-note-ids]')).toHaveAttribute(
-    'data-practice-range-start-note-ids',
-    'select-start-note'
-  );
-
-  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
-  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
-  await expect(page.locator('[data-practice-range-end-note-ids]')).toHaveAttribute(
-    'data-practice-range-end-note-ids',
-    'select-end-note'
-  );
-  await expect(page.locator('[data-practice-range-note-ids]')).toHaveAttribute(
-    'data-practice-range-note-ids',
-    'select-start-note,middle-note,select-end-note'
-  );
-
-  await expect
-    .poll(() => createRequests.length)
-    .toBe(0);
-
-  const startButton = page.getByRole('button', { name: '开始' });
-  await expect(startButton).toBeEnabled();
-  await startButton.click();
-  await expect
-    .poll(() => createRequests)
-    .toEqual([
-      expect.objectContaining({
-        preset: 'STEP_BY_STEP',
-        input_source: 'MICROPHONE',
-        practice_scope: {
-          start_expected_group_id: 'entry-start',
-          end_expected_group_id: 'entry-end',
-          start_measure_number: '1',
-          end_measure_number: '1',
-        },
-      }),
-    ]);
-  await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
-  const completionDialog = page.getByRole('dialog');
-  await expect(completionDialog.getByRole('button', { name: '重弹一次' })).toBeVisible();
-  await expect(completionDialog.getByRole('button', { name: '调整分段' })).toBeVisible();
-  await expect(
-    completionDialog.getByRole('button', { name: '开始完整演奏' })
-  ).toHaveCount(0);
-  await expect
-    .poll(() => createRequests.length)
-    .toBe(1);
-});
-
-test('selected-section completion recovers from a missed session.finished websocket event', async ({
-  page,
-}) => {
-  const createRequests: Array<{
-    practice_scope?: unknown;
-  }> = [];
-  let recoverFinishedSession = false;
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installRealtimeAudioMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    createRequests.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail(recoverFinishedSession ? 'FINISHED' : 'CREATED'),
-        practice_scope: createRequests.at(-1)?.practice_scope ?? null,
-      }),
-    })
-  );
-
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
-      const parsed = JSON.parse(message) as { type?: string };
-      if (parsed.type === 'client.init') {
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING' },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.armed',
-          payload: {
-            session_id: sessionId,
-            input_health: {
-              available: true,
-              level: 'good',
-              noise: 'good',
-              confidence: 1,
-            },
-          },
-        }));
-        setTimeout(() => {
-          const completedUpdate = alignmentUpdate();
-          recoverFinishedSession = true;
-          ws.send(JSON.stringify({
-            ...completedUpdate,
-            payload: {
-              ...completedUpdate.payload,
-              scope_completed: true,
-              completion_reason: 'FINAL_EXPECTED_GROUP_MATCHED',
-            },
-          }));
-          ws.close();
-        }, 50);
+  test('TEMPO & METRONOME: custom tempo and metronome toggle function browser-locally', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
       }
     });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Open tempo popover from bottom controls
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await tempoButton.click();
+
+    // Verify original tempo display (has changes from 100 to 90)
+    await expect(page.getByText(/原速：含速度变化，起始 ♩ = 100 BPM/).first()).toBeVisible();
+
+    // Adjust BPM with +5 directly (transitions to custom fixed BPM)
+    const plusButton = page.getByRole('button', { name: '+5 BPM' }).first();
+    await expect(plusButton).toBeEnabled();
+    await plusButton.click();
+    await expect(page.getByText('105 BPM').first()).toBeVisible();
+
+    // Toggle metronome on directly inside tempo popover
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
+    await expect(metronomeButton).toBeEnabled();
+    await expect(metronomeButton).toContainText('关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('开');
+
+    // Close tempo popover
+    await page.keyboard.press('Escape');
+
+    // Select MIDI input for reliable headless execution
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    // Close settings if sheet opened
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice with custom tempo & metronome
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Finish
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    expect(disallowedRequests).toEqual([]);
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-
-  await page.getByRole('button', { name: '分段' }).click();
-  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
-  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
-
-  await expect(page.getByRole('button', { name: '开始' })).toBeEnabled();
-  await page.getByRole('button', { name: '开始' }).click();
-
-  await expect(page.getByRole('status')).toContainText('正在保存练习结果');
-  await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '调整分段' })).toBeVisible();
-});
-
-test('selected-section continuous practice creates a bounded session from selected input', async ({
-  page,
-}) => {
-  let createdScope: unknown = null;
-  let createdInputSource: string | null = null;
-  let createdPreset: string | null = null;
-  let createdProgressionMode: unknown = undefined;
-  let createdRealtimeGuidance: unknown = undefined;
-  let createdEvaluationProfile: unknown = undefined;
-  let clientInitInputSource: string | null = null;
-  const websocketControls: { finishSelectedRange?: () => void } = {};
-  const createRequests: Array<{
-    practice_scope?: unknown;
-  }> = [];
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installRealtimeAudioMock(page);
-  await installMidiMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    const body = route.request().postDataJSON() as {
-      evaluation_profile?: string;
-      input_source?: string;
-      practice_scope?: unknown;
-      preset?: string;
-      progression_mode?: string;
-      realtime_guidance?: string;
-    };
-    createdEvaluationProfile = body.evaluation_profile;
-    createdInputSource = body.input_source ?? null;
-    createdPreset = body.preset ?? null;
-    createdProgressionMode = body.progression_mode;
-    createdRealtimeGuidance = body.realtime_guidance;
-    createdScope = body.practice_scope ?? null;
-    createRequests.push(body);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
-        progression_mode: 'CONTINUOUS',
-        realtime_guidance: 'STATUS_ONLY',
-        evaluation_profile: 'PERFORMANCE',
-        practice_scope: createRequests.at(-1)?.practice_scope ?? null,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
-      const parsed = JSON.parse(message) as {
-        type?: string;
-        payload?: { input_source?: string };
-      };
-      if (parsed.type === 'client.init') {
-        clientInitInputSource = parsed.payload?.input_source ?? null;
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING', input_source: 'MIDI' },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'session.armed',
-          payload: {
-            session_id: sessionId,
-            input_health: {
-              available: true,
-              level: 'good',
-              noise: 'good',
-              confidence: 1,
-            },
-          },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'performance.timeline',
-          payload: {
-            scope_start_beat: 1,
-            scope_terminal_beat: 4,
-            segments: [
-              {
-                start_performance_time_ms: 0,
-                end_performance_time_ms: 3000,
-                start_beat: 1,
-                end_beat: 4,
-              },
-            ],
-          },
-        }));
-        ws.send(JSON.stringify({
-          protocol_version: 1,
-          type: 'performance.started',
-          payload: performanceClockPayload(),
-        }));
-        websocketControls.finishSelectedRange = () => {
-          ws.send(JSON.stringify({
-            protocol_version: 1,
-            type: 'performance.ended',
-            payload: performanceClockPayload({
-              state: 'ENDED',
-              musical_beat: 4,
-              performance_time_ms: 3000,
-              scope_completed: true,
-            }),
-          }));
-          ws.send(JSON.stringify({
-            protocol_version: 1,
-            type: 'session.finished',
-            payload: {
-              state: 'FINISHED',
-              completion_outcome: selectedSectionCompletionOutcome(),
-            },
-          }));
-        };
+  test('CONTINUOUS: pauses during count-in and resumes remaining pre-roll before running', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
       }
     });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Switch to Continuous mode and MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // In count-in: pause immediately while in pre-roll
+    await expect(page.getByRole('status')).toContainText(/预备拍/);
+    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+    await expect(pauseButton).toBeEnabled();
+    await pauseButton.click();
+    await expect(page.getByRole('status')).toContainText('练习已暂停');
+
+    // Resume from paused count-in: should display remaining count-in and smoothly enter running
+    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+    await expect(resumeButton).toBeEnabled();
+    await resumeButton.click();
+
+    // Eventually completes count-in and enters running
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+    expect(disallowedRequests).toEqual([]);
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /连贯演奏/ }).click();
-  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
-
-  await page.getByRole('button', { name: '分段' }).click();
-  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
-  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
-  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
-  await expect
-    .poll(() => createdPreset)
-    .toBe(null);
-
-  const startButton = page.getByRole('button', { name: '开始' });
-  await expect(startButton).toBeEnabled();
-  await startButton.click();
-
-  await expect
-    .poll(() => createdScope)
-    .toEqual({
-      start_expected_group_id: 'entry-start',
-      end_expected_group_id: 'entry-end',
-      start_measure_number: '1',
-      end_measure_number: '1',
+  test('TEMPO & SCOPE: positive-first tempo provenance and leading-rest scope display correctly', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
     });
-  await expect
-    .poll(() => createdPreset)
-    .toBe('CONTINUOUS_PLAY');
-  await expect
-    .poll(() => createdRealtimeGuidance)
-    .toBeUndefined();
-  await expect
-    .poll(() => createdEvaluationProfile)
-    .toBeUndefined();
-  await expect
-    .poll(() => createdProgressionMode)
-    .toBeUndefined();
-  await expect
-    .poll(() => createdInputSource)
-    .toBe('MIDI');
-  await expect
-    .poll(() => clientInitInputSource)
-    .toBe('MIDI');
-  websocketControls.finishSelectedRange?.();
-  await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '调整分段' })).toBeVisible();
-});
 
-test('continuous play completes from the fixed-clock websocket lifecycle without input-driven progression', async ({
-  page,
-}) => {
-  let clientInitInputSource: string | null = null;
-  let createdPreset: string | null = null;
-  let createdInputSource: string | null = null;
-  let midiEventCount = 0;
-  const websocketControls: { finishPerformance?: () => void } = {};
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installMidiMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+    // Artifact where explicit tempo only appears at beat 2.0 (positive-first: beat 0 has no explicit tempo)
+    const leadingRestArtifact = {
+      ...smokeArtifact,
+      scoreTempoSegments: [{ startBeat: 2.0, bpm: 90.0 }],
+      expectedPracticeGroups: [
+        {
+          ...smokeArtifact.expectedPracticeGroups[0],
+          onsetBeat: 2.0,
+          canonicalEndBeat: 3.0,
         },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
+      ],
+      practiceAttackSteps: [
+        {
+          ...smokeArtifact.practiceAttackSteps[0],
+          onsetBeat: 2.0,
         },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    const body = route.request().postDataJSON() as {
-      input_source?: string;
-      preset?: string;
-    };
-    createdInputSource = body.input_source ?? null;
-    createdPreset = body.preset ?? null;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
-        progression_mode: 'CONTINUOUS',
-        realtime_guidance: 'STATUS_ONLY',
-        evaluation_profile: 'PERFORMANCE',
-        completion_outcome: null,
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    const sendServerMessage = (type: string, payload: unknown) => {
-      ws.send(JSON.stringify({
-        protocol_version: 1,
-        type,
-        payload,
-      }));
+      ],
     };
 
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
+    await setupPracticeMocks(page, leadingRestArtifact);
+    await page.goto(`/zh/score/${scoreId}/practice`);
 
-      const parsed = JSON.parse(message) as {
-        type?: string;
-        payload?: { input_source?: string };
-      };
-      if (parsed.type === 'client.midi_event') {
-        midiEventCount += 1;
-        return;
-      }
-      if (parsed.type !== 'client.init') {
-        return;
-      }
+    // Open tempo popover from bottom controls
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await tempoButton.click();
 
-      clientInitInputSource = parsed.payload?.input_source ?? null;
-      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
-      sendServerMessage('session.armed', {
-        session_id: sessionId,
-        input_health: {
-          available: true,
-          level: 'good',
-          noise: 'good',
-          confidence: 1,
-        },
-      });
-      sendServerMessage('performance.timeline', {
-        scope_start_beat: 1,
-        scope_terminal_beat: 4,
-        segments: [
-          {
-            start_performance_time_ms: 0,
-            end_performance_time_ms: 3000,
-            start_beat: 1,
-            end_beat: 4,
-          },
-        ],
-      });
-      sendServerMessage('performance.started', performanceClockPayload());
-      sendServerMessage('performance.clock_sync', performanceClockPayload({
-        musical_beat: 2,
-        performance_time_ms: 1000,
-      }));
-      websocketControls.finishPerformance = () => {
-        sendServerMessage('performance.ended', performanceClockPayload({
-          state: 'ENDED',
-          musical_beat: 4,
-          performance_time_ms: 3000,
-          scope_completed: true,
-        }));
-        sendServerMessage('session.finished', {
-          state: 'FINISHED',
-          completion_outcome: fullPiecePerformanceCompletionOutcome(),
-        });
-      };
+    // Since startBeat of full-piece is 2.0 (where MusicXML tempo 90 exists):
+    // effectiveScoreTempoAtBeat(leadingRestArtifact, 2.0) resolves to MUSICXML at 90 BPM
+    await expect(page.getByText(/90 BPM/).first()).toBeVisible();
+
+    expect(disallowedRequests).toEqual([]);
+  });
+
+  test('METRONOME LIVE TOGGLE: toggles metronome ON and OFF during active practice', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
     });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Select MIDI input
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice (starts with Metronome OFF by default)
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Toggle metronome ON while ACTIVE inside tempo popover
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await tempoButton.click();
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
+    await expect(metronomeButton).toContainText('关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('开');
+
+    // Toggle metronome OFF while ACTIVE inside tempo popover
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('关');
+    await page.keyboard.press('Escape');
+
+    // Practice remains ACTIVE and playable
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+
+    expect(disallowedRequests).toEqual([]);
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /连贯演奏/ }).click();
-  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  test('CUSTOMER UX REGRESSION: desktop drawer parity, input gating, 2-stage section selection, bottom tempo/metronome', async ({
+    page,
+  }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
 
-  await page.getByRole('button', { name: '开始' }).click();
+    // 1. Desktop Layout Parity: NO persistent right settings panel (aside)
+    await expect(page.locator('aside')).toHaveCount(0);
 
-  await expect
-    .poll(() => createdPreset)
-    .toBe('CONTINUOUS_PLAY');
-  await expect
-    .poll(() => createdInputSource)
-    .toBe('MIDI');
-  await expect
-    .poll(() => clientInitInputSource)
-    .toBe('MIDI');
-  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+    // Click Settings: opens single Sheet
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
 
-  await page.evaluate(() => {
-    (window as Window & { __emitPracticeMidi?: (data: number[]) => void })
-      .__emitPracticeMidi?.([0x90, 60, 96]);
-  });
-  await expect
-    .poll(() => midiEventCount)
-    .toBe(1);
-  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeHidden();
+    // Sheet contains Mode and Input options
+    await expect(page.getByText('逐音练习')).toBeVisible();
+    await expect(page.getByText('连贯演奏')).toBeVisible();
+    await expect(page.getByText('麦克风', { exact: true })).toBeVisible();
+    await expect(page.getByText('MIDI 键盘', { exact: true })).toBeVisible();
 
-  websocketControls.finishPerformance?.();
+    // Sheet does NOT contain Tempo and Metronome
+    await expect(page.getByText('速度与节拍器')).toHaveCount(0);
 
-  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '重弹一次' })).toBeVisible();
-});
+    // Select MIDI input
+    const midiInput = page.getByRole('button', { name: /MIDI/i }).first();
+    await midiInput.click();
 
-test('continuous play pause and resume controls follow performance clock messages', async ({
-  page,
-}) => {
-  let pauseControlCount = 0;
-  let resumeControlCount = 0;
-  const websocketControls: { startRunning?: () => void } = {};
-
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installMidiMock(page);
-
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        title: 'Practice Smoke Score',
-        head_revision_id: revisionId,
-        version: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
-        input_assets: [],
-        taxonomy_tags: [],
-        metadata: null,
-        publication: null,
-        derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
-        },
-        capabilities: {
-          can_view: true,
-          can_edit: true,
-          can_delete: true,
-          can_manage_sharing: true,
-          can_download: true,
-          can_practice: true,
-          can_publish: true,
-          can_manage_members: true,
-        },
-      }),
-    })
-  );
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        score_id: scoreId,
-        revision_id: revisionId,
-        mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: selectableMusicXml,
-      }),
-    })
-  );
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
+    // Close Sheet
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
     }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
-    });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
-        progression_mode: 'CONTINUOUS',
-        realtime_guidance: 'STATUS_ONLY',
-        evaluation_profile: 'PERFORMANCE',
-      }),
-    })
-  );
-  await mockPracticeTargets(page);
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    const sendServerMessage = (type: string, payload: unknown) => {
-      ws.send(JSON.stringify({
-        protocol_version: 1,
-        type,
-        payload,
-      }));
-    };
+    await expect(page.getByText('逐音练习')).not.toBeVisible();
 
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
+    // 2. Bottom Bar Controls: Unified Tempo & Metronome Popover
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await expect(tempoButton).toContainText(/原速|BPM/);
+    await tempoButton.click();
 
-      const parsed = JSON.parse(message) as { type?: string };
-      if (parsed.type === 'client.pause') {
-        pauseControlCount += 1;
-        sendServerMessage('performance.paused', performanceClockPayload({
-          state: 'PAUSED',
-          musical_beat: 2,
-          performance_time_ms: 1000,
-        }));
-        return;
-      }
-      if (parsed.type === 'client.resume') {
-        resumeControlCount += 1;
-        sendServerMessage('performance.resumed', performanceClockPayload({
-          state: 'RUNNING',
-          musical_beat: 3,
-          performance_time_ms: 2000,
-        }));
-        return;
-      }
-      if (parsed.type !== 'client.init') {
-        return;
-      }
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
+    await expect(metronomeButton).toBeVisible();
+    await expect(metronomeButton).toContainText('关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('开');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('关');
+    await page.keyboard.press('Escape');
 
-      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
-      sendServerMessage('session.armed', {
-        session_id: sessionId,
-        input_health: {
-          available: true,
-          level: 'good',
-          noise: 'good',
-          confidence: 1,
-        },
-      });
-      sendServerMessage('performance.timeline', {
-        scope_start_beat: 1,
-        scope_terminal_beat: 4,
-        segments: [
-          {
-            start_performance_time_ms: 0,
-            end_performance_time_ms: 3000,
-            start_beat: 1,
-            end_beat: 4,
-          },
-        ],
-      });
-      sendServerMessage('performance.started', performanceClockPayload({
-        state: 'COUNT_IN',
-        musical_beat: 1,
-        performance_time_ms: 0,
-      }));
-      websocketControls.startRunning = () => {
-        sendServerMessage('performance.clock_sync', performanceClockPayload({
-          musical_beat: 2,
-          performance_time_ms: 1000,
-        }));
-      };
-    });
+    // 3. Section Selection 3-State Interaction
+    const sectionButton = page.getByRole('button', { name: '分段' });
+    await expect(sectionButton).toBeVisible();
+    // Default inactive state: not active styling
+    await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
+
+    await sectionButton.click();
+
+    // Selecting state: active background and prompt to select start note
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
+    await expect(page.getByRole('status')).toContainText('请选择起始音符');
+
+    // First click: start note -> prompt to select end note, NO orange notehead boundary classes
+    const startNote = page.locator('[data-id="select-start-note"]').first();
+    await expect(startNote).toBeVisible();
+    await startNote.locator('path, use').first().click();
+
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('请选择结束音符');
+
+    // Second click: end note -> completes range, auto-exits selection mode
+    const endNote = page.locator('[data-id="select-end-note"]').first();
+    await expect(endNote).toBeVisible();
+    await endNote.locator('path, use').first().click();
+
+    // Range selection mode should auto-exit
+    await expect(page.getByRole('status')).toContainText('第 1 小节');
+    // Section button remains active/highlighted when completed
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
+    // Selected range background remains on notes in the range
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+    // Absolutely NO boundary orange notehead classes
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
+
+    // Clicking section button again clears the selection and restores full piece
+    await sectionButton.click();
+    await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
+    await expect(page.locator('.practice-range-selected')).toHaveCount(0);
+
+    // Re-select range for starting practice with range
+    await sectionButton.click();
+    await startNote.locator('path, use').first().click();
+    await endNote.locator('path, use').first().click();
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+
+    // 4. Start Practice with Range
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // While ACTIVE, tempo button triggers popover showing locked notice
+    await tempoButton.click();
+    await expect(page.getByText('练习进行中速度已锁定')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /连贯演奏/ }).click();
-  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  test('START CAPABILITY GATING & MIDI RETRY: microphone analysis unavailable, MIDI 0-device fails start, connecting device enables retry', async ({
+    page,
+  }) => {
+    const modelAssetRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${request.url()}`);
+      }
+    });
 
-  await page.getByRole('button', { name: '开始' }).click();
-  await expect(page.getByRole('status')).toContainText('准备开始演奏');
-  websocketControls.startRunning?.();
-  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+    await setupPracticeMocks(page, {
+      initialMidiInputs: 0,
+    });
 
-  await page.getByRole('button', { name: '暂停' }).click();
-  await expect
-    .poll(() => pauseControlCount)
-    .toBe(1);
-  await expect(page.getByRole('status')).toContainText('练习已暂停');
-  await page.waitForTimeout(500);
+    await page.goto(`/zh/score/${scoreId}/practice`);
 
-  await page.getByRole('button', { name: '继续' }).click();
-  await expect
-    .poll(() => resumeControlCount)
-    .toBe(1);
-  await expect(page.getByRole('status')).toContainText('连贯演奏中');
-});
+    // 1. Initial load with default MICROPHONE: STEP analysis is unavailable by product policy.
+    const status = page.getByRole('status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('逐步练习的麦克风分析暂不可用');
 
-test('continuous play user stop finishes with a stopped performance outcome', async ({
-  page,
-}) => {
-  let finishControlCount = 0;
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeDisabled();
+    expect(modelAssetRequests).toEqual([]);
 
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await installMidiMock(page);
-  await mockPracticeScorePage(page);
+    // 2. Open Settings, switch to MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await settingsButton.click();
+    const midiOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await midiOption.click();
 
-  await page.route('**/api/v1/practice/sessions', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
+    // Close Settings Sheet
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    } else {
+      await page.keyboard.press('Escape');
     }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        session_id: sessionId,
-        state: 'CREATED',
-        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
-      }),
+
+    // 3. MIDI selected: Start button is enabled (since Web MIDI is supported in browser)
+    await expect(startButton).toBeEnabled();
+
+    // Click Start: fails because 0 devices connected
+    await startButton.click();
+
+    // Practice does NOT enter ACTIVE, stays READY, displays 0-device error
+    await expect(status).toContainText('未检测到 MIDI 输入设备，请连接 MIDI 键盘后重试');
+    await expect(status).not.toContainText('可以开始，请弹奏当前音符');
+
+    // 4. User plugs in MIDI keyboard
+    await page.evaluate(() => {
+      (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice();
     });
-  });
-  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
-        progression_mode: 'CONTINUOUS',
-        realtime_guidance: 'STATUS_ONLY',
-        evaluation_profile: 'PERFORMANCE',
-      }),
-    })
-  );
-  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
-    const sendServerMessage = (type: string, payload: unknown) => {
-      ws.send(JSON.stringify({
-        protocol_version: 1,
-        type,
-        payload,
-      }));
-    };
 
-    ws.onMessage((message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
+    // Re-click Start to retry
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
 
-      const parsed = JSON.parse(message) as { type?: string };
-      if (parsed.type === 'client.finish') {
-        finishControlCount += 1;
-        sendServerMessage('performance.ended', performanceClockPayload({
-          state: 'ENDED',
-          musical_beat: 2,
-          performance_time_ms: 1000,
-          scope_completed: false,
-        }));
-        sendServerMessage('session.finished', {
-          state: 'FINISHED',
-          completion_outcome: {
-            ...fullPiecePerformanceCompletionOutcome(),
-            completion_reason: 'STOPPED_BY_USER',
-          },
-        });
-        return;
-      }
-      if (parsed.type !== 'client.init') {
-        return;
-      }
+    // Practice becomes ACTIVE
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
 
-      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
-      sendServerMessage('session.armed', {
-        session_id: sessionId,
-        input_health: {
-          available: true,
-          level: 'good',
-          noise: 'good',
-          confidence: 1,
-        },
-      });
-      sendServerMessage('performance.timeline', {
-        scope_start_beat: 1,
-        scope_terminal_beat: 4,
-        segments: [
-          {
-            start_performance_time_ms: 0,
-            end_performance_time_ms: 3000,
-            start_beat: 1,
-            end_beat: 4,
-          },
-        ],
-      });
-      sendServerMessage('performance.started', performanceClockPayload());
-    });
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    expect(modelAssetRequests).toEqual([]);
   });
 
-  await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '设置' }).click();
-  await page.getByRole('button', { name: /连贯演奏/ }).click();
-  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  test('MICROPHONE ANALYSIS: continuous microphone remains unavailable without model-asset fetch', async ({
+    page,
+  }) => {
+    const modelAssetRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${request.url()}`);
+      }
+    });
 
-  await page.getByRole('button', { name: '开始' }).click();
-  await expect(page.getByRole('status')).toContainText('连贯演奏中');
-  await page.getByRole('button', { name: '结束' }).click();
+    await setupPracticeMocks(page, { modelAccessOverride: 'error' });
+    await page.goto(`/zh/score/${scoreId}/practice`);
 
-  await expect
-    .poll(() => finishControlCount)
-    .toBe(1);
-  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeVisible();
+    // Page load must not preload or fetch retired ByteDance model assets.
+    await page.waitForTimeout(300);
+    expect(modelAssetRequests.length).toBe(0);
+
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await settingsButton.click();
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    const status = page.getByRole('status');
+    await expect(status).toContainText('连贯演奏的麦克风分析暂不可用');
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeDisabled();
+    await page.waitForTimeout(300);
+    expect(modelAssetRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS ACTIVE SESSION: survives backend API loss after score assets load', async ({
+    page,
+  }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    await page.context().setOffline(true);
+    try {
+      await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+
+      await page.evaluate(() => {
+        (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
+      });
+
+      const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+      await expect(pauseButton).toBeEnabled();
+      await pauseButton.click();
+      await expect(page.getByRole('status')).toContainText('练习已暂停');
+
+      const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+      await expect(resumeButton).toBeEnabled();
+      await resumeButton.click();
+      await expect(page.getByRole('status')).toContainText('连贯演奏中');
+
+      const finishButton = page.getByRole('button', { name: '结束', exact: true });
+      await expect(finishButton).toBeEnabled();
+      await finishButton.click();
+      await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
+    } finally {
+      await page.context().setOffline(false);
+    }
+  });
 });
+

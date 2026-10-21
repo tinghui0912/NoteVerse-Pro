@@ -60,6 +60,7 @@ from app.db.models.score_access import (
     InviteStatus,
     MembershipRole,
     PublicationStatus,
+    ScoreAudienceAccessMode,
 )
 from app.modules.revisions.schemas import (
     RevisionCreateRequest,
@@ -1943,7 +1944,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 score_id=70,
                 token_hash=hash_share_token("view-token"),
                 allow_download=True,
-                allow_practice=False,
+                access_mode="VIEW",
                 created_by_user_id=1,
             ),
             ScoreShareGrant(
@@ -1958,7 +1959,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 published_revision_id=71,
                 status=PublicationStatus.PUBLISHED,
                 allow_download=False,
-                allow_practice=True,
+                access_mode="PRACTICE",
                 published_by_user_id=1,
             ),
         ]
@@ -2059,12 +2060,23 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
     assert listed_grants[0].token is None
 
+    redeemed = await service.redeem_grant(
+        db,
+        created.token,
+        2,  # type: ignore[arg-type]
+    )
+    assert redeemed.score_id == "sharing-score"
+    assert redeemed.can_practice is True
+    assert count_rows(session, ShareGrantRedemption) == 1
+    assert count_rows(session, ScoreLibraryEntry) == 0
+
     bookmarked = await service.bookmark_grant(
         db,
         created.token,
         2,  # type: ignore[arg-type]
     )
     assert bookmarked.available is True
+    assert count_rows(session, ShareGrantRedemption) == 1
     access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
     assert access.shared_by is not None
     assert access.shared_by.display_name == "owner"
@@ -2076,6 +2088,19 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
     assert library_entry.is_favorite is True
     assert library_entry.deleted_at is None
+
+    view_only = await service.create_grant(
+        db,  # type: ignore[arg-type]
+        "sharing-score",
+        1,
+        GrantCreateRequest(access_mode=ScoreAudienceAccessMode.VIEW),
+    )
+    with pytest.raises(ValidationException):
+        await service.redeem_grant(
+            db,
+            view_only.token,
+            3,  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.asyncio
@@ -2220,7 +2245,10 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
         db,  # type: ignore[arg-type]
         "share-derived-score",
         1,
-        GrantCreateRequest(allow_download=False, allow_practice=True),
+        GrantCreateRequest(
+            allow_download=False,
+            access_mode=ScoreAudienceAccessMode.PRACTICE,
+        ),
     )
 
     detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
@@ -2822,7 +2850,7 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
             revision_id="public-derived-revision-2",
             public_slug="public-derived-score",
             allow_download=False,
-            allow_practice=True,
+            access_mode="PRACTICE",
         ),
     )
 

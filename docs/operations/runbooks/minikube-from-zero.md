@@ -10,8 +10,8 @@ production.
 
 Current temporary boundary: Legato GPU inference is not validated inside
 minikube. Run `backend-worker` locally through Docker Compose while minikube is
-used for frontend, API, practice API, beat, Gateway, TLS, S3, and release
-package validation.
+used for frontend, backend API, Beat, Gateway, TLS, S3, and release package
+validation.
 
 ## Should I Delete The Existing Docker Minikube Profile?
 
@@ -376,7 +376,6 @@ Set immutable image references and S3 settings:
 
 ```powershell
 $env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<owner>/noteverse/backend-api:<tag>"
-$env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<owner>/noteverse/backend-practice:<tag>"
 $env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
 $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
 $env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web:<tag>"
@@ -430,10 +429,10 @@ The script applies the release in deterministic phases:
 3. Deployments and DaemonSets, followed by their readiness checks.
 
 This prevents a new workload set from starting against an unverified schema.
-It waits for migration and every active HTTP/scheduler workload: API, practice
-API, Beat, frontend, Control Plane, Platform Admin, and the observability
-exporter. Deployments intentionally configured with zero replicas are reported
-as skipped. It still skips the Kubernetes GPU worker/model-cache path.
+It waits for migration and every active HTTP/scheduler workload: backend API,
+Beat, frontend, Control Plane, Platform Admin, and the observability exporter.
+Deployments intentionally configured with zero replicas are reported as skipped.
+It still skips the Kubernetes GPU worker/model-cache path.
 
 Use `-CreateRegistrySecretFromToken -RegistryUsername "<github-username>"`
 only when Docker Desktop is not logged into GHCR. The credential helper option

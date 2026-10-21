@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 
 from app.core.config import Settings
-from app.core.settings.practice_runtime import PracticeRuntimeSettings
 from app.core.settings.worker_runtime import WorkerRuntimeSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
@@ -19,7 +18,6 @@ ENV_TEMPLATES = {
         "CELERY_WORKER_CONCURRENCY",
         *WorkerRuntimeSettings.model_fields,
     },
-    BACKEND_ROOT / ".env.docker.practice.example": set(PracticeRuntimeSettings.model_fields),
 }
 ENVIRONMENT_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=")
 WORKER_ROLE_SPECIFIC_KEYS = set(PlaybackSettings.model_fields) | set(WorkerModelEngineSettings.model_fields)
@@ -53,4 +51,7 @@ def test_shared_docker_template_excludes_role_specific_runtime_settings() -> Non
     shared_keys = _template_keys(BACKEND_ROOT / ".env.docker.example")
 
     assert shared_keys.isdisjoint(WORKER_ROLE_SPECIFIC_KEYS)
-    assert shared_keys.isdisjoint(PracticeRuntimeSettings.model_fields)
+
+
+def test_no_practice_specific_docker_environment_template_exists() -> None:
+    assert not (BACKEND_ROOT / ".env.docker.practice.example").exists()

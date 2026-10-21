@@ -1,63 +1,102 @@
 'use client';
 
-import { Cable, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
+import React from 'react';
+import { Cable, ListChecks, Mic, Music2, Sparkles, Video, VolumeX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
-import type { PracticeConnectionStatus } from '@/lib/practice/practice-types';
-import type { PracticeInputSource } from '@/generated/practice-api';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type {
+  PracticeInputSource,
+  PracticeMode,
+} from '@/lib/practice/local-core/artifact';
+import type {
+  PracticeMicrophoneCapability,
+  PracticeMidiCapability,
+} from '@/lib/practice/input-capability';
+import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 type PracticeSettingsPanelProps = {
   className?: string;
-  connectionStatus: PracticeConnectionStatus;
-  hasMicPermission: boolean | null;
-  audioWorkletSupported: boolean;
-  midiSupported: boolean;
-  hasMidiPermission: boolean | null;
-  hasMidiInput: boolean | null;
-  practiceMode: PracticeSessionMode;
+  inputState?: LocalPracticeInputState;
+  hasMicPermission?: boolean | null;
+  microphoneCapability?: PracticeMicrophoneCapability;
+  midiCapability?: PracticeMidiCapability;
+  audioWorkletSupported?: boolean;
+  midiSupported?: boolean;
+  hasMidiPermission?: boolean | null;
+  hasMidiInput?: boolean | null;
+  practiceMode: PracticeMode;
   practiceModeLocked: boolean;
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
-  onPracticeModeChange: (practiceMode: PracticeSessionMode) => void;
+  recordingMode?: PracticeRecordingMode;
+  recordingModeLocked?: boolean;
+  recordingStatus?: string | null;
+  onPracticeModeChange: (practiceMode: PracticeMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
+  onRecordingModeChange?: (mode: PracticeRecordingMode) => void;
 };
 
 export function PracticeSettingsPanel({
   className,
-  connectionStatus,
-  hasMicPermission,
+  inputState = 'IDLE',
+  hasMicPermission = null,
+  microphoneCapability,
+  midiCapability,
   audioWorkletSupported,
   midiSupported,
-  hasMidiPermission,
-  hasMidiInput,
+  hasMidiPermission = null,
+  hasMidiInput = null,
   practiceMode,
   practiceModeLocked,
   inputSource,
   microphoneInputLocked,
   midiInputLocked,
+  recordingMode = 'OFF',
+  recordingModeLocked = false,
+  recordingStatus = null,
   onPracticeModeChange,
   onInputSourceChange,
+  onRecordingModeChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
-  const microphoneState = !audioWorkletSupported
-    ? t('settingMicrophoneUnsupported')
-    : hasMicPermission === false
-      ? t('settingMicrophoneNeedsPermission')
-      : connectionStatus === 'ready'
-        ? t('settingMicrophoneConnected')
-        : t('settingMicrophoneBrowser');
-  const midiState = !midiSupported
-    ? t('settingMidiUnsupported')
-    : hasMidiPermission === false
-      ? t('settingMidiNeedsPermission')
-      : hasMidiInput === false
-        ? t('settingMidiNoInput')
-        : connectionStatus === 'ready' && inputSource === 'MIDI'
-          ? t('settingMidiConnected')
-          : t('settingMidiBrowser');
+  const microphoneState = microphoneCapability
+    ? microphoneCapability.status === 'BROWSER_UNSUPPORTED'
+      ? t('settingMicrophoneUnsupported')
+      : hasMicPermission === false
+        ? t('settingMicrophoneNeedsPermission')
+        : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+          ? t('settingMicrophoneConnected')
+          : t('settingMicrophoneBrowser')
+    : audioWorkletSupported === false
+      ? t('settingMicrophoneUnsupported')
+      : hasMicPermission === false
+        ? t('settingMicrophoneNeedsPermission')
+        : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+          ? t('settingMicrophoneConnected')
+          : t('settingMicrophoneBrowser');
+
+  const midiState = midiCapability
+    ? midiCapability.status === 'BROWSER_UNSUPPORTED'
+      ? t('settingMidiUnsupported')
+      : hasMidiPermission === false
+        ? t('settingMidiNeedsPermission')
+        : midiCapability.status === 'NO_CONNECTED_INPUT' || hasMidiInput === false
+          ? t('settingMidiNoInput')
+          : inputState === 'RUNNING' && inputSource === 'MIDI'
+            ? t('settingMidiConnected')
+            : t('settingMidiBrowser')
+    : midiSupported === false
+      ? t('settingMidiUnsupported')
+      : hasMidiPermission === false
+        ? t('settingMidiNeedsPermission')
+        : hasMidiInput === false
+          ? t('settingMidiNoInput')
+          : inputState === 'RUNNING' && inputSource === 'MIDI'
+            ? t('settingMidiConnected')
+            : t('settingMidiBrowser');
 
   return (
     <aside className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm', className)}>
@@ -151,7 +190,7 @@ export function PracticeSettingsPanel({
                   ? 'border-emerald-200 bg-emerald-50 text-slate-950'
                   : 'border-slate-200 hover:bg-slate-50'
               )}
-              disabled={midiInputLocked || !midiSupported}
+              disabled={midiInputLocked || (midiCapability ? midiCapability.status === 'BROWSER_UNSUPPORTED' : midiSupported === false)}
               onClick={() => onInputSourceChange('MIDI')}
               aria-pressed={inputSource === 'MIDI'}
             >
@@ -165,6 +204,43 @@ export function PracticeSettingsPanel({
             </button>
           </div>
         </section>
+
+        {practiceMode === 'CONTINUOUS_PLAY' ? (
+          <section className="px-5 py-5" aria-labelledby="practice-recording-heading">
+            <h3 id="practice-recording-heading" className="text-sm font-semibold text-slate-900">
+              {t('settingsRecording')}
+            </h3>
+            <div className="mt-3 grid gap-2">
+              {([
+                ['OFF', VolumeX, t('settingRecordingOff'), t('settingRecordingOffDesc')],
+                ['AUDIO', Mic, t('settingRecordingAudio'), t('settingRecordingAudioDesc')],
+                ['VIDEO', Video, t('settingRecordingVideo'), recordingStatus ?? t('settingCameraDesc')],
+              ] as const).map(([mode, Icon, label, description]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={cn(
+                    'flex min-h-14 w-full items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                    recordingMode === mode
+                      ? 'border-sky-200 bg-sky-50 text-slate-950'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  )}
+                  disabled={recordingModeLocked || !onRecordingModeChange}
+                  onClick={() => onRecordingModeChange?.(mode)}
+                  aria-pressed={recordingMode === mode}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sky-600">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-slate-900">{label}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">{description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </aside>
   );

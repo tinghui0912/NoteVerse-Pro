@@ -12,7 +12,11 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/unit/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
+    include: [
+      'tests/unit/**/*.test.{ts,tsx}',
+      'tests/architecture/**/*.test.{ts,tsx}',
+      'src/**/*.test.{ts,tsx}',
+    ],
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',

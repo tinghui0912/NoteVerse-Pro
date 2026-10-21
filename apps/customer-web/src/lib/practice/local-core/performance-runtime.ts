@@ -1,91 +1,110 @@
 import {
   assertPracticeScoreArtifact,
   countInContractAt,
-  entryGroupEndBeat,
   resolvePracticeScope,
-  roundBeat,
   type PracticeScoreArtifact,
   type PracticeInputSource,
   type PracticeScope,
+  type ResolvedPracticeScope,
   type TempoSegment,
 } from './artifact';
-import type {
-  PerformanceEvaluationObservation,
-  PerformanceEvidenceObservation,
-  PerformanceExpectedEventOutcome,
-} from './evidence';
-import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity } from './timebase';
+import type { CapturedAttack } from './evidence';
+import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
+  type LocalPracticeCompletionReason,
 } from './session';
-import { LocalPerformanceEvaluator } from './performance-evaluator';
+import {
+  ContinuousEvaluationSession,
+} from './continuous-evaluation-session';
+import type { CompletedContinuousEvaluation, ContinuousEvaluationSnapshot, ContinuousEvidencePublication } from './continuous-evaluation-types';
+import { ContinuousMidiEvidence } from './continuous-midi-evidence';
+import {
+  beatsToMs,
+  PracticeTempoTimeline,
+  resolvePracticeTempoPlan,
+  type PracticeTempoSelection,
+  type ResolvedPracticeTempoPlan,
+  type ResolvedPracticeTempoSegment,
+} from './practice-tempo';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
+
+export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;
 
 export type PerformanceClockSnapshot = {
   state: PerformanceRuntimeState;
   nowMs: number;
   musicalBeat: number;
   performanceTimeMs: number;
+  countInTotalMs: number;
   countInRemainingMs: number;
   countInBeats: number;
   countInPulses: number;
+  countInPulse: number;
   scopeCompleted: boolean;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
-  speedRatio: number;
+  completionReason: LocalPracticeCompletionReason | null;
 };
 
-export type PerformancePracticeRuntimeOptions = {
+export type PerformanceClockRuntimeOptions = {
   artifact: PracticeScoreArtifact;
-  scope?: PracticeScope;
+  tempoPlan?: ResolvedPracticeTempoPlan;
+  scope: PracticeScope;
   clock: LocalClock;
   timebase?: PracticeTimebase;
   metadataClock?: DurableClock;
   inputSource?: PracticeInputSource;
-  speedRatio?: number;
   countInBeats?: number;
   localSessionId?: string;
   version?: RuntimeVersionIdentity;
-  snapshot?: LocalPerformanceSessionSnapshot;
+  tempoSelection?: PracticeTempoSelection;
+  metronomeEnabled?: boolean;
 };
 
-type PerformanceScope = {
-  startBeat: number;
-  terminalBeat: number;
+export type ContinuousPracticeSessionOptions = PerformanceClockRuntimeOptions;
+
+class ContinuousAnalysisPublicationDomainError extends Error {
+  readonly code = 'CONTINUOUS_ANALYSIS_PUBLICATION_DOMAIN_MISMATCH' as const;
+
+  constructor(message = 'Continuous analysis publication belongs to a different session domain.') {
+    super(message);
+    this.name = 'ContinuousAnalysisPublicationDomainError';
+  }
+}
+
+type PerformanceScope = ResolvedPracticeScope & {
   nominalStartTimeMs: number;
   nominalEndTimeMs: number;
-  startGroupId?: string;
-  endGroupId?: string;
 };
 
-export class PerformancePracticeRuntime {
+export class PerformanceClockRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
-
+  readonly timebase: PracticeTimebase;
+  private readonly timeline: PerformanceTimeline;
   private readonly clock: LocalClock;
-  private readonly timebase: PracticeTimebase;
   private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
-  private readonly inputSource: PracticeInputSource;
-  private readonly speedRatio: number;
-  private readonly timeline: PerformanceTimeline;
+  private readonly createdAtMs: number;
   private readonly scope: PerformanceScope;
-  private readonly countInMs: number;
   private readonly countInBeats: number;
   private readonly countInPulses: number;
-  private readonly evaluator: LocalPerformanceEvaluator;
-  private readonly createdAtMs: number;
+  private readonly countInMs: number;
+  private readonly tempoPlan: ResolvedPracticeTempoPlan;
+  private readonly tempoSelection: PracticeTempoSelection;
+  private metronomeEnabled: boolean;
+  private readonly inputSource: PracticeInputSource;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
+  private completionReason: LocalPracticeCompletionReason | null = null;
   private activeElapsedMs = 0;
   private currentSegment: ClockSegment | null = null;
   private clockSegments: ClockSegment[] = [];
-  private observations: PerformanceEvaluationObservation[] = [];
-  private outcomes: PerformanceExpectedEventOutcome[] = [];
 
-  constructor(options: PerformancePracticeRuntimeOptions) {
+  constructor(options: PerformanceClockRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact);
     this.artifact = options.artifact;
     this.clock = options.clock;
@@ -94,52 +113,30 @@ export class PerformancePracticeRuntime {
       schemaVersion: 1,
       runtimeVersion: 'local-practice-core-v1',
     };
-    if (options.snapshot) {
-      validatePerformanceSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
+    this.inputSource = options.inputSource ?? 'MICROPHONE';
+    this.tempoPlan = options.tempoPlan
+      ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
+    if (!this.tempoPlan || !Array.isArray(this.tempoPlan.segments) || this.tempoPlan.segments.length === 0) {
+      throw new Error('PerformanceClockRuntime requires a valid ResolvedPracticeTempoPlan with segments.');
     }
-    this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
-    this.speedRatio = options.snapshot?.performance.speedRatio ?? options.speedRatio ?? 1;
-    if (this.speedRatio <= 0) {
-      throw new Error('Performance speed ratio must be positive.');
-    }
-    this.timeline = new PerformanceTimeline(this.artifact);
-    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.snapshot?.practiceScope ?? options.scope);
+    this.tempoSelection = options.tempoSelection ?? this.tempoPlan.selection;
+    this.metronomeEnabled = options.metronomeEnabled ?? false;
+    this.timeline = new PerformanceTimeline(this.artifact, this.tempoPlan.segments);
+    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.scope);
     const countIn = countInContractAt(this.artifact, this.scope.startBeat);
-    this.countInBeats = options.snapshot?.performance.countInBeats ?? options.countInBeats ?? countIn.durationBeats;
-    this.countInPulses = options.snapshot?.performance.countInPulses ?? countIn.pulses;
-    this.countInMs = options.snapshot?.performance.countInMs
-      ?? beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat)) / this.speedRatio;
-    this.evaluator = new LocalPerformanceEvaluator({
-      artifact: this.artifact,
-      timeline: this.timeline,
-      scope: this.scope,
-    });
-    this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
+    this.countInBeats = options.countInBeats ?? countIn.durationBeats;
+    this.countInPulses = countIn.pulses;
+    this.countInMs = beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat));
+    this.localSessionId = options.localSessionId ?? createLocalSessionId();
     this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
-    this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
-
-    if (options.snapshot) {
-      this.state = options.snapshot.performance.state === 'READY' || options.snapshot.performance.state === 'ENDED'
-        ? options.snapshot.performance.state
-        : 'PAUSED';
-      this.stateBeforePause = options.snapshot.performance.state === 'PAUSED'
-        ? options.snapshot.performance.stateBeforePause
-        : options.snapshot.performance.state;
-      this.activeElapsedMs = options.snapshot.performance.activeElapsedMs;
-      this.observations = options.snapshot.performance.observations.map((observation) => ({
-        ...observation,
-      }));
-      this.outcomes = options.snapshot.performance.outcomes.map((outcome) => ({
-        ...outcome,
-        source: outcome.source,
-      }));
-    }
+    this.createdAtMs = this.metadataClock.nowEpochMs();
   }
 
   start(): PerformanceClockSnapshot {
     if (this.state !== 'READY') {
-      throw new Error('Performance runtime can only start from READY.');
+      throw new Error('Performance clock can only start from READY.');
     }
+    this.completionReason = null;
     this.state = this.countInMs > 0 ? 'COUNT_IN' : 'RUNNING';
     this.activeElapsedMs = 0;
     this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
@@ -149,7 +146,7 @@ export class PerformancePracticeRuntime {
   pause(): PerformanceClockSnapshot {
     this.advanceState();
     if (this.state !== 'COUNT_IN' && this.state !== 'RUNNING') {
-      throw new Error('Performance runtime can only pause while active.');
+      throw new Error('Performance clock can only pause while active.');
     }
     this.activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
     this.finishCurrentSegment(this.nowSessionMs());
@@ -160,42 +157,76 @@ export class PerformancePracticeRuntime {
 
   resume(): PerformanceClockSnapshot {
     if (this.state !== 'PAUSED') {
-      throw new Error('Performance runtime can only resume from PAUSED.');
+      throw new Error('Performance clock can only resume from PAUSED.');
     }
     this.state = this.stateBeforePause;
     this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
     return this.snapshot();
   }
 
+  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
+    if (this.state === 'ENDED') {
+      return this.snapshot();
+    }
+    this.activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
+    this.finishCurrentSegment(this.nowSessionMs());
+    this.state = 'ENDED';
+    this.completionReason = reason;
+    return this.snapshot();
+  }
+
+  setMetronomeEnabled(enabled: boolean): void {
+    this.metronomeEnabled = enabled;
+  }
+
   snapshot(): PerformanceClockSnapshot {
     const activeElapsedMs = this.advanceState();
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
+    const countInTotalMs = this.countInMs;
+    const countInRemainingMs = Math.max(0, this.countInMs - activeElapsedMs);
+    const countInPulse = this.countInPulses > 0 && countInTotalMs > 0 && this.state === 'COUNT_IN'
+      ? Math.min(
+          this.countInPulses,
+          Math.max(1, Math.floor(((countInTotalMs - countInRemainingMs) / countInTotalMs) * this.countInPulses) + 1)
+        )
+      : 1;
     return {
       state: this.state,
       nowMs: this.nowSessionMs(),
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
-      countInRemainingMs: Math.max(0, this.countInMs - activeElapsedMs),
+      countInTotalMs,
+      countInRemainingMs,
       countInBeats: this.countInBeats,
       countInPulses: this.countInPulses,
-      scopeCompleted: this.state === 'ENDED',
+      countInPulse,
+      scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
       scopeStartBeat: this.scope.startBeat,
       scopeTerminalBeat: this.scope.terminalBeat,
-      speedRatio: this.speedRatio,
+      completionReason: this.completionReason,
     };
   }
 
-  observeEvidence(observation: PerformanceEvidenceObservation): PerformanceEvaluationObservation {
-    this.timebase.assertSameSessionTimeDomain(observation.captureTime, this.timebase.atSessionMs(0));
-    const performanceTimeMs = this.performanceTimeAtCapture(observation.captureTime.ms);
-    const evaluated: PerformanceEvaluationObservation = {
-      ...observation,
-      performanceTimeMs,
-      musicalBeat: this.musicalBeat(performanceTimeMs),
-    };
-    this.observations.push(evaluated);
-    this.outcomes = this.evaluator.evaluate(this.observations);
-    return evaluated;
+  performanceTimeAtCapture(captureTimeMs: number): number | null {
+    const activeElapsedMs = this.activeElapsedForCapture(captureTimeMs);
+    if (activeElapsedMs === null) {
+      return null;
+    }
+    if (
+      activeElapsedMs < this.countInMs ||
+      activeElapsedMs > this.countInMs + this.scopeDurationMs()
+    ) {
+      return null;
+    }
+    return this.performanceElapsedMs(activeElapsedMs);
+  }
+
+  completionCaptureTime(): SessionTime {
+    const targetActiveElapsedMs = Math.min(
+      this.activeElapsedMs,
+      this.countInMs + this.scopeDurationMs()
+    );
+    return this.timebase.atSessionMs(this.sessionMsForActiveElapsed(targetActiveElapsedMs));
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
@@ -207,44 +238,41 @@ export class PerformancePracticeRuntime {
       artifactId: this.artifact.artifactId,
       mode: 'CONTINUOUS_PLAY',
       inputSource: this.inputSource,
-      practiceScope: {
-        startGroupId: this.scope.startGroupId,
-        endGroupId: this.scope.endGroupId,
-      },
+      practiceScope:
+        this.scope.kind === 'RANGE'
+          ? {
+              kind: 'RANGE',
+              startGroupId: this.scope.startGroupId,
+              endGroupId: this.scope.endGroupId,
+            }
+          : { kind: 'FULL' },
+      tempoSelection: this.tempoSelection,
+      metronomeEnabled: this.metronomeEnabled,
       lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
+      completionReason: this.completionReason,
       version: this.version,
       createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
       performance: {
         state: this.state,
         stateBeforePause: this.stateBeforePause,
-        speedRatio: this.speedRatio,
+        resolvedTempoPlan: this.tempoPlan,
         scopeStartBeat: this.scope.startBeat,
         scopeTerminalBeat: this.scope.terminalBeat,
         activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
         countInMs: this.countInMs,
         countInBeats: this.countInBeats,
         countInPulses: this.countInPulses,
-        observations: this.observations.map((observation) => ({
-          source: observation.source,
-          captureTime: observation.captureTime,
-          inferenceCompletedAtMs: observation.inferenceCompletedAtMs,
-          pitches: observation.pitches,
-          confidence: observation.confidence,
-          performanceTimeMs: observation.performanceTimeMs,
-          musicalBeat: observation.musicalBeat,
-        })),
-        outcomes: this.outcomes,
       },
     };
   }
 
-  get evaluationObservations(): PerformanceEvaluationObservation[] {
-    return [...this.observations];
+  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
+    return this.completionReason;
   }
 
-  get evaluationOutcomes(): PerformanceExpectedEventOutcome[] {
-    return [...this.outcomes];
+  scopeDurationMs(): number {
+    return Math.max(0, this.scope.nominalEndTimeMs - this.scope.nominalStartTimeMs);
   }
 
   private advanceState(): number {
@@ -252,15 +280,24 @@ export class PerformancePracticeRuntime {
       return 0;
     }
     const activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
-    if (this.state === 'PAUSED') {
+    if (this.state === 'PAUSED' || this.state === 'ENDED') {
       return activeElapsedMs;
     }
-    if (activeElapsedMs < this.countInMs) {
-      this.state = 'COUNT_IN';
-    } else if (this.performanceElapsedMs(activeElapsedMs) >= this.scopeDurationMs()) {
-      this.activeElapsedMs = activeElapsedMs;
-      this.finishCurrentSegment(this.nowSessionMs());
+    if (this.state === 'COUNT_IN' && activeElapsedMs >= this.countInMs) {
+      const boundarySessionMs = this.sessionMsForActiveElapsed(this.countInMs);
+      this.finishCurrentSegment(boundarySessionMs);
+      this.state = 'RUNNING';
+      this.currentSegment = this.startClockSegmentAt('RUNNING', this.countInMs, boundarySessionMs);
+    }
+    const terminalActiveElapsedMs = this.countInMs + this.scopeDurationMs();
+    if (this.state === 'RUNNING' && activeElapsedMs >= terminalActiveElapsedMs) {
+      const boundarySessionMs = this.sessionMsForActiveElapsed(terminalActiveElapsedMs);
+      this.activeElapsedMs = terminalActiveElapsedMs;
+      this.finishCurrentSegment(boundarySessionMs);
       this.state = 'ENDED';
+      this.completionReason = 'SCOPE_COMPLETED';
+    } else if (activeElapsedMs < this.countInMs) {
+      this.state = 'COUNT_IN';
     } else {
       this.state = 'RUNNING';
     }
@@ -271,35 +308,63 @@ export class PerformancePracticeRuntime {
     if (!this.currentSegment || this.state === 'PAUSED' || this.state === 'ENDED') {
       return this.activeElapsedMs;
     }
-    return Math.max(0, this.currentSegment.activeElapsedStartMs + nowMs - this.currentSegment.clockStartMs);
+    return Math.max(0, this.activeElapsedAtSessionTime(this.currentSegment, nowMs));
   }
 
-  private activeElapsedForCapture(captureTimeMs: number): number {
+  private activeElapsedForCapture(captureTimeMs: number): number | null {
     for (const segment of this.clockSegments) {
       const end = segment.clockEndMs ?? (
         this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
       );
       if (segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
-        return Math.max(0, segment.activeElapsedStartMs + captureTimeMs - segment.clockStartMs);
+        return Math.max(0, this.activeElapsedAtSessionTime(segment, captureTimeMs));
       }
     }
     if (this.currentSegment
       && this.currentSegment.clockStartMs <= captureTimeMs
       && captureTimeMs <= this.nowSessionMs()) {
-      return Math.max(0, this.currentSegment.activeElapsedStartMs + captureTimeMs - this.currentSegment.clockStartMs);
+      return Math.max(0, this.activeElapsedAtSessionTime(this.currentSegment, captureTimeMs));
     }
-    return this.activeElapsedAt(captureTimeMs);
+    return null;
   }
 
-  private performanceTimeAtCapture(captureTimeMs: number): number {
-    const activeElapsedMs = this.activeElapsedForCapture(captureTimeMs);
-    return this.performanceElapsedMs(activeElapsedMs);
+  private sessionMsForActiveElapsed(activeElapsedMs: number): number {
+    for (const segment of this.clockSegments) {
+      const segmentEndActiveElapsed = segment.clockEndMs === undefined
+        ? this.activeElapsedAt(this.nowSessionMs())
+        : this.activeElapsedAtSessionTime(segment, segment.clockEndMs);
+      if (
+        segment.activeElapsedStartMs <= activeElapsedMs &&
+        activeElapsedMs <= segmentEndActiveElapsed
+      ) {
+        return this.sessionTimeAtActiveElapsed(segment, activeElapsedMs);
+      }
+    }
+    return this.nowSessionMs();
+  }
+
+  // Subtract in one time domain before adding the other domain's anchor. In
+  // particular, a zero segment delta must preserve pause/resume identity exactly.
+  private activeElapsedAtSessionTime(segment: ClockSegment, sessionTimeMs: number): number {
+    return segment.activeElapsedStartMs + (sessionTimeMs - segment.clockStartMs);
+  }
+
+  private sessionTimeAtActiveElapsed(segment: ClockSegment, activeElapsedMs: number): number {
+    return segment.clockStartMs + (activeElapsedMs - segment.activeElapsedStartMs);
   }
 
   private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {
+    return this.startClockSegmentAt(state, activeElapsedStartMs, this.nowSessionMs());
+  }
+
+  private startClockSegmentAt(
+    state: PerformanceRuntimeState,
+    activeElapsedStartMs: number,
+    clockStartMs: number
+  ): ClockSegment {
     const segment = {
       state,
-      clockStartMs: this.nowSessionMs(),
+      clockStartMs,
       activeElapsedStartMs,
     };
     this.clockSegments.push(segment);
@@ -315,7 +380,7 @@ export class PerformancePracticeRuntime {
 
   private performanceElapsedMs(activeElapsedMs: number): number {
     return Math.min(
-      Math.max(0, activeElapsedMs - this.countInMs) * this.speedRatio,
+      Math.max(0, activeElapsedMs - this.countInMs),
       this.scopeDurationMs()
     );
   }
@@ -327,12 +392,163 @@ export class PerformancePracticeRuntime {
     return this.timeline.timeMsToBeat(this.scope.nominalStartTimeMs + performanceTimeMs);
   }
 
-  private scopeDurationMs(): number {
-    return Math.max(0, this.scope.nominalEndTimeMs - this.scope.nominalStartTimeMs);
-  }
-
   private nowSessionMs(): number {
     return this.timebase.runtimeToSessionTime(this.clock.nowMs()).ms;
+  }
+}
+
+export class ContinuousPracticeSession {
+  readonly clock: PerformanceClockRuntime;
+  private readonly evaluator: ContinuousEvaluationSession;
+  private readonly inputSource: PracticeInputSource;
+  private syncedCompletionReason: LocalPracticeCompletionReason | null = null;
+  private readonly midi: ContinuousMidiEvidence;
+
+  constructor(options: ContinuousPracticeSessionOptions) {
+    this.clock = new PerformanceClockRuntime(options);
+    this.inputSource = options.inputSource ?? 'MICROPHONE';
+    this.midi = new ContinuousMidiEvidence(this.clock.timebase.domainId);
+    const tempoPlan = options.tempoPlan
+      ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
+    this.evaluator = new ContinuousEvaluationSession({
+      artifact: options.artifact,
+      timeline: new PerformanceTimeline(options.artifact, tempoPlan.segments),
+      scope: options.scope,
+      sessionDomainId: this.clock.timebase.domainId,
+    });
+  }
+
+  start(): PerformanceClockSnapshot {
+    const snapshot = this.clock.start();
+    return this.syncFromClockSnapshot(snapshot);
+  }
+
+  pause(): PerformanceClockSnapshot {
+    const snapshot = this.clock.pause();
+    return this.syncFromClockSnapshot(snapshot);
+  }
+
+  resume(): PerformanceClockSnapshot {
+    const snapshot = this.clock.resume();
+    return this.syncFromClockSnapshot(snapshot);
+  }
+
+  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
+    const snapshot = this.clock.end(reason);
+    return this.syncFromClockSnapshot(snapshot);
+  }
+
+  setMetronomeEnabled(enabled: boolean): void {
+    this.clock.setMetronomeEnabled(enabled);
+  }
+
+  snapshot(): PerformanceClockSnapshot {
+    const snapshot = this.clock.snapshot();
+    return this.syncFromClockSnapshot(snapshot);
+  }
+
+  observeCapturedAttack(attack: CapturedAttack): boolean {
+    if (this.inputSource !== 'MIDI' || attack.source !== 'MIDI') {
+      throw new Error('Captured attacks require the MIDI evidence boundary.');
+    }
+    this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
+    const beforeSnapshot = this.clock.snapshot();
+    if (beforeSnapshot.state === 'ENDED') {
+      return false;
+    }
+    const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
+    if (performanceTimeMs === null) {
+      return false;
+    }
+    this.midi.observe(attack.pitch, performanceTimeMs, attack.confidence);
+    this.advanceMidiFrontier(this.clock.snapshot());
+    return true;
+  }
+
+  publishAnalysis(publication: ContinuousEvidencePublication): void {
+    if (this.inputSource === 'MIDI') throw new Error('MIDI coverage is owned by the local clock adapter.');
+    if (publication.sessionDomainId !== this.clock.timebase.domainId) {
+      throw new ContinuousAnalysisPublicationDomainError();
+    }
+    if (
+      !Number.isFinite(publication.analyzedThroughPerformanceMs)
+      || publication.analyzedThroughPerformanceMs < 0
+      || publication.analyzedThroughPerformanceMs > this.clock.scopeDurationMs()
+    ) {
+      throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
+    }
+    const snapshot = this.clock.snapshot();
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+      throw new Error('Continuous analysis publication requires captured performance evidence time.');
+    }
+    const maxAvailablePerformanceMs = this.maxAvailableAnalysisPerformanceTime(snapshot);
+    if (publication.analyzedThroughPerformanceMs > maxAvailablePerformanceMs) {
+      throw new Error('Continuous analysis frontier cannot advance beyond captured performance time.');
+    }
+    this.evaluator.publish(publication);
+  }
+
+  snapshotSession(): LocalPerformanceSessionSnapshot {
+    return this.clock.snapshotSession();
+  }
+
+  completionCaptureTime(): SessionTime {
+    return this.clock.completionCaptureTime();
+  }
+
+  completedEvaluation(): CompletedContinuousEvaluation {
+    return this.evaluator.completedEvaluation();
+  }
+
+  get timebase(): PracticeTimebase {
+    return this.clock.timebase;
+  }
+
+  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
+    return this.clock.sessionCompletionReason;
+  }
+
+  get evaluationSnapshot(): ContinuousEvaluationSnapshot {
+    this.syncFromClockSnapshot(this.clock.snapshot());
+    return this.evaluator.snapshot();
+  }
+
+  private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
+    if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
+      if (this.inputSource === 'MIDI') this.coverMidi(snapshot.performanceTimeMs, snapshot.performanceTimeMs);
+      this.evaluator.complete({
+        reason: snapshot.completionReason,
+        performanceTimeMs: snapshot.performanceTimeMs,
+        availabilityTimeMs: snapshot.performanceTimeMs,
+      });
+      this.syncedCompletionReason = snapshot.completionReason;
+      return snapshot;
+    }
+    this.advanceMidiFrontier(snapshot);
+    return snapshot;
+  }
+
+  private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {
+    if (this.inputSource === 'MIDI' && snapshot.state === 'RUNNING') {
+      if (snapshot.performanceTimeMs > DEFAULT_MIDI_COVERAGE_GRACE_MS) {
+        this.coverMidi(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS, snapshot.performanceTimeMs);
+      }
+    }
+  }
+
+  private coverMidi(frontier: number, availability: number): void {
+    const publication = this.midi.cover(frontier, availability);
+    if (publication) this.evaluator.publish(publication);
+  }
+
+  private maxAvailableAnalysisPerformanceTime(snapshot: PerformanceClockSnapshot): number {
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+      return 0;
+    }
+    if (snapshot.state === 'ENDED' && snapshot.completionReason === 'SCOPE_COMPLETED') {
+      return this.clock.scopeDurationMs();
+    }
+    return snapshot.performanceTimeMs;
   }
 }
 
@@ -343,148 +559,31 @@ type ClockSegment = {
   activeElapsedStartMs: number;
 };
 
-export class PerformanceTimeline {
-  private readonly segments: TimelineSegment[];
-  readonly endBeat: number;
-
-  constructor(artifact: PracticeScoreArtifact) {
-    this.endBeat = artifact.scoreEndBeat;
-    this.segments = buildTimelineSegments(artifact.scoreEndBeat, artifact.tempoSegments);
-  }
-
-  beatToTimeMs(beat: number): number {
-    if (this.segments.length === 0) {
-      return 0;
-    }
-    const bounded = Math.min(Math.max(beat, 0), this.endBeat);
-    const segment = this.segmentForBeat(bounded);
-    return segment.startTimeMs + beatsToMs(bounded - segment.startBeat, segment.bpm);
-  }
-
-  timeMsToBeat(timeMs: number): number {
-    if (this.segments.length === 0) {
-      return 0;
-    }
-    const durationMs = this.segments[this.segments.length - 1]?.endTimeMs ?? 0;
-    const bounded = Math.min(Math.max(timeMs, 0), durationMs);
-    const segment = this.segmentForTimeMs(bounded);
-    return roundBeat(segment.startBeat + msToBeats(bounded - segment.startTimeMs, segment.bpm));
-  }
-
-  bpmAtBeat(beat: number): number {
-    if (this.segments.length === 0) {
-      return 120;
-    }
-    return this.segmentForBeat(Math.min(Math.max(beat, 0), this.endBeat)).bpm;
-  }
-
-  private segmentForBeat(beat: number): TimelineSegment {
-    return this.segments.find((segment) => segment.startBeat <= beat && beat < segment.endBeat)
-      ?? this.segments[this.segments.length - 1];
-  }
-
-  private segmentForTimeMs(timeMs: number): TimelineSegment {
-    return this.segments.find((segment) => segment.startTimeMs <= timeMs && timeMs < segment.endTimeMs)
-      ?? this.segments[this.segments.length - 1];
+export class PerformanceTimeline extends PracticeTempoTimeline {
+  constructor(artifact: PracticeScoreArtifact, tempoSegments: readonly TempoSegment[]) {
+    super(
+      {
+        selection: { mode: 'SCORE' },
+        segments: tempoSegments.map((s) => ({
+          startBeat: s.startBeat,
+          bpm: s.bpm,
+          source: 'source' in s ? (s as ResolvedPracticeTempoSegment).source : 'MUSICXML',
+        })),
+      },
+      artifact.scoreEndBeat
+    );
   }
 }
-
-type TimelineSegment = {
-  startBeat: number;
-  endBeat: number;
-  startTimeMs: number;
-  endTimeMs: number;
-  bpm: number;
-};
 
 function resolvePerformanceScope(
   artifact: PracticeScoreArtifact,
   timeline: PerformanceTimeline,
-  scope?: PracticeScope
+  scope: PracticeScope
 ): PerformanceScope {
   const resolved = resolvePracticeScope(artifact, scope);
-  const terminalBeat = scope?.endGroupId
-    ? entryGroupEndBeat(artifact, scope.endGroupId)
-    : resolved.terminalBeat;
   return {
-    startBeat: resolved.startBeat,
-    terminalBeat,
+    ...resolved,
     nominalStartTimeMs: timeline.beatToTimeMs(resolved.startBeat),
-    nominalEndTimeMs: timeline.beatToTimeMs(terminalBeat),
-    startGroupId: resolved.startGroupId,
-    endGroupId: resolved.endGroupId,
+    nominalEndTimeMs: timeline.beatToTimeMs(resolved.terminalBeat),
   };
-}
-
-function buildTimelineSegments(endBeat: number, tempoSegments: TempoSegment[]): TimelineSegment[] {
-  if (endBeat <= 0) {
-    return [];
-  }
-  const byBeat = new Map<number, TempoSegment>();
-  for (const segment of tempoSegments) {
-    if (segment.startBeat >= 0 && segment.bpm > 0) {
-      byBeat.set(roundBeat(segment.startBeat), { startBeat: roundBeat(segment.startBeat), bpm: segment.bpm });
-    }
-  }
-  if (!byBeat.has(0)) {
-    byBeat.set(0, { startBeat: 0, bpm: 120 });
-  }
-  const normalized = Array.from(byBeat.values()).sort((a, b) => a.startBeat - b.startBeat);
-  let currentTimeMs = 0;
-  return normalized.flatMap((tempo, index) => {
-    const nextStart = normalized[index + 1]?.startBeat ?? endBeat;
-    const startBeat = Math.min(Math.max(tempo.startBeat, 0), endBeat);
-    const end = Math.min(Math.max(nextStart, startBeat), endBeat);
-    if (end <= startBeat) {
-      return [];
-    }
-    const startTimeMs = currentTimeMs;
-    const endTimeMs = startTimeMs + beatsToMs(end - startBeat, tempo.bpm);
-    currentTimeMs = endTimeMs;
-    return [{ startBeat, endBeat: end, startTimeMs, endTimeMs, bpm: tempo.bpm }];
-  });
-}
-
-function beatsToMs(beats: number, bpm: number): number {
-  return beats * 60_000 / bpm;
-}
-
-function msToBeats(milliseconds: number, bpm: number): number {
-  return milliseconds * bpm / 60_000;
-}
-
-function validatePerformanceSnapshot(
-  artifact: PracticeScoreArtifact,
-  snapshot: LocalPerformanceSessionSnapshot,
-  inputSource?: PracticeInputSource,
-  scope?: PracticeScope
-): void {
-  if (snapshot.mode !== 'CONTINUOUS_PLAY') {
-    throw new Error('Cannot restore non-performance snapshot into PerformancePracticeRuntime.');
-  }
-  if (snapshot.scoreId !== artifact.scoreId
-    || snapshot.revisionId !== artifact.revisionId
-    || snapshot.artifactId !== artifact.artifactId) {
-    throw new Error('Practice session snapshot does not belong to this score artifact.');
-  }
-  if (snapshot.version.schemaVersion !== 1 || snapshot.version.runtimeVersion !== 'local-practice-core-v1') {
-    throw new Error('Unsupported local practice runtime snapshot version.');
-  }
-  if (inputSource && snapshot.inputSource !== inputSource) {
-    throw new Error('Practice session snapshot input source mismatch.');
-  }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
-    throw new Error('Practice session snapshot scope mismatch.');
-  }
-  if (snapshot.performance.speedRatio <= 0) {
-    throw new Error('Invalid performance snapshot speed ratio.');
-  }
-  if (snapshot.performance.activeElapsedMs < 0 || !Number.isFinite(snapshot.performance.activeElapsedMs)) {
-    throw new Error('Invalid performance snapshot active elapsed time.');
-  }
-  if (snapshot.performance.countInMs < 0
-    || snapshot.performance.countInBeats < 0
-    || snapshot.performance.countInPulses < 0) {
-    throw new Error('Invalid performance snapshot count-in state.');
-  }
 }

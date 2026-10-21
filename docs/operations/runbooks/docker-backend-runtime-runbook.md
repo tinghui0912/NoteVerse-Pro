@@ -15,7 +15,6 @@ Windows workspace
 
 Docker services
   api                    -> FastAPI API image
-  practice               -> realtime practice image
   worker                 -> ML worker image
   beat                   -> lightweight Celery beat image
   quality                -> local quality-check image, not a runtime workload
@@ -23,13 +22,13 @@ Docker services
 
 This keeps code iteration fast while making the backend runtime Linux-like.
 API uses the HTTP runtime image. Beat uses its own scheduler image so it does
-not inherit API, practice, fingering, or ML dependencies. The worker uses the
+not inherit API, fingering, or ML dependencies. The worker uses the
 worker dependency image because it runs OCR/OMR, rendering, playback generation,
 and model-cache checks.
 
 When `UVICORN_RELOAD=true`, HTTP services watch `/app/app` only. Runtime data
 under `/app/data` is intentionally excluded: Worker uploads and inference
-artifacts must never restart the API, Practice, or control-plane process.
+artifacts must never restart the API or control-plane process.
 
 LEGATO is a pinned external source dependency cloned into the backend worker
 image at `/opt/noteverse/legato` during image build. See
@@ -41,14 +40,11 @@ and update process.
 - `docker/backend/Dockerfile.ml-base`: Python 3.12 + PyTorch 2.6 CUDA wheel base image.
 - `docker/backend/Dockerfile.api`: API and migration runtime image.
 - `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
-- `docker/backend/Dockerfile.practice-deps`: shared practice dependency base image.
 - `docker/backend/Dockerfile.worker-deps`: shared worker dependency base image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/Dockerfile.quality`: local core backend quality-check image.
-- `docker/backend/Dockerfile.practice-quality`: local practice quality-check
-  image for realtime alignment tests.
 - `docker/backend/entrypoint.sh`: service command switch.
-- `docker-compose.backend-dev.yml`: API, practice, worker, beat, and quality services.
+- `docker-compose.backend-dev.yml`: API, worker, beat, and quality services.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
 - `backend/.env.docker.worker.example`: Worker-process-only local environment
   template.
@@ -106,7 +102,7 @@ local contract. Both examples are checked against the application settings
 schema in CI, so they cannot silently accumulate obsolete variables.
 `CELERY_WORKER_CONCURRENCY` belongs only in `.env.docker.worker`: it is
 consumed by the Worker entrypoint rather than Pydantic settings and must not be
-injected into API, Practice, Beat, or quality containers.
+injected into API, Beat, or quality containers.
 
 Task reliability values belong in this local file because Docker Compose must
 pass the same values to API, Worker, and Beat while developing. They are not a
@@ -114,10 +110,9 @@ production source of truth. Production reliability policy must be reviewed and
 versioned with its deployment configuration, tuned against throughput and SLO
 evidence, and released with the affected workloads. Kubernetes uses a shared
 backend ConfigMap for cross-role baseline values and role-specific ConfigMaps
-for Worker/model assets, Practice realtime settings, and Control Plane browser
-security settings. Keep database URLs, Redis URLs, object-storage keys, mail
-keys, and cookie secrets in the deployment secret store rather than a ConfigMap
-or repository file.
+for Worker/model assets and Control Plane browser security settings. Keep
+database URLs, Redis URLs, object-storage keys, mail keys, and cookie secrets in
+the deployment secret store rather than a ConfigMap or repository file.
 
 ## Prepare Model Volume
 
@@ -255,7 +250,6 @@ Then build the runtime images:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
-docker compose -f docker-compose.backend-dev.yml build practice
 docker compose -f docker-compose.backend-dev.yml build worker
 docker compose -f docker-compose.backend-dev.yml build beat
 ```
@@ -308,12 +302,9 @@ CUDA libraries, move the build to a self-hosted or larger runner instead of
 making worker builds run on every push.
 
 The API image installs API dependencies from `backend/requirements/api.txt`. It
-does not contain LEGATO source, PyTorch, PaddleOCR, practice realtime alignment,
-or model-cache tooling. Fingering generation remains an API capability for now.
-
-The practice image installs practice dependencies from
-`backend/requirements/practice.txt`. It owns realtime practice HTTP/WebSocket
-runtime dependencies such as `pymatchmaker`.
+does not contain LEGATO source, PyTorch, PaddleOCR, old realtime practice
+alignment, or model-cache tooling. Fingering generation remains an API
+capability for now.
 
 The beat image installs scheduler dependencies from `backend/requirements/beat.txt`.
 It does not import worker task implementations; scheduled task names are sent to
@@ -331,30 +322,7 @@ The worker dependency image installs worker dependencies from
 - Transformers 4.54.0.
 - Accelerate and LEGATO inference helpers.
 The final worker image does not install backend test or quality tools by default.
-Core quality checks use `docker/backend/Dockerfile.quality`. Practice runtime
-and practice quality checks both inherit from
-`docker/backend/Dockerfile.practice-deps` because `pymatchmaker` is a Cython
-extension and should not be duplicated in every practice image.
-The practice dependency base uses
-`backend/requirements/practice-runtime-constraints.txt` to keep the heavy
-matchmaker/audio-science dependency graph reproducible.
-
-CI publishes the practice dependency base as:
-
-```text
-ghcr.io/<github-owner>/noteverse/backend-practice-deps:deps-<dependency-hash>
-```
-
-The hash is computed from:
-
-- `docker/backend/Dockerfile.practice-deps`;
-- `backend/requirements/practice-app.txt`;
-- `backend/requirements/practice-runtime.txt`;
-- `backend/requirements/practice-runtime-constraints.txt`.
-
-Normal application image builds pull this image instead of rebuilding native
-practice dependencies. If the image is missing, publish the matching dependency
-base first instead of silently rebuilding it in the application release path.
+Core quality checks use `docker/backend/Dockerfile.quality`.
 
 Installation order is intentional:
 
@@ -377,13 +345,12 @@ Use the quality image for backend checks:
 ```
 
 This command runs compile, ruff, mypy, model-layer mypy, core pytest, and
-practice pytest. Worker-related tests are included in core pytest unless they
-require the full production ML runtime.
-The script builds `practice-deps` before running practice tests.
+backend pytest. Worker-related tests are included unless they require the full
+production ML runtime.
 
 The worker dependency Dockerfile keeps only runtime system packages:
 
-- `fluidsynth`, `fluid-soundfont-gm`, `libfluidsynth3`, `libsndfile1`: required by practice audio synthesis.
+- `fluidsynth`, `fluid-soundfont-gm`, `libfluidsynth3`, `libsndfile1`: required by score playback synthesis.
 - `ffmpeg`, `libgl1`, `libglib2.0-0`, `libgomp1`: required by image/audio/ML packages such as OpenCV, PaddleOCR, and audio processing libraries.
 - `tini`: provides correct signal handling for API, worker, and beat processes.
 
@@ -457,7 +424,7 @@ docker compose -f docker-compose.backend-dev.yml run --rm api check --role beat
 
 The roles intentionally have different boundaries:
 
-- `api`: async database, Redis, storage configuration, SoundFont, and practice runtime.
+- `api`: async database, Redis, storage configuration, SoundFont, and API runtime checks.
 - `worker`: sync database, Redis, work directory, Celery task registration, selected OMR/render engines, and OCR/Hugging Face models.
 - `beat`: Redis and the writable beat schedule directory only.
 

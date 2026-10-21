@@ -227,32 +227,8 @@ until refresh.
 
 ## Practice And Audio Diagnostics
 
-Most practice diagnostics should remain disabled in production unless an
-incident requires a short targeted window.
-
-Production defaults:
-
-- `PRACTICE_AUDIO_DIAGNOSTICS=false`
-- `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15`
-- `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=15`
-
-If diagnostics are temporarily enabled, keep the interval values greater than
-`1` unless the incident window is very short and the operator explicitly accepts
-the Loki volume.
-
-```logql
-{namespace="noteverse-prod", container="backend-api"}
-| json
-| event =~ "practice_.*|practice\\..*"
-```
-
-High-volume diagnostic examples:
-
-- `practice_audio.gate_diagnostic`
-- `practice_alignment.update`
-- `practice_alignment.decision`
-
-Do not alert directly on these without sampling or clear thresholds.
+Practice execution and session diagnostics are browser-local. Diagnose backend
+score/source/artifact delivery through the corresponding HTTP request logs.
 
 ## Text Recognition And OMR
 

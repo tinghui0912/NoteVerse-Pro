@@ -12,7 +12,7 @@ import type {
   SlurRelationship,
 } from './index';
 
-export const testPartId = 'part-1' as PartId;
+const testPartId = 'part-1' as PartId;
 export const testStaffId = 'staff-1' as StaffId;
 export const testVoiceId = 'voice-1' as VoiceId;
 export const testMeasureId = 'measure-1' as MeasureId;

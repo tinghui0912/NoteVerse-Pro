@@ -226,7 +226,6 @@ class ScoreLifecycleService:
             for _asset_uuid, upload_id, blob_id, blob_uuid, storage_key, _size_bytes in input_rows
         }
         score.head_revision_id = None
-        practice_storage_keys = self._cleanup_practice_for_score_sync(db, score_id)
         db.delete(score)
         db.flush()
         blobs_to_delete: dict[int, tuple[str, str]] = {}
@@ -292,29 +291,10 @@ class ScoreLifecycleService:
         for _blob_uuid, blob_storage_key in blobs_to_delete.values():
             if self._delete_storage_best_effort(blob_storage_key):
                 deleted_storage_count += 1
-        for key in practice_storage_keys:
-            if self._delete_storage_best_effort(key):
-                deleted_storage_count += 1
         return ScoreDeletionCleanupResult(
             scores_deleted=1,
             storage_objects_deleted=deleted_storage_count,
         )
-
-    def _cleanup_practice_for_score_sync(self, db: Session, score_id: int) -> list[str]:
-        from app.db.models import PracticeSession
-        from sqlalchemy import delete as sa_delete
-
-        sessions = list(
-            db.execute(
-                select(PracticeSession).where(PracticeSession.score_id == score_id)
-            ).scalars()
-        )
-        storage_keys = [
-            session.audio_path for session in sessions if session.audio_path is not None
-        ]
-        db.execute(sa_delete(PracticeSession).where(PracticeSession.score_id == score_id))
-        db.flush()
-        return storage_keys
 
     def _delete_originating_import_job_sync(
         self,

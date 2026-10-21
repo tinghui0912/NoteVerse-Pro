@@ -61,7 +61,7 @@ export function usePublishMyScores() {
         scoreIds.map((scoreId) =>
           publicationsApi.publish(scoreId, {
             allow_download: false,
-            allow_practice: true,
+            access_mode: 'PRACTICE',
           })
         )
       );

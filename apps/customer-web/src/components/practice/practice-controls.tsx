@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Hand, Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
+import { Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -11,85 +11,95 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
+import type { TempoSegment } from '@/lib/practice/local-core/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
+import { PracticeTempoPopover } from './practice-tempo-popover';
 
-interface PracticeControlsProps {
-  status: PracticeStatus;
-  connectionStatus: PracticeConnectionStatus;
+interface PracticeControlSurfaceProps {
+  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
-  audioWorkletSupported: boolean;
+  selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
+  audioWorkletSupported?: boolean;
+  selectedInputSupported?: boolean;
   rangeSelectionActive: boolean;
   canSelectRange: boolean;
+  tempoSelection?: PracticeTempoSelection;
+  scoreTempoSegments?: readonly TempoSegment[];
+  scopeStartBeat?: number;
+  tempoLocked?: boolean;
+  onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
+  metronomeEnabled?: boolean;
+  onMetronomeEnabledChange?: (enabled: boolean) => void;
   onStart: () => void;
-  onPause: () => void;
+  transportControl?: React.ReactNode;
   onFinish: () => void;
   onOpenSettings: () => void;
   onToggleRangeSelection: () => void;
 }
 
-export function PracticeControls({
-  status,
-  connectionStatus,
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
+  return <PracticeControlSurface {...props} />;
+}
+
+export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
+  lifecycle: ContinuousPracticeLifecycle;
+  onPause(): void; onResume(): void;
+}) {
+  const t = useTranslations('practice');
+  const paused = props.lifecycle === 'PAUSED';
+  return <PracticeControlSurface {...props} transportControl={
+    <Button type="button" onClick={paused ? onResume : onPause} size="lg" variant="outline" className="h-11 w-32 bg-white">
+      {paused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+      {t(paused ? 'resume' : 'pause')}
+    </Button>
+  } />;
+}
+
+function PracticeControlSurface({
+  lifecycle,
   isLoading,
   isPreparingSession,
   canPrepareSession,
+  selectedInputCapability,
   audioWorkletSupported,
+  selectedInputSupported,
   rangeSelectionActive,
   canSelectRange,
+  tempoSelection,
+  scoreTempoSegments,
+  scopeStartBeat,
+  tempoLocked,
+  onTempoSelectionChange,
+  metronomeEnabled = false,
+  onMetronomeEnabledChange,
   onStart,
-  onPause,
+  transportControl,
   onFinish,
   onOpenSettings,
   onToggleRangeSelection,
-}: PracticeControlsProps) {
+}: PracticeControlSurfaceProps) {
   const t = useTranslations('practice');
-  const pointerHandledRef = useRef<string | null>(null);
-  const isActive = status === 'listening' || status === 'practicing' || status === 'paused';
+  const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
+  const isSelectedInputReady = selectedInputCapability
+    ? selectedInputCapability.supported
+    : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
-    (status === 'idle' || status === 'finished') &&
+    (lifecycle === 'READY' || lifecycle === 'IDLE' || lifecycle === 'ENDED') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
-    (connectionStatus === 'ready' || connectionStatus === 'disconnected' || connectionStatus === 'error') &&
-    audioWorkletSupported;
+    isSelectedInputReady;
   const actionButtonClass = 'h-11 w-32';
-
-  const runPointerControl = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    control: string,
-    action: () => void
-  ) => {
-    event.preventDefault();
-    pointerHandledRef.current = control;
-    action();
-  };
-
-  const runClickControl = (control: string, action: () => void) => {
-    if (pointerHandledRef.current === control) {
-      pointerHandledRef.current = null;
-      return;
-    }
-    action();
-  };
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex shrink-0 items-center gap-2">
-        {isActive ? (
-          <Button
-            type="button"
-            onPointerDown={(event) => runPointerControl(event, 'pause', onPause)}
-            onClick={() => runClickControl('pause', onPause)}
-            size="lg"
-            variant="outline"
-            className={cn('bg-white', actionButtonClass)}
-          >
-            {status === 'paused' ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-            {t(status === 'paused' ? 'resume' : 'pause')}
-          </Button>
-        ) : (
+        {isActive ? transportControl : (
           <Button
             type="button"
             onClick={onStart}
@@ -103,8 +113,11 @@ export function PracticeControls({
         )}
         <Button
           type="button"
-          onPointerDown={(event) => isActive && runPointerControl(event, 'finish', onFinish)}
-          onClick={() => isActive && runClickControl('finish', onFinish)}
+          onClick={() => {
+            if (isActive) {
+              onFinish();
+            }
+          }}
           variant="destructive"
           size="lg"
           disabled={!isActive}
@@ -118,7 +131,18 @@ export function PracticeControls({
 
       <TooltipProvider>
         <div className="flex flex-wrap items-center gap-2">
-          <PracticeToolPlaceholder icon={Timer} label={t('toolMetronome')} unavailableLabel={t('toolUnavailable')} />
+          {tempoSelection && onTempoSelectionChange ? (
+            <PracticeTempoPopover
+              tempoSelection={tempoSelection}
+              scoreTempoSegments={scoreTempoSegments}
+              scopeStartBeat={scopeStartBeat}
+              tempoLocked={tempoLocked ?? isActive}
+              onTempoSelectionChange={onTempoSelectionChange}
+              metronomeEnabled={metronomeEnabled}
+              onMetronomeEnabledChange={onMetronomeEnabledChange}
+            />
+          ) : null}
+
           <Button
             type="button"
             variant={rangeSelectionActive ? 'default' : 'outline'}
@@ -134,7 +158,7 @@ export function PracticeControls({
             <Repeat2 className="h-4 w-4" aria-hidden="true" />
             {t('rangeSelectionStart')}
           </Button>
-          <PracticeToolPlaceholder icon={Hand} label={t('toolHands')} unavailableLabel={t('toolUnavailable')} />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -152,33 +176,5 @@ export function PracticeControls({
         </div>
       </TooltipProvider>
     </div>
-  );
-}
-
-function PracticeToolPlaceholder({
-  icon: Icon,
-  label,
-  unavailableLabel,
-}: {
-  icon: typeof Timer;
-  label: string;
-  unavailableLabel: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <button
-            type="button"
-            disabled
-            className="flex h-11 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 disabled:cursor-not-allowed"
-          >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {label}
-          </button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{unavailableLabel}</TooltipContent>
-    </Tooltip>
   );
 }

@@ -27,7 +27,7 @@ export type SlurNotationControl = {
   readonly placement?: NotationPlacementOverride;
 };
 
-export type BeamNotationControl = {
+type BeamNotationControl = {
   readonly kind: 'beamNotation';
   readonly notationId: NotationId;
   readonly eventIds: readonly [EventId, ...EventId[]];

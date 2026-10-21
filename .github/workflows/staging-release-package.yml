@@ -15,10 +15,6 @@ on:
         description: "Optional full backend beat image reference override"
         required: false
         type: string
-      backend_practice_image:
-        description: "Optional full backend practice image reference override"
-        required: false
-        type: string
       backend_worker_image:
         description: "Optional full backend worker image reference override"
         required: false
@@ -79,7 +75,6 @@ jobs:
 
           BACKEND_API_IMAGE="${{ inputs.backend_api_image }}"
           BACKEND_BEAT_IMAGE="${{ inputs.backend_beat_image }}"
-          BACKEND_PRACTICE_IMAGE="${{ inputs.backend_practice_image }}"
           BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
           CUSTOMER_WEB_IMAGE="${{ inputs.customer_web_image }}"
           PLATFORM_ADMIN_IMAGE="${{ inputs.platform_admin_image }}"
@@ -90,9 +85,6 @@ jobs:
             fi
             if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
               BACKEND_BEAT_IMAGE="${IMAGE_NAMESPACE}/backend-beat:${IMAGE_TAG}"
-            fi
-            if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
-              BACKEND_PRACTICE_IMAGE="${IMAGE_NAMESPACE}/backend-practice:${IMAGE_TAG}"
             fi
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
@@ -121,9 +113,6 @@ jobs:
             if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
               BACKEND_BEAT_IMAGE="$(read_current_image backend_beat)"
             fi
-            if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
-              BACKEND_PRACTICE_IMAGE="$(read_current_image backend_practice)"
-            fi
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="$(read_current_image backend_worker)"
             fi
@@ -141,7 +130,6 @@ jobs:
             echo "IMAGE_TAG=${IMAGE_TAG}"
             echo "BACKEND_API_IMAGE=${BACKEND_API_IMAGE}"
             echo "BACKEND_BEAT_IMAGE=${BACKEND_BEAT_IMAGE}"
-            echo "BACKEND_PRACTICE_IMAGE=${BACKEND_PRACTICE_IMAGE}"
             echo "BACKEND_WORKER_IMAGE=${BACKEND_WORKER_IMAGE}"
             echo "CUSTOMER_WEB_IMAGE=${CUSTOMER_WEB_IMAGE}"
             echo "PLATFORM_ADMIN_IMAGE=${PLATFORM_ADMIN_IMAGE}"
@@ -195,7 +183,6 @@ jobs:
 
           BACKEND_API_IMAGE_DIGEST="$(inspect_digest "${BACKEND_API_IMAGE}")"
           BACKEND_BEAT_IMAGE_DIGEST="$(inspect_digest "${BACKEND_BEAT_IMAGE}")"
-          BACKEND_PRACTICE_IMAGE_DIGEST="$(inspect_digest "${BACKEND_PRACTICE_IMAGE}")"
           BACKEND_WORKER_IMAGE_DIGEST="$(inspect_digest "${BACKEND_WORKER_IMAGE}")"
           CUSTOMER_WEB_IMAGE_DIGEST="$(inspect_digest "${CUSTOMER_WEB_IMAGE}")"
           PLATFORM_ADMIN_IMAGE_DIGEST="$(inspect_digest "${PLATFORM_ADMIN_IMAGE}")"
@@ -203,13 +190,11 @@ jobs:
           {
             echo "BACKEND_API_IMAGE_DIGEST=${BACKEND_API_IMAGE_DIGEST}"
             echo "BACKEND_BEAT_IMAGE_DIGEST=${BACKEND_BEAT_IMAGE_DIGEST}"
-            echo "BACKEND_PRACTICE_IMAGE_DIGEST=${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_DIGEST=${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "CUSTOMER_WEB_IMAGE_DIGEST=${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_DIGEST=${PLATFORM_ADMIN_IMAGE_DIGEST}"
             echo "BACKEND_API_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_API_IMAGE}")@${BACKEND_API_IMAGE_DIGEST}"
             echo "BACKEND_BEAT_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_BEAT_IMAGE}")@${BACKEND_BEAT_IMAGE_DIGEST}"
-            echo "BACKEND_PRACTICE_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_PRACTICE_IMAGE}")@${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_WORKER_IMAGE}")@${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "CUSTOMER_WEB_IMAGE_PINNED=$(image_name_without_reference "${CUSTOMER_WEB_IMAGE}")@${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_PINNED=$(image_name_without_reference "${PLATFORM_ADMIN_IMAGE}")@${PLATFORM_ADMIN_IMAGE_DIGEST}"
@@ -222,7 +207,6 @@ jobs:
             --output build/k8s-release/staging \
             --backend-api-image "${BACKEND_API_IMAGE_PINNED}" \
             --backend-beat-image "${BACKEND_BEAT_IMAGE_PINNED}" \
-            --backend-practice-image "${BACKEND_PRACTICE_IMAGE_PINNED}" \
             --backend-worker-image "${BACKEND_WORKER_IMAGE_PINNED}" \
             --customer-web-image "${CUSTOMER_WEB_IMAGE_PINNED}" \
             --platform-admin-image "${PLATFORM_ADMIN_IMAGE_PINNED}" \
@@ -267,7 +251,6 @@ jobs:
               "images": {
                   "backend_api": os.environ["BACKEND_API_IMAGE_PINNED"],
                   "backend_beat": os.environ["BACKEND_BEAT_IMAGE_PINNED"],
-                  "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE_PINNED"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE_PINNED"],
                   "customer_web": os.environ["CUSTOMER_WEB_IMAGE_PINNED"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE_PINNED"],
@@ -275,7 +258,6 @@ jobs:
               "requested_images": {
                   "backend_api": os.environ["BACKEND_API_IMAGE"],
                   "backend_beat": os.environ["BACKEND_BEAT_IMAGE"],
-                  "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE"],
                   "customer_web": os.environ["CUSTOMER_WEB_IMAGE"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE"],
@@ -308,7 +290,6 @@ jobs:
             echo "- Image tag: \`${IMAGE_TAG}\`"
             echo "- Backend API image: \`${BACKEND_API_IMAGE_PINNED}\`"
             echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE_PINNED}\`"
-            echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE_PINNED}\`"
             echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE_PINNED}\`"
             echo "- Customer Web image: \`${CUSTOMER_WEB_IMAGE_PINNED}\`"
             echo "- Platform Admin image: \`${PLATFORM_ADMIN_IMAGE_PINNED}\`"

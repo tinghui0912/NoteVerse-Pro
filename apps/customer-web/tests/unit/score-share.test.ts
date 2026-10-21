@@ -11,8 +11,8 @@ function share(overrides: Partial<GrantRead> = {}): GrantRead {
   return {
     grant_id: 'grant',
     token: 'grant',
+    access_mode: 'PRACTICE',
     allow_download: true,
-    allow_practice: true,
     created_at: '2026-01-01T00:00:00Z',
     expires_at: null,
     revoked_at: null,

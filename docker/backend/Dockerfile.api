@@ -28,6 +28,7 @@ COPY backend/requirements/api.txt \
      backend/requirements/http.txt \
      backend/requirements/image.txt \
      backend/requirements/migrations.txt \
+     backend/requirements/practice-score.txt \
      backend/requirements/storage.txt \
      backend/requirements/tracing.txt \
      /tmp/requirements/
@@ -40,6 +41,7 @@ RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/storage /app/data/work
 
 COPY backend/ /app/
+RUN test ! -e /app/research
 
 EXPOSE 8000
 

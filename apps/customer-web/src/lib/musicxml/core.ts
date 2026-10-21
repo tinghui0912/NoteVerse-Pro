@@ -21,7 +21,7 @@ export const DURATION_MAP: Record<string, number> = {
 };
 
 /** Duration type to MusicXML <type> element value mapping */
-export const DURATION_TYPE_MAP: Record<string, string> = {
+const DURATION_TYPE_MAP: Record<string, string> = {
     durationWhole: 'whole',
     durationHalf: 'half',
     durationQuarter: 'quarter',
@@ -157,14 +157,6 @@ export function parsePitchString(pitchString: string): { step: string; alter: nu
 export function getDurationValue(durationType: string, divisions: number = 1): number {
     const baseDuration = DURATION_MAP[durationType] ?? 1;
     return baseDuration * divisions;
-}
-
-export function getEffectiveDurationValue(
-    durationType: string,
-    divisions: number = 1,
-    dotted: boolean = false
-): number {
-    return Math.round(getDurationValue(durationType, divisions) * (dotted ? 1.5 : 1));
 }
 
 /**

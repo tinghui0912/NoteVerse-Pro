@@ -1,5 +1,5 @@
-# Core backend quality image. This intentionally excludes practice alignment,
-# PaddleOCR, Legato, and other ML-only dependencies.
+# Core backend quality image. This intentionally excludes retired Practice
+# score-following, PaddleOCR, Legato, and other ML-only dependencies.
 -r api.txt
 -r beat.txt
 -r db.txt

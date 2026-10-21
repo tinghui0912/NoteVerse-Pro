@@ -24,12 +24,6 @@ WORKER_CONFIG_FILES = (
     Path("deploy/application/overlays/production/backend-worker-config.env"),
     Path("deploy/gitops/environments/staging/backend-worker-config.env"),
 )
-PRACTICE_CONFIG_FILES = (
-    Path("deploy/application/overlays/staging/backend-practice-config.env"),
-    Path("deploy/application/overlays/production/backend-practice-config.env"),
-    Path("deploy/gitops/environments/staging/backend-practice-config.env"),
-)
-
 WORKER_OWNED_KEYS = frozenset(
     {
         "CELERY_WORKER_CONCURRENCY",
@@ -52,26 +46,15 @@ WORKER_OWNED_KEYS = frozenset(
         "LEGATO_TIMEOUT_SECONDS",
     }
 )
-PRACTICE_OWNED_KEYS = frozenset(
-    {
-        "PRACTICE_AUDIO_DIAGNOSTICS",
-        "PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL",
-        "PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
-    }
-)
-
 KUSTOMIZATION_CONFIG_REFERENCES = {
     Path("deploy/application/overlays/staging/kustomization.yaml"): (
         "backend-worker-config.env",
-        "backend-practice-config.env",
     ),
     Path("deploy/application/overlays/production/kustomization.yaml"): (
         "backend-worker-config.env",
-        "backend-practice-config.env",
     ),
     Path("deploy/gitops/environments/staging/kustomization.yaml"): (
         "backend-worker-config.env",
-        "backend-practice-config.env",
     ),
 }
 MODEL_CACHE_AGENT_MANIFESTS = (
@@ -80,7 +63,6 @@ MODEL_CACHE_AGENT_MANIFESTS = (
 )
 MODEL_CACHE_AGENT_REQUIRED_CONFIGMAPS = (
     "noteverse-backend-worker-config",
-    "noteverse-backend-practice-config",
 )
 
 
@@ -120,7 +102,7 @@ def validate_required_files(paths: tuple[Path, ...]) -> list[Finding]:
 
 def validate_shared_backend_config() -> list[Finding]:
     findings: list[Finding] = []
-    forbidden_keys = WORKER_OWNED_KEYS | PRACTICE_OWNED_KEYS | {"PRACTICE_SOUNDFONT_PATH"}
+    forbidden_keys = WORKER_OWNED_KEYS
     for path in BACKEND_CONFIG_FILES:
         if not repo_path(path).is_file():
             continue
@@ -198,10 +180,9 @@ def print_findings(findings: list[Finding]) -> None:
 
 def main() -> int:
     findings: list[Finding] = []
-    findings.extend(validate_required_files(BACKEND_CONFIG_FILES + WORKER_CONFIG_FILES + PRACTICE_CONFIG_FILES))
+    findings.extend(validate_required_files(BACKEND_CONFIG_FILES + WORKER_CONFIG_FILES))
     findings.extend(validate_shared_backend_config())
     findings.extend(validate_role_config_files(WORKER_CONFIG_FILES, WORKER_OWNED_KEYS, "worker"))
-    findings.extend(validate_role_config_files(PRACTICE_CONFIG_FILES, PRACTICE_OWNED_KEYS | {"PRACTICE_SOUNDFONT_PATH"}, "practice"))
     findings.extend(validate_kustomization_references())
     findings.extend(validate_model_cache_agent_configmaps())
 

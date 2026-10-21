@@ -64,56 +64,6 @@ Prometheus discovery:
   - `app.kubernetes.io/part-of: noteverse`;
 - add a ServiceMonitor for `/metrics`.
 
-### `backend-practice`
-
-Purpose:
-
-- FastAPI HTTP/WebSocket service for realtime practice sessions;
-- browser audio alignment against the selected score revision;
-- practice session state transitions and practice reports.
-
-Runtime:
-
-- container command: `practice`;
-- container port: set `PORT` explicitly and expose the same port through the
-  Service;
-- HTTP paths:
-  - liveness: `/health/live`;
-  - readiness: `/health/ready`;
-  - metrics: `/metrics`;
-  - practice API prefix: `/api/v1/practice`.
-
-Boundary:
-
-- session creation stores only durable database state;
-- realtime alignment runtime is created by the pod that owns the WebSocket
-  connection;
-- the main `backend-api` workload must not import or serve the practice router.
-
-Required runtime dependencies:
-
-- async database connection;
-- Redis broker/result backend for shared readiness expectations;
-- storage access for canonical MusicXML sources;
-- practice soundfont and realtime alignment dependencies.
-
-Gateway routing:
-
-- route `/api/v1/practice` to `noteverse-backend-practice` before the broader
-  `/api/v1` backend API path;
-- WebSocket upgrades and long-lived responses must be supported without
-  buffering.
-
-Prometheus discovery:
-
-- expose a Service named by the future chart, for example
-  `noteverse-backend-practice`;
-- attach low-cardinality labels:
-  - `app.kubernetes.io/name: noteverse`;
-  - `app.kubernetes.io/component: backend-practice`;
-  - `app.kubernetes.io/part-of: noteverse`;
-- add a ServiceMonitor for `/metrics`.
-
 ### `backend-worker`
 
 Purpose:
@@ -193,8 +143,6 @@ Runtime:
 Required environment variables:
 
 - `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites;
-- `NEXT_PRACTICE_ORIGIN`: practice origin used by Next rewrites for
-  `/api/v1/practice/*`;
 - `AUTH_COOKIE_NAME`;
 - `REFRESH_COOKIE_NAME`.
 
@@ -207,10 +155,9 @@ Production frontend builds must fail fast when required runtime config is
 missing. Do not add fallback API origins, cookie names, or realtime URLs.
 
 Browser API and realtime calls use same-origin `/api/v1`. In production, the
-Gateway/HTTPRoute rules must route `/api/v1/practice` to the practice Service
-before routing the broader `/api/v1` prefix to the backend API. Long-lived SSE
-responses and WebSocket upgrades must be supported without buffering. This
-keeps Customer Web images environment-neutral and avoids baking public API origins
+Gateway/HTTPRoute rules route the broader `/api/v1` prefix to the backend API.
+Long-lived SSE responses must be supported without buffering. This keeps
+Customer Web images environment-neutral and avoids baking public API origins
 into the browser bundle.
 
 ## Configuration Ownership
@@ -281,14 +228,9 @@ role-specific ConfigMaps for runtime-owned settings:
   - `LEGATO_BEAM_SIZE`;
   - `LEGATO_BATCH_SIZE`;
   - `LEGATO_TIMEOUT_SECONDS`;
-- Practice ConfigMap:
-  - `PRACTICE_SOUNDFONT_PATH`;
-  - `PRACTICE_AUDIO_DIAGNOSTICS`;
-  - `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL`;
-  - `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL`;
 - model-cache agent:
-  - consumes the shared backend, Worker/model-asset, and Practice ConfigMaps;
-  - prepares and verifies both playback and Practice soundfont targets before
+  - consumes the shared backend and Worker/model-asset ConfigMaps;
+  - prepares and verifies playback soundfont targets before
     application pods rely on the node-local model cache;
   - overrides Hugging Face offline flags to online mode only for controlled
     cache hydration.
@@ -302,7 +244,6 @@ role-specific ConfigMaps for runtime-owned settings:
   - `CONTROL_PLANE_CORS_ORIGINS`;
 - frontend ConfigMap:
   - `NEXT_BACKEND_ORIGIN`;
-  - `NEXT_PRACTICE_ORIGIN`;
   - public cookie/header names consumed by the browser application;
 - versioned algorithm profiles:
   - LEGATO engine/model identity and Verovio SVG output options are sourced

@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  findNoteElementsByMeta,
-  parseXml,
-} from '@/lib/musicxml';
+import { parseXml } from '@/lib/musicxml';
 import { orderConnectionEndpoints } from '@/lib/musicxml/connection-targets';
 import { extractPitch, isDottedDuration, parseDuration } from '@/lib/musicxml/parser-values';
 import type { EntityMeta } from '@/types/score-types';
@@ -29,13 +24,6 @@ describe('MusicXML parser value boundary', () => {
 });
 
 describe('MusicXML connection target boundary', () => {
-  it('resolves an entity and all of its chord note elements', () => {
-    const xml = readFileSync(resolve('tests', 'fixtures', 'musicxml', 'chords-voices.musicxml'), 'utf8');
-    const document = parseXml(xml);
-    expect(findNoteElementsByMeta(document, 0, 0, 1, 0)).toHaveLength(2);
-    expect(findNoteElementsByMeta(document, 0, 1, 5, 0)).toHaveLength(1);
-  });
-
   it('orders connection endpoints by measure and tick', () => {
     const later = { measureIndex: 1, startTick: 0 } as EntityMeta;
     const earlier = { measureIndex: 0, startTick: 8 } as EntityMeta;

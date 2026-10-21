@@ -15,7 +15,7 @@ RUN apt-get update -o Acquire::Retries=3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the Beat dependency closure only. This keeps scheduler image rebuilds
-# isolated from API, practice, and worker dependency changes.
+# isolated from API and worker dependency changes.
 COPY backend/requirements/beat.txt \
      backend/requirements/cache.txt \
      backend/requirements/celery.txt \
@@ -30,6 +30,7 @@ RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/work
 
 COPY backend/ /app/
+RUN test ! -e /app/research
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
 CMD ["beat"]

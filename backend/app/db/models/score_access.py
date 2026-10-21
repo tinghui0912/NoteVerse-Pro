@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -41,6 +42,11 @@ class InviteStatus(str, enum.Enum):
 class PublicationStatus(str, enum.Enum):
     PUBLISHED = "PUBLISHED"
     UNPUBLISHED = "UNPUBLISHED"
+
+
+class ScoreAudienceAccessMode(str, enum.Enum):
+    VIEW = "VIEW"
+    PRACTICE = "PRACTICE"
 
 
 class AccessOrigin(str, enum.Enum):
@@ -136,6 +142,10 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         Index("idx_score_share_grants_score_created", "score_id", "created_at"),
         Index("idx_score_share_grants_token_hash", "token_hash", unique=True),
+        CheckConstraint(
+            "access_mode IN ('VIEW', 'PRACTICE')",
+            name="ck_score_share_grants_access_mode",
+        ),
     )
 
     id: Optional[int] = Field(
@@ -158,9 +168,13 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
     )
-    allow_practice: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
+    access_mode: str = Field(
+        default=ScoreAudienceAccessMode.PRACTICE.value,
+        sa_column=Column(
+            String(16),
+            default=ScoreAudienceAccessMode.PRACTICE.value,
+            nullable=False,
+        ),
     )
     expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
@@ -208,6 +222,10 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
             name="fk_score_publications_revision",
         ),
         Index("idx_score_publications_status", "status"),
+        CheckConstraint(
+            "access_mode IN ('VIEW', 'PRACTICE')",
+            name="ck_score_publications_access_mode",
+        ),
     )
 
     id: Optional[int] = Field(
@@ -231,9 +249,13 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
     )
-    allow_practice: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
+    access_mode: str = Field(
+        default=ScoreAudienceAccessMode.PRACTICE.value,
+        sa_column=Column(
+            String(16),
+            default=ScoreAudienceAccessMode.PRACTICE.value,
+            nullable=False,
+        ),
     )
     published_by_user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)

@@ -1,4 +1,4 @@
-export type TupletRatio = { actual: number; normal: number };
+type TupletRatio = { actual: number; normal: number };
 
 export type NotatedDuration = {
   type: string | null;

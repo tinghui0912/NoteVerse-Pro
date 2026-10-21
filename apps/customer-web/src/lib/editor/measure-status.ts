@@ -2,9 +2,9 @@ import type { ScoreData, ParsedScoreEvent } from '@/types/score-types';
 import { getEntityDurationTicks, getMeasureDurationTicks } from './measure-timeline';
 import { parseVoiceNumber } from './tracks';
 
-export type DirtyMeasureKind = 'underfill' | 'overflow';
+type DirtyMeasureKind = 'underfill' | 'overflow';
 
-export type DirtyMeasureVoiceStatus = {
+type DirtyMeasureVoiceStatus = {
   measureIndex: number;
   measureNumber: number;
   staveIndex: number;

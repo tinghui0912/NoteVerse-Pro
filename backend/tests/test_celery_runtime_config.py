@@ -64,17 +64,17 @@ def test_playback_delivery_maintenance_is_scheduled() -> None:
     assert schedule["schedule"] == float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
-def test_practice_replay_object_deletion_maintenance_is_scheduled() -> None:
+def test_performance_take_deletion_maintenance_is_scheduled() -> None:
     schedule = celery_app.conf.beat_schedule[
-        "practice-replay-object-deletion-maintenance"
+        "performance-take-deletion-maintenance"
     ]
 
     assert (
         schedule["task"]
-        == "app.worker.tasks.run_practice_replay_object_deletion_maintenance"
+        == "app.worker.tasks.run_performance_take_deletion_maintenance"
     )
     assert schedule["schedule"] == float(
-        settings.PRACTICE_REPLAY_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
+        settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
     )
 
 

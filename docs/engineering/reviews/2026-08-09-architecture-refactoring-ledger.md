@@ -25,7 +25,7 @@ historical finding is not an indication that the item is still open.
 | ARC-003 | Partially complete | Backend realtime alignment is no longer the largest hotspot; next measured candidates are Customer Web `event-inspector.tsx`, `editor-preview-panel.tsx`, and `musicxml/parser.ts`. |
 | ARC-004 | Partially complete | Backend service hotspots have named collaborators and stop points; continue only for measured backend services with a clear business boundary and direct tests. |
 | ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
-| ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
+| ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission and canonical score delivery. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
 | ARC-008 | Complete | Keep Action SHAs immutable and let Dependabot propose reviewed updates. |
 | ARC-009 | Complete | Keep the Markdown-link validator required for documentation changes. |
@@ -34,7 +34,7 @@ historical finding is not an indication that the item is still open.
 | ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
 | ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
 | ARC-014 | Complete | Maintain deployment source/GitOps/observability documentation as deployment topology changes. |
-| ARC-015 | Complete | Maintain the strict Practice WebSocket v1 schema, generated artifact, runtime validators, and compatibility policy for each protocol change. |
+| ARC-015 | Complete | Practice execution is browser-local; maintain its current product contract and ordinary behavior tests. |
 | ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
 
 ## Original confirmed findings (historical baseline)
@@ -1227,8 +1227,9 @@ merely to eliminate small dispatch branches.
 - Moved model cache paths, PaddleOCR/LEGATO runtime locations, Hugging Face
   offline runtime flags, PaddleOCR timeout, and Worker concurrency out of the
   broad `backend-config.env` files into `backend-worker-config.env`.
-- Moved Practice soundfont path and Practice diagnostics toggles out of the
-  broad `backend-config.env` files into `backend-practice-config.env`.
+- Moved the then-server-side practice soundfont path and diagnostics toggles
+  out of the broad `backend-config.env` files into the role-specific practice
+  config file used at that time.
 - Kept the model-cache agent's online Hugging Face overrides inline because
   cache warming/download has different runtime semantics from normal offline
   Worker execution.

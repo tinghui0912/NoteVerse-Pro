@@ -26,27 +26,20 @@ http://localhost:3000
 the host-process development server, not both at once.
 
 Customer Web uses same-origin `/api/v1/*` for browser API and realtime traffic.
-In local development, Next.js rewrites regular API traffic to the backend API
-and practice traffic to the practice service. `NEXT_BACKEND_ORIGIN` and
-`NEXT_PRACTICE_ORIGIN` are required in `.env.docker`:
+In local development, Next.js rewrites API traffic to the backend API.
+`NEXT_BACKEND_ORIGIN` is required in `.env.docker`:
 
 ```text
 NEXT_BACKEND_ORIGIN=http://host.docker.internal:8000
-NEXT_PRACTICE_ORIGIN=http://host.docker.internal:8001
 ```
 
 This points to the backend API running on the Windows host or in the backend
 Docker profile published to port `8000`.
 
-In Kubernetes, route `/api/v1/practice` to the practice service before the
-broader `/api/v1` backend API route so browser requests do not depend on
-environment-specific public JavaScript configuration.
-
 For LAN device testing, configure the Customer Web dev server with the LAN host:
 
 ```powershell
 $env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
-$env:NEXT_PRACTICE_ORIGIN='http://localhost:8001'
 $env:NEXT_ALLOWED_DEV_ORIGINS='192.168.31.59'
 npm run dev
 ```

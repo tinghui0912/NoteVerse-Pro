@@ -9,37 +9,33 @@ import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { PracticeFollowController } from '@/lib/practice/follow-controller';
+import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import {
+  PerformanceAnnotationController,
+  noteAnnotationsFromContinuousEvaluation,
+} from '@/lib/practice/performance-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type {
-  PracticeAlignmentUpdateMessage,
-  PracticePerformanceClockPayload,
-  PracticePerformanceTimelinePayload,
-} from '@/lib/practice/protocol';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-types';
+
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
 
 type PracticeScoreViewerProps = {
   className?: string;
   sessionStatus?: ReactNode;
   xmlContent: string | null;
   isLoadingXml: boolean;
-  practiceStatus:
-    | 'idle'
-    | 'connecting'
-    | 'listening'
-    | 'practicing'
-    | 'paused'
-    | 'finishing'
-    | 'finished';
-  alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
-  performanceClockSync?: PracticePerformanceClockPayload | null;
-  performanceTimeline?: PracticePerformanceTimelinePayload | null;
-  sessionMode: PracticeSessionMode;
+  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  sessionMode: PracticeMode;
+  activeStepGroup?: ExpectedPracticeGroup | null;
+  performanceMusicalBeat?: number | null;
+  performanceScope?: CursorScope | null;
+  performanceEvaluation?: ContinuousEvaluationSnapshot | null;
   selectedRangeRenderNoteIds?: readonly string[];
-  selectedRangeStartRenderNoteIds?: readonly string[];
-  selectedRangeEndRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
 
@@ -48,26 +44,37 @@ export function PracticeScoreViewer({
   sessionStatus = null,
   xmlContent,
   isLoadingXml,
-  practiceStatus,
-  alignment = null,
-  performanceClockSync = null,
-  performanceTimeline = null,
+  lifecycle,
   sessionMode,
+  activeStepGroup = null,
+  performanceMusicalBeat = null,
+  performanceScope = null,
+  performanceEvaluation = null,
   selectedRangeRenderNoteIds = [],
-  selectedRangeStartRenderNoteIds = [],
-  selectedRangeEndRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
   const isMobile = useIsMobile();
   const tPractice = useTranslations('practice');
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
-  const followController = useMemo(() => new PracticeFollowController(), []);
+  const stepPlayheadController = useMemo(() => new StepPlayheadController(), []);
   const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
+  const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
+  const performanceAnnotationSignature = useMemo(
+    () =>
+      (performanceEvaluation?.groups ?? [])
+        .map((group) => [
+          group.groupId,
+          group.verdict,
+          group.strikes.map(strike => `${strike.strikeId}:${strike.state}:${strike.renderNoteIds.join(',')}`).join(';'),
+        ].join(':'))
+        .join('\u001f'),
+    [performanceEvaluation]
+  );
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -82,28 +89,28 @@ export function PracticeScoreViewer({
       return;
     }
 
-    const shouldClearFollowState =
+    const shouldClear =
       sessionMode !== 'STEP_BY_STEP' ||
-      !alignment ||
+      !activeStepGroup ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle';
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED');
 
-    if (shouldClearFollowState) {
-      followController.clear(container);
+    if (shouldClear) {
+      stepPlayheadController.clear(container);
       return;
     }
 
-    followController.apply(container, adapter, alignment);
+    stepPlayheadController.apply(container, adapter, activeStepGroup);
     const frame = window.requestAnimationFrame(() => {
-      followController.refreshDecorations(container);
+      stepPlayheadController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [
     adapter,
-    alignment,
-    followController,
-    practiceStatus,
+    activeStepGroup,
+    stepPlayheadController,
+    lifecycle,
     renderRevision,
     sessionMode,
     xmlContent,
@@ -114,11 +121,40 @@ export function PracticeScoreViewer({
     if (
       !container ||
       sessionMode !== 'CONTINUOUS_PLAY' ||
-      !performanceClockSync ||
+      !xmlContent ||
+      renderRevision === 0
+    ) {
+      if (container) {
+        annotationController.clear(container);
+      }
+      return;
+    }
+
+    annotationController.apply(
+      container,
+      performanceEvaluation
+        ? noteAnnotationsFromContinuousEvaluation(performanceEvaluation)
+        : { confirmedCorrectNoteIds: [], confirmedErrorNoteIds: [] },
+      { renderRevision }
+    );
+  }, [
+    annotationController,
+    performanceAnnotationSignature,
+    performanceEvaluation,
+    renderRevision,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (
+      !container ||
+      sessionMode !== 'CONTINUOUS_PLAY' ||
+      performanceMusicalBeat === null ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished'
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
     ) {
       if (container) {
         performancePlayheadController.clear(container);
@@ -126,34 +162,23 @@ export function PracticeScoreViewer({
       return;
     }
 
-    if (performanceTimeline) {
-      performancePlayheadController.receiveTimeline(performanceTimeline);
+    const scope = performanceScope;
+    if (!scope) {
+      performancePlayheadController.clear(container);
+      return;
     }
-    const rangeNoteIds = selectedRangeRenderNoteIdSignature
-      ? selectedRangeRenderNoteIdSignature.split('\u001f')
-      : [];
-    performancePlayheadController.receiveSelectedRangeNoteIds(rangeNoteIds);
-    performancePlayheadController.receiveSync(performanceClockSync);
-    let frame: number | null = null;
-    const renderPlayhead = () => {
-      performancePlayheadController.apply(container, adapter);
-      if (performanceClockSync.state === 'COUNT_IN' || performanceClockSync.state === 'RUNNING') {
-        frame = window.requestAnimationFrame(renderPlayhead);
-      }
-    };
-
-    frame = window.requestAnimationFrame(renderPlayhead);
-    return () => {
-      if (frame !== null) {
-        window.cancelAnimationFrame(frame);
-      }
-    };
+    performancePlayheadController.apply(
+      container,
+      adapter,
+      performanceMusicalBeat,
+      scope
+    );
   }, [
     adapter,
-    performanceClockSync,
-    performanceTimeline,
+    performanceMusicalBeat,
+    performanceScope,
     performancePlayheadController,
-    practiceStatus,
+    lifecycle,
     renderRevision,
     selectedRangeRenderNoteIdSignature,
     sessionMode,
@@ -178,6 +203,8 @@ export function PracticeScoreViewer({
         frame = null;
         clearRangeBackgrounds(container);
         applyRangeBackgrounds(container, rangeNoteIds);
+        clearRangeClasses(container);
+        applyRangeClasses(container, rangeNoteIds);
       });
     };
 
@@ -204,25 +231,29 @@ export function PracticeScoreViewer({
         window.cancelAnimationFrame(frame);
       }
       clearRangeBackgrounds(container);
+      clearRangeClasses(container);
     };
-  }, [renderRevision, selectedRangeRenderNoteIdSignature, xmlContent]);
+  }, [
+    renderRevision,
+    selectedRangeRenderNoteIdSignature,
+    xmlContent,
+  ]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (
       !container ||
-      !alignment ||
+      !activeStepGroup ||
       sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished'
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
     ) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      followController.refreshDecorations(container);
+      stepPlayheadController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
   });
@@ -240,51 +271,60 @@ export function PracticeScoreViewer({
         className
       )}
       data-practice-range-note-ids={selectedRangeRenderNoteIds.join(',')}
-      data-practice-range-start-note-ids={selectedRangeStartRenderNoteIds.join(',')}
-      data-practice-range-end-note-ids={selectedRangeEndRenderNoteIds.join(',')}
     >
       <style jsx global>{`
         .practice-score-svg-selectable svg {
           cursor: crosshair;
         }
         .practice-score-svg-selectable [data-class='note'],
-        .practice-score-svg-selectable .note {
-          pointer-events: bounding-box;
+        .practice-score-svg-selectable .note,
+        .practice-score-svg-selectable [data-class='chord'],
+        .practice-score-svg-selectable .chord {
+          cursor: pointer;
+        }
+        .practice-score-svg-selectable .note *,
+        .practice-score-svg-selectable [data-class='note'] *,
+        .practice-score-svg-selectable .chord *,
+        .practice-score-svg-selectable [data-class='chord'] * {
+          pointer-events: auto;
         }
         .practice-score-svg .practice-range-background {
-          fill: rgb(251 191 36 / 10%);
-          stroke: rgb(245 158 11 / 34%);
-          stroke-width: 1.2px;
-          pointer-events: none;
+          fill: rgb(251 191 36 / 15%);
+          stroke: rgb(245 158 11 / 40%);
+          stroke-width: 1.5px;
+          pointer-events: none !important;
         }
-        .practice-score-svg .practice-note-active {
-          fill: #f97316 !important;
-          stroke: #ea580c !important;
-          stroke-width: 2px !important;
-          opacity: 1 !important;
-          filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.65));
-        }
-        .practice-score-svg .practice-note-active use,
-        .practice-score-svg .practice-note-active path,
-        .practice-score-svg .practice-note-active ellipse,
-        .practice-score-svg .practice-note-active circle,
-        .practice-score-svg .practice-note-active polygon,
-        .practice-score-svg .practice-note-active rect,
-        .practice-score-svg .practice-note-active line,
-        .practice-score-svg .practice-note-active polyline,
-        .practice-score-svg .practice-note-active .stem,
-        .practice-score-svg .practice-note-active .flag,
-        .practice-score-svg .practice-note-active .beam,
-        .practice-score-svg .practice-note-active .notehead {
-          fill: #f97316 !important;
-          stroke: #ea580c !important;
+        .practice-score-svg .practice-range-selected {
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-note-active .practice-range-background {
-          fill: rgb(251 191 36 / 10%) !important;
-          stroke: rgb(245 158 11 / 34%) !important;
-          stroke-width: 1.2px !important;
-          filter: none !important;
+        .practice-score-svg .practice-playhead-cursor {
+          stroke-width: 1.5px;
+          pointer-events: none !important;
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='treble'] {
+          fill: rgb(125 211 252 / 24%);
+          stroke: rgb(14 165 233 / 48%);
+          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
+          fill: rgb(251 191 36 / 22%);
+          stroke: rgb(245 158 11 / 46%);
+          filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+          fill: rgb(148 163 184 / 20%);
+          stroke: rgb(100 116 139 / 44%);
+          filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
+        }
+        .practice-score-svg .practice-summary-note-confirmed-correct {
+          fill: #16a34a !important;
+          stroke: #15803d !important;
+          opacity: 1 !important;
+        }
+        .practice-score-svg .practice-summary-note-confirmed-error {
+          fill: #dc2626 !important;
+          stroke: #b91c1c !important;
+          opacity: 1 !important;
         }
         .practice-score-svg svg {
           display: block;
@@ -350,6 +390,20 @@ function cssStringLiteral(value: string) {
   return JSON.stringify(value);
 }
 
+function escapeCssId(id: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(id);
+  }
+  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+}
+
+function findElementByVerovioId(container: HTMLElement, verovioId: string): SVGGraphicsElement | null {
+  return (
+    container.querySelector<SVGGraphicsElement>(`[data-id=${cssStringLiteral(verovioId)}]`) ??
+    container.querySelector<SVGGraphicsElement>(`#${escapeCssId(verovioId)}`)
+  );
+}
+
 function clearRangeBackgrounds(container: HTMLElement) {
   container
     .querySelectorAll('[data-practice-range-background]')
@@ -374,9 +428,7 @@ function applyRangeBackgrounds(
 ) {
   const systemBoxes = new Map<SVGGraphicsElement, DOMRect>();
   for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
-    const note = container.querySelector<SVGGraphicsElement>(
-      `[data-id=${cssStringLiteral(noteId)}]`
-    );
+    const note = findElementByVerovioId(container, noteId);
     if (!note || typeof note.getBBox !== 'function') {
       continue;
     }
@@ -442,5 +494,24 @@ function rangeVerticalBox(layer: SVGGraphicsElement, rangeBox: DOMRect): DOMRect
     });
   } catch {
     return rangeBox;
+  }
+}
+
+function clearRangeClasses(container: HTMLElement) {
+  container
+    .querySelectorAll('.practice-range-selected')
+    .forEach((element) => element.classList.remove('practice-range-selected'));
+  container
+    .querySelectorAll('.practice-range-boundary')
+    .forEach((element) => element.classList.remove('practice-range-boundary'));
+}
+
+function applyRangeClasses(
+  container: HTMLElement,
+  selectedNoteIds: readonly string[]
+) {
+  for (const id of Array.from(new Set(selectedNoteIds.filter(Boolean)))) {
+    const el = findElementByVerovioId(container, id);
+    el?.classList.add('practice-range-selected');
   }
 }

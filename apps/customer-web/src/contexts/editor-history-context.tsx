@@ -45,14 +45,6 @@ export function useHistory() {
     return context;
 }
 
-/**
- * Returns the commonly used undo/redo controls.
- */
-export function useHistoryControl() {
-    const { canUndo, canRedo, undo, redo } = useHistory();
-    return { canUndo, canRedo, undo, redo };
-}
-
 interface HistoryProviderProps {
     children: React.ReactNode;
     maxHistorySize?: number;

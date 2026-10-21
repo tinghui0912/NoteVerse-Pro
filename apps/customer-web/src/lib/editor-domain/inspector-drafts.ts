@@ -33,7 +33,7 @@ import type {
 import type { StemDirectionOverride } from './notation-model';
 import { createAppendedNoteAtomIdentity } from './note-atom-identity';
 
-export type PitchedEventInspectorDraft = {
+type PitchedEventInspectorDraft = {
   readonly kind: 'pitchedEvent';
   readonly eventId: EventId;
   readonly voiceId?: VoiceId;
@@ -43,7 +43,7 @@ export type PitchedEventInspectorDraft = {
   readonly notes?: readonly NoteAtom[];
 };
 
-export type NoteAtomInspectorDraft = {
+type NoteAtomInspectorDraft = {
   readonly kind: 'noteAtom';
   readonly eventId: EventId;
   readonly noteAtomId: NoteAtomId;
@@ -52,24 +52,24 @@ export type NoteAtomInspectorDraft = {
   readonly fingering?: string | null;
 };
 
-export type AppendNoteAtomInspectorDraft = {
+type AppendNoteAtomInspectorDraft = {
   readonly kind: 'appendNoteAtom';
   readonly eventId: EventId;
   readonly pitch: Pitch;
 };
 
-export type RemoveNoteAtomInspectorDraft = {
+type RemoveNoteAtomInspectorDraft = {
   readonly kind: 'removeNoteAtom';
   readonly eventId: EventId;
   readonly noteAtomId: NoteAtomId;
 };
 
-export type DeleteEventInspectorDraft = {
+type DeleteEventInspectorDraft = {
   readonly kind: 'deleteEvent';
   readonly eventId: EventId;
 };
 
-export type ExplicitRestInspectorDraft = {
+type ExplicitRestInspectorDraft = {
   readonly kind: 'explicitRest';
   readonly eventId: EventId;
   readonly voiceId?: VoiceId;
@@ -78,7 +78,7 @@ export type ExplicitRestInspectorDraft = {
   readonly rhythm?: RhythmicValue;
 };
 
-export type TimelineGapInspectorDraft =
+type TimelineGapInspectorDraft =
   | {
       readonly kind: 'timelineGap';
       readonly source: TimelineGapInspectorViewModel;
@@ -92,7 +92,7 @@ export type TimelineGapInspectorDraft =
       readonly rhythm: RhythmicValue;
     };
 
-export type DerivedRestInspectorDraft =
+type DerivedRestInspectorDraft =
   | {
       readonly kind: 'derivedRest';
       readonly source: DerivedRestInspectorViewModel;

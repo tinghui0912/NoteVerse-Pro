@@ -97,8 +97,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * Check the existing session on initialization.
    */
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    let cancelled = false;
+    void profileApi.getProfile({ suppressAuthRedirect: true })
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data?.user) {
+          const mappedUser = mapApiUser(response.data.user);
+          setUser(mappedUser);
+          setIsAuthenticated(true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // Clear local auth state when the token is invalid.
+        if (error instanceof ApiError && error.status === 401) {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Log in with email and password.
@@ -202,5 +227,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export default AuthContext;

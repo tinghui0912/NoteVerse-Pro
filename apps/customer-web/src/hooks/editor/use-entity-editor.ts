@@ -19,11 +19,8 @@ import {
 } from '@/lib/editor-domain';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { applyEditorDomainEditToXml } from './use-editor-domain-edit';
-import {
-    applyAddModeDomainInsert,
-    createDefaultAddModeInsertCommand,
-    type AddModeInsertCommand,
-} from './entity-editor';
+import { createDefaultAddModeInsertCommand, type AddModeInsertCommand } from './entity-editor/add-mode-command';
+import { applyAddModeDomainInsert } from './entity-editor/add-mode-domain-insert';
 
 function findInsertedSourceIds(data: ReturnType<MusicXMLParser['parse']>, insertedEntityId: string): string[] {
     const entity = data.measures

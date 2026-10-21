@@ -1,4 +1,4 @@
-export type RealtimeEventType =
+type RealtimeEventType =
   | 'notification.created'
   | 'score.revision.created'
   | 'score.derived_asset.updated'

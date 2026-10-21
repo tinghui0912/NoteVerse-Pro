@@ -71,13 +71,6 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api/v1/practice
-      backendRefs:
-        - name: noteverse-backend-practice
-          port: 8000
-    - matches:
-        - path:
-            type: PathPrefix
             value: /api/v1
       backendRefs:
         - name: noteverse-backend-api

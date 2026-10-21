@@ -1,0 +1,50 @@
+# Shared Practice Acoustic Foundation
+
+STEP_BY_STEP and CONTINUOUS_PLAY use this browser-local, score-blind foundation
+for microphone analysis. Browser capability detection checks runtime prerequisites;
+physical-device recognition quality, permissions and latency require separate
+product qualification.
+
+## Modules
+
+- `model/`: verified Robust asset loading, one ORT 1.20.1 WebGPU session/Worker,
+  transaction-local raw output interpretation and decoder A.
+- `source/`: 44.1k/48k FIR adapters, PCM Worklet/credits, capture chronology,
+  analysis-clone ownership and infrastructure-loss facts.
+- `runtime/`: source-domain analysis regions, real-context windows, bounded target
+  PCM ring and sequential inference queue, immutable source observations.
+- `continuous/`: BEGIN/PAUSE/TERMINAL scheduling, source-to-performance projection,
+  stable product observation IDs and exact terminal-T coverage.
+
+The foundation receives source samples and regions, without score targets, BPM,
+playhead, verdicts or product lifecycle ownership. Continuous projection introduces
+performance coordinates. STEP consumes source observations through its H50 assembler.
+Raw tensors remain inside the inference transaction. One capture stream uses one
+model session.
+
+## Model Identity
+
+The model is `practice-acoustic-robust-browser@v1`, served by
+`/model-assets/practice-acoustic-robust-browser-v1/access`. Download and OPFS reads
+verify 98,689,283 bytes and SHA256
+`4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3`.
+FIR assets are under `public/model-assets/practice-acoustic/`.
+`model/robust-piano-decoder.ts` consumes the transaction-local raw output contract
+and explicit onset/frame thresholds .30/.05 from `model-contract.ts`.
+
+## Ownership, Clock and Bounds
+
+Product controllers own the root stream and AudioContext; analysis owns its clone.
+Continuous uses the session AudioContext for transport, capture and metronome.
+Pause PCM is context-only; resume preserves exact source/performance anchors.
+Only terminal real-tail drain publishes the empty exact-T coverage handshake.
+Healthy-context analysis failure stops analysis only; product controllers interpret
+infrastructure-loss facts.
+
+Target PCM retains 65,536 float32 samples. At most four queued/active model inputs
+retain 465,920 bytes, with a separately bounded transport/active copy. The fifth
+ready input fails before allocation. Worklet transport permits 32 unacknowledged
+blocks of at most 2,048 samples. At most four undrained source regions and eight
+Continuous scheduled boundaries are allowed. Diagnostics retain 32 compact metadata
+records without event arrays. Analysis memory is bounded independently of optional
+user recording; these limits are not a total JS/ORT/GPU heap or UX latency guarantee.
