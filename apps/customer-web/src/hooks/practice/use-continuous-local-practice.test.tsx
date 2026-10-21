@@ -8,6 +8,7 @@ import { ContinuousPracticeController, type ContinuousControllerSnapshot } from 
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import { useContinuousLocalPractice } from './use-continuous-local-practice';
+import { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
@@ -51,7 +52,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   const resume = vi.spyOn(ContinuousPracticeController.prototype, 'resume').mockImplementation(() => {});
   const finish = vi.spyOn(ContinuousPracticeController.prototype, 'finish').mockResolvedValue();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
-  const barrier = { current: Promise.resolve() };
+  const barrier = new PracticeResourceCoordinator();
   const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
   await act(async () => { await result.current.start(); await result.current.start(); });
   expect(owner.start).toHaveBeenCalledOnce(); expect(owner.subscribe).toHaveBeenCalledOnce();
@@ -68,7 +69,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   act(() => result.current.setMetronomeEnabled(true));
   expect(pause).toHaveBeenCalledOnce(); expect(resume).toHaveBeenCalledOnce(); expect(finish).toHaveBeenCalledOnce();
   expect(metronome).toHaveBeenCalledWith(true);
-  unmount(); await barrier.current;
+  unmount(); await barrier.waitForRelease();
   expect(owner.unsubscribe).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
   expect(owner.events).toEqual(['unsubscribe', 'dispose']); expect(cancel).toHaveBeenCalledOnce();
 });
@@ -77,7 +78,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   const owner = ownerMocks(), preparation = deferred(), release = deferred();
   owner.start.mockReturnValueOnce(preparation.promise);
   owner.dispose.mockReturnValueOnce(release.promise);
-  const barrier = { current: Promise.resolve() };
+  const barrier = new PracticeResourceCoordinator();
   const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
     { initialProps: options });
   let starting!: Promise<void>;
@@ -89,7 +90,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   else rerender({ ...options, inputSource: 'MICROPHONE' });
   expect(owner.unsubscribe).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
   let released = false;
-  const waiting = barrier.current.then(() => { released = true; });
+  const waiting = barrier.waitForRelease().then(() => { released = true; });
   await act(async () => { release.resolve(); });
   expect(released).toBe(false);
   const snapshotReads = owner.snapshots.mock.calls.length;
@@ -109,7 +110,7 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   owner.start.mockReturnValueOnce(preparation.promise);
   owner.dispose.mockReturnValueOnce(release.promise);
   const clear = vi.spyOn(completedPerformanceStore, 'clearPerformance');
-  const barrier = { current: Promise.resolve() };
+  const barrier = new PracticeResourceCoordinator();
   const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
   let starting!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
@@ -124,6 +125,41 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   expect(owner.start.mock.contexts[1]).not.toBe(first);
   expect(owner.subscribe).toHaveBeenCalledTimes(2);
   expect(owner.subscribe.mock.contexts[1]).toBe(owner.start.mock.contexts[1]);
-  unmount(); await barrier.current;
+  unmount(); await barrier.waitForRelease();
   expect(owner.dispose).toHaveBeenCalledTimes(2); expect(owner.unsubscribe).toHaveBeenCalledTimes(2);
+});
+
+it('uses the latest completion callback and metronome option without replacing the owner', async () => {
+  const owner = ownerMocks(), first = vi.fn(), latest = vi.fn();
+  const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
+  const barrier = new PracticeResourceCoordinator();
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+    { initialProps: { ...options, onCompletion: first, metronomeEnabled: false } });
+  await act(async () => { await result.current.start(); });
+  const controller = owner.start.mock.contexts[0] as ContinuousPracticeController;
+  // Simulate the controller's completion notification at its existing callback boundary.
+  const completion = Reflect.get(controller, 'options').onCompletion;
+  rerender({ ...options, onCompletion: latest, metronomeEnabled: true });
+  const completed = { localSessionId: 'latest-completion' };
+  act(() => completion(completed));
+  expect(first).not.toHaveBeenCalled();
+  expect(latest).toHaveBeenCalledExactlyOnceWith(completed);
+  expect(owner.start).toHaveBeenCalledOnce(); expect(owner.dispose).not.toHaveBeenCalled();
+  expect(metronome).toHaveBeenLastCalledWith(true);
+  unmount(); await barrier.waitForRelease();
+});
+
+it('does not restore a previous snapshot when an input identity is revisited', async () => {
+  const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+    { initialProps: options });
+  await act(async () => { await result.current.start(); });
+  act(() => owner.publish({ ...owner.snapshot(), inputError: 'PREVIOUS_OWNER' }));
+  expect(result.current.inputError).toBe('PREVIOUS_OWNER');
+  rerender({ ...options, inputSource: 'MICROPHONE' });
+  expect(result.current.inputState).toBe('IDLE');
+  rerender(options);
+  expect(result.current).toMatchObject({ lifecycle: 'READY', inputState: 'IDLE', inputError: null, performanceClock: null });
+  expect(owner.start).toHaveBeenCalledOnce();
+  unmount(); await barrier.waitForRelease();
 });

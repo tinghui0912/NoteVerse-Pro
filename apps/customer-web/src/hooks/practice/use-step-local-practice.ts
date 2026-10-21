@@ -5,10 +5,11 @@ import type { LocalPracticeInputState } from '@/lib/practice/local-core/session'
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
+import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 /** Presentation/commands only. Every STEP resource belongs to its application owner. */
 export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
-  resourceBarrier: { current: Promise<void> }) {
+  resources: PracticeResourceCoordinator) {
   const owner = useRef<StepPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
   const generation = useRef(0);
@@ -29,9 +30,8 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     unsubscribe.current?.(); unsubscribe.current = null;
     const old = owner.current; owner.current = null;
     const pending = old?.dispose();
-    resourceBarrier.current = Promise.all([resourceBarrier.current, pending]).then(() => {});
-    return resourceBarrier.current;
-  }, [resourceBarrier]);
+    return resources.trackRelease(pending);
+  }, [resources]);
   useEffect(() => () => { void dispose(); }, [key, options.artifact, dispose]);
   useEffect(() => { owner.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
   useEffect(() => {
