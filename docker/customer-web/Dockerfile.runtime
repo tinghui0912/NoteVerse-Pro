@@ -3,6 +3,10 @@ ARG NPM_VERSION=12.0.1
 
 FROM ${NODE_IMAGE} AS node-base
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade perl-base \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG NPM_VERSION
 
 RUN npm install -g "npm@${NPM_VERSION}" \
