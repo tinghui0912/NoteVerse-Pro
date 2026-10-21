@@ -130,13 +130,20 @@ function apiResponse(data: unknown) {
 
 type MockOptions = {
   denyMicrophone?: boolean;
+  camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'PENDING';
+};
+
+type MediaMock = {
+  requests: MediaStreamConstraints[];
+  tracks: Array<{ track: MediaStreamTrack; stopCalls: number }>;
+  resolveCamera: (() => void) | null;
 };
 
 async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {}) {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
-  await page.addInitScript(({ denyMic }) => {
+  await page.addInitScript(({ denyMic, camera }) => {
     // Mock Web MIDI
     const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
     (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void }).__emitMidiNote = (
@@ -230,7 +237,50 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         navigator.mediaDevices.getUserMedia = async () => createSyntheticStream();
       }
     }
-  }, { denyMic: Boolean(options.denyMicrophone) });
+    // Camera controls apply only to video requests; existing audio-only mocks stay intact.
+    const media: MediaMock = { requests: [], tracks: [], resolveCamera: null };
+    (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia = media;
+    const audioOnly = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    const canvases: HTMLCanvasElement[] = [];
+    const audioContexts: AudioContext[] = [];
+    const cameraStream = (constraints: MediaStreamConstraints) => {
+      const tracks: MediaStreamTrack[] = [];
+      if (camera !== 'NO_VIDEO') {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 48;
+        canvas.getContext('2d')!.fillRect(0, 0, 64, 48);
+        canvases.push(canvas);
+        tracks.push(...canvas.captureStream(10).getVideoTracks());
+      }
+      if (constraints.audio && camera !== 'NO_AUDIO') {
+        const ctx = new AudioCtx();
+        const oscillator = ctx.createOscillator(), destination = ctx.createMediaStreamDestination();
+        oscillator.connect(destination); oscillator.start();
+        audioContexts.push(ctx);
+        tracks.push(...destination.stream.getAudioTracks());
+      }
+      for (const track of tracks) {
+        const observed = { track, stopCalls: 0 }, stop = track.stop.bind(track);
+        track.stop = () => { observed.stopCalls++; stop(); };
+        media.tracks.push(observed);
+      }
+      return new MediaStream(tracks);
+    };
+    navigator.mediaDevices.getUserMedia = async constraints => {
+      media.requests.push(structuredClone(constraints ?? {}));
+      if (!camera || !constraints?.video) return audioOnly(constraints);
+      if (camera === 'DENIED') throw new DOMException('Camera permission denied', 'NotAllowedError');
+      if (camera === 'PENDING') {
+        return new Promise<MediaStream>(resolve => {
+          media.resolveCamera = () => {
+            media.resolveCamera = null;
+            resolve(cameraStream(constraints));
+          };
+        });
+      }
+      return cameraStream(constraints);
+    };
+  }, { denyMic: Boolean(options.denyMicrophone), camera: options.camera });
 
   // Mock Score Detail
   await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
@@ -428,6 +478,155 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     })
   );
 }
+
+function recordingOption(page: Page, mode: 'OFF' | 'AUDIO' | 'VIDEO') {
+  return page.getByRole('button', { name: { OFF: /^不录制/, AUDIO: /^录制音频/, VIDEO: /^录制视频/ }[mode] });
+}
+
+async function mediaState(page: Page) {
+  return page.evaluate(() => {
+    const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
+    return { requests: media.requests, pending: media.resolveCamera !== null,
+      tracks: media.tracks.map(({ track, stopCalls }) => ({ kind: track.kind, state: track.readyState, stopCalls })) };
+  });
+}
+
+async function openCameraSettings(page: Page, input: 'MIDI' | 'MICROPHONE', camera: MockOptions['camera']) {
+  await setupContinuousPracticeMocks(page, { camera });
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: input === 'MIDI' ? /MIDI/ : /^麦克风/ }).click();
+  await expect(recordingOption(page, 'OFF')).toHaveAttribute('aria-pressed', 'true');
+}
+
+async function expectCameraReady(page: Page, audioTracks: number) {
+  await expect(recordingOption(page, 'VIDEO')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('画面已就绪，开始后会录制视频和真实声音')).toBeVisible();
+  for (const mode of ['OFF', 'AUDIO', 'VIDEO'] as const) await expect(recordingOption(page, mode)).toBeEnabled();
+  const preview = page.locator('video[aria-label="摄像头预览"]');
+  await expect(preview).toBeVisible();
+  await expect.poll(() => preview.evaluate(element => {
+    const stream = (element as HTMLVideoElement).srcObject as MediaStream | null;
+    return { video: stream?.getVideoTracks().length, audio: stream?.getAudioTracks().length,
+      live: stream?.getTracks().every(track => track.readyState === 'live') };
+  })).toEqual({ video: 1, audio: audioTracks, live: true });
+}
+
+async function expectCameraStopped(page: Page, trackCount: number) {
+  await expect.poll(async () => {
+    const { tracks } = await mediaState(page);
+    return tracks.length === trackCount && tracks.every(track => track.state === 'ended' && track.stopCalls > 0);
+  }).toBe(true);
+}
+
+async function expectRecordingOff(page: Page) {
+  await expect(recordingOption(page, 'OFF')).toHaveAttribute('aria-pressed', 'true');
+  await expect(recordingOption(page, 'VIDEO')).toHaveAttribute('aria-pressed', 'false');
+  await expect(recordingOption(page, 'VIDEO')).toBeEnabled();
+  await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
+}
+
+test.describe('Continuous VIDEO camera preparation', () => {
+  test('MIDI requests camera video and real audio, then installs a live ready preview', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'READY');
+    expect((await mediaState(page)).requests).toEqual([]);
+    await recordingOption(page, 'VIDEO').click();
+    await expectCameraReady(page, 1);
+    expect((await mediaState(page)).requests).toEqual([{ video: { facingMode: 'user' },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }]);
+  });
+
+  test('MICROPHONE requests camera video only and accepts a live video-only preview', async ({ page }) => {
+    await openCameraSettings(page, 'MICROPHONE', 'READY');
+    await recordingOption(page, 'VIDEO').click();
+    await expectCameraReady(page, 0);
+    expect((await mediaState(page)).requests).toEqual([{ video: { facingMode: 'user' }, audio: false }]);
+  });
+
+  test('camera permission denial leaves recording OFF and releases the preparation lock', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'DENIED');
+    await recordingOption(page, 'VIDEO').click();
+    await expect(page.getByText('请允许摄像头访问后再开启')).toBeVisible();
+    await expectRecordingOff(page);
+    expect((await mediaState(page)).tracks).toEqual([]);
+  });
+
+  test('a stream without usable video is rejected and every acquired track is stopped', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'NO_VIDEO');
+    await recordingOption(page, 'VIDEO').click();
+    await expect(page.getByText('未取得可用摄像头画面')).toBeVisible();
+    await expectRecordingOff(page);
+    await expectCameraStopped(page, 1);
+    expect((await mediaState(page)).tracks[0].kind).toBe('audio');
+  });
+
+  test('MIDI video without real audio is rejected and its video track is stopped', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'NO_AUDIO');
+    await recordingOption(page, 'VIDEO').click();
+    await expect(page.getByText('视频录制需要真实音频输入')).toBeVisible();
+    await expectRecordingOff(page);
+    await expectCameraStopped(page, 1);
+    expect((await mediaState(page)).tracks[0].kind).toBe('video');
+  });
+
+  for (const change of ['input', 'mode'] as const) {
+    test(`${change} change releases a prepared preview and clears recording selection and status`, async ({ page }) => {
+      await openCameraSettings(page, 'MIDI', 'READY');
+      await recordingOption(page, 'VIDEO').click();
+      await expectCameraReady(page, 1);
+      await page.getByRole('button', { name: change === 'input' ? /^麦克风/ : /逐音练习/ }).click();
+      await expectCameraStopped(page, 2);
+      if (change === 'mode') await page.getByRole('button', { name: /连贯演奏/ }).click();
+      await expectRecordingOff(page);
+      await expect(recordingOption(page, 'VIDEO')).toContainText('可选摄像头录制，报告页本地回放');
+    });
+  }
+
+  test('a pending acquisition cannot restore VIDEO, preview or ready status after input invalidation', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'PENDING');
+    await recordingOption(page, 'VIDEO').click();
+    await expect.poll(async () => (await mediaState(page)).pending).toBe(true);
+    await expect(page.getByText('正在请求摄像头权限...')).toBeVisible();
+    for (const mode of ['OFF', 'AUDIO', 'VIDEO'] as const) await expect(recordingOption(page, mode)).toBeDisabled();
+    const microphone = page.getByRole('button', { name: /^麦克风/ });
+    await expect(microphone).toBeEnabled();
+    await microphone.click();
+    await expectRecordingOff(page);
+    await expect(recordingOption(page, 'VIDEO')).toContainText('可选摄像头录制，报告页本地回放');
+    await page.evaluate(() => (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.resolveCamera!());
+    await expectCameraStopped(page, 2);
+    await expectRecordingOff(page);
+    await expect(page.getByText('画面已就绪，开始后会录制视频和真实声音')).toHaveCount(0);
+    await expect(recordingOption(page, 'VIDEO')).toContainText('可选摄像头录制，报告页本地回放');
+  });
+
+  test('client navigation unmounts Practice and stops the owned preview tracks', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'READY');
+    // Compile the destination before testing client unmount, keeping route startup out of this boundary.
+    expect((await page.request.get('/zh/library')).ok()).toBe(true);
+    await recordingOption(page, 'VIDEO').click();
+    await expectCameraReady(page, 1);
+    await page.getByRole('button', { name: /close/i }).click();
+    await page.getByRole('link', { name: 'NoteVerse Pro' }).click();
+    await expect(page).toHaveURL(/\/zh\/library/);
+    await expectCameraStopped(page, 2);
+    await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
+  });
+
+  test('completion releases the owned VIDEO preview tracks', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'READY');
+    await recordingOption(page, 'VIDEO').click();
+    await expectCameraReady(page, 1);
+    await page.getByRole('button', { name: /close/i }).click();
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await page.getByRole('button', { name: '结束', exact: true }).click();
+    await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
+    await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
+    await expectCameraStopped(page, 2);
+  });
+});
 
 test.describe('Continuous Performance Review & Audio Capture E2E', () => {
   test('STEP_BY_STEP: Completion dialog shows ONLY retry/range adjustment, NO report button', async ({

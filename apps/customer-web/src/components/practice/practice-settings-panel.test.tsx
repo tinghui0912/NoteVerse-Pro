@@ -10,9 +10,64 @@ import { PracticeSettingsPanel } from './practice-settings-panel';
 import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 import { evaluatePracticeInputCapabilities, getSelectedInputCapability, getSelectedMicrophoneCapability } from '@/lib/practice/input-capability';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 describe('PracticeSettingsPanel', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
+
+  function recordingPanel(props: {
+    practiceMode?: PracticeMode; recordingMode?: PracticeRecordingMode; recordingModeLocked?: boolean;
+    recordingStatus?: string; onRecordingModeChange?: (mode: PracticeRecordingMode) => void;
+  } = {}) {
+    return <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+      <PracticeSettingsPanel practiceMode="CONTINUOUS_PLAY" inputSource="MIDI"
+        practiceModeLocked={false} microphoneInputLocked={false} midiInputLocked={false}
+        microphoneCapability={{ supported: true, status: 'AVAILABLE' }}
+        midiCapability={{ supported: true, status: 'AVAILABLE' }}
+        onPracticeModeChange={vi.fn()} onInputSourceChange={vi.fn()}
+        onRecordingModeChange={vi.fn()} {...props} />
+    </NextIntlClientProvider>;
+  }
+
+  it('hides recording controls in STEP mode', () => {
+    render(recordingPanel({ practiceMode: 'STEP_BY_STEP' }));
+    expect(screen.queryByRole('heading', { name: 'Recording' })).toBeNull();
+    for (const label of ['No recording', 'Record audio', 'Record video']) {
+      expect(screen.queryByRole('button', { name: new RegExp(`^${label}`) })).toBeNull();
+    }
+  });
+
+  it.each(['OFF', 'AUDIO', 'VIDEO'] as const)('renders Continuous recording controls with %s selected', recordingMode => {
+    render(recordingPanel({ recordingMode }));
+    expect(screen.getByRole('heading', { name: 'Recording' })).toBeVisible();
+    for (const [mode, label] of [['OFF', 'No recording'], ['AUDIO', 'Record audio'], ['VIDEO', 'Record video']]) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${label}`) }))
+        .toHaveAttribute('aria-pressed', String(mode === recordingMode));
+    }
+  });
+
+  it('delegates VIDEO selection exactly once', () => {
+    const change = vi.fn();
+    render(recordingPanel({ onRecordingModeChange: change }));
+    fireEvent.click(screen.getByRole('button', { name: /^Record video/ }));
+    expect(change).toHaveBeenCalledExactlyOnceWith('VIDEO');
+  });
+
+  it('locks all recording options independently from mode and input controls', () => {
+    render(recordingPanel({ recordingModeLocked: true }));
+    for (const label of ['No recording', 'Record audio', 'Record video']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${label}`) })).toBeDisabled();
+    }
+    for (const name of [/^step-by-step/i, /^continuous play/i, /^microphone/i, /midi keyboard/i]) {
+      expect(screen.getByRole('button', { name })).toBeEnabled();
+    }
+  });
+
+  it('shows the supplied camera status in the VIDEO option instead of its default description', () => {
+    render(recordingPanel({ recordingStatus: messages.settingCameraReady }));
+    expect(screen.getByRole('button', { name: /^Record video/ })).toHaveTextContent(messages.settingCameraReady);
+    expect(screen.queryByText(messages.settingCameraDesc)).toBeNull();
+  });
 
   it('enables default STEP and explicit Continuous microphone Start, and locks mode/input while active', () => {
     vi.stubGlobal('AudioContext', class MockAudioContext {});
