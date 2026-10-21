@@ -1,0 +1,129 @@
+// @vitest-environment jsdom
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import artifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
+import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
+import { completedPerformanceStore } from '@/lib/practice/completed-performance';
+import type { UseLocalPracticeOptions } from './use-local-practice';
+import { useContinuousLocalPractice } from './use-continuous-local-practice';
+
+const artifact = artifactJson as PracticeScoreArtifact;
+const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+const options: UseLocalPracticeOptions = {
+  artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', scope: { kind: 'FULL' },
+};
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+function ownerMocks() {
+  let snapshot: ContinuousControllerSnapshot = {
+    session: 'PREPARING', transport: null, analysis: 'NOT_REQUIRED', analysisError: null,
+    inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null,
+  };
+  const listeners = new Set<() => void>(), events: string[] = [];
+  const unsubscribe = vi.fn(() => { events.push('unsubscribe'); listeners.clear(); });
+  const subscribe = vi.spyOn(ContinuousPracticeController.prototype, 'subscribe').mockImplementation(listener => {
+    listeners.add(listener); return unsubscribe;
+  });
+  const snapshots = vi.spyOn(ContinuousPracticeController.prototype, 'snapshot').mockImplementation(() => snapshot);
+  const start = vi.spyOn(ContinuousPracticeController.prototype, 'start').mockResolvedValue();
+  const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose').mockImplementation(async () => { events.push('dispose'); });
+  const refresh = vi.spyOn(ContinuousPracticeController.prototype, 'refresh').mockImplementation(() => {});
+  return { start, dispose, subscribe, unsubscribe, snapshots, refresh, events,
+    publish(next: ContinuousControllerSnapshot) { snapshot = next; listeners.forEach(listener => listener()); },
+    snapshot: () => snapshot };
+}
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('owns one controller, subscription, RAF and commands, and releases the subscription before disposal', async () => {
+  const owner = ownerMocks();
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => frames.push(callback)));
+  const cancel = vi.fn(); vi.stubGlobal('cancelAnimationFrame', cancel);
+  const pause = vi.spyOn(ContinuousPracticeController.prototype, 'pause').mockImplementation(() => {});
+  const resume = vi.spyOn(ContinuousPracticeController.prototype, 'resume').mockImplementation(() => {});
+  const finish = vi.spyOn(ContinuousPracticeController.prototype, 'finish').mockResolvedValue();
+  const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
+  const barrier = { current: Promise.resolve() };
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
+  await act(async () => { await result.current.start(); await result.current.start(); });
+  expect(owner.start).toHaveBeenCalledOnce(); expect(owner.subscribe).toHaveBeenCalledOnce();
+  expect(owner.subscribe.mock.contexts[0]).toBe(owner.start.mock.contexts[0]);
+  expect(result.current).toMatchObject({ mode: 'CONTINUOUS_PLAY', lifecycle: 'READY', inputState: 'STARTING', inputError: null });
+  const transport = { state: 'RUNNING' as const, nowMs: 4000, musicalBeat: 2, performanceTimeMs: 1250,
+    countInTotalMs: 2000, countInRemainingMs: 0, countInBeats: 4, countInPulses: 4, countInPulse: 1,
+    scopeCompleted: false, scopeStartBeat: 0, scopeTerminalBeat: artifact.scoreEndBeat, completionReason: null };
+  act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', transport }));
+  expect(result.current).toMatchObject({ lifecycle: 'ACTIVE', inputState: 'RUNNING', performanceClock: transport,
+    activeStepGroup: null, elapsedSeconds: 3, resolvedTempoPlan: tempoPlan });
+  act(() => frames.shift()!(0)); expect(owner.refresh).toHaveBeenCalledOnce();
+  await act(async () => { await result.current.pause(); await result.current.resume(); await result.current.finish(); });
+  act(() => result.current.setMetronomeEnabled(true));
+  expect(pause).toHaveBeenCalledOnce(); expect(resume).toHaveBeenCalledOnce(); expect(finish).toHaveBeenCalledOnce();
+  expect(metronome).toHaveBeenCalledWith(true);
+  unmount(); await barrier.current;
+  expect(owner.unsubscribe).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
+  expect(owner.events).toEqual(['unsubscribe', 'dispose']); expect(cancel).toHaveBeenCalledOnce();
+});
+
+it.each(['unmount', 'input change'] as const)('awaits late preparation after %s without reviving stale ownership', async invalidation => {
+  const owner = ownerMocks(), preparation = deferred(), release = deferred();
+  owner.start.mockReturnValueOnce(preparation.promise);
+  owner.dispose.mockReturnValueOnce(release.promise);
+  const barrier = { current: Promise.resolve() };
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+    { initialProps: options });
+  let starting!: Promise<void>;
+  await act(async () => { starting = result.current.start(); });
+  expect(owner.start).toHaveBeenCalledOnce();
+  await act(async () => { await result.current.start(); });
+  expect(owner.start).toHaveBeenCalledOnce();
+  if (invalidation === 'unmount') unmount();
+  else rerender({ ...options, inputSource: 'MICROPHONE' });
+  expect(owner.unsubscribe).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
+  let released = false;
+  const waiting = barrier.current.then(() => { released = true; });
+  await act(async () => { release.resolve(); });
+  expect(released).toBe(false);
+  const snapshotReads = owner.snapshots.mock.calls.length;
+  await act(async () => { preparation.resolve(); await starting; await waiting; });
+  expect(released).toBe(true);
+  expect(owner.snapshots).toHaveBeenCalledTimes(snapshotReads);
+  expect(owner.start).toHaveBeenCalledOnce();
+  if (invalidation === 'input change') {
+    expect(result.current).toMatchObject({ lifecycle: 'READY', inputState: 'IDLE', performanceClock: null });
+    await act(async () => { await result.current.pause(); await result.current.finish(); });
+    unmount(); expect(owner.dispose).toHaveBeenCalledOnce();
+  }
+});
+
+it('restart waits for disposal and preparation, then clears completed truth and creates a fresh owner', async () => {
+  const owner = ownerMocks(), preparation = deferred(), release = deferred();
+  owner.start.mockReturnValueOnce(preparation.promise);
+  owner.dispose.mockReturnValueOnce(release.promise);
+  const clear = vi.spyOn(completedPerformanceStore, 'clearPerformance');
+  const barrier = { current: Promise.resolve() };
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
+  let starting!: Promise<void>, restarting!: Promise<void>;
+  await act(async () => { starting = result.current.start(); });
+  const first = owner.start.mock.contexts[0];
+  await act(async () => { restarting = result.current.restart(); });
+  expect(owner.dispose).toHaveBeenCalledOnce(); expect(owner.start).toHaveBeenCalledOnce();
+  expect(clear).not.toHaveBeenCalled();
+  await act(async () => { preparation.resolve(); await starting; });
+  expect(owner.start).toHaveBeenCalledOnce(); expect(clear).not.toHaveBeenCalled();
+  await act(async () => { release.resolve(); await restarting; });
+  expect(clear).toHaveBeenCalledOnce(); expect(owner.start).toHaveBeenCalledTimes(2);
+  expect(owner.start.mock.contexts[1]).not.toBe(first);
+  expect(owner.subscribe).toHaveBeenCalledTimes(2);
+  expect(owner.subscribe.mock.contexts[1]).toBe(owner.start.mock.contexts[1]);
+  unmount(); await barrier.current;
+  expect(owner.dispose).toHaveBeenCalledTimes(2); expect(owner.unsubscribe).toHaveBeenCalledTimes(2);
+});
