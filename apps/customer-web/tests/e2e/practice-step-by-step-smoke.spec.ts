@@ -826,6 +826,110 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
   });
 
+  test('SECTION SELECTION: incomplete range disables Start and cancellation restores full-piece practice', async ({ page }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('button', { name: /MIDI/i }).click();
+    await page.getByRole('button', { name: /close/i }).click();
+
+    const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const status = page.getByRole('status');
+    await sectionButton.click();
+    await page.locator('[data-id="select-start-note"]').first().locator('path, use').first().click();
+
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
+    await expect(status).toContainText('请选择结束音符');
+    await expect(page.locator('.practice-range-selected')).toHaveCount(1);
+    await expect(page.locator('[data-id="select-start-note"]').first()).toHaveClass(/practice-range-selected/);
+    await expect(startButton).toBeDisabled();
+
+    await sectionButton.click();
+    await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
+    await expect(status).not.toContainText('请选择');
+    await expect(status).not.toContainText('第 1 小节');
+    await expect(page.locator('.practice-range-selected')).toHaveCount(0);
+    await expect(startButton).toBeEnabled();
+
+    // The restored scope completes as full-piece practice, not a partial range.
+    await startButton.click();
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
+    await page.getByRole('button', { name: '结束', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '练习已完成', exact: true })).toBeVisible();
+  });
+
+  test('SECTION SELECTION: reverse note clicks complete the inclusive range and lock selection during practice', async ({ page }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('button', { name: /MIDI/i }).click();
+    await page.getByRole('button', { name: /close/i }).click();
+
+    const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const status = page.getByRole('status');
+    await sectionButton.click();
+    await page.locator('[data-id="select-end-note"]').first().locator('path, use').first().click();
+    await expect(status).toContainText('请选择结束音符');
+    await page.locator('[data-id="select-start-note"]').first().locator('path, use').first().click();
+
+    await expect(status).toContainText('第 1 小节');
+    await expect(status).not.toContainText('请选择');
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
+    await expect(startButton).toBeEnabled();
+
+    await startButton.click();
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
+    await expect(sectionButton).toBeDisabled();
+    await page.getByRole('button', { name: '结束', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '选段练习已完成', exact: true })).toBeVisible();
+  });
+
+  test('SECTION SELECTION: selected-section completion can adjust and replace the range', async ({ page }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('button', { name: /MIDI/i }).click();
+    await page.getByRole('button', { name: /close/i }).click();
+
+    const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const status = page.getByRole('status');
+    const startNote = page.locator('[data-id="select-start-note"]').first().locator('path, use').first();
+    const endNote = page.locator('[data-id="select-end-note"]').first().locator('path, use').first();
+    await sectionButton.click();
+    await startNote.click();
+    await endNote.click();
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
+    await page.getByRole('button', { name: '结束', exact: true }).click();
+
+    const completionDialog = page.getByRole('dialog');
+    await expect(completionDialog.getByRole('heading', { name: '选段练习已完成', exact: true })).toBeVisible();
+    const adjustButton = completionDialog.getByRole('button', { name: '调整分段', exact: true });
+    await expect(adjustButton).toBeEnabled();
+    await adjustButton.click();
+
+    await expect(completionDialog).not.toBeVisible();
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
+    await expect(page.locator('.practice-range-selected')).toHaveCount(0);
+    await expect(status).toContainText('请选择起始音符');
+
+    await startNote.click();
+    await expect(status).toContainText('请选择结束音符');
+    await expect(startButton).toBeDisabled();
+    await endNote.click();
+    await expect(status).toContainText('第 1 小节');
+    await expect(status).not.toContainText('请选择');
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+    await expect(startButton).toBeEnabled();
+  });
+
   test('STEP microphone is capability-available without prefetch; MIDI retries after a device connects without acoustic loading', async ({
     page,
   }) => {
