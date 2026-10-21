@@ -8,12 +8,16 @@ on:
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
+      - ".github/scripts/customer_web_ci_policy.py"
+      - ".github/scripts/test_customer_web_ci_policy.py"
   pull_request:
     paths:
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
+      - ".github/scripts/customer_web_ci_policy.py"
+      - ".github/scripts/test_customer_web_ci_policy.py"
 
 concurrency:
   group: customer-web-quality-${{ github.ref }}
@@ -22,6 +26,10 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     defaults:
       run:
         working-directory: apps/customer-web
@@ -34,7 +42,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Test Customer Web CI policy
+        working-directory: .
+        run: python3 -m unittest discover -s .github/scripts -p test_customer_web_ci_policy.py -v
+
+      - name: Verify reusable PR Quality proof
+        id: proof
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "reuse_pr_quality=false" >> "$GITHUB_OUTPUT"
+          if ! python3 .github/scripts/customer_web_ci_policy.py quality; then
+            echo "reuse_pr_quality=false" >> "$GITHUB_OUTPUT"
+            echo "Quality proof helper unavailable; complete Quality suite required." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Set up Node.js
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24.18.0
@@ -42,31 +67,55 @@ jobs:
           cache-dependency-path: apps/customer-web/package-lock.json
 
       - name: Install dependencies
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm ci
 
       - name: Run ESLint
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run lint
 
       - name: Check API error translations
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run check:i18n-errors
 
       - name: Check generated API types
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run check:api-types
 
       - name: Run dead-code check
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run check:dead-code
 
       - name: Run TypeScript checks
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run typecheck
 
       - name: Run unit and component tests
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run test
 
       - name: Build production frontend
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run build
 
       - name: Install Playwright Chromium
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run browser tests
+        if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run test:e2e
+
+      - name: Record successful PR Quality identity
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        run: python3 .github/scripts/customer_web_ci_policy.py write-pr-proof --proof-directory "$RUNNER_TEMP/customer-web-quality-proof"
+
+      - name: Upload PR Quality proof
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: customer-web-quality-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/customer-web-quality-proof/quality-proof.json
+          if-no-files-found: error
+          retention-days: 30
