@@ -12,6 +12,9 @@ updates:
     groups:
       non-breaking:
         update-types: [minor, patch]
+        # ORT is part of the qualified acoustic runtime identity; upgrade separately.
+        exclude-patterns:
+          - "onnxruntime-web"
 
   - package-ecosystem: npm
     directory: /apps/platform-admin
