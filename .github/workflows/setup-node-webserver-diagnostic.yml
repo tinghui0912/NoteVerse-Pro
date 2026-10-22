@@ -10,18 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  startup:
-    name: startup-${{ matrix.lane }}
+  sampler:
+    name: v5-sampler-${{ matrix.lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
-        lane: [v5, v7]
+        lane: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: apps/customer-web
+        shell: bash
     env:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
       AUTH_COOKIE_NAME: noteverse_session
@@ -29,44 +30,61 @@ jobs:
       DIAG_DIR: /tmp/noteverse-webserver-diagnostic
     steps:
       - name: Record runner generation
+        id: generation
         working-directory: .
         run: |
           mkdir -p "$DIAG_DIR"
+          case "$ImageVersion" in
+            20261018.339.1) classification=TARGET_NEW ;;
+            20261012.334.1) classification=CONTROL_OLD ;;
+            *) classification=OTHER ;;
+          esac
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
           {
             date -u --iso-8601=ns
+            echo "classification=$classification"
             printf 'ImageOS=%s\nImageVersion=%s\nRUNNER_OS=%s\nRUNNER_ARCH=%s\n' "$ImageOS" "$ImageVersion" "$RUNNER_OS" "$RUNNER_ARCH"
             cat /etc/os-release
             uname -a
+            systemctl --version
             nproc
             free -m
-            for listener in /home/runner/runners/*/bin/Runner.Listener; do
-              if [ -x "$listener" ]; then "$listener" --version; fi
+            for pid in $(pgrep -x Runner.Listener || true); do
+              listener=$(readlink "/proc/$pid/exe" || true)
+              if [ -n "$listener" ] && [ -x "$listener" ]; then "$listener" --version; fi
             done
+            echo 'Runner/provisioner versions are also recorded in the GitHub job initialization header.'
             if [ -f /imagegeneration/imagedata.json ]; then
-              python3 -c 'import json; d=json.load(open("/imagegeneration/imagedata.json")); print(json.dumps({k:v for k,v in d.items() if "version" in k.lower() or "image" in k.lower()}))'
+              python3 - <<'PY'
+          import json
+          data = json.load(open('/imagegeneration/imagedata.json'))
+          records = data if isinstance(data, list) else [data]
+          for record in records:
+              if any(word in json.dumps(record).lower() for word in ('image', 'version', 'provision')):
+                  print(json.dumps(record))
+          PY
             fi
           } | tee "$DIAG_DIR/runner.txt"
 
       - name: Checkout diagnostic tree
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Test Customer Web CI policy
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        working-directory: .
+        run: python3 -m unittest discover -s .github/scripts -p test_customer_web_ci_policy.py -v
+
       - name: Set up Node v5 control
-        if: matrix.lane == 'v5'
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24.18.0
           cache: npm
           cache-dependency-path: apps/customer-web/package-lock.json
 
-      - name: Set up Node v7 candidate
-        if: matrix.lane == 'v7'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24.18.0
-          cache: npm
-          cache-dependency-path: apps/customer-web/package-lock.json
-
       - name: Record safe post-action environment
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: |
           {
             which node
@@ -88,26 +106,59 @@ jobs:
           git hash-object package.json package-lock.json
 
       - name: Install exact dependencies
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: npm ci
 
       - name: Verify installed identity
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: |
           node <<'JS' | tee "$DIAG_DIR/dependencies.txt"
           const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
           for (const [name, expected] of Object.entries({
             next: '16.4.2', react: '19.3.1', 'react-dom': '19.3.1',
             '@playwright/test': '1.64.1', 'onnxruntime-web': '1.20.1',
+            'onnxruntime-common': '1.20.1',
           })) {
-            const actual = require(name + '/package.json').version;
+            // Direct file reads do not depend on a package's exports contract.
+            const actual = JSON.parse(fs.readFileSync('node_modules/' + name + '/package.json', 'utf8')).version;
             assert.equal(actual, expected);
-            console.log(JSON.stringify({name, version: actual}));
+            assert.equal(lock.packages['node_modules/' + name].version, expected);
+            console.log(JSON.stringify({name, installed: actual, locked: expected}));
           }
           JS
 
+      - name: Run ESLint
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run lint
+
+      - name: Check API error translations
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run check:i18n-errors
+
+      - name: Check generated API types
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run check:api-types
+
+      - name: Run dead-code check
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run check:dead-code
+
+      - name: Run TypeScript checks
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run typecheck
+
+      - name: Run unit and component tests
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: npm run test
+
       - name: Production build
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: npm run build
 
       - name: Prepare identical diagnostic probes
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: |
           cat > "$RUNNER_TEMP/webserver-probe.py" <<'PY'
           import datetime
@@ -161,16 +212,21 @@ jobs:
               if not released:
                   raise RuntimeError('Diagnostic port was not released')
 
-          def system_evidence(port):
+          def system_evidence(port, filename='system-failure.txt'):
               commands = [
                   ['bash', '-c', 'ulimit -n; ulimit -u'],
                   ['cat', '/proc/sys/fs/inotify/max_user_watches',
                    '/proc/sys/fs/inotify/max_user_instances'],
                   ['df', '-h'], ['free', '-m'],
                   ['ps', '-eo', 'pid,ppid,stat,comm', '--forest'],
-                  ['ss', '-ltnp', 'sport = :' + str(port)],
+                  ['ss', '-ltnp', '( sport = :3000 or sport = :3101 or sport = :3102 )'],
               ]
-              with (output / 'system.txt').open('a') as stream:
+              states = subprocess.check_output(['ps', '-e', '-o', 'stat='], text=True).splitlines()
+              emit('resource_snapshot', file=filename, process_count=len(states),
+                   zombie_count=sum(state.strip().startswith('Z') for state in states))
+              with (output / filename).open('a') as stream:
+                  stream.write(json.dumps({'process_count': len(states),
+                                           'zombie_count': sum(state.strip().startswith('Z') for state in states)}) + '\n')
                   for command in commands:
                       stream.write(json.dumps(command) + '\n')
                       try:
@@ -265,23 +321,31 @@ jobs:
               finally:
                   stop(process, port)
 
-          {'direct': direct, 'playwright': playwright}[sys.argv[1]]()
+          {'direct': direct, 'playwright': playwright,
+           'resources': lambda: system_evidence(3101, 'system-before-e2e.txt')}[sys.argv[1]]()
           PY
 
-      - name: Phase 1 direct Next readiness
-        run: python3 "$RUNNER_TEMP/webserver-probe.py" direct
-
       - name: Install Playwright Chromium
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: npx playwright install --with-deps chromium
 
-      - name: Phase 2 real Playwright webServer
+      - name: Capture resources immediately before E2E
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: python3 "$RUNNER_TEMP/webserver-probe.py" resources
+
+      - name: Phase A direct Next readiness
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: python3 "$RUNNER_TEMP/webserver-probe.py" direct
+
+      - name: Phase B real Playwright webServer
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: python3 "$RUNNER_TEMP/webserver-probe.py" playwright
 
       - name: Upload non-sensitive diagnostic text
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: setup-node-webserver-${{ matrix.lane }}-${{ github.run_id }}
+          name: setup-node-v5-rollout-${{ matrix.lane }}-${{ github.run_id }}
           path: ${{ env.DIAG_DIR }}
           if-no-files-found: error
           retention-days: 7
