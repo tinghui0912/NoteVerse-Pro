@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   sampler:
-    name: v5-sampler-${{ matrix.lane }}
+    name: cold-v7-sampler-${{ matrix.lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -75,9 +75,10 @@ jobs:
         working-directory: .
         run: python3 -m unittest discover -s .github/scripts -p test_customer_web_ci_policy.py -v
 
-      - name: Set up Node v5 control
+      - name: Set up Node v7 candidate
+        id: node
         if: steps.generation.outputs.classification == 'TARGET_NEW'
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.18.0
           cache: npm
@@ -104,6 +105,39 @@ jobs:
           } | tee "$DIAG_DIR/environment.txt"
           git rev-parse HEAD
           git hash-object package.json package-lock.json
+
+      - name: Normalize npm cache to cache-miss-like state
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        env:
+          SETUP_CACHE_HIT: ${{ steps.node.outputs.cache-hit }}
+          SETUP_CACHE_PRIMARY_KEY: ${{ steps.node.outputs.cache-primary-key }}
+          SETUP_CACHE_MATCHED_KEY: ${{ steps.node.outputs.cache-matched-key }}
+        run: |
+          cache_path=$(npm config get cache)
+          python3 - "$cache_path" before <<'PY' | tee "$DIAG_DIR/cache-state.jsonl"
+          import json, os, sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          files = [p for p in root.rglob('*') if p.is_file()]
+          print(json.dumps({'phase': sys.argv[2], 'cache_path': str(root),
+                            'files': len(files), 'bytes': sum(p.stat().st_size for p in files),
+                            'setup_cache_hit': os.environ.get('SETUP_CACHE_HIT'),
+                            'setup_primary_key': os.environ.get('SETUP_CACHE_PRIMARY_KEY'),
+                            'setup_matched_key': os.environ.get('SETUP_CACHE_MATCHED_KEY')}))
+          PY
+          npm cache clean --force
+          python3 - "$cache_path" after <<'PY' | tee -a "$DIAG_DIR/cache-state.jsonl"
+          import json, sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          files = [p for p in root.rglob('*') if p.is_file()]
+          content = [p for p in (root / '_cacache').rglob('*') if p.is_file()]
+          print(json.dumps({'phase': sys.argv[2], 'cache_path': str(root),
+                            'files': len(files), 'bytes': sum(p.stat().st_size for p in files),
+                            'content_files': len(content),
+                            'content_bytes': sum(p.stat().st_size for p in content)}))
+          assert not content, 'npm content cache was not cleared'
+          PY
 
       - name: Install exact dependencies
         if: steps.generation.outputs.classification == 'TARGET_NEW'
@@ -166,6 +200,7 @@ jobs:
           import os
           from pathlib import Path
           import re
+          import selectors
           import signal
           import socket
           import subprocess
@@ -192,20 +227,55 @@ jobs:
               except OSError:
                   return False
 
-          def stop(process, port):
-              # The process group also owns Next's child process.
+          def track_owned(root, tracked):
+              # Track only this probe's descendants, including a detached Next child.
+              pending = [root]
+              seen = set()
+              while pending:
+                  pid = pending.pop()
+                  if pid in seen:
+                      continue
+                  seen.add(pid)
+                  try:
+                      stat = Path('/proc/' + str(pid) + '/stat').read_text()
+                      started = stat.rsplit(')', 1)[1].split()[19]
+                      if pid in tracked and tracked[pid] != started:
+                          continue
+                      tracked[pid] = started
+                      children = Path('/proc/' + str(pid) + '/task/' + str(pid) + '/children').read_text()
+                      pending.extend(map(int, children.split()))
+                  except (OSError, IndexError):
+                      pass
+
+          def signal_owned(process, tracked, sig):
               try:
-                  os.killpg(process.pid, signal.SIGTERM)
+                  os.killpg(process.pid, sig)
               except ProcessLookupError:
                   pass
+              for pid, started in list(tracked.items()):
+                  try:
+                      stat = Path('/proc/' + str(pid) + '/stat').read_text()
+                      if stat.rsplit(')', 1)[1].split()[19] == started:
+                          os.kill(pid, sig)
+                  except (OSError, IndexError):
+                      pass
+
+          def stop(process, port, tracked=None):
+              tracked = {} if tracked is None else tracked
+              track_owned(process.pid, tracked)
+              # Do not leave a detached webServer behind after the boundary stop.
+              signal_owned(process, tracked, signal.SIGTERM)
               try:
                   process.wait(timeout=10)
               except subprocess.TimeoutExpired:
-                  os.killpg(process.pid, signal.SIGKILL)
+                  signal_owned(process, tracked, signal.SIGKILL)
                   process.wait(timeout=5)
               deadline = time.monotonic() + 10
               while port_open(port) and time.monotonic() < deadline:
                   time.sleep(0.1)
+              if port_open(port):
+                  signal_owned(process, tracked, signal.SIGKILL)
+                  time.sleep(0.2)
               released = not port_open(port)
               emit('cleanup', pid=process.pid, exit_code=process.returncode,
                    port=port, port_released=released)
@@ -218,7 +288,7 @@ jobs:
                   ['cat', '/proc/sys/fs/inotify/max_user_watches',
                    '/proc/sys/fs/inotify/max_user_instances'],
                   ['df', '-h'], ['free', '-m'],
-                  ['ps', '-eo', 'pid,ppid,stat,comm', '--forest'],
+                  ['ps', '-eo', 'pid,ppid,pgid,stat,comm', '--forest'],
                   ['ss', '-ltnp', '( sport = :3000 or sport = :3101 or sport = :3102 )'],
               ]
               states = subprocess.check_output(['ps', '-e', '-o', 'stat='], text=True).splitlines()
@@ -237,7 +307,7 @@ jobs:
                           stream.write(str(error) + '\n')
 
           def direct():
-              port = 3101
+              port = 3000
               if port_open(port):
                   raise RuntimeError('Diagnostic port already occupied')
               command = ['node', './node_modules/next/dist/bin/next', 'dev',
@@ -263,7 +333,7 @@ jobs:
                               emit('first_tcp_success', elapsed=time.monotonic() - start)
                           status = None
                           try:
-                              with opener.open('http://localhost:3101/en/auth/login',
+                              with opener.open('http://localhost:3000/en/auth/login',
                                                timeout=max(0.01, min(1, deadline-time.monotonic()))) as response:
                                   status = response.status
                           except urllib.error.HTTPError as error:
@@ -288,41 +358,122 @@ jobs:
                       stop(process, port)
 
           def playwright():
-              port = 3102
+              port = 3000
               if port_open(port):
-                  raise RuntimeError('Fresh Playwright port already occupied')
-              environment = {**os.environ, 'PLAYWRIGHT_PORT': str(port), 'DEBUG': 'pw:webserver'}
-              command = ['node', './node_modules/@playwright/test/cli.js', 'test',
-                         'tests/e2e/public-and-auth.spec.ts']
+                  raise RuntimeError('Normal Playwright port already occupied')
+              if 'PLAYWRIGHT_PORT' in os.environ:
+                  raise RuntimeError('Unexpected Playwright port override')
+              environment = {**os.environ, 'DEBUG': 'pw:webserver'}
+              command = ['npm', 'run', 'test:e2e']
               start = time.monotonic()
               process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                         text=True, bufsize=1, env=environment, start_new_session=True)
-              emit('playwright_start', command=command, pid=process.pid)
-              first_output = False
+                                         env=environment, start_new_session=True)
+              emit('cold_playwright_start', command=command, pid=process.pid, port=port)
+              first_debug = False
+              first_spawn = False
+              first_http = None
+              ever_listened = False
               running = False
+              timed_out = False
+              timeout_notice_at = None
+              failure_captured = False
+              stop_requested_at = None
+              tracked = {}
+              selector = selectors.DefaultSelector()
+              selector.register(process.stdout, selectors.EVENT_READ)
+              buffered = b''
+
+              def listening():
+                  # Passive kernel-table observation: do not send a readiness request.
+                  for path in ['/proc/net/tcp', '/proc/net/tcp6']:
+                      for entry in Path(path).read_text().splitlines()[1:]:
+                          fields = entry.split()
+                          if fields[1].split(':')[1] == '0BB8' and fields[3] == '0A':
+                              return True
+                  return False
+
+              def consume(line, log):
+                  nonlocal first_debug, first_spawn, first_http, running, timed_out, timeout_notice_at, stop_requested_at
+                  elapsed = time.monotonic() - start
+                  plain = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                  log.write(line)
+                  log.flush()
+                  print(line, end='', flush=True)
+                  if not first_debug and 'pw:webserver' in plain:
+                      first_debug = True
+                      emit('first_webserver_debug', elapsed=elapsed, line=plain.strip())
+                  if not first_spawn and 'pw:webserver' in plain and re.search(r'Starting WebServer process|Process started', plain):
+                      first_spawn = True
+                      emit('first_server_spawn', elapsed=elapsed, line=plain.strip())
+                  status = re.search(r'HTTP Status:\s*(\d+)', plain)
+                  if status and first_http is None:
+                      first_http = int(status.group(1))
+                      emit('first_readiness_http', elapsed=elapsed, status=first_http)
+                  if 'Timed out waiting 120000ms from config.webServer' in plain:
+                      timed_out = True
+                      timeout_notice_at = time.monotonic()
+                      emit('playwright_120s_timeout', elapsed=elapsed)
+                  boundary = re.search(r'Running (\d+) tests? using 1 worker', plain)
+                  if boundary and not running:
+                      if int(boundary.group(1)) != 45:
+                          raise RuntimeError('Unexpected browser test discovery count: ' + boundary.group(1))
+                      running = True
+                      emit('cold_startup_success', elapsed=elapsed, line=plain.strip(), test_count=45)
+                      stop_requested_at = time.monotonic()
+                      # Stop at the startup boundary; do not execute the full E2E suite.
+                      signal_owned(process, tracked, signal.SIGTERM)
+                      emit('boundary_stop_requested', elapsed=time.monotonic()-start)
+
+              def capture_failure():
+                  nonlocal failure_captured
+                  group = subprocess.check_output(['ps', '-eo', 'pid,ppid,pgid,stat,comm'], text=True)
+                  owned = [line for line in group.splitlines()[1:]
+                           if line.split() and int(line.split()[0]) in tracked]
+                  emit('failed_primary_owned_processes', processes=owned,
+                       tracked_pids=sorted(tracked), port_ever_listened=ever_listened,
+                       first_http_status=first_http)
+                  system_evidence(port, 'system-after-primary-failure.txt')
+                  failure_captured = True
+
               try:
                   with (output / 'playwright.log').open('w') as log:
-                      for line in process.stdout:
-                          elapsed = time.monotonic() - start
-                          plain = re.sub(r'\x1b\[[0-9;]*m', '', line)
-                          log.write(line)
-                          print(line, end='', flush=True)
-                          if not first_output and ('[WebServer]' in plain or 'pw:webserver' in plain):
-                              first_output = True
-                              emit('first_webserver_output', elapsed=elapsed, line=plain.strip())
-                          if not running and re.search(r'Running \d+ tests? using', plain):
-                              running = True
-                              emit('playwright_running', elapsed=elapsed, line=plain.strip())
+                      while selector.get_map():
+                          track_owned(process.pid, tracked)
+                          if not ever_listened and listening():
+                              ever_listened = True
+                              emit('first_port_3000_listener', elapsed=time.monotonic()-start)
+                          for key, _ in selector.select(timeout=0.1):
+                              data = os.read(key.fd, 65536)
+                              if not data:
+                                  selector.unregister(key.fileobj)
+                                  continue
+                              buffered += data
+                              while b'\n' in buffered:
+                                  line, buffered = buffered.split(b'\n', 1)
+                                  consume(line.decode('utf-8', errors='replace') + '\n', log)
+                          if timed_out and not failure_captured and time.monotonic()-timeout_notice_at > 2:
+                              # The existing timeout has fired; preserve state before cleanup.
+                              capture_failure()
+                              stop_requested_at = time.monotonic()
+                              signal_owned(process, tracked, signal.SIGTERM)
+                          if stop_requested_at is not None and time.monotonic()-stop_requested_at > 10:
+                              signal_owned(process, tracked, signal.SIGKILL)
+                      if buffered:
+                          consume(buffered.decode('utf-8', errors='replace'), log)
                   code = process.wait()
-                  emit('playwright_result', exit_code=code, elapsed=time.monotonic()-start,
-                       tests_started=running)
-                  if code != 0:
-                      system_evidence(port)
+                  emit('cold_playwright_result', startup_success=running, exit_code=code,
+                       deliberate_boundary_stop=running, elapsed=time.monotonic()-start,
+                       timeout_120s=timed_out, port_ever_listened=ever_listened,
+                       first_http_status=first_http)
+                  if not running and not failure_captured:
+                      # Preserve failure state before cleanup or the secondary probe.
+                      capture_failure()
               finally:
-                  stop(process, port)
+                  selector.close()
+                  stop(process, port, tracked)
 
           {'direct': direct, 'playwright': playwright,
-           'resources': lambda: system_evidence(3101, 'system-before-e2e.txt')}[sys.argv[1]]()
+           'resources': lambda: system_evidence(3000, 'system-before-e2e.txt')}[sys.argv[1]]()
           PY
 
       - name: Install Playwright Chromium
@@ -333,19 +484,19 @@ jobs:
         if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: python3 "$RUNNER_TEMP/webserver-probe.py" resources
 
-      - name: Phase A direct Next readiness
-        if: steps.generation.outputs.classification == 'TARGET_NEW'
-        run: python3 "$RUNNER_TEMP/webserver-probe.py" direct
-
-      - name: Phase B real Playwright webServer
+      - name: Primary cold Playwright startup boundary
         if: steps.generation.outputs.classification == 'TARGET_NEW'
         run: python3 "$RUNNER_TEMP/webserver-probe.py" playwright
+
+      - name: Secondary direct Next readiness
+        if: steps.generation.outputs.classification == 'TARGET_NEW'
+        run: python3 "$RUNNER_TEMP/webserver-probe.py" direct
 
       - name: Upload non-sensitive diagnostic text
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: setup-node-v5-rollout-${{ matrix.lane }}-${{ github.run_id }}
+          name: setup-node-cold-v7-${{ matrix.lane }}-${{ github.run_id }}
           path: ${{ env.DIAG_DIR }}
           if-no-files-found: error
           retention-days: 7
