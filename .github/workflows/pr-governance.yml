@@ -1,0 +1,69 @@
+name: PR Governance
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch current main
+        shell: bash
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Require current-main ancestry
+        shell: bash
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          PR_HEAD_SHA="$(git rev-parse HEAD)"
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$PR_HEAD_SHA" != "$EXPECTED_PR_HEAD_SHA" ]]; then
+            echo "::error::Checkout does not match the event's PR head SHA."
+            exit 1
+          fi
+          if ! MERGE_BASE_SHA="$(git merge-base "$PR_HEAD_SHA" "$CURRENT_MAIN_SHA")"; then
+            MERGE_BASE_SHA="none"
+          fi
+          CLASSIFICATION="current"
+          if [[ "$MERGE_BASE_SHA" != "$CURRENT_MAIN_SHA" ]]; then
+            CLASSIFICATION="stale"
+          fi
+
+          printf 'PR_HEAD_SHA=%s\n' "$PR_HEAD_SHA"
+          printf 'CURRENT_MAIN_SHA=%s\n' "$CURRENT_MAIN_SHA"
+          printf 'MERGE_BASE_SHA=%s\n' "$MERGE_BASE_SHA"
+          printf 'CLASSIFICATION=%s\n' "$CLASSIFICATION"
+          {
+            printf '## PR Governance\n\n'
+            printf '| Evidence | Value |\n| --- | --- |\n'
+            printf '| PR number | %s |\n' "$PR_NUMBER"
+            printf '| PR head SHA | `%s` |\n' "$PR_HEAD_SHA"
+            printf '| Current main SHA | `%s` |\n' "$CURRENT_MAIN_SHA"
+            printf '| Merge-base SHA | `%s` |\n' "$MERGE_BASE_SHA"
+            printf '| Classification | %s |\n\n' "$CLASSIFICATION"
+            if [[ "$CLASSIFICATION" == "current" ]]; then
+              printf 'Current main is an ancestor of the reviewed PR head.\n'
+            else
+              printf 'PR head is stale relative to current main. Refresh the branch and rerun validation before merge.\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$CLASSIFICATION" == "stale" ]]; then
+            echo "::error::PR head is stale relative to current main. Refresh the branch and rerun validation before merge."
+            exit 1
+          fi
