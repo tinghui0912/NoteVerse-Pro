@@ -2,7 +2,7 @@ name: Setup Node WebServer Diagnostic
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     paths:
       - ".github/workflows/setup-node-webserver-diagnostic.yml"
 
@@ -26,7 +26,7 @@ jobs:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
-      DIAG_DIR: ${{ runner.temp }}/webserver-diagnostic
+      DIAG_DIR: /tmp/noteverse-webserver-diagnostic
     steps:
       - name: Record runner generation
         working-directory: .
