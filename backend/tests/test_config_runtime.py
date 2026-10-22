@@ -215,11 +215,11 @@ def test_legato_repository_path_is_required() -> None:
 
 
 def test_app_main_import_exposes_routes() -> None:
+    from fastapi.testclient import TestClient
+
     from app.main import app
 
-    route_paths = {route.path for route in app.routes}
-
-    assert "/" in route_paths
-    assert "/docs" in route_paths
-    assert "/api/v1/openapi.json" in route_paths
-    assert len(route_paths) > 0
+    with TestClient(app) as client:
+        for path in ("/", "/docs", "/api/v1/openapi.json"):
+            response = client.get(path)
+            assert response.status_code == 200, f"{path} returned {response.status_code}"
