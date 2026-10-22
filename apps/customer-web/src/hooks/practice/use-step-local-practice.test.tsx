@@ -102,3 +102,17 @@ it('switching from pending Continuous startup waits for both disposal and late p
   expect(r.midiStart).toHaveBeenCalledOnce(); expect(result.current.lifecycle).toBe('ACTIVE');
   unmount();
 });
+
+it('STEP completion uses the latest callback after rerender without recreating its owner', async () => {
+  const r = pendingMicrophone(), first = vi.fn(), latest = vi.fn();
+  const starts = vi.spyOn(StepPracticeController.prototype, 'start');
+  const { result, rerender, unmount } = renderHook(({ onCompletion }) =>
+    useLocalPractice({ ...r.options('STEP_BY_STEP', 'MIDI'), onCompletion }),
+    { initialProps: { onCompletion: first } });
+  await act(async () => { await result.current.start(); });
+  rerender({ onCompletion: latest });
+  await act(async () => { await result.current.finish(); });
+  expect(first).not.toHaveBeenCalled(); expect(latest).toHaveBeenCalledOnce();
+  expect(starts).toHaveBeenCalledOnce();
+  unmount();
+});

@@ -7,27 +7,38 @@ import { completedPerformanceStore } from '@/lib/practice/completed-performance'
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 import type { UseLocalPracticeOptions } from './use-local-practice';
+import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
-  resourceBarrier: { current: Promise<void> }) {
+  resources: PracticeResourceCoordinator) {
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
   const generation = useRef(0);
   const starting = useRef(false);
   const preparation = useRef<Promise<void> | null>(null);
   const controller = useRef<ContinuousPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
-  const [snapshot, setSnapshot] = useState<ContinuousControllerSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const completion = useRef(options.onCompletion); completion.current = options.onCompletion;
+  const [binding, setBinding] = useState({ identity: { key, artifact: options.artifact },
+    snapshot: null as ContinuousControllerSnapshot | null, error: null as string | null });
+  // Reset presentation when ownership changes, including a return to an earlier input/key.
+  // This conditional render adjustment avoids an effect publishing the previous owner's state.
+  if (binding.identity.key !== key || binding.identity.artifact !== options.artifact) {
+    setBinding({ identity: { key, artifact: options.artifact }, snapshot: null, error: null });
+  }
+  const { identity, snapshot, error } = binding;
+  const setSnapshot = useCallback((value: ContinuousControllerSnapshot | null) => setBinding(current =>
+    current.identity === identity ? { ...current, snapshot: value } : current), [identity]);
+  const setError = useCallback((value: string | null) => setBinding(current =>
+    current.identity === identity ? { ...current, error: value } : current), [identity]);
+  const completion = useRef(options.onCompletion);
+  useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
   const dispose = useCallback(() => {
     generation.current++; starting.current = false;
     unsubscribe.current?.(); unsubscribe.current = null;
     const old = controller.current; controller.current = null;
     const pending = preparation.current; preparation.current = null;
-    resourceBarrier.current = Promise.all([resourceBarrier.current, old?.dispose(), pending]).then(() => {});
-    return resourceBarrier.current;
-  }, [resourceBarrier]);
-  useEffect(() => { setSnapshot(null); setError(null); return () => { void dispose(); }; }, [key, options.artifact, dispose]);
+    return resources.trackRelease(old?.dispose(), pending);
+  }, [resources]);
+  useEffect(() => () => { void dispose(); }, [key, options.artifact, dispose]);
   useEffect(() => { controller.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
   useEffect(() => {
     if (options.mode !== 'CONTINUOUS_PLAY') return;
@@ -38,7 +49,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const start = useCallback(async () => {
     if (starting.current) return;
     if (controller.current && !['FAILED_BEFORE_START', 'FAILED', 'DISPOSED'].includes(controller.current.snapshot().session)) return;
-    const released = controller.current ? dispose() : resourceBarrier.current;
+    const released = controller.current ? dispose() : resources.waitForRelease();
     const operation = generation.current;
     starting.current = true;
     try {
@@ -49,18 +60,20 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         recordingMode: options.recordingMode, cameraStream: options.cameraMediaStream,
         onCompletion: value => completion.current?.(value) });
-      controller.current = current; unsubscribe.current = current.subscribe(() => setSnapshot(current.snapshot()));
+      controller.current = current; unsubscribe.current = current.subscribe(() => {
+        if (operation === generation.current) setSnapshot(current.snapshot());
+      });
       setError(null); preparation.current = current.start(); await preparation.current;
       if (operation === generation.current) setSnapshot(current.snapshot());
     } catch (failure) { if (operation === generation.current) setError((failure as Error).message); }
     finally { if (operation === generation.current) starting.current = false; }
-  }, [options, dispose, resourceBarrier]);
+  }, [options, dispose, resources, setSnapshot, setError]);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
     await released;
     if (operation !== generation.current) return;
     setSnapshot(null); setError(null); completedPerformanceStore.clearPerformance(); await start();
-  }, [dispose, start]);
+  }, [dispose, start, setSnapshot, setError]);
   const pause = useCallback(async () => { controller.current?.pause(); }, []);
   const resume = useCallback(async () => { controller.current?.resume(); }, []);
   const finish = useCallback(async () => { await controller.current?.finish(); }, []);
