@@ -1,0 +1,287 @@
+name: Setup Node WebServer Diagnostic
+
+on:
+  pull_request:
+    types: [opened]
+    paths:
+      - ".github/workflows/setup-node-webserver-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  startup:
+    name: startup-${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        lane: [v5, v7]
+    defaults:
+      run:
+        working-directory: apps/customer-web
+    env:
+      NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
+      AUTH_COOKIE_NAME: noteverse_session
+      REFRESH_COOKIE_NAME: noteverse_refresh
+      DIAG_DIR: ${{ runner.temp }}/webserver-diagnostic
+    steps:
+      - name: Record runner generation
+        working-directory: .
+        run: |
+          mkdir -p "$DIAG_DIR"
+          {
+            date -u --iso-8601=ns
+            printf 'ImageOS=%s\nImageVersion=%s\nRUNNER_OS=%s\nRUNNER_ARCH=%s\n' "$ImageOS" "$ImageVersion" "$RUNNER_OS" "$RUNNER_ARCH"
+            cat /etc/os-release
+            uname -a
+            nproc
+            free -m
+            for listener in /home/runner/runners/*/bin/Runner.Listener; do
+              if [ -x "$listener" ]; then "$listener" --version; fi
+            done
+            if [ -f /imagegeneration/imagedata.json ]; then
+              python3 -c 'import json; d=json.load(open("/imagegeneration/imagedata.json")); print(json.dumps({k:v for k,v in d.items() if "version" in k.lower() or "image" in k.lower()}))'
+            fi
+          } | tee "$DIAG_DIR/runner.txt"
+
+      - name: Checkout diagnostic tree
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node v5 control
+        if: matrix.lane == 'v5'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: apps/customer-web/package-lock.json
+
+      - name: Set up Node v7 candidate
+        if: matrix.lane == 'v7'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: apps/customer-web/package-lock.json
+
+      - name: Record safe post-action environment
+        run: |
+          {
+            which node
+            node --version
+            npm --version
+            npm config get cache
+            npm config get registry
+            python3 - <<'PY'
+          import json, os, socket
+          print(json.dumps({
+              "NODE_AUTH_TOKEN_present": "NODE_AUTH_TOKEN" in os.environ,
+              "NPM_CONFIG_USERCONFIG_present": "NPM_CONFIG_USERCONFIG" in os.environ,
+              "NPM_CONFIG_USERCONFIG_path": os.environ.get("NPM_CONFIG_USERCONFIG"),
+              "localhost_addresses": sorted({item[4][0] for item in socket.getaddrinfo("localhost", 0)}),
+          }))
+          PY
+          } | tee "$DIAG_DIR/environment.txt"
+          git rev-parse HEAD
+          git hash-object package.json package-lock.json
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Verify installed identity
+        run: |
+          node <<'JS' | tee "$DIAG_DIR/dependencies.txt"
+          const assert = require('node:assert/strict');
+          for (const [name, expected] of Object.entries({
+            next: '16.4.2', react: '19.3.1', 'react-dom': '19.3.1',
+            '@playwright/test': '1.64.1', 'onnxruntime-web': '1.20.1',
+          })) {
+            const actual = require(name + '/package.json').version;
+            assert.equal(actual, expected);
+            console.log(JSON.stringify({name, version: actual}));
+          }
+          JS
+
+      - name: Production build
+        run: npm run build
+
+      - name: Prepare identical diagnostic probes
+        run: |
+          cat > "$RUNNER_TEMP/webserver-probe.py" <<'PY'
+          import datetime
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import signal
+          import socket
+          import subprocess
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          output = Path(os.environ['DIAG_DIR'])
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+          def emit(event, **fields):
+              record = {'at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        'event': event, **fields}
+              line = json.dumps(record)
+              print(line, flush=True)
+              with (output / 'transitions.jsonl').open('a') as stream:
+                  stream.write(line + '\n')
+
+          def port_open(port):
+              try:
+                  with socket.create_connection(('localhost', port), timeout=0.2):
+                      return True
+              except OSError:
+                  return False
+
+          def stop(process, port):
+              # The process group also owns Next's child process.
+              try:
+                  os.killpg(process.pid, signal.SIGTERM)
+              except ProcessLookupError:
+                  pass
+              try:
+                  process.wait(timeout=10)
+              except subprocess.TimeoutExpired:
+                  os.killpg(process.pid, signal.SIGKILL)
+                  process.wait(timeout=5)
+              deadline = time.monotonic() + 10
+              while port_open(port) and time.monotonic() < deadline:
+                  time.sleep(0.1)
+              released = not port_open(port)
+              emit('cleanup', pid=process.pid, exit_code=process.returncode,
+                   port=port, port_released=released)
+              if not released:
+                  raise RuntimeError('Diagnostic port was not released')
+
+          def system_evidence(port):
+              commands = [
+                  ['bash', '-c', 'ulimit -n; ulimit -u'],
+                  ['cat', '/proc/sys/fs/inotify/max_user_watches',
+                   '/proc/sys/fs/inotify/max_user_instances'],
+                  ['df', '-h'], ['free', '-m'],
+                  ['ps', '-eo', 'pid,ppid,stat,comm', '--forest'],
+                  ['ss', '-ltnp', 'sport = :' + str(port)],
+              ]
+              with (output / 'system.txt').open('a') as stream:
+                  for command in commands:
+                      stream.write(json.dumps(command) + '\n')
+                      try:
+                          result = subprocess.run(command, stdout=subprocess.PIPE,
+                                                  stderr=subprocess.STDOUT, text=True, timeout=10)
+                          stream.write(result.stdout)
+                      except (OSError, subprocess.TimeoutExpired) as error:
+                          stream.write(str(error) + '\n')
+
+          def direct():
+              port = 3101
+              if port_open(port):
+                  raise RuntimeError('Diagnostic port already occupied')
+              command = ['node', './node_modules/next/dist/bin/next', 'dev',
+                         '--webpack', '-H', 'localhost', '-p', str(port)]
+              start = time.monotonic()
+              with (output / 'next-direct.log').open('w') as server_log:
+                  process = subprocess.Popen(command, stdout=server_log, stderr=subprocess.STDOUT,
+                                             start_new_session=True)
+                  emit('direct_start', command=command, pid=process.pid, terminal_seconds=120)
+                  deadline = start + 120
+                  tcp_seen = False
+                  last_status = None
+                  result = 'NEXT_PROCESS_ALIVE_BUT_NOT_READY'
+                  try:
+                      while time.monotonic() < deadline:
+                          elapsed = time.monotonic() - start
+                          if process.poll() is not None:
+                              result = 'NEXT_PROCESS_EXITED'
+                              emit('process_exited', elapsed=elapsed, exit_code=process.returncode)
+                              break
+                          if not tcp_seen and port_open(port):
+                              tcp_seen = True
+                              emit('first_tcp_success', elapsed=time.monotonic() - start)
+                          status = None
+                          try:
+                              with opener.open('http://localhost:3101/en/auth/login',
+                                               timeout=max(0.01, min(1, deadline-time.monotonic()))) as response:
+                                  status = response.status
+                          except urllib.error.HTTPError as error:
+                              status = error.code
+                          except (OSError, urllib.error.URLError, TimeoutError):
+                              pass
+                          if status is not None and status != last_status:
+                              emit('http_status', status=status, elapsed=time.monotonic()-start)
+                              last_status = status
+                          # Playwright's readiness check accepts 2xx, 3xx, and 400-403.
+                          if status is not None and 200 <= status < 404:
+                              result = 'NEXT_READY'
+                              break
+                          time.sleep(min(0.2, max(0, deadline-time.monotonic())))
+                      emit('direct_result', result=result, elapsed=time.monotonic()-start,
+                           last_http_status=last_status, process_alive=process.poll() is None)
+                      if result != 'NEXT_READY':
+                          system_evidence(port)
+                          server_log.flush()
+                          print((output / 'next-direct.log').read_text(), flush=True)
+                  finally:
+                      stop(process, port)
+
+          def playwright():
+              port = 3102
+              if port_open(port):
+                  raise RuntimeError('Fresh Playwright port already occupied')
+              environment = {**os.environ, 'PLAYWRIGHT_PORT': str(port), 'DEBUG': 'pw:webserver'}
+              command = ['node', './node_modules/@playwright/test/cli.js', 'test',
+                         'tests/e2e/public-and-auth.spec.ts']
+              start = time.monotonic()
+              process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                         text=True, bufsize=1, env=environment, start_new_session=True)
+              emit('playwright_start', command=command, pid=process.pid)
+              first_output = False
+              running = False
+              try:
+                  with (output / 'playwright.log').open('w') as log:
+                      for line in process.stdout:
+                          elapsed = time.monotonic() - start
+                          plain = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                          log.write(line)
+                          print(line, end='', flush=True)
+                          if not first_output and ('[WebServer]' in plain or 'pw:webserver' in plain):
+                              first_output = True
+                              emit('first_webserver_output', elapsed=elapsed, line=plain.strip())
+                          if not running and re.search(r'Running \d+ tests? using', plain):
+                              running = True
+                              emit('playwright_running', elapsed=elapsed, line=plain.strip())
+                  code = process.wait()
+                  emit('playwright_result', exit_code=code, elapsed=time.monotonic()-start,
+                       tests_started=running)
+                  if code != 0:
+                      system_evidence(port)
+              finally:
+                  stop(process, port)
+
+          {'direct': direct, 'playwright': playwright}[sys.argv[1]]()
+          PY
+
+      - name: Phase 1 direct Next readiness
+        run: python3 "$RUNNER_TEMP/webserver-probe.py" direct
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Phase 2 real Playwright webServer
+        run: python3 "$RUNNER_TEMP/webserver-probe.py" playwright
+
+      - name: Upload non-sensitive diagnostic text
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: setup-node-webserver-${{ matrix.lane }}-${{ github.run_id }}
+          path: ${{ env.DIAG_DIR }}
+          if-no-files-found: error
+          retention-days: 7
