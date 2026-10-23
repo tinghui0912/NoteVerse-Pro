@@ -183,19 +183,70 @@ class QualityReuseTests(unittest.TestCase):
 
 
 class ImagePolicyTests(unittest.TestCase):
-    def test_quality_workflow_alone_requires_full_pr_image_validation(self):
-        self.assertIn(policy.QUALITY_WORKFLOW, policy.IMAGE_INPUTS)
-        self.assertTrue(policy.image_risk(policy.QUALITY_WORKFLOW))
-        self.assertTrue(policy.runtime_relevant(policy.QUALITY_WORKFLOW))
-        self.assertEqual(policy.image_policy("pull_request", [policy.QUALITY_WORKFLOW]),
+    def assert_no_image(self, event, paths):
+        self.assertEqual(policy.image_policy(event, paths),
+                         {"runtime_changed": False, "pr_image_validation_required": False,
+                          "image_pipeline_required": False})
+
+    def assert_full_image(self, event, paths):
+        self.assertEqual(policy.image_policy(event, paths),
                          {"runtime_changed": True, "pr_image_validation_required": True,
                           "image_pipeline_required": True})
 
+    def test_quality_workflow_alone_skips_pr_image(self):
+        self.assert_no_image("pull_request", [policy.QUALITY_WORKFLOW])
+
+    def test_policy_implementation_alone_skips_pr_image(self):
+        self.assert_no_image("pull_request", [".github/scripts/customer_web_ci_policy.py"])
+
+    def test_policy_tests_alone_skip_pr_image(self):
+        self.assert_no_image("pull_request", [".github/scripts/test_customer_web_ci_policy.py"])
+
+    def test_quality_workflow_alone_skips_main_image(self):
+        self.assert_no_image("push", [policy.QUALITY_WORKFLOW])
+
+    def test_policy_implementation_alone_skips_main_image(self):
+        self.assert_no_image("push", [".github/scripts/customer_web_ci_policy.py"])
+
+    def test_policy_tests_alone_skip_main_image(self):
+        self.assert_no_image("push", [".github/scripts/test_customer_web_ci_policy.py"])
+
+    def test_combined_ci_trust_paths_still_skip_image(self):
+        for event in ["pull_request", "push"]:
+            with self.subTest(event=event):
+                self.assert_no_image(event, [policy.QUALITY_WORKFLOW, *sorted(policy.POLICY_PATHS)])
+
+    def test_ci_trust_paths_are_not_image_content(self):
+        for path in [policy.QUALITY_WORKFLOW, *sorted(policy.POLICY_PATHS)]:
+            with self.subTest(path=path):
+                self.assertIn(path, policy.IMAGE_POLICY_TRUST_PATHS)
+                self.assertNotIn(path, policy.IMAGE_INPUTS)
+                self.assertFalse(policy.runtime_relevant(path))
+                self.assertFalse(policy.image_risk(path))
+
     def test_quality_workflow_with_source_cannot_use_source_only_fast_path(self):
-        self.assertEqual(policy.image_policy("pull_request", [policy.QUALITY_WORKFLOW,
-                                                              "apps/customer-web/src/page.tsx"]),
-                         {"runtime_changed": True, "pr_image_validation_required": True,
-                          "image_pipeline_required": True})
+        self.assert_full_image("pull_request", [policy.QUALITY_WORKFLOW,
+                                                "apps/customer-web/src/page.tsx"])
+
+    def test_policy_implementation_with_source_requires_full_pr_image(self):
+        self.assert_full_image("pull_request", [".github/scripts/customer_web_ci_policy.py",
+                                                "apps/customer-web/src/page.tsx"])
+
+    def test_policy_tests_with_source_require_full_pr_image(self):
+        self.assert_full_image("pull_request", [".github/scripts/test_customer_web_ci_policy.py",
+                                                "apps/customer-web/src/page.tsx"])
+
+    def test_ci_trust_paths_with_source_publish_on_main(self):
+        for path in [policy.QUALITY_WORKFLOW, *sorted(policy.POLICY_PATHS)]:
+            with self.subTest(path=path):
+                self.assert_full_image("push", [path, "apps/customer-web/src/page.tsx"])
+
+    def test_ci_trust_paths_with_only_tests_still_skip_image(self):
+        for event in ["pull_request", "push"]:
+            for path in [policy.QUALITY_WORKFLOW, *sorted(policy.POLICY_PATHS)]:
+                with self.subTest(event=event, path=path):
+                    self.assert_no_image(event, [path, "apps/customer-web/src/foo.test.tsx",
+                                                 "apps/customer-web/tests/fixtures/foo.musicxml"])
 
     def test_source_only_pr_skips_image_but_is_runtime_relevant(self):
         self.assertEqual(policy.image_policy("pull_request", ["apps/customer-web/src/page.tsx"]),
@@ -207,12 +258,26 @@ class ImagePolicyTests(unittest.TestCase):
                      "apps/customer-web/src/foo.spec.ts", "apps/customer-web/tests/e2e/foo.spec.ts",
                      "apps/customer-web/tests/e2e/support/helper.ts", "apps/customer-web/tests/fixtures/foo.musicxml"]:
             with self.subTest(path=path):
-                self.assertFalse(any(policy.image_policy("pull_request", [path]).values()))
+                self.assert_no_image("pull_request", [path])
 
     def test_image_risk_prs_run_full_image_pipeline(self):
-        for path in policy.IMAGE_INPUTS | {"docker/customer-web/Dockerfile.runtime"}:
+        inputs = {".dockerignore", policy.IMAGE_WORKFLOW,
+                  "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
+                  "apps/customer-web/next.config.ts", "apps/customer-web/.npmrc",
+                  "apps/customer-web/npm-shrinkwrap.json"}
+        self.assertEqual(policy.IMAGE_INPUTS, inputs)
+        for path in inputs | {"docker/customer-web/Dockerfile.runtime",
+                              "docker/customer-web/support/config.txt"}:
             with self.subTest(path=path):
-                self.assertTrue(all(policy.image_policy("pull_request", [path]).values()))
+                self.assert_full_image("pull_request", [path])
+
+    def test_image_workflow_alone_requires_full_pr_image(self):
+        self.assert_full_image("pull_request", [policy.IMAGE_WORKFLOW])
+
+    def test_image_risk_with_ci_trust_paths_still_requires_full_pr_image(self):
+        for path in [policy.QUALITY_WORKFLOW, *sorted(policy.POLICY_PATHS)]:
+            with self.subTest(path=path):
+                self.assert_full_image("pull_request", [path, "apps/customer-web/package-lock.json"])
 
     def test_conservative_runtime_inputs_remain_runtime_relevant(self):
         for path in ["public/example.svg", "messages/en/practice.json", "tsconfig.json",
@@ -222,23 +287,29 @@ class ImagePolicyTests(unittest.TestCase):
 
     def test_mixed_source_and_tests_remains_runtime_relevant(self):
         result = policy.image_policy("pull_request", ["apps/customer-web/src/page.tsx", "apps/customer-web/src/foo.test.ts"])
-        self.assertTrue(result["runtime_changed"])
-        self.assertFalse(result["image_pipeline_required"])
+        self.assertEqual(result, {"runtime_changed": True, "pr_image_validation_required": False,
+                                  "image_pipeline_required": False})
 
     def test_main_source_push_requires_full_publish_pipeline(self):
-        self.assertTrue(policy.image_policy("push", ["apps/customer-web/src/page.tsx"])["image_pipeline_required"])
+        self.assertEqual(policy.image_policy("push", ["apps/customer-web/src/page.tsx"]),
+                         {"runtime_changed": True, "pr_image_validation_required": False,
+                          "image_pipeline_required": True})
 
     def test_main_test_only_push_still_skips_image(self):
-        self.assertFalse(policy.image_policy("push", ["apps/customer-web/tests/helper.ts"])["image_pipeline_required"])
+        self.assert_no_image("push", ["apps/customer-web/tests/helper.ts"])
 
     def test_dispatch_always_requires_full_image(self):
-        result = policy.image_policy("workflow_dispatch", [])
-        self.assertTrue(result["runtime_changed"])
-        self.assertTrue(result["image_pipeline_required"])
+        for paths in [[], [policy.QUALITY_WORKFLOW], sorted(policy.POLICY_PATHS),
+                      ["apps/customer-web/tests/helper.ts"]]:
+            with self.subTest(paths=paths):
+                result = policy.image_policy("workflow_dispatch", paths)
+                self.assertTrue(result["runtime_changed"])
+                self.assertTrue(result["image_pipeline_required"])
 
-    def test_policy_changes_require_full_pr_image(self):
-        for path in policy.POLICY_PATHS:
-            self.assertTrue(policy.image_policy("pull_request", [path])["image_pipeline_required"])
+    def test_empty_pr_and_push_ranges_skip_image(self):
+        for event in ["pull_request", "push"]:
+            with self.subTest(event=event):
+                self.assert_no_image(event, [])
 
     def test_backend_and_unrelated_workflow_are_not_customer_runtime(self):
         self.assertFalse(policy.runtime_relevant("backend/app/main.py"))

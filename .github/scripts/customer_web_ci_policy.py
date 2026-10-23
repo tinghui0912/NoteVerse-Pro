@@ -24,8 +24,9 @@ POLICY_PATHS = {
     ".github/scripts/customer_web_ci_policy.py",
     ".github/scripts/test_customer_web_ci_policy.py",
 }
+IMAGE_POLICY_TRUST_PATHS = {QUALITY_WORKFLOW, *POLICY_PATHS}
 IMAGE_INPUTS = {
-    ".dockerignore", IMAGE_WORKFLOW, QUALITY_WORKFLOW, *POLICY_PATHS,
+    ".dockerignore", IMAGE_WORKFLOW,
     "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
     "apps/customer-web/next.config.ts",
     # npm reads these before resolving/installing dependencies, if present.
@@ -34,7 +35,7 @@ IMAGE_INPUTS = {
 
 
 def runtime_relevant(path: str) -> bool:
-    if path in {".dockerignore", IMAGE_WORKFLOW, QUALITY_WORKFLOW, *POLICY_PATHS}:
+    if path in {".dockerignore", IMAGE_WORKFLOW}:
         return True
     if path.startswith("docker/customer-web/"):
         return True
@@ -55,10 +56,14 @@ def image_policy(event_name: str, paths: list[str]) -> dict[str, bool]:
         raise ValueError("Unsupported image event")
     runtime = event_name == "workflow_dispatch" or any(map(runtime_relevant, paths))
     risk = any(map(image_risk, paths))
+    trust_changed = any(path in IMAGE_POLICY_TRUST_PATHS for path in paths)
+    # CI-only changes need no image, but cannot self-authorize the source-only
+    # PR fast path when runtime content changes alongside the policy boundary.
+    require_pr_image = risk or (runtime and trust_changed)
     return {
         "runtime_changed": runtime,
-        "pr_image_validation_required": risk,
-        "image_pipeline_required": runtime and (event_name != "pull_request" or risk),
+        "pr_image_validation_required": require_pr_image,
+        "image_pipeline_required": runtime and (event_name != "pull_request" or require_pr_image),
     }
 
 
