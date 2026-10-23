@@ -8,6 +8,13 @@ provider or plugin, intentional peer dependency ownership, or another explicit
 application-level contract. Review source, configuration, scripts, setup files,
 and per-file test environment directives before removing a declaration.
 
+When a tool moves an internal dependency to a required peer dependency, an
+application intentionally using that toolchain normally declares and provides the
+peer explicitly. Do not rely on package-manager auto-installed peers just to avoid
+direct ownership. For example, Vitest 5 requires the application to provide a
+compatible Vite installation. This is an intentional peer-provider contract, not
+promotion of an ordinary transitive dependency merely for version visibility.
+
 Do not promote a transitive package to a direct dependency merely to expose its
 version, deduplicate globally, control an upstream implementation detail, or make
 Dependabot show a preferred target. A redundant direct declaration is not justified
