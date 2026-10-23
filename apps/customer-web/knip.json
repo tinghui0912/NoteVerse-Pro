@@ -11,7 +11,7 @@
     "next.config.ts",
     "postcss.config.mjs",
     "eslint.config.mjs",
-    "vitest.config.ts",
+    "vitest.config.mts",
     "vitest.setup.ts"
   ],
   "project": [
@@ -34,7 +34,7 @@
   "ignoreIssues": {
     "next.config.ts": ["exports"],
     "openapi-ts.config.ts": ["exports"],
-    "vitest.config.ts": ["exports"]
+    "vitest.config.mts": ["exports"]
   },
   "ignoreDependencies": [
     "@hey-api/openapi-ts",

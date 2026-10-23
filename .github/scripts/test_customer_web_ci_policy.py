@@ -216,7 +216,7 @@ class ImagePolicyTests(unittest.TestCase):
 
     def test_conservative_runtime_inputs_remain_runtime_relevant(self):
         for path in ["public/example.svg", "messages/en/practice.json", "tsconfig.json",
-                     "postcss.config.mjs", "vitest.config.ts", "playwright.config.ts", "README.md", "knip.json"]:
+                     "postcss.config.mjs", "vitest.config.mts", "playwright.config.ts", "README.md", "knip.json"]:
             with self.subTest(path=path):
                 self.assertTrue(policy.image_policy("pull_request", ["apps/customer-web/" + path])["runtime_changed"])
 
