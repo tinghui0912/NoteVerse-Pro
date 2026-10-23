@@ -25,50 +25,6 @@
       ]
     },
     {
-      "manifest": "apps/customer-web/package.json",
-      "selector": [
-        "undici"
-      ],
-      "requested_version": "7.29.1",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/123"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
-      "manifest": "apps/customer-web/package.json",
-      "selector": [
-        "minimatch@3.1.5",
-        "brace-expansion"
-      ],
-      "requested_version": "1.1.21",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/123"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
-      "manifest": "apps/customer-web/package.json",
-      "selector": [
-        "minimatch@10.2.5",
-        "brace-expansion"
-      ],
-      "requested_version": "5.0.12",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/123"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
       "manifest": "apps/platform-admin/package.json",
       "selector": [
         "postcss"
