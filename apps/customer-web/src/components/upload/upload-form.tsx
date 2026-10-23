@@ -67,6 +67,7 @@ export function UploadForm(props: UploadFormProps) {
     accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.bmp'] },
     noClick: props.files.length > 0,
     noKeyboard: true,
+    noPaste: true,
   });
 
   const reselect = () => {
