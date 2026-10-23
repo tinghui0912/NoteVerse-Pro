@@ -10,6 +10,10 @@ on:
       - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
       - ".github/scripts/test_customer_web_ci_policy.py"
+      - ".github/dependency-exceptions.json"
+      - ".github/scripts/dependency_governance.py"
+      - ".github/scripts/test_dependency_governance.py"
+      - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
       - "apps/customer-web/**"
@@ -18,6 +22,10 @@ on:
       - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
       - ".github/scripts/test_customer_web_ci_policy.py"
+      - ".github/dependency-exceptions.json"
+      - ".github/scripts/dependency_governance.py"
+      - ".github/scripts/test_dependency_governance.py"
+      - "docs/governance/dependency-maintenance-policy.md"
 
 concurrency:
   group: customer-web-quality-${{ github.ref }}
@@ -45,6 +53,12 @@ jobs:
       - name: Test Customer Web CI policy
         working-directory: .
         run: python3 -m unittest discover -s .github/scripts -p test_customer_web_ci_policy.py -v
+
+      - name: Check dependency override governance
+        working-directory: .
+        run: |
+          python3 -m unittest discover -s .github/scripts -p test_dependency_governance.py -v
+          python3 .github/scripts/dependency_governance.py
 
       - name: Verify reusable PR Quality proof
         id: proof

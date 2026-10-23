@@ -6,10 +6,18 @@ on:
     paths:
       - "apps/platform-admin/**"
       - ".github/workflows/platform-admin-quality.yml"
+      - ".github/dependency-exceptions.json"
+      - ".github/scripts/dependency_governance.py"
+      - ".github/scripts/test_dependency_governance.py"
+      - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
       - "apps/platform-admin/**"
       - ".github/workflows/platform-admin-quality.yml"
+      - ".github/dependency-exceptions.json"
+      - ".github/scripts/dependency_governance.py"
+      - ".github/scripts/test_dependency_governance.py"
+      - "docs/governance/dependency-maintenance-policy.md"
 
 concurrency:
   group: platform-admin-quality-${{ github.ref }}
@@ -29,6 +37,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Check dependency override governance
+        working-directory: .
+        run: |
+          python3 -m unittest discover -s .github/scripts -p test_dependency_governance.py -v
+          python3 .github/scripts/dependency_governance.py
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
