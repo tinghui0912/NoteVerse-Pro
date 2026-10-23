@@ -92,13 +92,15 @@
   },
   "overrides": {
     "postcss": "$postcss",
-    "js-yaml": "4.3.1",
-    "undici": "7.29.0",
+    "@hey-api/json-schema-ref-parser@1.4.4": {
+      "js-yaml": "4.3.2"
+    },
+    "undici": "7.29.1",
     "minimatch@3.1.5": {
-      "brace-expansion": "1.1.18"
+      "brace-expansion": "1.1.21"
     },
     "minimatch@10.2.5": {
-      "brace-expansion": "5.0.9"
+      "brace-expansion": "5.0.12"
     }
   }
 }
