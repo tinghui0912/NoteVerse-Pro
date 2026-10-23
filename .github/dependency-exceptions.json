@@ -23,62 +23,6 @@
         "GHSA-5p4m-2wfm-xmqj",
         "GHSA-52cp-r559-cp3m"
       ]
-    },
-    {
-      "manifest": "apps/platform-admin/package.json",
-      "selector": [
-        "postcss"
-      ],
-      "requested_version": "8.5.25",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/121"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
-      "manifest": "apps/platform-admin/package.json",
-      "selector": [
-        "nanoid"
-      ],
-      "requested_version": "3.3.18",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/121"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
-      "manifest": "apps/platform-admin/package.json",
-      "selector": [
-        "sharp"
-      ],
-      "requested_version": "0.35.5",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/121"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
-    },
-    {
-      "manifest": "apps/platform-admin/package.json",
-      "selector": [
-        "source-map-js"
-      ],
-      "requested_version": "1.2.2",
-      "category": "security",
-      "reason": "Historical security pin retained while natural parent resolution is validated in the following ownership-cleanup commit.",
-      "evidence": [
-        "https://github.com/tinghui0912/NoteVerse-Pro/pull/121"
-      ],
-      "exit_condition": "Remove this pin and registry record when natural parent resolution is safe and the application/image gates pass.",
-      "review_trigger": "Review now during ownership cleanup and on every affected parent update."
     }
   ]
 }
