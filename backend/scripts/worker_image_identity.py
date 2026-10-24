@@ -142,6 +142,9 @@ def plan(registry: Registry, repository: str, role: str, identity: str, run: str
     existing = registry.resolve(canonical)
     if existing is not None:
         validate_digest(existing)
+        if role == "worker":
+            # A source SHA alone does not bind this run's selected dependency OCI.
+            raise RuntimeError("Worker source tag already exists; refuse recomposition or retagging without a proven dependency edge")
         return Plan("reuse", canonical, candidate, existing, repository + "@" + existing)
     if registry.resolve(candidate) is not None:
         raise RuntimeError("Run-attempt candidate already exists; refuse to overwrite it")

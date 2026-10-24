@@ -282,8 +282,10 @@ For `backend-worker-deps:deps-v2-<full-build-key>`:
 The final Worker builds FROM the qualified dependency `repository@sha256:...`,
 never a mutable dependency tag. It likewise uses an attempt-specific candidate,
 explicitly pulls and runs its exact published OCI with `--network none`, generates
-its SBOM and passes Trivy before assigning `${GITHUB_SHA}`. An existing source tag
-selects reuse and requalification; a different winner is never overwritten.
+its SBOM and passes Trivy before assigning `${GITHUB_SHA}`. An existing final
+source tag fails closed before composition: source SHA alone cannot establish
+that existing image's edge to this run's selected dependency OCI. It is neither
+rebuilt nor retagged. Dependency v2 keys still select immutable reuse.
 Promotion preserves the single-manifest identity (`--prefer-index=false`) and
 verifies the resulting OCI. The helper independently requires actual successful
 contract/SBOM/Trivy outcomes; failed/skipped gates cannot promote.

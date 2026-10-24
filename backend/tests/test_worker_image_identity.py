@@ -102,6 +102,16 @@ def test_absent_canonical_selects_only_attempt_specific_candidate():
     assert identity.candidate_tag("123", "1") != identity.candidate_tag("123", "2")
 
 
+def test_existing_worker_source_cannot_be_misreported_as_current_dependency_composition():
+    repository = REPOSITORY.removesuffix("-deps")
+    source = "a" * 40
+    registry = FakeRegistry({repository + ":" + source: FIRST})
+    with pytest.raises(RuntimeError, match="refuse recomposition or retagging"):
+        identity.plan(registry, repository, "worker", source, "123", "2")
+    assert registry.reads == [repository + ":" + source]
+    assert registry.writes == []
+
+
 def test_existing_candidate_cannot_be_overwritten():
     registry = FakeRegistry({REPOSITORY + ":candidate-123-1": FIRST})
     with pytest.raises(RuntimeError, match="candidate already exists"):
