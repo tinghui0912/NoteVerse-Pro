@@ -18,7 +18,7 @@ def documents():
             {"id": role + "-select"}, {"id": role + "-contract"},
             {"id": role + "-sbom", "with": {"image": "${{ steps." + role + "-select.outputs.digest_ref }}"}},
             {"id": role + "-scan", "uses": "aquasecurity/trivy-action@pin", "with": {
-                "image-ref": "${{ steps." + role + "-select.outputs.digest_ref }}", "vuln-type": "os,library", "severity": "CRITICAL", "ignore-unfixed": True, "exit-code": "1",
+                "image-ref": "${{ steps." + role + "-select.outputs.digest_ref }}", "vuln-type": "os,library", "severity": "CRITICAL", "ignore-unfixed": True, "exit-code": "1", "timeout": "20m",
             }, "env": {"TRIVY_IMAGE_SRC": "remote"}},
             {"id": role + "-promote", "env": {
                 "GATE_CONTRACT": "${{ steps." + role + "-contract.outcome }}",
@@ -97,4 +97,12 @@ def test_ignoring_trivy_failure_is_forbidden(documents):
     scan = next(s for s in trusted["jobs"]["build"]["steps"] if s.get("id") == "deps-scan")
     scan["continue-on-error"] = True
     with pytest.raises(ValueError, match="ignore failure"):
+        check_workflow_documents(trusted, pr)
+
+
+def test_default_short_scan_timeout_is_rejected(documents):
+    trusted, pr = documents
+    scan = next(s for s in pr["jobs"]["validate"]["steps"] if s.get("id") == "deps-scan")
+    scan["with"].pop("timeout")
+    with pytest.raises(ValueError, match="20m analysis budget"):
         check_workflow_documents(trusted, pr)

@@ -322,6 +322,10 @@ Buildx history uploads are disabled so post actions do not retain pruned build
 state; both standalone SBOM artifacts and all security gates remain required.
 Destructive cleanup is restricted to ephemeral GitHub-hosted runners; local use
 is report-only.
+The full CUDA/Paddle image scans have an explicit bounded 20-minute analysis
+budget: the first v2 PR probe preserved 23 GiB free but hit Trivy's default
+five-minute analysis deadline. This changes resource allowance, not the
+CRITICAL policy, scanners, scanned files or failure handling.
 
 Run 40087924267/job 120854535187 (attempt 1, source 2e32c70b...) exposed actual
 resolution drift under legacy v1 key `fd1036acf6cf624e`: historical OCI

@@ -125,6 +125,7 @@ jobs:
         ignore-unfixed: true
         format: table
         exit-code: '1'
+        timeout: 20m
         cache: false
       env:
         TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/tmp
@@ -218,6 +219,7 @@ jobs:
         ignore-unfixed: true
         format: table
         exit-code: '1'
+        timeout: 20m
         cache: false
       env:
         TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/tmp

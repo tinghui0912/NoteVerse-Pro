@@ -240,6 +240,8 @@ def check_workflow_documents(trusted: dict, pr: dict) -> None:
             config = scan["with"]
             if (config["vuln-type"], config["severity"], config["ignore-unfixed"], str(config["exit-code"])) != ("os,library", "CRITICAL", True, "1"):
                 raise ValueError("Worker Trivy policy changed")
+            if config.get("timeout") != "20m":
+                raise ValueError("Heavy Worker scans require the explicit bounded 20m analysis budget")
             if scan["env"]["TRIVY_IMAGE_SRC"] != source:
                 raise ValueError("Unexpected Worker scan source")
         commands = "\n".join(s.get("run", "") for j in document["jobs"].values() for s in j["steps"])
