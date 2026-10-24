@@ -208,8 +208,61 @@ def test_registry_access_error_is_not_treated_as_absence(monkeypatch, error):
 
 
 def test_registry_explicit_missing_is_absence(monkeypatch):
-    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr="ERROR: image: not found"))
+    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr=REPOSITORY + ":missing: not found"))
     assert identity.DockerRegistry().resolve(REPOSITORY + ":missing") is None
+
+
+def test_registry_incident_candidate_40108308138_missing_is_absence(monkeypatch):
+    reference = REPOSITORY + ":candidate-40108308138-1"
+    error = "ERROR: " + reference + ": not found\n"
+    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr=error))
+    assert identity.DockerRegistry().resolve(reference) is None
+
+
+@pytest.mark.parametrize("tag", ["candidate-401123-1", "candidate-403123-1", "candidate-429123-1", "unauthorized-401"])
+def test_registry_missing_identifier_is_not_an_http_or_auth_error(monkeypatch, tag):
+    reference = REPOSITORY + ":" + tag
+    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr="ERROR: " + reference + ": not found"))
+    assert identity.DockerRegistry().resolve(reference) is None
+
+
+@pytest.mark.parametrize("error", [
+    "manifest unknown", "ERROR: manifest unknown: manifest unknown",
+    REPOSITORY + ":missing: manifest unknown", "ERROR: " + REPOSITORY + ":missing: manifest unknown: manifest unknown",
+])
+def test_registry_missing_manifest_is_absence(monkeypatch, error):
+    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr=error))
+    assert identity.DockerRegistry().resolve(REPOSITORY + ":missing") is None
+
+
+@pytest.mark.parametrize("error", [
+    "401 Unauthorized", "403 Forbidden", "unauthorized", "authentication required", "denied", "forbidden",
+    "error getting credentials: exit status 1", "429 Too Many Requests", "HTTP status code: 401",
+    "unexpected status: 403", "HTTP/1.1 429", "HTTP status code: 401: manifest unknown",
+    "manifest unknown: 429 Too Many Requests", "unauthorized: manifest unknown",
+    "authentication required: " + REPOSITORY + ":missing: not found",
+    "ERROR: " + REPOSITORY + ":missing: not found\nHTTP status: 403",
+    "dial tcp: connection refused", "TLS handshake timeout", "x509: certificate signed by unknown authority",
+    "context deadline exceeded", "lookup ghcr.io: no such host", "unknown registry error",
+    "lookup missing-host: not found", "timeout: manifest unknown", "manifest unknown: TLS handshake timeout",
+    "unexpected status 500: " + REPOSITORY + ":missing: not found",
+])
+def test_registry_semantic_access_and_infrastructure_errors_fail_closed(monkeypatch, error):
+    monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr=error))
+    with pytest.raises(RuntimeError, match="failed closed"):
+        identity.DockerRegistry().resolve(REPOSITORY + ":missing")
+
+
+def test_registry_success_returns_exact_oci_digest(monkeypatch):
+    calls = []
+
+    def inspect(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(returncode=0, stdout=f"Name: {REPOSITORY}:present\nDigest: {FIRST}\n", stderr="")
+
+    monkeypatch.setattr(identity.subprocess, "run", inspect)
+    assert identity.DockerRegistry().resolve(REPOSITORY + ":present") == FIRST
+    assert calls == [["docker", "buildx", "imagetools", "inspect", REPOSITORY + ":present"]]
 
 
 def test_cli_rejects_custom_dependency_override():
