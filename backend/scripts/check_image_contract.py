@@ -16,7 +16,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-ROLES = ("api", "beat", "worker")
+ROLES = ("api", "beat", "worker", "worker-deps")
 
 
 @contextmanager
@@ -106,6 +106,12 @@ def check_migration_packaging() -> None:
     compile(env.read_bytes(), str(env), "exec")
 
 
+def check_worker_dependency_imports() -> None:
+    require_import("opentelemetry.exporter.otlp.proto.grpc.trace_exporter", "OTLPSpanExporter")
+    for module in ("paddle", "paddleocr", "paddlex"):
+        require_import(module)
+
+
 def run_contract(role: str) -> list[str]:
     if role not in ROLES:
         raise ValueError(f"Unknown image role: {role}")
@@ -128,6 +134,9 @@ def run_contract(role: str) -> list[str]:
             if importlib.util.find_spec(module) is not None:
                 raise RuntimeError(f"Beat must not install Worker dependency: {module}")
         evidence.append("Beat/Celery/PostgreSQL-lock imports passed; Worker tasks not imported")
+    elif role == "worker-deps":
+        check_worker_dependency_imports()
+        evidence.append("OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
     else:
         # The existing contract owns the task list and loads app.worker.tasks.
         runtime = importlib.import_module("app.core.runtime_checks")
@@ -136,9 +145,7 @@ def run_contract(role: str) -> list[str]:
             raise RuntimeError(tasks.message)
         evidence.append(tasks.message)
         require_import("verovio", "toolkit")
-        require_import("opentelemetry.exporter.otlp.proto.grpc.trace_exporter", "OTLPSpanExporter")
-        for module in ("paddle", "paddleocr", "paddlex"):
-            require_import(module)
+        check_worker_dependency_imports()
         evidence.append("Verovio/OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
     return evidence
 

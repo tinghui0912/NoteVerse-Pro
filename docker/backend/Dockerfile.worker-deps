@@ -1,4 +1,4 @@
-ARG PYTHON_IMAGE=ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124-slim
+ARG PYTHON_IMAGE=ghcr.io/tinghui0912/noteverse/ml-base:resolved-digest-required
 
 FROM ${PYTHON_IMAGE}
 
@@ -28,39 +28,28 @@ RUN apt-get update -o Acquire::Retries=3 \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements/ /tmp/requirements/
+# The human-owned worker-image.in is compiled into this complete hashed lock.
+# Version authority lives in the ownership inputs/generated lock, not RUN literals.
+COPY backend/requirements/worker-image-py312-linux-amd64.lock /opt/noteverse/worker-python.lock
+COPY backend/scripts/worker_lock.py /usr/local/lib/noteverse/worker_lock.py
+COPY backend/scripts/check_image_contract.py /usr/local/lib/noteverse/check_image_contract.py
 
 ARG INSTALL_PADDLE_GPU=false
 ARG INSTALL_LEGATO_EXTRA_DEPS=false
-ARG PADDLE_CUDA_INDEX=cu126
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -r /tmp/requirements/worker-app.txt \
-    && if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
-      python -m pip install paddlepaddle-gpu==3.2.0 --extra-index-url "https://www.paddlepaddle.org.cn/packages/stable/${PADDLE_CUDA_INDEX}/"; \
-    else \
-      python -m pip install paddlepaddle==3.2.0 --extra-index-url "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
-    fi \
-    && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/ocr.txt)" \
-    && python -m pip install -r /tmp/requirements/worker-app.txt "${PADDLEOCR_REQ}" \
-    && python -m pip install \
-      accelerate==1.8.0 \
-      fire==0.7.0 \
-      Levenshtein \
-      pyparsing \
-      tqdm \
-      transformers==4.54.0 \
-      zss \
-    && if [ "${INSTALL_LEGATO_EXTRA_DEPS}" = "true" ]; then \
-      python -m pip install \
-        datasets==3.2.0 \
-        deepspeed \
-        wandb; \
-    fi \
-    && rm -rf /root/.cache/pip /tmp/requirements
+RUN test "${INSTALL_PADDLE_GPU}" = "false" \
+    && test "${INSTALL_LEGATO_EXTRA_DEPS}" = "false" \
+    || { echo "Only the locked CPU Paddle / no LEGATO-extra target is supported; GPU needs separate qualification."; exit 1; }
 
-# Check the complete Python environment without initializing OCR models.
-RUN python -m pip check \
-    && PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True python -c "from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter; import paddle, paddleocr, paddlex; print('worker dependency imports ok')"
+# Bootstrap build tooling from the SAME lock, then prohibit untracked isolated
+# build dependencies. Source distributions keep their source artifact hashes.
+RUN python /usr/local/lib/noteverse/worker_lock.py --bootstrap-requirements --lock /opt/noteverse/worker-python.lock > /tmp/worker-bootstrap.lock \
+    && python -m pip install --require-hashes -r /tmp/worker-bootstrap.lock \
+    && python -m pip install --require-hashes --no-build-isolation -r /opt/noteverse/worker-python.lock \
+    && python /usr/local/lib/noteverse/worker_lock.py --check-installed --lock /opt/noteverse/worker-python.lock \
+    && rm -rf /root/.cache/pip /tmp/worker-bootstrap.lock
+
+# The checker runs python -m pip check first; imports do not initialize models.
+RUN python /usr/local/lib/noteverse/check_image_contract.py --role worker-deps
 
 COPY backend/app/processing/engines/omr/legato_manifest.py /tmp/legato_manifest.py
 RUN mkdir -p /opt/noteverse/models /opt/noteverse/legato \

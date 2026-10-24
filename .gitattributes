@@ -1,3 +1,6 @@
 # Shell entrypoints are executed directly by Linux containers. Keep their
 # shebang and options free of Windows CRLF conversion on every checkout.
 *.sh text eol=lf
+
+# Generated Worker resolution must compare byte-for-byte on Windows checkouts.
+backend/requirements/worker-image-py312-linux-amd64.lock text eol=lf

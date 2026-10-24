@@ -1,21 +1,14 @@
 name: Backend Worker Image
-
-on:
+'on':
   workflow_dispatch:
     inputs:
       ml_base_tag:
-        description: "Pinned ML base image tag used for worker builds"
+        description: Existing ML Base alias; resolved to immutable OCI before computing v2 identity
         required: true
-        default: "py312-torch260-cu124-slim"
-      worker_deps_tag:
-        description: "Optional worker dependency image tag. Leave empty to use a content fingerprint tag."
-        required: false
-        default: ""
-
+        default: py312-torch260-cu124-slim
 concurrency:
-  group: backend-worker-image-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: backend-worker-trusted-publication-v2
+  cancel-in-progress: false
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -24,158 +17,246 @@ jobs:
       contents: read
       packages: write
     env:
-      ML_BASE_TAG: ${{ inputs.ml_base_tag || 'py312-torch260-cu124-slim' }}
-      WORKER_DEPS_TAG_INPUT: ${{ inputs.worker_deps_tag }}
-
+      ML_BASE_TAG: ${{ inputs.ml_base_tag }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Resolve image namespace
-        run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
-
-      - name: Resolve ML base image
-        run: echo "ML_BASE_IMAGE=${IMAGE_NAMESPACE}/ml-base:${ML_BASE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Resolve worker dependency image
-        run: |
-          WORKER_REQUIREMENTS_HASH="$(python3 backend/scripts/worker_requirements_fingerprint.py)"
-          WORKER_DEPS_HASH="$(
-            {
-              printf 'worker-requirements-sha256:%s\n' "${WORKER_REQUIREMENTS_HASH}"
-              sha256sum \
-                docker/backend/Dockerfile.worker-deps \
-                backend/scripts/worker_requirements_fingerprint.py \
-                backend/app/processing/engines/omr/legato_manifest.py
-              printf '%s\n' "${ML_BASE_IMAGE}"
-              printf '%s\n' "INSTALL_PADDLE_GPU=false"
-              printf '%s\n' "INSTALL_LEGATO_EXTRA_DEPS=false"
-            } | sha256sum | cut -c1-16
-          )"
-          if [ -n "${WORKER_DEPS_TAG_INPUT}" ]; then
-            WORKER_DEPS_TAG="${WORKER_DEPS_TAG_INPUT}"
-          else
-            WORKER_DEPS_TAG="deps-${WORKER_DEPS_HASH}"
-          fi
-          echo "WORKER_DEPS_HASH=${WORKER_DEPS_HASH}" >> "$GITHUB_ENV"
-          echo "WORKER_DEPS_TAG=${WORKER_DEPS_TAG}" >> "$GITHUB_ENV"
-          echo "WORKER_DEPS_IMAGE=${IMAGE_NAMESPACE}/backend-worker-deps:${WORKER_DEPS_TAG}" >> "$GITHUB_ENV"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Free hosted runner disk space
-        if: runner.environment == 'github-hosted'
-        run: |
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf /usr/share/dotnet || true
-          sudo rm -rf /opt/ghc || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          docker system prune -af || true
-          df -h
-
-      - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME || github.actor }}
-          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Pull ML base image
-        run: |
-          docker pull "${ML_BASE_IMAGE}" || {
-            echo "::error::Missing ${ML_BASE_IMAGE}. Run the ML Base Image workflow first, then rerun this worker image workflow."
-            exit 1
-          }
-
-      - name: Build and push backend worker dependency image
-        id: backend-worker-deps-build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: docker/backend/Dockerfile.worker-deps
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.WORKER_DEPS_IMAGE }}
-            ${{ env.IMAGE_NAMESPACE }}/backend-worker-deps:build-${{ github.run_id }}
-          build-args: |
-            PYTHON_IMAGE=${{ env.ML_BASE_IMAGE }}
-            INSTALL_PADDLE_GPU=false
-            INSTALL_LEGATO_EXTRA_DEPS=false
-
-      - name: Build and push backend worker runtime image
-        id: backend-worker-build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: docker/backend/Dockerfile.worker
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
-            ${{ env.IMAGE_NAMESPACE }}/backend-worker:build-${{ github.run_id }}
-          build-args: |
-            WORKER_DEPS_IMAGE=${{ env.WORKER_DEPS_IMAGE }}
-
-      - name: Check published Worker packaging contract offline
-        env:
-          WORKER_DIGEST: ${{ steps.backend-worker-build.outputs.digest }}
-        run: |
-          set -euo pipefail
-          [[ "$WORKER_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          REF="${IMAGE_NAMESPACE}/backend-worker@${WORKER_DIGEST}"
-          docker pull "$REF"
-          docker run --rm --network none --entrypoint python "$REF" scripts/check_image_contract.py --role worker
-
-      - name: Generate backend worker dependency SBOM
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: ${{ env.IMAGE_NAMESPACE }}/backend-worker-deps@${{ steps.backend-worker-deps-build.outputs.digest }}
-          format: spdx-json
-          artifact-name: backend-worker-deps-image-sbom.spdx.json
-
-      - name: Generate backend worker SBOM
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: ${{ env.IMAGE_NAMESPACE }}/backend-worker@${{ steps.backend-worker-build.outputs.digest }}
-          format: spdx-json
-          artifact-name: backend-worker-image-sbom.spdx.json
-
-      - name: Scan backend worker dependency image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker-deps@${{ steps.backend-worker-deps-build.outputs.digest }}
-          vuln-type: os,library
-          severity: CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-      - name: Scan backend worker image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker@${{ steps.backend-worker-build.outputs.digest }}
-          vuln-type: os,library
-          severity: CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-      - name: Write image build summary
-        run: |
-          {
-            echo "## Backend worker image build"
-            echo ""
-            echo "- Push images: \`true\`"
-            echo "- Worker image: \`${IMAGE_NAMESPACE}/backend-worker:${GITHUB_SHA}\`"
-            echo "- Worker digest: \`${{ steps.backend-worker-build.outputs.digest }}\`"
-            echo "- ML base: \`${ML_BASE_IMAGE}\`"
-            echo "- Worker deps image: \`${WORKER_DEPS_IMAGE}\`"
-            echo "- Worker deps digest: \`${{ steps.backend-worker-deps-build.outputs.digest }}\`"
-            echo "- LEGATO source: derived from \`backend/app/processing/engines/omr/legato_manifest.py\`"
-            echo "- SBOM artifacts: backend-worker-deps-image-sbom.spdx.json, backend-worker-image-sbom.spdx.json"
-            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
-          } >> "$GITHUB_STEP_SUMMARY"
+    - name: Checkout repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - name: Resolve Worker namespace
+      run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
+    - name: Initial hosted runner disk boundary
+      if: runner.environment == 'github-hosted'
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py initial --builder buildx
+    - name: Authenticate for trusted publication
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+      with:
+        registry: ghcr.io
+        username: ${{ secrets.GHCR_USERNAME || github.actor }}
+        password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+    - name: Resolve existing ML Base to immutable OCI
+      id: base
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base --repository "${IMAGE_NAMESPACE}/ml-base"
+        --tag "$ML_BASE_TAG"
+    - name: Check generated Worker lock without upgrading
+      run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python python:3.12-slim-bookworm /repo/backend/scripts/worker_lock.py
+        --repo /repo --check
+    - name: Compute Worker v2 build key
+      id: key
+      env:
+        BASE_DIGEST: ${{ steps.base.outputs.oci_digest }}
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" build-key --ml-base-digest "$BASE_DIGEST"
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    - name: Plan first-build-wins deps
+      id: deps-plan
+      env:
+        IDENTITY: ${{ steps.key.outputs.build_key }}
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+        --role deps --identity "$IDENTITY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+    - name: Build and push deps quarantine candidate only
+      id: deps-build
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+      with:
+        context: .
+        file: docker/backend/Dockerfile.worker-deps
+        platforms: linux/amd64
+        push: true
+        provenance: false
+        sbom: false
+        tags: ${{ steps.deps-plan.outputs.candidate_ref }}
+        build-args: |-
+          PYTHON_IMAGE=${{ steps.base.outputs.digest_ref }}
+          INSTALL_PADDLE_GPU=false
+          INSTALL_LEGATO_EXTRA_DEPS=false
+      env:
+        DOCKER_BUILD_RECORD_UPLOAD: 'false'
+      if: steps.deps-plan.outputs.action == 'build'
+    - name: Select immutable deps OCI
+      id: deps-select
+      env:
+        EXISTING: ${{ steps.deps-plan.outputs.existing_digest }}
+        BUILT: ${{ steps.deps-build.outputs.digest }}
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+        --role deps --existing-digest "$EXISTING" --built-digest "$BUILT"
+    - name: Check deps final environment offline
+      id: deps-contract
+      env:
+        DEPS_REF: ${{ steps.deps-select.outputs.digest_ref }}
+      run: |-
+        docker pull "$DEPS_REF"
+        docker run --rm --network none -v "$GITHUB_WORKSPACE/backend/requirements/worker-image-py312-linux-amd64.lock:/expected.lock:ro" --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/worker_lock.py --check-installed --lock /expected.lock
+        docker run --rm --network none --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py --role worker-deps
+    - name: Release completed deps build cache and pulls
+      env:
+        DEPS_REF: ${{ steps.deps-select.outputs.digest_ref }}
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py release --builder buildx --image deps --remove-image "$DEPS_REF" --remove-image
+        python:3.12-slim-bookworm
+    - name: Prepare bounded deps SBOM temporary space
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py before-sbom --builder buildx --image deps
+    - name: Generate deps SPDX SBOM
+      id: deps-sbom
+      uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
+      with:
+        image: ${{ steps.deps-select.outputs.digest_ref }}
+        format: spdx-json
+        artifact-name: backend-worker-deps-image-sbom.spdx.json
+      env:
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-sbom/tmp
+    - name: Remove completed deps SBOM temporary space
+      if: always() && steps.deps-sbom.outcome != 'skipped'
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py after-sbom --builder buildx --image deps
+    - name: Reclaim disk before deps vulnerability scan
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py before-scan --builder buildx --image deps
+    - name: Scan deps exact artifact
+      id: deps-scan
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+      with:
+        image-ref: ${{ steps.deps-select.outputs.digest_ref }}
+        vuln-type: os,library
+        severity: CRITICAL
+        ignore-unfixed: true
+        format: table
+        exit-code: '1'
+        cache: false
+      env:
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/cache
+        TRIVY_IMAGE_SRC: remote
+    - name: Remove completed deps scan export/cache
+      if: always() && steps.deps-scan.outcome != 'skipped'
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py after-scan --builder buildx --image deps
+    - name: Promote only qualified deps OCI; never overwrite a winner
+      id: deps-promote
+      env:
+        IDENTITY: ${{ steps.key.outputs.build_key }}
+        OCI_DIGEST: ${{ steps.deps-select.outputs.oci_digest }}
+        GATE_CONTRACT: ${{ steps.deps-contract.outcome }}
+        GATE_SBOM: ${{ steps.deps-sbom.outcome }}
+        GATE_TRIVY: ${{ steps.deps-scan.outcome }}
+      run: python3 backend/scripts/worker_image_identity.py promote --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+        --role deps --identity "$IDENTITY" --digest "$OCI_DIGEST"
+    - name: Plan first-build-wins worker
+      id: worker-plan
+      env:
+        IDENTITY: ${{ github.sha }}
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker"
+        --role worker --identity "$IDENTITY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+    - name: Build and push worker quarantine candidate only
+      id: worker-build
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+      with:
+        context: .
+        file: docker/backend/Dockerfile.worker
+        platforms: linux/amd64
+        push: true
+        provenance: false
+        sbom: false
+        tags: ${{ steps.worker-plan.outputs.candidate_ref }}
+        build-args: WORKER_DEPS_IMAGE=${{ steps.deps-select.outputs.digest_ref }}
+      env:
+        DOCKER_BUILD_RECORD_UPLOAD: 'false'
+      if: steps.worker-plan.outputs.action == 'build'
+    - name: Select immutable worker OCI
+      id: worker-select
+      env:
+        EXISTING: ${{ steps.worker-plan.outputs.existing_digest }}
+        BUILT: ${{ steps.worker-build.outputs.digest }}
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker"
+        --role worker --existing-digest "$EXISTING" --built-digest "$BUILT"
+    - name: Check worker final environment offline
+      id: worker-contract
+      env:
+        WORKER_REF: ${{ steps.worker-select.outputs.digest_ref }}
+      run: |-
+        docker pull "$WORKER_REF"
+        docker run --rm --network none --entrypoint python "$WORKER_REF" scripts/check_image_contract.py --role worker
+    - name: Release completed worker build cache and pulls
+      env:
+        WORKER_REF: ${{ steps.worker-select.outputs.digest_ref }}
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py release --builder buildx --image worker --remove-image "$WORKER_REF"
+        --remove-image python:3.12-slim-bookworm
+    - name: Prepare bounded worker SBOM temporary space
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py before-sbom --builder buildx --image worker
+    - name: Generate worker SPDX SBOM
+      id: worker-sbom
+      uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
+      with:
+        image: ${{ steps.worker-select.outputs.digest_ref }}
+        format: spdx-json
+        artifact-name: backend-worker-image-sbom.spdx.json
+      env:
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-sbom/tmp
+    - name: Remove completed worker SBOM temporary space
+      if: always() && steps.worker-sbom.outcome != 'skipped'
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py after-sbom --builder buildx --image worker
+    - name: Reclaim disk before worker vulnerability scan
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py before-scan --builder buildx --image worker
+    - name: Scan worker exact artifact
+      id: worker-scan
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+      with:
+        image-ref: ${{ steps.worker-select.outputs.digest_ref }}
+        vuln-type: os,library
+        severity: CRITICAL
+        ignore-unfixed: true
+        format: table
+        exit-code: '1'
+        cache: false
+      env:
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/cache
+        TRIVY_IMAGE_SRC: remote
+    - name: Remove completed worker scan export/cache
+      if: always() && steps.worker-scan.outcome != 'skipped'
+      env:
+        NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
+      run: python3 backend/scripts/worker_image_disk.py after-scan --builder buildx --image worker
+    - name: Promote only qualified worker OCI; never overwrite a winner
+      id: worker-promote
+      env:
+        IDENTITY: ${{ github.sha }}
+        OCI_DIGEST: ${{ steps.worker-select.outputs.oci_digest }}
+        GATE_CONTRACT: ${{ steps.worker-contract.outcome }}
+        GATE_SBOM: ${{ steps.worker-sbom.outcome }}
+        GATE_TRIVY: ${{ steps.worker-scan.outcome }}
+      run: python3 backend/scripts/worker_image_identity.py promote --repository "${IMAGE_NAMESPACE}/backend-worker" --role
+        worker --identity "$IDENTITY" --digest "$OCI_DIGEST"
+    - name: Write qualified Worker identity summary
+      env:
+        BASE_TAG: ${{ steps.base.outputs.tag_ref }}
+        BASE_REF: ${{ steps.base.outputs.digest_ref }}
+        BUILD_KEY: ${{ steps.key.outputs.build_key }}
+        DEPS_ACTION: ${{ steps.deps-plan.outputs.action }}
+        DEPS_CANONICAL: ${{ steps.deps-plan.outputs.canonical_ref }}
+        DEPS_REF: ${{ steps.deps-select.outputs.digest_ref }}
+        WORKER_ACTION: ${{ steps.worker-plan.outputs.action }}
+        WORKER_CANONICAL: ${{ steps.worker-plan.outputs.canonical_ref }}
+        WORKER_REF: ${{ steps.worker-select.outputs.digest_ref }}
+      run: |-
+        {
+          echo "## Worker v2 qualified artifact identities"
+          echo "- ML Base alias: $BASE_TAG; resolved OCI: $BASE_REF"
+          echo "- Worker-deps build key (input identity, not content digest): $BUILD_KEY"
+          echo "- Worker-deps plan: $DEPS_ACTION; canonical: $DEPS_CANONICAL; qualified OCI: $DEPS_REF"
+          echo "- Final Worker plan: $WORKER_ACTION; canonical: $WORKER_CANONICAL; qualified OCI: $WORKER_REF"
+          echo "- Standalone Actions SBOM artifacts: backend-worker-deps-image-sbom.spdx.json / backend-worker-image-sbom.spdx.json"
+          echo "- Actions artifact ZIP digests are separate from the OCI image digests above; see artifact metadata"
+          echo "- CPU Paddle only; no GPU/model-cache readiness qualification"
+        } >> "$GITHUB_STEP_SUMMARY"

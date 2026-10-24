@@ -37,6 +37,12 @@ def test_worker_uses_existing_task_contract_without_readiness(imports):
     assert "task contract passed" in evidence
 
 
+def test_dependency_contract_does_not_import_application_or_models(imports):
+    evidence = contract.run_contract("worker-deps")
+    imports["app.core.runtime_checks"].check_celery_tasks.assert_not_called()
+    assert "OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized" in evidence
+
+
 def test_real_task_contract_missing_registrations_fails(monkeypatch):
     runtime = importlib.import_module("app.core.runtime_checks")
     fake_config = ModuleType("app.worker.celery_config")
