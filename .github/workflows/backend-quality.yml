@@ -106,6 +106,11 @@ jobs:
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
           "$QUALITY_IMAGE" /repo/backend/scripts/worker_image_identity.py check-workflows --repo /repo
 
+      - name: Check API and Beat candidate qualification contracts
+        run: >-
+          docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
+          "$QUALITY_IMAGE" /repo/backend/scripts/backend_service_image_identity.py check-workflows --repo /repo
+
       - name: Write backend quality environment
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
@@ -158,6 +163,11 @@ jobs:
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
           "python -m mypy --config-file pyproject.toml scripts/worker_lock.py scripts/worker_image_identity.py scripts/worker_image_disk.py"
+
+      - name: Run API and Beat image identity helper mypy
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
+          "python -m mypy --config-file pyproject.toml scripts/backend_service_image_identity.py"
 
       - name: Run model-layer mypy
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file mypy-model-layer.ini"

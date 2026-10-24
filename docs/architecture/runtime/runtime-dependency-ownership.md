@@ -186,13 +186,22 @@ is needed. It never runs the full deployment `run_runtime_checks` path or create
 OCR models. Packaging/import/security validation is not production readiness;
 model-cache, GPU hardware and external infrastructure remain deployment concerns.
 
-API/Beat PR checks evaluate the locally loaded final image. PR event image tags identify
-GitHub's synthetic merge source, not necessarily the reviewed head SHA. Trusted
-publication checks pull the Buildx output's immutable published digest and run
-smoke/SBOM/Trivy against that artifact. Source SHAs, tags, OCI digests and Actions
-artifact ZIP digests remain distinct identities. Publication currently precedes
-these post-build gates; a failed gate fails CI and must not be treated as a
-qualified artifact.
+API/Beat PR checks evaluate a locally loaded `noteverse-backend-<role>:pr-<run>-<attempt>`
+image without registry planning, login, push, or promotion. The checkout may be
+GitHub's synthetic merge; the local tag names the validation execution, not a
+published source-SHA artifact. Trusted main publication refuses existing source
+or attempt-candidate tags, then pushes only `candidate-<run>-<attempt>`. It pulls
+the candidate's immutable OCI digest and runs offline packaging, SPDX SBOM and
+the unchanged CRITICAL Trivy gate against that digest. Only all-success gate
+outcomes permit `--prefer-index=false` promotion to the source-SHA canonical tag;
+the canonical must re-resolve to the exact candidate OCI. A different observed
+winner fails closed; an identical winner is not repushed. Failed qualification
+may leave a candidate, but cannot assign the source canonical. Trusted runs do
+not cancel another active trusted publication; superseded PR runs may cancel.
+Source SHAs, tags, OCI digests and Actions artifact ZIP digests remain distinct.
+This is publication governance, not deterministic dependency resolution, OCI byte
+reproducibility, registry-server CAS, or a candidate-retention policy. Worker v2
+inputs and its already-qualified dependency build key remain separate and unchanged.
 
 PR Governance enforces current-main ancestry for open, unmerged PRs, including
 metadata edits. Closed/merged PR metadata edits skip that pre-merge rule; they

@@ -1,5 +1,5 @@
 name: Backend API or Beat image
-description: Build, check packaging, generate SBOM and scan one API/Beat artifact
+description: Qualify a local API/Beat artifact or a candidate OCI before canonical promotion
 inputs:
   role:
     description: api or beat (only these two public-base artifacts)
@@ -9,8 +9,11 @@ inputs:
     default: "false"
 outputs:
   image-ref:
-    description: Local PR tag or immutable published digest actually checked
+    description: Local PR tag or immutable candidate OCI actually qualified
     value: ${{ steps.artifact.outputs.ref }}
+  canonical-ref:
+    description: Qualified source tag, only for successful trusted publication
+    value: ${{ steps.promote.outputs.canonical_ref }}
 runs:
   using: composite
   steps:
@@ -26,7 +29,29 @@ runs:
         case "$PUBLISH" in true|false) ;; *) exit 1 ;; esac
         echo "repository=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse/backend-${ROLE}" >> "$GITHUB_OUTPUT"
     - name: Set up Docker Buildx
+      id: buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Resolve local-only PR image identity
+      id: local
+      if: inputs.publish != 'true'
+      shell: bash
+      env:
+        ROLE: ${{ inputs.role }}
+      run: >-
+        python3 backend/scripts/backend_service_image_identity.py --output "$GITHUB_OUTPUT" local
+        --role "$ROLE" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+    - name: Refuse existing source canonical or attempt candidate
+      id: plan
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        REPOSITORY: ${{ steps.image.outputs.repository }}
+        ROLE: ${{ inputs.role }}
+        SOURCE: ${{ github.sha }}
+      run: >-
+        python3 backend/scripts/backend_service_image_identity.py --output "$GITHUB_OUTPUT" plan
+        --repository "$REPOSITORY" --role "$ROLE" --source "$SOURCE"
+        --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
     - name: Build service artifact
       id: build
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -37,40 +62,43 @@ runs:
         load: ${{ inputs.publish != 'true' }}
         provenance: false
         sbom: false
-        tags: |
-          ${{ steps.image.outputs.repository }}:${{ github.sha }}
-          ${{ steps.image.outputs.repository }}:build-${{ github.run_id }}
+        tags: ${{ inputs.publish == 'true' && steps.plan.outputs.candidate_ref || steps.local.outputs.ref }}
     - name: Select the artifact actually being evaluated
       id: artifact
       shell: bash
       env:
         REPOSITORY: ${{ steps.image.outputs.repository }}
+        ROLE: ${{ inputs.role }}
         PUBLISH: ${{ inputs.publish }}
         DIGEST: ${{ steps.build.outputs.digest }}
-      run: |
-        set -euo pipefail
-        if [ "$PUBLISH" = true ]; then
-          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          REF="${REPOSITORY}@${DIGEST}"
-          docker pull "$REF"
-        else
-          REF="${REPOSITORY}:${GITHUB_SHA}"
-          docker image inspect "$REF" > /dev/null
-        fi
-        echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+        LOCAL_REF: ${{ steps.local.outputs.ref }}
+      run: >-
+        python3 backend/scripts/backend_service_image_identity.py --output "$GITHUB_OUTPUT" select
+        --repository "$REPOSITORY" --role "$ROLE" --publish "$PUBLISH"
+        --digest "$DIGEST" --local-ref "$LOCAL_REF"
+    - name: Pull exact trusted candidate OCI before qualification
+      id: pull
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        IMAGE_REF: ${{ steps.artifact.outputs.ref }}
+      run: docker pull "$IMAGE_REF"
     - name: Run final image packaging contract offline
+      id: contract
       shell: bash
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
         ROLE: ${{ inputs.role }}
       run: docker run --rm --network none --entrypoint python "$IMAGE_REF" scripts/check_image_contract.py --role "$ROLE"
     - name: Generate service SBOM
+      id: sbom
       uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
       with:
         image: ${{ steps.artifact.outputs.ref }}
         format: spdx-json
         artifact-name: backend-${{ inputs.role }}-image-sbom.spdx.json
     - name: Scan service artifact
+      id: scan
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
       with:
         image-ref: ${{ steps.artifact.outputs.ref }}
@@ -79,16 +107,34 @@ runs:
         ignore-unfixed: true
         format: table
         exit-code: "1"
+    - name: Promote only a qualified candidate to the source canonical
+      id: promote
+      if: inputs.publish == 'true' && success()
+      shell: bash
+      env:
+        REPOSITORY: ${{ steps.image.outputs.repository }}
+        ROLE: ${{ inputs.role }}
+        SOURCE: ${{ github.sha }}
+        DIGEST: ${{ steps.build.outputs.digest }}
+        GATE_CONTRACT: ${{ steps.contract.outcome }}
+        GATE_SBOM: ${{ steps.sbom.outcome }}
+        GATE_TRIVY: ${{ steps.scan.outcome }}
+      run: >-
+        python3 backend/scripts/backend_service_image_identity.py --output "$GITHUB_OUTPUT" promote
+        --repository "$REPOSITORY" --role "$ROLE" --source "$SOURCE" --digest "$DIGEST"
     - name: Write image validation summary
+      id: summary
       shell: bash
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
         PUBLISH: ${{ inputs.publish }}
+        CANONICAL_REF: ${{ steps.promote.outputs.canonical_ref }}
       run: |
         {
           echo "## Backend artifact validation"
-          echo "- Published: ${PUBLISH}"
+          echo "- Trusted publication: ${PUBLISH}; qualified canonical: ${CANONICAL_REF}"
           echo "- Evaluated artifact: ${IMAGE_REF}"
           echo "- GitHub event source SHA: ${GITHUB_SHA} (PR events use the synthetic merge)"
           echo "- Offline packaging contract, SBOM and CRITICAL Trivy gate passed"
+          echo "- PR identities are local-only; trusted canonical tags attach only after all gates"
         } >> "$GITHUB_STEP_SUMMARY"

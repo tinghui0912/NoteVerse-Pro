@@ -24,7 +24,7 @@ on:
 
 concurrency:
   group: backend-api-image-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -67,7 +67,7 @@ jobs:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USERNAME || github.actor }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-      - name: Publish and validate the published digest
+      - name: Qualify candidate digest before canonical publication
         uses: ./.github/actions/backend-service-image
         with:
           role: api
