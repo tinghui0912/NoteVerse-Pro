@@ -163,13 +163,12 @@ Separate publication jobs receive `packages: write` only for main pushes or
 explicit manual execution on main. The small local API/Beat composite action
 shares build/check mechanics; credentials and permissions stay in the caller.
 
-Worker PR validation is automatic for Worker-relevant paths. Its job has
-`contents: read` and `packages: read` only, using the job token to pull the existing
-private ML Base. Missing images or read access fail closed. It never rebuilds ML
-Base or publishes Worker/dependency tags, and accepts no custom dependency tag.
-It computes the same recursive requirement digest and dependency fingerprint as
-the separate, manual-only Worker publication workflow, builds both images in the
-local Docker daemon, then checks the final Worker, both SBOMs and both Trivy gates.
+Worker PR validation is automatic for Worker-relevant paths and has only
+`contents: read` / `packages: read`. The job token resolves the existing private
+ML Base to an OCI digest; missing images/read access fail closed. It never
+rebuilds ML Base or publishes images. The manual-only trusted Worker workflow
+receives package write permission only on main. Worker-specific v2 resolution,
+identity, qualification and promotion rules are defined below.
 
 `backend/scripts/check_image_contract.py --role api|beat|worker` runs offline in
 the final artifact with `--network none`. It first runs `pip check`. API checks
@@ -187,7 +186,7 @@ is needed. It never runs the full deployment `run_runtime_checks` path or create
 OCR models. Packaging/import/security validation is not production readiness;
 model-cache, GPU hardware and external infrastructure remain deployment concerns.
 
-PR checks evaluate the locally loaded final image. PR event image tags identify
+API/Beat PR checks evaluate the locally loaded final image. PR event image tags identify
 GitHub's synthetic merge source, not necessarily the reviewed head SHA. Trusted
 publication checks pull the Buildx output's immutable published digest and run
 smoke/SBOM/Trivy against that artifact. Source SHAs, tags, OCI digests and Actions
@@ -198,6 +197,171 @@ qualified artifact.
 PR Governance enforces current-main ancestry for open, unmerged PRs, including
 metadata edits. Closed/merged PR metadata edits skip that pre-merge rule; they
 cannot meaningfully be asked to refresh a branch before an already completed merge.
+
+## Worker Python Resolution and Artifact Identity v2
+
+### Ownership and generated resolution
+
+The capability files remain human-maintained direct-dependency ownership. They
+are not a flat inventory of everything pip happens to install. In particular,
+`multidict` and `pycryptodome` remain transitives, not new application declarations.
+`backend/requirements/worker-image.in` is the human-owned image assembly input:
+it includes `worker-app.txt` and `ocr.txt`, declares former Docker-owned Python
+packages, packaging/build tooling, and the existing Torch/cu124 base contract.
+Paddle CPU and Torch use exact official-index wheel URLs and artifact hashes,
+so an alternate index cannot supply unrelated packages under the same names.
+
+`worker-image-py312-linux-amd64.lock` is generated full transitive resolution,
+not another ownership file. Every selected distribution has an exact version or
+exact wheel URL and SHA-256 artifact hashes. The supported target is Linux amd64,
+Bookworm/glibc 2.36, CPython 3.12, CPU Paddle, and no optional LEGATO extra installs.
+GPU/alternate Paddle indexes and extra-dependency flags fail closed; this lock
+makes no GPU hardware qualification claim.
+
+The only selected resolver is hash-pinned uv 0.13.5 in `worker-lock-tool.txt`.
+Both uv pip compile and pip-tools support full hashed requirements; uv's explicit
+Python/platform selection and standalone pip interface avoid a project/workspace
+migration. A native Linux/3.12 uv probe qualified this actual package graph.
+Initial lock preferences came from the incident SBOM's actual resolution, avoiding
+unrelated transitive upgrades (including an incidental fresh filelock major).
+No upstream dependency range was overridden and no transitive became a fake root.
+
+Preserving selected versions of the resolved graph does not mean preserving the
+legacy package set. Run 40087924267 first installed huggingface-hub 2.3.0 through
+PaddleOCR/PaddleX, which brought in `httpx2==2.16.0`, `httpcore2==2.16.0` and
+`truststore==0.10.5`. Its later Transformers 4.54.0 transaction replaced that hub
+with 0.36.2 (Transformers requires `huggingface-hub>=0.34.0,<1.0`), leaving those
+three installed transitives behind. The complete Worker solve selects hub 0.36.2
+from the outset; that version does not require them. Installed metadata confirms
+the only other possible path is dnspython's optional `doh` extra, which the Worker
+does not request or use. These three are historical multi-step installation
+residue, not missing Worker ownership; do not restore them as fake direct pins.
+Comparing incident SBOM 12557829325 and initial v2 SBOM 12562542431, deduplicating
+PyPI-PURL records by normalized `(name, version)` gives 151 and 148 identities:
+exactly those three removed,
+nothing added, and no version difference among shared identities. This SBOM
+discovery count is distinct from the lock's 137 resolved distributions.
+
+Run in Linux amd64 CPython 3.12 (the repository quality container is suitable):
+
+```sh
+python backend/scripts/worker_lock.py --generate
+python backend/scripts/worker_lock.py --check
+```
+
+For example, from a checkout with the standard quality image built:
+
+```sh
+docker run --rm -v "$PWD:/repo" --entrypoint python noteverse-backend-quality:ci \
+  /repo/backend/scripts/worker_lock.py --repo /repo --generate
+```
+
+The helper bootstraps only the pinned, hash-verified resolver in a temporary venv.
+Generation/checking never falls back to a different Python or downloads a managed
+interpreter. Ordinary regeneration seeds a temporary output with the checked-in
+lock, preserving its selected versions. CI regenerates and compares bytes without
+writing the checkout. A stale lock fails with the generation command. `--upgrade`
+is allowed only with explicit `--generate`, as a separately reviewed dependency
+change. Never hand-edit the generated lock or hashes.
+
+The Worker Dockerfile installs packaging/build tools from a slice of that same
+lock, then installs the full hash-checked lock with build isolation disabled.
+This avoids an untracked ephemeral setuptools/wheel resolution for pure-Python
+sdists; their source archives retain their artifact hashes. Installed distribution
+versions must match the complete lock, including inherited ML-base packages.
+`pip check` and bounded OTLP/Paddle/PaddleOCR/PaddleX imports remain mandatory.
+The lock does not claim bit-for-bit reproducible native/OCI builds.
+
+### Input identity, candidate qualification and canonical tags
+
+`worker_image_identity.py` is the sole v2 build-key/registry-policy helper. It
+hashes canonical JSON with an explicit schema version, full lock and recursive
+ownership text identities, Dockerfile/helper/generator/tool identities, resolved ML
+Base OCI digest, platform/CPU flags, and LEGATO source/commit authority. The
+governed file inputs are explicitly UTF-8 text: identity hashing normalizes CRLF
+to LF, rejects invalid UTF-8, binary NUL and ambiguous lone CR, then SHA-256 hashes
+the canonical UTF-8 bytes. Normal LF/CRLF checkout conversion therefore preserves
+the key; a semantic text change still changes it. This is a Worker text boundary,
+not a binary normalization facility and not dependent on Git client settings. The
+mutable ML Base alias is resolved after appropriate login; builds use its
+`repository@sha256:...` reference. A changed alias target necessarily changes the
+build key. The key names inputs; only the OCI digest names image content.
+
+The trusted workflow is serialized with cancellation disabled. Its only manual
+input is the ML Base alias; no arbitrary Worker dependency-tag override remains.
+For `backend-worker-deps:deps-v2-<full-build-key>`:
+
+1. Resolve the canonical tag after login. If it exists, reuse its immutable OCI
+   reference without rebuilding or repushing it; requalify under current policy.
+2. If absent, build/push only `candidate-<run-id>-<attempt>` in that repository.
+3. Qualify that exact candidate OCI: built-in dependency consistency/import gate,
+   installed-version lock check, standalone SPDX SBOM and CRITICAL Trivy scan.
+4. Only after every dependency gate succeeds, attach the canonical v2 tag to the
+   same OCI manifest. Recheck/refuse any different canonical winner; an identical
+   existing winner is a no-op, never a repush.
+
+The final Worker builds FROM the qualified dependency `repository@sha256:...`,
+never a mutable dependency tag. It likewise uses an attempt-specific candidate,
+explicitly pulls and runs its exact published OCI with `--network none`, generates
+its SBOM and passes Trivy before assigning `${GITHUB_SHA}`. An existing final
+source tag fails closed before composition: source SHA alone cannot establish
+that existing image's edge to this run's selected dependency OCI. It is neither
+rebuilt nor retagged. Dependency v2 keys still select immutable reuse.
+Promotion preserves the single-manifest identity (`--prefer-index=false`) and
+verifies the resulting OCI. The helper independently requires actual successful
+contract/SBOM/Trivy outcomes; failed/skipped gates cannot promote.
+
+This is first-build-wins **by this serialized governed workflow**, not registry
+server CAS against arbitrary out-of-band writers. Identical build inputs do not
+guarantee byte-for-byte OCI reproduction: the workflow instead never rebuilds or
+repushes an established v2 key. Each image's canonical tag is attached only after
+that image's gates pass. A final Worker failure does not invalidate a separately
+qualified dependency image; no multi-component release transaction is implied.
+Failed candidates may remain clearly quarantined. `build-<run-id>` aliases are
+removed; attempt-specific candidates are not permanent release identities.
+OCI-native provenance/SBOM attestations remain outside this contract.
+
+The read-only PR workflow uses the same resolved base and build-key helper and
+the same lock. It builds only local attempt-specific images, records Docker image
+IDs, checks that the local dependency ID is unchanged across final composition,
+and never pushes/promotes. Local Docker IDs are not published OCI digests.
+Both dependency and final artifacts receive packaging checks, SPDX-2.3/CC0-1.0
+SBOMs and unchanged `os,library / CRITICAL / ignore-unfixed=true / exit-code=1`
+Trivy gates. Final task registration still delegates to the existing 16-task
+`check_celery_tasks()` source of truth; no readiness/model/GPU probe is introduced.
+
+### Heavy-image disk lifecycle and the legacy incident
+
+Qualification is phase-oriented: finish dependency checks/SBOM/scan before final
+Worker construction. `worker_image_disk.py` logs `df -h` and `docker system df`
+before/after major phases, prunes completed builder cache, removes only named
+no-longer-needed local image references, and owns separate temporary SBOM/scan
+export/cache directories under the ephemeral runner temp root. It never removes
+registry credentials or prunes an active build. PR local images are retained
+until their consumers finish. Trusted scans use the immutable registry source
+without a redundant daemon export; PR scans use their local daemon images.
+Each completed scan/export is cleaned before the next large phase. Optional
+Buildx history uploads are disabled so post actions do not retain pruned build
+state; both standalone SBOM artifacts and all security gates remain required.
+Destructive cleanup is restricted to ephemeral GitHub-hosted runners; local use
+is report-only.
+The full CUDA/Paddle image scans have an explicit bounded 20-minute analysis
+budget: the first v2 PR probe preserved 23 GiB free but hit Trivy's default
+five-minute analysis deadline. This changes resource allowance, not the
+CRITICAL policy, scanners, scanned files or failure handling.
+
+Run 40087924267/job 120854535187 (attempt 1, source 2e32c70b...) exposed actual
+resolution drift under legacy v1 key `fd1036acf6cf624e`: historical OCI
+`sha256:6839f22ec89f2ab7bec62df572896f127a8966a49317f81522cf7b33f4e7cd52`
+became `sha256:cdc0ef7fa07d7e617a39c1774b2971635390e8326d82815094c5ed5a3dc9be37`,
+with multidict 7.1.0→7.2.0 and pycryptodome 4.1.0→4.2.0 despite unchanged source
+inputs and ML Base OCI. This was not merely OCI-byte nondeterminism. The run also
+exhausted disk during dependency Trivy; final Trivy was skipped after both images
+had already been pushed. That dependency OCI and final Worker OCI
+`sha256:54c1b50a5a73a2d014494c173444f18689e9fdf17dcd9c03109baa1421bb8507`
+remain **unqualified legacy artifacts**. v2 never reuses/promotes those v1 tags;
+this change neither restores nor deletes them. It does not change migration
+checkboxes or begin another dependency migration.
 
 ## Adding A Dependency
 

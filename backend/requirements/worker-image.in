@@ -1,0 +1,23 @@
+# Human-owned assembly inputs for the supported Worker image only.
+# Target: Linux amd64 / Bookworm / CPython 3.12 / CPU Paddle.
+# Capability ownership remains in these recursive files.
+-r worker-app.txt
+-r ocr.txt
+
+# Former Docker-owned dependencies. Artifact URLs are from the official indexes;
+# they also declare the inherited Torch 2.6/cu124 ML-base contract explicitly.
+paddlepaddle @ https://paddle-whl.cdn.bcebos.com/stable/cpu/paddlepaddle/paddlepaddle-3.2.0-cp312-cp312-linux_x86_64.whl#sha256=2c17f675a25ebd0675f703f7b82777ea92db0c360bd55a5c6b2dfaad7bc3f260
+torch @ https://download-r2.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp312-cp312-linux_x86_64.whl#sha256=a393b506844035c0dac2f30ea8478c343b8e95a429f06f3b3cadfc7f53adb597
+accelerate==1.8.0
+fire==0.7.0
+Levenshtein
+pyparsing
+tqdm
+transformers==4.54.0
+zss
+
+# Image packaging/build tools, not application runtime dependency ownership.
+# Their exact versions/hashes are selected in the generated lock as well.
+pip
+setuptools
+wheel
