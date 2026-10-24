@@ -17,9 +17,9 @@ source delivery:
 
 | Runtime | Image | Workload | Purpose |
 | --- | --- | --- | --- |
-| API | `backend-api` | Deployment | HTTP API, auth, scores, practice source bundle endpoints, review, share/public, billing, ops, realtime SSE, bounded interactive fingering |
+| API | `backend-api` | Deployment | Customer API, control plane, observability exporter, and migration entrypoints; customer HTTP includes auth, scores, practice source bundles, review/share, billing, SSE, and bounded interactive fingering |
 | Worker | `backend-worker` | Deployment | Import, OMR, render, playback, mail, cleanup, async operation processing |
-| Beat | `backend-beat` | Deployment | Singleton Celery schedule publisher |
+| Beat | `backend-beat` | Deployment | Singleton Celery schedule publisher with PostgreSQL advisory-lock capability |
 | Worker Deps | `backend-worker-deps` | image base only | Shared worker dependency base with OCR/OMR/runtime ML dependencies |
 | Quality | `backend-quality` | CI/local only | Compile, ruff, mypy, model-layer mypy, API/worker contract tests, and backend pytest |
 
@@ -76,7 +76,7 @@ Runtime composition files express deployable or checkable execution units.
 | `api.txt` | `Dockerfile.api` | HTTP, DB, migrations, storage, Celery, auth, image, fingering, practice source generation |
 | `worker-app.txt` | `Dockerfile.worker-deps` | DB, storage, Celery, image, render |
 | `worker.txt` | aggregate worker runtime reference | worker app plus OCR package |
-| `beat.txt` | `Dockerfile.beat` | Celery only |
+| `beat.txt` | `Dockerfile.beat` | Celery/Redis, shared configuration, and psycopg for PostgreSQL advisory locking |
 | `quality-core.txt` | `Dockerfile.quality` | API, beat, shared worker-contract dependencies, render, quality tools |
 
 There is no backend practice runtime composition file. Browser local practice
@@ -134,7 +134,8 @@ controlled by the Dockerfile and not by transitive dependency resolution.
 
 Allowed:
 
-- Celery schedule publisher;
+- Celery schedule publisher and Redis broker client;
+- psycopg PostgreSQL advisory-lock capability;
 - minimal shared config and logging.
 
 Forbidden:
@@ -152,6 +153,51 @@ Worker-related contract tests currently belong to the core quality suite. Add a
 separate `worker-quality` image only when tests need the full production
 ML/OCR/model runtime, not merely because a test mentions Celery or outbox
 behavior.
+
+## Image CI Trust and Packaging Contracts
+
+API and Beat PR validation jobs have only `contents: read`, build locally without
+registry authentication, then check the final artifact, generate an SBOM, and run
+the existing `os,library / CRITICAL / ignore-unfixed=true / exit-code=1` Trivy gate.
+Separate publication jobs receive `packages: write` only for main pushes or
+explicit manual execution on main. The small local API/Beat composite action
+shares build/check mechanics; credentials and permissions stay in the caller.
+
+Worker PR validation is automatic for Worker-relevant paths. Its job has
+`contents: read` and `packages: read` only, using the job token to pull the existing
+private ML Base. Missing images or read access fail closed. It never rebuilds ML
+Base or publishes Worker/dependency tags, and accepts no custom dependency tag.
+It computes the same recursive requirement digest and dependency fingerprint as
+the separate, manual-only Worker publication workflow, builds both images in the
+local Docker daemon, then checks the final Worker, both SBOMs and both Trivy gates.
+
+`backend/scripts/check_image_contract.py --role api|beat|worker` runs offline in
+the final artifact with `--network none`. It first runs `pip check`. API checks
+customer, control-plane and observability app imports plus migration command and
+revision modules without starting lifespans or executing migrations. Beat checks
+Celery and scheduler-lock imports without loading Worker tasks, and rejects
+Worker/OCR/render dependency leakage. Worker delegates task import/registration
+to `app.core.runtime_checks.check_celery_tasks()`, the existing source of truth
+for all 16 required tasks, then imports Verovio, OTLP, Paddle, PaddleOCR and PaddleX.
+
+The checker supplies synthetic, valid CI-only settings and temporary writable
+paths to satisfy import-time configuration; it does not relax production settings
+validation. No database, Redis, S3, production secrets, model files, network or GPU
+is needed. It never runs the full deployment `run_runtime_checks` path or creates
+OCR models. Packaging/import/security validation is not production readiness;
+model-cache, GPU hardware and external infrastructure remain deployment concerns.
+
+PR checks evaluate the locally loaded final image. PR event image tags identify
+GitHub's synthetic merge source, not necessarily the reviewed head SHA. Trusted
+publication checks pull the Buildx output's immutable published digest and run
+smoke/SBOM/Trivy against that artifact. Source SHAs, tags, OCI digests and Actions
+artifact ZIP digests remain distinct identities. Publication currently precedes
+these post-build gates; a failed gate fails CI and must not be treated as a
+qualified artifact.
+
+PR Governance enforces current-main ancestry for open, unmerged PRs, including
+metadata edits. Closed/merged PR metadata edits skip that pre-merge rule; they
+cannot meaningfully be asked to refresh a branch before an already completed merge.
 
 ## Adding A Dependency
 

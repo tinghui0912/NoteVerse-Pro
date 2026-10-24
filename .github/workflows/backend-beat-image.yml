@@ -11,6 +11,7 @@ on:
       - "docker/backend/Dockerfile.beat.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
+      - ".github/actions/backend-service-image/**"
   pull_request:
     paths:
       - "backend/**"
@@ -19,76 +20,55 @@ on:
       - "docker/backend/Dockerfile.beat.dockerignore"
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
+      - ".github/actions/backend-service-image/**"
 
 concurrency:
   group: backend-beat-image-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  validate:
+    name: Validate beat artifact (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PUSH_IMAGE: "false"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate local image without registry credentials
+        uses: ./.github/actions/backend-service-image
+        with:
+          role: beat
+          publish: "false"
+
+  publish:
+    name: Publish beat artifact (trusted main)
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     env:
-      PUSH_IMAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-
+      PUSH_IMAGE: "true"
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Resolve image namespace
-        run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GHCR
+      - name: Log in to GHCR for trusted publication
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USERNAME || github.actor }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Build backend beat runtime image
-        id: backend-beat-build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - name: Publish and validate the published digest
+        uses: ./.github/actions/backend-service-image
         with:
-          context: .
-          file: docker/backend/Dockerfile.beat
-          push: ${{ env.PUSH_IMAGE == 'true' }}
-          load: ${{ env.PUSH_IMAGE != 'true' }}
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
-            ${{ env.IMAGE_NAMESPACE }}/backend-beat:build-${{ github.run_id }}
-
-      - name: Generate backend beat SBOM
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
-          format: spdx-json
-          artifact-name: backend-beat-image-sbom.spdx.json
-
-      - name: Scan backend beat image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
-          vuln-type: os,library
-          severity: CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-      - name: Write image build summary
-        run: |
-          {
-            echo "## Backend beat image build"
-            echo ""
-            echo "- Push image: \`${PUSH_IMAGE}\`"
-            echo "- Backend beat image: \`${IMAGE_NAMESPACE}/backend-beat:${GITHUB_SHA}\`"
-            echo "- Backend beat digest: \`${{ steps.backend-beat-build.outputs.digest }}\`"
-            echo "- SBOM artifact: backend-beat-image-sbom.spdx.json"
-            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
-          } >> "$GITHUB_STEP_SUMMARY"
+          role: beat
+          publish: "true"
