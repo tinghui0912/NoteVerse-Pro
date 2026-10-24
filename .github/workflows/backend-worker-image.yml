@@ -38,13 +38,13 @@ jobs:
 
       - name: Resolve worker dependency image
         run: |
+          WORKER_REQUIREMENTS_HASH="$(python3 backend/scripts/worker_requirements_fingerprint.py)"
           WORKER_DEPS_HASH="$(
             {
+              printf 'worker-requirements-sha256:%s\n' "${WORKER_REQUIREMENTS_HASH}"
               sha256sum \
                 docker/backend/Dockerfile.worker-deps \
-                backend/requirements/worker-app.txt \
-                backend/requirements/tracing.txt \
-                backend/requirements/ocr.txt \
+                backend/scripts/worker_requirements_fingerprint.py \
                 backend/app/processing/engines/omr/legato_manifest.py
               printf '%s\n' "${ML_BASE_IMAGE}"
               printf '%s\n' "INSTALL_PADDLE_GPU=false"

@@ -35,14 +35,13 @@ ARG INSTALL_LEGATO_EXTRA_DEPS=false
 ARG PADDLE_CUDA_INDEX=cu126
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/worker-app.txt \
-    && python -m pip install protobuf==6.33.4 \
     && if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
       python -m pip install paddlepaddle-gpu==3.2.0 --extra-index-url "https://www.paddlepaddle.org.cn/packages/stable/${PADDLE_CUDA_INDEX}/"; \
     else \
       python -m pip install paddlepaddle==3.2.0 --extra-index-url "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
     fi \
     && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/ocr.txt)" \
-    && python -m pip install "${PADDLEOCR_REQ}" \
+    && python -m pip install -r /tmp/requirements/worker-app.txt "${PADDLEOCR_REQ}" \
     && python -m pip install \
       accelerate==1.8.0 \
       fire==0.7.0 \
@@ -58,6 +57,10 @@ RUN python -m pip install --upgrade pip setuptools wheel \
         wandb; \
     fi \
     && rm -rf /root/.cache/pip /tmp/requirements
+
+# Check the complete Python environment without initializing OCR models.
+RUN python -m pip check \
+    && PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True python -c "from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter; import paddle, paddleocr, paddlex; print('worker dependency imports ok')"
 
 COPY backend/app/processing/engines/omr/legato_manifest.py /tmp/legato_manifest.py
 RUN mkdir -p /opt/noteverse/models /opt/noteverse/legato \
