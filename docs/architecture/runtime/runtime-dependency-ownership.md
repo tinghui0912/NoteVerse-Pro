@@ -226,6 +226,22 @@ Initial lock preferences came from the incident SBOM's actual resolution, avoidi
 unrelated transitive upgrades (including an incidental fresh filelock major).
 No upstream dependency range was overridden and no transitive became a fake root.
 
+Preserving selected versions of the resolved graph does not mean preserving the
+legacy package set. Run 40087924267 first installed huggingface-hub 2.3.0 through
+PaddleOCR/PaddleX, which brought in `httpx2==2.16.0`, `httpcore2==2.16.0` and
+`truststore==0.10.5`. Its later Transformers 4.54.0 transaction replaced that hub
+with 0.36.2 (Transformers requires `huggingface-hub>=0.34.0,<1.0`), leaving those
+three installed transitives behind. The complete Worker solve selects hub 0.36.2
+from the outset; that version does not require them. Installed metadata confirms
+the only other possible path is dnspython's optional `doh` extra, which the Worker
+does not request or use. These three are historical multi-step installation
+residue, not missing Worker ownership; do not restore them as fake direct pins.
+Comparing incident SBOM 12557829325 and initial v2 SBOM 12562542431, deduplicating
+PyPI-PURL records by normalized `(name, version)` gives 151 and 148 identities:
+exactly those three removed,
+nothing added, and no version difference among shared identities. This SBOM
+discovery count is distinct from the lock's 137 resolved distributions.
+
 Run in Linux amd64 CPython 3.12 (the repository quality container is suitable):
 
 ```sh
@@ -260,8 +276,13 @@ The lock does not claim bit-for-bit reproducible native/OCI builds.
 
 `worker_image_identity.py` is the sole v2 build-key/registry-policy helper. It
 hashes canonical JSON with an explicit schema version, full lock and recursive
-ownership input bytes, Dockerfile/helper/generator/tool identities, resolved ML
+ownership text identities, Dockerfile/helper/generator/tool identities, resolved ML
 Base OCI digest, platform/CPU flags, and LEGATO source/commit authority. The
+governed file inputs are explicitly UTF-8 text: identity hashing normalizes CRLF
+to LF, rejects invalid UTF-8, binary NUL and ambiguous lone CR, then SHA-256 hashes
+the canonical UTF-8 bytes. Normal LF/CRLF checkout conversion therefore preserves
+the key; a semantic text change still changes it. This is a Worker text boundary,
+not a binary normalization facility and not dependent on Git client settings. The
 mutable ML Base alias is resolved after appropriate login; builds use its
 `repository@sha256:...` reference. A changed alias target necessarily changes the
 build key. The key names inputs; only the OCI digest names image content.

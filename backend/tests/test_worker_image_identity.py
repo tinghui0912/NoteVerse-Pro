@@ -51,6 +51,40 @@ def test_same_governed_inputs_produce_same_v2_build_key(repo):
     assert "resolved_ml_base_oci_digest" in first["document"]
 
 
+def test_lf_and_crlf_checkouts_have_identical_canonical_identity(repo):
+    paths = identity.build_identity(repo, BASE)["document"]["inputs"]
+    for path in paths:
+        file = repo / path
+        file.write_bytes(file.read_bytes().replace(b"\r\n", b"\n"))
+    lf = identity.build_identity(repo, BASE)
+    for path in paths:
+        file = repo / path
+        file.write_bytes(file.read_bytes().replace(b"\n", b"\r\n"))
+    assert identity.build_identity(repo, BASE) == lf
+
+
+def test_semantic_requirement_change_still_changes_canonical_key(repo):
+    before = identity.build_identity(repo, BASE)["build_key"]
+    render = repo / "backend/requirements/render.txt"
+    text = render.read_text(encoding="utf-8")
+    assert "numpy==2.3.5" in text
+    render.write_text(text.replace("numpy==2.3.5", "numpy==2.3.4"), encoding="utf-8")
+    assert identity.build_identity(repo, BASE)["build_key"] != before
+
+
+@pytest.mark.parametrize("content", [b"invalid \xff", b"binary \x00 input"])
+def test_non_text_governed_input_fails_closed(repo, content):
+    (repo / "docker/backend/Dockerfile.worker-deps").write_bytes(content)
+    with pytest.raises(ValueError, match="UTF-8 text|Binary NUL"):
+        identity.build_identity(repo, BASE)
+
+
+def test_lone_cr_governed_input_fails_closed(repo):
+    (repo / "docker/backend/Dockerfile.worker-deps").write_bytes(b"ARG BASE=x\rFROM x\n")
+    with pytest.raises(ValueError, match="lone CR"):
+        identity.build_identity(repo, BASE)
+
+
 @pytest.mark.parametrize("path", [
     identity.LOCK, "docker/backend/Dockerfile.worker-deps",
     "backend/app/processing/engines/omr/legato_manifest.py",

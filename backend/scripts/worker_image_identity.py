@@ -49,6 +49,20 @@ def validate_digest(value: str) -> str:
     return value
 
 
+def _worker_text_digest(path: Path) -> str:
+    """Canonicalize only governed UTF-8 Worker text, never arbitrary binaries."""
+    try:
+        text = path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"Worker identity input must be UTF-8 text: {path}") from exc
+    text = text.replace("\r\n", "\n")
+    if "\r" in text:
+        raise ValueError(f"Ambiguous lone CR in Worker identity input: {path}")
+    if "\x00" in text:
+        raise ValueError(f"Binary NUL in Worker identity text input: {path}")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def build_identity(repo: Path, ml_base_digest: str, *, schema: int = SCHEMA) -> dict:
     validate_digest(ml_base_digest)
     if schema < 2:
@@ -61,7 +75,7 @@ def build_identity(repo: Path, ml_base_digest: str, *, schema: int = SCHEMA) -> 
         "resolved_ml_base_oci_digest": ml_base_digest,
         "install_paddle_gpu": False,
         "install_legato_extra_deps": False,
-        "inputs": {path: hashlib.sha256((repo / path).read_bytes()).hexdigest() for path in paths},
+        "inputs": {path: _worker_text_digest(repo / path) for path in paths},
     }
     serialized = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     key = hashlib.sha256(serialized.encode("ascii")).hexdigest()
