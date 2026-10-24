@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,24 +120,34 @@ jobs:
           build-args: |
             WORKER_DEPS_IMAGE=${{ env.WORKER_DEPS_IMAGE }}
 
+      - name: Check published Worker packaging contract offline
+        env:
+          WORKER_DIGEST: ${{ steps.backend-worker-build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$WORKER_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          REF="${IMAGE_NAMESPACE}/backend-worker@${WORKER_DIGEST}"
+          docker pull "$REF"
+          docker run --rm --network none --entrypoint python "$REF" scripts/check_image_contract.py --role worker
+
       - name: Generate backend worker dependency SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          image: ${{ env.WORKER_DEPS_IMAGE }}
+          image: ${{ env.IMAGE_NAMESPACE }}/backend-worker-deps@${{ steps.backend-worker-deps-build.outputs.digest }}
           format: spdx-json
           artifact-name: backend-worker-deps-image-sbom.spdx.json
 
       - name: Generate backend worker SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          image: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
+          image: ${{ env.IMAGE_NAMESPACE }}/backend-worker@${{ steps.backend-worker-build.outputs.digest }}
           format: spdx-json
           artifact-name: backend-worker-image-sbom.spdx.json
 
       - name: Scan backend worker dependency image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ env.WORKER_DEPS_IMAGE }}
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker-deps@${{ steps.backend-worker-deps-build.outputs.digest }}
           vuln-type: os,library
           severity: CRITICAL
           ignore-unfixed: true
@@ -146,7 +157,7 @@ jobs:
       - name: Scan backend worker image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker@${{ steps.backend-worker-build.outputs.digest }}
           vuln-type: os,library
           severity: CRITICAL
           ignore-unfixed: true

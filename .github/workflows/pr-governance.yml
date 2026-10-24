@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   policy:
+    # Ancestry is a pre-merge rule, not a constraint on historical metadata edits.
+    if: github.event.pull_request.state == 'open' && !github.event.pull_request.merged
     name: policy
     runs-on: ubuntu-latest
     timeout-minutes: 5
