@@ -101,17 +101,28 @@ class Registry(Protocol):
     def attach(self, source: str, target: str) -> None: ...
 
 
+def _registry_error_is_absence(stderr: str, reference: str) -> bool:
+    """Accept only complete, explicit missing-manifest diagnostics."""
+    message = stderr.strip().lower().removeprefix("error: ")
+    reference = reference.lower()
+    # Match whole diagnostics, not substrings inside identifiers or larger errors.
+    # Auth/rate-limit, infrastructure and unrecognized responses fail closed.
+    return message in {
+        reference + ": not found",
+        "manifest unknown",
+        "manifest unknown: manifest unknown",
+        reference + ": manifest unknown",
+        reference + ": manifest unknown: manifest unknown",
+    }
+
+
 class DockerRegistry:
     def resolve(self, reference: str) -> str | None:
         result = subprocess.run(
             ["docker", "buildx", "imagetools", "inspect", reference], capture_output=True, text=True,
         )
         if result.returncode:
-            error = result.stderr.lower()
-            # Auth, network, rate limits and ambiguous errors never mean absence.
-            if (": not found" in error or "manifest unknown" in error) and not any(
-                word in error for word in ("unauthorized", "denied", "forbidden", "authentication", "credentials", "401", "403", "429")
-            ):
+            if _registry_error_is_absence(result.stderr, reference):
                 return None
             raise RuntimeError(f"Registry identity query failed closed: {result.stderr}")
         match = re.search(r"^Digest:\s+(sha256:[a-f0-9]{64})\s*$", result.stdout, re.M)
