@@ -91,10 +91,7 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile.worker-deps
       args:
-        PYTHON_IMAGE: ${PYTHON_IMAGE:-ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124}
-        INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
-        INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
-        PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.12-slim-bookworm}
     entrypoint: []
     command: bash
     restart: "no"
@@ -108,6 +105,12 @@ services:
 
   quality:
     <<: *backend-common
+    environment:
+      PYTHONPATH: /app
+      NOTEVERSE_REPO_ROOT: /repo
+    volumes:
+      - ./backend:/app
+      - ./:/repo:ro
     env_file:
       - path: backend/.env.docker
         required: true

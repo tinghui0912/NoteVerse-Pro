@@ -1,13 +1,8 @@
 name: Backend Worker Image
 'on':
-  workflow_dispatch:
-    inputs:
-      ml_base_tag:
-        description: Existing ML Base alias; resolved to immutable OCI before computing v2 identity
-        required: true
-        default: py312-torch260-cu124-slim
+  workflow_dispatch: null
 concurrency:
-  group: backend-worker-trusted-publication-v2
+  group: backend-worker-trusted-publication-v3
   cancel-in-progress: false
 jobs:
   build:
@@ -16,8 +11,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    env:
-      ML_BASE_TAG: ${{ inputs.ml_base_tag }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -34,18 +27,26 @@ jobs:
         registry: ghcr.io
         username: ${{ secrets.GHCR_USERNAME || github.actor }}
         password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-    - name: Resolve existing ML Base to immutable OCI
+    - name: Resolve governed Python base to immutable OCI
       id: base
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base --repository "${IMAGE_NAMESPACE}/ml-base"
-        --tag "$ML_BASE_TAG"
-    - name: Check generated Worker lock without upgrading
-      run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python python:3.12-slim-bookworm /repo/backend/scripts/worker_lock.py
-        --repo /repo --check
-    - name: Compute Worker v2 build key
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base
+    - name: Select project Python for uv identity tooling
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      with:
+        python-version-file: backend/.python-version
+    - name: Set up approved uv from project authority
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      with:
+        version-file: backend/pyproject.toml
+        enable-cache: false
+        python-version: '3.12'
+    - name: Check native uv lock
+      run: cd backend && uv lock --check
+    - name: Compute uv Worker v3 build key
       id: key
       env:
         BASE_DIGEST: ${{ steps.base.outputs.oci_digest }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" build-key --ml-base-digest "$BASE_DIGEST"
+      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" build-key --python-base-digest "$BASE_DIGEST"
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
     - name: Plan first-build-wins deps
@@ -65,10 +66,7 @@ jobs:
         provenance: false
         sbom: false
         tags: ${{ steps.deps-plan.outputs.candidate_ref }}
-        build-args: |-
-          PYTHON_IMAGE=${{ steps.base.outputs.digest_ref }}
-          INSTALL_PADDLE_GPU=false
-          INSTALL_LEGATO_EXTRA_DEPS=false
+        build-args: PYTHON_IMAGE=${{ steps.base.outputs.digest_ref }}
       env:
         DOCKER_BUILD_RECORD_UPLOAD: 'false'
       if: steps.deps-plan.outputs.action == 'build'
@@ -85,7 +83,6 @@ jobs:
         DEPS_REF: ${{ steps.deps-select.outputs.digest_ref }}
       run: |-
         docker pull "$DEPS_REF"
-        docker run --rm --network none -v "$GITHUB_WORKSPACE/backend/requirements/worker-image-py312-linux-amd64.lock:/expected.lock:ro" --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/worker_lock.py --check-installed --lock /expected.lock
         docker run --rm --network none --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py --role worker-deps
     - name: Release completed deps build cache and pulls
       env:
@@ -105,7 +102,7 @@ jobs:
         format: spdx-json
         artifact-name: backend-worker-deps-image-sbom.spdx.json
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-sbom/tmp
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v3/deps-sbom/tmp
     - name: Remove completed deps SBOM temporary space
       if: always() && steps.deps-sbom.outcome != 'skipped'
       env:
@@ -128,8 +125,8 @@ jobs:
         timeout: 20m
         cache: false
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/tmp
-        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/cache
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v3/deps-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v3/deps-scan/cache
         TRIVY_IMAGE_SRC: remote
     - name: Remove completed deps scan export/cache
       if: always() && steps.deps-scan.outcome != 'skipped'
@@ -199,7 +196,7 @@ jobs:
         format: spdx-json
         artifact-name: backend-worker-image-sbom.spdx.json
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-sbom/tmp
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v3/worker-sbom/tmp
     - name: Remove completed worker SBOM temporary space
       if: always() && steps.worker-sbom.outcome != 'skipped'
       env:
@@ -222,8 +219,8 @@ jobs:
         timeout: 20m
         cache: false
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/tmp
-        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/cache
+        TMPDIR: ${{ runner.temp }}/noteverse-worker-v3/worker-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v3/worker-scan/cache
         TRIVY_IMAGE_SRC: remote
     - name: Remove completed worker scan export/cache
       if: always() && steps.worker-scan.outcome != 'skipped'
@@ -253,8 +250,8 @@ jobs:
         WORKER_REF: ${{ steps.worker-select.outputs.digest_ref }}
       run: |-
         {
-          echo "## Worker v2 qualified artifact identities"
-          echo "- ML Base alias: $BASE_TAG; resolved OCI: $BASE_REF"
+          echo "## Worker v3 qualified artifact identities"
+          echo "- Python base alias: $BASE_TAG; resolved OCI: $BASE_REF"
           echo "- Worker-deps build key (input identity, not content digest): $BUILD_KEY"
           echo "- Worker-deps plan: $DEPS_ACTION; canonical: $DEPS_CANONICAL; qualified OCI: $DEPS_REF"
           echo "- Final Worker plan: $WORKER_ACTION; canonical: $WORKER_CANONICAL; qualified OCI: $WORKER_REF"
@@ -262,3 +259,6 @@ jobs:
           echo "- Actions artifact ZIP digests are separate from the OCI image digests above; see artifact metadata"
           echo "- CPU Paddle only; no GPU/model-cache readiness qualification"
         } >> "$GITHUB_STEP_SUMMARY"
+env:
+  UV_PYTHON: '3.12'
+  UV_PYTHON_DOWNLOADS: never

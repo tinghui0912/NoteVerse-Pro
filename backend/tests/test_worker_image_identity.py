@@ -30,8 +30,8 @@ class FakeRegistry:
 
 
 @pytest.fixture
-def repo(tmp_path):
-    shutil.copytree(ROOT / "requirements", tmp_path / "backend/requirements")
+def repo(tmp_path, monkeypatch):
+    monkeypatch.setattr(identity, "worker_resolution", lambda _: b"locked uv export --hash=sha256:abc\n")
     for path in identity.IDENTITY_INPUTS:
         target = tmp_path / path
         if target.exists():
@@ -40,15 +40,16 @@ def repo(tmp_path):
         # Fixture source bytes are not needed from a repository .github mount.
         source = ROOT / path.removeprefix("backend/") if path.startswith("backend/") else None
         target.write_bytes(source.read_bytes() if source and source.exists() else b"fixture Dockerfile bytes\n")
+    shutil.copyfile(ROOT / "pyproject.toml", tmp_path / "backend/pyproject.toml")
     return tmp_path
 
 
-def test_same_governed_inputs_produce_same_v2_build_key(repo):
+def test_same_governed_inputs_produce_same_v3_build_key(repo):
     first = identity.build_identity(repo, BASE)
     assert first == identity.build_identity(repo, BASE)
-    assert first["key_tag"] == "deps-v2-" + first["build_key"]
+    assert first["key_tag"] == "deps-v3-" + first["build_key"]
     assert len(first["build_key"]) == 64
-    assert "resolved_ml_base_oci_digest" in first["document"]
+    assert "resolved_python_base_oci_digest" in first["document"]
 
 
 def test_lf_and_crlf_checkouts_have_identical_canonical_identity(repo):
@@ -63,13 +64,50 @@ def test_lf_and_crlf_checkouts_have_identical_canonical_identity(repo):
     assert identity.build_identity(repo, BASE) == lf
 
 
-def test_semantic_requirement_change_still_changes_canonical_key(repo):
+def test_semantic_project_change_changes_canonical_key(repo):
     before = identity.build_identity(repo, BASE)["build_key"]
-    render = repo / "backend/requirements/render.txt"
-    text = render.read_text(encoding="utf-8")
-    assert "numpy==2.3.5" in text
-    render.write_text(text.replace("numpy==2.3.5", "numpy==2.3.4"), encoding="utf-8")
+    project = repo / "backend/pyproject.toml"
+    project.write_text(project.read_text(encoding="utf-8").replace("numpy==2.3.5", "numpy==2.3.4"), encoding="utf-8")
     assert identity.build_identity(repo, BASE)["build_key"] != before
+
+
+def test_uv_worker_resolution_changes_key(repo, monkeypatch):
+    before = identity.build_identity(repo, BASE)["build_key"]
+    monkeypatch.setattr(identity, "worker_resolution", lambda _: b"changed uv resolution")
+    assert identity.build_identity(repo, BASE)["build_key"] != before
+
+
+def test_worker_resolution_delegates_to_locked_uv_and_hashes_exact_bytes(repo, monkeypatch):
+    calls = []
+    exported = b"package==1.0 \\\n    --hash=sha256:abc\n"
+
+    def run(args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(stdout="uv 0.13.5 (approved)\n" if args == ["uv", "--version"] else exported)
+
+    monkeypatch.undo()  # Exercise the real exporter, not the identity fixture stub.
+    monkeypatch.setattr(identity.subprocess, "run", run)
+    assert identity.worker_resolution(repo) == exported
+    assert calls[1][0] == ["uv", "export", "--locked", "--only-group", "worker", "--no-header", "--no-emit-project"]
+    assert calls[1][1]["cwd"] == repo / "backend"
+    assert calls[1][1]["check"] is True
+    assert "text" not in calls[1][1]  # No platform newline conversion.
+
+
+def test_unapproved_uv_version_fails_before_export(repo, monkeypatch):
+    monkeypatch.undo()
+    monkeypatch.setattr(identity.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(stdout="uv 0.13.4\n"))
+    with pytest.raises(ValueError, match="exact approved uv"):
+        identity.worker_resolution(repo)
+
+
+def test_export_without_artifact_hashes_fails_closed(repo, monkeypatch):
+    monkeypatch.undo()
+    monkeypatch.setattr(identity.subprocess, "run", lambda args, **kwargs: SimpleNamespace(
+        stdout="uv 0.13.5\n" if args == ["uv", "--version"] else b"package==1.0\n",
+    ))
+    with pytest.raises(ValueError, match="artifact hashes"):
+        identity.worker_resolution(repo)
 
 
 @pytest.mark.parametrize("content", [b"invalid \xff", b"binary \x00 input"])
@@ -85,12 +123,7 @@ def test_lone_cr_governed_input_fails_closed(repo):
         identity.build_identity(repo, BASE)
 
 
-@pytest.mark.parametrize("path", [
-    identity.LOCK, "docker/backend/Dockerfile.worker-deps",
-    "backend/app/processing/engines/omr/legato_manifest.py",
-    "backend/requirements/render.txt", "backend/requirements/worker-image.in",
-    "backend/requirements/worker-lock-tool.txt", "backend/scripts/worker_lock.py",
-])
+@pytest.mark.parametrize("path", identity.IDENTITY_INPUTS)
 def test_changed_governed_input_changes_build_key(repo, path):
     before = identity.build_identity(repo, BASE)["build_key"]
     file = repo / path
@@ -102,13 +135,11 @@ def test_resolved_base_digest_changes_key_even_when_alias_is_unchanged(repo):
     assert identity.build_identity(repo, BASE)["build_key"] != identity.build_identity(repo, OTHER)["build_key"]
 
 
-def test_schema_changes_both_namespace_and_build_key(repo):
-    v2 = identity.build_identity(repo, BASE)
-    v3 = identity.build_identity(repo, BASE, schema=3)
-    assert v3["key_tag"].startswith("deps-v3-")
-    assert v2["build_key"] != v3["build_key"]
-    with pytest.raises(ValueError, match="Legacy"):
-        identity.build_identity(repo, BASE, schema=1)
+def test_legacy_namespace_cannot_be_emitted(repo):
+    assert identity.build_identity(repo, BASE)["key_tag"].startswith("deps-v3-")
+    for schema in (1, 2):
+        with pytest.raises(ValueError, match="Legacy"):
+            identity.build_identity(repo, BASE, schema=schema)
     with pytest.raises(ValueError, match="Canonical"):
         identity.canonical_tag("deps", "fd1036acf6cf624e")
 
@@ -120,7 +151,7 @@ def test_malformed_oci_digest_rejected(value):
 
 
 def test_existing_canonical_selects_reuse_without_build_or_repush():
-    canonical = REPOSITORY + ":deps-v2-" + KEY
+    canonical = REPOSITORY + ":deps-v3-" + KEY
     registry = FakeRegistry({canonical: FIRST})
     plan = identity.plan(registry, REPOSITORY, "deps", KEY, "123", "1")
     assert plan.action == "reuse" and plan.digest_ref == REPOSITORY + "@" + FIRST
@@ -169,11 +200,11 @@ def test_qualified_candidate_promotes_exact_oci_without_wrapping():
     result = identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                               dict(contract="success", sbom="success", trivy="success"))
     assert result == "promoted-qualified-oci"
-    assert registry.writes == [(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v2-" + KEY)]
+    assert registry.writes == [(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v3-" + KEY)]
 
 
 def test_different_concurrent_canonical_winner_is_never_overwritten():
-    registry = FakeRegistry({REPOSITORY + ":deps-v2-" + KEY: OTHER})
+    registry = FakeRegistry({REPOSITORY + ":deps-v3-" + KEY: OTHER})
     with pytest.raises(RuntimeError, match="never overwrite"):
         identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                          dict(contract="success", sbom="success", trivy="success"))
@@ -181,7 +212,7 @@ def test_different_concurrent_canonical_winner_is_never_overwritten():
 
 
 def test_identical_existing_winner_is_not_repushed():
-    registry = FakeRegistry({REPOSITORY + ":deps-v2-" + KEY: FIRST})
+    registry = FakeRegistry({REPOSITORY + ":deps-v3-" + KEY: FIRST})
     assert identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                             dict(contract="success", sbom="success", trivy="success")) == "reused-without-repush"
     assert registry.writes == []
@@ -195,9 +226,9 @@ def test_final_source_tag_also_cannot_be_assigned_before_gates():
     assert registry.writes == []
 
 
-def test_ml_base_publication_and_role_mismatch_are_rejected():
-    with pytest.raises(ValueError, match="mismatch"):
-        identity.plan(FakeRegistry(), "ghcr.io/tinghui0912/noteverse/ml-base", "deps", KEY, "1", "1")
+def test_unrelated_publication_repository_is_rejected():
+    with pytest.raises(ValueError, match="repository"):
+        identity.plan(FakeRegistry(), "ghcr.io/tinghui0912/noteverse/unrelated", "deps", KEY, "1", "1")
 
 
 @pytest.mark.parametrize("error", ["denied", "unauthorized: not found", "403 Forbidden: manifest unknown", "401: not found", "network timeout", "429 Too Many Requests"])
@@ -274,6 +305,6 @@ def test_cli_rejects_custom_dependency_override():
 def test_tag_attachment_preserves_single_manifest_format(monkeypatch):
     calls = []
     monkeypatch.setattr(identity.subprocess, "run", lambda args, **kw: calls.append(args))
-    identity.DockerRegistry().attach(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v2-" + KEY)
+    identity.DockerRegistry().attach(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v3-" + KEY)
     assert "--prefer-index=false" in calls[0]
     assert calls[0][-1] == REPOSITORY + "@" + FIRST

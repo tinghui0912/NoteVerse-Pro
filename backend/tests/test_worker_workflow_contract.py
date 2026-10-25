@@ -32,11 +32,11 @@ def documents():
     for scan in scans:
         scan["env"]["TRIVY_IMAGE_SRC"] = "docker"
     scans.append(lifecycle)
-    trusted = {"on": {"workflow_dispatch": {"inputs": {"ml_base_tag": {}}}},
+    trusted = {"on": {"workflow_dispatch": None},
                "concurrency": {"cancel-in-progress": False}, "jobs": {"build": {
                    "if": "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
                    "permissions": {"contents": "read", "packages": "write"}, "steps": steps}}}
-    pr = {"on": {"pull_request": {}}, "permissions": {"contents": "read", "packages": "read"},
+    pr = {"on": {"pull_request": {}}, "permissions": {"contents": "read"},
           "jobs": {"validate": {"steps": scans}}}
     return trusted, pr
 
@@ -47,7 +47,7 @@ def test_valid_structural_boundaries(documents):
 
 def test_custom_dependency_tag_input_is_forbidden(documents):
     trusted, pr = documents
-    trusted["on"]["workflow_dispatch"]["inputs"]["worker_deps_tag"] = {}
+    trusted["on"]["workflow_dispatch"] = {"inputs": {"custom_base": {}}}
     with pytest.raises(ValueError, match="overrides"):
         check_workflow_documents(trusted, pr)
 

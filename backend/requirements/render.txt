@@ -1,3 +1,0 @@
-# Score rendering.
-numpy==2.3.5
-verovio==6.3.0

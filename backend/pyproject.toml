@@ -1,3 +1,160 @@
+[project]
+name = "noteverse-backend"
+# Required uv project metadata only, not an application/release version.
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+core = [
+  "pydantic[email]==2.14.1",
+  "pydantic-settings==2.16.0",
+  "loguru==0.7.3",
+]
+db = [
+  { include-group = "core" },
+  "sqlmodel==0.0.48",
+  "asyncpg==0.32.0",
+  "psycopg[binary]==3.3.6",
+  "greenlet==3.5.6",
+]
+cache = [
+  { include-group = "core" },
+  "redis==7.4.0",
+]
+celery = [
+  { include-group = "cache" },
+  "celery==5.6.3",
+]
+tracing = [
+  "opentelemetry-api==1.45.1",
+  "opentelemetry-sdk==1.45.1",
+  "opentelemetry-exporter-otlp-proto-grpc==1.45.1",
+]
+http = [
+  { include-group = "core" },
+  { include-group = "tracing" },
+  "fastapi==0.146.0",
+  "uvicorn[standard]==0.54.0",
+  "python-multipart==0.0.32",
+  "prometheus-client==0.26.0",
+  "opentelemetry-instrumentation-fastapi==0.66b1",
+]
+auth = [
+  { include-group = "core" },
+  "PyJWT[crypto]==2.15.1",
+  "pwdlib[argon2]==0.3.1",
+]
+storage = [
+  { include-group = "core" },
+  "boto3==1.43.114",
+  "alibabacloud-oss-v2==1.4.0",
+]
+image = [
+  "Pillow==13.0.0",
+]
+fingering = [
+  "numpy==2.3.5",
+  "pianoplayer==3.0.2",
+]
+practice-score = [
+  "partitura==1.9.0",
+]
+render = [
+  "numpy==2.3.5",
+  "verovio==6.3.0",
+]
+ocr = [
+  "paddleocr==3.7.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+migrations = [
+  { include-group = "db" },
+  "alembic==1.20.0",
+]
+quality-tools = [
+  "httpx==0.28.1",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "ruff==0.17.1",
+  "mypy==2.4.0",
+  "pre-commit==4.7.0",
+]
+api = [
+  { include-group = "http" },
+  { include-group = "db" },
+  { include-group = "migrations" },
+  { include-group = "storage" },
+  { include-group = "celery" },
+  { include-group = "auth" },
+  { include-group = "image" },
+  { include-group = "fingering" },
+  { include-group = "practice-score" },
+]
+beat = [
+  { include-group = "celery" },
+  "psycopg[binary]==3.3.6",
+]
+worker-app = [
+  { include-group = "db" },
+  { include-group = "storage" },
+  { include-group = "celery" },
+  { include-group = "image" },
+  { include-group = "render" },
+  { include-group = "tracing" },
+]
+worker = [
+  { include-group = "worker-app" },
+  { include-group = "ocr" },
+  "torch==2.6.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "paddlepaddle==3.2.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "accelerate==1.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "fire==0.7.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "Levenshtein==0.27.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "pyparsing==3.3.3; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "tqdm==4.70.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "transformers==4.54.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "zss==1.2.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+quality = [
+  { include-group = "api" },
+  { include-group = "beat" },
+  { include-group = "render" },
+  { include-group = "quality-tools" },
+]
+dev = [
+  { include-group = "quality" },
+]
+
+[tool.uv]
+package = false
+required-version = "==0.13.5"
+default-groups = ["dev"]
+# Explicit instrumentation beta and its pinned OpenTelemetry beta protocol family.
+# The direct OTLP exporter requires common==0.66b1 in upstream metadata.
+prerelease = "explicit"
+prerelease-package = { opentelemetry-exporter-otlp-common = "if-necessary", opentelemetry-instrumentation = "if-necessary", opentelemetry-instrumentation-asgi = "if-necessary", opentelemetry-semantic-conventions = "if-necessary", opentelemetry-util-http = "if-necessary" }
+index-strategy = "first-index"
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+# fire and zss use setuptools' legacy PEP 517 backend in isolated builds.
+# Provided artifact hashes are enforced by stable uv; no preview flags.
+build-constraint-dependencies = [
+  { requirement = "setuptools==84.2.1", hashes = ["sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2", "sha256:3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc"] },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
+paddlepaddle = { url = "https://paddle-whl.cdn.bcebos.com/stable/cpu/paddlepaddle/paddlepaddle-3.2.0-cp312-cp312-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
+
+[tool.noteverse.images]
+uv = "ghcr.io/astral-sh/uv@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff"
+worker-python = "python:3.12-slim-bookworm"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

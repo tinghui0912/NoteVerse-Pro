@@ -96,10 +96,10 @@ jobs:
       - name: Build backend quality image
         run: docker build -f ../docker/backend/Dockerfile.quality -t "$QUALITY_IMAGE" ..
 
-      - name: Check Worker generated lock freshness (read-only checkout)
+      - name: Check native uv project lock (read-only checkout)
         run: >-
-          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
-          "$QUALITY_IMAGE" /repo/backend/scripts/worker_lock.py --repo /repo --check
+          docker run --rm -v "$GITHUB_WORKSPACE/backend:/project:ro" --entrypoint uv
+          "$QUALITY_IMAGE" lock --project /project --check
 
       - name: Check Worker workflow trust and promotion contracts
         run: >-
@@ -143,34 +143,35 @@ jobs:
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
-          "$QUALITY_IMAGE" bash -lc
+          "$QUALITY_IMAGE" bash -c
           "cd /repo &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
 
       - name: Run Ruff
-        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m ruff check app tests scripts"
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m ruff check app tests scripts"
 
       - name: Run mypy
-        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file pyproject.toml"
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m mypy --config-file pyproject.toml"
 
-      - name: Run Worker identity and lock helper mypy
+      - name: Run Worker infrastructure helper mypy
         run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
-          "python -m mypy --config-file pyproject.toml scripts/worker_lock.py scripts/worker_image_identity.py scripts/worker_image_disk.py"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c
+          "python -m mypy --config-file pyproject.toml scripts/worker_image_identity.py scripts/worker_image_disk.py"
 
       - name: Run model-layer mypy
-        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file mypy-model-layer.ini"
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m mypy --config-file mypy-model-layer.ini"
 
       - name: Verify OpenAPI contracts
         run: |
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py customer-api --check"
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py control-plane-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python scripts/export_openapi.py customer-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python scripts/export_openapi.py control-plane-api --check"
 
       - name: Run database migrations
-        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m alembic upgrade head"
 
-      - name: Run core pytest
+      - name: Run full backend pytest
         run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -e NOTEVERSE_REPO_ROOT=/repo -v "$GITHUB_WORKSPACE:/repo:ro" "$QUALITY_IMAGE" bash -c
           "python -m pytest tests -q"

@@ -12,7 +12,7 @@ function Invoke-Quality {
     param([string] $Name, [string] $Command)
 
     Write-Host "==> backend:$Name"
-    docker compose -f $composeFile run --rm --build quality bash -lc $Command
+    docker compose -f $composeFile run --rm --build quality bash -c $Command
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

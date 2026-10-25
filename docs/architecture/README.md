@@ -28,3 +28,5 @@ write an ADR under `../adr/`.
 - [ADR 0005: Review Pipeline Before Score](../adr/0005-review-pipeline-before-score.md)
 - [ADR 0006: Control Plane API Boundary](../adr/0006-control-plane-api-boundary.md)
 - [ADR 0007: Editor Domain Model](../adr/0007-editor-domain-model.md)
+
+- [ADR 0008: Backend Dependency Authority](../adr/0008-backend-dependency-authority.md)

@@ -4,9 +4,11 @@ FROM ${PYTHON_IMAGE}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_COMPILE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    VIRTUAL_ENV=/opt/noteverse/venv \
+    UV_PROJECT_ENVIRONMENT=/opt/noteverse/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    PATH="/opt/noteverse/venv/bin:$PATH"
 
 WORKDIR /app
 
@@ -25,10 +27,11 @@ RUN apt-get update -o Acquire::Retries=3 \
         libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements/ /tmp/requirements/
-
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -r /tmp/requirements/quality-core.txt
+# The checked-in uv project is the sole dependency authority. --locked fails stale builds.
+COPY --from=ghcr.io/astral-sh/uv@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /uvx /usr/local/bin/
+COPY backend/pyproject.toml backend/uv.lock /opt/noteverse/project/
+RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only-group quality --python /usr/local/bin/python --no-cache \
+    && uv pip check --python /opt/noteverse/venv/bin/python
 
 COPY backend/ /app/
 RUN test ! -e /app/research

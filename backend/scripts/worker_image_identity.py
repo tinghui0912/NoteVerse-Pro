@@ -1,4 +1,4 @@
-"""Worker-only v2 input identity and fail-closed registry promotion policy.
+"""Worker-only uv v3 input identity and fail-closed registry promotion policy.
 
 A build key names governed inputs, never OCI content. The trusted workflow is
 serialized; these checks also refuse a different winner observed at promotion.
@@ -16,31 +16,20 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tomllib
 from typing import Protocol
 
-BACKEND = Path(__file__).resolve().parents[1]
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-
-from scripts.worker_requirements_fingerprint import resolve_closure  # noqa: E402
-
-SCHEMA = 2
+SCHEMA = 3
 PLATFORM = "linux/amd64"
-IMAGE_INPUT = "backend/requirements/worker-image.in"
-LOCK = "backend/requirements/worker-image-py312-linux-amd64.lock"
 IDENTITY_INPUTS = (
-    LOCK,
-    "backend/requirements/worker-lock-tool.txt",
+    "backend/pyproject.toml",
     "docker/backend/Dockerfile.worker-deps",
     "backend/scripts/worker_image_identity.py",
-    "backend/scripts/worker_lock.py",
-    "backend/scripts/worker_requirements_fingerprint.py",
     "backend/scripts/check_image_contract.py",
     "backend/app/processing/engines/omr/legato_manifest.py",
 )
-REPOSITORY = re.compile(r"ghcr\.io/[a-z0-9_.-]+/noteverse/(?:ml-base|backend-worker-deps|backend-worker)")
+REPOSITORY = re.compile(r"ghcr\.io/[a-z0-9_.-]+/noteverse/(?:backend-worker-deps|backend-worker)")
 DIGEST = re.compile(r"sha256:[a-f0-9]{64}")
-TAG = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}")
 
 
 def validate_digest(value: str) -> str:
@@ -63,23 +52,46 @@ def _worker_text_digest(path: Path) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def build_identity(repo: Path, ml_base_digest: str, *, schema: int = SCHEMA) -> dict:
-    validate_digest(ml_base_digest)
-    if schema < 2:
-        raise ValueError("Legacy v1 identity cannot be emitted by the v2 helper")
-    paths = sorted(set(IDENTITY_INPUTS) | set(resolve_closure(repo, (IMAGE_INPUT,))))
+def project_configuration(repo: Path) -> dict:
+    with (repo / "backend/pyproject.toml").open("rb") as stream:
+        return tomllib.load(stream)
+
+
+def worker_resolution(repo: Path) -> bytes:
+    """uv owns interpretation/resolution; the hashed export is never committed."""
+    config = project_configuration(repo)
+    version = config["tool"]["uv"]["required-version"].removeprefix("==")
+    observed = subprocess.run(["uv", "--version"], check=True, capture_output=True, text=True)
+    if observed.stdout.split()[:2] != ["uv", version]:
+        raise ValueError("Worker identity requires the project's exact approved uv version")
+    result = subprocess.run([
+        "uv", "export", "--locked", "--only-group", "worker",
+        "--no-header", "--no-emit-project",
+    ], cwd=repo / "backend", check=True, capture_output=True)
+    if not result.stdout or b"--hash=sha256:" not in result.stdout:
+        raise ValueError("uv Worker export must contain its locked artifact hashes")
+    return result.stdout
+
+
+def build_identity(repo: Path, python_base_digest: str, *, schema: int = SCHEMA) -> dict:
+    validate_digest(python_base_digest)
+    if schema < 3:
+        raise ValueError("Legacy identity cannot be emitted by the uv v3 helper")
+    config = project_configuration(repo)
     document = {
         "schema": f"noteverse-worker-deps-v{schema}",
         "target_platform": PLATFORM,
         "python": "3.12",
-        "resolved_ml_base_oci_digest": ml_base_digest,
-        "install_paddle_gpu": False,
-        "install_legato_extra_deps": False,
-        "inputs": {path: _worker_text_digest(repo / path) for path in paths},
+        "resolved_python_base_oci_digest": python_base_digest,
+        "worker_resolution_sha256": hashlib.sha256(worker_resolution(repo)).hexdigest(),
+        "uv_required_version": config["tool"]["uv"]["required-version"],
+        "uv_tool_image": config["tool"]["noteverse"]["images"]["uv"],
+        "inputs": {path: _worker_text_digest(repo / path) for path in sorted(IDENTITY_INPUTS)},
     }
     serialized = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     key = hashlib.sha256(serialized.encode("ascii")).hexdigest()
-    return {"schema": schema, "build_key": key, "key_tag": f"deps-v{schema}-{key}", "document": document}
+    return {"schema": schema, "build_key": key, "key_tag": f"deps-v{schema}-{key}",
+            "resolution_sha256": document["worker_resolution_sha256"], "document": document}
 
 
 def candidate_tag(run_id: str, attempt: str) -> str:
@@ -93,7 +105,7 @@ def canonical_tag(role: str, identity: str) -> str:
         return f"deps-v{SCHEMA}-{identity}"
     if role == "worker" and re.fullmatch(r"[a-f0-9]{40}", identity):
         return identity
-    raise ValueError("Canonical identity must be a full v2 build key or source SHA, never a custom tag")
+    raise ValueError("Canonical identity must be a full v3 build key or source SHA, never a custom tag")
 
 
 class Registry(Protocol):
@@ -140,7 +152,7 @@ class DockerRegistry:
 
 def validate_repository(repository: str) -> str:
     if not REPOSITORY.fullmatch(repository):
-        raise ValueError("Expected a bounded NoteVerse Worker/ML Base GHCR repository")
+        raise ValueError("Expected a bounded NoteVerse Worker GHCR repository")
     return repository
 
 
@@ -148,7 +160,7 @@ def validate_artifact_repository(repository: str, role: str) -> None:
     validate_repository(repository)
     suffix = "/backend-worker-deps" if role == "deps" else "/backend-worker"
     if role not in ("deps", "worker") or not repository.endswith(suffix):
-        raise ValueError("Artifact role/repository mismatch; ML Base publication is not supported")
+        raise ValueError("Artifact role/repository mismatch")
 
 
 @dataclass(frozen=True)
@@ -213,11 +225,11 @@ def check_workflow_documents(trusted: dict, pr: dict) -> None:
         raise ValueError("Explicit Worker workflow events are required")
     if set(trusted_on) != {"workflow_dispatch"} or set(pr_on) != {"pull_request"}:
         raise ValueError("Worker PR and trusted publication event boundaries changed")
-    if set(trusted_on["workflow_dispatch"]["inputs"]) != {"ml_base_tag"}:
+    if trusted_on["workflow_dispatch"] not in (None, {}):
         raise ValueError("Custom dependency tag overrides are forbidden")
     if trusted["concurrency"]["cancel-in-progress"] is not False:
         raise ValueError("Trusted first-build-wins publication must be serialized, never cancelled")
-    read = {"contents": "read", "packages": "read"}
+    read = {"contents": "read"}
     if pr["permissions"] != read:
         raise ValueError("PR token must be read-only")
     for job in pr["jobs"].values():
@@ -257,7 +269,7 @@ def check_workflow_documents(trusted: dict, pr: dict) -> None:
         if steps[role + "-sbom"]["with"]["image"] != expected or steps[role + "-scan"]["with"]["image-ref"] != expected:
             raise ValueError("Trusted SBOM/Trivy must bind to the selected immutable OCI")
     if "PYTHON_IMAGE=${{ steps.base.outputs.digest_ref }}" not in steps["deps-build"]["with"]["build-args"]:
-        raise ValueError("Dependency image must build FROM immutable ML Base")
+        raise ValueError("Dependency image must build FROM immutable Python base")
     if "WORKER_DEPS_IMAGE=${{ steps.deps-select.outputs.digest_ref }}" not in steps["worker-build"]["with"]["build-args"]:
         raise ValueError("Final Worker must build FROM immutable dependency image")
     for document, source in ((trusted, "remote"), (pr, "docker")):
@@ -291,11 +303,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, help="GitHub step output file")
     sub = parser.add_subparsers(dest="command", required=True)
     base = sub.add_parser("resolve-base")
-    base.add_argument("--repository", required=True)
-    base.add_argument("--tag", required=True)
+    base.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     key = sub.add_parser("build-key")
     key.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
-    key.add_argument("--ml-base-digest", required=True)
+    key.add_argument("--python-base-digest", required=True)
     workflows = sub.add_parser("check-workflows")
     workflows.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     select = sub.add_parser("select")
@@ -325,16 +336,16 @@ def main(argv: list[str] | None = None) -> int:
             digest = validate_digest(args.existing_digest or args.built_digest)
             outputs({"oci_digest": digest, "digest_ref": args.repository + "@" + digest}, args.output)
         elif args.command == "resolve-base":
-            repository = validate_repository(args.repository)
-            if not repository.endswith("/ml-base") or not TAG.fullmatch(args.tag):
-                raise ValueError("Invalid configured ML Base tag")
-            tag_ref = repository + ":" + args.tag
+            tag_ref = project_configuration(args.repo)["tool"]["noteverse"]["images"]["worker-python"]
+            if tag_ref != "python:3.12-slim-bookworm":
+                raise ValueError("Unsupported governed Worker Python base")
             base_digest = registry.resolve(tag_ref)
             if base_digest is None:
-                raise RuntimeError("Existing ML Base is missing; this workflow cannot rebuild it")
-            outputs({"tag_ref": tag_ref, "oci_digest": base_digest, "digest_ref": repository + "@" + base_digest}, args.output)
+                raise RuntimeError("Governed Python base is missing; fail closed")
+            outputs({"tag_ref": tag_ref, "oci_digest": base_digest,
+                     "digest_ref": "python@" + base_digest}, args.output)
         elif args.command == "build-key":
-            key_result = build_identity(args.repo, args.ml_base_digest)
+            key_result = build_identity(args.repo, args.python_base_digest)
             outputs(key_result, args.output)
         elif args.command == "plan":
             publication_plan = plan(registry, args.repository, args.role, args.identity, args.run_id, args.run_attempt)

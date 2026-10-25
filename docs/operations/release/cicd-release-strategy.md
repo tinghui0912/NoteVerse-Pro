@@ -42,7 +42,6 @@ Current repository workflows:
 - `.github/workflows/customer-web-image.yml`
 - `.github/workflows/customer-web-quality.yml`
 - `.github/workflows/k8s-application-manifests.yml`
-- `.github/workflows/ml-base-image.yml`
 - `.github/workflows/observability-manifests.yml`
 - `.github/workflows/production-release-package.yml`
 
@@ -340,12 +339,11 @@ Implemented:
   `.github/workflows/customer-web-image.yml` build runtime images only for their
   relevant path scopes;
 - those workflows push immutable GHCR images on `main` pushes and manual runs;
-- `.github/workflows/ml-base-image.yml` publishes the pinned Python/PyTorch CUDA
-  base image used by the worker dependency image;
 - `.github/workflows/backend-worker-image.yml` is manual-only because the ML
-  worker image needs a large CUDA/PyTorch base and should run on controlled
+  worker image installs a large locked CUDA/PyTorch environment and should run on controlled
   release infrastructure or a sufficiently provisioned runner;
-- images are tagged with the full Git commit SHA and `build-<run-id>`;
+- API/Beat/Customer Web use source and build-run tags; Worker uses attempt-specific
+  candidates and promotes source-SHA tags only after exact-OCI qualification;
 - image digests are written to the workflow summary.
 - SBOM artifacts are generated for backend and Customer Web images;
 - Trivy blocks images with fixable or already-fixed `CRITICAL`

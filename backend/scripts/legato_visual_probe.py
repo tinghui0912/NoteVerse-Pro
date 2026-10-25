@@ -390,7 +390,7 @@ def render_abc_to_svgs(
     except ImportError as exc:
         raise RuntimeError(
             "Python package 'verovio' is not installed in this environment. "
-            "Install it with: pip install verovio"
+            "From backend/, run: uv sync --locked --only-group worker"
         ) from exc
 
     toolkit = verovio.toolkit()
@@ -674,7 +674,7 @@ def render_musicxml_to_svgs(
     except ImportError as exc:
         raise RuntimeError(
             "Python package 'verovio' is not installed in this environment. "
-            "Install it with: pip install verovio"
+            "From backend/, run: uv sync --locked --only-group worker"
         ) from exc
 
     toolkit = verovio.toolkit()

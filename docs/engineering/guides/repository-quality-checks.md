@@ -114,9 +114,8 @@ Current GitHub Actions workflows:
 | `.github/workflows/backend-quality.yml` | `backend/**`, backend-quality wrappers, and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
 | `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
-| `.github/workflows/backend-worker-image.yml` | manual | Builds and scans the ML worker image from a pinned ML base |
+| `.github/workflows/backend-worker-image.yml` | manual | Qualifies uv Worker v3 candidates before canonical promotion |
 | `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
-| `.github/workflows/ml-base-image.yml` | manual | Builds and scans the Python/PyTorch CUDA ML base image |
 | `.github/workflows/customer-web-quality.yml` | `apps/customer-web/**` and shared API constants | Customer Web lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/platform-admin-quality.yml` | `apps/platform-admin/**` | Platform Admin lint, typecheck, unit tests, production build |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
@@ -214,33 +213,23 @@ PaddleOCR subprocess timeout contracts, render/playback asset generation, and
 runtime checks. There is no separate `worker-quality` image yet because these
 tests do not require the full Legato/Paddle runtime.
 
-Do not add ruff, mypy, pytest, or pre-commit to runtime requirements only to
-make local checks work. Add quality-only tools to
-`backend/requirements/quality-tools.txt`, then reference them through
-`backend/requirements/quality-core.txt`.
+Do not add quality tooling to runtime groups. The `quality-tools` group in
+`backend/pyproject.toml` composes into `quality` and default `dev`.
 
-## Backend Dependency Files
+## Backend Dependency Authority
 
-Backend Python requirements are organized by capability, then composed into
-service images:
+The backend uses one virtual uv project and one universal `uv.lock`.
+Capability groups compose runtime groups; direct ownership and exact transitive
+resolution remain distinct. Docker uses `uv sync --locked` and fails stale
+project/lock pairs without relying on CI status protection. Quality separately
+runs `uv lock --check`, Worker workflow governance, static checks and full tests.
 
-| File | Purpose |
-| --- | --- |
-| `core.txt` | pydantic settings and shared logging |
-| `db.txt` | SQLModel/SQLAlchemy/PostgreSQL access |
-| `migrations.txt` | Alembic migrations |
-| `storage.txt` | object storage client |
-| `cache.txt` | Redis client |
-| `celery.txt` | Celery task dispatch |
-| `http.txt` | FastAPI/Uvicorn/metrics/tracing HTTP runtime |
-| `auth.txt` | JWT and password hashing |
-| `image.txt` | Pillow image processing |
-| `fingering.txt` | API fingering generation, kept in API for now |
-| `practice-score.txt` | MusicXML timeline parsing for practice source/artifact generation |
-| `render.txt` | Verovio score rendering |
-| `ocr.txt` | PaddleOCR package only |
-| `worker-app.txt` | worker dependencies that must install before PaddleOCR |
-| `quality-core.txt` | generic backend quality dependencies |
+From `backend/`:
 
-The long-lived ownership rules live in
-[`docs/architecture/runtime/runtime-dependency-ownership.md`](../../architecture/runtime/runtime-dependency-ownership.md).
+```sh
+uv sync --locked
+uv run --locked pytest
+uv lock --check
+```
+
+See [Runtime Dependency Ownership](../../architecture/runtime/runtime-dependency-ownership.md).

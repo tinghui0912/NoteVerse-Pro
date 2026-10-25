@@ -47,11 +47,18 @@ Main feature modules:
 
 ## Quick Start
 
-Local backend development runs through Docker so API, worker, beat, LEGATO,
-Verovio, and PaddleOCR share the same Linux runtime shape as future
-deployments. Redis and the database can continue running on the Windows host.
-Host virtualenv or direct `pip install` workflows are not supported for backend
-development or testing.
+Install uv 0.13.5, then use the single backend project for development:
+
+```sh
+cd backend
+uv sync --locked
+uv run --locked pytest
+uv lock --check
+```
+
+`dev` selects the Quality environment; API development does not install the
+Linux-only heavy Worker group. Docker provides the production Linux runtime.
+Redis and the database may run on the host.
 
 Create the required Docker environment file first:
 
@@ -60,7 +67,7 @@ Copy-Item backend/.env.docker.example backend/.env.docker
 ```
 
 ```powershell
-docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124 .
+docker compose -f docker-compose.backend-dev.yml build worker-deps
 docker compose -f docker-compose.backend-dev.yml build api
 docker compose -f docker-compose.backend-dev.yml run --rm api check
 docker compose -f docker-compose.backend-dev.yml run --rm api migrate
@@ -103,25 +110,12 @@ there is no environment switch that bypasses the startup gate. The API exposes
 Redis failure is reported as degraded because non-queue API features remain
 available.
 
-Dependency files are split by purpose:
-
-- `requirements/core.txt`: shared settings and logging dependencies.
-- `requirements/db.txt`, `storage.txt`, `cache.txt`, `celery.txt`: platform
-  capability dependencies.
-- `requirements/http.txt`, `auth.txt`, `image.txt`: API-facing runtime
-  capabilities.
-- `requirements/fingering.txt`: API fingering generation, kept in API for now.
-- `requirements/practice-score.txt`: API practice source/artifact generation.
-- `requirements/render.txt`, `ocr.txt`, `worker-app.txt`, `worker.txt`:
-  worker processing capabilities.
-- `requirements/quality-tools.txt`, `quality-core.txt`: Docker quality-check
-  dependencies.
-
-Runtime images do not install development or quality tools by default. The
-supported quality path is the dedicated Docker quality image, not installing
-tooling into API, beat, or worker runtime images. The generic quality image
-intentionally does not use the ML base and does not install PaddleOCR, Legato,
-torch, or transformer dependencies.
+Dependency ownership and exact resolution live only in `pyproject.toml` and
+`uv.lock`. Capability groups compose `api`, `beat`, `worker-app`, `worker`,
+`quality` and default `dev`. Each image syncs only its group with `--locked`.
+See [runtime dependency ownership](../docs/architecture/runtime/runtime-dependency-ownership.md).
+Quality excludes Torch, PaddleOCR, Paddle and Legato; Worker-deps installs the
+complete heavy Worker group directly from the Python base.
 
 Build normal runtime images with:
 

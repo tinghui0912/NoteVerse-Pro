@@ -72,7 +72,7 @@ def test_worker_import_failure_is_fatal(imports, monkeypatch, module):
         contract.run_contract("worker")
 
 
-def test_pip_check_failure_is_fatal(monkeypatch):
+def test_uv_dependency_check_failure_is_fatal(monkeypatch):
     def fail(*args, **kwargs):
         raise contract.subprocess.CalledProcessError(1, args[0])
     monkeypatch.setattr(contract.subprocess, "run", fail)
@@ -142,3 +142,10 @@ def test_cli_reports_failure_and_restores_ci_environment(monkeypatch, capsys):
     assert contract.main(["--role", "worker"]) == 1
     assert "missing runtime package" in capsys.readouterr().err
     assert os.environ.get("SECRET_KEY") == previous
+
+
+def test_dependency_check_uses_approved_uv_against_current_interpreter(imports):
+    contract.run_contract("worker-deps")
+    contract.subprocess.run.assert_called_once_with(
+        ["uv", "pip", "check", "--python", contract.sys.executable], check=True,
+    )

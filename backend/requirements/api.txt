@@ -1,9 +1,0 @@
--r http.txt
--r db.txt
--r migrations.txt
--r storage.txt
--r celery.txt
--r auth.txt
--r image.txt
--r fingering.txt
--r practice-score.txt

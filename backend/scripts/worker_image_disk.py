@@ -32,7 +32,7 @@ def scan_directory(root: Path, image: str, kind: str = "scan") -> Path:
     if image not in ("deps", "worker") or kind not in ("scan", "sbom"):
         raise ValueError("Unknown Worker scan phase")
     root = root.resolve(strict=True)
-    destination = root / "noteverse-worker-v2" / (image + "-" + kind)
+    destination = root / "noteverse-worker-v3" / (image + "-" + kind)
     # Reject pre-existing symlink escapes before any recursive removal.
     resolved = destination.resolve()
     if not resolved.is_relative_to(root) or resolved == root or resolved != destination:

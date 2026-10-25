@@ -1,5 +1,0 @@
--r worker-app.txt
--r ocr.txt
-
-# GPU framework note:
-# PyTorch/CUDA is provided by the selected worker base image.

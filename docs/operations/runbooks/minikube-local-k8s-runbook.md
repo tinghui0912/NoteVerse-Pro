@@ -207,7 +207,6 @@ Build production-style runtime images locally:
 ```powershell
 $ghcrOwner = "<github-owner>"
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
-$mlBaseImage = "ghcr.io/$ghcrOwner/noteverse/ml-base:py312-torch260-cu124-slim"
 $workerDepsImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:deps-$imageTag"
 
 docker build `
@@ -222,9 +221,6 @@ docker build `
 
 docker build `
   -f docker/backend/Dockerfile.worker-deps `
-  --build-arg PYTHON_IMAGE=$mlBaseImage `
-  --build-arg INSTALL_PADDLE_GPU=false `
-  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
   -t noteverse-backend-worker-deps:$imageTag `
   .
 
@@ -243,18 +239,10 @@ docker build `
   .
 ```
 
-The worker build requires the ML base image to exist in GHCR. If it does not
-exist yet, run the GitHub Actions `ML Base Image` workflow first, or build and
-push the base image manually:
-
-```powershell
-docker build `
-  -f docker/backend/Dockerfile.ml-base `
-  -t $mlBaseImage `
-  .
-
-docker push $mlBaseImage
-```
+Worker-deps installs the locked `worker` uv group directly from the Python
+base. No separate dependency-base build is required. These local rehearsal tags
+are not trusted schema-3 canonical identities; trusted publication uses its
+candidate/qualification/promotion workflow and records OCI references.
 
 Use a real registry route for local Kubernetes releases. Do not use
 `minikube image load` for NoteVerse staging validation: it does not exercise the
@@ -393,7 +381,7 @@ python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
 ```
 
 The script can also read S3 settings directly from environment variables. It
-requires `boto3`, which is supplied by `backend/requirements/storage.txt` or by
+requires `boto3`, supplied by the uv project `storage` capability in the API environment or by
 the backend runtime images. It does not print access keys.
 
 Model assets are node-local cache data under `/var/lib/noteverse/models`,

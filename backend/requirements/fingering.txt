@@ -1,3 +1,0 @@
-# Fingering generation remains an API capability for now.
-numpy==2.3.5
-pianoplayer==3.0.2
