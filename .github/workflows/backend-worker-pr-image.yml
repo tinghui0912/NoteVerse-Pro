@@ -35,7 +35,7 @@ jobs:
       run: python3 backend/scripts/worker_image_disk.py initial --builder docker
     - name: Resolve governed Python base to immutable OCI
       id: base
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" resolve-base
     - name: Select project Python for uv identity tooling
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
       with:

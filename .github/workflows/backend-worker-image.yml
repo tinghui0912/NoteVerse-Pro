@@ -29,7 +29,7 @@ jobs:
         password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
     - name: Resolve governed Python base to immutable OCI
       id: base
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" resolve-base
     - name: Select project Python for uv identity tooling
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
       with:
@@ -53,7 +53,7 @@ jobs:
       id: deps-plan
       env:
         IDENTITY: ${{ steps.key.outputs.build_key }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
         --role deps --identity "$IDENTITY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
     - name: Build and push deps quarantine candidate only
       id: deps-build
@@ -75,7 +75,7 @@ jobs:
       env:
         EXISTING: ${{ steps.deps-plan.outputs.existing_digest }}
         BUILT: ${{ steps.deps-build.outputs.digest }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
         --role deps --existing-digest "$EXISTING" --built-digest "$BUILT"
     - name: Check deps final environment offline
       id: deps-contract
@@ -141,13 +141,13 @@ jobs:
         GATE_CONTRACT: ${{ steps.deps-contract.outcome }}
         GATE_SBOM: ${{ steps.deps-sbom.outcome }}
         GATE_TRIVY: ${{ steps.deps-scan.outcome }}
-      run: python3 backend/scripts/worker_image_identity.py promote --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
+      run: python3 backend/scripts/worker_image_publication.py promote --repository "${IMAGE_NAMESPACE}/backend-worker-deps"
         --role deps --identity "$IDENTITY" --digest "$OCI_DIGEST"
     - name: Plan first-build-wins worker
       id: worker-plan
       env:
         IDENTITY: ${{ github.sha }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker"
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" plan --repository "${IMAGE_NAMESPACE}/backend-worker"
         --role worker --identity "$IDENTITY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
     - name: Build and push worker quarantine candidate only
       id: worker-build
@@ -169,7 +169,7 @@ jobs:
       env:
         EXISTING: ${{ steps.worker-plan.outputs.existing_digest }}
         BUILT: ${{ steps.worker-build.outputs.digest }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker"
+      run: python3 backend/scripts/worker_image_publication.py --output "$GITHUB_OUTPUT" select --repository "${IMAGE_NAMESPACE}/backend-worker"
         --role worker --existing-digest "$EXISTING" --built-digest "$BUILT"
     - name: Check worker final environment offline
       id: worker-contract
@@ -235,7 +235,7 @@ jobs:
         GATE_CONTRACT: ${{ steps.worker-contract.outcome }}
         GATE_SBOM: ${{ steps.worker-sbom.outcome }}
         GATE_TRIVY: ${{ steps.worker-scan.outcome }}
-      run: python3 backend/scripts/worker_image_identity.py promote --repository "${IMAGE_NAMESPACE}/backend-worker" --role
+      run: python3 backend/scripts/worker_image_publication.py promote --repository "${IMAGE_NAMESPACE}/backend-worker" --role
         worker --identity "$IDENTITY" --digest "$OCI_DIGEST"
     - name: Write qualified Worker identity summary
       env:

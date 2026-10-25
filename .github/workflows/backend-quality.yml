@@ -104,7 +104,12 @@ jobs:
       - name: Check Worker workflow trust and promotion contracts
         run: >-
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
-          "$QUALITY_IMAGE" /repo/backend/scripts/worker_image_identity.py check-workflows --repo /repo
+          "$QUALITY_IMAGE" /repo/backend/scripts/worker_image_publication.py check-workflows --repo /repo
+
+      - name: Check API/Beat candidate publication contracts
+        run: >-
+          docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
+          "$QUALITY_IMAGE" /repo/backend/scripts/backend_service_image_publication.py check-workflows --repo /repo
 
       - name: Write backend quality environment
         run: |
@@ -157,7 +162,7 @@ jobs:
       - name: Run Worker infrastructure helper mypy
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c
-          "python -m mypy --config-file pyproject.toml scripts/worker_image_identity.py scripts/worker_image_disk.py"
+          "python -m mypy --config-file pyproject.toml scripts/worker_image_identity.py scripts/worker_image_publication.py scripts/worker_image_disk.py scripts/oci_publication.py scripts/backend_service_image_publication.py scripts/check_image_contract.py"
 
       - name: Run model-layer mypy
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m mypy --config-file mypy-model-layer.ini"

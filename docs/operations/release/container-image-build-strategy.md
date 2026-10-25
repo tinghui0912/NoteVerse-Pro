@@ -93,7 +93,7 @@ builds keep their separately owned contexts and use the root `.dockerignore`.
 
 ## Tagging Policy
 
-Every deployable image must have an immutable source tag:
+Qualified deployable images use source tags; OCI digests identify content:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
@@ -102,11 +102,9 @@ Every deployable image must have an immutable source tag:
 <registry>/noteverse/customer-web:<git-sha>
 ```
 
-Recommended additional metadata tags:
+Customer Web retains its separate additional metadata tag policy:
 
 ```text
-<registry>/noteverse/backend-api:build-<run-id>
-<registry>/noteverse/backend-beat:build-<run-id>
 <registry>/noteverse/customer-web:build-<run-id>
 ```
 
@@ -395,3 +393,18 @@ P1 hardening:
 - image signing/attestation;
 - registry retention and cleanup policy;
 - preserve resolved dependency/base OCI references in release evidence.
+
+### Backend Service Qualification Before Canonical Tags
+
+Trusted API/Beat main jobs preflight source-SHA and run-attempt candidate tags,
+refusing either if present. Buildx pushes only the candidate. The selected OCI
+is explicitly pulled, checked offline, described by SPDX and scanned with
+`os,library / CRITICAL / ignore-unfixed=true / exit-code=1`. Only then may the
+shared OCI primitive attach it to the source SHA using `--prefer-index=false`,
+with exact post-attachment OCI verification. No API/Beat build-run aliases remain.
+A failed candidate stays unqualified; canonical assignment cannot precede gates.
+
+Worker and API/Beat retain separate policy helpers over those shared mechanics.
+API and Beat PR jobs are local-only and unauthenticated to GHCR. Trusted runs
+serialize by role without cancellation; PR runs may cancel superseded validation.
+Registry-server CAS, attestations and candidate retention remain separate concerns.

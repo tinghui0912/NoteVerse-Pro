@@ -45,11 +45,16 @@ Build-only tools are not application ownership. Source-only production packages
 constraints enforced by stable uv. Do not disable build isolation globally.
 
 Worker-deps becomes the sole reusable heavy dependency image, directly on a
-resolved Python base OCI. Schema 3 identity hashes uv's ephemeral locked Worker
-export, project configuration, resolved Python base, uv tool identity, dependency
-recipe/helpers and Legato authority. It excludes final application payload.
+resolved Python base OCI. Schema 3 identity hashes uv's stable locked text graph with explicit CPython
+3.12 and Linux x86_64/manylinux 2.36 targets, full project/lock bytes, resolved
+Python base, uv tool identity, dependency recipe, embedded contract and Legato
+authority. uv 0.13.5 export has no target switch; native target-filtered tree
+output supplies the representation without experimental JSON or hand marker parsing. It excludes final application payload.
 A build key names inputs; an OCI digest names content. Trusted publication keeps
-candidate-first gates, first-build-wins dependency reuse and immutable composition.
+candidate-first gates, first-build-wins dependency reuse and immutable composition. Dependency identity
+code is separate from Worker-specific registry policy. API/Beat and Worker use
+one CI-only OCI primitive for semantic absence, digest checks and exact promotion;
+registry-policy edits do not invalidate dependency keys.
 PR validation is local/read-only. New trusted v3 qualification follows merge.
 Previously qualified v2 artifacts remain historical evidence, never fallback inputs.
 
@@ -71,6 +76,13 @@ Superseded PRs #140/#141 preserve their historical evidence without being merged
 The runtime ownership document describes only the resulting architecture.
 
 This does not claim OCI byte reproducibility, OS locking, registry-server CAS,
-attestations, GPU/model readiness or base-image reproducibility. API/Beat
-qualification-before-canonical publication, Python 3.14, Redis 8, TypeScript 7,
+attestations, GPU/model readiness or base-image reproducibility. Python 3.14, Redis 8, TypeScript 7,
 candidate retention, release-set governance and container hardening remain separate.
+
+API/Beat trusted main publication also plans before mutation, pushes only an
+attempt-specific candidate, pulls its immutable OCI, runs offline packaging,
+SPDX and CRITICAL Trivy, then attaches the same OCI to its source-SHA canonical.
+Existing canonical/candidate tags fail preflight. Promotion refuses an observed
+different winner, accepts an identical winner without repush, and verifies exact
+OCI preservation. PRs remain local-only; trusted runs serialize without cancelling.
+This ordering is the main publication behavior, not a transitional hold.

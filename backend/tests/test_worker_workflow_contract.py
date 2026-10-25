@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from scripts.worker_image_identity import check_workflow_documents
+from scripts.worker_image_publication import check_workflow_documents
 
 
 @pytest.fixture

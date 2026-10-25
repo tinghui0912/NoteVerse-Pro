@@ -342,8 +342,8 @@ Implemented:
 - `.github/workflows/backend-worker-image.yml` is manual-only because the ML
   worker image installs a large locked CUDA/PyTorch environment and should run on controlled
   release infrastructure or a sufficiently provisioned runner;
-- API/Beat/Customer Web use source and build-run tags; Worker uses attempt-specific
-  candidates and promotes source-SHA tags only after exact-OCI qualification;
+- Backend API/Beat/Worker use attempt-specific candidates and promote source-SHA
+  tags only after exact-OCI qualification; Customer Web retains its separate tags;
 - image digests are written to the workflow summary.
 - SBOM artifacts are generated for backend and Customer Web images;
 - Trivy blocks images with fixable or already-fixed `CRITICAL`

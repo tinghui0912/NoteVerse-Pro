@@ -23,8 +23,8 @@ on:
       - ".github/actions/backend-service-image/**"
 
 concurrency:
-  group: backend-beat-image-${{ github.ref }}
-  cancel-in-progress: true
+  group: backend-beat-image-${{ github.event_name == 'pull_request' && github.ref || 'trusted-main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

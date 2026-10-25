@@ -75,9 +75,12 @@ The approved uv binary is copied from the single immutable OCI configured in
 the project and remains intentionally available for dependency diagnostics.
 
 Worker-deps is the sole reusable heavy dependency artifact. The v3 input key
-includes the resolved Python base OCI, ephemeral hashed Worker export produced
-by uv, project configuration, approved tool identity, dependency recipe/helpers
-and Legato manifest. The full SHA-256 key names inputs; OCI names content.
+includes the resolved Python base OCI, uv's stable locked text graph with explicit
+`--python cpython@3.12 --python-version 3.12 --python-platform x86_64-manylinux_2_36`,
+full project/lock bytes, approved tool identity, dependency recipe, embedded
+contract and Legato manifest. `uv tree` owns marker filtering; its text output is
+hashed as bytes. uv 0.13.5 `export` lacks a target flag; no custom parser or
+experimental JSON is used. Generic registry code is not a dependency-key input. The full SHA-256 key names inputs; OCI names content.
 Exports are never committed as a second lock.
 
 Trusted publication plans before building. An existing `deps-v3-<key>` OCI is
@@ -121,3 +124,25 @@ Worker artifacts retain SPDX and the unchanged
 `os,library / CRITICAL / ignore-unfixed=true / exit-code=1` Trivy gates.
 
 See [ADR 0008](../../adr/0008-backend-dependency-authority.md) for rationale.
+
+## Publication Policy Boundaries
+
+Dependency identity, shared OCI mechanics, and role-specific registry policies
+are separate CI responsibilities under backend scripts. They add no application
+dependency or service abstraction. Worker policy owns v3 deps reuse and existing
+final-source refusal. API/Beat policy owns their bounded repositories and source
+canonicals, without understanding Worker keys.
+
+API and Beat trusted publication plans before mutation and refuses existing
+canonical or candidate tags. Buildx pushes only `candidate-<run>-<attempt>`.
+An explicit candidate OCI pull precedes offline packaging; SPDX and exact
+CRITICAL Trivy use the same OCI. Only three actual successful gate outcomes
+permit source-SHA promotion. Shared mechanics use `--prefer-index=false` and
+verify the canonical resolves to exactly that OCI; an observed different winner
+is never overwritten, while an identical winner is not repushed. This does not
+claim registry-server CAS. A failure may leave a candidate, never a newly assigned
+qualified canonical. There are no trusted build-run aliases.
+
+PR API/Beat images use local `noteverse-backend-<role>:pr-<run>-<attempt>` tags,
+no registry planning/login/push/promotion, and contents-read permissions. Trusted
+main API and Beat runs each serialize; only superseded PR runs may cancel.
