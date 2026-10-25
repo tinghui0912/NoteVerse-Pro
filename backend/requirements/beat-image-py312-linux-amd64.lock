@@ -2,6 +2,7 @@
 # Generate: python backend/scripts/backend_service_lock.py --role beat --generate
 # Check:    python backend/scripts/backend_service_lock.py --role beat --check
 # Ordinary checks preserve selected versions; --upgrade is an explicit review event.
+# Source-closure-SHA256: 325fe5eb0d6881b4ce43f6214188e8da8107ae4c1e6725c891927598665df509
 amqp==5.4.1 \
     --hash=sha256:79a9c0ab70e71745667f127ff80666894a734c26236b6f33149c964b096f0b20 \
     --hash=sha256:ac2b816a14a380ed10c5ebbf85a334fd68111fa476496867a5ccd2fd09926d5e

@@ -89,7 +89,21 @@ uses frontend dependencies and exact backend source/artifact endpoints.
 it does not promote transitives into capability ownership. The separate generated
 `*-image-py312-linux-amd64.lock` files record complete exact versions and artifact
 hashes for Linux amd64 / Bookworm / CPython 3.12, including pip, setuptools, wheel
-and packaging. Docker bootstraps those tools from the same full lock, installs
+and packaging. Each generated header records a full source-closure SHA-256 of
+normalized repository-relative paths and effective recursive requirement/include
+lines. Strict UTF-8, LF/CRLF normalization, and ignored blank/comment lines make
+this an identity of human intent; missing, escaped, ambiguous or cyclic includes
+fail closed. Worker/Quality inputs outside the role closure do not affect it.
+Local includes support `-r <path>`, `--requirement <path>` and
+`--requirement=<path>`; other file/index/constraint directives fail closed.
+
+Each Dockerfile explicitly stages only its role's human input closure and runs
+the offline `--check-inputs` mode with `RUN --network=none` before installation.
+It rejects a source/lock mismatch or a newly included file omitted from staging.
+This check installs no resolver, resolves no packages and inspects no installed
+environment. It applies to local and hosted builds without depending on branch
+protection or required status checks. Docker then bootstraps tools from the same
+full lock, installs
 with hash checking and no isolated untracked build dependencies, then requires
 the entire active installed distribution/version map to equal its role lock and
 separately runs `pip check`. Beat never installs the API closure.
@@ -98,7 +112,11 @@ Use `python backend/scripts/backend_service_lock.py --role api --generate`
 (or `--role beat`) in the Python 3.12 Linux quality container. The generator uses
 the separate hashed `backend-service-lock-tool.txt` uv pin. Ordinary `--check`
 regenerates in a temporary location with existing version preferences, compares
-bytes, and cannot update the checkout; `--generate --upgrade` is an explicit
+complete bytes (including source identity), and cannot update the checkout.
+Backend Quality retains this resolver-backed freshness check separately from the
+lightweight Docker source binding: source intent may change while selected
+versions stay the same, and resolver output may change while input intent stays
+the same. `--generate --upgrade` is an explicit
 dependency review event. Generated entries such as wcwidth remain transitive
 resolution, not direct application ownership. Active distribution counts are
 distinct from SPDX discovery: setuptools-vendored metadata may contribute extra

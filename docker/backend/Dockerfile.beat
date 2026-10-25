@@ -17,6 +17,14 @@ RUN apt-get update -o Acquire::Retries=3 \
 # Beat retains its own narrow capability graph and complete generated resolution.
 COPY backend/requirements/beat-image-py312-linux-amd64.lock /opt/noteverse/beat-python.lock
 COPY backend/scripts/backend_service_lock.py /usr/local/lib/noteverse/backend_service_lock.py
+COPY backend/requirements/beat-image.in \
+     backend/requirements/beat.txt \
+     backend/requirements/celery.txt \
+     backend/requirements/cache.txt \
+     backend/requirements/core.txt \
+     /tmp/service-lock-source/backend/requirements/
+
+RUN --network=none python /usr/local/lib/noteverse/backend_service_lock.py --role beat --check-inputs --repo /tmp/service-lock-source --lock /opt/noteverse/beat-python.lock
 
 RUN python /usr/local/lib/noteverse/backend_service_lock.py --role beat --bootstrap-requirements --lock /opt/noteverse/beat-python.lock > /tmp/beat-bootstrap.lock \
     && python -m pip install --require-hashes -r /tmp/beat-bootstrap.lock \

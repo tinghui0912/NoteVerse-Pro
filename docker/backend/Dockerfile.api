@@ -17,9 +17,26 @@ RUN apt-get update -o Acquire::Retries=3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Capability ownership remains in api.txt; this generated lock is its complete
-# image resolution. Only this role's lock/helper invalidate the dependency layer.
+# image resolution. Stage only this role's human input closure for offline binding.
 COPY backend/requirements/api-image-py312-linux-amd64.lock /opt/noteverse/api-python.lock
 COPY backend/scripts/backend_service_lock.py /usr/local/lib/noteverse/backend_service_lock.py
+COPY backend/requirements/api-image.in \
+     backend/requirements/api.txt \
+     backend/requirements/auth.txt \
+     backend/requirements/cache.txt \
+     backend/requirements/celery.txt \
+     backend/requirements/core.txt \
+     backend/requirements/db.txt \
+     backend/requirements/fingering.txt \
+     backend/requirements/http.txt \
+     backend/requirements/image.txt \
+     backend/requirements/migrations.txt \
+     backend/requirements/practice-score.txt \
+     backend/requirements/storage.txt \
+     backend/requirements/tracing.txt \
+     /tmp/service-lock-source/backend/requirements/
+
+RUN --network=none python /usr/local/lib/noteverse/backend_service_lock.py --role api --check-inputs --repo /tmp/service-lock-source --lock /opt/noteverse/api-python.lock
 
 RUN python /usr/local/lib/noteverse/backend_service_lock.py --role api --bootstrap-requirements --lock /opt/noteverse/api-python.lock > /tmp/api-bootstrap.lock \
     && python -m pip install --require-hashes -r /tmp/api-bootstrap.lock \

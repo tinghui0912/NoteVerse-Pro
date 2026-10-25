@@ -2,6 +2,7 @@
 # Generate: python backend/scripts/backend_service_lock.py --role api --generate
 # Check:    python backend/scripts/backend_service_lock.py --role api --check
 # Ordinary checks preserve selected versions; --upgrade is an explicit review event.
+# Source-closure-SHA256: 37972df3de51b5de7bcee6227b1d6fc5c627b247cd76903d034de5f13f1de9b6
 alembic==1.20.0 \
     --hash=sha256:77eb101048d95f982c0353e9233404889dcd7a6fc244c107836c0e2fc9cf7d9d \
     --hash=sha256:db505480647bc60386c5369402f4a57a506b7539c9e9ef5e270d45cbbe4939bf

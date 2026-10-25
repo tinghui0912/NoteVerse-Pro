@@ -184,5 +184,6 @@ jobs:
 
       - name: Run core pytest
         run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -v "$GITHUB_WORKSPACE:/repo:ro" "$QUALITY_IMAGE" bash -lc
           "python -m pytest tests -q"

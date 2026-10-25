@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import difflib
+import hashlib
 import importlib.metadata
 import json
 import os
 from pathlib import Path
 import platform
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -40,7 +42,7 @@ def role_paths(role: str) -> Role:
     return ROLES[role]
 
 
-def header(role: str) -> str:
+def _role_header(role: str) -> str:
     role_paths(role)
     return (
         f"# GENERATED {role.upper()} image / Linux amd64 / CPython 3.12 / Bookworm resolution. DO NOT EDIT.\n"
@@ -48,6 +50,103 @@ def header(role: str) -> str:
         f"# Check:    python backend/scripts/backend_service_lock.py --role {role} --check\n"
         "# Ordinary checks preserve selected versions; --upgrade is an explicit review event.\n"
     )
+
+
+def header(role: str, source_digest: str) -> str:
+    if not re.fullmatch(r"[a-f0-9]{64}", source_digest):
+        raise ValueError("Expected a full source-closure SHA-256")
+    return _role_header(role) + f"# Source-closure-SHA256: {source_digest}\n"
+
+
+def _effective_lines(path: Path) -> tuple[str, ...]:
+    text = path.read_bytes().decode("utf-8").replace("\r\n", "\n")
+    if "\r" in text or "\x00" in text or "\ufeff" in text:
+        raise ValueError(f"Lone CR, NUL or unsupported BOM in governed service requirements: {path}")
+    # pip comments start at a line boundary or after whitespace. URL fragments
+    # such as #sha256= remain intent. No continuation syntax is currently owned.
+    lines = tuple(line for raw in text.split("\n") if (line := re.sub(r"(^|\s+)#.*$", "", raw).strip()))
+    if any("\\" in line for line in lines):
+        raise ValueError(f"Unsupported ambiguous continuation/path syntax: {path}")
+    return lines
+
+
+def source_closure(repo: Path, role: str) -> dict[str, tuple[str, ...]]:
+    """Canonical effective lines keyed by portable repository-relative paths."""
+    repo = repo.resolve()
+    requirements = (repo / "backend/requirements").resolve()
+    files: dict[str, tuple[str, ...]] = {}
+    active: set[Path] = set()
+
+    def visit(path: Path) -> str:
+        path = path.resolve()
+        if not path.is_relative_to(requirements):
+            raise ValueError(f"Service requirement path escapes requirements root: {path}")
+        if not path.is_file():
+            raise ValueError(f"Missing service requirement file: {path}")
+        relative = path.relative_to(repo).as_posix()
+        if path in active:
+            raise ValueError(f"Service requirement include cycle: {relative}")
+        if relative in files:
+            return relative
+        active.add(path)
+        effective: list[str] = []
+        for line in _effective_lines(path):
+            if line.startswith("-"):
+                try:
+                    tokens = shlex.split(line)
+                except ValueError as exc:
+                    raise ValueError(f"Malformed service requirement include: {line}") from exc
+                if len(tokens) == 2 and tokens[0] in ("-r", "--requirement"):
+                    value = tokens[1]
+                elif len(tokens) == 1 and tokens[0].startswith("--requirement="):
+                    value = tokens[0].partition("=")[2]
+                else:
+                    raise ValueError(f"Unsupported service requirement include/option: {line}")
+                if not value or Path(value).is_absolute() or any(c in value for c in ":$%*?[]\\#"):
+                    raise ValueError(f"Absolute, non-local or ambiguous service include: {value}")
+                effective.append("-r " + visit(path.parent / value))
+            else:
+                effective.append(line)
+        active.remove(path)
+        files[relative] = tuple(effective)
+        return relative
+
+    visit(repo / role_paths(role).input)
+    return dict(sorted(files.items()))
+
+
+def _closure_digest(role: str, files: dict[str, tuple[str, ...]]) -> str:
+    document = {"schema": "noteverse-service-source-v1", "role": role, "files": files}
+    canonical = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def source_identity(repo: Path, role: str) -> str:
+    return _closure_digest(role, source_closure(repo, role))
+
+
+def _recorded_source_identity(text: str, role: str) -> str:
+    prefix = _role_header(role)
+    if not text.startswith(prefix):
+        raise ValueError("Service lock role/target/header mismatch")
+    fields = [line for line in text.splitlines() if line.lstrip().startswith("# Source-closure-SHA256")]
+    if len(fields) != 1:
+        raise ValueError("Missing or duplicate lock source-closure identity")
+    match = re.fullmatch(r"# Source-closure-SHA256: ([a-f0-9]{64})", fields[0])
+    if not match or not text[len(prefix):].startswith(fields[0] + "\n"):
+        raise ValueError("Malformed lock source-closure identity")
+    return match.group(1)
+
+
+def check_inputs(repo: Path, role: str, path: Path) -> str:
+    """Read-only source binding only: no resolver or installed-package inspection."""
+    recorded = _recorded_source_identity(path.read_text(encoding="utf-8"), role)
+    files = source_closure(repo, role)
+    current = _closure_digest(role, files)
+    if recorded != current:
+        raise ValueError(f"Stale {role} source-lock binding: recorded={recorded}, current={current}; regenerate the role lock")
+    print(f"SERVICE_LOCK_INPUTS role={role} OK source_sha256={current} files={len(files)}")
+    return current
 
 
 def normalize(name: str) -> str:
@@ -60,10 +159,8 @@ class Entry:
     requirement: str
 
 
-def read_lock(path: Path, role: str) -> dict[str, Entry]:
-    """Accept only this role/target's exact hashed PyPI distribution entries."""
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith(header(role)):
+def _entries(text: str, role: str) -> dict[str, Entry]:
+    if not text.startswith(_role_header(role)):
         raise ValueError("Service lock role/target/header mismatch")
     entries: dict[str, Entry] = {}
     # The current service graph uses PyPI versions, not ambiguous direct URLs.
@@ -84,6 +181,13 @@ def read_lock(path: Path, role: str) -> dict[str, Entry]:
     if not entries:
         raise ValueError("Empty service lock")
     return entries
+
+
+def read_lock(path: Path, role: str) -> dict[str, Entry]:
+    """Require this role/target, a source identity, and exact hashed entries."""
+    text = path.read_text(encoding="utf-8")
+    _recorded_source_identity(text, role)
+    return _entries(text, role)
 
 
 def bootstrap_requirements(path: Path, role: str) -> str:
@@ -140,13 +244,16 @@ def resolver_version(repo: Path) -> str:
 def generate(repo: Path, role: str, uv: Path, output: Path, *, upgrade: bool = False) -> bytes:
     require_generation_target()
     paths = role_paths(role)
+    source_digest = source_identity(repo, role)
     version = resolver_version(repo)
     found = subprocess.check_output([str(uv), "--version"], text=True).strip()
     if not re.fullmatch(r"uv " + re.escape(version) + r"(?: \([^\n]+\))?", found):
         raise ValueError(f"Expected uv {version}, got {found}")
     current = repo / paths.lock
     if current.exists():
-        read_lock(current, role)
+        # Existing entries are version preferences, never trusted source binding.
+        # Regeneration repairs stale/old metadata; --check compares ALL bytes.
+        _entries(current.read_text(encoding="utf-8"), role)
         # Existing-output version preferences preserve reviewed resolution in CI.
         output.write_text(current.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
     env = {key: value for key, value in os.environ.items() if not key.startswith(("UV_", "PIP_"))}
@@ -161,7 +268,7 @@ def generate(repo: Path, role: str, uv: Path, output: Path, *, upgrade: bool = F
     if upgrade:
         command.append("--upgrade")
     subprocess.run(command, cwd=repo, env=env, check=True)
-    result = header(role).encode() + output.read_bytes()
+    result = header(role, source_digest).encode() + output.read_bytes()
     output.write_bytes(result)
     read_lock(output, role)
     return result
@@ -173,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
+    modes.add_argument("--check-inputs", action="store_true", help="Offline source identity check only; no resolution")
     modes.add_argument("--generate", action="store_true")
     modes.add_argument("--bootstrap-requirements", action="store_true")
     modes.add_argument("--check-installed", action="store_true")
@@ -186,6 +294,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Generation/freshness use only the governed role-specific lock path")
     lock = args.lock or args.repo / role_paths(args.role).lock
     try:
+        if args.check_inputs:
+            check_inputs(args.repo, args.role, lock)
+            return 0
         if args.bootstrap_requirements:
             print(bootstrap_requirements(lock, args.role), end="")
             return 0
