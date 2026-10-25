@@ -14,23 +14,25 @@ RUN apt-get update -o Acquire::Retries=3 \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the Beat dependency closure only. This keeps scheduler image rebuilds
-# isolated from API and worker dependency changes.
-COPY backend/requirements/beat.txt \
-     backend/requirements/cache.txt \
-     backend/requirements/celery.txt \
-     backend/requirements/core.txt \
-     /tmp/requirements/
+# Beat retains its own narrow capability graph and complete generated resolution.
+COPY backend/requirements/beat-image-py312-linux-amd64.lock /opt/noteverse/beat-python.lock
+COPY backend/scripts/backend_service_lock.py /usr/local/lib/noteverse/backend_service_lock.py
 
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -r /tmp/requirements/beat.txt
+RUN python /usr/local/lib/noteverse/backend_service_lock.py --role beat --bootstrap-requirements --lock /opt/noteverse/beat-python.lock > /tmp/beat-bootstrap.lock \
+    && python -m pip install --require-hashes -r /tmp/beat-bootstrap.lock \
+    && python -m pip install --require-hashes --no-build-isolation -r /opt/noteverse/beat-python.lock \
+    && python /usr/local/lib/noteverse/backend_service_lock.py --role beat --check-installed --lock /opt/noteverse/beat-python.lock \
+    && python -m pip check \
+    && rm /tmp/beat-bootstrap.lock
 
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/work
 
 COPY backend/ /app/
-RUN test ! -e /app/research
+RUN test ! -e /app/research \
+    && python /usr/local/lib/noteverse/backend_service_lock.py --role beat --check-installed --lock /opt/noteverse/beat-python.lock \
+    && python -m pip check
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
 CMD ["beat"]

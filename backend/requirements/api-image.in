@@ -1,0 +1,8 @@
+# Human-owned API image assembly; capability ownership remains in api.txt.
+-r api.txt
+
+# Image-owned packaging/build tools. Versions and hashes belong in the lock.
+pip
+setuptools
+wheel
+packaging

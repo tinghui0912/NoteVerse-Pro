@@ -82,6 +82,35 @@ Runtime composition files express deployable or checkable execution units.
 There is no backend practice runtime composition file. Browser local practice
 uses frontend dependencies and exact backend source/artifact endpoints.
 
+### API and Beat Resolution Locks
+
+`api.txt` and `beat.txt` remain human-owned runtime compositions. Each role's
+`*-image.in` includes that composition and image-owned packaging/build tools;
+it does not promote transitives into capability ownership. The separate generated
+`*-image-py312-linux-amd64.lock` files record complete exact versions and artifact
+hashes for Linux amd64 / Bookworm / CPython 3.12, including pip, setuptools, wheel
+and packaging. Docker bootstraps those tools from the same full lock, installs
+with hash checking and no isolated untracked build dependencies, then requires
+the entire active installed distribution/version map to equal its role lock and
+separately runs `pip check`. Beat never installs the API closure.
+
+Use `python backend/scripts/backend_service_lock.py --role api --generate`
+(or `--role beat`) in the Python 3.12 Linux quality container. The generator uses
+the separate hashed `backend-service-lock-tool.txt` uv pin. Ordinary `--check`
+regenerates in a temporary location with existing version preferences, compares
+bytes, and cannot update the checkout; `--generate --upgrade` is an explicit
+dependency review event. Generated entries such as wcwidth remain transitive
+resolution, not direct application ownership. Active distribution counts are
+distinct from SPDX discovery: setuptools-vendored metadata may contribute extra
+PyPI identities, including a different vendored wheel version. Those embedded
+copies are governed by their parent distribution's artifact hashes rather than
+being added as separate active lock entries.
+
+This governs Python resolution only. Base-image digests, OS package locking and
+OCI byte reproducibility remain separate concerns. Worker identity inputs and
+its independent lock/tooling are unchanged. API/Beat publication ordering is also
+unchanged here; the separate candidate/promotion PR must be reviewed independently.
+
 ## Runtime Boundaries
 
 ### API

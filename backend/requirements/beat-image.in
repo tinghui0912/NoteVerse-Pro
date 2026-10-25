@@ -1,0 +1,8 @@
+# Human-owned Beat image assembly; capability ownership remains in beat.txt.
+-r beat.txt
+
+# Image-owned packaging/build tools. Versions and hashes belong in the lock.
+pip
+setuptools
+wheel
+packaging

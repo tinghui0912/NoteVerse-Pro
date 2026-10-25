@@ -4,3 +4,7 @@
 
 # Generated Worker resolution must compare byte-for-byte on Windows checkouts.
 backend/requirements/worker-image-py312-linux-amd64.lock text eol=lf
+
+# Role-specific service resolutions also use byte-stable freshness checks.
+backend/requirements/api-image-py312-linux-amd64.lock text eol=lf
+backend/requirements/beat-image-py312-linux-amd64.lock text eol=lf
