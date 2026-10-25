@@ -1,5 +1,9 @@
 import type { PracticeTimebase, SessionTime } from '@/lib/practice/kernel/timebase';
-import type { CapturedAttack } from '@/lib/practice/continuous/domain/session';
+export type MidiAttackFact = Readonly<{
+  sessionTime: SessionTime;
+  pitch: string;
+  confidence: 1;
+}>;
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -46,7 +50,7 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
 
 export type BrowserMidiControllerOptions = {
   timebase: PracticeTimebase;
-  onCapturedAttack?: (attack: CapturedAttack) => void;
+  onAttack?: (attack: MidiAttackFact) => void;
   onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
@@ -79,7 +83,7 @@ export class MidiNoConnectedInputError extends Error {
 
 export class BrowserMidiController {
   private readonly timebase: PracticeTimebase;
-  private readonly onCapturedAttack?: (attack: CapturedAttack) => void;
+  private readonly onAttack?: (attack: MidiAttackFact) => void;
   private readonly onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
@@ -99,7 +103,7 @@ export class BrowserMidiController {
 
   constructor(options: BrowserMidiControllerOptions) {
     this.timebase = options.timebase;
-    this.onCapturedAttack = options.onCapturedAttack;
+    this.onAttack = options.onAttack;
     this.onMidiNote = options.onMidiNote;
     this.onStateChange = options.onStateChange;
     this.isSupported =
@@ -200,11 +204,10 @@ export class BrowserMidiController {
 
   private handleNoteOn(pitch: string, sessionTime: SessionTime): void {
     // A physical NOTE_ON fact; mode-specific consumers own grouping/evaluation.
-    this.onCapturedAttack?.({
-      captureTime: sessionTime,
+    this.onAttack?.({
+      sessionTime,
       pitch,
       confidence: 1,
-      source: 'MIDI',
     });
 
   }

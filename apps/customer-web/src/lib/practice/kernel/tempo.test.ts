@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
 import { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import {
   clampCustomTempo,
   DEFAULT_PRACTICE_TEMPO_BPM,
+  effectiveScoreTempoAtBeat,
   hasExplicitScoreTempo,
   hasScoreTempoChanges,
-  effectiveScoreTempoAtBeat,
   initialScoreTempoBpm,
   isCustomTempoValid,
   MAX_PRACTICE_TEMPO_BPM,
@@ -13,6 +13,7 @@ import {
   PracticeTempoTimeline,
   resolvePracticeTempoPlan,
 } from '@/lib/practice/kernel/tempo';
+import { describe, expect, it } from 'vitest';
 
 function createMockArtifact(scoreTempoSegments: { startBeat: number; bpm: number }[]): PracticeScoreArtifact {
   return {
@@ -232,4 +233,13 @@ describe('practice-tempo', () => {
       expect(timeline.durationMs).toBe(6000);
     });
   });
+});
+
+it("resolves score tempo at the first playable onset after a leading rest", () => {
+    // Effective tempo at start of practice (beat 2.0)
+    const tempoInfo = effectiveScoreTempoAtBeat(leadingRestArtifact, leadingRestArtifact.expectedPracticeGroups[0].onsetBeat);
+    expect(tempoInfo.bpm).toBe(100);
+    expect(tempoInfo.source).toBe('MUSICXML');
+
+
 });

@@ -86,21 +86,6 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
   });
 }
 
-export function groupForStep(
-  artifact: PracticeScoreArtifact,
-  stepIndex: number
-): ExpectedPracticeGroup | null {
-  return artifact.expectedPracticeGroups[stepIndex] ?? null;
-}
-
-export function attackPitchesForStep(step: PracticeAttackStep): string[] {
-  return step.attackTargets.map((target) => target.pitch);
-}
-
-export function continuationPitchesForStep(step: PracticeAttackStep): string[] {
-  return Array.from(new Set(step.continuation.map((note) => note.pitch)));
-}
-
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
 }

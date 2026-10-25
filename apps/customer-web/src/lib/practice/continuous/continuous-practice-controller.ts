@@ -1,22 +1,23 @@
-import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
-import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
-import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
-import { createLocalSessionId } from '@/lib/practice/kernel/session';
-import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
-import { type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import { immutableContinuousValue, type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
 import { completedPerformanceStore, type CompletedPerformance } from '@/lib/practice/completed-performance';
+import { immutableContinuousValue, type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
+import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/kernel/session';
+import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
-import { ContinuousMidiInput } from './continuous-midi-input';
-import { ContinuousMicrophoneInput } from './continuous-microphone-input';
-import { browserContinuousPlatform } from './continuous-platform';
-import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
-import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
+import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
+import { ContinuousMicrophoneInput } from './continuous-microphone-input';
+import { ContinuousMidiInput } from './continuous-midi-input';
+import { browserContinuousPlatform } from './continuous-platform';
+
+import { continuousMetronomeSyncPoint } from './metronome-sync';
 
 const DIAGNOSTIC_LIMIT = 32;
 
@@ -106,8 +107,11 @@ export class ContinuousPracticeController {
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
       }
-      this.session = new ContinuousPracticeSession({ createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), artifact: this.options.artifact, scope: this.options.scope,
-        inputSource: this.options.inputSource, tempoPlan: this.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
+      this.session = new ContinuousPracticeSession({
+        ...(this.options.inputSource === 'MIDI'
+          ? { inputSource: 'MIDI' as const, createClockEvidence: (domainId: string) => new ContinuousMidiEvidence(domainId) }
+          : { inputSource: 'MICROPHONE' as const }), artifact: this.options.artifact, scope: this.options.scope,
+        tempoPlan: this.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
         localSessionId: createLocalSessionId(), countInBeats: this.options.countInBeats, metronomeEnabled: this.enabled });
       const session = this.session;
       if (this.microphone) {
@@ -115,7 +119,7 @@ export class ContinuousPracticeController {
           clock: this.renderClock!, publish: publication => { this.checkAlive(); session.publishAnalysis(publication); this.notify(); } }, this.abort.signal);
       } else {
         this.midi = new ContinuousMidiInput(this.platform, { timebase: session.timebase,
-          observe: attack => { session.observeCapturedAttack(attack); this.notify(); },
+          observe: attack => { session.observeMidiAttack(attack); this.notify(); },
           onState: state => {
             if (!['ACTIVE', 'PREPARING'].includes(this.state)) return;
             if (state.connectedInputCount === 0 && this.state === 'ACTIVE') {
@@ -135,7 +139,7 @@ export class ContinuousPracticeController {
         ...(this.context ? { audioContext: this.context } : {}) });
       this.transition(C => {
         this.microphone?.assertBoundary(C);
-        this.transport = session.start(); this.planRunning(C); this.metronome!.start(this.transport);
+        this.transport = session.start(); this.planRunning(C); this.metronome!.start(continuousMetronomeSyncPoint(this.transport));
         if (this.transport.state === 'RUNNING') this.startRecording();
       });
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
@@ -167,7 +171,7 @@ export class ContinuousPracticeController {
     this.transition(C => {
       const T = this.transport!.performanceTimeMs; this.transport = this.session!.resume();
       if (this.transport.performanceTimeMs !== T) throw new Error('CONTINUOUS_RESUME_IDENTITY_VIOLATION');
-      this.planRunning(C); this.metronome?.resume(this.transport);
+      this.planRunning(C); this.metronome?.resume(continuousMetronomeSyncPoint(this.transport));
       if (this.transport.state === 'RUNNING') this.recorder?.resume(T);
     }); this.record('RESUME'); this.notify();
   }
@@ -199,7 +203,7 @@ export class ContinuousPracticeController {
   }
   setMetronomeEnabled(enabled: boolean): void {
     this.enabled = enabled; this.session?.setMetronomeEnabled(enabled); this.metronome?.setEnabled(enabled);
-    if (enabled && this.transport) this.metronome?.syncContinuous(this.transport);
+    if (enabled && this.transport) this.metronome?.syncContinuous(continuousMetronomeSyncPoint(this.transport));
   }
   private startRecording(): void { this.recorder?.startIfReady(0); this.recordingBegan = true; }
   private planRunning(C: number): void {

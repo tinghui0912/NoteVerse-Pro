@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import { describe, expect, it, vi } from 'vitest';
 import {
   BrowserMidiController,
   MidiNoConnectedInputError,
@@ -111,7 +111,7 @@ describe('browser MIDI controller', () => {
   it('publishes generic NOTE_ON/OFF and immediate capture facts, without a target or gesture timer', async () => {
     const note = vi.fn(), attack = vi.fn(), input = { state: 'connected', onmidimessage: null };
     vi.stubGlobal('navigator', { requestMIDIAccess: async () => ({ inputs: new Map([['a',input]]),onstatechange:null }) });
-    const controller = new BrowserMidiController({ timebase: new PracticeTimebase({domainId:'facts'}),onMidiNote:note,onCapturedAttack:attack });
+    const controller = new BrowserMidiController({ timebase: new PracticeTimebase({domainId:'facts'}),onMidiNote:note,onAttack:attack });
     try {
       await controller.start(); controller.dispatchMidiData(new Uint8Array([0x90,60,80]),100);
       controller.dispatchMidiData(new Uint8Array([0x80,60,0]),110);
@@ -137,13 +137,13 @@ describe('browser MIDI controller', () => {
     vi.stubGlobal('navigator', { requestMIDIAccess: async () => ({ inputs: new Map([['a', input]]), onstatechange: null }) });
     const now = vi.spyOn(performance, 'now').mockReturnValue(140);
     const controller = new BrowserMidiController({ timebase: new PracticeTimebase({ domainId: 'native' }),
-      onMidiNote: note, onCapturedAttack: attack });
+      onMidiNote: note, onAttack: attack });
     try {
       await controller.start();
       input.onmidimessage!({ data: new Uint8Array([0x90, 60, 80]), timeStamp: 100 });
       input.onmidimessage!({ data: new Uint8Array([0x90, 64, 80]), timeStamp: 112 });
       input.onmidimessage!({ data: new Uint8Array([0x90, 60, 0]), timeStamp: 120 });
-      expect(attack.mock.calls.map(c => c[0].captureTime.ms)).toEqual([100, 112]);
+      expect(attack.mock.calls.map(c => c[0].sessionTime.ms)).toEqual([100, 112]);
       expect(note.mock.calls.map(c => [c[0].type, c[0].sessionTime.ms])).toEqual([['NOTE_ON', 100], ['NOTE_ON', 112], ['NOTE_OFF', 120]]);
     } finally { controller.dispose(); now.mockRestore(); vi.unstubAllGlobals(); }
   });

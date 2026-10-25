@@ -1,10 +1,9 @@
-import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import { assertPracticeScoreArtifact, type PracticeScoreArtifact, type TempoSegment } from '@/lib/practice/kernel/artifact';
 import { countInContractAt } from '@/lib/practice/kernel/count-in';
 import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { createLocalSessionId, type LocalPracticeCompletionReason, type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { beatsToMs, PracticeTempoTimeline, resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan, type ResolvedPracticeTempoSegment } from '@/lib/practice/kernel/tempo';
-import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from '@/lib/practice/kernel/timebase';
+import type { LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
+import { beatsToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan, type ResolvedPracticeTempoSegment } from '@/lib/practice/kernel/tempo';
+import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 
@@ -24,19 +23,24 @@ export type PerformanceClockSnapshot = {
   completionReason: LocalPracticeCompletionReason | null;
 };
 
+export type PerformanceTransportSnapshot = {
+  state: PerformanceRuntimeState;
+  stateBeforePause: PerformanceRuntimeState;
+  scopeStartBeat: number;
+  scopeTerminalBeat: number;
+  activeElapsedMs: number;
+  countInMs: number;
+  countInBeats: number;
+  countInPulses: number;
+};
+
 export type PerformanceClockRuntimeOptions = {
   artifact: PracticeScoreArtifact;
-  tempoPlan?: ResolvedPracticeTempoPlan;
+  tempoPlan: ResolvedPracticeTempoPlan;
   scope: PracticeScope;
   clock: LocalClock;
-  timebase?: PracticeTimebase;
-  metadataClock?: DurableClock;
-  inputSource?: PracticeInputSource;
+  timebase: PracticeTimebase;
   countInBeats?: number;
-  localSessionId?: string;
-  version?: RuntimeVersionIdentity;
-  tempoSelection?: PracticeTempoSelection;
-  metronomeEnabled?: boolean;
 };
 
 type PerformanceScope = ResolvedPracticeScope & {
@@ -46,21 +50,13 @@ type PerformanceScope = ResolvedPracticeScope & {
 
 export class PerformanceClockRuntime {
   readonly artifact: PracticeScoreArtifact;
-  readonly localSessionId: string;
   readonly timebase: PracticeTimebase;
   private readonly timeline: PerformanceTimeline;
   private readonly clock: LocalClock;
-  private readonly metadataClock: DurableClock;
-  private readonly version: RuntimeVersionIdentity;
-  private readonly createdAtMs: number;
   private readonly scope: PerformanceScope;
   private readonly countInBeats: number;
   private readonly countInPulses: number;
   private readonly countInMs: number;
-  private readonly tempoPlan: ResolvedPracticeTempoPlan;
-  private readonly tempoSelection: PracticeTempoSelection;
-  private metronomeEnabled: boolean;
-  private readonly inputSource: PracticeInputSource;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
   private completionReason: LocalPracticeCompletionReason | null = null;
@@ -72,28 +68,17 @@ export class PerformanceClockRuntime {
     assertPracticeScoreArtifact(options.artifact);
     this.artifact = options.artifact;
     this.clock = options.clock;
-    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
-    this.version = options.version ?? {
-      schemaVersion: 1,
-      runtimeVersion: 'local-practice-core-v1',
-    };
-    this.inputSource = options.inputSource ?? 'MICROPHONE';
-    this.tempoPlan = options.tempoPlan
-      ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
-    if (!this.tempoPlan || !Array.isArray(this.tempoPlan.segments) || this.tempoPlan.segments.length === 0) {
+    const tempoPlan = options.tempoPlan;
+    if (!tempoPlan || !Array.isArray(tempoPlan.segments) || tempoPlan.segments.length === 0) {
       throw new Error('PerformanceClockRuntime requires a valid ResolvedPracticeTempoPlan with segments.');
     }
-    this.tempoSelection = options.tempoSelection ?? this.tempoPlan.selection;
-    this.metronomeEnabled = options.metronomeEnabled ?? false;
-    this.timeline = new PerformanceTimeline(this.artifact, this.tempoPlan.segments);
+    this.timeline = new PerformanceTimeline(this.artifact, tempoPlan.segments);
     this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.scope);
     const countIn = countInContractAt(this.artifact, this.scope.startBeat);
     this.countInBeats = options.countInBeats ?? countIn.durationBeats;
     this.countInPulses = countIn.pulses;
     this.countInMs = beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat));
-    this.localSessionId = options.localSessionId ?? createLocalSessionId();
-    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
-    this.createdAtMs = this.metadataClock.nowEpochMs();
+    this.timebase = options.timebase;
   }
 
   start(): PerformanceClockSnapshot {
@@ -139,10 +124,6 @@ export class PerformanceClockRuntime {
     this.state = 'ENDED';
     this.completionReason = reason;
     return this.snapshot();
-  }
-
-  setMetronomeEnabled(enabled: boolean): void {
-    this.metronomeEnabled = enabled;
   }
 
   snapshot(): PerformanceClockSnapshot {
@@ -199,45 +180,21 @@ export class PerformanceClockRuntime {
     return this.timebase.atSessionMs(this.sessionMsForActiveElapsed(targetActiveElapsedMs));
   }
 
-  snapshotSession(): LocalPerformanceSessionSnapshot {
-    const nowMs = this.metadataClock.nowEpochMs();
+  /** Reads transport coordinates without advancing lifecycle transitions. */
+  transportSnapshot(): PerformanceTransportSnapshot {
     return {
-      localSessionId: this.localSessionId,
-      scoreId: this.artifact.scoreId,
-      revisionId: this.artifact.revisionId,
-      artifactId: this.artifact.artifactId,
-      mode: 'CONTINUOUS_PLAY',
-      inputSource: this.inputSource,
-      practiceScope:
-        this.scope.kind === 'RANGE'
-          ? {
-              kind: 'RANGE',
-              startGroupId: this.scope.startGroupId,
-              endGroupId: this.scope.endGroupId,
-            }
-          : { kind: 'FULL' },
-      tempoSelection: this.tempoSelection,
-      metronomeEnabled: this.metronomeEnabled,
-      lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
-      completionReason: this.completionReason,
-      version: this.version,
-      createdAtMs: this.createdAtMs,
-      updatedAtMs: nowMs,
-      performance: {
-        state: this.state,
-        stateBeforePause: this.stateBeforePause,
-        resolvedTempoPlan: this.tempoPlan,
-        scopeStartBeat: this.scope.startBeat,
-        scopeTerminalBeat: this.scope.terminalBeat,
-        activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
-        countInMs: this.countInMs,
-        countInBeats: this.countInBeats,
-        countInPulses: this.countInPulses,
-      },
+      state: this.state,
+      stateBeforePause: this.stateBeforePause,
+      scopeStartBeat: this.scope.startBeat,
+      scopeTerminalBeat: this.scope.terminalBeat,
+      activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
+      countInMs: this.countInMs,
+      countInBeats: this.countInBeats,
+      countInPulses: this.countInPulses,
     };
   }
 
-  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
+  get terminationReason(): LocalPracticeCompletionReason | null {
     return this.completionReason;
   }
 

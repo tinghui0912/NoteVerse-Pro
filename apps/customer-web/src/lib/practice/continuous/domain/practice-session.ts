@@ -1,21 +1,26 @@
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { CompletedContinuousEvaluation, ContinuousEvaluationSnapshot, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
 import { PerformanceClockRuntime, PerformanceTimeline, type PerformanceClockRuntimeOptions, type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
-import type { CapturedAttack } from '@/lib/practice/continuous/domain/session';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
-import { type LocalPracticeCompletionReason, type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { createLocalSessionId, type LocalPracticeCompletionReason, type PracticeInputSource } from '@/lib/practice/kernel/session';
+import { resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { PracticeTimebase, type DurableClock, type RuntimeVersionIdentity, type SessionTime } from '@/lib/practice/kernel/timebase';
+import type { ContinuousClockDrivenEvidencePort, ContinuousMidiAttack } from './clock-evidence-port';
 
-export type ContinuousClockEvidence = {
-  observe(pitch: string, performanceTimeMs: number, confidence: number): void;
-  advance(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null;
-  complete(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null;
+type ContinuousSessionConfiguration = Omit<PerformanceClockRuntimeOptions, 'timebase' | 'tempoPlan'> & {
+  timebase?: PracticeTimebase;
+  tempoPlan?: ResolvedPracticeTempoPlan;
+  metadataClock?: DurableClock;
+  localSessionId?: string;
+  version?: RuntimeVersionIdentity;
+  tempoSelection?: PracticeTempoSelection;
+  metronomeEnabled?: boolean;
 };
 
-export type ContinuousPracticeSessionOptions = PerformanceClockRuntimeOptions & {
-  createClockEvidence?: (sessionDomainId: string) => ContinuousClockEvidence;
-};
+export type ContinuousPracticeSessionOptions = ContinuousSessionConfiguration & (
+  | { inputSource: 'MIDI'; createClockEvidence: (sessionDomainId: string) => ContinuousClockDrivenEvidencePort }
+  | { inputSource: 'MICROPHONE'; createClockEvidence?: never }
+);
 
 class ContinuousAnalysisPublicationDomainError extends Error {
   readonly code = 'CONTINUOUS_ANALYSIS_PUBLICATION_DOMAIN_MISMATCH' as const;
@@ -31,22 +36,51 @@ export class ContinuousPracticeSession {
   private readonly evaluator: ContinuousEvaluationSession;
   private readonly inputSource: PracticeInputSource;
   private syncedCompletionReason: LocalPracticeCompletionReason | null = null;
-  private readonly clockEvidence: ContinuousClockEvidence | null;
+  private readonly clockEvidence: ContinuousClockDrivenEvidencePort | null;
+  readonly localSessionId: string;
+  private readonly artifact: PerformanceClockRuntimeOptions['artifact'];
+  private readonly practiceScope: PerformanceClockRuntimeOptions['scope'];
+  private readonly metadataClock: DurableClock;
+  private readonly version: RuntimeVersionIdentity;
+  private readonly createdAtMs: number;
+  private readonly tempoPlan: ResolvedPracticeTempoPlan;
+  private readonly tempoSelection: PracticeTempoSelection;
+  private metronomeEnabled: boolean;
 
   constructor(options: ContinuousPracticeSessionOptions) {
-    this.clock = new PerformanceClockRuntime(options);
-    this.inputSource = options.inputSource ?? 'MICROPHONE';
-    this.clockEvidence = this.inputSource === 'MIDI'
-      ? options.createClockEvidence?.(this.clock.timebase.domainId) ?? null
-      : null;
-    if (this.inputSource === 'MIDI' && !this.clockEvidence) {
+    if (options.inputSource === 'MIDI' && typeof options.createClockEvidence !== 'function') {
       throw new Error('MIDI sessions require a clock evidence input.');
     }
-    const tempoPlan = options.tempoPlan
+    if (options.inputSource === 'MICROPHONE' && options.createClockEvidence !== undefined) {
+      throw new Error('Microphone sessions do not accept MIDI evidence ownership.');
+    }
+    this.artifact = options.artifact;
+    this.tempoPlan = options.tempoPlan
       ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
+    this.tempoSelection = options.tempoSelection ?? this.tempoPlan.selection;
+    this.localSessionId = options.localSessionId ?? createLocalSessionId();
+    const timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
+    this.clock = new PerformanceClockRuntime({
+      artifact: options.artifact, scope: options.scope, tempoPlan: this.tempoPlan,
+      clock: options.clock, timebase, countInBeats: options.countInBeats,
+    });
+    this.practiceScope = options.scope.kind === 'RANGE' ? {
+      kind: 'RANGE', startGroupId: options.scope.startGroupId, endGroupId: options.scope.endGroupId,
+    } : { kind: 'FULL' };
+    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
+    this.version = options.version ?? { schemaVersion: 1, runtimeVersion: 'local-practice-core-v1' };
+    this.createdAtMs = this.metadataClock.nowEpochMs();
+    this.metronomeEnabled = options.metronomeEnabled ?? false;
+    this.inputSource = options.inputSource;
+    this.clockEvidence = options.inputSource === 'MIDI'
+      ? options.createClockEvidence(this.clock.timebase.domainId)
+      : null;
+    if (options.inputSource === 'MIDI' && !this.clockEvidence) {
+      throw new Error('MIDI sessions require a clock evidence input.');
+    }
     this.evaluator = new ContinuousEvaluationSession({
       artifact: options.artifact,
-      timeline: new PerformanceTimeline(options.artifact, tempoPlan.segments),
+      timeline: new PerformanceTimeline(options.artifact, this.tempoPlan.segments),
       scope: options.scope,
       sessionDomainId: this.clock.timebase.domainId,
     });
@@ -73,7 +107,7 @@ export class ContinuousPracticeSession {
   }
 
   setMetronomeEnabled(enabled: boolean): void {
-    this.clock.setMetronomeEnabled(enabled);
+    this.metronomeEnabled = enabled;
   }
 
   snapshot(): PerformanceClockSnapshot {
@@ -81,9 +115,9 @@ export class ContinuousPracticeSession {
     return this.syncFromClockSnapshot(snapshot);
   }
 
-  observeCapturedAttack(attack: CapturedAttack): boolean {
-    if (this.inputSource !== 'MIDI' || attack.source !== 'MIDI') {
-      throw new Error('Captured attacks require the MIDI evidence boundary.');
+  observeMidiAttack(attack: ContinuousMidiAttack): boolean {
+    if (this.inputSource !== 'MIDI') {
+      throw new Error('MIDI attacks require the MIDI evidence boundary.');
     }
     this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
     const beforeSnapshot = this.clock.snapshot();
@@ -123,7 +157,25 @@ export class ContinuousPracticeSession {
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
-    return this.clock.snapshotSession();
+    const nowMs = this.metadataClock.nowEpochMs();
+    const timing = this.clock.transportSnapshot();
+    return {
+      localSessionId: this.localSessionId,
+      scoreId: this.artifact.scoreId,
+      revisionId: this.artifact.revisionId,
+      artifactId: this.artifact.artifactId,
+      mode: 'CONTINUOUS_PLAY',
+      inputSource: this.inputSource,
+      practiceScope: { ...this.practiceScope },
+      tempoSelection: this.tempoSelection,
+      metronomeEnabled: this.metronomeEnabled,
+      lifecycleState: timing.state === 'ENDED' ? 'ENDED' : timing.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
+      completionReason: this.clock.terminationReason,
+      version: this.version,
+      createdAtMs: this.createdAtMs,
+      updatedAtMs: nowMs,
+      performance: { ...timing, resolvedTempoPlan: this.tempoPlan },
+    };
   }
 
   completionCaptureTime(): SessionTime {
@@ -139,7 +191,7 @@ export class ContinuousPracticeSession {
   }
 
   get sessionCompletionReason(): LocalPracticeCompletionReason | null {
-    return this.clock.sessionCompletionReason;
+    return this.clock.terminationReason;
   }
 
   get evaluationSnapshot(): ContinuousEvaluationSnapshot {

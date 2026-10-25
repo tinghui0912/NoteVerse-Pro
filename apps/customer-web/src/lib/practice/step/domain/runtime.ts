@@ -1,10 +1,11 @@
-import { assertPracticeScoreArtifact, attackPitchesForStep, continuationPitchesForStep, groupForStep, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 import { MAX_STEP_HISTORY_RECORDS, normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget, type StepVerdictPolicy } from '@/lib/practice/step/domain/attempt';
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
+import { attackPitchesForStep, continuationPitchesForStep, groupForStep } from './target';
 
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';

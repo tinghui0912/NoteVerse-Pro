@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { renderHook, act } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
+import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalPractice } from './use-local-practice';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -17,7 +17,7 @@ const recorderEvents = vi.hoisted(() => ({
 
 const midiMock = vi.hoisted(() => ({
   connectedInputCount: 1,
-  emitCapturedAttackDuringStart: false,
+  emitAttackDuringStart: false,
   onStateChange: null as ((state: {
     isSupported: boolean;
     hasPermission: boolean | null;
@@ -36,11 +36,10 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           connectedInputCount: number;
           isRunning: boolean;
         }) => void;
-        onCapturedAttack?: (attack: {
-          captureTime: { domainId: string; ms: number };
+        onAttack?: (attack: {
+          sessionTime: { domainId: string; ms: number };
           pitch: string;
           confidence: number;
-          source: 'MIDI';
         }) => void;
         timebase?: {
           domainId: string;
@@ -51,11 +50,10 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
         this.options = options ?? {};
       }
       private readonly options: {
-        onCapturedAttack?: (attack: {
-          captureTime: { domainId: string; ms: number };
+        onAttack?: (attack: {
+          sessionTime: { domainId: string; ms: number };
           pitch: string;
           confidence: number;
-          source: 'MIDI';
         }) => void;
         timebase?: {
           domainId: string;
@@ -67,12 +65,11 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           midiMock.onStateChange?.(this.getState());
           throw new Error('NO_CONNECTED_INPUT');
         }
-        if (midiMock.emitCapturedAttackDuringStart && this.options.timebase) {
-          this.options.onCapturedAttack?.({
-            captureTime: this.options.timebase.runtimeToSessionTime(0),
+        if (midiMock.emitAttackDuringStart && this.options.timebase) {
+          this.options.onAttack?.({
+            sessionTime: this.options.timebase.runtimeToSessionTime(0),
             pitch: 'C4',
             confidence: 1,
-            source: 'MIDI',
           });
         }
         midiMock.onStateChange?.(this.getState());
@@ -97,7 +94,7 @@ describe('useLocalPractice', () => {
     vi.clearAllMocks();
     recorderEvents.events = [];
     midiMock.connectedInputCount = 1;
-    midiMock.emitCapturedAttackDuringStart = false;
+    midiMock.emitAttackDuringStart = false;
     midiMock.onStateChange = null;
     completedPerformanceStore.clearPerformance();
     class MockMediaRecorder {
@@ -405,7 +402,7 @@ describe('useLocalPractice', () => {
   });
 
   it('creates Continuous runtime before MIDI start without accepting pre-performance NOTE_ON evidence', async () => {
-    midiMock.emitCapturedAttackDuringStart = true;
+    midiMock.emitAttackDuringStart = true;
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,

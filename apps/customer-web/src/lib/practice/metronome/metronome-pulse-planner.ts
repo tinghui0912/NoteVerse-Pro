@@ -1,7 +1,6 @@
 import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { roundBeat } from '@/lib/practice/kernel/artifact';
 import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
-import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 export interface MetronomePulse {
   readonly scoreBeat: number;
@@ -21,13 +20,11 @@ export type ContinuousMetronomeSyncPoint =
       countInTotalMs: number;
       countInRemainingMs: number;
       countInPulses: number;
-      countInPulse: number;
     }
   | {
       state: 'RUNNING';
       musicalBeat: number;
-    }
-  | PerformanceClockSnapshot;
+    };
 
 export interface ContinuousCountInState {
   readonly phase: 'COUNT_IN';

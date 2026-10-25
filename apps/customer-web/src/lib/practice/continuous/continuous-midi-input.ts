@@ -2,8 +2,10 @@ import type { ContinuousMidiPort, ContinuousPlatform, MidiConnection } from './c
 
 export class ContinuousMidiInput {
   private readonly port: ContinuousMidiPort;
-  constructor(platform: ContinuousPlatform, connection: MidiConnection) {
-    this.port = platform.createMidi({ timebase: connection.timebase, onCapturedAttack: connection.observe, onStateChange: connection.onState });
+  constructor(platform: Pick<ContinuousPlatform, 'createMidi'>, connection: MidiConnection) {
+    this.port = platform.createMidi({ timebase: connection.timebase, onAttack: fact => connection.observe({
+      captureTime: fact.sessionTime, pitch: fact.pitch, confidence: fact.confidence,
+    }), onStateChange: connection.onState });
   }
   prepare(): Promise<void> { return this.port.start(); }
   assertConnected(): void { if (this.port.getState().connectedInputCount === 0) throw new Error('NO_CONNECTED_INPUT'); }

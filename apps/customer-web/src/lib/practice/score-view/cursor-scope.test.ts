@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import { PracticeVerovioAdapter } from './verovio-adapter';
-import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
-import type { ShareVideoSession } from './share-video-session';
+import { resolveShareVideoPlaybackPosition } from '@/lib/practice/share-video-playback-position';
+import type { ShareVideoSession } from '@/lib/practice/share-video-session';
+import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 
 function artifact(): PracticeScoreArtifact {
   const groups = [
@@ -69,10 +69,10 @@ function adapter() {
   (instance as unknown as {
     visualTimeline: Array<{ index: number; beat: number; endBeat: number; noteIds: string[] }>;
   }).visualTimeline = [
-    { index: 0, beat: 2, endBeat: 4.5, noteIds: ['nA'] },
-    { index: 1, beat: 3, endBeat: 4.5, noteIds: ['nB'] },
-    { index: 2, beat: 4, endBeat: 4.25, noteIds: ['nC'] },
-  ];
+      { index: 0, beat: 2, endBeat: 4.5, noteIds: ['nA'] },
+      { index: 1, beat: 3, endBeat: 4.5, noteIds: ['nB'] },
+      { index: 2, beat: 4, endBeat: 4.25, noteIds: ['nC'] },
+    ];
   return instance;
 }
 

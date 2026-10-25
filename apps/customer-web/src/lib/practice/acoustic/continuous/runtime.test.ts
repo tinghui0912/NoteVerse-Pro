@@ -1,24 +1,23 @@
-import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
+import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
+import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
-import { ContinuousAcousticProjection, type AcousticRuntimeOptions } from './continuous-projection';
-import { ContinuousCaptureBridge } from './capture-bridge';
+import { evaluatePracticeInputCapabilities } from '../../input-capability';
+import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson, sha256, sourceIdentity } from '../model/model-contract';
+import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
+import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
+import { sourcePublication } from '../runtime/source-publication';
 import type { CaptureChunk } from '../source/capture-types';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
-import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson, sha256, sourceIdentity } from '../model/model-contract';
-import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
-import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
-import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
-import { evaluatePracticeInputCapabilities } from '../../input-capability';
-import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
-import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { ContinuousCaptureBridge } from './capture-bridge';
+import { ContinuousAcousticProjection, type AcousticRuntimeOptions } from './continuous-projection';
 import { projectContinuousEvidence } from './publication';
-import { sourcePublication } from '../runtime/source-publication';
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
 function result(input: AcousticInferenceInput): AcousticInferenceResult {
@@ -244,8 +243,11 @@ it('real product finalizer alone produces all five verdicts from the model-agnos
 });
 
 it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure never changes playhead or pause ownership', async () => {
-  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), artifact: canonicalArtifact as PracticeScoreArtifact,
-    scope: { kind: 'FULL' }, clock, countInBeats: 0, inputSource: 'MICROPHONE' });
+  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ artifact: canonicalArtifact as PracticeScoreArtifact,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats: 0,
+      inputSource: 'MICROPHONE' });
   session.start(); clock.advance(1200);
   const before = session.clock.snapshot();
   const port: AcousticInferencePort = { run: async input => result(input), dispose: async () => {} };

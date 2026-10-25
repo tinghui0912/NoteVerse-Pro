@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MetronomeController } from './metronome-controller';
 import type { MeterSegment } from '@/lib/practice/kernel/artifact';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MetronomeController } from './metronome-controller';
 
 interface ScheduledClick {
   freq: number;
@@ -373,7 +373,6 @@ describe('MetronomeController', () => {
       countInTotalMs: 2000,
       countInRemainingMs: 1000,
       countInPulses: 4,
-      countInPulse: 3,
     });
 
     // Advance 2 seconds

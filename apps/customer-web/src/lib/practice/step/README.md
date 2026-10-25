@@ -8,7 +8,8 @@ for input and has no Pause/Resume lifecycle.
 ## Attempts and Verdicts
 
 `domain/attempt.ts` owns attempt identity, immutable evidence/records, verdict
-types and domain errors. `domain/runtime.ts` owns progression;
+types and domain errors. `domain/target.ts` projects canonical artifact groups,
+attack pitches and continuation pitches for STEP. `domain/runtime.ts` owns progression;
 `domain/session.ts` owns STEP status/snapshots. These modules depend only on the
 shared `kernel/` contracts and each other. Browser inputs, microphone resources
 and the application controller remain outside `domain/`.

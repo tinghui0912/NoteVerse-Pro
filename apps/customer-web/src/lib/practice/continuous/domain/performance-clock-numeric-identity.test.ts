@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { PerformanceClockRuntime } from '@/lib/practice/continuous/domain/performance-clock';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { ManualClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import { describe, expect, it } from 'vitest';
 
 class AdvancingReadClock extends ManualClock {
   advancePerReadMs = 0;
@@ -19,9 +20,12 @@ class AdvancingReadClock extends ManualClock {
 function setup(origin = 0, countInBeats = 0, scoreEndBeat = 1000000, clock = new ManualClock(origin)) {
   const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact,
     scoreEndBeat, scoreTempoSegments: [{ startBeat: 0, bpm: 120 }] };
-  const runtime = new PerformanceClockRuntime({ artifact, scope: { kind: 'FULL' }, clock, countInBeats,
-    tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
-    timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }) });
+  const runtime = new PerformanceClockRuntime({ artifact,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats,
+      timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }),
+      tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
   return { clock, runtime };
 }
 

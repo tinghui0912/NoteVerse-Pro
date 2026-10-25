@@ -1,11 +1,12 @@
-import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
-import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
-import type { BrowserMidiControllerOptions, BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
-import type { PerformanceRecorder, PracticeRecordingMode } from '@/lib/practice/performance-recorder';
-import type { MetronomeController, MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
+import type { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import type { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capture';
-import type { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import type { MetronomeController, MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
+import type { BrowserMidiControllerOptions, BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
+import type { PerformanceRecorder, PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
 export interface ContinuousModelWorker extends AcousticInferencePort { load(url: string): Promise<unknown>; }
 export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
@@ -30,5 +31,5 @@ export type MicrophoneConnection = Readonly<{
   clock: LocalClock; publish(publication: ContinuousEvidencePublication): void;
 }>;
 export type MidiConnection = Readonly<{ timebase: PracticeTimebase;
-  observe: NonNullable<BrowserMidiControllerOptions['onCapturedAttack']>;
+  observe(attack: ContinuousMidiAttack): void;
   onState: NonNullable<BrowserMidiControllerOptions['onStateChange']> }>;

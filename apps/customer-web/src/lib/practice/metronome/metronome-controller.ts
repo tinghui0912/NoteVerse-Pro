@@ -1,5 +1,4 @@
 import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import type {
@@ -153,7 +152,7 @@ export class MetronomeController {
     this.lastTickAudioTime = this.audioContext?.currentTime ?? 0;
   }
 
-  syncContinuous(syncPoint: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot): void {
+  syncContinuous(syncPoint: ContinuousMetronomeSyncPoint): void {
     const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
     this.cursor = MetronomePulsePlanner.createContinuousCursor(
       syncPoint,
@@ -206,7 +205,7 @@ export class MetronomeController {
   }
 
   start(
-    initialContext: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot | number = 0,
+    initialContext: ContinuousMetronomeSyncPoint | number = 0,
     options?: {
       countIn?: boolean;
       countInPulses?: number;
@@ -253,7 +252,6 @@ export class MetronomeController {
               countInTotalMs,
               countInRemainingMs: countInTotalMs,
               countInPulses: this.countInPulses,
-              countInPulse: 1,
             },
             this.artifact,
             this.timeline,
@@ -288,7 +286,7 @@ export class MetronomeController {
     }
   }
 
-  resume(syncPoint?: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot | number): void {
+  resume(syncPoint?: ContinuousMetronomeSyncPoint | number): void {
     if (this.isRunning) {
       return;
     }

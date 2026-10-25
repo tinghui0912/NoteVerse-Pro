@@ -19,8 +19,8 @@ function productionFiles(directory: string): string[] {
 }
 
 type Edge = { specifier: string; target: string | null; typeOnly: boolean; bindings: string[] };
-function imports(file: string): Edge[] {
-  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+function imports(file: string, text = readFileSync(file, 'utf8')): Edge[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const edges: Edge[] = [];
   const add = (specifier: string, typeOnly: boolean, bindings: string[] = []) => {
     const base = specifier.startsWith('@/') ? path.join(sourceRoot, specifier.slice(2))
@@ -63,6 +63,25 @@ const domain = (file: string) => file.startsWith('kernel/') ? 'kernel'
   : file.startsWith('step/domain/') ? 'step/domain'
     : file.startsWith('continuous/domain/') ? 'continuous/domain' : null;
 
+function dependencyAllowed(file: string, edge: Edge): boolean {
+  const source = relative(file);
+  const target = edge.target ? relative(edge.target) : null;
+  const owner = domain(source);
+  const targetOwner = target ? domain(target) : null;
+  if (source === 'continuous/domain/performance-clock.ts') return targetOwner === 'kernel';
+  if (owner) {
+    return targetOwner === 'kernel' || targetOwner === owner
+      || (owner === 'kernel' && edge.typeOnly
+        && edge.target === normalize(path.join(sourceRoot, 'generated/api/types.gen.ts')));
+  }
+  for (const infrastructure of ['midi/', 'metronome/']) {
+    if (source.startsWith(infrastructure)) return targetOwner === 'kernel' || Boolean(target?.startsWith(infrastructure));
+  }
+  if (source.startsWith('step/')) return !target?.startsWith('continuous/');
+  if (source.startsWith('continuous/')) return !target?.startsWith('step/');
+  return true;
+}
+
 describe('Practice bounded domain dependencies', () => {
   it('has concrete owners and no common mode barrel', () => {
     expect(existsSync(path.join(practiceRoot, 'local-core'))).toBe(false);
@@ -80,12 +99,6 @@ describe('Practice bounded domain dependencies', () => {
     for (const file of files) {
       const owner = domain(relative(file));
       if (!owner) continue;
-      for (const edge of graph.get(normalize(file))!) {
-        const targetOwner = edge.target ? domain(relative(edge.target)) : null;
-        expect(targetOwner === 'kernel' || targetOwner === owner
-          || (owner === 'kernel' && edge.typeOnly && edge.target === normalize(path.join(sourceRoot, 'generated/api/types.gen.ts'))),
-        `${relative(file)} -> ${edge.specifier}`).toBe(true);
-      }
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const browserGlobals = new Set(['window', 'document', 'navigator', 'React', 'HTMLElement', 'HTMLMediaElement',
         'MediaStream', 'MediaRecorder', 'AudioContext', 'Worker', 'MIDIAccess', 'MIDIInput', 'fetch', 'WebSocket',
@@ -95,6 +108,30 @@ describe('Practice bounded domain dependencies', () => {
         ts.forEachChild(node, visit);
       };
       visit(source);
+    }
+  });
+
+  it('enforces infrastructure and application direction on every production import', () => {
+    for (const [file, edges] of graph) {
+      for (const edge of edges) expect(dependencyAllowed(file, edge), `${relative(file)} -> ${edge.specifier}`).toBe(true);
+    }
+  });
+
+  it('rejects mode knowledge in shared MIDI and metronome imports, including type-only imports', () => {
+    for (const infrastructure of ['midi', 'metronome']) {
+      const file = path.join(practiceRoot, infrastructure, 'boundary-probe.ts');
+      for (const mode of ['step', 'continuous']) {
+        for (const declaration of [
+          `import type { Session } from '@/lib/practice/${mode}/domain/session';`,
+          `export * from '../${mode}/domain/session';`,
+          `type Session = import('@/lib/practice/${mode}/domain/session').Session;`,
+        ]) {
+          const edges = imports(file, declaration);
+          expect(edges).toHaveLength(1);
+          expect(dependencyAllowed(file, edges[0]), declaration).toBe(false);
+        }
+      }
+      expect(dependencyAllowed(file, imports(file, "import type { SessionTime } from '@/lib/practice/kernel/timebase';")[0])).toBe(true);
     }
   });
 

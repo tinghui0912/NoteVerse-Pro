@@ -37,11 +37,25 @@ and Continuous snapshots. Its `evaluation/` owns assignment, observations,
 finalization and the completed evaluation projection. The two mode domains do not
 depend on one another. Consumers import concrete owner modules directly.
 
-Continuous session accepts a clock-evidence port. `continuous/input/midi-evidence.ts`
+The performance clock owns transport coordinates and accepts an established
+`PracticeTimebase`. `ContinuousPracticeSession` owns session identity, input source,
+durable timestamps, runtime metadata, metronome selection and session records.
+Reading a session record does not drive a clock transition.
+
+Continuous session accepts the domain-owned `ContinuousClockDrivenEvidencePort`.
+MIDI options require its factory; microphone options exclude that factory.
+`continuous/input/midi-evidence.ts`
 implements MIDI observation identity, delivery-grace coverage and terminal coverage;
 the application controller supplies it. Terminal evidence is published before the
 evaluator completes. Acoustic publications enter through the separate validated
 analysis-publication boundary.
+
+Shared `midi/` infrastructure publishes physical NOTE_ON facts in session time;
+it has no mode-domain dependency. The Continuous input adapter projects these facts
+into `observeMidiAttack`; acoustic observations enter only through `publishAnalysis`.
+Shared `metronome/` consumes its own minimal sync-point contract. Continuous
+application code projects clock snapshots into that contract. Neither shared
+infrastructure imports STEP or Continuous domain code.
 
 Application controllers compose domains, browser inputs and owned resources.
 Hooks/pages render snapshots and send commands. The acoustic foundation remains
