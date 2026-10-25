@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { ContinuousFinalizer } from './local-core/continuous-finalizer';
+import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
 
 import {
   PerformanceAnnotationController,

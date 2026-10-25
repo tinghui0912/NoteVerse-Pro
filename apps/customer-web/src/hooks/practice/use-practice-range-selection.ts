@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import {
   fullPiecePracticeRangeSelection,
   groupById,

@@ -5,7 +5,7 @@ import {
   parseSavedRecordingTimebase,
   parseSavedTempoPlan,
 } from './share-video-session';
-import type { PracticeScoreArtifact } from './local-core/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type {
   PerformanceTakeRead,
   RecordingTimebase,

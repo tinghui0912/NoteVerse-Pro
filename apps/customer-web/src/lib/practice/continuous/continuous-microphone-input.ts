@@ -1,6 +1,6 @@
-import { ContinuousAcousticProjection } from '../acoustic/continuous/continuous-projection';
-import { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
-import { deliverPublication } from '../acoustic/continuous/publication';
+import { ContinuousAcousticProjection } from '@/lib/practice/acoustic/continuous/continuous-projection';
+import { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';
+import { deliverPublication } from '@/lib/practice/acoustic/continuous/publication';
 import type { ContinuousModelWorker, ContinuousPlatform, MicrophoneConnection } from './continuous-input';
 
 export class ContinuousMicrophoneInput {

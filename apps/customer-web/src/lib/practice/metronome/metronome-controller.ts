@@ -1,7 +1,7 @@
-import type { MeterSegment, PracticeScoreArtifact } from '../local-core/artifact';
-import type { PerformanceClockSnapshot } from '../local-core/performance-runtime';
-import type { ResolvedPracticeTempoPlan } from '../local-core/practice-tempo';
-import { beatsToMs, PracticeTempoTimeline } from '../local-core/practice-tempo';
+import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import type {
   ContinuousMetronomeSyncPoint,
   MetronomePlanningCursor,

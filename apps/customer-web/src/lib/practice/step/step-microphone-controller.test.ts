@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import { ManualClock } from '../local-core/timebase';
-import { StepPracticeRuntime } from '../local-core/step-runtime';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureConsumer } from '../acoustic/source/capture-types';

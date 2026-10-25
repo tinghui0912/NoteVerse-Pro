@@ -1,5 +1,5 @@
-import { ContinuousFinalizer } from '../../src/lib/practice/local-core/continuous-finalizer';
-import type { ContinuousEvidencePublication, ContinuousExpectedStrike } from '../../src/lib/practice/local-core/continuous-evaluation-types';
+import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
+import type { ContinuousEvidencePublication, ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/types';
 export type TruthNote={id:string;pitch:number;timeMs:number;velocity:number;endMs:number};
 export const pitchName=(n:number)=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n%12]+(Math.floor(n/12)-1);
 

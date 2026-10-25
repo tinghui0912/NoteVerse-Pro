@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PracticeScoreViewer } from './practice-score-viewer';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,

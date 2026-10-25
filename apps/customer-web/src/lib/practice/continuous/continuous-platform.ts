@@ -1,9 +1,9 @@
 import { getPracticeAcousticModelAccess } from '../../api/practice-acoustic-model-asset';
-import { createAcousticModelWorker } from '../acoustic/model/worker-client';
-import { BrowserAcousticCapture } from '../acoustic/source/capture';
-import { BrowserMidiController } from '../midi/browser-midi-controller';
-import { PerformanceRecorder } from '../performance-recorder';
-import { MetronomeController } from '../metronome/metronome-controller';
+import { createAcousticModelWorker } from '@/lib/practice/acoustic/model/worker-client';
+import { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capture';
+import { BrowserMidiController } from '@/lib/practice/midi/browser-midi-controller';
+import { PerformanceRecorder } from '@/lib/practice/performance-recorder';
+import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
 import type { ContinuousPlatform } from './continuous-input';
 
 export const browserContinuousPlatform: ContinuousPlatform = {

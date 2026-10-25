@@ -2,9 +2,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { useLayoutEffect } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import artifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import { resolvePracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
+import artifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';

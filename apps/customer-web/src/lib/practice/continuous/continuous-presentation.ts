@@ -1,5 +1,6 @@
 import type { ContinuousControllerSnapshot } from './continuous-practice-controller';
-import type { LocalPracticeInputState, ContinuousPracticeLifecycle } from '../local-core/session';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 
 /** Presentation only: never advances transport or infers completion from clock alone. */
 export function continuousControllerView(snapshot: ContinuousControllerSnapshot | null): {

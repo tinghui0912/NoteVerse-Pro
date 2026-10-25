@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeMode } from '@/lib/practice/kernel/session';
 
 interface PracticeCompletionDialogProps {
   open: boolean;

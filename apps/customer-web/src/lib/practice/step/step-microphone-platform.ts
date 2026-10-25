@@ -1,7 +1,7 @@
 import { getPracticeAcousticModelAccess } from '../../api/practice-acoustic-model-asset';
-import { createAcousticModelWorker } from '../acoustic/model/worker-client';
-import { BrowserAcousticCapture } from '../acoustic/source/capture';
-import type { AcousticInferencePort } from '../acoustic/runtime/inference-types';
+import { createAcousticModelWorker } from '@/lib/practice/acoustic/model/worker-client';
+import { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capture';
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 
 export interface StepMicrophoneWorker extends AcousticInferencePort { load(url: string): Promise<unknown>; }
 export interface StepMicrophonePlatform {

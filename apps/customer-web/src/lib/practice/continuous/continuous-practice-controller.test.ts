@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import { ManualClock } from '../local-core/timebase';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-input';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';

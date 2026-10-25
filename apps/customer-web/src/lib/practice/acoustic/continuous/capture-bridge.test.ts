@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 import { ContinuousCaptureBridge } from './capture-bridge';
 import { ContinuousAcousticProjection } from './continuous-projection';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
-import type { ContinuousEvidencePublication } from '../../local-core/continuous-evaluation-types';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
 
 for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves PCM inputs, source mapping and pause/resume boundaries`, async () => {
   const pcm = Float32Array.from({ length: rate * 4 }, (_, i) => ((i * 17) % 1024 - 512) / 2048);

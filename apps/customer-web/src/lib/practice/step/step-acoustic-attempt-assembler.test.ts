@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SourceAcousticObservation, SourceAcousticPublication } from '../acoustic/runtime/source-publication';
-import type { StepAttemptEvidence } from '../local-core/step-attempt';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import { ManualClock } from '../local-core/timebase';
-import { StepPracticeRuntime } from '../local-core/step-runtime';
+import type { StepAttemptEvidence } from '@/lib/practice/step/domain/attempt';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { StepAcousticAttemptAssembler, STEP_ACOUSTIC_GESTURE_MS } from './step-acoustic-attempt-assembler';
 
 const observation = (sample: number, id = `o:${sample}`, pitch = 'C4', confidence = .8): SourceAcousticObservation => ({

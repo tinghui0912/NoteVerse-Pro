@@ -5,11 +5,8 @@ import { Cable, ListChecks, Mic, Music2, Sparkles, Video, VolumeX } from 'lucide
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
-import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
-import type {
-  PracticeInputSource,
-  PracticeMode,
-} from '@/lib/practice/local-core/artifact';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type {
   PracticeMicrophoneCapability,
   PracticeMidiCapability,

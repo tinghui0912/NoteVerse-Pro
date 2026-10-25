@@ -1,4 +1,5 @@
-import type { ExpectedPracticeGroup, PracticeScope } from './local-core/artifact';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeScope } from '@/lib/practice/kernel/scope';
 
 export type PracticeRangeSelection =
   | { kind: 'FULL_PIECE' }

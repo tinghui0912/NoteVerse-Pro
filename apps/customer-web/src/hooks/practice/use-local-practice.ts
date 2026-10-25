@@ -1,13 +1,20 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { PracticeInputSource, PracticeMode, PracticeScope, PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import type { LocalPracticeSessionSnapshot } from '@/lib/practice/local-core/session';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeScope } from '@/lib/practice/kernel/scope';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+
+import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { useStepLocalPractice } from './use-step-local-practice';
 import { useContinuousLocalPractice } from './use-continuous-local-practice';
 import { PracticeResourceCoordinator } from './practice-resource-coordinator';
+
+import type { LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
+import type { LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+
+type LocalPracticeSessionSnapshot = LocalStepSessionSnapshot | LocalPerformanceSessionSnapshot;
 
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined; mode: PracticeMode; inputSource: PracticeInputSource;

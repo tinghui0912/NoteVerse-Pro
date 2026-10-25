@@ -1,6 +1,6 @@
-import type { SessionTime } from '../local-core/timebase';
-import type { StepAttemptEvidence, StepAttemptIdentity } from '../local-core/step-attempt';
-import type { MidiNoteFact } from '../midi/browser-midi-controller';
+import type { SessionTime } from '@/lib/practice/kernel/timebase';
+import type { StepAttemptEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import type { MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
 
 export const STEP_MIDI_CHORD_COHERENCE_MS = 35;
 export interface StepGestureTimer {

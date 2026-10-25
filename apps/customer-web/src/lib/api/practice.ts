@@ -1,6 +1,6 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type { PracticeReadyScoreContentRead } from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '../practice/local-core/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 async function getPracticeReadyScoreContent(
     scoreId: string,

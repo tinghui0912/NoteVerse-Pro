@@ -7,7 +7,7 @@ import {
   applyPlayheadCursor,
   clearPlayheadCursor,
 } from './playhead-cursor';
-import type { ExpectedPracticeGroup } from './local-core/artifact';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 type StepPlayheadState = {

@@ -22,13 +22,10 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import {
-  resolvePracticeScope,
-  type ExpectedPracticeGroup,
-  type PracticeInputSource,
-  type PracticeMode,
-} from '@/lib/practice/local-core/artifact';
-import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { type ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import { type PracticeInputSource, type PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import {
   evaluatePracticeInputCapabilities,
   getSelectedInputCapability,

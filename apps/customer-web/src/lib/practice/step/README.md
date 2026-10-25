@@ -1,11 +1,17 @@
 # STEP Application
 
-`StepPracticeController` owns the application lifecycle, pure domain, selected
-MIDI/microphone input, metronome, cancellation and cleanup. React subscribes and
+`StepPracticeController` composes the pure domain and owns the application lifecycle,
+selected MIDI/microphone input, metronome, cancellation and cleanup. React subscribes and
 sends commands; its animation frame reads elapsed presentation time. STEP waits
 for input and has no Pause/Resume lifecycle.
 
 ## Attempts and Verdicts
+
+`domain/attempt.ts` owns attempt identity, immutable evidence/records, verdict
+types and domain errors. `domain/runtime.ts` owns progression;
+`domain/session.ts` owns STEP status/snapshots. These modules depend only on the
+shared `kernel/` contracts and each other. Browser inputs, microphone resources
+and the application controller remain outside `domain/`.
 
 - `StepMidiAttemptInput` opens on the first NOTE_ON while READY and closes the
   complete half-open 35ms gesture. Native event timestamps define capture time.

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import fixture from '../../src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '../../src/lib/practice/local-core/artifact';
-import { StepPracticeRuntime } from '../../src/lib/practice/local-core/step-runtime';
-import { ManualClock } from '../../src/lib/practice/local-core/timebase';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepMidiAttemptInput } from '../../src/lib/practice/step/step-midi-attempt-input';
 
 type Verdict = 'MATCH' | 'MISMATCH' | 'RETRY';

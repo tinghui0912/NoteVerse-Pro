@@ -1,15 +1,18 @@
-import { StepPracticeRuntime, groupForCurrentStep } from '../local-core/step-runtime';
-import { PracticeTimebase, type LocalClock } from '../local-core/timebase';
-import { createLocalSessionId, type LocalStepSessionSnapshot } from '../local-core/session';
-import { resolvePracticeScope, type PracticeInputSource, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '../local-core/practice-tempo';
-import type { BrowserMidiState } from '../midi/browser-midi-controller';
+import { StepPracticeRuntime, groupForCurrentStep } from '@/lib/practice/step/domain/runtime';
+import { PracticeTimebase, type LocalClock } from '@/lib/practice/kernel/timebase';
+import { createLocalSessionId } from '@/lib/practice/kernel/session';
+import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
+import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import { type PracticeInputSource } from '@/lib/practice/kernel/session';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
 import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
 import { stepApplicationError, type StepApplicationErrorCode } from './step-errors';
 import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
 import { StepMicrophoneInput } from './step-microphone-input';
-import type { StepAttemptIdentity } from '../local-core/step-attempt';
+import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 
 export type StepControllerOptions = Readonly<{

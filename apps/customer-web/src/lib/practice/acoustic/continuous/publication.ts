@@ -1,4 +1,4 @@
-import type { ContinuousEvidencePublication } from '../../local-core/continuous-evaluation-types';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
 import { deliverSynchronously, type SourceAcousticPublication } from '../runtime/source-publication';
 import { ACOUSTIC_MODEL, fail, previousFloat } from '../model/model-contract';
 

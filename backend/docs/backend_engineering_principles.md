@@ -100,7 +100,7 @@ Core rules:
 - `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
   score content, and target/source delivery for Customer Web.
 - Active Practice state, STEP/Continuous execution, the local clock, MIDI input,
-  and finalization live in Customer Web local-core, not in a backend
+  and finalization live in Customer Web Practice domains, not in a backend
   PracticeSession.
 
 Job identity and score identity are deliberately separate:
@@ -255,7 +255,7 @@ Owns Practice score/source/artifact delivery:
 - target catalog/source delivery for browser-local Practice;
 - authorization through the score-domain access boundary.
 
-It does not own active Practice execution. Customer Web local-core owns
+It does not own active Practice execution. Customer Web Practice domains own
 `PerformanceClockRuntime`, STEP/Continuous session state, browser-local MIDI,
 the Continuous evaluator, and finalization. Do not recreate backend
 PracticeSession lifecycle, Practice WebSocket, backend score-following,
@@ -301,7 +301,7 @@ Keep these boundaries:
 - OMR uses engine abstractions, not hard-coded tool details in business modules;
 - rendering uses `ScoreRenderEngine` abstractions;
 - MusicXML normalization and metadata extraction live under processing;
-- live Practice execution stays in Customer Web local-core and out of Celery;
+- live Practice execution stays in Customer Web Practice domains and out of Celery;
 - long-running offline work belongs in workers;
 - generic application realtime/SSE remains notification infrastructure, not a
   Practice execution runtime.

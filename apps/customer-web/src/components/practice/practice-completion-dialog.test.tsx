@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import practiceMessages from '../../../messages/en/practice.json';
 import { PracticeCompletionDialog } from './practice-completion-dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeMode } from '@/lib/practice/kernel/session';
 
 function renderDialog(
   outcome: PracticeCompletionOutcome,

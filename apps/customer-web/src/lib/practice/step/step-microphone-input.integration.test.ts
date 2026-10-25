@@ -4,10 +4,10 @@ import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/r
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-types';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../acoustic/runtime/inference-types';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import type { StepAttemptIdentity } from '../local-core/step-attempt';
-import { StepPracticeRuntime } from '../local-core/step-runtime';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepMicrophonePlatform } from './step-microphone-platform';
 

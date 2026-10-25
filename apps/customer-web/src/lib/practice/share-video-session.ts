@@ -9,17 +9,12 @@ import type {
   PerformanceMediaReady,
   RecordingTimebaseMapping,
 } from './completed-performance';
-import type {
-  PracticeScoreArtifact,
-  PracticeTempoSegmentSource,
-  ResolvedPracticeScope,
-  ResolvedPracticeTempoPlan,
-} from './local-core';
-import {
-  resolvePracticeScope,
-  resolvePracticeScopeCursorNoteIds,
-} from './local-core/artifact';
-import { cursorScopeFromResolvedPracticeScope, type CursorScope } from './local-core/cursor-scope';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeTempoSegmentSource, ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
+import { cursorScopeFromResolvedPracticeScope, type CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
 export type ShareVideoSession = {
   sourceId: string;

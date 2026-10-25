@@ -11,7 +11,7 @@ import type {
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 

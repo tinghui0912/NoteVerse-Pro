@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact, PracticeScope } from '../local-core/artifact';
-import { ManualClock } from '../local-core/timebase';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScope } from '@/lib/practice/kernel/scope';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';

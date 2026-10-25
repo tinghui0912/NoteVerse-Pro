@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';

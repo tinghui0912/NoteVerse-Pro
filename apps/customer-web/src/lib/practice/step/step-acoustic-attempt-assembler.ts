@@ -1,6 +1,6 @@
-import { PracticeTimebase, type SessionTime } from '../local-core/timebase';
-import type { StepAttemptEvidence } from '../local-core/step-attempt';
-import type { SourceAcousticObservation, SourceAcousticPublication } from '../acoustic/runtime/source-publication';
+import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
+import type { StepAttemptEvidence } from '@/lib/practice/step/domain/attempt';
+import type { SourceAcousticObservation, SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
 const MAX_STEP_ACOUSTIC_IDENTITIES = 100_000;

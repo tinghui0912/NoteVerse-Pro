@@ -98,8 +98,11 @@ capability 控制。Review 校验、确认、对比图和 carousel 也由专属 
 Practice execution is browser-local. 后端提供 canonical score/source/artifact 和
 模型资产；所需资产加载后，当前 session 的执行不依赖持续网络连接。
 
-- `local-core/`：纯 STEP/Continuous 产品语义、timebase、clock、evaluator 和
-  finalized ledger。
+- `kernel/`：跨模式的 artifact、scope、count-in、tempo、timebase 和基础 session 概念。
+- `step/domain/`：STEP attempt、verdict、progression 和 STEP snapshot。
+- `continuous/domain/`：performance clock、session 和 evaluation/finalized ledger。
+- `continuous/input/`：MIDI evidence identity、coverage 和 completion publication。
+- `score-view/`：renderer-facing cursor scope 与 note-ID projection。
 - `step/`：`StepPracticeController`、MIDI/microphone attempt 和资源生命周期。
 - `continuous/`：`ContinuousPracticeController`、transport/input/recording 的
   应用生命周期和 completion transaction。

@@ -4,10 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { practiceApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import {
-  assertPracticeScoreArtifact,
-  type PracticeScoreArtifact,
-} from '@/lib/practice/local-core/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export function usePracticeScoreArtifact(
   scoreId: string,

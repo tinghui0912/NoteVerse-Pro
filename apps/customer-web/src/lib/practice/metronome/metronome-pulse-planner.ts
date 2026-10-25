@@ -1,7 +1,7 @@
-import type { MeterSegment, PracticeScoreArtifact } from '../local-core/artifact';
-import { roundBeat } from '../local-core/artifact';
-import { beatsToMs, PracticeTempoTimeline } from '../local-core/practice-tempo';
-import type { PerformanceClockSnapshot } from '../local-core/performance-runtime';
+import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { roundBeat } from '@/lib/practice/kernel/artifact';
+import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 export interface MetronomePulse {
   readonly scoreBeat: number;

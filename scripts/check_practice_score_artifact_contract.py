@@ -18,7 +18,6 @@ BROWSER_FIXTURE = (
     / "src"
     / "lib"
     / "practice"
-    / "local-core"
     / "__fixtures__"
     / "canonical-practice-score-artifact.json"
 )

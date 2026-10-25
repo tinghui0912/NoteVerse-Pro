@@ -11,10 +11,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { TempoSegment } from '@/lib/practice/local-core/artifact';
-import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import type { TempoSegment } from '@/lib/practice/kernel/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 type CameraRecordingMessages = {

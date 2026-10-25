@@ -1,4 +1,4 @@
-import type { CompletedContinuousEvaluation, ContinuousFinality, ContinuousFinalizedGroup, ContinuousObservation } from '../local-core/continuous-evaluation-types';
+import type { CompletedContinuousEvaluation, ContinuousFinality, ContinuousFinalizedGroup, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/types';
 export const finality: ContinuousFinality = Object.freeze({ requiredAnalysisFrontierMs: 1250, unclampedRequiredFrontierMs: 1250,
   enablingPublicationId: 'fixture', enablingAnalysisFrontierMs: 10000, finalizationTimeMs: 10000, terminalClamp: false });
 export function completedTruth(groups: readonly ContinuousFinalizedGroup[] = [], extraObservations: readonly ContinuousObservation[] = []): CompletedContinuousEvaluation {

@@ -6,7 +6,7 @@ on:
     paths:
       - "backend/**"
       - "!backend/research/**"
-      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
+      - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
       - "scripts/check_practice_score_artifact_contract.py"
@@ -18,7 +18,7 @@ on:
     paths:
       - "backend/**"
       - "!backend/research/**"
-      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
+      - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
       - "scripts/check_practice_score_artifact_contract.py"

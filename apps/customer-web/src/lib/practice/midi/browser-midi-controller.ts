@@ -1,8 +1,5 @@
-import type {
-  PracticeTimebase,
-  SessionTime,
-} from '../local-core/timebase';
-import type { CapturedAttack } from '../local-core/evidence';
+import type { PracticeTimebase, SessionTime } from '@/lib/practice/kernel/timebase';
+import type { CapturedAttack } from '@/lib/practice/continuous/domain/session';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 

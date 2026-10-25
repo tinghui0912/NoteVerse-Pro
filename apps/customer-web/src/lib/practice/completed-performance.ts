@@ -1,8 +1,6 @@
-import type {
-  ResolvedPracticeScope,
-  ResolvedPracticeTempoPlan,
-} from './local-core';
-import { immutableContinuousValue, type CompletedContinuousEvaluation } from './local-core/continuous-evaluation-types';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { immutableContinuousValue, type CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/types';
 
 interface PerformanceMediaReadyBase {
   status: 'READY';

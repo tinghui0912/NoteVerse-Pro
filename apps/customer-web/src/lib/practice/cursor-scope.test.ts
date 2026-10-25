@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,
-  resolvePracticeScopeCursorNoteIds,
-  type PracticeScoreArtifact,
-} from './local-core/artifact';
+import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 import { PracticeVerovioAdapter } from './verovio-adapter';
 import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
 import type { ShareVideoSession } from './share-video-session';

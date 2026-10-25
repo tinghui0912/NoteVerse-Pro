@@ -42,19 +42,17 @@ import {
   type CompletedPerformance,
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
-import type { CompletedContinuousEvaluation } from '@/lib/practice/local-core/continuous-evaluation-types';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/types';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import {
   PerformanceAnnotationController,
   noteAnnotationsFromCompletedEvaluation,
 } from '@/lib/practice/performance-annotation-controller';
-import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
-import {
-  resolvePracticeScopeCursorNoteIds,
-  type PracticeScoreArtifact,
-} from '@/lib/practice/local-core/artifact';
-import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
+import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import { resolveScopeTiming } from '@/lib/practice/scope-timing';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import artifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeInputSource, PracticeMode, PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import { ManualClock } from '@/lib/practice/local-core/timebase';
+import artifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
 import { ContinuousPracticeController } from '@/lib/practice/continuous/continuous-practice-controller';
 import * as stepPlatform from '@/lib/practice/step/step-platform';

@@ -17,11 +17,12 @@ import {
 } from '@/lib/practice/performance-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
-import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-types';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMode } from '@/lib/practice/kernel/session';
+import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
 
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
 
 type PracticeScoreViewerProps = {

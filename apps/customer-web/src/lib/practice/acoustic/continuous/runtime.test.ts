@@ -1,3 +1,4 @@
+import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -9,12 +10,13 @@ import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson, sha256, sourceIdentity } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
-import type { ContinuousEvidencePublication } from '../../local-core/continuous-evaluation-types';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
 import { evaluatePracticeInputCapabilities } from '../../input-capability';
-import { ContinuousFinalizer } from '../../local-core/continuous-finalizer';
-import { ContinuousPracticeSession } from '../../local-core/performance-runtime';
-import { ManualClock, type PracticeScoreArtifact } from '../../local-core/index';
-import canonicalArtifact from '../../local-core/__fixtures__/canonical-practice-score-artifact.json';
+import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
+import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { projectContinuousEvidence } from './publication';
 import { sourcePublication } from '../runtime/source-publication';
 
@@ -242,7 +244,7 @@ it('real product finalizer alone produces all five verdicts from the model-agnos
 });
 
 it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure never changes playhead or pause ownership', async () => {
-  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ artifact: canonicalArtifact as PracticeScoreArtifact,
+  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), artifact: canonicalArtifact as PracticeScoreArtifact,
     scope: { kind: 'FULL' }, clock, countInBeats: 0, inputSource: 'MICROPHONE' });
   session.start(); clock.advance(1200);
   const before = session.clock.snapshot();

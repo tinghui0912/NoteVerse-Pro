@@ -1,7 +1,7 @@
-import { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
-import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
-import { PracticeTimebase, type LocalClock, type SessionTime } from '../local-core/timebase';
-import type { StepAttemptEvidence } from '../local-core/step-attempt';
+import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
+import type { SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
+import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
+import type { StepAttemptEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';
 import type { StepMicrophonePlatform, StepMicrophoneWorker } from './step-microphone-platform';

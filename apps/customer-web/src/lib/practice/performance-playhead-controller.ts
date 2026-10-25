@@ -8,7 +8,7 @@ import {
   clearPlayheadCursor,
 } from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
-import type { CursorScope } from './local-core/cursor-scope';
+import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
 type PerformancePlayheadState = {
   activeNoteIds: string[];

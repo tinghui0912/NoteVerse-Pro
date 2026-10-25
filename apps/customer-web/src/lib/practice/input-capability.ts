@@ -1,4 +1,4 @@
-import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 
 type WindowWithWebKitAudioContext = Window & {
   AudioContext?: typeof AudioContext;

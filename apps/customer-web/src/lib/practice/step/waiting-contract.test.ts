@@ -1,10 +1,11 @@
 import {expect, expectTypeOf, it} from 'vitest';
-import type {LocalStepSessionSnapshot, LocalPerformanceSessionSnapshot, StepRuntimeStatus} from '../local-core/session';
+import type { LocalStepSessionSnapshot, StepRuntimeStatus } from '@/lib/practice/step/domain/session';
+import type { LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import type {StepControllerState} from './step-practice-controller';
-import {StepPracticeRuntime} from '../local-core/step-runtime';
-import {ManualClock} from '../local-core/timebase';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type {PracticeScoreArtifact} from '../local-core/artifact';
+import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 it('controller and domain statuses are distinct; STEP runtime cannot represent application states or PAUSED', () => {
   expectTypeOf<StepControllerState>().toEqualTypeOf<'IDLE'|'PREPARING'|'ACTIVE'|'ENDED'|'DISPOSED'>();

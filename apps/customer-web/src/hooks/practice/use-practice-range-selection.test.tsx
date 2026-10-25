@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import { usePracticeRangeSelection } from './use-practice-range-selection';
 
 const groups: ExpectedPracticeGroup[] = [1, 2, 3].map(number => ({

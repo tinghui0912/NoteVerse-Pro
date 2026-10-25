@@ -1,5 +1,5 @@
-import type { CompletedContinuousEvaluation } from './local-core/continuous-evaluation-types';
-import type { ContinuousEvaluationSnapshot } from './local-core/continuous-evaluation-types';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
 
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetronomeController } from './metronome-controller';
-import type { MeterSegment } from '../local-core/artifact';
-import type { ResolvedPracticeTempoPlan } from '../local-core/practice-tempo';
+import type { MeterSegment } from '@/lib/practice/kernel/artifact';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
 interface ScheduledClick {
   freq: number;

@@ -1,9 +1,9 @@
-import { BrowserMidiController, type BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
-import { MetronomeController, type MetronomeControllerOptions } from '../metronome/metronome-controller';
-import type { LocalClock } from '../local-core/timebase';
+import { BrowserMidiController, type BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
+import { MetronomeController, type MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
+import type { LocalClock } from '@/lib/practice/kernel/timebase';
 import type { StepGestureTimer } from './step-midi-attempt-input';
 import { browserStepMicrophonePlatform, type StepMicrophonePlatform } from './step-microphone-platform';
-import { watchMicrophoneInfrastructure } from '../acoustic/source/microphone-infrastructure';
+import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
 
 export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'dispose' | 'getState'>;
 export type StepMetronomePort = Pick<MetronomeController, 'start' | 'destroy' | 'setEnabled' | 'setStepContext'>;

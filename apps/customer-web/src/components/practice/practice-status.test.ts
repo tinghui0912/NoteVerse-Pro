@@ -9,9 +9,9 @@ import {
   PracticeStatus,
   resolvePracticeStatusView,
 } from './practice-status';
-import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import practiceMessages from '../../../messages/en/practice.json';
-import type { StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
+import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 
 it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP status presents runtime phase %s, not session ACTIVE as READY', phase => {
   const view = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,

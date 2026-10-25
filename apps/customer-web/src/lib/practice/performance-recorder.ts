@@ -2,7 +2,7 @@ import type {
   PerformanceMedia,
   RecordingTimebaseMapping,
 } from './completed-performance';
-import type { PracticeInputSource } from './local-core/artifact';
+import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 
 export type PracticeRecordingMode = 'OFF' | 'AUDIO' | 'VIDEO';
 

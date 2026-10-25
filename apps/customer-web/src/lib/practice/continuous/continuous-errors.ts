@@ -1,4 +1,4 @@
-import { acousticFailureCode, type AcousticFailureCode } from '../acoustic/source/microphone-errors';
+import { acousticFailureCode, type AcousticFailureCode } from '@/lib/practice/acoustic/source/microphone-errors';
 export type ContinuousErrorCode =
   | Exclude<AcousticFailureCode, 'SOURCE_SAMPLE_RATE_NOT_QUALIFIED' | 'ACOUSTIC_WORKER_CRASH' | 'ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED' | 'ACOUSTIC_CAPTURE_FAILURE'>
   | 'UNQUALIFIED_SOURCE_RATE' | 'ANALYSIS_FAILED' | 'RECORDER_UNAVAILABLE' | 'RESOURCE_CLEANUP_FAILED';

@@ -262,7 +262,7 @@ import {
   completedPerformanceStore,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
-import type { CompletedContinuousEvaluation, ContinuousFinalizedGroup } from '@/lib/practice/local-core/continuous-evaluation-types';
+import type { CompletedContinuousEvaluation, ContinuousFinalizedGroup } from '@/lib/practice/continuous/domain/evaluation/types';
 import { completedTruth, finality } from '@/lib/practice/__fixtures__/continuous-truth';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
 

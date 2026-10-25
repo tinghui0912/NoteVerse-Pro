@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PracticeTimebase } from '../local-core/timebase';
+import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import {
   BrowserMidiController,
   MidiNoConnectedInputError,

@@ -5,11 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
-import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { ContinuousPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
+import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';

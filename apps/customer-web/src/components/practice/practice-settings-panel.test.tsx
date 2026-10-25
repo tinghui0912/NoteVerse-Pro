@@ -9,7 +9,7 @@ import messages from '../../../messages/en/practice.json';
 import { PracticeSettingsPanel } from './practice-settings-panel';
 import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 import { evaluatePracticeInputCapabilities, getSelectedInputCapability, getSelectedMicrophoneCapability } from '@/lib/practice/input-capability';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 describe('PracticeSettingsPanel', () => {

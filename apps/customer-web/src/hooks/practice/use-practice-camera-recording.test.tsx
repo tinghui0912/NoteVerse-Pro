@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import { usePracticeCameraRecording } from './use-practice-camera-recording';
 
 const messages = { continuousOnly: 'Continuous only', unsupported: 'Unsupported', preparing: 'Preparing',

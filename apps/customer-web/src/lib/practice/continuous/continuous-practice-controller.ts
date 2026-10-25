@@ -1,17 +1,22 @@
-import { ContinuousPracticeSession, type PerformanceClockSnapshot } from '../local-core/performance-runtime';
-import { createLocalSessionId, type LocalPerformanceSessionSnapshot } from '../local-core/session';
-import { resolvePracticeScope, type PracticeInputSource, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '../local-core/practice-tempo';
-import { immutableContinuousValue, type ContinuousEvaluationSnapshot } from '../local-core/continuous-evaluation-types';
-import { completedPerformanceStore, type CompletedPerformance } from '../completed-performance';
-import type { PracticeRecordingMode } from '../performance-recorder';
+import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
+import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
+import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import { createLocalSessionId } from '@/lib/practice/kernel/session';
+import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import { type PracticeInputSource } from '@/lib/practice/kernel/session';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import { immutableContinuousValue, type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import { completedPerformanceStore, type CompletedPerformance } from '@/lib/practice/completed-performance';
+import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { ContinuousMidiInput } from './continuous-midi-input';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { browserContinuousPlatform } from './continuous-platform';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
-import { watchMicrophoneInfrastructure } from '../acoustic/source/microphone-infrastructure';
+import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
 
 const DIAGNOSTIC_LIMIT = 32;
 
@@ -101,7 +106,7 @@ export class ContinuousPracticeController {
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
       }
-      this.session = new ContinuousPracticeSession({ artifact: this.options.artifact, scope: this.options.scope,
+      this.session = new ContinuousPracticeSession({ createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), artifact: this.options.artifact, scope: this.options.scope,
         inputSource: this.options.inputSource, tempoPlan: this.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
         localSessionId: createLocalSessionId(), countInBeats: this.options.countInBeats, metronomeEnabled: this.enabled });
       const session = this.session;

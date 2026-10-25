@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { MeterSegment, PracticeScoreArtifact } from '../local-core/artifact';
-import {
-  PracticeTempoTimeline,
-  ResolvedPracticeTempoPlan,
-} from '../local-core/practice-tempo';
+import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { PracticeTempoTimeline, ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import {
   isDownbeat,
   MetronomePulsePlanner,

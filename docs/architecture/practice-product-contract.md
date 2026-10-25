@@ -23,6 +23,32 @@ is a review artifact. Analysis capture supplies PCM directly to the acoustic run
 MediaRecorder output is not the analysis PCM source. Generic application realtime
 notifications invalidate application data independently of Practice execution.
 
+## Domain Ownership
+
+`src/lib/practice/kernel/` owns the pure, cross-mode artifact contract, canonical
+scope, count-in, tempo, session timebase and common session identity/completion
+metadata. It depends on neither mode, acoustic implementation nor browser resources.
+Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
+their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
+
+`step/domain/` owns attempts, verdict policy, target progression and STEP snapshots.
+`continuous/domain/` owns performance clock/timeline mapping, session composition
+and Continuous snapshots. Its `evaluation/` owns assignment, observations,
+finalization and the completed evaluation projection. The two mode domains do not
+depend on one another. Consumers import concrete owner modules directly.
+
+Continuous session accepts a clock-evidence port. `continuous/input/midi-evidence.ts`
+implements MIDI observation identity, delivery-grace coverage and terminal coverage;
+the application controller supplies it. Terminal evidence is published before the
+evaluator completes. Acoustic publications enter through the separate validated
+analysis-publication boundary.
+
+Application controllers compose domains, browser inputs and owned resources.
+Hooks/pages render snapshots and send commands. The acoustic foundation remains
+score-blind; only its Continuous projection references the evaluator's publication
+type contract. Static architecture tests scan production imports and dependency
+cycles to enforce these boundaries.
+
 ## STEP_BY_STEP
 
 STEP is correctness-driven and waits for user input. `StepPracticeController` owns

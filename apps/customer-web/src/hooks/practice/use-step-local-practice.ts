@@ -1,10 +1,10 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 /** Presentation/commands only. Every STEP resource belongs to its application owner. */
