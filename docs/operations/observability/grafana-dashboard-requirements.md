@@ -1,6 +1,6 @@
 # Grafana Dashboard Requirements
 
-This document defines the first production dashboard set for NoteVerse Pro.
+This document defines the checked-in dashboard contracts for NoteVerse Pro.
 The target deployment is Kubernetes with Prometheus, Loki, Tempo, and Grafana.
 
 ## Principles
@@ -17,11 +17,9 @@ The target deployment is Kubernetes with Prometheus, Loki, Tempo, and Grafana.
   `environment`, `namespace`, `container`, and `level`. Keep
   `request_id`, `originating_request_id`, `score_id`, `revision_id`, `job_id`,
   `outbox_id`, pod names, emails, storage keys, and file hashes in the structured log body.
-  See `docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md` for the full label policy.
-- Distributed traces will use OpenTelemetry and Tempo once request/outbox
-  correlation is stable enough to justify trace sampling and retention policy.
-  See `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`.
-- Sentry is not part of the planned stack.
+  See `docs/operations/observability/logging-pipeline.md` for the full label policy.
+- Distributed tracing uses explicitly configured OpenTelemetry, Collector and Tempo.
+  See `docs/operations/observability/distributed-tracing.md`.
 - Alerts should page only for user-impacting or operator-actionable failures.
 
 ## API Health
@@ -50,7 +48,7 @@ Suggested alerts:
 - API 5xx rate stays above a small threshold for 5 minutes.
 - p95 latency for core routes stays above the product SLO for 10 minutes.
 
-Implemented first dashboard:
+Application dashboard:
 
 - `Backend Scrape Health`
 - `Request Rate`
@@ -68,7 +66,7 @@ Implemented first dashboard:
 - `Scheduler Dispatch Outcome`
 - `Scheduler Lock Acquired/Skipped`
 
-Implemented platform dashboard:
+Platform dashboard:
 
 - `Loki Scrape Health`
 - `Tempo Scrape Health`
@@ -80,7 +78,7 @@ Implemented platform dashboard:
 - `Query p95 Latency`
 - `Observability PVC Usage`
 
-Implemented first PrometheusRule group:
+Application PrometheusRules:
 
 - `NoteVerseBackendTargetDown`
 - `NoteVerseBackendHigh5xxRate`
@@ -153,19 +151,6 @@ Suggested alerts:
 - Active realtime connections drop to zero unexpectedly during normal traffic.
 - App realtime notification connections grow unusually and do not return to baseline.
 
-## Storage And Quota
-
-Panels to add after quota metrics are implemented:
-
-- Storage usage by category.
-- Quota reservation failures by category.
-- Storage cleanup backlog.
-
-Suggested alerts:
-
-- Quota enforcement failures occur.
-- Cleanup backlog grows for more than one retention window.
-
 ## Platform Observability
 
 The platform dashboard is separate from the application dashboard. It answers
@@ -211,17 +196,6 @@ platform dashboard is the second-level diagnostic view.
 - completed duration average
 3. Realtime row:
    - active app SSE
-4. Storage row:
-   - reserved for storage/quota metrics
-
-## Next Metrics To Add
-
-- Storage quota and cleanup gauges.
-- Mail send latency and delivery outcome counters.
-- Worker-specific task claim, success, retry, failure, and duration metrics.
-- Domain-level async SLO metrics once the initial backlog/age gauges are proven.
-- Platform alert rules for Loki, Tempo, and OpenTelemetry Collector after the
-  platform dashboard has been validated against staging traffic.
 
 ## Alert Delivery Model
 
@@ -246,11 +220,11 @@ Recommended routing:
 
 Email is acceptable for low-urgency notifications and audit summaries, but it
 should not be the only channel for user-impacting production outages. Receiver
-credentials must live in Kubernetes Secrets, External Secrets, or the future
-cluster secret-management layer. Do not commit contact-point credentials to
+credentials must live in Kubernetes Secrets, External Secrets, or environment-owned
+secret management. Do not commit contact-point credentials to
 Git.
 
-Every actionable alert should eventually include:
+Actionable alerts require:
 
 - short summary;
 - stable severity;

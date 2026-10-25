@@ -1,43 +1,40 @@
-# Operations Documents
+# Operations
 
-Operations documents cover deployment, release, observability, runbooks, and
-production readiness.
+Current deployment, release, observability and recovery procedures are grouped
+by operational responsibility. Configuration describes supported repository
+behavior; live readiness still requires environment-specific verification.
 
 ## Deployment
 
 - [Production Deployment Guide](deployment/production-deployment-guide.md)
 - [Kubernetes Deployment Runbook](deployment/k8s-deployment-runbook.md)
-- [Kubernetes Gateway API And TLS](deployment/k8s-gateway-and-tls.md)
-- [Kubernetes Production Preflight Checklist](deployment/k8s-production-preflight-checklist.md)
-- [Kubernetes Secrets And Storage Template](deployment/k8s-secrets-and-storage-template.md)
-- [Platform Storage Contract](../../deploy/platform/storage/README.md)
+- [Gateway and TLS](deployment/k8s-gateway-and-tls.md)
+- [Production Preflight](deployment/k8s-production-preflight-checklist.md)
+- [Secrets and Storage](deployment/k8s-secrets-and-storage-template.md)
+- [Platform Storage](../../deploy/platform/storage/README.md)
 
-## Release
+## Delivery
 
-- [Argo CD Minikube Runbook](release/argocd-minikube-runbook.md)
+- [Container Image Builds](release/container-image-build-strategy.md)
 - [CI/CD Release Strategy](release/cicd-release-strategy.md)
-- [Container Image Build Strategy](release/container-image-build-strategy.md)
-- [GitOps Evolution Plan](release/gitops-evolution-plan.md)
-- [Release Package Runbook](release/release-package-runbook.md)
-
-## Active Plans
-
-- [Production-like Staging Platform Plan](plans/production-like-staging-platform-plan.md)
+- [GitOps Delivery Strategy](release/gitops-delivery-strategy.md)
+- [Release Packages](release/release-package-runbook.md)
+- [Argo CD Minikube](release/argocd-minikube-runbook.md)
 
 ## Observability
 
-- [Kubernetes Observability Deployment Skeleton](observability/k8s-observability-deployment-skeleton.md)
-- [Kubernetes Logging Plan: Fluent Bit + Loki + Grafana](observability/k8s-logging-loki-fluent-bit-plan.md)
-- [OpenTelemetry + Tempo Tracing Plan](observability/opentelemetry-tempo-tracing-plan.md)
-- [Observability And Logging Roadmap](observability/observability-and-logging-roadmap.md)
-- [Grafana Loki Query Runbook](observability/grafana-loki-query-runbook.md)
-- [Grafana Dashboard Requirements](observability/grafana-dashboard-requirements.md)
-- [Alertmanager Receiver Plan](observability/alertmanager-receiver-plan.md)
-- [Minikube Observability Runbook](observability/minikube-observability-runbook.md)
+- [Platform](observability/observability-platform.md)
+- [Logging Pipeline](observability/logging-pipeline.md)
+- [Log Event Schema](observability/log-event-schema.md)
+- [Distributed Tracing](observability/distributed-tracing.md)
+- [Scheduler Operations](observability/scheduler-operations.md)
+- [Alert Delivery](observability/alert-delivery.md)
+- [Grafana Dashboards](observability/grafana-dashboard-requirements.md)
+- [Grafana/Loki Queries](observability/grafana-loki-query-runbook.md)
+- [Minikube Observability](observability/minikube-observability-runbook.md)
 
-## Runbooks
+## Local Runtime
 
-- [Docker Backend Runtime Runbook](runbooks/docker-backend-runtime-runbook.md)
-- [Minikube From Zero Runbook](runbooks/minikube-from-zero.md)
-- [Minikube Local Kubernetes Runbook](runbooks/minikube-local-k8s-runbook.md)
-- [Local VM Kubernetes Lab Runbook](runbooks/local-vm-k8s-lab.md)
+- [Docker Backend Runtime](runbooks/docker-backend-runtime-runbook.md)
+- [Minikube From Zero](runbooks/minikube-from-zero.md)
+- [Local VM Kubernetes Lab](runbooks/local-vm-k8s-lab.md)

@@ -8,8 +8,6 @@
     "start": "next start",
     "lint": "eslint .",
     "check:i18n-errors": "node scripts/check-error-translations.mjs",
-    "inventory:editor-legacy": "node scripts/inventory-editor-legacy-dependencies.mjs",
-    "check:editor-legacy-inventory": "node scripts/inventory-editor-legacy-dependencies.mjs --check",
     "check:dead-code": "cross-env NEXT_BACKEND_ORIGIN=http://localhost:8000 AUTH_COOKIE_NAME=auth REFRESH_COOKIE_NAME=refresh knip --production --use-tsconfig-files",
     "generate:api-types": "openapi-ts",
     "check:api-types": "node scripts/check-api-types.mjs",

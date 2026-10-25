@@ -244,7 +244,7 @@ Trusted Worker publication resolves the governed Python base to OCI, computes
 dependency input identity from uv's explicit-target locked Worker graph and material inputs,
 qualifies attempt-specific candidates, then promotes only passing OCI digests.
 Final composition uses the dependency OCI. PR validation builds locally and
-cannot publish. Security/SBOM work keeps phase-oriented disk cleanup; disk
+cannot publish. Security/SBOM work keeps lifecycle-scoped disk cleanup; disk
 exhaustion is a failure, never a reason to skip a gate.
 
 API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.

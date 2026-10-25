@@ -13,6 +13,7 @@ components and environments, rather than their internal application commands.
 | Command | Purpose |
 | --- | --- |
 | `quality.ps1` | Repository quality wrapper. Run `./scripts/quality.ps1 -Check <check>`. |
+| `check_documentation_structure.py` | Repository-quality guard for current documentation locations and work-tracking filenames; tested by `test_documentation_structure.py`. |
 | `check_markdown_links.py` | Validates checked-in local Markdown links. Run `python scripts/check_markdown_links.py`. |
 | `check_k8s_application_manifests.py` | Validates Kubernetes application templates and rendered overlays. |
 | `check_k8s_config_ownership.py` | Validates Kubernetes env-file ownership boundaries. |

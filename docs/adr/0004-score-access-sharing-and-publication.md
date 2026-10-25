@@ -2,14 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-06-22
-- Scope: P0-1 score-domain contract
+- Scope: score-domain contract
 
 ## Context
 
-Current authorization is distributed across task dependencies, file services, share services,
-practice services, and saved-share queries. A share token directly carries `can_edit`, while
-saved shares also participate in access. Adding public scores on top of those branches would
-make permissions difficult to audit.
+Ownership, authenticated collaboration, bearer view grants, library organization and public publication are distinct policies. One server-side action policy makes their composition auditable.
 
 ## Decision
 
@@ -32,22 +29,19 @@ make permissions difficult to audit.
    may publish, republish, unpublish, or manage public policy.
 11. Editing the score head never changes public content until explicit republish.
 12. Public access is read-only. Download and practice require publication flags.
-13. No persisted `PublishedScoreView` is introduced until real discovery queries justify it.
+13. Publication reads use the publication and pinned-revision model; there is no separate discovery projection in this contract.
 
 ## Policy actions
 
 ```text
-VIEW_SCORE
-VIEW_REVISION
-EDIT_SCORE
-DOWNLOAD_REVISION_SOURCE
-DOWNLOAD_RENDER_ASSET
-PLAY_AUDIO
-START_PRACTICE
-CREATE_SHARE
+VIEW
+EDIT
+DELETE
+MANAGE_SHARING
 MANAGE_MEMBERS
-PUBLISH_SCORE
-MANAGE_SCORE
+DOWNLOAD
+PRACTICE
+PUBLISH
 ```
 
 Every endpoint enforces an action. Returned capabilities are contextual UI hints and cannot
@@ -85,14 +79,3 @@ pinned revision, never a raw share token.
 - Public routes can use optional authentication for account actions without making results or
   editor routes public.
 - The frontend receives consistent capabilities for owner/member/share/public read models.
-
-## Rejected alternatives
-
-- Add `is_public` to `Task`: rejected because job identity and public score identity differ.
-- Let a public/share token grant editing: rejected because edits require attribution,
-  explicit acceptance, and durable membership semantics.
-- Treat bookmarks as ACL rows: rejected because organization and authorization have different
-  lifecycles.
-- Add per-revision ACLs: rejected because no current product requirement varies member rights
-  by revision.
-

@@ -35,9 +35,7 @@ Score ownership, billing/quota attribution, and destructive lifecycle actions
 remain tied to the owning user unless the product later introduces ownership
 transfer.
 
-## Current Source Of Truth
+## Authority
 
-- Architecture decisions: `../adr/`
-- Historical implementation details:
-  `../archive/completed-migrations/library-domain-implementation-plan.md`
-
+[Score access policy](../adr/0004-score-access-sharing-and-publication.md) defines authorization.
+Library entries organize access without granting it.

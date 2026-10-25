@@ -37,7 +37,7 @@ Available checks:
 | `platform-admin-typecheck` | Platform Admin TypeScript type checking |
 | `platform-admin-test` | Platform Admin unit tests |
 | `platform-admin-build` | Platform Admin production build |
-| `docs-links` | Validates checked-in local Markdown links |
+| `docs-links` | Tests/enforces documentation structure and validates checked-in local Markdown links |
 | `k8s` | Kubernetes application manifest guard and release overlay renderer smoke test |
 | `observability` | Observability values guard |
 | `all` | Fast broad gate: backend ruff/mypy, customer-web lint/typecheck/i18n, platform-admin lint/typecheck/tests, K8s and observability guards |
@@ -244,3 +244,13 @@ tests. CI script path filters explicitly trigger affected image validation.
 ```sh
 uv run --project backend --locked --only-group quality python -m pytest .github/scripts -q -c backend/pyproject.toml
 ```
+
+
+## Documentation quality
+
+Run `./scripts/quality.ps1 -Check docs-links` for the same structural policy
+tests, structure check and Markdown-link validation used by Documentation Quality.
+The guard checks explicit locations and work-tracking filename suffixes; it
+does not lint prose or ban valid protocol, package, database-migration or runtime
+lifecycle terminology. Current references belong in the documented category;
+implementation outcomes belong in focused GitHub Issues.

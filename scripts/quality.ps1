@@ -149,6 +149,12 @@ function Invoke-ObservabilityManifestCheck {
 }
 
 function Invoke-DocumentationLinkCheck {
+    Invoke-Step "docs:structure-tests" {
+        python (Join-Path $PSScriptRoot "test_documentation_structure.py")
+    }
+    Invoke-Step "docs:structure" {
+        python (Join-Path $PSScriptRoot "check_documentation_structure.py")
+    }
     Invoke-Step "docs:links" {
         python (Join-Path $PSScriptRoot "check_markdown_links.py")
     }

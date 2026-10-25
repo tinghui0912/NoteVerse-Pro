@@ -31,6 +31,7 @@ or a backend PracticeSession runtime.
 | `docker/` | Runtime and quality image definitions. |
 | `docs/` | Cross-system architecture, engineering, operations, product, and security documentation. |
 | `scripts/` | Repository-level quality, release, Kubernetes, and platform automation. |
+| `.github/scripts/` | CI/CD trust, artifact identity, registry publication, and workflow policy. |
 
 ## Start here
 
@@ -53,8 +54,8 @@ Run `docs-links` after changing Markdown documentation. Backend quality runs in 
 ## Documentation and script placement
 
 - Put cross-system rules, ADRs, operations, security, and onboarding material in `docs/`.
-- Put component-owned implementation notes in `backend/docs/` or `apps/*/docs/`.
+- Put current component-owned contracts and guides in `backend/docs/` or `apps/*/docs/`.
 - Put cross-project automation in `scripts/`; put component-only tooling next to its owning component.
-- All checked-in Markdown links must be repository-relative and pass the `docs-links` check.
+- Internal Markdown links must be repository-relative and pass the `docs-links` check.
 
-The active refactoring backlog is maintained in the [Architecture Refactoring Ledger](docs/engineering/reviews/2026-08-09-architecture-refactoring-ledger.md).
+Current implementation outcomes and acceptance criteria are tracked in [GitHub Issues](https://github.com/tinghui0912/NoteVerse-Pro/issues).

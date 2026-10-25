@@ -37,5 +37,5 @@ release-scoped. Do not try to make those directories byte-for-byte identical.
 - [Production Deployment Guide](../docs/operations/deployment/production-deployment-guide.md)
 - [Kubernetes Deployment Runbook](../docs/operations/deployment/k8s-deployment-runbook.md)
 - [Kubernetes Secrets And Storage Template](../docs/operations/deployment/k8s-secrets-and-storage-template.md)
-- [GitOps Evolution Plan](../docs/operations/release/gitops-evolution-plan.md)
+- [GitOps Delivery Strategy](../docs/operations/release/gitops-delivery-strategy.md)
 - [Minikube From Zero Runbook](../docs/operations/runbooks/minikube-from-zero.md)

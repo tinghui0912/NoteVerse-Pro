@@ -87,7 +87,7 @@ reused without rebuilding. A new attempt-specific candidate passes contract,
 SPDX and Trivy gates before canonical promotion. Final Worker consumes the deps
 OCI and follows the same qualification-before-source-tag ordering. This is not
 registry-server CAS or OCI byte reproducibility. PR builds are local/read-only.
-Disk cleanup remains scoped to completed phases on ephemeral hosted runners.
+Disk cleanup remains scoped to completed lifecycle steps on ephemeral hosted runners.
 
 ## Canonical Commands
 
@@ -128,7 +128,7 @@ See [ADR 0008](../../adr/0008-backend-dependency-authority.md) for rationale.
 
 Dependency identity, shared OCI mechanics, and role-specific registry policies
 are separate CI responsibilities under `.github/scripts/`. They add no application
-dependency or service abstraction. Worker policy owns v3 deps reuse and existing
+dependency or service abstraction. Worker policy owns qualified dependency-artifact reuse and existing
 final-source refusal. API/Beat policy owns their bounded repositories and source
 canonicals, without understanding Worker keys.
 

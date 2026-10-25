@@ -190,7 +190,7 @@ The API image includes:
 - `Pillow` for account avatar processing;
 - `pianoplayer` for bounded interactive fingering generation. The API execution
   gate keeps the blocking engine off the event loop and limits concurrent work;
-  a dedicated CPU worker is a future scale decision, not a second HTTP service.
+  Worker task execution is separate from HTTP composition roots.
 
 LEGATO, PaddleOCR and worker model-cache tooling belong to worker images.
 
@@ -228,7 +228,7 @@ promotion. A key names inputs, not OCI bytes; no registry-server CAS is claimed.
 Final Worker is built from the selected dependency OCI and adds current source
 and entrypoint. Its candidate OCI passes the canonical 16-task/import contract,
 SBOM and Trivy before source-SHA promotion. Existing source tags fail closed.
-Candidates are not qualified release identities. Disk hygiene is phase scoped.
+Candidates are not qualified release identities. Disk hygiene is scoped to completed lifecycle steps.
 
 Automatic Worker PR validation resolves the public Python base, computes explicit-target dependency
 identity, builds both images locally, checks packaging, emits both SPDX SBOMs
@@ -273,7 +273,7 @@ Important Next.js config note:
 - browser-facing API and realtime traffic use same-origin `/api/v1`, with
   Gateway/HTTPRoute rules routing that path to the backend API.
 
-Recommended future build:
+Customer Web runtime build:
 
 ```bash
 docker build \
@@ -306,8 +306,7 @@ Frontend:
 - keep npm itself pinned inside Customer Web images; app-level `package.json`
   overrides do not remediate vulnerabilities in the base image's global npm
   installation;
-- keep runtime image smaller than the build image when the production Dockerfile
-  is added.
+- keep runtime image smaller than the build image as defined by the production Dockerfile.
 
 ## Artifact Promotion
 
@@ -334,18 +333,9 @@ images for critical vulnerabilities.
 Current gate:
 
 - SBOM format: SPDX JSON;
-- scanner: Trivy GitHub Action with a pinned `v*` release tag;
+- scanner: Trivy GitHub Action pinned by commit;
 - failing severity: `CRITICAL`;
 - unfixed vulnerabilities are ignored until a remediation path exists.
-
-Future CI should add:
-
-- GitHub Actions JavaScript action versions should stay on Node 24-compatible
-  majors;
-- base image digest pinning;
-- a reviewed baseline for moving from `CRITICAL` to `HIGH,CRITICAL`;
-- signed image attestations if the registry/deployment platform supports them;
-- registry retention policy for old commit images.
 
 The current GitHub Packages view is kept simple by disabling BuildKit
 provenance/SBOM attestations in `docker/build-push-action`. Without that,
@@ -375,24 +365,6 @@ CI/CD should:
 
 The public templates under `deploy/application/overlays/*` intentionally keep
 placeholder image tags. Deployable overlays must replace them.
-
-## Open Implementation Items
-
-P0 before production:
-
-- connect the pushed GHCR image digests to private staging/production overlay
-  generation;
-- record backend/Customer Web image digests in release metadata;
-- extend the environment-driven release package workflow from staging to
-  production after approval rules are finalized;
-- run strict manifest validation against private overlays.
-
-P1 hardening:
-
-- raise the vulnerability gate after the first production baseline;
-- image signing/attestation;
-- registry retention and cleanup policy;
-- preserve resolved dependency/base OCI references in release evidence.
 
 ### Backend Service Qualification Before Canonical Tags
 

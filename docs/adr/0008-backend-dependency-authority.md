@@ -63,7 +63,7 @@ Final Worker source tags refuse recomposition.
 Promotion uses `--prefer-index=false`, refuses an observed different winner,
 accepts an identical winner without repush, and verifies the canonical OCI.
 PR validation is local and read-only. Trusted publication serializes without
-cancelling active qualification. Runner disk cleanup follows completed phases.
+cancelling active qualification. Runner disk cleanup follows completed lifecycle steps.
 
 ## Boundaries
 
