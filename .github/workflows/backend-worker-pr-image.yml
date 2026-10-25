@@ -11,9 +11,12 @@ name: Backend Worker PR Image
     - docker/backend/entrypoint.sh
     - .github/workflows/backend-worker-image.yml
     - .github/workflows/backend-worker-pr-image.yml
+    - ".github/scripts/backend_*.py"
+    - ".github/scripts/test_backend_*.py"
+    - ".github/scripts/oci_publication.py"
+    - ".github/scripts/test_oci_publication.py"
 permissions:
   contents: read
-  packages: read
 concurrency:
   group: backend-worker-pr-image-${{ github.ref }}
   cancel-in-progress: true
@@ -23,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PUSH_IMAGE: 'false'
-      ML_BASE_TAG: py312-torch260-cu124-slim
       DOCKER_BUILDKIT: '1'
     steps:
     - name: Checkout repository
@@ -34,25 +36,27 @@ jobs:
       if: runner.environment == 'github-hosted'
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py initial --builder docker
-    - name: Authenticate with read-only job token
-      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Resolve existing ML Base to immutable OCI
+      run: python3 .github/scripts/backend_worker_runner_disk.py initial --builder docker
+    - name: Resolve governed Python base to immutable OCI
       id: base
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" resolve-base --repository "${IMAGE_NAMESPACE}/ml-base"
-        --tag "$ML_BASE_TAG"
-    - name: Check generated Worker lock without upgrading
-      run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python python:3.12-slim-bookworm /repo/backend/scripts/worker_lock.py
-        --repo /repo --check
-    - name: Compute Worker v2 build key
+      run: python3 .github/scripts/backend_worker_image_publication.py --output "$GITHUB_OUTPUT" resolve-base
+    - name: Select project Python for uv identity tooling
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      with:
+        python-version-file: backend/.python-version
+    - name: Set up approved uv from project authority
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      with:
+        version-file: backend/pyproject.toml
+        enable-cache: false
+        python-version: '3.12'
+    - name: Check native uv lock
+      run: cd backend && uv lock --check
+    - name: Compute Worker dependency identity
       id: key
       env:
         BASE_DIGEST: ${{ steps.base.outputs.oci_digest }}
-      run: python3 backend/scripts/worker_image_identity.py --output "$GITHUB_OUTPUT" build-key --ml-base-digest "$BASE_DIGEST"
+      run: python3 .github/scripts/backend_worker_image_identity.py --output "$GITHUB_OUTPUT" build-key --python-base-digest "$BASE_DIGEST"
     - name: Resolve unpublished local image names
       run: |-
         {
@@ -65,25 +69,23 @@ jobs:
       run: |-
         docker build --platform linux/amd64 --progress=plain -f docker/backend/Dockerfile.worker-deps \
           --build-arg "PYTHON_IMAGE=$BASE_REF" \
-          --build-arg INSTALL_PADDLE_GPU=false --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
           -t "$WORKER_DEPS_IMAGE" .
         echo "LOCAL_DEPS_ID=$(docker image inspect --format '{{.Id}}' "$WORKER_DEPS_IMAGE")" >> "$GITHUB_ENV"
     - name: Check deps final environment offline
       id: deps-contract
       env:
         DEPS_REF: ${{ env.WORKER_DEPS_IMAGE }}
-      run: |-
-        docker run --rm --network none -v "$GITHUB_WORKSPACE/backend/requirements/worker-image-py312-linux-amd64.lock:/expected.lock:ro" --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/worker_lock.py --check-installed --lock /expected.lock
-        docker run --rm --network none --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py --role worker-deps
+      run: docker run --rm --network none --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py
+        --role worker-deps
     - name: Release completed deps build cache and pulls
       env:
         DEPS_REF: ${{ env.WORKER_DEPS_IMAGE }}
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py release --builder docker --image deps
+      run: python3 .github/scripts/backend_worker_runner_disk.py release --builder docker --image deps
     - name: Prepare bounded deps SBOM temporary space
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py before-sbom --builder docker --image deps
+      run: python3 .github/scripts/backend_worker_runner_disk.py before-sbom --builder docker --image deps
     - name: Generate deps SPDX SBOM
       id: deps-sbom
       uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
@@ -92,16 +94,16 @@ jobs:
         format: spdx-json
         artifact-name: backend-worker-deps-image-sbom.spdx.json
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-sbom/tmp
+        TMPDIR: ${{ runner.temp }}/noteverse-worker/deps-sbom/tmp
     - name: Remove completed deps SBOM temporary space
       if: always() && steps.deps-sbom.outcome != 'skipped'
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py after-sbom --builder docker --image deps
+      run: python3 .github/scripts/backend_worker_runner_disk.py after-sbom --builder docker --image deps
     - name: Reclaim disk before deps vulnerability scan
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py before-scan --builder docker --image deps
+      run: python3 .github/scripts/backend_worker_runner_disk.py before-scan --builder docker --image deps
     - name: Scan deps exact artifact
       id: deps-scan
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -115,14 +117,14 @@ jobs:
         timeout: 20m
         cache: false
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/tmp
-        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/deps-scan/cache
+        TMPDIR: ${{ runner.temp }}/noteverse-worker/deps-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker/deps-scan/cache
         TRIVY_IMAGE_SRC: docker
     - name: Remove completed deps scan export/cache
       if: always() && steps.deps-scan.outcome != 'skipped'
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py after-scan --builder docker --image deps
+      run: python3 .github/scripts/backend_worker_runner_disk.py after-scan --builder docker --image deps
     - name: Build final Worker from controlled local dependency image
       run: |-
         test "$(docker image inspect --format '{{.Id}}' "$WORKER_DEPS_IMAGE")" = "$LOCAL_DEPS_ID"
@@ -139,11 +141,11 @@ jobs:
       env:
         WORKER_REF: ${{ env.WORKER_IMAGE }}
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py release --builder docker --image worker --remove-image "$WORKER_DEPS_IMAGE"
+      run: python3 .github/scripts/backend_worker_runner_disk.py release --builder docker --image worker --remove-image "$WORKER_DEPS_IMAGE"
     - name: Prepare bounded worker SBOM temporary space
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py before-sbom --builder docker --image worker
+      run: python3 .github/scripts/backend_worker_runner_disk.py before-sbom --builder docker --image worker
     - name: Generate worker SPDX SBOM
       id: worker-sbom
       uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
@@ -152,16 +154,16 @@ jobs:
         format: spdx-json
         artifact-name: backend-worker-image-sbom.spdx.json
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-sbom/tmp
+        TMPDIR: ${{ runner.temp }}/noteverse-worker/worker-sbom/tmp
     - name: Remove completed worker SBOM temporary space
       if: always() && steps.worker-sbom.outcome != 'skipped'
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py after-sbom --builder docker --image worker
+      run: python3 .github/scripts/backend_worker_runner_disk.py after-sbom --builder docker --image worker
     - name: Reclaim disk before worker vulnerability scan
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py before-scan --builder docker --image worker
+      run: python3 .github/scripts/backend_worker_runner_disk.py before-scan --builder docker --image worker
     - name: Scan worker exact artifact
       id: worker-scan
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -175,26 +177,30 @@ jobs:
         timeout: 20m
         cache: false
       env:
-        TMPDIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/tmp
-        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker-v2/worker-scan/cache
+        TMPDIR: ${{ runner.temp }}/noteverse-worker/worker-scan/tmp
+        TRIVY_CACHE_DIR: ${{ runner.temp }}/noteverse-worker/worker-scan/cache
         TRIVY_IMAGE_SRC: docker
     - name: Remove completed worker scan export/cache
       if: always() && steps.worker-scan.outcome != 'skipped'
       env:
         NOTEVERSE_EPHEMERAL_RUNNER: ${{ runner.environment }}
-      run: python3 backend/scripts/worker_image_disk.py after-scan --builder docker --image worker
+      run: python3 .github/scripts/backend_worker_runner_disk.py after-scan --builder docker --image worker
     - name: Write read-only Worker validation summary
       env:
         BASE_REF: ${{ steps.base.outputs.digest_ref }}
         BUILD_KEY: ${{ steps.key.outputs.build_key }}
       run: |-
         {
-          echo "## Worker v2 PR validation (no registry publication)"
-          echo "- ML Base immutable OCI: $BASE_REF"
-          echo "- v2 build key (input identity): $BUILD_KEY"
+          echo "## Worker PR validation (no registry publication)"
+          echo "- Python base immutable OCI: $BASE_REF"
+          echo "- Dependency build key (input identity): $BUILD_KEY"
+          echo "- Dependency canonical tag: deps-$BUILD_KEY"
           echo "- Local dependency Docker image ID: $LOCAL_DEPS_ID"
           echo "- Local final Worker Docker image ID: $LOCAL_WORKER_ID"
           echo "- Local IDs are not published OCI identities; PR event source is $GITHUB_SHA"
           echo "- Dependency/final packaging, SPDX SBOMs and unchanged CRITICAL scans passed"
-          echo "- No canonical promotion, image publication, ML Base rebuild or GPU qualification"
+          echo "- No canonical promotion, image publication, base rebuild or GPU qualification"
         } >> "$GITHUB_STEP_SUMMARY"
+env:
+  UV_PYTHON: '3.12'
+  UV_PYTHON_DOWNLOADS: never

@@ -1,4 +1,4 @@
-ARG WORKER_DEPS_IMAGE=ghcr.io/tinghui0912/noteverse/backend-worker-deps:replace-me
+ARG WORKER_DEPS_IMAGE
 
 FROM ${WORKER_DEPS_IMAGE}
 

@@ -1,19 +1,11 @@
-# Security Documents
+# Security Contracts
 
-Security documents describe product and platform security boundaries. Keep
-ordinary product behavior in `../product/`, implementation guidance in
-`../engineering/`, and incident/runbook material in `../operations/`.
+Security references define current identity, authorization and secret-handling
+boundaries. Operational incident procedures belong in `../operations/`.
 
-## Current Documents
-
-- [Codebase Simplification And Security Plan](codebase-simplification-and-security-plan.md)
 - [Control-Plane Identity Contract](control-plane-identity-contract.md)
-
-## Future Topics
-
-- authentication and session model;
-- authorization and score access grants;
-- CSRF and cookie policy;
-- object storage access control;
-- sharing, publication, and download permissions;
-- security incident response.
+- [Score Access and Secret Boundaries](score-access-contract.md)
+- [Score Access Decision](../adr/0004-score-access-sharing-and-publication.md)
+- [Structured Log Privacy](../operations/observability/log-event-schema.md)
+- [Kubernetes Secrets and Storage](../operations/deployment/k8s-secrets-and-storage-template.md)
+- [GitHub Merge Policy](../governance/github-merge-policy.md)

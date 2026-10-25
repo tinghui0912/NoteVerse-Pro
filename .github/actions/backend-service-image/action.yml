@@ -1,15 +1,15 @@
 name: Backend API or Beat image
-description: Build, check packaging, generate SBOM and scan one API/Beat artifact
+description: Build a local PR artifact or qualify a trusted candidate before canonical promotion
 inputs:
   role:
-    description: api or beat (only these two public-base artifacts)
+    description: api or beat
     required: true
   publish:
-    description: true only from a trusted publication job; credentials stay in the caller
+    description: true only from a trusted main publication job; credentials stay in the caller
     default: "false"
 outputs:
   image-ref:
-    description: Local PR tag or immutable published digest actually checked
+    description: Local PR tag or immutable candidate OCI actually qualified
     value: ${{ steps.artifact.outputs.ref }}
 runs:
   using: composite
@@ -19,17 +19,27 @@ runs:
       shell: bash
       env:
         ROLE: ${{ inputs.role }}
-        PUBLISH: ${{ inputs.publish }}
       run: |
         set -euo pipefail
         case "$ROLE" in api|beat) ;; *) exit 1 ;; esac
-        case "$PUBLISH" in true|false) ;; *) exit 1 ;; esac
         echo "repository=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse/backend-${ROLE}" >> "$GITHUB_OUTPUT"
+        echo "local_ref=noteverse-backend-${ROLE}:pr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-    - name: Build service artifact
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    - name: Refuse existing canonical or attempt candidate before mutation
+      id: plan
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      env:
+        REPOSITORY: ${{ steps.image.outputs.repository }}
+        ROLE: ${{ inputs.role }}
+      run: >-
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" plan
+        --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA"
+        --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+    - name: Build candidate only when trusted; load local image on PR
       id: build
-      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
       with:
         context: .
         file: docker/backend/Dockerfile.${{ inputs.role }}
@@ -37,41 +47,55 @@ runs:
         load: ${{ inputs.publish != 'true' }}
         provenance: false
         sbom: false
-        tags: |
-          ${{ steps.image.outputs.repository }}:${{ github.sha }}
-          ${{ steps.image.outputs.repository }}:build-${{ github.run_id }}
-    - name: Select the artifact actually being evaluated
-      id: artifact
+        tags: ${{ inputs.publish == 'true' && steps.plan.outputs.candidate_ref || steps.image.outputs.local_ref }}
+    - name: Select and explicitly pull immutable trusted candidate
+      id: trusted-artifact
+      if: ${{ inputs.publish == 'true' }}
       shell: bash
       env:
         REPOSITORY: ${{ steps.image.outputs.repository }}
-        PUBLISH: ${{ inputs.publish }}
+        ROLE: ${{ inputs.role }}
         DIGEST: ${{ steps.build.outputs.digest }}
       run: |
         set -euo pipefail
-        if [ "$PUBLISH" = true ]; then
-          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          REF="${REPOSITORY}@${DIGEST}"
-          docker pull "$REF"
-        else
-          REF="${REPOSITORY}:${GITHUB_SHA}"
-          docker image inspect "$REF" > /dev/null
-        fi
-        echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" select --repository "$REPOSITORY" --role "$ROLE" --digest "$DIGEST"
+        docker pull "${REPOSITORY}@${DIGEST}"
+    - name: Select local-only PR artifact without registry access
+      id: local-artifact
+      if: ${{ inputs.publish != 'true' }}
+      shell: bash
+      env:
+        LOCAL_REF: ${{ steps.image.outputs.local_ref }}
+      run: |
+        set -euo pipefail
+        docker image inspect "$LOCAL_REF" > /dev/null
+        echo "ref=$LOCAL_REF" >> "$GITHUB_OUTPUT"
+    - name: Select artifact for all three qualification gates
+      id: artifact
+      shell: bash
+      env:
+        REF: ${{ inputs.publish == 'true' && steps.trusted-artifact.outputs.ref || steps.local-artifact.outputs.ref }}
+      run: |
+        set -euo pipefail
+        test -n "$REF"
+        echo "ref=$REF" >> "$GITHUB_OUTPUT"
     - name: Run final image packaging contract offline
+      id: contract
       shell: bash
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
         ROLE: ${{ inputs.role }}
       run: docker run --rm --network none --entrypoint python "$IMAGE_REF" scripts/check_image_contract.py --role "$ROLE"
-    - name: Generate service SBOM
-      uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+    - name: Generate service SPDX SBOM
+      id: sbom
+      uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
       with:
         image: ${{ steps.artifact.outputs.ref }}
         format: spdx-json
         artifact-name: backend-${{ inputs.role }}-image-sbom.spdx.json
-    - name: Scan service artifact
-      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+    - name: Scan the same service artifact
+      id: scan
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
       with:
         image-ref: ${{ steps.artifact.outputs.ref }}
         vuln-type: os,library
@@ -79,16 +103,33 @@ runs:
         ignore-unfixed: true
         format: table
         exit-code: "1"
-    - name: Write image validation summary
+    - name: Promote only a fully qualified OCI to source canonical
+      id: promote
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      env:
+        REPOSITORY: ${{ steps.image.outputs.repository }}
+        ROLE: ${{ inputs.role }}
+        DIGEST: ${{ steps.build.outputs.digest }}
+        GATE_CONTRACT: ${{ steps.contract.outcome }}
+        GATE_SBOM: ${{ steps.sbom.outcome }}
+        GATE_TRIVY: ${{ steps.scan.outcome }}
+      run: >-
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" promote
+        --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA" --digest "$DIGEST"
+    - name: Write service qualification summary
       shell: bash
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
         PUBLISH: ${{ inputs.publish }}
+        CANONICAL: ${{ steps.promote.outputs.canonical_ref }}
       run: |
         {
-          echo "## Backend artifact validation"
-          echo "- Published: ${PUBLISH}"
-          echo "- Evaluated artifact: ${IMAGE_REF}"
-          echo "- GitHub event source SHA: ${GITHUB_SHA} (PR events use the synthetic merge)"
-          echo "- Offline packaging contract, SBOM and CRITICAL Trivy gate passed"
+          echo "## Backend artifact qualification"
+          echo "- Trusted publication: $PUBLISH"
+          echo "- Qualified artifact: $IMAGE_REF"
+          echo "- Qualified canonical (trusted only): $CANONICAL"
+          echo "- Source: $GITHUB_SHA (PR checkout is a synthetic merge)"
+          echo "- Offline contract, SPDX and CRITICAL Trivy passed"
+          echo "- Actions ZIP digests and OCI image digests are distinct"
         } >> "$GITHUB_STEP_SUMMARY"

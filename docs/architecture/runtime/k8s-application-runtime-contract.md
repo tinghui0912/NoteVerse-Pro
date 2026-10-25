@@ -3,9 +3,9 @@
 This document defines the Kubernetes runtime contract for NoteVerse application
 pods. It complements the observability stack documents:
 
-- `docs/operations/observability/k8s-observability-deployment-skeleton.md`
-- `docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md`
-- `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`
+- `docs/operations/observability/observability-platform.md`
+- `docs/operations/observability/logging-pipeline.md`
+- `docs/operations/observability/distributed-tracing.md`
 
 The goal is to make production deployment explicit: ports, probes, metrics,
 environment variables, runtime checks, and Prometheus discovery should be
@@ -56,7 +56,7 @@ Readiness semantics:
 
 Prometheus discovery:
 
-- expose a Service named by the future chart, for example
+- expose a Service using the configured application name, for example
   `noteverse-backend-api`;
 - attach low-cardinality labels:
   - `app.kubernetes.io/name: noteverse`;
@@ -309,8 +309,8 @@ Worker:
 
 - startup runtime checks are the current health gate;
 - failures after startup are represented through task/outbox records and logs;
-- future worker health may use a dedicated control-plane endpoint or queue
-  heartbeat metric, but should not be improvised per pod.
+- operational health uses claim/outbox progress and logs; no ad-hoc per-Pod
+  HTTP health endpoint is implied.
 
 Beat:
 
@@ -390,10 +390,9 @@ kubectl kustomize deploy/application/overlays/production
 python scripts/check_k8s_application_manifests.py
 ```
 
-Next implementation step: add a private environment overlay or CI/CD
-substitution path that injects real image tags, hosts, TLS issuer/secret names,
-Secret references, PVC names, and node scheduling labels without committing
-credentials or production endpoints to the public repository.
+Private release rendering injects environment-specific OCI references, hosts,
+TLS identities, Secret references and scheduling configuration without committing
+credentials. See `scripts/render_k8s_release_overlay.py`.
 
 Before applying private production manifests, run the strict preflight check in
 `docs/operations/deployment/k8s-production-preflight-checklist.md`.

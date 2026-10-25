@@ -218,8 +218,8 @@ the Gateway shows `PROGRAMMED=True`. Do not add `:443` to
 ## 4. Prepare External Dependencies
 
 Use local or managed-like endpoints behind stable Kubernetes Service names for
-PostgreSQL and Redis. Follow the service/EndpointSlice pattern in
-[minikube-local-k8s-runbook.md](minikube-local-k8s-runbook.md).
+PostgreSQL and Redis. Use selectorless ClusterIP Services and discovery.k8s.io/v1 EndpointSlices
+for these external endpoints; see [External endpoint and DNS checks](#external-endpoint-and-dns-checks).
 
 Use the staging S3-compatible bucket for application files. Do not use local
 PVCs for uploads, score sources, render assets, or playback assets.
@@ -409,7 +409,7 @@ kubectl kustomize build/k8s-release/minikube
 
 ## 8. Apply Application
 
-For the current local staging phase, keep worker execution in Docker Compose
+For the local staging topology, keep worker execution in Docker Compose
 and scale the K8s worker to zero:
 
 ```powershell
@@ -580,6 +580,82 @@ docker compose -f docker-compose.backend-dev.yml up worker beat
 
 The compose worker must point at the same database, Redis, S3 bucket, and model
 paths used by the minikube API.
+
+## External endpoint and DNS checks
+
+Use stable Service names for external PostgreSQL and Redis and point their
+EndpointSlices at a reachable, explicitly verified IPv4 address. Resolve and
+test connectivity from the actual node/Pod network, not only the host shell.
+The PostgreSQL and Redis firewall/listen settings must permit the intended
+cluster sources. Replace `<host-gateway-ip>` before applying this example:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-host-postgres
+  namespace: noteverse-staging
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: noteverse-host-postgres
+  namespace: noteverse-staging
+  labels:
+    kubernetes.io/service-name: noteverse-host-postgres
+addressType: IPv4
+ports:
+  - name: postgres
+    protocol: TCP
+    port: 5432
+endpoints:
+  - addresses:
+      - <host-gateway-ip>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-host-redis
+  namespace: noteverse-staging
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: noteverse-host-redis
+  namespace: noteverse-staging
+  labels:
+    kubernetes.io/service-name: noteverse-host-redis
+addressType: IPv4
+ports:
+  - name: redis
+    protocol: TCP
+    port: 6379
+endpoints:
+  - addresses:
+      - <host-gateway-ip>
+```
+
+Then use `noteverse-host-postgres.noteverse-staging.svc.cluster.local:5432`
+and `noteverse-host-redis.noteverse-staging.svc.cluster.local:6379` in the
+environment-owned Secret. Keep credentials outside manifests and Git.
+
+For DNS failures, inspect node readiness, Cilium health, CoreDNS endpoints and
+DNS lookup from a Pod on each node before debugging application code. The DNS
+Service must reach healthy endpoints cluster-wide; `internalTrafficPolicy: Local`
+can blackhole traffic on a node without CoreDNS. Inspect the existing policy
+before changing it. `scripts/minikube_bootstrap.ps1 -ApplyDnsFix` provides the
+bounded local repair. Verify CoreDNS rollout and repeat per-node lookups afterward.
+Do not substitute an unrelated CNI installation for the configured Cilium network.
 
 ## Cleanup
 

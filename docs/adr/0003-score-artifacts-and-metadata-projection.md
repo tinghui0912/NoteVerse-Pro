@@ -2,18 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-06-22
-- Updated: 2026-07-13
 - Scope: score-domain storage contract
 
 ## Context
 
-The original score-domain design used one generic score artifact concept for canonical MusicXML and
-rendered pages. That was acceptable during the first score-domain migration, but it became
-too broad once the product added external sharing, backend audio playback, asset retention,
-and stricter download permissions.
-
-Canonical source content, visual render output, playable output, and queryable metadata have
-different ownership, permissions, retention policies, and rebuild semantics.
+Canonical source content, visual render output, playable output and queryable metadata have distinct ownership, permissions, retention and rebuild semantics.
 
 ## Decision
 
@@ -65,21 +58,10 @@ jobs/{job_uuid}/{kind}/...
 
 ## Consequences
 
-- Canonical MusicXML is no longer mixed with derived images.
+- Canonical MusicXML is stored separately from derived images.
 - External sharing can play audio and show thumbnails without exposing score structure.
 - Render and playback retention can delete stale derived assets without deleting source
   history.
 - Metadata stays efficient to query and can be rebuilt independently.
 - Asset APIs and frontend types use explicit source/render/playback names instead of a generic
   artifact bucket.
-
-## Rejected alternatives
-
-- Keep one generic artifact table: rejected because source, visual, and playback payloads now
-  have different permissions and lifecycle policies.
-- Store metadata only as JSON/blob payloads: rejected because list/detail views and future
-  filtering need typed queryable fields.
-- Put import-job intermediates under score revision assets: rejected because review artifacts
-  are not durable score revisions.
-- Expose MusicXML for all external playback: rejected because playback should not imply source
-  download permission.

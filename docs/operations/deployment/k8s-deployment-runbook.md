@@ -11,10 +11,10 @@ Related documents:
 - `docs/operations/release/container-image-build-strategy.md`
 - `docs/operations/deployment/k8s-production-preflight-checklist.md`
 - `docs/operations/deployment/k8s-secrets-and-storage-template.md`
-- `docs/operations/runbooks/minikube-local-k8s-runbook.md`
-- `docs/operations/observability/k8s-observability-deployment-skeleton.md`
-- `docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md`
-- `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`
+- `docs/operations/runbooks/minikube-from-zero.md`
+- `docs/operations/observability/observability-platform.md`
+- `docs/operations/observability/logging-pipeline.md`
+- `docs/operations/observability/distributed-tracing.md`
 - `docs/engineering/guides/repository-quality-checks.md`
 
 ## Deployment Model

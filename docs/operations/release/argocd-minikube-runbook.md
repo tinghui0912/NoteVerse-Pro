@@ -218,14 +218,3 @@ promoting a previous digest-pinned release package back into
 `deploy/gitops/environments/staging`, then manually syncing again.
 
 Do not edit live Kubernetes resources by hand except for emergency recovery.
-
-## Next Hardening
-
-After manual sync is stable:
-
-- add an Argo CD `AppProject` with explicit namespace and cluster-resource
-  allowlists;
-- add a staging GitOps PR workflow;
-- add production desired state only after staging GitOps is proven;
-- evaluate ExternalSecret integration for runtime Secrets;
-- evaluate image signature verification after digest deployment is stable.

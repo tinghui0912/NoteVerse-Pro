@@ -1,9 +1,13 @@
 # Backend Scripts
 
-These scripts are owned by the backend runtime. Run them through the supported backend Docker environment unless the script explicitly documents another path.
+These executable commands are owned by backend application/runtime operations:
+diagnostics, HTTP contracts, operator administration, model assets and domain
+maintenance. Run them through the supported backend Docker environment unless
+the script explicitly documents another path.
 
 | Script | Purpose | Safety |
 | --- | --- | --- |
+| `check_image_contract.py` | Verifies backend image dependency/import composition; embedded in Worker-deps. | Offline packaging check, not deployment readiness or model/GPU qualification. |
 | `check_runtime.py` | Validates configuration and dependencies for a runtime role. | Read-only diagnostic. |
 | `export_openapi.py` | Exports or verifies versioned HTTP API contracts. | Writes generated contracts unless `--check` is used. |
 | `create_operator.py` | Creates a local platform operator. | Mutates identity data; development only. |
@@ -18,6 +22,9 @@ These scripts are owned by the backend runtime. Run them through the supported b
 
 This directory contains runtime, operations, migration and developer-operational tools.
 Backend-wide quality entry points are documented in [../README.md](../README.md).
+GitHub workflow policy, registry publication and hosted-runner lifecycle are
+owned by [CI scripts](../../.github/scripts/README.md). Cross-runtime/platform
+orchestration is owned by [repository scripts](../../scripts/README.md).
 
 Verify the Practice acoustic asset in the supported backend environment:
 

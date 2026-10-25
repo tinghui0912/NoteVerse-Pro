@@ -1,247 +1,45 @@
 # Score Invite Collaboration
 
-## Status
+## Access and lifecycle
 
-MVP implemented.
+Score ownership and authenticated membership authorize editing. Bearer share
+links authorize view/download according to their policy; they cannot grant
+editable membership. The owner manages members and targeted email invitations
+through the score collaboration surface.
 
-This document records the implemented collaboration-invite architecture and the remaining backlog. It is no longer a speculative migration plan.
+An invite has a high-entropy opaque token returned once, with only its hash
+stored in the database. Its email, requested role, issuer, expiry and lifecycle
+are server-owned. States include pending, accepted, declined, revoked and expired.
+List and management APIs do not reveal raw tokens.
 
-## Product Semantics
+`/invite/:token` presents the invitation. Login/registration preserves the return
+URL, and acceptance requires the authenticated account's normalized email to
+match. Acceptance creates/restores/upgrades membership without downgrading a
+stronger existing role, then opens `/score/:id`. Inactive invitations cannot
+authorize acceptance. Pending invite APIs also support account-scoped accept
+and decline by invite identifier.
 
-`Score` is the durable product resource.
+The owner's score UI separates collaboration management from view-only sharing.
+Capability flags control presentation, while backend action policy authorizes
+every request. An editor member does not become the quota/storage owner.
 
-Access entries are intentionally separate:
+## Delivery and notification
 
-- `/share/:token` is a lightweight bearer access link for view/download/practice according to grant flags.
-- `/invite/:token` is an authenticated membership acceptance link.
-- Editing capability comes from ownership or `ScoreMembership`, never from a public/share token.
+Creating an invitation commits its record and requests a localized transactional
+email through `dispatch_email()`. The public link origin is `FRONTEND_BASE_URL`.
+Mail delivery failure does not undo the invitation. Provider credentials and
+sender configuration are environment-owned. A Resend-backed delivery adapter
+classifies permanent provider responses separately from retryable failures.
 
-## Implemented Flow
+The notification center exposes matching pending actions separately from
+persisted outcome history. Accept/decline notify the inviter. See
+[Invitations and Notifications](notifications.md) and
+[Score Access](../security/score-access-contract.md).
 
-```text
-Owner opens /score/:id
-  -> creates collaboration invite
-  -> frontend receives raw opaque token once
-  -> collaborator opens /invite/:token
-  -> invite summary is shown
-  -> unauthenticated user logs in with returnUrl=/invite/:token?accept=1
-  -> or registers while preserving the same returnUrl
-  -> invite access is refreshed after login
-  -> invite is accepted
-  -> ScoreMembership is created/restored/upgraded
-  -> collaborator is redirected to /score/:id
-```
+## Validation boundaries
 
-## Token Design
-
-Invite and share links both use single-segment opaque `base64url` tokens.
-
-```text
-/invite/opaque_token
-/share/opaque_token
-```
-
-Rules:
-
-- Raw tokens are returned only at creation time.
-- The database stores only `sha256(token)`.
-- Business identifiers remain in database records, not in URLs.
-- Tokens do not include `.` path separators.
-- URL routing is just an entry mechanism; backend records remain the source of truth.
-
-## Backend
-
-Implemented module:
-
-```text
-backend/app/modules/score_invites/
-  __init__.py
-  dependencies.py
-  repository.py
-  router.py
-  schemas.py
-  service.py
-```
-
-Implemented data model:
-
-```text
-score_invites
-  id
-  invite_uuid
-  score_id
-  token_hash
-  email
-  role
-  status
-  created_by_user_id
-  accepted_by_user_id
-  created_at
-  expires_at
-  accepted_at
-  revoked_at
-```
-
-Implemented enum:
-
-```text
-InviteStatus
-  PENDING
-  ACCEPTED
-  REVOKED
-  EXPIRED
-```
-
-Implemented capability:
-
-```text
-ScoreAction.MANAGE_MEMBERS
-ScoreCapabilities.can_manage_members
-```
-
-Implemented APIs:
-
-```text
-GET    /api/v1/scores/{score_id}/invites
-POST   /api/v1/scores/{score_id}/invites
-POST   /api/v1/scores/{score_id}/invites/{invite_id}/revoke
-DELETE /api/v1/scores/{score_id}/invites/{invite_id}
-
-GET    /api/v1/scores/{score_id}/members
-PATCH  /api/v1/scores/{score_id}/members/{membership_id}
-DELETE /api/v1/scores/{score_id}/members/{membership_id}
-
-GET    /api/v1/invites/{token}
-POST   /api/v1/invites/{token}/accept
-```
-
-Acceptance behavior:
-
-- Requires an authenticated user.
-- Rejects missing, expired, revoked, or already accepted invites.
-- Enforces email match for every invite. Collaboration invites are email-targeted; anonymous or bearer-token access belongs to the share-link flow.
-- Creates `ScoreMembership` when absent.
-- Restores revoked membership for the same user.
-- Upgrades membership role when invite grants a stronger role.
-- Never downgrades existing membership through invite acceptance.
-
-## Frontend
-
-Implemented route:
-
-```text
-apps/customer-web/src/app/[locale]/invite/[token]/page.tsx
-```
-
-Implemented collaboration UI:
-
-```text
-apps/customer-web/src/components/score-detail/score-collaboration-dialog.tsx
-```
-
-Implemented frontend API and hooks:
-
-```text
-apps/customer-web/src/lib/api/score-invites.ts
-apps/customer-web/src/hooks/queries/use-score-queries.ts
-apps/customer-web/src/lib/query-client.ts
-apps/customer-web/src/types/api/scores.ts
-```
-
-Implemented i18n:
-
-```text
-apps/customer-web/messages/zh/scoreCollaboration.json
-apps/customer-web/messages/en/scoreCollaboration.json
-apps/customer-web/messages/zh/errors.json
-apps/customer-web/messages/en/errors.json
-```
-
-UI boundaries:
-
-- `ScoreShareDialog` remains view-only/share-link management.
-- `ScoreCollaborationDialog` owns members and collaboration invites.
-- `ScoreActions` shows collaboration only when `can_manage_members` is true.
-- `/invite/:token` is public as an entry route, but accepting requires login.
-
-## Verified
-
-```powershell
-cd apps/customer-web
-npm run typecheck
-npm run lint
-npm run test:unit -- tests/unit/query-client.test.ts
-
-cd ..
-docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
-.\scripts\backend_quality_docker.ps1 -Check ruff
-.\scripts\backend_quality_docker.ps1 -Check pytest
-```
-
-Latest manual validation:
-
-- Owner creates invite.
-- Another account opens invite link.
-- Login returns to `/invite/:token?accept=1`.
-- Login-to-register preserves the invite returnUrl.
-- Invite is accepted automatically.
-- User lands on `/score/:id`.
-- Editor member can edit.
-- Targeted email invites enqueue a localized transactional invitation email.
-- Invitation emails include plain-text and HTML bodies.
-
-## Non-Goals
-
-- No real-time collaborative editing.
-- No CRDT or operational transform.
-- No public/share token editing.
-- No route compatibility aliases.
-- No invite decline endpoint in MVP.
-
-## Email Delivery
-
-Implemented behavior:
-
-- `POST /api/v1/scores/{score_id}/invites` requires a collaborator email and enqueues an invitation email through the shared `dispatch_email()` boundary.
-- Link-only collaboration invites are intentionally not supported. Use score sharing for anonymous or restricted link access.
-- Email dispatch is best-effort after the invite record is committed; a mail queue failure is logged and does not roll back the invite.
-- The invite URL is built from `FRONTEND_BASE_URL`. This setting is required because email clients need an absolute public frontend URL.
-- The backend supports localized Chinese and English invite content through the `locale` field on the create-invite request.
-
-Email provider:
-
-- Invite email is sent through the Resend HTTP API.
-- `MAIL_DEFAULT_SENDER` must be a product-owned sender identity, for example `NoteVerse Pro <no-reply@noteverse.example>`.
-- 4xx provider responses are treated as permanent delivery failures and are not retried by the worker.
-
-Authentication verification and password-reset emails use the same
-`dispatch_email()` boundary. Their signed links are time-bounded by
-`EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS` and
-`EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS` respectively. Verification emails
-include localized plain-text and HTML bodies.
-
-Development can use a sandbox sender, but production should not use a personal mailbox.
-
-Recommended production setup:
-
-- Use a transactional email provider, such as Resend, AWS SES, SendGrid, Postmark, Mailgun, or a regional equivalent.
-- Send from a product-owned domain, for example `no-reply@noteverse.example`.
-- Configure SPF, DKIM, and DMARC for that domain.
-- Keep marketing email separate from transactional email.
-- Monitor delivery, bounces, complaints, and suppression lists.
-- Use provider API keys stored in a secret manager, not personal mailbox passwords.
-
-## Backlog
-
-Recommended next work:
-
-- Add component tests for `ScoreCollaborationDialog`.
-- Add an owner/member E2E flow once auth fixtures are stable.
-- Add component tests for invite email rendering if the template grows.
-- Consider a dedicated collaboration activity log if audit requirements grow.
-
-Deferred intentionally:
-
-- `POST /api/v1/invites/{token}/decline`
-- Real-time presence
-- Conflict resolution beyond existing revision/version handling
+Invite rule tests, query contracts, membership authorization and notification
+deduplication define deterministic behavior. A production environment separately
+verifies sender-domain configuration, deliverability and browser login/return
+behavior. Realtime co-editing is not part of this collaboration contract; score
+revision conflict detection remains authoritative for saves.

@@ -1,7 +1,6 @@
 # NoteVerse Backend Engineering Principles
 
-> Current baseline: score-domain architecture after the completed migration in
-> `../../docs/archive/completed-migrations/score-domain-architecture-migration-plan.md`.
+> Current contracts: [Architecture Index](../../docs/architecture/README.md).
 
 ## 1. Purpose
 
@@ -9,8 +8,7 @@ This document is the backend maintenance baseline for NoteVerse. It describes th
 current architecture, ownership rules, safety boundaries, migration discipline, and
 quality gates that future backend work should follow.
 
-It is not a migration plan and it is not a generic project template. It answers one
-practical question: when adding or changing backend behavior, where should the code live,
+It answers one practical question: when adding or changing backend behavior, where should the code live,
 which contracts must stay true, and what should be checked before the work is considered
 safe.
 
@@ -57,17 +55,6 @@ app/modules/
 |-- scores
 `-- storage_usage
 ```
-
-Retired task-as-score modules and contracts must not be recreated:
-
-- `modules/tasks`
-- `modules/xml`
-- `modules/shares`
-- task-owned score/file APIs
-- `TaskDetails`
-- `current_xml` / `final_xml`
-- `source=current|final`
-- saved-share-as-authorization behavior
 
 ## 3. Canonical Score Domain
 
@@ -356,29 +343,17 @@ Do not reintroduce API-local paths in Celery payloads.
 
 Alembic migrations are the schema contract.
 
-The score-domain migration is complete in the current development database. The old
-task-as-score tables and columns have been removed:
-
-- `tasks`
-- `task_steps`
-- `task_uploads`
-- `files`
-- `shares`
-- `saved_shares`
-- `practice_sessions.task_id`
-- `practice_sessions.share_token`
-- `practice_sessions.source_type`
-
-If another database still contains legacy task/share/file data, do not run straight to
-Alembic head unless the database is disposable.
-
-Development cutover sequence:
+Runtime schema changes use the checked-in Alembic stream. Verify the target
+database revision, backup/recovery needs and schema/outbox compatibility before
+applying changes. Do not treat an application rollback as a data rollback.
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
 ```
 
-This project is still in development. Prefer clearing disposable local data over keeping legacy backfill scripts alive. Cleanup migrations should fail closed when score, revision, source, render asset, share, library, or practice mappings are incomplete.
+Development databases may be disposable only when their owner explicitly treats
+them that way. Data-bearing environments require a validated upgrade/recovery
+procedure and must fail closed when durable mappings are incomplete.
 
 ## 9. Coding Standards
 
@@ -459,8 +434,7 @@ docker compose -f docker-compose.backend-dev.yml run --rm api alembic current
 docker compose -f docker-compose.backend-dev.yml run --rm api migrate
 ```
 
-Use `migrate` only when the target database is already in the correct migration state or
-is disposable. Use the safe cutover sequence for databases with legacy data.
+Verify the target database and recovery policy before running schema commands.
 
 ## 12. Quality Gates
 
@@ -483,38 +457,21 @@ For score-domain changes, add focused coverage for the relevant behavior:
 - job retry, heartbeat, stale recovery, and orphan cleanup;
 - Alembic upgrade and backfill idempotency when migrations are involved.
 
-For score-domain cleanup or regression review, run a residue search:
-
-```powershell
-rg -n "app\.modules\.(tasks|shares|xml)|app\.db\.models\.(task|share)|TaskDetails|current_xml|final_xml|source=(current|final)|tasksApi|xmlApi|sharesApi" backend\app backend\tests apps\customer-web\src apps\customer-web\tests
-```
-
-No runtime code should match that search after the completed cutover.
-
 ## 13. Documentation Rules
 
-Current docs should describe the implemented state, not a pile of historical phases.
+Repository documentation owns current contracts, architecture, procedures and
+accepted decisions. Keep component guidance here and cross-system references
+under `docs/`. Focused GitHub Issues own unfinished outcomes and acceptance
+criteria. Retrieve implementation history from Git and PR/issue history.
 
-Rules:
-
-- keep active architecture rules in current docs;
-- archive historical plans when they stop being active task boards;
-- update docs when architecture, runtime, external dependencies, storage, engine behavior,
-  or reliability rules change;
-- remove or clearly label superseded assumptions;
-- prefer concise current rules over long migration history.
-
-`docs/score-domain-architecture-migration-plan.md` remains the detailed historical record
-and completion evidence for the score-domain migration. This document is the compact
-maintenance baseline.
+Update current references when runtime, storage, dependency, engine or security
+contracts change. Validate documentation structure and local links with the root
+quality entrypoint.
 
 ## 14. Review Checklist
 
 Before finalizing backend work, check:
 
-- no new legacy imports or wrapper paths;
-- no task-as-score, current/final XML, saved-share authorization, or task-owned file
-  contracts;
 - no job ID used as a score route identity after a score exists;
 - no canonical MusicXML mutation that overwrites an existing revision source;
 - no endpoint reconstructs score permissions outside `modules/score_access`;
@@ -544,12 +501,4 @@ Backend code is usually healthy when:
 - durable files go through storage adapters;
 - workers can retry and materialize inputs across processes or machines;
 - complex runtime failures have diagnostics;
-- docs point future maintainers to the current architecture instead of old compatibility
-  paths.
-
-When a change needs explanations like "temporarily use this old path", "both names are
-fine", "this source fallback is harmless", or "we will test this later", it is probably
-creating the next round of architecture debt.
-
-
-
+- docs explain the current architecture and its owning contracts.

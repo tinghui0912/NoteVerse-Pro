@@ -9,7 +9,7 @@ Target stack:
 Kubernetes container logs -> Fluent Bit -> Loki -> Grafana Explore
 ```
 
-See `docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md` for deployment shape and label
+See `docs/operations/observability/logging-pipeline.md` for deployment shape and label
 policy.
 
 ## Query Rules
@@ -311,7 +311,7 @@ From traces to logs:
 - narrow by `request_id` or `originating_request_id` when investigating a
   specific support incident.
 
-Tracing design is documented in `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`.
+Tracing design is documented in `docs/operations/observability/distributed-tracing.md`.
 
 ## Incident Checklist
 

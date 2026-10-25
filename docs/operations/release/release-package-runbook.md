@@ -302,13 +302,3 @@ GitOps guard fails if desired state contains:
 Do not manually edit generated staging desired state except to repair the
 promotion script itself. Normal staging promotion should update this directory
 through a pull request generated from a release package.
-
-## Hardening Backlog
-
-Next production-grade improvements:
-
-- optionally fail production package generation when any input is not already a
-  digest ref;
-- sign release package artifacts or attach build provenance;
-- add production GitOps PR generation after staging GitOps promotion remains
-  stable.

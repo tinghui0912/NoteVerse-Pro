@@ -25,3 +25,5 @@ matchmaker-demo-main
 
 # Backend runtime/quality images must not include research evidence or reports.
 backend/research
+
+backend/.venv

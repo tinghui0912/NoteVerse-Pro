@@ -34,12 +34,12 @@ Planned stack:
 Reference documents:
 
 - [`docs/operations/deployment/k8s-deployment-runbook.md`](../../docs/operations/deployment/k8s-deployment-runbook.md)
-- [`docs/operations/observability/k8s-observability-deployment-skeleton.md`](../../docs/operations/observability/k8s-observability-deployment-skeleton.md)
-- [`docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md`](../../docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md)
+- [`docs/operations/observability/observability-platform.md`](../../docs/operations/observability/observability-platform.md)
+- [`docs/operations/observability/logging-pipeline.md`](../../docs/operations/observability/logging-pipeline.md)
 - [`docs/operations/observability/minikube-observability-runbook.md`](../../docs/operations/observability/minikube-observability-runbook.md)
 - [`docs/operations/observability/grafana-dashboard-requirements.md`](../../docs/operations/observability/grafana-dashboard-requirements.md)
 - [`docs/operations/observability/grafana-loki-query-runbook.md`](../../docs/operations/observability/grafana-loki-query-runbook.md)
-- [`docs/operations/observability/opentelemetry-tempo-tracing-plan.md`](../../docs/operations/observability/opentelemetry-tempo-tracing-plan.md)
+- [`docs/operations/observability/distributed-tracing.md`](../../docs/operations/observability/distributed-tracing.md)
 
 ## Files
 

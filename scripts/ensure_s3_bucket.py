@@ -106,7 +106,7 @@ def main() -> int:
         from botocore.config import Config
     except ImportError as exc:
         raise RuntimeError(
-            "boto3 is required. Install backend/requirements/storage.txt "
+            "boto3 is required. From backend/, run uv sync --locked --only-group api "
             "or run this script in a backend runtime environment."
         ) from exc
 

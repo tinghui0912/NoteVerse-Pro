@@ -128,23 +128,12 @@ These are local staging rehearsal settings, not production sizing guidance.
 Production must set resource requests, limits, retention, and PVC sizes from
 real traffic and retention goals.
 
-Current chart notes:
-
-- `grafana/tempo` currently installs successfully but Helm reports the chart as
-  deprecated. Track migration to the current Grafana-supported Tempo
-  deployment shape after the staging path is stable. Do not blindly switch to
-  `tempo-distributed` without rechecking chart metadata, because distributed
-  Tempo chart variants may also be deprecated in the active Grafana chart
-  repository.
-- `fluent/fluent-bit` currently renders with local chart metadata showing
-  `name: fluent-bit`, `version: 0.57.9`, and no `deprecated: true` flag. If a
-  Helm repository update or install warning reports deprecation in a specific
-  environment, track it the same way as Tempo: migrate to the maintained
-  official chart path or to a repository-owned DaemonSet manifest, while
-  preserving the Loki label allowlist and JSON parsing contract.
-- `grafana/loki`, `prometheus-community/kube-prometheus-stack`, and
-  `open-telemetry/opentelemetry-collector` are not marked deprecated in the
-  current local Helm metadata. Re-check this during platform upgrades.
+Chart support is an environment qualification input. Inspect pinned chart
+metadata and install warnings before use. The configured `grafana/tempo` chart
+reports deprecation; successful installation does not imply maintained upstream
+support. Do not substitute a different chart without validating storage,
+ingestion, queries and Grafana correlation. Apply the same check to Fluent Bit,
+Loki, Collector and kube-prometheus-stack while preserving parsing and label policy.
 
 ## Prerequisites
 

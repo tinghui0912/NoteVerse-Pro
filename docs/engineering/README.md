@@ -1,28 +1,13 @@
-# Engineering Documents
+# Engineering Guides
 
-Engineering documents are for developers working in the codebase.
-
-## Guides
+Developer procedures and engineering standards describe how to work on the
+current repository. Product contracts live in `../product/`, system boundaries
+in `../architecture/`, and deployment procedures in `../operations/`.
 
 - [Repository Quality Checks](guides/repository-quality-checks.md)
+- [Backend Engineering Principles](../../backend/docs/backend_engineering_principles.md)
+- [Dependency Maintenance Policy](../governance/dependency-maintenance-policy.md)
+- [GitHub Merge Policy](../governance/github-merge-policy.md)
 
-## Active Plans
-
-- [Automatic Beam v2 Plan](plans/automatic-beam-v2-plan.md)
-- [Editor Workbench Plan](plans/editor-workbench-plan.md)
-- [Import Job Reliability](plans/import-job-reliability.md)
-- [Pending Invites And Notifications Plan](plans/pending-invites-notifications-plan.md)
-- [Platform Admin First Vertical Slice Plan](plans/platform-admin-first-vertical-slice.md)
-
-Move a plan to `../archive/` after it is complete and the current behavior has
-been captured in product, architecture, operations, or security docs.
-
-## Reviews
-
-- [Backend Structured Logging Audit](reviews/backend-structured-logging-audit.md)
-- [Architecture Refactoring Ledger](reviews/2026-08-09-architecture-refactoring-ledger.md)
-
-## Testing
-
-Use this folder for future test strategy and QA plans. The current quality entry
-point is documented in [Repository Quality Checks](guides/repository-quality-checks.md).
+Track implementation outcomes and QA follow-up in GitHub Issues, with focused
+acceptance criteria. Repository guides define current procedures and invariants.

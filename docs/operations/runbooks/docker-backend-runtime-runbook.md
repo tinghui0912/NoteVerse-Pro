@@ -1,6 +1,7 @@
 # Docker Backend Runtime Runbook
 
-This is the only supported local backend runtime workflow going forward. Redis
+This is the container-based local backend runtime workflow. Native Quality/API
+development also uses the locked uv project described in the backend README. Redis
 and the database remain installed on the Windows host. Docker runs only the
 backend API, Celery worker, and Celery beat.
 
@@ -37,7 +38,6 @@ and update process.
 
 ## Files
 
-- `docker/backend/Dockerfile.ml-base`: Python 3.12 + PyTorch 2.6 CUDA wheel base image.
 - `docker/backend/Dockerfile.api`: API and migration runtime image.
 - `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
 - `docker/backend/Dockerfile.worker-deps`: shared worker dependency base image.
@@ -219,173 +219,50 @@ It must not be written to the source root.
 
 ## Build Images
 
-Build the ML base image first. It provides Python 3.12 and the PyTorch 2.6.0
-CUDA wheel for LEGATO. CUDA libraries come from the PyTorch wheel stack; the GPU
-driver is provided by the host through the NVIDIA container runtime.
+Every backend dependency image uses the same `backend/pyproject.toml` and
+`backend/uv.lock` with uv 0.13.5 and `--locked`. Dependencies live in the image
+venv at `/opt/noteverse/venv`, outside the `/app` source bind mount.
 
 ```powershell
-docker build `
-  -f docker/backend/Dockerfile.ml-base `
-  -t noteverse-ml-base:py312-torch260-cu124-slim `
-  .
-```
-
-The ML base image intentionally does not install conda, torchvision, torchaudio,
-PaddleOCR, LEGATO, or project code. Keep it as the narrow Python/PyTorch base
-contract.
-
-Then build the worker dependency image:
-
-```powershell
-docker build `
-  -f docker/backend/Dockerfile.worker-deps `
-  --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim `
-  --build-arg INSTALL_PADDLE_GPU=false `
-  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
-  -t noteverse-backend-worker-deps:dev `
-  .
-```
-
-Then build the runtime images:
-
-```powershell
-docker compose -f docker-compose.backend-dev.yml build api
-docker compose -f docker-compose.backend-dev.yml build worker
-docker compose -f docker-compose.backend-dev.yml build beat
-```
-
-If Docker cannot reach Docker Hub while resolving the base image, pre-pull the
-Python image and retry:
-
-```powershell
-docker pull python:3.12-slim-bookworm
-docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124-slim .
-docker build -f docker/backend/Dockerfile.worker-deps --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim -t noteverse-backend-worker-deps:dev .
-docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build api beat quality worker-deps
 docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
-The worker dependency image can also be overridden for local mirrors or
-preloaded images:
+Worker-deps syncs the complete Linux x86_64 CPU-Paddle Worker group directly on
+`python:3.12-slim-bookworm`. Torch 2.6.0+cu124, Paddle 3.2.0, OCR and Transformers
+are governed by the project/lock, not image-install literals. Legato source is
+cloned from the tracked manifest. Model assets remain externally mounted.
+
+For a direct local Worker build, provide the controlled dependency image:
 
 ```powershell
-$env:WORKER_DEPS_IMAGE="noteverse-backend-worker-deps:dev"
-docker compose -f docker-compose.backend-dev.yml build worker
+docker build -f docker/backend/Dockerfile.worker-deps -t noteverse-backend-worker-deps:dev .
+docker build -f docker/backend/Dockerfile.worker --build-arg WORKER_DEPS_IMAGE=noteverse-backend-worker-deps:dev -t noteverse-backend-worker:dev .
 ```
 
-An error such as `Head "https://registry-1.docker.io/...": EOF` happens before
-the project Dockerfile starts installing dependencies. Treat it as a Docker
-Desktop registry/proxy/network issue.
+Trusted Worker publication resolves the governed Python base to OCI, computes
+dependency input identity from uv's explicit-target locked Worker graph and material inputs,
+qualifies attempt-specific candidates, then promotes only passing OCI digests.
+Final composition uses the dependency OCI. PR validation builds locally and
+cannot publish. Security/SBOM work keeps lifecycle-scoped disk cleanup; disk
+exhaustion is a failure, never a reason to skip a gate.
 
-The worker Dockerfile does not install PyTorch, PaddleOCR, Transformers, or
-LEGATO dependencies manually; the selected worker dependency image is the source
-of truth for those runtime dependencies. This moves the largest filesystem
-layers into reusable base images instead of asking Docker Desktop to recreate
-them for every worker build.
+API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.
+API owns customer/control-plane/observability and migration entrypoints. Beat
+owns PostgreSQL scheduler locking and Celery, without Worker task implementations.
+Partitura is qualified through API/Quality. Worker owns render and heavy OCR/ML.
 
-CI worker dependency builds pull the selected ML base image before building:
-
-```text
-ghcr.io/<github-owner>/noteverse/ml-base:<ml-base-tag>
-```
-
-If this pull fails, run the `ML Base Image` workflow with the intended
-Python/PyTorch CUDA inputs and rerun the worker workflow. Do not point
-`Dockerfile.worker` at an ad hoc local image just to make CI pass; the published
-worker dependency image is the contract between final worker builds and
-deployment.
-
-The worker image workflow is intentionally manual. A full CUDA/PyTorch worker
-build can exceed GitHub-hosted runner disk space. If the GitHub Actions log
-contains `no space left on device` under `/var/lib/buildkit` while unpacking
-CUDA libraries, move the build to a self-hosted or larger runner instead of
-making worker builds run on every push.
-
-The API image installs API dependencies from `backend/requirements/api.txt`. It
-does not contain LEGATO source, PyTorch, PaddleOCR, old realtime practice
-alignment, or model-cache tooling. Fingering generation remains an API
-capability for now.
-
-The beat image installs scheduler dependencies from `backend/requirements/beat.txt`.
-It does not import worker task implementations; scheduled task names are sent to
-Celery by name and executed by worker pods.
-
-The worker dependency image installs worker dependencies from
-`backend/requirements/worker.txt`:
-
-- PyTorch 2.6.0 for LEGATO inference, provided by `ml-base`.
-- PaddlePaddle CPU 3.2.0 for PaddleOCR.
-- PaddleOCR. Its subprocess is capped by `PADDLEOCR_TIMEOUT_SECONDS`, while
-  `MAX_PROCESSING_TIME` controls the complete Celery pipeline deadline.
-  `CELERY_TASK_SOFT_TIME_LIMIT` provides a graceful shutdown window before
-  `CELERY_TASK_TIME_LIMIT` forcibly terminates a stuck worker process.
-- Transformers 4.54.0.
-- Accelerate and LEGATO inference helpers.
-The final worker image does not install backend test or quality tools by default.
-Core quality checks use `docker/backend/Dockerfile.quality`.
-
-Installation order is intentional:
-
-1. Core backend dependencies are installed first, excluding `paddleocr`.
-2. Python 3.12 and PyTorch CUDA wheels come from the selected ML base image.
-3. PaddlePaddle CPU is installed for PaddleOCR.
-4. `paddleocr` is installed after PaddlePaddle so it reuses the selected Paddle
-   runtime.
-
-Worker builds contain only runtime dependencies:
-
-```powershell
-docker compose -f docker-compose.backend-dev.yml build worker
-```
-
-Use the quality image for backend checks:
+Offline image contracts run the approved uv dependency check and bounded imports.
+Final Worker uses the canonical 16-task registration checker. Contracts do not
+initialize models, contact infrastructure or qualify GPU hardware. Full runtime
+readiness remains separate.
 
 ```powershell
 .\scripts\backend_quality_docker.ps1 -Check all
 ```
 
-This command runs compile, ruff, mypy, model-layer mypy, core pytest, and
-backend pytest. Worker-related tests are included unless they require the full
-production ML runtime.
-
-The worker dependency Dockerfile keeps only runtime system packages:
-
-- `fluidsynth`, `fluid-soundfont-gm`, `libfluidsynth3`, `libsndfile1`: required by score playback synthesis.
-- `ffmpeg`, `libgl1`, `libglib2.0-0`, `libgomp1`: required by image/audio/ML packages such as OpenCV, PaddleOCR, and audio processing libraries.
-- `tini`: provides correct signal handling for API, worker, and beat processes.
-
-LEGATO's upstream repository documents PyTorch 2.6.0 and notes CUDA 12.4 testing.
-The default base image therefore uses Python 3.12 and PyTorch 2.6.0 `cu124`
-wheels without conda, torchvision, torchaudio, or a CUDA base image.
-PaddleOCR intentionally uses CPU PaddlePaddle by default because PyTorch CUDA
-runtimes and PaddlePaddle GPU runtimes can require incompatible exact NVIDIA
-runtime packages in a single Python environment. This avoids an unstable
-dependency graph while keeping the expensive LEGATO inference path on GPU.
-
-PaddlePaddle GPU can be tested explicitly, but it is not the supported default
-for the worker image:
-
-```powershell
-$env:INSTALL_PADDLE_GPU="true"
-$env:PADDLE_CUDA_INDEX="cu126"
-docker compose -f docker-compose.backend-dev.yml build worker
-```
-
-Use this only when you have verified that the selected PyTorch and PaddlePaddle
-wheel sets do not conflict on CUDA runtime packages such as `nvidia-nccl-cu12`.
-
-Optional LEGATO training/evaluation dependencies such as `deepspeed`, `datasets`,
-and `wandb` are not installed by default because the application only runs
-inference. To include them:
-
-```powershell
-$env:INSTALL_LEGATO_EXTRA_DEPS="true"
-docker compose -f docker-compose.backend-dev.yml build worker
-```
-
-The ML base build is large and depends on network access. Build it once, then
-reuse the base image for normal worker development. Use the API image when you
-want to validate non-OMR/non-OCR backend code paths.
+See [Runtime Dependency Ownership](../../architecture/runtime/runtime-dependency-ownership.md)
+for exact group/source and developer command semantics.
 
 ## Start Backend Containers
 

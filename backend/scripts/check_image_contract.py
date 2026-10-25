@@ -115,8 +115,8 @@ def check_worker_dependency_imports() -> None:
 def run_contract(role: str) -> list[str]:
     if role not in ROLES:
         raise ValueError(f"Unknown image role: {role}")
-    subprocess.run([sys.executable, "-m", "pip", "check"], check=True)
-    evidence = ["pip check passed"]
+    subprocess.run(["uv", "pip", "check", "--python", sys.executable], check=True)
+    evidence = ["uv dependency check passed"]
     if role == "api":
         for module in ("app.main", "app.control_plane_main", "app.observability_main"):
             require_import(module, "app")

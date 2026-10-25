@@ -16,7 +16,7 @@ Read these documents in order:
 4. [Kubernetes Secrets And Storage Template](k8s-secrets-and-storage-template.md)
 5. [Container Image Build Strategy](../release/container-image-build-strategy.md)
 6. [CI/CD Release Strategy](../release/cicd-release-strategy.md)
-7. [Kubernetes Observability Deployment Skeleton](../observability/k8s-observability-deployment-skeleton.md)
+7. [Observability Platform](../observability/observability-platform.md)
 8. [Kubernetes Application Runtime Contract](../../architecture/runtime/k8s-application-runtime-contract.md)
 
 ## Production Target Shape

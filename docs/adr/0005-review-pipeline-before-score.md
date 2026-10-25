@@ -1,19 +1,12 @@
 # ADR 0005: Keep OCR Review In The Processing Pipeline Before Score Creation
 
-- Status: Accepted; score asset terminology updated by ADR 0003
+- Status: Accepted
 - Date: 2026-07-02
 - Scope: Review pipeline, score lifecycle, editor entry points
 
 ## Context
 
-The product handles AI/OCR music recognition, human review, editing, practice, sharing, and
-collaboration. Earlier designs treated review as a Score workspace, which meant the upload
-pipeline created a `Score` before the user confirmed the recognition result. That made review
-look like a normal Score lifecycle state and risked leaking unstable OCR output into sharing,
-collaboration, practice, and publication flows.
-
-The product is still pre-release, so the migration can be a clean cut. We do not need long-lived
-compatibility routes or fallback support for the older review-as-score model.
+OCR output requires human confirmation before it becomes a stable score. Job-scoped review and score editing therefore have separate resource and persistence boundaries.
 
 ## Decision
 
@@ -49,8 +42,6 @@ Upload
   -> /score/:scoreId/practice
 ```
 
-The old `/score/:scoreId/review` route is not retained.
-
 ## API Contract
 
 ```text
@@ -67,17 +58,6 @@ POST  /api/v1/review/{job_id}/confirm
 - Sharing, invites, practice, publication, and collaboration cannot target unconfirmed OCR output.
 - Review correction can still happen before Score creation through a job-scoped editor.
 - My Scores may show pending reviews, but they must render as job cards, not Score cards.
-- Score no longer needs a lifecycle state column for the current product model.
-- Score access capabilities no longer need review approval fields such as `can_approve`.
+- Score has no review lifecycle state column.
 - Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
   existing import notifications may include the created `score_id` for direct score navigation.
-
-## Rejected Alternatives
-
-- Create `Score(state=IN_REVIEW)` during OCR completion: rejected because it pollutes the stable
-  Score resource with unstable pipeline output.
-- Keep `/score/:scoreId/review` as a compatibility route: rejected because the project is
-  pre-release and clean routing is more valuable than compatibility.
-- Remove "Needs edit" from review entirely: rejected because users need to correct recognition
-  before creating the canonical Score; the correct implementation is a job-scoped review editor,
-  not the normal Score editor.

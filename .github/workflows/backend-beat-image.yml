@@ -12,6 +12,10 @@ on:
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
       - ".github/actions/backend-service-image/**"
+      - ".github/scripts/backend_*.py"
+      - ".github/scripts/test_backend_*.py"
+      - ".github/scripts/oci_publication.py"
+      - ".github/scripts/test_oci_publication.py"
   pull_request:
     paths:
       - "backend/**"
@@ -21,10 +25,14 @@ on:
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-beat-image.yml"
       - ".github/actions/backend-service-image/**"
+      - ".github/scripts/backend_*.py"
+      - ".github/scripts/test_backend_*.py"
+      - ".github/scripts/oci_publication.py"
+      - ".github/scripts/test_oci_publication.py"
 
 concurrency:
-  group: backend-beat-image-${{ github.ref }}
-  cancel-in-progress: true
+  group: backend-beat-image-${{ github.event_name == 'pull_request' && github.ref || 'trusted-main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

@@ -25,7 +25,6 @@ Current Dockerfiles:
 
 | File | Purpose | Production-ready |
 | --- | --- | --- |
-| `docker/backend/Dockerfile.ml-base` | Python/PyTorch CUDA wheel ML base image | yes, as a base image |
 | `docker/backend/Dockerfile.api` | FastAPI API and migration runtime image | yes |
 | `docker/backend/Dockerfile.beat` | Celery beat scheduler runtime image | yes |
 | `docker/backend/Dockerfile.worker-deps` | Shared worker dependency base image | yes, as a base image |
@@ -54,7 +53,6 @@ Recommended registry paths:
 <registry>/noteverse/backend-worker-deps
 <registry>/noteverse/backend-worker
 <registry>/noteverse/customer-web
-<registry>/noteverse/ml-base
 ```
 
 The current CI workflow uses GitHub Container Registry:
@@ -85,9 +83,6 @@ package to this repository with write permission or create:
 - `GHCR_TOKEN`: a fine-grained or classic token allowed to write packages for
   the target owner.
 
-The ML base image is a dependency for backend runtime builds, not a directly
-deployed application workload.
-
 The backend quality image is also not a deployed workload. It exists so ruff,
 mypy, pytest, and model-layer checks run in a deterministic Linux environment
 without adding development tooling to runtime images.
@@ -98,7 +93,7 @@ builds keep their separately owned contexts and use the root `.dockerignore`.
 
 ## Tagging Policy
 
-Every deployable image must have an immutable source tag:
+Qualified deployable images use source tags; OCI digests identify content:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
@@ -107,12 +102,9 @@ Every deployable image must have an immutable source tag:
 <registry>/noteverse/customer-web:<git-sha>
 ```
 
-Recommended additional metadata tags:
+Customer Web retains its separate additional metadata tag policy:
 
 ```text
-<registry>/noteverse/backend-api:build-<run-id>
-<registry>/noteverse/backend-beat:build-<run-id>
-<registry>/noteverse/backend-worker:build-<run-id>
 <registry>/noteverse/customer-web:build-<run-id>
 ```
 
@@ -167,49 +159,13 @@ Production release records should include:
 
 ## Backend Image Build
 
-### ML Base Image
+### Backend Dependency Authority
 
-`docker/backend/Dockerfile.ml-base` builds the Python/PyTorch CUDA wheel base
-image.
-
-Inputs:
-
-- `PYTHON_IMAGE`
-- `TORCH_CUDA_INDEX`
-
-Recommended build:
-
-```bash
-docker buildx build --push \
-  -f docker/backend/Dockerfile.ml-base \
-  -t <registry>/noteverse/ml-base:py312-torch260-cu124-slim \
-  .
-```
-
-Rules:
-
-- build ML base images infrequently;
-- scan and pin the base image digest;
-- update runtime images after base image changes;
-- do not install project code in the ML base image.
-
-CI entry point:
-
-- run the `ML Base Image` workflow manually when the Python/PyTorch CUDA base
-  changes or when a fresh environment does not yet have the base image in GHCR;
-- use the published `ghcr.io/<github-owner>/noteverse/ml-base:<tag>` as the
-  base input for the `Backend Worker Image` workflow.
-
-The workflow also publishes a fingerprint tag:
-
-```text
-ghcr.io/<github-owner>/noteverse/ml-base:ml-<hash>
-```
-
-The hash is derived from `Dockerfile.ml-base` plus the selected Python image and
-PyTorch CUDA wheel index. Human-readable tags such as
-`py312-torch260-cu124-slim` are convenient aliases; release records should
-still capture the resolved digest.
+All backend images use the one virtual uv project and universal lock. Each
+Docker build selects its runtime group with `uv sync --locked`; a stale pair
+fails inside the build. The immutable uv tool OCI is governed in the project.
+Worker-deps directly installs the complete Worker graph on a resolved Python
+base. See [Runtime Dependency Ownership](../../architecture/runtime/runtime-dependency-ownership.md).
 
 ### Backend API Image
 
@@ -234,15 +190,15 @@ The API image includes:
 - `Pillow` for account avatar processing;
 - `pianoplayer` for bounded interactive fingering generation. The API execution
   gate keeps the blocking engine off the event loop and limits concurrent work;
-  a dedicated CPU worker is a future scale decision, not a second HTTP service.
+  Worker task execution is separate from HTTP composition roots.
 
 LEGATO, PaddleOCR and worker model-cache tooling belong to worker images.
 
 ### Backend Beat Image
 
 `docker/backend/Dockerfile.beat` builds the deployed Celery beat scheduler image.
-It installs `backend/requirements/beat.txt`, which inherits only shared backend
-runtime infrastructure. Beat publishes scheduled task names and does not import
+It syncs only the `beat` uv group, including shared configuration, Celery/Redis
+and PostgreSQL advisory-lock capability. Beat publishes scheduled task names and does not import
 worker task implementations.
 
 Recommended beat image build:
@@ -256,89 +212,34 @@ docker build \
 
 ### Backend Worker Dependency Image
 
-`docker/backend/Dockerfile.worker-deps` builds the worker dependency base image.
-This image contains the ML runtime dependencies needed by OCR/OMR, rendering,
-playback generation, and model-cache-agent runtime checks. It does not contain
-backend application source.
+Worker-deps is the sole reusable heavy dependency artifact. It installs the
+locked `worker` group directly on the governed Python base. CPU Paddle is the
+supported target; no GPU qualification is implied. Legato source authority stays
+in the tracked execution manifest, and models are not baked into images.
 
-Inputs:
-
-- `PYTHON_IMAGE`;
-- `INSTALL_PADDLE_GPU`;
-- `INSTALL_LEGATO_EXTRA_DEPS`;
-- `PADDLE_CUDA_INDEX`;
-
-Production build rules:
-
-- `INSTALL_PADDLE_GPU=false` unless compatibility with the selected PyTorch CUDA
-  stack has been validated;
-- `INSTALL_LEGATO_EXTRA_DEPS=false` unless training/debug-only dependencies are
-  explicitly needed;
-- LEGATO source must be pinned by commit and fetched during the image build, or
-  supplied as a tracked submodule/vendor directory. Do not rely on an untracked
-  local `external/legato` directory. The Dockerfile reads its repository URL
-  and commit from the version-controlled LEGATO execution manifest.
-
-Recommended worker dependency image build:
-
-```bash
-docker build \
-  -f docker/backend/Dockerfile.worker-deps \
-  --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124-slim \
-  --build-arg INSTALL_PADDLE_GPU=false \
-  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
-  -t <registry>/noteverse/backend-worker-deps:deps-<dependency-hash> \
-  .
-```
+The manual, main-only Worker workflow resolves the Python base OCI before
+computing `deps-<64hex-build-key>`. It reuses an existing canonical OCI without
+rebuilding, or pushes an attempt-specific candidate. Offline contract, SPDX
+SBOM and exact CRITICAL Trivy gates bind to the candidate OCI before canonical
+promotion. A key names inputs, not OCI bytes; no registry-server CAS is claimed.
 
 ### Backend Worker Image
 
-`docker/backend/Dockerfile.worker` builds the deployed worker image. It inherits
-from the published `backend-worker-deps` image and contains only the backend
-application source plus the runtime entrypoint.
+Final Worker is built from the selected dependency OCI and adds current source
+and entrypoint. Its candidate OCI passes the canonical 16-task/import contract,
+SBOM and Trivy before source-SHA promotion. Existing source tags fail closed.
+Candidates are not qualified release identities. Disk hygiene is scoped to completed lifecycle steps.
 
-Recommended worker image build:
-
-```bash
-docker build \
-  -f docker/backend/Dockerfile.worker \
-  --build-arg WORKER_DEPS_IMAGE=<registry>/noteverse/backend-worker-deps:deps-<dependency-hash> \
-  -t <registry>/noteverse/backend-worker:<git-sha> \
-  .
-```
-
-The API, beat, worker, and Customer Web image workflows are split by runtime
-boundary. The `Backend Worker Image` workflow builds the worker dependency image
-and final worker image separately because they depend on the heavier ML base
-image and should be promoted deliberately.
-
-The worker workflow is manual-only. GitHub-hosted runners have limited
-ephemeral disk space and are not a reliable place to automatically unpack CUDA,
-PyTorch, PaddleOCR, Transformers, and worker runtime layers on every push. Use
-one of these production-grade options for worker publication:
-
-- run the workflow on a self-hosted Linux build runner with enough disk space;
-- use a paid larger GitHub runner with sufficient disk;
-- build and push the worker image from controlled release infrastructure.
-
-Do not make normal pull requests depend on a full worker image build. Worker
-contract tests belong in backend quality checks; the full worker image is a
-release artifact.
-
-The worker workflow pulls the selected ML base image before building
-`backend-worker-deps`, then builds the final worker from that dependency image.
-Do not let the worker build silently fall back to an unpublished local base.
+Automatic Worker PR validation resolves the public Python base, computes explicit-target dependency
+identity, builds both images locally, checks packaging, emits both SPDX SBOMs
+and runs both unchanged CRITICAL scans. It cannot push or promote.
+Trusted Worker publication is a main-only manual operation requiring explicit authorization.
 
 ### Backend Quality Image
 
-Backend quality images are non-deployed check images:
-
-- `docker/backend/Dockerfile.quality` installs
-  `backend/requirements/quality-core.txt` for compile, ruff, mypy, model-layer
-  mypy, and backend pytest.
-
-Runtime images must not install ruff, mypy, pytest, or pre-commit just to
-satisfy quality checks.
+The non-deployed Quality image syncs the `quality` uv group for Ruff, mypy,
+OpenAPI, migrations, Practice contracts and full pytest. It excludes the heavy
+Worker ML graph. Native developer commands use the default `dev` group.
 
 ## Customer Web Image Build
 
@@ -372,7 +273,7 @@ Important Next.js config note:
 - browser-facing API and realtime traffic use same-origin `/api/v1`, with
   Gateway/HTTPRoute rules routing that path to the backend API.
 
-Recommended future build:
+Customer Web runtime build:
 
 ```bash
 docker build \
@@ -393,7 +294,7 @@ Docker build args.
 
 Backend:
 
-- cache the ML base image separately;
+- reuse the qualified Worker-deps OCI by dependency build key;
 - keep Python dependency installation before application code copy;
 - avoid baking model assets into runtime images;
 - mount model assets through read-only PVCs in Kubernetes.
@@ -405,8 +306,7 @@ Frontend:
 - keep npm itself pinned inside Customer Web images; app-level `package.json`
   overrides do not remediate vulnerabilities in the base image's global npm
   installation;
-- keep runtime image smaller than the build image when the production Dockerfile
-  is added.
+- keep runtime image smaller than the build image as defined by the production Dockerfile.
 
 ## Artifact Promotion
 
@@ -433,18 +333,9 @@ images for critical vulnerabilities.
 Current gate:
 
 - SBOM format: SPDX JSON;
-- scanner: Trivy GitHub Action with a pinned `v*` release tag;
+- scanner: Trivy GitHub Action pinned by commit;
 - failing severity: `CRITICAL`;
 - unfixed vulnerabilities are ignored until a remediation path exists.
-
-Future CI should add:
-
-- GitHub Actions JavaScript action versions should stay on Node 24-compatible
-  majors;
-- base image digest pinning;
-- a reviewed baseline for moving from `CRITICAL` to `HIGH,CRITICAL`;
-- signed image attestations if the registry/deployment platform supports them;
-- registry retention policy for old commit images.
 
 The current GitHub Packages view is kept simple by disabling BuildKit
 provenance/SBOM attestations in `docker/build-push-action`. Without that,
@@ -461,8 +352,8 @@ blocked.
 CI/CD should:
 
 1. run quality gates;
-2. build or select the pinned ML base image;
-3. build backend worker image from that ML base;
+2. build or reuse qualified Worker-deps by its dependency build key;
+3. build and qualify final Worker from that dependency OCI;
 4. build backend API, backend beat, and Customer Web images with
    their dedicated image workflows;
 5. push commit SHA tags;
@@ -475,20 +366,17 @@ CI/CD should:
 The public templates under `deploy/application/overlays/*` intentionally keep
 placeholder image tags. Deployable overlays must replace them.
 
-## Open Implementation Items
+### Backend Service Qualification Before Canonical Tags
 
-P0 before production:
+Trusted API/Beat main jobs preflight source-SHA and run-attempt candidate tags,
+refusing either if present. Buildx pushes only the candidate. The selected OCI
+is explicitly pulled, checked offline, described by SPDX and scanned with
+`os,library / CRITICAL / ignore-unfixed=true / exit-code=1`. Only then may the
+shared OCI primitive attach it to the source SHA using `--prefer-index=false`,
+with exact post-attachment OCI verification. No API/Beat build-run aliases remain.
+A failed candidate stays unqualified; canonical assignment cannot precede gates.
 
-- connect the pushed GHCR image digests to private staging/production overlay
-  generation;
-- record backend/Customer Web image digests in release metadata;
-- extend the environment-driven release package workflow from staging to
-  production after approval rules are finalized;
-- run strict manifest validation against private overlays.
-
-P1 hardening:
-
-- raise the vulnerability gate after the first production baseline;
-- image signing/attestation;
-- registry retention and cleanup policy;
-- pin ML base by digest in worker builds after the first stable ML base release.
+Worker and API/Beat retain separate policy helpers over those shared mechanics.
+API and Beat PR jobs are local-only and unauthenticated to GHCR. Trusted runs
+serialize by role without cancellation; PR runs may cancel earlier validation of the same PR.
+Registry-server CAS, attestations and candidate retention remain separate concerns.

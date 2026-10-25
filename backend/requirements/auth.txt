@@ -1,5 +1,0 @@
--r core.txt
-
-# Authentication and cookie/session security.
-PyJWT[crypto]==2.15.1
-pwdlib[argon2]==0.3.1
