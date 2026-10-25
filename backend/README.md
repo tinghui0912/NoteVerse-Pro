@@ -205,19 +205,15 @@ It runs the same baseline checks for pushes and pull requests that touch
 
 ## Notes
 
-- Legacy directories such as `app/services`, `app/schemas`, and
-  `app/api/endpoints` have already been retired.
+- Business behavior and its HTTP schemas belong to the owning `app/modules/*`
+  module; ORM persistence belongs to `app/db/models/*`.
 - Email sending is dispatched through Celery rather than running on the request
   path.
-- The type-checking baseline now covers the main backend directories:
+- The application type-checking baseline covers:
   `api`, `core`, `db`, `modules`, `pipeline`, `processing`, `shared`, `utils`,
   and `worker`.
-- ORM models now live under `app/db/models/*`.
-- The centralized model layer is not yet part of the stricter passing `mypy`
-  baseline and is tracked separately as follow-up hardening work.
-- The dedicated entry point for that work is `mypy-model-layer.ini`.
-- The current runtime files that directly import ORM models are already covered
-  by that isolated model-layer check.
+- `mypy-model-layer.ini` separately checks the centralized model layer and its
+  direct runtime consumers.
 
 ## Related Docs
 
