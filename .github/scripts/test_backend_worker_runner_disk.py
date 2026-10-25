@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts import worker_image_disk as disk
+import backend_worker_runner_disk as disk
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def test_phase_reports_space_and_prunes_cache_without_removing_pr_image(runner, 
     assert runner.count(("docker", "system", "df")) == 2
     assert ("docker", "builder", "prune", "--all", "--force") in runner
     assert not any(command[:3] == ("docker", "image", "rm") for command in runner)
-    assert (tmp_path / "noteverse-worker-v3/deps-scan/tmp").is_dir()
+    assert (tmp_path / "noteverse-worker/deps-scan/tmp").is_dir()
 
 
 def test_only_explicit_completed_pulls_are_removed(runner, tmp_path):
@@ -55,7 +55,7 @@ def test_completed_scan_exports_removed_without_touching_credentials(runner, tmp
 def test_symlink_escape_fails_before_any_cleanup(runner, tmp_path):
     outside = tmp_path / "elsewhere"
     outside.mkdir()
-    (tmp_path / "noteverse-worker-v3").symlink_to(outside, target_is_directory=True)
+    (tmp_path / "noteverse-worker").symlink_to(outside, target_is_directory=True)
     with pytest.raises(ValueError, match="Unsafe"):
         disk.cleanup("before-scan", builder="docker", image="deps", remove_images=[], root=tmp_path)
     assert runner == []
@@ -69,7 +69,7 @@ def test_invalid_image_reference_fails_before_pruning(runner, tmp_path):
 
 def test_sbom_and_scan_temporary_space_are_separate(runner, tmp_path):
     disk.cleanup("before-sbom", builder="docker", image="worker", remove_images=[], root=tmp_path)
-    assert (tmp_path / "noteverse-worker-v3/worker-sbom/tmp").is_dir()
-    assert not (tmp_path / "noteverse-worker-v3/worker-scan").exists()
+    assert (tmp_path / "noteverse-worker/worker-sbom/tmp").is_dir()
+    assert not (tmp_path / "noteverse-worker/worker-scan").exists()
     disk.cleanup("after-sbom", builder="docker", image="worker", remove_images=[], root=tmp_path)
-    assert not (tmp_path / "noteverse-worker-v3/worker-sbom").exists()
+    assert not (tmp_path / "noteverse-worker/worker-sbom").exists()

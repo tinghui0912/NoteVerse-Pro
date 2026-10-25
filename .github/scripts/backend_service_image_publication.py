@@ -9,10 +9,7 @@ import re
 import subprocess
 import sys
 
-BACKEND = Path(__file__).resolve().parents[1]
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-from scripts.oci_publication import (  # noqa: E402
+from oci_publication import (
     DockerRegistry, Plan, Registry, candidate_tag, outputs, promote_qualified, validate_digest,
 )
 

@@ -2,6 +2,12 @@
 
 This folder contains automation that coordinates more than one runtime, the repository as a whole, Kubernetes, release packages, GitOps, or observability. It is not the place for app-only implementation helpers.
 
+Backend runtime/domain commands belong to
+[backend scripts](../backend/scripts/README.md). GitHub workflow trust, registry
+publication and hosted-runner policy belong to
+[CI scripts](../.github/scripts/README.md). This directory owns orchestration of
+components and environments, rather than their internal application commands.
+
 ## Supported entry points
 
 | Command | Purpose |

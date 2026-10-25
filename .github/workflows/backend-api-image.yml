@@ -12,6 +12,10 @@ on:
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-api-image.yml"
       - ".github/actions/backend-service-image/**"
+      - ".github/scripts/backend_*.py"
+      - ".github/scripts/test_backend_*.py"
+      - ".github/scripts/oci_publication.py"
+      - ".github/scripts/test_oci_publication.py"
   pull_request:
     paths:
       - "backend/**"
@@ -21,6 +25,10 @@ on:
       - "docker/backend/entrypoint.sh"
       - ".github/workflows/backend-api-image.yml"
       - ".github/actions/backend-service-image/**"
+      - ".github/scripts/backend_*.py"
+      - ".github/scripts/test_backend_*.py"
+      - ".github/scripts/oci_publication.py"
+      - ".github/scripts/test_oci_publication.py"
 
 concurrency:
   group: backend-api-image-${{ github.event_name == 'pull_request' && github.ref || 'trusted-main' }}

@@ -240,8 +240,8 @@ docker build `
 ```
 
 Worker-deps installs the locked `worker` uv group directly from the Python
-base. No separate dependency-base build is required. These local rehearsal tags
-are not trusted schema-3 canonical identities; trusted publication uses its
+base. These local rehearsal tags
+are not trusted dependency canonical identities; trusted publication uses its
 candidate/qualification/promotion workflow and records OCI references.
 
 Use a real registry route for local Kubernetes releases. Do not use

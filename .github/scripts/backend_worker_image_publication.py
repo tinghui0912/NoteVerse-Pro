@@ -8,23 +8,20 @@ import re
 import subprocess
 import sys
 
-BACKEND = Path(__file__).resolve().parents[1]
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-from scripts.oci_publication import (  # noqa: E402
+from oci_publication import (
     DockerRegistry, Plan, Registry, candidate_tag, outputs, promote_qualified, validate_digest,
 )
-from scripts.worker_image_identity import SCHEMA, project_configuration  # noqa: E402
+from backend_worker_image_identity import project_configuration
 
 REPOSITORY = re.compile(r"ghcr\.io/[a-z0-9_.-]+/noteverse/(?:backend-worker-deps|backend-worker)")
 
 
 def canonical_tag(role: str, identity: str) -> str:
     if role == "deps" and re.fullmatch(r"[a-f0-9]{64}", identity):
-        return f"deps-v{SCHEMA}-{identity}"
+        return f"deps-{identity}"
     if role == "worker" and re.fullmatch(r"[a-f0-9]{40}", identity):
         return identity
-    raise ValueError("Canonical identity must be a full v3 build key or source SHA, never a custom tag")
+    raise ValueError("Canonical identity must be a full dependency build key or source SHA")
 
 def validate_repository(repository: str) -> str:
     if not REPOSITORY.fullmatch(repository):
@@ -80,7 +77,7 @@ def check_workflow_documents(trusted: dict, pr: dict) -> None:
             raise ValueError("PR job cannot elevate permissions")
         for step in job["steps"]:
             run = step.get("run", "")
-            if re.search(r"docker\s+push\b|--push\b|imagetools\s+create\b|worker_image_publication\.py[^\n]*\bpromote\b", run):
+            if re.search(r"docker\s+push\b|--push\b|imagetools\s+create\b|backend_worker_image_publication\.py[^\n]*\bpromote\b", run):
                 raise ValueError("PR workflow cannot publish or promote")
             if "build-push-action" in step.get("uses", "") and step.get("with", {}).get("push") not in (False, "false"):
                 raise ValueError("PR action cannot push")
@@ -128,7 +125,7 @@ def check_workflow_documents(trusted: dict, pr: dict) -> None:
             if scan["env"]["TRIVY_IMAGE_SRC"] != source:
                 raise ValueError("Unexpected Worker scan source")
         commands = "\n".join(s.get("run", "") for j in document["jobs"].values() for s in j["steps"])
-        if "worker_image_disk.py before-scan" not in commands or "worker_image_disk.py after-scan" not in commands:
+        if "backend_worker_runner_disk.py before-scan" not in commands or "backend_worker_runner_disk.py after-scan" not in commands:
             raise ValueError("Worker scan disk lifecycle is required")
 
 

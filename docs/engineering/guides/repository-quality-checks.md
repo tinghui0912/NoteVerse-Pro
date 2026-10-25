@@ -111,10 +111,10 @@ Current GitHub Actions workflows:
 
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
-| `.github/workflows/backend-quality.yml` | `backend/**`, backend-quality wrappers, and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
+| `.github/workflows/backend-quality.yml` | `backend/**`, `.github/scripts/*.py`, backend-quality wrappers and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
 | `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
-| `.github/workflows/backend-worker-image.yml` | manual | Qualifies uv Worker v3 candidates before canonical promotion |
+| `.github/workflows/backend-worker-image.yml` | manual | Qualifies Worker candidates before canonical promotion |
 | `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
 | `.github/workflows/customer-web-quality.yml` | `apps/customer-web/**` and shared API constants | Customer Web lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/platform-admin-quality.yml` | `apps/platform-admin/**` | Platform Admin lint, typecheck, unit tests, production build |
@@ -233,3 +233,14 @@ uv lock --check
 ```
 
 See [Runtime Dependency Ownership](../../architecture/runtime/runtime-dependency-ownership.md).
+
+## CI Trust Checks
+
+GitHub trust and publication tests live in `.github/scripts/`. Backend Quality
+runs them as a separate pytest suite and type-checks the CI helpers at their
+real paths using backend tooling. Backend pytest remains scoped to backend-owned
+tests. CI script path filters explicitly trigger affected image validation.
+
+```sh
+uv run --project backend --locked --only-group quality python -m pytest .github/scripts -q -c backend/pyproject.toml
+```

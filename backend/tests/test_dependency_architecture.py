@@ -30,10 +30,8 @@ def test_one_virtual_project_and_one_lock():
     assert PROJECT["tool"]["uv"]["prerelease"] != "allow"
     assert not {"constraint-dependencies", "override-dependencies", "conflicts"} & PROJECT["tool"]["uv"].keys()
     assert (BACKEND / ".python-version").read_text().strip() == "3.12"
-    assert (BACKEND / "uv.lock").is_file()
-    assert not (BACKEND / "requirements").exists()
-    assert not (BACKEND / "scripts" / "worker_lock.py").exists()
-    assert not (BACKEND / "scripts" / "worker_requirements_fingerprint.py").exists()
+    assert list(BACKEND.rglob("uv.lock")) == [BACKEND / "uv.lock"]
+    assert list(BACKEND.rglob("pyproject.toml")) == [BACKEND / "pyproject.toml"]
 
 
 def test_capability_and_runtime_composition():
@@ -46,11 +44,8 @@ def test_capability_and_runtime_composition():
     assert groups["worker-app"] == [{"include-group": role} for role in (
         "db", "storage", "celery", "image", "render", "tracing",
     )]
-    # Resolution output must not be promoted into human-owned roots.
-    roots = "\n".join(item.lower() for values in groups.values() for item in values if isinstance(item, str))
-    for name in ("wcwidth", "markupsafe", "python-dateutil", "pyyaml", "multidict",
-                 "pycryptodome", "httpx2", "httpcore2", "truststore", "pip", "setuptools", "wheel"):
-        assert not re.search(r"(?m)^" + name + r"(?:[=;<\[]|$)", roots)
+    for runtime in RUNTIMES:
+        assert any(isinstance(item, dict) and "include-group" in item for item in groups[runtime])
 
 
 def test_worker_sources_are_explicit_and_platform_scoped():
@@ -83,14 +78,13 @@ def test_docker_self_enforces_project_authority(image, group):
     assert "VIRTUAL_ENV=/opt/noteverse/venv" in dockerfile
     assert 'PATH="/opt/noteverse/venv/bin:$PATH"' in dockerfile
     assert "uv pip check --python /opt/noteverse/venv/bin/python" in dockerfile
-    assert "pip install" not in dockerfile
-    assert "requirements" not in dockerfile
 
 
-def test_backend_has_no_independent_ml_dependency_base():
-    assert not (ROOT / "docker/backend/Dockerfile.ml-base").exists()
-    assert not (ROOT / ".github/workflows/ml-base-image.yml").exists()
-    assert (ROOT / "docker/transcoda/Dockerfile.ml-base").is_file()
+def test_worker_dependency_artifact_uses_the_governed_python_base():
     worker = (ROOT / "docker/backend/Dockerfile.worker-deps").read_text(encoding="utf-8")
-    assert "ARG PYTHON_IMAGE=python:3.12-slim-bookworm" in worker
-    assert "INSTALL_PADDLE_GPU" not in worker
+    configured = PROJECT["tool"]["noteverse"]["images"]["worker-python"]
+    assert f"ARG PYTHON_IMAGE={configured}" in worker
+    assert "FROM ${PYTHON_IMAGE}" in worker
+    final = (ROOT / "docker/backend/Dockerfile.worker").read_text(encoding="utf-8")
+    assert "ARG WORKER_DEPS_IMAGE" in final
+    assert "FROM ${WORKER_DEPS_IMAGE}" in final

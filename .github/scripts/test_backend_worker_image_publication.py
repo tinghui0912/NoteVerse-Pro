@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
-from scripts import worker_image_publication as identity
-from scripts import oci_publication
+import backend_worker_image_publication as identity
+import oci_publication
 
 BASE = "sha256:" + "a" * 64
 FIRST = "sha256:" + "b" * 64
@@ -27,7 +27,7 @@ class FakeRegistry:
 
 
 def test_existing_canonical_selects_reuse_without_build_or_repush():
-    canonical = REPOSITORY + ":deps-v3-" + KEY
+    canonical = REPOSITORY + ":deps-" + KEY
     registry = FakeRegistry({canonical: FIRST})
     plan = identity.plan(registry, REPOSITORY, "deps", KEY, "123", "1")
     assert plan.action == "reuse" and plan.digest_ref == REPOSITORY + "@" + FIRST
@@ -76,11 +76,11 @@ def test_qualified_candidate_promotes_exact_oci_without_wrapping():
     result = identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                               dict(contract="success", sbom="success", trivy="success"))
     assert result == "promoted-qualified-oci"
-    assert registry.writes == [(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v3-" + KEY)]
+    assert registry.writes == [(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-" + KEY)]
 
 
 def test_different_concurrent_canonical_winner_is_never_overwritten():
-    registry = FakeRegistry({REPOSITORY + ":deps-v3-" + KEY: OTHER})
+    registry = FakeRegistry({REPOSITORY + ":deps-" + KEY: OTHER})
     with pytest.raises(RuntimeError, match="never overwrite"):
         identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                          dict(contract="success", sbom="success", trivy="success"))
@@ -88,7 +88,7 @@ def test_different_concurrent_canonical_winner_is_never_overwritten():
 
 
 def test_identical_existing_winner_is_not_repushed():
-    registry = FakeRegistry({REPOSITORY + ":deps-v3-" + KEY: FIRST})
+    registry = FakeRegistry({REPOSITORY + ":deps-" + KEY: FIRST})
     assert identity.promote(registry, REPOSITORY, "deps", KEY, FIRST,
                             dict(contract="success", sbom="success", trivy="success")) == "identical-winner-without-repush"
     assert registry.writes == []
@@ -119,8 +119,8 @@ def test_registry_explicit_missing_is_absence(monkeypatch):
     assert identity.DockerRegistry().resolve(REPOSITORY + ":missing") is None
 
 
-def test_registry_incident_candidate_40108308138_missing_is_absence(monkeypatch):
-    reference = REPOSITORY + ":candidate-40108308138-1"
+def test_numeric_candidate_identifier_is_not_interpreted_as_http_status(monkeypatch):
+    reference = REPOSITORY + ":candidate-40124681012-1"
     error = "ERROR: " + reference + ": not found\n"
     monkeypatch.setattr(identity.subprocess, "run", lambda *a, **kw: SimpleNamespace(returncode=1, stderr=error))
     assert identity.DockerRegistry().resolve(reference) is None
@@ -181,7 +181,7 @@ def test_cli_rejects_custom_dependency_override():
 def test_tag_attachment_preserves_single_manifest_format(monkeypatch):
     calls = []
     monkeypatch.setattr(identity.subprocess, "run", lambda args, **kw: calls.append(args))
-    identity.DockerRegistry().attach(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-v3-" + KEY)
+    identity.DockerRegistry().attach(REPOSITORY + "@" + FIRST, REPOSITORY + ":deps-" + KEY)
     assert "--prefer-index=false" in calls[0]
     assert calls[0][-1] == REPOSITORY + "@" + FIRST
 
@@ -191,6 +191,7 @@ def test_worker_registry_mechanics_are_the_shared_primitive():
     assert identity.promote_qualified is oci_publication.promote_qualified
 
 
-def test_legacy_truncated_key_never_becomes_canonical():
+@pytest.mark.parametrize("key", ["abc", "a" * 63, "a" * 65, "A" * 64, "not-a-key"])
+def test_dependency_canonical_requires_a_full_lowercase_build_key(key):
     with pytest.raises(ValueError, match="Canonical"):
-        identity.canonical_tag("deps", "fd1036acf6cf624e")
+        identity.canonical_tag("deps", key)

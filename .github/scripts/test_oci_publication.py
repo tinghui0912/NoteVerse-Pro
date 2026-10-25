@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts import oci_publication as oci
+import oci_publication as oci
 
 REPO = "ghcr.io/tinghui0912/noteverse/backend-api"
-REF = REPO + ":candidate-40108308138-1"
+REF = REPO + ":candidate-40124681012-1"
 DIGEST = "sha256:" + "a" * 64
 OTHER = "sha256:" + "b" * 64
 
@@ -18,8 +18,8 @@ def test_exact_missing_reference_digits_are_not_status_codes(monkeypatch, refere
     assert oci.DockerRegistry().resolve(reference) is None
 
 
-def test_registry_incident_candidate_40108308138_missing_is_absence(monkeypatch):
-    reference = "ghcr.io/tinghui0912/noteverse/backend-worker-deps:candidate-40108308138-1"
+def test_numeric_candidate_identifier_is_not_interpreted_as_http_status(monkeypatch):
+    reference = "ghcr.io/tinghui0912/noteverse/backend-worker-deps:candidate-40124681012-1"
     monkeypatch.setattr(oci.subprocess, "run", lambda *a, **kw: SimpleNamespace(
         returncode=1, stderr="ERROR: " + reference + ": not found\n",
     ))

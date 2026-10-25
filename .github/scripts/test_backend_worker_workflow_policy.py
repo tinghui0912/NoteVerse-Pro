@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from scripts.worker_image_publication import check_workflow_documents
+from backend_worker_image_publication import check_workflow_documents
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def documents():
             }},
         ]
         scans.append(copy.deepcopy(steps[-2]))
-    lifecycle = {"run": "python worker_image_disk.py before-scan\npython worker_image_disk.py after-scan"}
+    lifecycle = {"run": "python backend_worker_runner_disk.py before-scan\npython backend_worker_runner_disk.py after-scan"}
     steps.append(lifecycle)
     for scan in scans:
         scan["env"]["TRIVY_IMAGE_SRC"] = "docker"

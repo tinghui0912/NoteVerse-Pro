@@ -5,11 +5,11 @@
 The backend is one virtual uv project. `backend/pyproject.toml` owns direct
 intent; `backend/uv.lock` owns exact transitive resolution. uv is pinned to
 0.13.5. Python is `>=3.12,<3.13`; `.python-version` selects 3.12. Required virtual
-project version `0.0.0` is not an application version. There is no workspace,
-secondary lock, distributable runtime package or requirements installation path.
+project version `0.0.0` is not an application version. Deployable runtime processes
+select dependency groups within this virtual project.
 
 Exact direct pins express capability ownership. Transitives belong to the
-reviewed universal lock; old independently resolved versions are not new roots.
+reviewed universal lock and satisfy their upstream metadata.
 Upstream constraints remain authoritative. Resolution upgrades are reviewed
 changes rather than ordinary build side effects.
 
@@ -66,7 +66,7 @@ No unsafe index matching or metadata override is used. Source-only `fire` and
 constraints. Build-only tools are not runtime roots.
 
 Each dependency Dockerfile copies the project/lock and runs
-`uv sync --locked --no-default-groups --only-group <runtime>` using its existing
+`uv sync --locked --no-default-groups --only-group <runtime>` using its configured
 Python interpreter. Python downloads are disabled. The environment is
 `/opt/noteverse/venv`; authority files are under `/opt/noteverse/project`.
 Stale pairs fail within Docker without a branch-protection or separate workflow
@@ -74,16 +74,15 @@ assumption. Quality additionally runs `uv lock --check`.
 The approved uv binary is copied from the single immutable OCI configured in
 the project and remains intentionally available for dependency diagnostics.
 
-Worker-deps is the sole reusable heavy dependency artifact. The v3 input key
+Worker-deps is the sole reusable heavy dependency artifact. The dependency input key
 includes the resolved Python base OCI, uv's stable locked text graph with explicit
 `--python cpython@3.12 --python-version 3.12 --python-platform x86_64-manylinux_2_36`,
 full project/lock bytes, approved tool identity, dependency recipe, embedded
 contract and Legato manifest. `uv tree` owns marker filtering; its text output is
-hashed as bytes. uv 0.13.5 `export` lacks a target flag; no custom parser or
-experimental JSON is used. Generic registry code is not a dependency-key input. The full SHA-256 key names inputs; OCI names content.
-Exports are never committed as a second lock.
+hashed as bytes. The pinned uv tool computes the explicit-target graph directly. Generic registry code is not a dependency-key input. The full SHA-256 key names inputs; OCI names content.
+The checked-in universal lock governs the complete resolution.
 
-Trusted publication plans before building. An existing `deps-v3-<key>` OCI is
+Trusted publication plans before building. An existing `deps-<64hex-build-key>` OCI is
 reused without rebuilding. A new attempt-specific candidate passes contract,
 SPDX and Trivy gates before canonical promotion. Final Worker consumes the deps
 OCI and follows the same qualification-before-source-tag ordering. This is not
@@ -128,7 +127,7 @@ See [ADR 0008](../../adr/0008-backend-dependency-authority.md) for rationale.
 ## Publication Policy Boundaries
 
 Dependency identity, shared OCI mechanics, and role-specific registry policies
-are separate CI responsibilities under backend scripts. They add no application
+are separate CI responsibilities under `.github/scripts/`. They add no application
 dependency or service abstraction. Worker policy owns v3 deps reuse and existing
 final-source refusal. API/Beat policy owns their bounded repositories and source
 canonicals, without understanding Worker keys.
@@ -145,4 +144,17 @@ qualified canonical. There are no trusted build-run aliases.
 
 PR API/Beat images use local `noteverse-backend-<role>:pr-<run>-<attempt>` tags,
 no registry planning/login/push/promotion, and contents-read permissions. Trusted
-main API and Beat runs each serialize; only superseded PR runs may cancel.
+main API and Beat runs each serialize; PR runs may cancel earlier validation of the same PR.
+
+## Script Ownership
+
+- `.github/scripts/` owns workflow policy, artifact identity, OCI publication,
+  CI evidence and ephemeral hosted-runner lifecycle. CI tests live beside policy.
+- `backend/scripts/` owns backend runtime, diagnostics, OpenAPI, operator/domain
+  maintenance and model assets. `check_image_contract.py` is a backend artifact
+  command and is embedded in Worker-deps.
+- Root `scripts/` owns repository, cross-runtime, platform and environment
+  orchestration, including Kubernetes, GitOps and release rendering/promotion.
+
+Backend Quality runs CI tests separately from backend tests and type-checks CI
+helpers at their actual repository paths using the backend tooling environment.

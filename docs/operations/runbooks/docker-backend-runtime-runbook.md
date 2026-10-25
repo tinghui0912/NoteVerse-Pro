@@ -241,7 +241,7 @@ docker build -f docker/backend/Dockerfile.worker --build-arg WORKER_DEPS_IMAGE=n
 ```
 
 Trusted Worker publication resolves the governed Python base to OCI, computes
-schema-3 input identity from uv's locked Worker export and material inputs,
+dependency input identity from uv's explicit-target locked Worker graph and material inputs,
 qualifies attempt-specific candidates, then promotes only passing OCI digests.
 Final composition uses the dependency OCI. PR validation builds locally and
 cannot publish. Security/SBOM work keeps phase-oriented disk cleanup; disk

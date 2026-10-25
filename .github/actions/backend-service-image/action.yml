@@ -34,7 +34,7 @@ runs:
         REPOSITORY: ${{ steps.image.outputs.repository }}
         ROLE: ${{ inputs.role }}
       run: >-
-        python backend/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" plan
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" plan
         --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA"
         --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
     - name: Build candidate only when trusted; load local image on PR
@@ -58,7 +58,7 @@ runs:
         DIGEST: ${{ steps.build.outputs.digest }}
       run: |
         set -euo pipefail
-        python backend/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" select --repository "$REPOSITORY" --role "$ROLE" --digest "$DIGEST"
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" select --repository "$REPOSITORY" --role "$ROLE" --digest "$DIGEST"
         docker pull "${REPOSITORY}@${DIGEST}"
     - name: Select local-only PR artifact without registry access
       id: local-artifact
@@ -115,7 +115,7 @@ runs:
         GATE_SBOM: ${{ steps.sbom.outcome }}
         GATE_TRIVY: ${{ steps.scan.outcome }}
       run: >-
-        python backend/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" promote
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" promote
         --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA" --digest "$DIGEST"
     - name: Write service qualification summary
       shell: bash

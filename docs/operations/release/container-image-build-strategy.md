@@ -218,7 +218,7 @@ supported target; no GPU qualification is implied. Legato source authority stays
 in the tracked execution manifest, and models are not baked into images.
 
 The manual, main-only Worker workflow resolves the Python base OCI before
-computing `deps-v3-<full-build-key>`. It reuses an existing canonical OCI without
+computing `deps-<64hex-build-key>`. It reuses an existing canonical OCI without
 rebuilding, or pushes an attempt-specific candidate. Offline contract, SPDX
 SBOM and exact CRITICAL Trivy gates bind to the candidate OCI before canonical
 promotion. A key names inputs, not OCI bytes; no registry-server CAS is claimed.
@@ -230,10 +230,10 @@ and entrypoint. Its candidate OCI passes the canonical 16-task/import contract,
 SBOM and Trivy before source-SHA promotion. Existing source tags fail closed.
 Candidates are not qualified release identities. Disk hygiene is phase scoped.
 
-Automatic Worker PR validation resolves the public Python base, computes v3
+Automatic Worker PR validation resolves the public Python base, computes explicit-target dependency
 identity, builds both images locally, checks packaging, emits both SPDX SBOMs
 and runs both unchanged CRITICAL scans. It cannot push or promote.
-Trusted Worker publication requires separate authorization after merge.
+Trusted Worker publication is a main-only manual operation requiring explicit authorization.
 
 ### Backend Quality Image
 
@@ -294,7 +294,7 @@ Docker build args.
 
 Backend:
 
-- reuse the qualified Worker-deps OCI by schema-3 input key;
+- reuse the qualified Worker-deps OCI by dependency build key;
 - keep Python dependency installation before application code copy;
 - avoid baking model assets into runtime images;
 - mount model assets through read-only PVCs in Kubernetes.
@@ -362,7 +362,7 @@ blocked.
 CI/CD should:
 
 1. run quality gates;
-2. build or reuse qualified Worker-deps by its schema-3 key;
+2. build or reuse qualified Worker-deps by its dependency build key;
 3. build and qualify final Worker from that dependency OCI;
 4. build backend API, backend beat, and Customer Web images with
    their dedicated image workflows;
@@ -406,5 +406,5 @@ A failed candidate stays unqualified; canonical assignment cannot precede gates.
 
 Worker and API/Beat retain separate policy helpers over those shared mechanics.
 API and Beat PR jobs are local-only and unauthenticated to GHCR. Trusted runs
-serialize by role without cancellation; PR runs may cancel superseded validation.
+serialize by role without cancellation; PR runs may cancel earlier validation of the same PR.
 Registry-server CAS, attestations and candidate retention remain separate concerns.

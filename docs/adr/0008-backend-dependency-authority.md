@@ -2,87 +2,73 @@
 
 Status: Accepted
 
-## Context
+## Context and Rationale
 
-The backend is one modular monolith with overlapping capabilities and several
-runtime processes. Independently resolved runtime environments allowed transitive
-drift. Separate source/lock checks did not make image builds self-enforcing.
-The project is pre-release: maintaining two architectures would add cost without
-a compatibility need.
+The backend is one modular monolith with shared capabilities and several runtime
+processes. One dependency authority keeps direct intent, upstream constraints and
+transitive resolution coherent. Deployable processes are dependency compositions,
+not separate Python packages.
 
-Historical transitive versions are evidence, not dependency ownership. A historical
-API selected PyYAML 6.0.3, while PaddleX 3.7.2 requires exactly 6.0.2. PyYAML is
-not NoteVerse-owned. Universal convergence follows direct declarations, upstream
-metadata, uv's resolver and the reviewed lock, rather than preserving old drift
-with overrides, fake roots or artificial group conflicts.
+## Dependency Authority
 
-## Decision
+`backend/pyproject.toml` is the virtual/non-package project's direct dependency,
+source and build configuration. `backend/uv.lock` is its universal resolution.
+uv is pinned to 0.13.5 and Python to the 3.12 line. Virtual-project version
+`0.0.0` is project metadata, not an application release version.
 
-Use one virtual/non-package project under `backend/`. `pyproject.toml` owns exact
-direct intent; `uv.lock` owns the exact universal resolution. Pin uv to 0.13.5
-and Python to the 3.12 line. Project version `0.0.0` is required virtual-project
-metadata, not an application/release version. Introduce no Python build backend.
+PEP 735 capability groups express ownership. Nested runtime groups select API,
+Beat, Worker application, complete Worker and Quality environments. The default
+developer group selects Quality. Transitive versions follow direct declarations,
+upstream metadata, uv resolution and the reviewed lock.
 
-PEP 735 capability groups compose API, Beat, Worker application, full Worker,
-Quality and default developer environments. Deployable processes are not separate
-Python packages. No workspace is justified without a real package boundary.
-Runtime groups remain independently installable from the same lock.
+Stable releases are preferred. Prerelease eligibility is bounded to the direct
+OpenTelemetry instrumentation beta and its upstream-required beta family.
+First-index resolution is enforced. Only Torch uses the explicit CUDA 12.4
+index; CPU Paddle uses the approved CPython 3.12 Linux wheel. Heavy Worker roots
+are Linux x86_64-scoped. Source-only `fire` and `zss` use isolated PEP 517 builds
+with exact hashed build constraints. Build tooling is distinct from runtime
+dependency ownership.
 
-Docker copies the project/lock into `/opt/noteverse/project` and runs
-`uv sync --locked` into `/opt/noteverse/venv`. Stale pairs fail inside the build,
-independent of workflows or branch protection. Python downloads are disabled.
-The approved uv binary is copied from one immutable OCI reference and remains
-for offline dependency integrity checks against the active interpreter.
+## Docker and Artifact Identity
 
-Stable candidates are preferred. Prerelease eligibility is bounded to the direct
-OpenTelemetry beta instrumentation and its upstream-required beta family. Secure
-first-index behavior remains. Only Torch uses the explicit CUDA 12.4 index;
-CPU Paddle uses its approved CPython 3.12 Linux wheel. Heavy Worker roots are
-Linux x86_64 only, without restricting ordinary development to Linux.
+Docker copies the project and lock into `/opt/noteverse/project` and performs
+role-specific `uv sync --locked` into `/opt/noteverse/venv`. Stale authority pairs
+fail inside the build. Python downloads are disabled. The immutable uv OCI
+supplies installation and offline dependency integrity checks.
 
-Build-only tools are not application ownership. Source-only production packages
-`fire` and `zss` use isolated setuptools PEP 517 builds, with exact hashed build
-constraints enforced by stable uv. Do not disable build isolation globally.
+Worker-deps is the reusable heavy dependency artifact. Its build key binds the
+full project and lock, resolved Python base OCI, immutable uv tool identity,
+dependency recipe, embedded packaging contract, Legato authority and identity
+algorithm. uv's locked text tree supplies the resolution representation with
+explicit CPython 3.12 and Linux x86_64/manylinux 2.36 targets. uv interprets
+markers; the representation is hashed directly. The identity type is
+`noteverse-worker-deps`; its canonical tag is `deps-<64hex-build-key>`.
+A build key identifies governed inputs. An OCI digest identifies content.
 
-Worker-deps becomes the sole reusable heavy dependency image, directly on a
-resolved Python base OCI. Schema 3 identity hashes uv's stable locked text graph with explicit CPython
-3.12 and Linux x86_64/manylinux 2.36 targets, full project/lock bytes, resolved
-Python base, uv tool identity, dependency recipe, embedded contract and Legato
-authority. uv 0.13.5 export has no target switch; native target-filtered tree
-output supplies the representation without experimental JSON or hand marker parsing. It excludes final application payload.
-A build key names inputs; an OCI digest names content. Trusted publication keeps
-candidate-first gates, first-build-wins dependency reuse and immutable composition. Dependency identity
-code is separate from Worker-specific registry policy. API/Beat and Worker use
-one CI-only OCI primitive for semantic absence, digest checks and exact promotion;
-registry-policy edits do not invalidate dependency keys.
-PR validation is local/read-only. New trusted v3 qualification follows merge.
-Previously qualified v2 artifacts remain historical evidence, never fallback inputs.
+## Publication Trust
 
-## Rejected Alternatives
+CI policy lives under `.github/scripts/`, separate from backend runtime commands
+and repository/platform orchestration. Shared OCI mechanics implement semantic
+manifest absence, digest validation, qualified attachment and exact verification.
+Separate service and Worker policies own their bounded repositories and canonical
+rules. Registry policy code is outside the Worker dependency key.
 
-1. Capability text inputs plus generated per-role locks retain custom parsers and
-   source/lock binding that native locked sync already owns.
-2. uv plus requirements compatibility creates two authorities and ambiguous commands.
-3. One project/lock per runtime preserves unnecessary transitive divergence.
-4. A workspace without package boundaries confuses deployments with packages.
-5. Keeping a custom Worker lock leaves the heavy runtime outside the same authority.
-6. Keeping Torch ownership in a separate backend base Dockerfile splits the graph.
+API and Beat trusted publication refuses existing source/candidate tags, pushes
+only an attempt-specific candidate, pulls its exact OCI, and runs offline contract,
+SPDX and CRITICAL Trivy gates before source-SHA promotion. Worker reuses an
+existing qualified dependency key or qualifies a dependency candidate, then builds
+the final candidate from the exact dependency OCI and applies the same gates.
+Final Worker source tags refuse recomposition.
 
-## Consequences and Boundaries
+Promotion uses `--prefer-index=false`, refuses an observed different winner,
+accepts an identical winner without repush, and verifies the canonical OCI.
+PR validation is local and read-only. Trusted publication serializes without
+cancelling active qualification. Runner disk cleanup follows completed phases.
 
-Delete the legacy dependency files, custom lock/fingerprint code and independent
-backend ML dependency-base recipe/workflow. No compatibility path remains.
-Superseded PRs #140/#141 preserve their historical evidence without being merged.
-The runtime ownership document describes only the resulting architecture.
+## Boundaries
 
-This does not claim OCI byte reproducibility, OS locking, registry-server CAS,
-attestations, GPU/model readiness or base-image reproducibility. Python 3.14, Redis 8, TypeScript 7,
-candidate retention, release-set governance and container hardening remain separate.
-
-API/Beat trusted main publication also plans before mutation, pushes only an
-attempt-specific candidate, pulls its immutable OCI, runs offline packaging,
-SPDX and CRITICAL Trivy, then attaches the same OCI to its source-SHA canonical.
-Existing canonical/candidate tags fail preflight. Promotion refuses an observed
-different winner, accepts an identical winner without repush, and verifies exact
-OCI preservation. PRs remain local-only; trusted runs serialize without cancelling.
-This ordering is the main publication behavior, not a transitional hold.
+Packaging contracts establish dependency/import composition without production
+infrastructure, model initialization or GPU hardware. They are not deployment
+readiness. Registry-server CAS, OCI byte reproducibility, OCI-native attestations,
+OS package locking, base-image reproducibility and candidate retention are
+separate concerns.

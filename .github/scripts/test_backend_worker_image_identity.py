@@ -1,12 +1,12 @@
 from pathlib import Path
-import shutil
+import re
 from types import SimpleNamespace
 
 import pytest
 
-from scripts import worker_image_identity as identity
+import backend_worker_image_identity as identity
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 BASE = "sha256:" + "a" * 64
 FIRST = "sha256:" + "b" * 64
 OTHER = "sha256:" + "c" * 64
@@ -16,23 +16,20 @@ KEY = "d" * 64
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    monkeypatch.setattr(identity, "worker_resolution", lambda _: b"locked uv export --hash=sha256:abc\n")
+    monkeypatch.setattr(identity, "worker_resolution", lambda _: b"locked Worker target graph\n")
     for path in identity.IDENTITY_INPUTS:
         target = tmp_path / path
         if target.exists():
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Fixture source bytes are not needed from a repository .github mount.
-        source = ROOT / path.removeprefix("backend/") if path.startswith("backend/") else None
-        target.write_bytes(source.read_bytes() if source and source.exists() else b"fixture Dockerfile bytes\n")
-    shutil.copyfile(ROOT / "pyproject.toml", tmp_path / "backend/pyproject.toml")
+        target.write_bytes((ROOT / path).read_bytes())
     return tmp_path
 
 
-def test_same_governed_inputs_produce_same_v3_build_key(repo):
+def test_same_governed_inputs_produce_same_dependency_build_key(repo):
     first = identity.build_identity(repo, BASE)
     assert first == identity.build_identity(repo, BASE)
-    assert first["key_tag"] == "deps-v3-" + first["build_key"]
+    assert first["key_tag"] == "deps-" + first["build_key"]
     assert len(first["build_key"]) == 64
     assert "resolved_python_base_oci_digest" in first["document"]
 
@@ -124,11 +121,17 @@ def test_resolved_base_digest_changes_key_even_when_alias_is_unchanged(repo):
     assert identity.build_identity(repo, BASE)["build_key"] != identity.build_identity(repo, OTHER)["build_key"]
 
 
-def test_legacy_namespace_cannot_be_emitted(repo):
-    assert identity.build_identity(repo, BASE)["key_tag"].startswith("deps-v3-")
-    for schema in (1, 2):
-        with pytest.raises(ValueError, match="Legacy"):
-            identity.build_identity(repo, BASE, schema=schema)
+def test_dependency_identity_describes_its_current_artifact_inputs(repo):
+    result = identity.build_identity(repo, BASE)
+    assert re.fullmatch(r"deps-[a-f0-9]{64}", result["key_tag"])
+    assert set(result) == {"build_key", "key_tag", "resolution_sha256", "document"}
+    document = result["document"]
+    assert document["identity_type"] == "noteverse-worker-deps"
+    assert set(document) == {
+        "identity_type", "target_platform", "python", "uv_target", "resolution_format",
+        "resolved_python_base_oci_digest", "worker_resolution_sha256",
+        "uv_required_version", "uv_tool_image", "inputs",
+    }
 
 
 @pytest.mark.parametrize("value", ["sha256:abc", "sha256:" + "A" * 64, "md5:" + "a" * 32, BASE + "\n", "latest"])
@@ -157,7 +160,7 @@ def test_caller_host_cannot_change_target_resolution(repo, monkeypatch, host, ma
     assert identity.worker_resolution(repo) == graph
 
 
-@pytest.mark.parametrize("path", ["backend/scripts/oci_publication.py", "backend/scripts/worker_image_publication.py", "backend/scripts/backend_service_image_publication.py"])
+@pytest.mark.parametrize("path", [".github/scripts/oci_publication.py", ".github/scripts/backend_worker_image_publication.py", ".github/scripts/backend_service_image_publication.py"])
 def test_registry_policy_changes_do_not_change_dependency_key(repo, path):
     before = identity.build_identity(repo, BASE)
     policy = repo / path

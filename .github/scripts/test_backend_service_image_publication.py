@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from scripts import backend_service_image_publication as service
-from scripts import oci_publication as oci
+import backend_service_image_publication as service
+import oci_publication as oci
 
 SOURCE = "a" * 40
 FIRST = "sha256:" + "b" * 64
@@ -37,11 +37,11 @@ def artifact(request):
 
 def test_absent_canonical_and_attempt_candidate_build(artifact):
     role, repo = artifact
-    result = service.plan(Registry(), repo, role, SOURCE, "40108308138", "1")
+    result = service.plan(Registry(), repo, role, SOURCE, "40124681012", "1")
     assert result.action == "build"
     assert result.canonical_ref == repo + ":" + SOURCE
-    assert result.candidate_ref == repo + ":candidate-40108308138-1"
-    assert oci.candidate_tag("40108308138", "2") != "candidate-40108308138-1"
+    assert result.candidate_ref == repo + ":candidate-40124681012-1"
+    assert oci.candidate_tag("40124681012", "2") != "candidate-40124681012-1"
 
 
 def test_existing_source_canonical_refuses_even_identical_candidate(artifact):

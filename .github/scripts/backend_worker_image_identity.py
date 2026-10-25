@@ -1,4 +1,4 @@
-"""Worker-deps v3 artifact inputs and uv-owned explicit-target resolution only."""
+"""Worker dependency artifact inputs and uv-owned explicit-target resolution."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tomllib
 
-SCHEMA = 3
 PLATFORM = "linux/amd64"
 UV_PLATFORM = "x86_64-manylinux_2_36"
 PYTHON = "3.12"
@@ -19,7 +18,7 @@ IDENTITY_INPUTS = (
     "backend/pyproject.toml",
     "backend/uv.lock",
     "docker/backend/Dockerfile.worker-deps",
-    "backend/scripts/worker_image_identity.py",
+    ".github/scripts/backend_worker_image_identity.py",
     "backend/scripts/check_image_contract.py",
     "backend/app/processing/engines/omr/legato_manifest.py",
 )
@@ -52,10 +51,9 @@ def project_configuration(repo: Path) -> dict:
 
 
 def worker_resolution(repo: Path) -> bytes:
-    """Export the locked target graph with stable uv; never interpret markers here.
+    """Return uv's locked explicit-target text graph without interpreting markers.
 
-    uv 0.13.5 export has no target switch. Its stable text tree does, while
-    JSON output is experimental. Full uv.lock bytes separately bind all hashes.
+    The full uv.lock bytes separately bind all installable artifact hashes.
     """
     config = project_configuration(repo)
     version = config["tool"]["uv"]["required-version"].removeprefix("==")
@@ -74,13 +72,11 @@ def worker_resolution(repo: Path) -> bytes:
     return result.stdout
 
 
-def build_identity(repo: Path, python_base_digest: str, *, schema: int = SCHEMA) -> dict:
+def build_identity(repo: Path, python_base_digest: str) -> dict:
     validate_digest(python_base_digest)
-    if schema < 3:
-        raise ValueError("Legacy identity cannot be emitted by the uv v3 helper")
     config = project_configuration(repo)
     document = {
-        "schema": f"noteverse-worker-deps-v{schema}",
+        "identity_type": "noteverse-worker-deps",
         "target_platform": PLATFORM,
         "python": PYTHON,
         "uv_target": UV_PLATFORM,
@@ -93,7 +89,7 @@ def build_identity(repo: Path, python_base_digest: str, *, schema: int = SCHEMA)
     }
     serialized = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     key = hashlib.sha256(serialized.encode("ascii")).hexdigest()
-    return {"schema": schema, "build_key": key, "key_tag": f"deps-v{schema}-{key}",
+    return {"build_key": key, "key_tag": f"deps-{key}",
             "resolution_sha256": document["worker_resolution_sha256"], "document": document}
 
 
@@ -109,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         result = build_identity(args.repo, args.python_base_digest)
         if args.output:
             with args.output.open("a", encoding="utf-8", newline="\n") as stream:
-                for name in ("schema", "build_key", "key_tag", "resolution_sha256"):
+                for name in ("build_key", "key_tag", "resolution_sha256"):
                     stream.write(f"{name}={result[name]}\n")
         print(json.dumps(result, sort_keys=True))
     except (ValueError, OSError, subprocess.CalledProcessError) as exc:
