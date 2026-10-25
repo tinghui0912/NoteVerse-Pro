@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completedTruth, finality } from './__fixtures__/continuous-truth';
+import { completedEvaluationFixture, finality } from './__fixtures__/continuous-evaluation';
 import {
   mediaTimeToPerformanceTimeMs,
   completedPerformanceStore,
@@ -34,7 +34,7 @@ describe('CompletedPerformanceStore', () => {
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 4000,
-      evaluation: completedTruth(),
+      evaluation: completedEvaluationFixture('MICROPHONE'),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -87,8 +87,8 @@ describe('CompletedPerformanceStore', () => {
       },
       inputSource: 'MIDI',
       activeElapsedMs: 4000,
-      evaluation: completedTruth([{ groupId: 'group-1', performanceTimeMs: 0, verdict: 'CORRECT',
-        strikes: [corruptStrike], wrongObservations: [], evidenceObservationIds: [], finality }]),
+      evaluation: completedEvaluationFixture('MIDI', [{ groupId: 'group-1', performanceTimeMs: 0, state: 'FINALIZED',
+        strikes: [corruptStrike], residualObservations: [], finality }]),
       media: { status: 'UNAVAILABLE', reason: 'NONE' },
       recordingTimebase: {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 }],

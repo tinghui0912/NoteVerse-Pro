@@ -1,5 +1,7 @@
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
-import type { CompletedContinuousEvaluation, ContinuousEvaluationSnapshot, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { PerformanceClockRuntime, PerformanceTimeline, type PerformanceClockRuntimeOptions, type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import { createLocalSessionId, type LocalPracticeCompletionReason, type PracticeInputSource } from '@/lib/practice/kernel/session';
@@ -83,6 +85,7 @@ export class ContinuousPracticeSession {
       timeline: new PerformanceTimeline(options.artifact, this.tempoPlan.segments),
       scope: options.scope,
       sessionDomainId: this.clock.timebase.domainId,
+      inputSource: this.inputSource,
     });
   }
 

@@ -33,8 +33,10 @@ their own modules. Renderer note IDs are projected by `score-view/cursor-scope.t
 
 `step/domain/` owns attempts, verdict policy, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
-and Continuous snapshots. Its `evaluation/` owns assignment, observations,
-finalization and the completed evaluation projection. The two mode domains do not
+and Continuous snapshots. Its `evaluation/` separates immutable evidence,
+source-blind assignment/finality, and source-specific interpretation. The evaluation
+session composes these layers; `continuous/review-summary.ts` projects learner-facing
+counts from interpretation. The two mode domains do not
 depend on one another. Consumers import concrete owner modules directly.
 
 The performance clock owns transport coordinates and accepts an established
@@ -154,7 +156,7 @@ The model is `practice-acoustic-robust-browser@v1`, delivered through
 records its byte size, SHA256, decoder and resource bounds. Source adapters accept
 44.1kHz and 48kHz. Window inputs require real context; missing PCM is not padded.
 Input regions include overlapping context, while acoustic owned regions authorize
-observation publication. Window width does not define verdict finalization.
+observation publication. Window width does not define assignment finalization.
 
 `practice/acoustic/continuous` projects source observations into performance time
 and publishes `ContinuousEvidencePublication` through the session. Paused context
@@ -162,32 +164,86 @@ does not extend performance duration or evaluation coverage. At pause T coverage
 remains below T. Stop/natural completion drains real tail context and outstanding
 analysis, then publishes empty exact-T coverage for the completed `[0,T)` domain.
 
-## Continuous Evaluation Truth
+## Continuous Evidence, Assignment and Interpretation
 
-A performance has one accumulated evaluation truth. MIDI publishes each NOTE_ON
-independently. Its 250ms delivery grace is a coverage-publication policy. MIDI and
-microphone publications feed the same deterministic evaluator.
+A performance retains three distinct layers: immutable evidence truth,
+source-blind assignment truth, and source-specific product interpretation.
+MIDI publishes each physical NOTE_ON independently; its 250ms delivery grace is a
+coverage-publication policy. Microphone observations describe decoder-qualified
+acoustic evidence, not proof of physical key attacks.
 
 Publications carry immutable publication/observation identity, session domain,
-availability time and monotonic analyzed-through coverage. Availability is not
-attack time. Exact replay is idempotent; mutated identities and genuinely new
-evidence at or before declared coverage fail closed.
+source provenance, confidence, availability time and monotonic analyzed-through
+coverage. Availability is not attack time. Exact replay is idempotent; mutated
+identities and genuinely new evidence at or before declared coverage fail closed.
+The evaluation session rejects observations whose source disagrees with its input:
+MIDI sessions accept MIDI observations, and microphone sessions accept ACOUSTIC
+observations.
+
+### Source-blind assignment
 
 Same-pitch assignment uses an inclusive +/-250ms window, maximizes cardinality,
-then minimizes absolute timing error with stable identity ties. Each observation
-has one semantic owner. Canonical chord strikes share their expected group's time.
-Direct-claimant reservations are reversible and do not recursively expand. Strike,
-group and EXTRA analysis frontiers are bounded by +750/+1250/+1500ms respectively;
-these are coverage bounds, not wall-clock latency guarantees.
+then minimizes absolute timing error with stable identity ties. Canonical chord
+strikes share their expected group's time. Direct-claimant reservations are
+reversible and do not recursively expand. Strike, group and residual analysis
+frontiers are bounded by +750/+1250/+1500ms respectively; these are coverage bounds,
+not wall-clock latency guarantees.
 
-Strike states are PENDING, MATCHED, MISSING and NOT_REACHED. Group verdicts are
-PENDING, CORRECT, MISSING, WRONG, INCOMPLETE_CHORD and NOT_REACHED. WRONG requires
-missing strikes and legally assigned incompatible evidence. Without WRONG evidence,
-no matches means MISSING; partial multi-strike matches mean INCOMPLETE_CHORD.
-Manual-stop targets outside complete legal coverage are NOT_REACHED. Missing
-analysis coverage yields UNAVAILABLE evaluation.
+Raw strike states are PENDING, MATCHED, UNMATCHED and NOT_REACHED. MATCHED means an
+exact-pitch observation was allocated within the legal window. UNMATCHED means no
+observation was allocated under the completed coverage and assignment policy;
+it does not claim that the learner missed a note. Groups are PENDING or FINALIZED,
+with strike assignments, residual observations and finality metadata, without a
+product verdict.
 
-Finalized results are immutable and power both delayed live feedback and Review.
+Each observation has at most one tagged assignment: STRIKE_MATCH names a strike,
+GROUP_RESIDUAL names a nearby group with an unmatched target, and UNATTRIBUTED has
+no strike/group owner. Residual slots are formed only for unmatched strikes;
+incompatible-pitch observations within the group window are assigned globally and
+deterministically. Unattributed observations wait until all legal strike and group
+opportunities finalize. A completed assignment has no pending strikes/groups,
+reserved observations or observations without an assignment. These relations are
+bookkeeping, not an account of learner mistakes.
+
+### Source-specific feedback
+
+The session fixes interpretation policy from its input source. Interpretation is
+an immutable pure projection of the accumulated assignment; it does not assign
+evidence again or recalculate timing.
+
+MIDI uses `MIDI_PHYSICAL_NOTE_EVENTS_V1`. Physical NOTE_ON events support stronger
+pedagogical feedback: matched targets are CORRECT, unmatched targets are MISSING,
+group residuals are wrong observations, and unattributed events are EXTRA.
+Final group feedback is NOT_REACHED if any target was not reached, CORRECT if all
+matched, WRONG if residual observations exist, INCOMPLETE_CHORD if some matched,
+and MISSING otherwise. Wrong observations and extra observations have separate
+Review counts.
+
+Microphone uses `ACOUSTIC_CONSERVATIVE_SUPPORT_V1`. Matched targets are SUPPORTED;
+unmatched targets are UNCONFIRMED. Group feedback is NOT_REACHED if any target was
+not reached, SUPPORTED if all matched, PARTIALLY_SUPPORTED if some matched, and
+UNCONFIRMED otherwise. Acoustic residual/unattributed detections remain raw
+diagnostics and never become learner-facing wrong/extra notes. Conservative
+acoustic V1 interprets decoder-qualified observations without adding a second,
+uncalibrated confidence threshold; confidence and provenance remain in the ledger.
+
+Manual-stop targets outside complete legal coverage are NOT_REACHED for both
+sources. UNCONFIRMED means completed analysis did not support a target;
+UNAVAILABLE instead means trustworthy analysis could not complete. Unavailable
+results carry input source, policy identity and reason, without dummy assignments.
+
+### Live feedback and Review
+
+Live feedback, Review summaries and score annotations consume interpretation.
+MIDI Review reports correct/missing target counts plus wrong/extra observation
+counts. Microphone Review reports supported/unconfirmed target counts and does
+not count residual detections as learner errors. Supported targets are green;
+only MIDI missing targets receive red error annotations. Acoustic unconfirmed and
+not-reached targets remain neutral.
+
+Completed performances retain both the full raw assignment/evidence ledger and
+its deterministic interpretation for diagnostics, future calibration and analytics.
+There is no independent mutable feedback truth or second offline evaluation pass.
 Transport ENDED enters application FINALIZING until tail analysis and recording
 finish. Completion projects the same ledger; it drains unfinished work only. A
 zero-duration count-in Stop publishes empty zero-domain terminal coverage without

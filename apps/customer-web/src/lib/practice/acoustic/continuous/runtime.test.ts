@@ -1,6 +1,6 @@
 import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
-import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
+import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
@@ -217,7 +217,7 @@ for (const rate of [44100, 48000]) it(`${rate} streaming chunk boundaries exactl
   expect(single.storageBytes()).toBe((rate === 44100 ? 35284 : 244) + 512);
 });
 
-it('real product finalizer alone produces all five verdicts from the model-agnostic publication stream', async () => {
+it('real assignment finalizer retains source-blind ownership from the model-agnostic publication stream', async () => {
   const expected = [
     { strikeId: 'correct', groupId: 'correct', pitch: 'C4', expectedPerformanceTimeMs: 100, renderNoteIds: [] },
     { strikeId: 'missing', groupId: 'missing', pitch: 'C4', expectedPerformanceTimeMs: 700, renderNoteIds: [] },
@@ -225,7 +225,7 @@ it('real product finalizer alone produces all five verdicts from the model-agnos
     { strikeId: 'chord-c', groupId: 'chord', pitch: 'C4', expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
     { strikeId: 'chord-e', groupId: 'chord', pitch: 'E4', expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
   ];
-  const finalizer = new ContinuousFinalizer('session', expected);
+  const finalizer = new ContinuousAssignmentFinalizer('session', expected);
   const physical = [{ time: 100, midi: 60, pitch: 'C4' }, { time: 1300, midi: 62, pitch: 'D4' },
     { time: 1900, midi: 60, pitch: 'C4' }, { time: 3000, midi: 67, pitch: 'G4' }];
   const worker: AcousticInferencePort = { run: async input => ({ ...result(input), events: physical.map(event => ({
@@ -237,8 +237,8 @@ it('real product finalizer alone produces all five verdicts from the model-agnos
   for (let n = 96000; n < 268800; n += 28800) { feedTo(n + 28800); await runtime.drain(); }
   runtime.requestTerminal(3600); feedTo(278400); await runtime.seal();
   const finished = finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilityTimeMs: 10000000 });
-  expect(finished.groups.map(g => g.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD']);
-  expect(finished.extras).toHaveLength(1); expect(finished.observationOwnership).toHaveLength(4);
+  expect(finished.groups.map(g => g.strikes.map(s => s.state))).toEqual([['MATCHED'], ['UNMATCHED'], ['UNMATCHED'], ['MATCHED', 'UNMATCHED']]);
+  expect(finished.unattributedObservations).toHaveLength(1); expect(finished.observationAssignments).toHaveLength(4);
   await runtime.dispose();
 });
 
@@ -258,7 +258,7 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
     sourceStartSampleIndex: next, sourceEndSampleIndex: next + n, samples: new Float32Array(n) }); next += n; } }
   feed(96000); runtime.beginSegment(0); feed(153600); runtime.requestTerminal(1200); feed(163200); await runtime.seal();
   expect(session.clock.snapshot()).toEqual(before);
-  expect(session.evaluationSnapshot.groups[0].verdict).toBe('CORRECT');
+  expect(session.evaluationSnapshot.interpretation.groups[0].verdict).toBe('SUPPORTED');
   await runtime.dispose();
   session.pause(); const paused = session.clock.snapshot(); clock.advance(5000);
   expect(session.clock.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);

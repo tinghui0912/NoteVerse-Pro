@@ -1,6 +1,8 @@
+import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
 import { completedPerformanceStore, type CompletedPerformance } from '@/lib/practice/completed-performance';
-import { immutableContinuousValue, type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
+import { type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
@@ -241,7 +243,7 @@ export class ContinuousPracticeController {
         // Optional media availability is independent of Practice evaluation and completion.
         const media = await this.recorder!.finalize(); this.checkAlive();
         const session = this.session!; this.finalSession = session.snapshotSession();
-        const evaluation = this.analysisError ? Object.freeze({ status: 'UNAVAILABLE' as const, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const })
+        const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
           : session.completedEvaluation();
         this.completed = immutableContinuousValue({ localSessionId: this.finalSession.localSessionId,
           scoreId: this.finalSession.scoreId, revisionId: this.finalSession.revisionId, artifactId: this.finalSession.artifactId,

@@ -146,7 +146,7 @@ describe('Practice bounded domain dependencies', () => {
         const acoustic = target.startsWith('acoustic/');
         const modelDelivery = edge.target.startsWith(normalize(path.join(sourceRoot, 'lib/model-assets')) + '/');
         const publicationContract = relative(file).startsWith('acoustic/continuous/') && edge.typeOnly
-          && target === 'continuous/domain/evaluation/types.ts'
+          && target === 'continuous/domain/evaluation/evidence-types.ts'
           && edge.bindings.length > 0 && edge.bindings.every(name => name === 'ContinuousEvidencePublication');
         expect(acoustic || modelDelivery || publicationContract, `${relative(file)} -> ${edge.specifier}`).toBe(true);
       }
@@ -160,6 +160,43 @@ describe('Practice bounded domain dependencies', () => {
         if (!edge.target || !edge.specifier.startsWith('.') || !edge.target.startsWith(normalize(practiceRoot) + '/')) continue;
         expect(context(relative(edge.target)), `${relative(file)} -> ${edge.specifier}`).toBe(context(relative(file)));
       }
+    }
+  });
+
+  it('separates raw assignment mechanics from source interpretation and presentation', () => {
+    const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'matching.ts', 'observation-store.ts',
+      'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
+    const evaluationRoot = 'continuous/domain/evaluation/';
+    for (const file of files) {
+      const name = relative(file);
+      if (name.startsWith(evaluationRoot) && rawModules.has(path.basename(file))) {
+        for (const edge of graph.get(normalize(file))!) {
+          expect(edge.target && relative(edge.target).startsWith(evaluationRoot) && rawModules.has(path.basename(edge.target)), name + ' -> ' + edge.specifier).toBe(true);
+        }
+      }
+      if (name === evaluationRoot + 'interpretation.ts') {
+        for (const edge of graph.get(normalize(file))!) {
+          expect(!edge.target || !['matching.ts', 'assignment-finalizer.ts', 'finalization-policy.ts', 'session.ts'].some(name => relative(edge.target!) === evaluationRoot + name), edge.specifier).toBe(true);
+        }
+      }
+    }
+    const presentation = [
+      ...productionFiles(path.join(sourceRoot, 'components/practice')),
+      ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice')),
+      path.join(practiceRoot, 'performance-annotation-controller.ts'),
+      path.join(practiceRoot, 'continuous/review-summary.ts'),
+    ];
+    for (const file of presentation) {
+      for (const edge of imports(file)) {
+        expect(!edge.target || !relative(edge.target).startsWith(evaluationRoot) ||
+          ['evaluation-types.ts', 'interpretation-types.ts'].includes(path.basename(edge.target)), file + ' -> ' + edge.specifier).toBe(true);
+      }
+      const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+      const visit = (node: ts.Node) => {
+        if (ts.isPropertyAccessExpression(node)) expect(node.name.text, file).not.toBe('assignment');
+        ts.forEachChild(node, visit);
+      };
+      visit(source);
     }
   });
 

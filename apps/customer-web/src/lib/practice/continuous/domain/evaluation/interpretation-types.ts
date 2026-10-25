@@ -1,0 +1,23 @@
+import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
+export type ContinuousInterpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V1' | 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1';
+type FeedbackStrike<State extends string> = ContinuousExpectedStrike & Readonly<{ state: State; timingOffsetMs: number | null }>;
+export type MidiStrikeFeedback = FeedbackStrike<'PENDING' | 'CORRECT' | 'MISSING' | 'NOT_REACHED'>;
+export type AcousticStrikeFeedback = FeedbackStrike<'PENDING' | 'SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED'>;
+export type MidiGroupFeedback = Readonly<{
+  groupId: string; verdict: 'PENDING' | 'CORRECT' | 'MISSING' | 'WRONG' | 'INCOMPLETE_CHORD' | 'NOT_REACHED';
+  strikes: readonly MidiStrikeFeedback[]; wrongObservations: readonly ContinuousObservation[];
+}>;
+export type AcousticGroupFeedback = Readonly<{
+  groupId: string; verdict: 'PENDING' | 'SUPPORTED' | 'PARTIALLY_SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED';
+  strikes: readonly AcousticStrikeFeedback[];
+}>;
+export type MidiContinuousInterpretation = Readonly<{
+  inputSource: 'MIDI'; policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1';
+  groups: readonly MidiGroupFeedback[]; extraObservations: readonly ContinuousObservation[];
+}>;
+export type AcousticContinuousInterpretation = Readonly<{
+  inputSource: 'MICROPHONE'; policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1';
+  groups: readonly AcousticGroupFeedback[];
+}>;
+export type ContinuousInterpretation = MidiContinuousInterpretation | AcousticContinuousInterpretation;

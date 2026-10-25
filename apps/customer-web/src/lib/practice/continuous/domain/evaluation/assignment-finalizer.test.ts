@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ContinuousFinalizer } from '@/lib/practice/continuous/domain/evaluation/finalizer';
-import type { ContinuousExpectedStrike, ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/types';
+import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
+import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 const strike = (strikeId: string, time = 1000, pitch = 'C4', groupId = strikeId): ContinuousExpectedStrike =>
   ({ strikeId, groupId, pitch, expectedPerformanceTimeMs: time, renderNoteIds: [] });
@@ -8,62 +9,65 @@ const observation = (observationId: string, time = 1000, pitch = 'C4'): Continuo
   ({ observationId, pitch, performanceTimeMs: time, confidence: 0.8, source: 'ACOUSTIC' });
 const pub = (publicationId: string, frontier: number, observations: readonly ContinuousObservation[] = [], availability = frontier + 100): ContinuousEvidencePublication =>
   ({ publicationId, sessionDomainId: 'session', analyzedThroughPerformanceMs: frontier, availabilityTimeMs: availability, observations });
-const ledger = (strikes: readonly ContinuousExpectedStrike[] = [strike('a')]) => new ContinuousFinalizer('session', strikes);
-const group = (l: ContinuousFinalizer, id = 'a') => l.snapshot().groups.find(g => g.groupId === id)!;
-const finish = (l: ContinuousFinalizer, time = 4000, reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER' = 'SCOPE_COMPLETED') => {
+const ledger = (strikes: readonly ContinuousExpectedStrike[] = [strike('a')]) => new ContinuousAssignmentFinalizer('session', strikes);
+const group = (l: ContinuousAssignmentFinalizer, id = 'a') => l.snapshot().groups.find(g => g.groupId === id)!;
+const finish = (l: ContinuousAssignmentFinalizer, time = 4000, reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER' = 'SCOPE_COMPLETED') => {
   l.publish(pub('end-coverage', time));
   return l.complete({ reason, performanceTimeMs: time, availabilityTimeMs: time + 100 });
 };
 const reservation = () => [strike('g'), strike('claim', 1400, 'D4'), strike('next', 1800, 'D4'), strike('other', 2200, 'D4')];
 
-describe('bounded Continuous product truth', () => {
+describe('bounded source-blind Continuous assignment', () => {
   it.each([
-    ['CORRECT', [strike('a')], [observation('o')]],
-    ['MISSING', [strike('a')], []],
-    ['WRONG', [strike('a')], [observation('o', 1000, 'D4')]],
-    ['INCOMPLETE_CHORD', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o')]],
-    ['CORRECT', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o'), observation('p', 1000, 'E4')]],
-  ] as const)('%s has explicit group and strike truth', (verdict, expected, observations) => {
-    const l = ledger(expected); l.publish(pub('p', 1250, observations)); expect(group(l).verdict).toBe(verdict);
+    ['matched', [strike('a')], [observation('o')], ['MATCHED'], 0],
+    ['unmatched', [strike('a')], [], ['UNMATCHED'], 0],
+    ['residual', [strike('a')], [observation('o', 1000, 'D4')], ['UNMATCHED'], 1],
+    ['partial match', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o')], ['MATCHED', 'UNMATCHED'], 0],
+    ['full match', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o'), observation('p', 1000, 'E4')], ['MATCHED', 'MATCHED'], 0],
+  ] as const)('%s has explicit assignment and residual facts', (_name, expected, observations, states, residualCount) => {
+    const l = ledger(expected); l.publish(pub('p', 1250, observations));
+    expect(group(l).state).toBe('FINALIZED');
+    expect(group(l).strikes.map(strike => strike.state)).toEqual(states);
+    expect(group(l).residualObservations).toHaveLength(residualCount);
   });
-  it('EXTRA without legal claims', () => { const l = ledger([]); l.publish(pub('p', 1000, [observation('o', 900)])); expect(l.snapshot().extras[0].observation.observationId).toBe('o'); });
+  it('unattributed without legal claims', () => { const l = ledger([]); l.publish(pub('p', 1000, [observation('o', 900)])); expect(l.snapshot().unattributedObservations[0].observation.observationId).toBe('o'); });
   it('repeated same pitch has distinct owners', () => {
     const l = ledger([strike('a'), strike('b', 1200)]); l.publish(pub('p', 1450, [observation('x'), observation('y', 1200)]));
-    expect(l.snapshot().observationOwnership.map(o => o.ownerId)).toEqual(['a', 'b']);
+    expect(l.snapshot().observationAssignments.map(o => o.kind === 'STRIKE_MATCH' ? o.strikeId : null)).toEqual(['a', 'b']);
   });
   it('cohort participation does not prematurely commit a future anchor', () => {
     const l = ledger([strike('a'), strike('b', 1400), strike('c', 1800)]); l.publish(pub('p', 1650, [observation('x'), observation('y', 1400)]));
-    expect(group(l).verdict).toBe('CORRECT'); expect(group(l, 'b').strikes[0].state).toBe('PENDING');
+    expect(group(l).strikes.every(strike => strike.state === 'MATCHED')).toBe(true); expect(group(l, 'b').strikes[0].state).toBe('PENDING');
   });
   it('protects a reservation later consumed by its direct correct claimant', () => {
-    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4')])); expect(group(l, 'g').verdict).toBe('PENDING');
-    expect(l.snapshot().observationOwnership).toHaveLength(0); l.publish(pub('q', 2050));
-    expect(group(l, 'g').verdict).toBe('MISSING'); expect(l.snapshot().observationOwnership[0].ownerId).toBe('claim');
+    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4')])); expect(group(l, 'g').state).toBe('PENDING');
+    expect(l.snapshot().observationAssignments).toHaveLength(0); l.publish(pub('q', 2050));
+    expect(group(l, 'g').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(l.snapshot().observationAssignments[0]).toEqual({ kind: 'STRIKE_MATCH', observationId: 'r', strikeId: 'claim' });
   });
-  it('releases evidence to WRONG when the direct claimant uses a better observation', () => {
+  it('releases evidence to group residual when the direct claimant uses a better observation', () => {
     const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
-    expect(group(l, 'g').verdict).toBe('PENDING'); l.publish(pub('q', 2050));
-    expect(group(l, 'g').verdict).toBe('WRONG'); expect(group(l, 'g').wrongObservations[0].observationId).toBe('r');
+    expect(group(l, 'g').state).toBe('PENDING'); l.publish(pub('q', 2050));
+    expect(group(l, 'g').residualObservations).toHaveLength(1); expect(group(l, 'g').residualObservations[0].observationId).toBe('r');
     expect(group(l, 'g').finality?.requiredAnalysisFrontierMs).toBe(2050);
     expect(group(l, 'next').strikes[0].state).toBe('PENDING');
   });
   it.each([10, 100, 150])('a %i-strike chain never extends the first group beyond its direct bound', count => {
     const l = ledger([strike('g'), ...Array.from({ length: count }, (_, i) => strike(`s${i.toString().padStart(3, '0')}`, 1400 + i * 200, 'D4'))]);
     l.publish(pub('p', 1700, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')])); l.publish(pub('q', 2050));
-    expect(group(l, 'g').verdict).toBe('MISSING'); expect(group(l, 'g').finality?.unclampedRequiredFrontierMs).toBe(2050);
+    expect(group(l, 'g').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(group(l, 'g').finality?.unclampedRequiredFrontierMs).toBe(2050);
   });
-  it.each([750, 1250])('inclusive endpoint %i matches', time => { const l = ledger(); l.publish(pub('p', 1250, [observation('o', time)])); expect(group(l).verdict).toBe('CORRECT'); });
+  it.each([750, 1250])('inclusive endpoint %i matches', time => { const l = ledger(); l.publish(pub('p', 1250, [observation('o', time)])); expect(group(l).strikes.every(strike => strike.state === 'MATCHED')).toBe(true); });
   it.each([[1500, 1750], [1500.001, 1250]])('direct boundary %f gives fixed frontier %f', (time, frontier) => {
     const l = ledger([strike('a'), strike('b', time)]); l.publish(pub('p', frontier)); expect(group(l).finality?.unclampedRequiredFrontierMs).toBe(frontier);
   });
-  it('one WRONG observation cannot also be EXTRA or claimed by two groups', () => {
+  it('one group residual observation cannot also be unattributed or claimed by two groups', () => {
     const l = ledger([strike('a'), strike('b', 1100)]); l.publish(pub('p', 1900, [observation('o', 1050, 'D4')])); finish(l);
-    expect(l.snapshot().observationOwnership).toHaveLength(1); expect(l.snapshot().extras).toHaveLength(0);
-    expect(l.snapshot().groups.filter(g => g.verdict === 'WRONG')).toHaveLength(1);
+    expect(l.snapshot().observationAssignments).toHaveLength(1); expect(l.snapshot().unattributedObservations).toHaveLength(0);
+    expect(l.snapshot().groups.filter(g => g.residualObservations.length > 0)).toHaveLength(1);
   });
-  it('MATCHED cannot also be WRONG or EXTRA', () => {
+  it('MATCHED cannot also be group residual or unattributed', () => {
     const l = ledger([strike('a', 1000, 'D4'), strike('b')]); l.publish(pub('p', 1500, [observation('o', 1000, 'D4')])); finish(l);
-    expect(l.snapshot().observationOwnership).toEqual([{ observationId: 'o', disposition: 'MATCHED', ownerId: 'a' }]);
+    expect(l.snapshot().observationAssignments).toEqual([{ kind: 'STRIKE_MATCH', observationId: 'o', strikeId: 'a' }]);
   });
   it('finalized snapshots are immutable and not rewritten by later coverage', () => {
     const l = ledger(); l.publish(pub('p', 1250)); const saved = group(l); expect(Object.isFrozen(saved.strikes)).toBe(true);
@@ -85,12 +89,12 @@ describe('bounded Continuous product truth', () => {
     const l = ledger(reservation()); l.publish(pub('p', 1500, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
     const completion = { reason: 'SCOPE_COMPLETED', performanceTimeMs: 1500, availabilityTimeMs: 1600 } as const;
     l.complete(completion); expect(l.snapshot().reservedObservationIds).toEqual([]);
-    expect(l.completedEvaluation().status).toBe('COMPLETE'); expect(l.complete(completion)).toEqual(l.snapshot());
+    expect(l.completedAssignment().status).toBe('COMPLETE'); expect(l.complete(completion)).toEqual(l.snapshot());
     expect(() => l.publish(pub('new', 1600))).toThrow('PUBLICATION_AFTER_COMPLETION');
   });
-  it('manual stop preserves NOT_REACHED vs locally closed MISSING', () => {
+  it('manual stop preserves NOT_REACHED vs locally closed UNMATCHED', () => {
     const l = ledger([strike('closed', 500), strike('future', 1400)]); finish(l, 1000, 'STOPPED_BY_USER');
-    expect(group(l, 'closed').verdict).toBe('MISSING'); expect(group(l, 'future').verdict).toBe('NOT_REACHED');
+    expect(group(l, 'closed').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(group(l, 'future').strikes.some(strike => strike.state === 'NOT_REACHED')).toBe(true);
   });
   it('all expected strikes share canonical group time or construction fails', () => {
     expect(() => ledger([strike('a', 1000, 'C4', 'g'), strike('b', 1001, 'E4', 'g')])).toThrow('canonical onset');
@@ -103,7 +107,7 @@ describe('bounded Continuous product truth', () => {
     const l = ledger([strike('a', 1000, 'C4', 'chord'), strike('b', 1000, 'E4', 'chord')]);
     l.publish(pub('p', 1100, [observation('o')]));
     l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1100, availabilityTimeMs: 1200 });
-    expect(group(l, 'chord').verdict).toBe('NOT_REACHED');
+    expect(group(l, 'chord').strikes.some(strike => strike.state === 'NOT_REACHED')).toBe(true);
     expect(group(l, 'chord').strikes.map(strike => strike.state)).toEqual(['MATCHED', 'NOT_REACHED']);
   });
   it('exact finality timestamps use availability, never attack time', () => {
@@ -113,11 +117,11 @@ describe('bounded Continuous product truth', () => {
   it('stable ties and permutation-invariant completed truth', () => {
     const run = (reverse: boolean) => {
       const l = ledger([strike('a'), strike('b', 1100)]), observations = [observation('y', 1050), observation('x', 1050)];
-      l.publish(pub('p', 1400, reverse ? observations.reverse() : observations)); finish(l); return l.completedEvaluation();
+      l.publish(pub('p', 1400, reverse ? observations.reverse() : observations)); finish(l); return l.completedAssignment();
     };
     expect(run(true)).toEqual(run(false));
     const result = run(false); if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(result.groups[0].strikes[0]).toMatchObject({ state: 'MATCHED', match: { observation: { observationId: 'x' } } });
+    expect(result.assignment.groups[0].strikes[0]).toMatchObject({ state: 'MATCHED', match: { observation: { observationId: 'x' } } });
   });
   it('deterministic generated sets preserve ownership, finite bounds, and permutation invariance', () => {
     for (let seed = 0; seed < 25; seed += 1) {
@@ -125,7 +129,7 @@ describe('bounded Continuous product truth', () => {
       const observations = expected.filter((_, i) => (i + seed) % 4 !== 0).map((s, i) => observation(`o${i}`, s.expectedPerformanceTimeMs + ((i * 73 + seed) % 201) - 100, s.pitch));
       const run = (rows: readonly ContinuousObservation[]) => { const l = ledger(expected); l.publish(pub('p', 3000, rows)); finish(l); return l.snapshot(); };
       const result = run(observations); expect(run([...observations].reverse())).toEqual(result);
-      expect(new Set(result.observationOwnership.map(o => o.observationId)).size).toBe(result.observationOwnership.length);
+      expect(new Set(result.observationAssignments.map(o => o.observationId)).size).toBe(result.observationAssignments.length);
       for (const g of result.groups) expect(g.finality!.unclampedRequiredFrontierMs - g.performanceTimeMs).toBeLessThanOrEqual(1250);
       expect(result.reservedObservationIds).toEqual([]);
     }

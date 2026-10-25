@@ -21,7 +21,7 @@ describe('Continuous analysis publication admission', () => {
     session.start();
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'PENDING')).toBe(true);
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'PENDING')).toBe(true);
 
     session.publishAnalysis({
       publicationId: 'publication-32484', sessionDomainId: session.timebase.domainId,
@@ -31,7 +31,7 @@ describe('Continuous analysis publication admission', () => {
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     });
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'MISSING')).toBe(true);
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'UNMATCHED')).toBe(true);
   });
 
   it('rejects analysis publications before performance evidence time exists', () => {

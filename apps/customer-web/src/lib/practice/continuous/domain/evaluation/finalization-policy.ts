@@ -1,7 +1,9 @@
-import { ContinuousEvaluationError, type ContinuousExpectedStrike, type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/types';
+import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
+import { type ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import { type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 export const CONTINUOUS_ASSIGNMENT_WINDOW_MS = 250;
-export const CONTINUOUS_ANALYSIS_BOUNDS_MS = Object.freeze({ strike: 750, group: 1250, extra: 1500 });
+export const CONTINUOUS_ANALYSIS_BOUNDS_MS = Object.freeze({ strike: 750, group: 1250, residual: 1500 });
 export const withinContinuousWindow = (a: number, b: number): boolean => Math.abs(a - b) <= CONTINUOUS_ASSIGNMENT_WINDOW_MS;
 
 /** Literal interval overlap only: never query a member's cohort or follow graph edges. */

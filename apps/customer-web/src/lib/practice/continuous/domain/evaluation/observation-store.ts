@@ -1,4 +1,6 @@
-import { ContinuousEvaluationError, immutableContinuousValue, type ContinuousEvidencePublication, type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/types';
+import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
+import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
+import { type ContinuousEvidencePublication, type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 export const compareContinuousId = (a: string, b: string): number => a.localeCompare(b);
 

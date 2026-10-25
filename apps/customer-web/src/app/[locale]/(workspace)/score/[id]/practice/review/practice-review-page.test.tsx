@@ -34,8 +34,12 @@ const translationMocks = vi.hoisted(() => {
     confirmedCorrectStrikes: '正确击键',
     missingStrikes: '漏弹',
     notReachedStrikes: '未完成',
-    notReachedStrikesDesc: '这些目标音位于本次已完成演奏范围之外，因此没有计为漏弹。',
+    notReachedStrikesDesc: '这些目标音位于本次已完成演奏范围之外。',
     extraPitchCount: '额外演奏',
+    wrongObservationCount: '错音',
+    detectedTargetNotes: '已识别目标音',
+    unconfirmedTargetNotes: '未确认目标音',
+    acousticEvidenceDesc: '麦克风结果表示声学识别证据；未归属的声学识别结果不会直接视为错音或多弹。',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
     mismatchGroupCount: '错音音符组',
@@ -262,8 +266,8 @@ import {
   completedPerformanceStore,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
-import type { CompletedContinuousEvaluation, ContinuousFinalizedGroup } from '@/lib/practice/continuous/domain/evaluation/types';
-import { completedTruth, finality } from '@/lib/practice/__fixtures__/continuous-truth';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import { completedEvaluationFixture, finality } from '@/lib/practice/__fixtures__/continuous-evaluation';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
 
 type TestOutcome = {
@@ -275,23 +279,25 @@ type TestOutcome = {
     strikeId: string;
     pitch: string;
     renderNoteIds: string[];
-    result: 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+    result: 'MATCHED' | 'UNMATCHED' | 'NOT_REACHED';
   }[];
-  unexpectedPitches: string[];
+  residualPitches: string[];
   timingOffsetMs?: number;
   renderNoteIds?: string[];
   measureNumbers?: string[];
 };
 
 function completeEvaluation(
-  outcomes: TestOutcome[] = []
+  outcomes: TestOutcome[] = [], inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE'
 ): CompletedContinuousEvaluation {
-  return completedTruth(outcomes.map(outcome => ({
+  return completedEvaluationFixture(inputSource, outcomes.map(outcome => ({
     groupId: outcome.expectedGroupId, performanceTimeMs: outcome.performanceTimeMs,
-    verdict: (outcome.expectedStrikeOutcomes.every(s => s.result === 'MATCHED') ? 'CORRECT'
-      : outcome.expectedStrikeOutcomes.some(s => s.result === 'NOT_REACHED') ? 'NOT_REACHED'
-      : outcome.expectedStrikeOutcomes.some(s => s.result === 'MATCHED') ? 'INCOMPLETE_CHORD' : 'MISSING') as ContinuousFinalizedGroup['verdict'],
-    finality, wrongObservations: [], evidenceObservationIds: outcome.expectedStrikeOutcomes.filter(s => s.result === 'MATCHED').map(s => `${s.strikeId}:matched`),
+    state: 'FINALIZED', finality,
+    residualObservations: outcome.residualPitches.map((pitch, index) => ({
+      observationId: `${outcome.expectedGroupId}:residual:${index}`, pitch,
+      performanceTimeMs: outcome.performanceTimeMs, confidence: outcome.confidence,
+      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
+    })),
     strikes: outcome.expectedStrikeOutcomes.map((strike) => {
         const base = {
           strikeId: strike.strikeId,
@@ -305,7 +311,7 @@ function completeEvaluation(
             ...base,
             state: 'MATCHED' as const, finality,
             match: { observation: { observationId: `${strike.strikeId}:matched`, pitch: strike.pitch,
-              performanceTimeMs: outcome.performanceTimeMs + (outcome.timingOffsetMs ?? 0), confidence: outcome.confidence, source: outcome.source },
+              performanceTimeMs: outcome.performanceTimeMs + (outcome.timingOffsetMs ?? 0), confidence: outcome.confidence, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' },
               timingOffsetMs: outcome.timingOffsetMs ?? 0 },
           };
         }
@@ -314,15 +320,7 @@ function completeEvaluation(
           state: strike.result, finality,
         };
       }),
-  })), outcomes.flatMap((outcome) =>
-      outcome.unexpectedPitches.map((pitch, index) => ({
-        observationId: `${outcome.expectedGroupId}:${index}:${pitch}`,
-        pitch,
-        performanceTimeMs: outcome.performanceTimeMs,
-        confidence: outcome.confidence,
-        source: outcome.source,
-      }))
-    ));
+  })));
 }
 
 describe('PracticeReviewPage', () => {
@@ -418,7 +416,7 @@ describe('PracticeReviewPage', () => {
               confidence: 0.9,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['n-1'],
               measureNumbers: ['1'],
             },
@@ -428,7 +426,7 @@ describe('PracticeReviewPage', () => {
               confidence: 0.7,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['n-2'],
               measureNumbers: ['1'],
             },
@@ -459,9 +457,9 @@ describe('PracticeReviewPage', () => {
 
     // Strike-level summary
     expect(screen.getByText('目标音')).toBeDefined();
-    expect(screen.getByText('正确击键')).toBeDefined();
-    expect(screen.getByText('漏弹')).toBeDefined();
-    expect(screen.getByText('额外演奏')).toBeDefined();
+    expect(screen.getByText('已识别目标音')).toBeDefined();
+    expect(screen.getByText('未确认目标音')).toBeDefined();
+    expect(screen.queryByText('额外演奏')).toBeNull();
 
     // Player should be rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
@@ -475,7 +473,7 @@ describe('PracticeReviewPage', () => {
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
   });
 
-  it('correctly categorizes note-by-note strike colors and all 5 outcome counters', () => {
+  it.each(['MIDI','MICROPHONE'] as const)('%s review uses its own feedback counts and annotation semantics', (inputSource) => {
     const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
 
     const draftWithChordsAndOutcomes: CompletedPerformance = {
@@ -488,7 +486,7 @@ describe('PracticeReviewPage', () => {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
       },
-      inputSource: 'MICROPHONE',
+      inputSource,
       activeElapsedMs: 10000,
       evaluation: completeEvaluation([
             // 1. MATCH group with 2 matched strikes in a chord
@@ -501,11 +499,11 @@ describe('PracticeReviewPage', () => {
                 { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
                 { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
               ],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['note-c4', 'note-e4'],
               measureNumbers: ['1'],
             },
-            // 2. PARTIAL group with 1 matched, 1 missing strike
+            // 2. One matched and one unmatched target
             {
               expectedGroupId: 'g-2',
               performanceTimeMs: 1000,
@@ -513,13 +511,13 @@ describe('PracticeReviewPage', () => {
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
                 { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
-                { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'MISSING' },
+                { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
               ],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['note-g4', 'note-b4'],
               measureNumbers: ['1'],
             },
-            // 3. MISMATCH group where 1 note was actually matched
+            // 3. One supported target and one group residual observation
             {
               expectedGroupId: 'g-3',
               performanceTimeMs: 2000,
@@ -527,9 +525,9 @@ describe('PracticeReviewPage', () => {
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
                 { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
-                { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'MISSING' },
+                { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
               ],
-              unexpectedPitches: ['D#5'],
+              residualPitches: ['D#5'],
               renderNoteIds: ['note-c5', 'note-e5'],
               measureNumbers: ['2'],
             },
@@ -542,11 +540,11 @@ describe('PracticeReviewPage', () => {
               expectedStrikeOutcomes: [
                 { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
               ],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['note-f4'],
               measureNumbers: ['2'],
             },
-            // 5. NOT_OBSERVED group
+            // 5. Another target beyond terminal coverage
             {
               expectedGroupId: 'g-5',
               performanceTimeMs: 4000,
@@ -555,11 +553,11 @@ describe('PracticeReviewPage', () => {
               expectedStrikeOutcomes: [
                 { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
               ],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['note-a4'],
               measureNumbers: ['3'],
             },
-          ]),
+          ], inputSource),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -578,34 +576,35 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 2 not reached, 1 extra.
+    // Four supported targets, two unsupported targets, two not reached; only MIDI uses error labels.
     expect(screen.getByText('目标音')).toBeDefined();
-    expect(screen.getByText('正确击键')).toBeDefined();
-    expect(screen.getByText('漏弹')).toBeDefined();
+    expect(screen.getByText(inputSource === 'MIDI' ? '正确击键' : '已识别目标音')).toBeDefined();
+    expect(screen.getByText(inputSource === 'MIDI' ? '漏弹' : '未确认目标音')).toBeDefined();
     expect(screen.getByText('未完成')).toBeDefined();
-    expect(screen.getByText('额外演奏')).toBeDefined();
+    expect(screen.queryByText('额外演奏') !== null).toBe(inputSource === 'MIDI');
+    expect(screen.queryByText('错音') !== null).toBe(inputSource === 'MIDI');
     expect(screen.getByText('8')).toBeDefined();
     expect(screen.getByText('4')).toBeDefined();
     expect(screen.getAllByText('2')).toHaveLength(2);
-    expect(screen.getByText('这些目标音位于本次已完成演奏范围之外，因此没有计为漏弹。')).toBeDefined();
+    expect(screen.getByText('这些目标音位于本次已完成演奏范围之外。')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
-    // Red (missing): note-b4, note-e5
+    // MIDI missing targets are red; acoustic unconfirmed targets remain neutral.
     // Neutral (not reached): note-f4, note-a4 should NOT be in either
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
     const annotations = lastCall[1];
-    expect(annotations.confirmedCorrectNoteIds).toEqual(
+    expect(annotations.supportedNoteIds).toEqual(
       expect.arrayContaining(['note-c4', 'note-e4', 'note-g4', 'note-c5'])
     );
-    expect(annotations.confirmedErrorNoteIds).toEqual(
-      expect.arrayContaining(['note-b4', 'note-e5'])
+    expect(annotations.errorNoteIds).toEqual(
+      inputSource === 'MIDI' ? ['note-b4', 'note-e5'] : []
     );
-    expect(annotations.confirmedCorrectNoteIds).not.toContain('note-f4');
-    expect(annotations.confirmedCorrectNoteIds).not.toContain('note-a4');
-    expect(annotations.confirmedErrorNoteIds).not.toContain('note-f4');
-    expect(annotations.confirmedErrorNoteIds).not.toContain('note-a4');
+    expect(annotations.supportedNoteIds).not.toContain('note-f4');
+    expect(annotations.supportedNoteIds).not.toContain('note-a4');
+    expect(annotations.errorNoteIds).not.toContain('note-f4');
+    expect(annotations.errorNoteIds).not.toContain('note-a4');
   });
 
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
@@ -633,7 +632,7 @@ describe('PracticeReviewPage', () => {
               confidence: 0.9,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-              unexpectedPitches: [],
+              residualPitches: [],
               renderNoteIds: ['n-1'],
               measureNumbers: ['1'],
             },
@@ -667,8 +666,8 @@ describe('PracticeReviewPage', () => {
     // Score annotations are cleared
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
-    expect(lastCall[1].confirmedCorrectNoteIds).toEqual([]);
-    expect(lastCall[1].confirmedErrorNoteIds).toEqual([]);
+    expect(lastCall[1].supportedNoteIds).toEqual([]);
+    expect(lastCall[1].errorNoteIds).toEqual([]);
 
     // Player and factual stats remain rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
@@ -688,7 +687,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MIDI',
       activeElapsedMs: 3000,
-      evaluation: completeEvaluation(),
+      evaluation: completeEvaluation([], 'MIDI'),
       media: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
@@ -734,7 +733,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MIDI',
       activeElapsedMs: 3000,
-      evaluation: completeEvaluation(),
+      evaluation: completeEvaluation([], 'MIDI'),
       media: {
         status: 'READY',
         kind: 'AUDIO',

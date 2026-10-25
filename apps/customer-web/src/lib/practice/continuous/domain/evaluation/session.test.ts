@@ -7,7 +7,7 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 const artifact = artifactJson as PracticeScoreArtifact;
 const createSession = () => new ContinuousEvaluationSession({
   artifact, timeline: { beatToTimeMs: beat => beat * 1000 }, scope: { kind: 'FULL' }, sessionDomainId: 'test',
-});
+ inputSource: 'MICROPHONE', });
 
 describe('artifact-bound Continuous evaluation session', () => {
   it('constructs canonical same-time strikes from each expected group onset', () => {
@@ -26,15 +26,40 @@ describe('artifact-bound Continuous evaluation session', () => {
     const completed = session.completedEvaluation();
     expect(completed.status).toBe('COMPLETE');
     if (completed.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(completed.groups).toEqual(live.groups);
-    expect(completed.groups[0]).toBe(live.groups[0]);
+    expect(completed.assignment.groups).toEqual(live.assignment.groups);
+    expect(completed.assignment.groups[0]).toBe(live.assignment.groups[0]);
   });
   it('keeps incomplete analysis unavailable until coverage arrives', () => {
     const session = createSession();
     session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 100, availabilityTimeMs: 100 });
-    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' });
+    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS' });
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 100, availabilityTimeMs: 200, observations: [] });
     expect(session.completedEvaluation().status).toBe('COMPLETE');
-    expect(session.snapshot().groups.some(group => group.verdict === 'NOT_REACHED')).toBe(true);
+    expect(session.snapshot().interpretation.groups.some(group => group.verdict === 'NOT_REACHED')).toBe(true);
+  });
+});
+
+
+describe('source-bound evaluation composition', () => {
+  it.each(['MIDI', 'MICROPHONE'] as const)('%s rejects foreign-source evidence before ledger mutation and fails closed', inputSource => {
+    const session = new ContinuousEvaluationSession({ artifact, timeline: { beatToTimeMs: beat => beat * 1000 }, scope: { kind: 'FULL' }, sessionDomainId: 'test', inputSource });
+    const before = session.snapshot();
+    expect(() => session.publish({ publicationId: 'foreign', sessionDomainId: 'test', analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1100,
+      observations: [{ observationId: 'o', pitch: 'C4', performanceTimeMs: 100, confidence: 1, source: inputSource === 'MIDI' ? 'ACOUSTIC' : 'MIDI' }] })).toThrow('OBSERVATION_SOURCE_MISMATCH');
+    expect(session.snapshot()).toEqual(before);
+    expect(() => session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilityTimeMs: 1100 })).toThrow('OBSERVATION_SOURCE_MISMATCH');
+    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource,
+      policyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V1' : 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+  });
+  it('completed acoustic analysis without support is UNCONFIRMED, never UNAVAILABLE', () => {
+    const session = createSession();
+    session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilityTimeMs: 20100, observations: [] });
+    session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilityTimeMs: 20100 });
+    const result = session.completedEvaluation();
+    expect(result.status).toBe('COMPLETE');
+    if (result.status !== 'COMPLETE') throw new Error('incomplete');
+    expect(result.policyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
+    expect(result.interpretation.groups.every(group => group.verdict === 'UNCONFIRMED')).toBe(true);
+    expect(result.assignment.groups.every(group => group.strikes.every(strike => strike.state === 'UNMATCHED'))).toBe(true);
   });
 });

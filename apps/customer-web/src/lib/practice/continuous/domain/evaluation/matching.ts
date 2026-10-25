@@ -1,7 +1,7 @@
 type Edge = { to: number; capacity: number; cost: number; reverse: number; pair?: readonly [number, number] };
 
 /** Ordered inputs define stable ties. Successive shortest augmentations prioritize cardinality before cost. */
-export function assignContinuousEvidence<L, R>(
+export function matchContinuousEvidence<L, R>(
   left: readonly L[], right: readonly R[], cost: (left: L, right: R) => number,
 ): readonly (readonly [number, number])[] {
   const size = left.length + right.length + 2;

@@ -5,7 +5,7 @@ import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { ManualClock, PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { ContinuousEvaluationSession } from './evaluation/session';
+import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { ContinuousPracticeSessionOptions } from './practice-session';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
@@ -102,19 +102,19 @@ describe('Continuous clock and evaluation composition', () => {
     });
 
     expect(session.snapshot().state).toBe('READY');
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)).toHaveLength(
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)).toHaveLength(
       artifact.expectedPracticeGroups.reduce((sum, group) => sum + group.strikeTargets.length, 0)
     );
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'PENDING')).toBe(true);
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'PENDING')).toBe(true);
 
     session.start();
     const before = session.snapshot();
     expect(session.observeMidiAttack(midiAttack('continuous-clock-separate', 0, ['C4']))).toBe(true);
     expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     clock.advance(1_500);
     session.snapshot();
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
   });
 
   it('MIDI produces all five product verdicts through the sole accumulated evaluator', () => {
@@ -140,10 +140,10 @@ describe('Continuous clock and evaluation composition', () => {
     clock.advance(2500); session.snapshot();
     const completed = session.completedEvaluation();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete MIDI truth');
-    expect(completed.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'CORRECT']);
-    expect(completed.extras).toHaveLength(1);
-    expect(completed.observationOwnership.map(owner => owner.disposition).sort()).toEqual(['EXTRA', 'MATCHED', 'MATCHED', 'MATCHED', 'WRONG']);
-    expect(completed.groups).toEqual(session.evaluationSnapshot.groups);
+    expect(completed.interpretation.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'CORRECT']);
+    expect(completed.assignment.unattributedObservations).toHaveLength(1);
+    expect(completed.assignment.observationAssignments.map(owner => owner.kind).sort()).toEqual(['GROUP_RESIDUAL', 'STRIKE_MATCH', 'STRIKE_MATCH', 'STRIKE_MATCH', 'UNATTRIBUTED']);
+    expect(completed.assignment.groups).toEqual(session.evaluationSnapshot.assignment.groups);
   });
 
   it('does not advance MIDI frontier while paused', () => {
@@ -163,7 +163,7 @@ describe('Continuous clock and evaluation composition', () => {
     clock.advance(100);
     session.pause();
     clock.advance(5_000);
-    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[1]).toMatchObject({ state: 'PENDING' });
+    expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[1]).toMatchObject({ state: 'PENDING' });
   });
 
   it('assigns an incompatible attack once as WRONG, not also EXTRA', () => {
@@ -193,13 +193,13 @@ describe('Continuous clock and evaluation composition', () => {
     session.start();
     extraClock.advance(150);
     expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 150, ['F#4']))).toBe(true);
-    expect(session.evaluationSnapshot.extras).toHaveLength(0);
+    expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
     extraClock.advance(500);
     session.snapshot();
     extraClock.advance(1500);
     session.snapshot();
-    expect(session.evaluationSnapshot.extras).toHaveLength(0);
-    expect(session.evaluationSnapshot.observationOwnership.filter(owner => owner.disposition === 'WRONG')).toHaveLength(1);
+    expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
+    expect(session.evaluationSnapshot.assignment.observationAssignments.filter(owner => owner.kind === 'GROUP_RESIDUAL')).toHaveLength(1);
   });
 
   it('syncs natural clock auto-end into final continuous evaluation without explicit end', () => {
@@ -221,8 +221,8 @@ describe('Continuous clock and evaluation composition', () => {
     const naturalEvaluation = natural.completedEvaluation();
     expect(naturalEvaluation.status).toBe('COMPLETE');
     if (naturalEvaluation.status === 'COMPLETE') {
-      expect(naturalEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(false);
-      expect(naturalEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'MISSING')).toBe(true);
+      expect(naturalEvaluation.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(false);
+      expect(naturalEvaluation.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'UNMATCHED')).toBe(true);
     }
   });
 
@@ -243,7 +243,7 @@ describe('Continuous clock and evaluation composition', () => {
     const manualEvaluation = manual.completedEvaluation();
     expect(manualEvaluation.status).toBe('COMPLETE');
     if (manualEvaluation.status === 'COMPLETE') {
-      expect(manualEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
+      expect(manualEvaluation.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
     }
   });
 
@@ -265,8 +265,8 @@ describe('Continuous clock and evaluation composition', () => {
     const evaluation = manual.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
     if (evaluation.status === 'COMPLETE') {
-      expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MISSING' });
-      expect(evaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
+      expect(evaluation.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'UNMATCHED' });
+      expect(evaluation.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
     }
   });
 
@@ -290,7 +290,7 @@ describe('Continuous clock and evaluation composition', () => {
     const evaluation = manual.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
     if (evaluation.status === 'COMPLETE') {
-      expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({
+      expect(evaluation.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({
         state: 'MATCHED',
         match: { observation: { observationId: `${manual.timebase.domainId}:midi:0` } },
       });
@@ -352,8 +352,8 @@ describe('Continuous clock and evaluation composition', () => {
       const evaluation = session.completedEvaluation();
       expect(evaluation.status).toBe('COMPLETE');
       if (evaluation.status === 'COMPLETE') {
-        expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
-        expect(evaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
+        expect(evaluation.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
+        expect(evaluation.assignment.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
       }
       expect(unavailableFetch).not.toHaveBeenCalled();
     } finally {
@@ -377,8 +377,7 @@ describe('Continuous clock and evaluation composition', () => {
     session.end('STOPPED_BY_USER');
 
     expect(session.completedEvaluation()).toEqual({
-      status: 'UNAVAILABLE',
-      reason: 'INCOMPLETE_ANALYSIS',
+      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS',
     });
   });
 
@@ -454,10 +453,10 @@ describe('Continuous clock and evaluation composition', () => {
 
     });
     expect(evaluated).toBe(true);
-    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
+    expect(performance.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     performanceClock.advance(1_000);
     performance.snapshot();
-    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({
+    expect(performance.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({
       state: 'MATCHED',
       match: { timingOffsetMs: 0 },
     });
@@ -582,7 +581,7 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
     const evaluation = session.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
     if (evaluation.status === 'COMPLETE') {
-      expect(evaluation.groups[0].strikes[0]).toMatchObject({ state: 'MATCHED' });
+      expect(evaluation.assignment.groups[0].strikes[0]).toMatchObject({ state: 'MATCHED' });
     }
   } finally {
     completion.mockRestore();
@@ -605,5 +604,5 @@ it('advances MIDI analysis from performance clock time', () => {
   session.start();
   clock.advance(1_000);
   expect(session.snapshot().state).toBe('RUNNING');
-  expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MISSING' });
+  expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'UNMATCHED' });
 });

@@ -1,5 +1,5 @@
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
-import type { ContinuousEvidencePublication } from './evaluation/types';
+import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import type { PerformanceClockSnapshot } from './performance-clock';
 
 export type ContinuousMidiAttack = Readonly<{

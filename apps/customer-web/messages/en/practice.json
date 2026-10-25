@@ -107,7 +107,7 @@
   "targetStrikes": "Target notes",
   "missingStrikes": "Missing strikes",
   "notReachedStrikes": "Not reached",
-  "notReachedStrikesDesc": "These target notes were outside the completed performance window and were not counted as missing.",
+  "notReachedStrikesDesc": "These target notes were outside the completed performance window.",
   "extraPitchCount": "Extra playing",
   "problemMeasureCount": "{count} measures needing attention",
   "missingPitchesLabel": "Missing",
@@ -339,5 +339,10 @@
   "leaveReviewWhileExportingDesc": "The share video is being generated. Leaving will cancel the current composite export; downloading a share video does not save the original performance.",
   "leaveReviewWhileExportingAndUnsavedDesc": "The share video is being generated, so leaving will cancel the current composite export. The original recording has also not been saved as a performance and may become unavailable after leaving.",
   "leaveReviewContinue": "Continue viewing",
-  "leaveReviewConfirm": "Leave"
+  "leaveReviewConfirm": "Leave",
+  "detectedTargetNotes": "Detected target notes",
+  "unconfirmedTargetNotes": "Unconfirmed target notes",
+  "wrongObservationCount": "Wrong notes",
+  "acousticEvidenceDesc": "Microphone results reflect acoustic evidence. Unassigned acoustic detections are not treated as wrong or extra notes.",
+  "evaluationUnavailableDesc": "A reliable evaluation could not be completed."
 }

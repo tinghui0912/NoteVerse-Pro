@@ -1,5 +1,5 @@
-import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/types';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -17,24 +17,24 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
 
 export class PerformanceAnnotationController {
   private readonly annotationClasses = [
-    'practice-summary-note-confirmed-correct',
-    'practice-summary-note-confirmed-error',
+    'practice-summary-note-supported',
+    'practice-summary-note-error',
   ];
-  private confirmedCorrectNoteIds = new Set<string>();
-  private confirmedErrorNoteIds = new Set<string>();
+  private supportedNoteIds = new Set<string>();
+  private errorNoteIds = new Set<string>();
   private currentContainer: HTMLElement | null = null;
   private renderRevision: number | string | null = null;
 
   clear(container: HTMLElement) {
     const annotatedNoteIds = new Set([
-      ...this.confirmedCorrectNoteIds,
-      ...this.confirmedErrorNoteIds,
+      ...this.supportedNoteIds,
+      ...this.errorNoteIds,
     ]);
     for (const noteId of annotatedNoteIds) {
       findElementByVerovioId(container, noteId)?.classList.remove(...this.annotationClasses);
     }
-    this.confirmedCorrectNoteIds = new Set();
-    this.confirmedErrorNoteIds = new Set();
+    this.supportedNoteIds = new Set();
+    this.errorNoteIds = new Set();
     this.currentContainer = null;
     this.renderRevision = null;
   }
@@ -42,40 +42,40 @@ export class PerformanceAnnotationController {
   apply(
     container: HTMLElement,
     annotations: {
-      confirmedCorrectNoteIds: string[];
-      confirmedErrorNoteIds: string[];
+      supportedNoteIds: string[];
+      errorNoteIds: string[];
     },
     options: {
       renderRevision?: number | string;
     } = {}
   ) {
-    const nextErrorSet = uniqueNoteIds(annotations.confirmedErrorNoteIds);
-    const nextCorrectSet = uniqueNoteIds(annotations.confirmedCorrectNoteIds);
+    const nextErrorSet = uniqueNoteIds(annotations.errorNoteIds);
+    const nextSupportedSet = uniqueNoteIds(annotations.supportedNoteIds);
     for (const noteId of nextErrorSet) {
-      nextCorrectSet.delete(noteId);
+      nextSupportedSet.delete(noteId);
     }
     const shouldRehydrate =
       this.currentContainer !== container ||
       this.renderRevision !== (options.renderRevision ?? null);
 
     if (shouldRehydrate) {
-      this.rehydrate(container, nextCorrectSet, nextErrorSet);
+      this.rehydrate(container, nextSupportedSet, nextErrorSet);
     } else {
       this.syncClassDiff(
         container,
-        this.confirmedCorrectNoteIds,
-        nextCorrectSet,
-        'practice-summary-note-confirmed-correct'
+        this.supportedNoteIds,
+        nextSupportedSet,
+        'practice-summary-note-supported'
       );
       this.syncClassDiff(
         container,
-        this.confirmedErrorNoteIds,
+        this.errorNoteIds,
         nextErrorSet,
-        'practice-summary-note-confirmed-error'
+        'practice-summary-note-error'
       );
     }
-    this.confirmedCorrectNoteIds = nextCorrectSet;
-    this.confirmedErrorNoteIds = nextErrorSet;
+    this.supportedNoteIds = nextSupportedSet;
+    this.errorNoteIds = nextErrorSet;
     this.currentContainer = container;
     this.renderRevision = options.renderRevision ?? null;
   }
@@ -86,8 +86,8 @@ export class PerformanceAnnotationController {
     nextErrorIds: ReadonlySet<string>
   ) {
     const noteIds = new Set([
-      ...this.confirmedCorrectNoteIds,
-      ...this.confirmedErrorNoteIds,
+      ...this.supportedNoteIds,
+      ...this.errorNoteIds,
       ...nextCorrectIds,
       ...nextErrorIds,
     ]);
@@ -96,12 +96,12 @@ export class PerformanceAnnotationController {
     }
     for (const noteId of nextCorrectIds) {
       findElementByVerovioId(container, noteId)?.classList.add(
-        'practice-summary-note-confirmed-correct'
+        'practice-summary-note-supported'
       );
     }
     for (const noteId of nextErrorIds) {
       findElementByVerovioId(container, noteId)?.classList.add(
-        'practice-summary-note-confirmed-error'
+        'practice-summary-note-error'
       );
     }
   }
@@ -131,9 +131,9 @@ export class PerformanceAnnotationController {
         continue;
       }
       node.classList.remove(
-        className === 'practice-summary-note-confirmed-correct'
-          ? 'practice-summary-note-confirmed-error'
-          : 'practice-summary-note-confirmed-correct'
+        className === 'practice-summary-note-supported'
+          ? 'practice-summary-note-error'
+          : 'practice-summary-note-supported'
       );
       node.classList.add(className);
     }
@@ -144,49 +144,21 @@ function uniqueNoteIds(noteIds: readonly string[]) {
   return new Set(noteIds.filter(Boolean));
 }
 
-export function noteAnnotationsFromContinuousEvaluation(
-  evaluation: ContinuousEvaluationSnapshot
-): {
-  confirmedCorrectNoteIds: string[];
-  confirmedErrorNoteIds: string[];
-} {
-  const confirmedCorrectNoteIds: string[] = [];
-  const confirmedErrorNoteIds: string[] = [];
-  for (const group of evaluation.groups) {
+function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnapshot['interpretation']): { supportedNoteIds: string[]; errorNoteIds: string[] } {
+  const supportedNoteIds: string[] = [], errorNoteIds: string[] = [];
+  for (const group of interpretation.groups) {
     if (group.verdict === 'PENDING') continue;
     for (const strike of group.strikes) {
-      if (strike.state === 'MATCHED') {
-        confirmedCorrectNoteIds.push(...strike.renderNoteIds);
-      } else if (strike.state === 'MISSING') {
-        confirmedErrorNoteIds.push(...strike.renderNoteIds);
-      }
+      if (strike.state === 'CORRECT' || strike.state === 'SUPPORTED') supportedNoteIds.push(...strike.renderNoteIds);
+      else if (interpretation.inputSource === 'MIDI' && strike.state === 'MISSING') errorNoteIds.push(...strike.renderNoteIds);
     }
   }
-  return { confirmedCorrectNoteIds, confirmedErrorNoteIds };
+  return { supportedNoteIds, errorNoteIds };
 }
-
-export function noteAnnotationsFromCompletedEvaluation(
-  evaluation: CompletedContinuousEvaluation
-): {
-  confirmedCorrectNoteIds: string[];
-  confirmedErrorNoteIds: string[];
-} {
-  if (evaluation.status === 'UNAVAILABLE') {
-    return {
-      confirmedCorrectNoteIds: [],
-      confirmedErrorNoteIds: [],
-    };
-  }
-  const confirmedCorrectNoteIds: string[] = [];
-  const confirmedErrorNoteIds: string[] = [];
-  for (const group of evaluation.groups) {
-    for (const strike of group.strikes) {
-      if (strike.state === 'MATCHED') {
-        confirmedCorrectNoteIds.push(...strike.renderNoteIds);
-      } else if (strike.state === 'MISSING') {
-        confirmedErrorNoteIds.push(...strike.renderNoteIds);
-      }
-    }
-  }
-  return { confirmedCorrectNoteIds, confirmedErrorNoteIds };
+export function noteAnnotationsFromContinuousEvaluation(evaluation: ContinuousEvaluationSnapshot) {
+  return annotationsFromInterpretation(evaluation.interpretation);
+}
+export function noteAnnotationsFromCompletedEvaluation(evaluation: CompletedContinuousEvaluation) {
+  return evaluation.status === 'UNAVAILABLE' ? { supportedNoteIds: [], errorNoteIds: [] }
+    : annotationsFromInterpretation(evaluation.interpretation);
 }

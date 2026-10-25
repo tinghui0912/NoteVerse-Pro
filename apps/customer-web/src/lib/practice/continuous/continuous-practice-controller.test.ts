@@ -292,7 +292,7 @@ describe('Continuous application owner', () => {
     expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(0);
     const evaluation = controller.snapshot().completed?.evaluation;
     expect(evaluation?.status).toBe('COMPLETE');
-    if (evaluation?.status === 'COMPLETE') expect(evaluation.groups.every(group => group.verdict === 'NOT_REACHED')).toBe(true);
+    if (evaluation?.status === 'COMPLETE') expect(evaluation.interpretation.groups.every(group => group.verdict === 'NOT_REACHED')).toBe(true);
     await controller.dispose();
   });
   for (const paused of [false, true]) it(`analysis failure ${paused ? 'PAUSED' : 'RUNNING'} does not stop clock/root/recording`, async () => {
@@ -303,7 +303,7 @@ describe('Continuous application owner', () => {
     const T = controller.snapshot().transport!.performanceTimeMs;
     if (paused) controller.resume(); await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await controller.finish(); expect(controller.snapshot().completed?.evaluation).toEqual({ status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    await controller.finish(); expect(controller.snapshot().completed?.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
     expect(controller.snapshot().completed?.media.status).toBe('READY'); expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose();
   });
   it('recording ON normal completion shares one acquisition and exact pause mapping', async () => {

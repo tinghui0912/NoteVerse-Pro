@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import type { PracticeMode } from '@/lib/practice/kernel/session';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 
 import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
@@ -67,7 +67,7 @@ export function PracticeScoreViewer({
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const performanceAnnotationSignature = useMemo(
     () =>
-      (performanceEvaluation?.groups ?? [])
+      (performanceEvaluation?.interpretation.groups ?? [])
         .map((group) => [
           group.groupId,
           group.verdict,
@@ -135,7 +135,7 @@ export function PracticeScoreViewer({
       container,
       performanceEvaluation
         ? noteAnnotationsFromContinuousEvaluation(performanceEvaluation)
-        : { confirmedCorrectNoteIds: [], confirmedErrorNoteIds: [] },
+        : { supportedNoteIds: [], errorNoteIds: [] },
       { renderRevision }
     );
   }, [
@@ -317,12 +317,12 @@ export function PracticeScoreViewer({
           stroke: rgb(100 116 139 / 44%);
           filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
         }
-        .practice-score-svg .practice-summary-note-confirmed-correct {
+        .practice-score-svg .practice-summary-note-supported {
           fill: #16a34a !important;
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-summary-note-confirmed-error {
+        .practice-score-svg .practice-summary-note-error {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;

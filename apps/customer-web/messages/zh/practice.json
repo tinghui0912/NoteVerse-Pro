@@ -107,7 +107,7 @@
   "targetStrikes": "目标音",
   "missingStrikes": "漏弹",
   "notReachedStrikes": "未完成",
-  "notReachedStrikesDesc": "这些目标音位于本次已完成演奏范围之外，因此没有计为漏弹。",
+  "notReachedStrikesDesc": "这些目标音位于本次已完成演奏范围之外。",
   "extraPitchCount": "额外演奏",
   "problemMeasureCount": "{count} 个需关注小节",
   "missingPitchesLabel": "漏弹",
@@ -339,5 +339,10 @@
   "leaveReviewWhileExportingDesc": "分享视频正在生成。确认离开会取消当前合成任务；分享视频下载不等于保存原始演奏。",
   "leaveReviewWhileExportingAndUnsavedDesc": "分享视频正在生成，确认离开会取消当前合成任务；同时，原始录音或录像尚未保存为正式演奏，离开后这份临时媒体可能无法再次访问。",
   "leaveReviewContinue": "继续查看",
-  "leaveReviewConfirm": "确认离开"
+  "leaveReviewConfirm": "确认离开",
+  "detectedTargetNotes": "已识别目标音",
+  "unconfirmedTargetNotes": "未确认目标音",
+  "wrongObservationCount": "错音",
+  "acousticEvidenceDesc": "麦克风结果表示声学识别证据；未归属的声学识别结果不会直接视为错音或多弹。",
+  "evaluationUnavailableDesc": "未能完成可靠的练习评估。"
 }

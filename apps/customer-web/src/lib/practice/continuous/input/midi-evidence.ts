@@ -1,5 +1,5 @@
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
-import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;

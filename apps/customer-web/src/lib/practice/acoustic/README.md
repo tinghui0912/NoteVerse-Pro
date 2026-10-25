@@ -23,7 +23,7 @@ Raw tensors remain inside the inference transaction. One capture stream uses one
 model session.
 
 The Continuous adapter imports only the publication type contract from
-`continuous/domain/evaluation/types.ts`; it does not import the evaluator, score
+`continuous/domain/evaluation/evidence-types.ts`; it does not import the evaluator, score
 targets or practice controllers. STEP assembles observations in `step/` and passes
 attempt evidence to `step/domain/`. Neither mode's domain imports this foundation.
 

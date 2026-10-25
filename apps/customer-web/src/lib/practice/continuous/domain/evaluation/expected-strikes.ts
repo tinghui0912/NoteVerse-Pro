@@ -1,4 +1,4 @@
-import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/types';
+import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { PracticeTempoTimeline, resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
