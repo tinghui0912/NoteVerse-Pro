@@ -5,7 +5,7 @@ import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/do
 type SummaryBase = Readonly<{ targetStrikeCount: number; notReachedStrikeCount: number }>;
 export type ContinuousReviewSummary =
   | Readonly<{ status: 'UNAVAILABLE'; inputSource: 'MIDI' | 'MICROPHONE'; targetStrikeCount: number; reason: string }>
-  | (SummaryBase & Readonly<{ status: 'COMPLETE'; inputSource: 'MIDI'; correctStrikeCount: number; missingStrikeCount: number; wrongObservationCount: number; extraObservationCount: number }>)
+  | (SummaryBase & Readonly<{ status: 'COMPLETE'; inputSource: 'MIDI'; correctStrikeCount: number; missingStrikeCount: number; wrongStrikeCount: number; extraObservationCount: number }>)
   | (SummaryBase & Readonly<{ status: 'COMPLETE'; inputSource: 'MICROPHONE'; supportedStrikeCount: number; unconfirmedStrikeCount: number }>);
 export function continuousReviewSummary({ artifact, scope, evaluation }: {
   artifact: PracticeScoreArtifact | null | undefined; scope: ResolvedPracticeScope; evaluation: CompletedContinuousEvaluation;
@@ -21,7 +21,7 @@ export function continuousReviewSummary({ artifact, scope, evaluation }: {
   if (feedback.inputSource === 'MIDI') return Object.freeze({ ...base, inputSource: 'MIDI',
     correctStrikeCount: selected.filter(strike => strike?.state === 'CORRECT').length,
     missingStrikeCount: selected.filter(strike => strike?.state === 'MISSING').length,
-    wrongObservationCount: feedback.groups.reduce((n, group) => n + group.wrongObservations.length, 0), extraObservationCount: feedback.extraObservations.length });
+    wrongStrikeCount: selected.filter(strike => strike?.state === 'WRONG').length, extraObservationCount: feedback.extraObservations.length });
   return Object.freeze({ ...base, inputSource: 'MICROPHONE',
     supportedStrikeCount: selected.filter(strike => strike?.state === 'SUPPORTED').length,
     unconfirmedStrikeCount: selected.filter(strike => strike?.state === 'UNCONFIRMED').length });

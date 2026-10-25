@@ -2,11 +2,15 @@ import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 export type ContinuousInterpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V1' | 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1';
 type FeedbackStrike<State extends string> = ContinuousExpectedStrike & Readonly<{ state: State; timingOffsetMs: number | null }>;
-export type MidiStrikeFeedback = FeedbackStrike<'PENDING' | 'CORRECT' | 'MISSING' | 'NOT_REACHED'>;
+export type MidiStrikeFeedback = ContinuousExpectedStrike & (
+  | Readonly<{ state: 'PENDING' | 'MISSING' | 'NOT_REACHED' }>
+  | Readonly<{ state: 'CORRECT'; timingOffsetMs: number }>
+  | Readonly<{ state: 'WRONG'; observation: ContinuousObservation; timingOffsetMs: number }>
+);
 export type AcousticStrikeFeedback = FeedbackStrike<'PENDING' | 'SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED'>;
 export type MidiGroupFeedback = Readonly<{
   groupId: string; verdict: 'PENDING' | 'CORRECT' | 'MISSING' | 'WRONG' | 'INCOMPLETE_CHORD' | 'NOT_REACHED';
-  strikes: readonly MidiStrikeFeedback[]; wrongObservations: readonly ContinuousObservation[];
+  strikes: readonly MidiStrikeFeedback[];
 }>;
 export type AcousticGroupFeedback = Readonly<{
   groupId: string; verdict: 'PENDING' | 'SUPPORTED' | 'PARTIALLY_SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED';

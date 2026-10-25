@@ -23,29 +23,29 @@ describe('PerformanceAnnotationController', () => {
 
     controller.apply(container, {
       supportedNoteIds: ['n1'],
-      errorNoteIds: ['n2', 'missing', 'n2'],
-    });
+      wrongNoteIds: ['n2', 'missing', 'n2'],
+     missedNoteIds: [] });
 
     expect(container.querySelector('[data-id="n1"]')).toHaveClass(
       'practice-summary-note-supported'
     );
     expect(container.querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
 
     controller.apply(container, {
       supportedNoteIds: [],
-      errorNoteIds: ['n3'],
-    });
+      wrongNoteIds: ['n3'],
+     missedNoteIds: [] });
 
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
       'practice-summary-note-supported'
     );
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
     expect(container.querySelector('#n3')).toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
   });
 
@@ -56,8 +56,8 @@ describe('PerformanceAnnotationController', () => {
 
     controller.apply(container, {
       supportedNoteIds: ['n1'],
-      errorNoteIds: [],
-    });
+      wrongNoteIds: [],
+     missedNoteIds: [] });
     controller.clear(container);
 
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
@@ -76,8 +76,8 @@ describe('PerformanceAnnotationController', () => {
       container,
       {
         supportedNoteIds: [],
-        errorNoteIds: ['n1'],
-      },
+        wrongNoteIds: ['n1'],
+       missedNoteIds: [] },
       { renderRevision: 1 }
     );
     const addSpy = vi.spyOn(DOMTokenList.prototype, 'add');
@@ -87,20 +87,20 @@ describe('PerformanceAnnotationController', () => {
       container,
       {
         supportedNoteIds: [],
-        errorNoteIds: ['n1', 'n2'],
-      },
+        wrongNoteIds: ['n1', 'n2'],
+       missedNoteIds: [] },
       { renderRevision: 1 }
     );
 
     expect(container.querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
     expect(container.querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
     expect(
       removeSpy.mock.calls.some((call) =>
-        call.includes('practice-summary-note-error')
+        call.includes('practice-summary-note-wrong')
       )
     ).toBe(false);
     expect(addSpy).toHaveBeenCalledTimes(1);
@@ -114,27 +114,27 @@ describe('PerformanceAnnotationController', () => {
       container,
       {
         supportedNoteIds: [],
-        errorNoteIds: ['n1'],
-      },
+        wrongNoteIds: ['n1'],
+       missedNoteIds: [] },
       { renderRevision: 1 }
     );
 
     container.innerHTML = '<span data-id="n1"></span>';
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
 
     controller.apply(
       container,
       {
         supportedNoteIds: [],
-        errorNoteIds: ['n1'],
-      },
+        wrongNoteIds: ['n1'],
+       missedNoteIds: [] },
       { renderRevision: 2 }
     );
 
     expect(container.querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-error'
+      'practice-summary-note-wrong'
     );
   });
 
@@ -149,9 +149,11 @@ describe('PerformanceAnnotationController', () => {
     const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('./continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
 
     expect(annotations.supportedNoteIds).toEqual(['note-c']);
-    expect(annotations.errorNoteIds).toEqual(['note-e']);
+    expect(annotations.wrongNoteIds).toEqual([]);
+    expect(annotations.missedNoteIds).toEqual(['note-e']);
     expect(annotations.supportedNoteIds).not.toContain('note-g');
-    expect(annotations.errorNoteIds).not.toContain('note-g');
+    expect(annotations.wrongNoteIds).not.toContain('note-g');
+    expect(annotations.missedNoteIds).not.toContain('note-g');
   });
 });
 
@@ -165,7 +167,23 @@ describe('source-safe score annotations', () => {
     const result = raw.completedAssignment();
     if (result.status !== 'COMPLETE') throw new Error('incomplete');
     expect(noteAnnotationsFromCompletedEvaluation(completedEvaluationFixture(inputSource,result.assignment.groups))).toEqual({
-      supportedNoteIds: ['C4'], errorNoteIds: inputSource === 'MIDI' ? ['D4'] : [] });
-    expect(result.assignment.groups[0].residualObservations.map(row => row.pitch)).toEqual(['E4']);
+      supportedNoteIds: ['C4'], wrongNoteIds: inputSource === 'MIDI' ? ['D4'] : [] , missedNoteIds: [] });
+    expect(result.assignment.groups[0].residualAssignments.map(row => row.observation.pitch)).toEqual(['E4']);
   });
+});
+
+
+it('keeps missed targets distinct through DOM annotation replacement and clearing', () => {
+  const container = document.createElement('div');
+  container.innerHTML = '<span data-id="n"></span>';
+  const note = container.querySelector('[data-id="n"]')!;
+  const controller = new PerformanceAnnotationController();
+  controller.apply(container, { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: ['n'] });
+  expect([...note.classList]).toEqual(['practice-summary-note-missed']);
+  controller.apply(container, { supportedNoteIds: [], wrongNoteIds: ['n'], missedNoteIds: [] });
+  expect([...note.classList]).toEqual(['practice-summary-note-wrong']);
+  controller.apply(container, { supportedNoteIds: ['n'], wrongNoteIds: [], missedNoteIds: [] });
+  expect([...note.classList]).toEqual(['practice-summary-note-supported']);
+  controller.clear(container);
+  expect([...note.classList]).toEqual([]);
 });

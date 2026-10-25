@@ -29,7 +29,7 @@ describe('source-specific interpretation of immutable assignment', () => {
     expect(midiFeedback.groups[0].verdict).toBe(midi);
     expect(acousticFeedback.groups[0].verdict).toBe(acoustic);
     expect(acousticFeedback).not.toHaveProperty('extraObservations');
-    expect(acousticFeedback.groups[0]).not.toHaveProperty('wrongObservations');
+    expect(Object.keys(acousticFeedback.groups[0]).sort()).toEqual(['groupId','strikes','verdict']);
     expect(JSON.stringify(raw)).toBe(before);
     expect(Object.isFrozen(raw)).toBe(true);
     expect(Object.isFrozen(acousticFeedback.groups[0].strikes)).toBe(true);
@@ -50,14 +50,22 @@ describe('source-specific interpretation of immutable assignment', () => {
       expect(feedback.groups[0].strikes.map(strike => strike.state)).toEqual(['NOT_REACHED','NOT_REACHED']);
     }
   });
-  it('MIDI residuals and unattributed observations have distinct feedback ownership', () => {
-    const residual = interpretContinuousAssignment(chord(['C4','E4'], 'MIDI').snapshot(), 'MIDI');
-    const unattributed = interpretContinuousAssignment(chord(['C4','D4','E4'], 'MIDI').snapshot(), 'MIDI');
-    if (residual.inputSource !== 'MIDI' || unattributed.inputSource !== 'MIDI') throw new Error('source');
-    expect(residual.groups[0].strikes.map(strike => strike.state)).toEqual(['CORRECT','MISSING']);
-    expect(residual.groups[0].wrongObservations.map(row => row.pitch)).toEqual(['E4']);
-    expect(residual.extraObservations).toEqual([]);
-    expect(unattributed.extraObservations.map(row => row.pitch)).toEqual(['E4']);
+  it.each([
+    { pitches: ['C4','E4'], states: ['CORRECT','WRONG'], wrong: [['D4','E4']], group: 'WRONG' },
+    { pitches: ['C4'], states: ['CORRECT','MISSING'], wrong: [], group: 'INCOMPLETE_CHORD' },
+    { pitches: ['E4'], states: ['WRONG','MISSING'], wrong: [['C4','E4']], group: 'WRONG' },
+    { pitches: ['E4','F4'], states: ['WRONG','WRONG'], wrong: [['C4','E4'],['D4','F4']], group: 'WRONG' },
+    { pitches: ['C4','D4','E4'], states: ['CORRECT','CORRECT'], wrong: [], group: 'CORRECT' },
+    { pitches: ['C4','E4','F4'], states: ['CORRECT','WRONG'], wrong: [['D4','E4']], group: 'WRONG' },
+    { pitches: [], states: ['MISSING','MISSING'], wrong: [], group: 'MISSING' },
+  ])('$pitches produces one MIDI outcome per target with played-pitch detail', ({ pitches, states, wrong, group }) => {
+    const feedback = interpretContinuousAssignment(chord(pitches, 'MIDI').snapshot(), 'MIDI');
+    if (feedback.inputSource !== 'MIDI') throw new Error('source');
+    expect(feedback.groups[0].strikes.map(strike => strike.state)).toEqual(states);
+    expect(feedback.groups[0].verdict).toBe(group);
+    expect(feedback.groups[0].strikes.flatMap(strike => strike.state === 'WRONG' ? [[strike.strikeId, strike.observation.pitch]] : [])).toEqual(wrong);
+    expect(feedback.groups[0].strikes.filter(strike => strike.state === 'WRONG').every(strike => strike.timingOffsetMs === 0)).toBe(true);
+    expect(Object.keys(feedback.groups[0]).sort()).toEqual(['groupId','strikes','verdict']);
   });
   it('raw assignment ignores provenance source while retaining the complete evidence ledger', () => {
     const normalize = (source: ContinuousObservation['source']) => JSON.parse(JSON.stringify(chord(['C4','E4'], source).snapshot()), (key, value) => key === 'source' ? undefined : value);

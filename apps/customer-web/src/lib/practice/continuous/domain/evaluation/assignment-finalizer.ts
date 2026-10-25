@@ -5,7 +5,7 @@ import { completeContinuousAssignment } from '@/lib/practice/continuous/domain/e
 import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousGroupResidualAssignment, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 
 type Group = { groupId: string; time: number; strikes: readonly ContinuousExpectedStrike[]; pitches: ReadonlySet<string> };
@@ -97,7 +97,7 @@ export class ContinuousAssignmentFinalizer {
       analyzedThroughPerformanceMs: Number.isFinite(this.evidence.analyzedThrough) ? this.evidence.analyzedThrough : null,
       groups: this.groups.map(group => this.committedGroups.get(group.groupId) ?? {
         groupId: group.groupId, performanceTimeMs: group.time, state: 'PENDING' as const,
-        strikes: group.strikes.map(strike => this.strikeState(strike)), residualObservations: [] as const, finality: null,
+        strikes: group.strikes.map(strike => this.strikeState(strike)), residualAssignments: [] as const, finality: null,
       }),
       observations: this.evidence.values(), unattributedObservations: [...this.unattributedObservations], observationAssignments: [...this.owners.values()].sort((a, b) => compareContinuousId(a.observationId, b.observationId)),
       reservedObservationIds: this.residual().filter(observation => this.claimants(observation).some(strike => !this.committedStrikes.has(strike.strikeId)))
@@ -184,28 +184,31 @@ export class ContinuousAssignmentFinalizer {
       .map(strike => ({ group, strike }))).sort((a, b) => byStrikeId(a.strike, b.strike));
     const observations = this.residual().filter(observation => this.claimants(observation)
       .every(strike => this.committedStrikes.has(strike.strikeId))).sort(byObservationId);
-    const residualByGroup = new Map<string, ContinuousObservation[]>();
+    const residualByGroup = new Map<string, ContinuousGroupResidualAssignment[]>();
     for (const [i, j] of matchContinuousEvidence(slots, observations, ({ group }, observation) =>
       !group.pitches.has(observation.pitch) && withinContinuousWindow(group.time, observation.performanceTimeMs)
         ? Math.abs(group.time - observation.performanceTimeMs) : Infinity)) {
-      const group = slots[i].group, observation = observations[j];
-      this.claim({ kind: 'GROUP_RESIDUAL', observationId: observation.observationId, groupId: group.groupId });
-      residualByGroup.set(group.groupId, [...(residualByGroup.get(group.groupId) ?? []), observation]);
+      const { group, strike } = slots[i], observation = observations[j];
+      this.claim({ kind: 'GROUP_RESIDUAL', observationId: observation.observationId, groupId: group.groupId, strikeId: strike.strikeId });
+      residualByGroup.set(group.groupId, [...(residualByGroup.get(group.groupId) ?? []), {
+        strikeId: strike.strikeId, observation,
+        timingOffsetMs: observation.performanceTimeMs - strike.expectedPerformanceTimeMs,
+      }]);
     }
     for (const group of ready) {
-      const residualObservations = residualByGroup.get(group.groupId) ?? [];
-      this.finishGroup(group, residualObservations, this.groupFrontier(group));
+      const residualAssignments = residualByGroup.get(group.groupId) ?? [];
+      this.finishGroup(group, residualAssignments, this.groupFrontier(group));
     }
   }
 
-  private finishGroup(group: Group, residualObservations: readonly ContinuousObservation[], required: number): void {
+  private finishGroup(group: Group, residualAssignments: readonly ContinuousGroupResidualAssignment[], required: number): void {
     const strikes = group.strikes.map(strike => this.strikeState(strike));
     if (!strikes.every((strike): strike is FinalizedContinuousStrikeAssignment => strike.state !== 'PENDING')) {
       throw new ContinuousEvaluationError('UNRESOLVED_RESERVATION');
     }
     this.committedGroups.set(group.groupId, immutableContinuousValue({
       groupId: group.groupId, performanceTimeMs: group.time, state: 'FINALIZED', strikes,
-      residualObservations: [...residualObservations], finality: this.finality(required),
+      residualAssignments: [...residualAssignments], finality: this.finality(required),
     }));
   }
 

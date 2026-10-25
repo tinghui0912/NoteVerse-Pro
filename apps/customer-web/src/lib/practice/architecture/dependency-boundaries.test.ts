@@ -59,6 +59,9 @@ function imports(file: string, text = readFileSync(file, 'utf8')): Edge[] {
 const files = productionFiles(practiceRoot);
 const relative = (file: string) => normalize(path.relative(practiceRoot, file));
 const graph = new Map(files.map(file => [normalize(file), imports(file)]));
+const sourceGraph = new Map(productionFiles(sourceRoot).map(file => [
+  normalize(file), graph.get(normalize(file)) ?? imports(file),
+]));
 const domain = (file: string) => file.startsWith('kernel/') ? 'kernel'
   : file.startsWith('step/domain/') ? 'step/domain'
     : file.startsWith('continuous/domain/') ? 'continuous/domain' : null;
@@ -85,8 +88,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 describe('Practice bounded domain dependencies', () => {
   it('has concrete owners and no common mode barrel', () => {
     expect(existsSync(path.join(practiceRoot, 'local-core'))).toBe(false);
-    for (const file of productionFiles(sourceRoot)) {
-      expect(imports(file).map(edge => edge.specifier), relative(file)).not.toEqual(
+    for (const [file, edges] of sourceGraph) {
+      expect(edges.map(edge => edge.specifier), relative(file)).not.toEqual(
         expect.arrayContaining([expect.stringMatching(/(?:^|\/)local-core(?:\/|$)/)])
       );
     }
@@ -198,6 +201,24 @@ describe('Practice bounded domain dependencies', () => {
       };
       visit(source);
     }
+  });
+
+  it('only evaluation composition imports the source-specific interpreter in production', () => {
+    const interpreter = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/interpretation.ts'));
+    const composition = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/session.ts'));
+    const allowed = (file: string, edge: Edge) => edge.target !== interpreter || normalize(file) === composition;
+    for (const [file, edges] of sourceGraph) {
+      for (const edge of edges) expect(allowed(file, edge), file + ' -> ' + edge.specifier).toBe(true);
+    }
+    for (const source of ['continuous/continuous-practice-controller.ts', 'performance-annotation-controller.ts']) {
+      const file = path.join(practiceRoot, source);
+      for (const statement of [
+        "import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';",
+        "export { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';",
+        "const module = import('@/lib/practice/continuous/domain/evaluation/interpretation');",
+      ]) expect(allowed(file, imports(file, statement)[0]), statement).toBe(false);
+    }
+    expect(allowed(composition, imports(composition, "import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';")[0])).toBe(true);
   });
 
   it('has no production module dependency cycles', () => {

@@ -738,6 +738,13 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await page.waitForURL(`**/score/${scoreId}/practice/review`);
     await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
 
+    const targetOutcomes = page.getByRole('region', { name: '目标音结果' });
+    const additionalPlaying = page.getByRole('region', { name: '额外演奏' });
+    await expect(targetOutcomes).toBeVisible();
+    await expect(additionalPlaying.getByText('额外音', { exact: true })).toBeVisible();
+    await expect(targetOutcomes.getByText('额外音', { exact: true })).toHaveCount(0);
+    await expect(additionalPlaying.getByText('目标音', { exact: true })).toHaveCount(0);
+
     // Verify factual cards
     await expect(page.getByText('演奏时长')).toBeVisible();
     await expect(page.getByText('演奏速度')).toBeVisible();
@@ -745,9 +752,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('输入方式')).toBeVisible();
     for (const [label, value] of [
       ['目标音', '3'],
-      ['正确击键', '1'],
+      ['正确', '1'],
       ['漏弹', '0'],
-      ['额外演奏', '0'],
+      ['错音', '0'],
+      ['额外音', '0'],
       ['未完成', '2'],
     ]) {
       const title = page.getByText(label, { exact: true });

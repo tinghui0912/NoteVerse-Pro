@@ -1,5 +1,6 @@
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
-import type { CompletedContinuousAssignment, CompletedContinuousAssignmentResult, FinalizedContinuousGroupAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { CompletedContinuousAssignment, CompletedContinuousAssignmentResult, FinalizedContinuousGroupAssignment, FinalizedContinuousStrikeAssignment, ContinuousGroupResidualAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 
 /** Completion projects the accumulated ledger without running assignment again. */
@@ -22,31 +23,78 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
   if (!Array.isArray(assignment.groups) || !Array.isArray(assignment.observations)
     || !Array.isArray(assignment.unattributedObservations) || !Array.isArray(assignment.observationAssignments)
     || !assignment.completion) throw new Error('CompletedPerformance assignment is corrupt.');
-  const declarations: CompletedContinuousAssignment['observationAssignments'][number][] = [];
-  for (const group of assignment.groups) {
-    if (group.state !== 'FINALIZED' || !group.finality || !Array.isArray(group.residualObservations)) {
-      throw new Error('CompletedPerformance group must be final.');
+  const ledger = new Map(assignment.observations.map(row => [row.observationId, row]));
+  if (ledger.size !== assignment.observations.length) throw new Error('CompletedPerformance observation assignment is corrupt.');
+  const declarations = new Map<string, CompletedContinuousAssignment['observationAssignments'][number]>();
+  const groups = new Set<string>(), strikes = new Set<string>(), residualSlots = new Set<string>();
+  const claim = (relation: CompletedContinuousAssignment['observationAssignments'][number], observation: ContinuousObservation) => {
+    const retained = ledger.get(observation.observationId);
+    if (!retained || !sameObservation(retained, observation) || declarations.has(observation.observationId)) {
+      throw new Error('CompletedPerformance observation assignment is corrupt.');
     }
-    for (const strike of group.strikes) {
+    declarations.set(observation.observationId, relation);
+  };
+  for (const group of assignment.groups) {
+    if (group.state !== 'FINALIZED' || !group.finality || !Array.isArray(group.strikes)
+      || !Array.isArray(group.residualAssignments) || !group.groupId || groups.has(group.groupId)) {
+      throw new Error('CompletedPerformance group must be final and unique.');
+    }
+    groups.add(group.groupId);
+    const groupStrikes: readonly FinalizedContinuousStrikeAssignment[] = group.strikes;
+    const residuals: readonly ContinuousGroupResidualAssignment[] = group.residualAssignments;
+    for (const strike of groupStrikes) {
       if (!Array.isArray(strike.renderNoteIds)) throw new Error('CompletedPerformance strike renderNoteIds are required.');
       if (!['MATCHED', 'UNMATCHED', 'NOT_REACHED'].includes(strike.state) || !strike.finality) {
         throw new Error('CompletedPerformance strike must be final.');
       }
+      if (!strike.strikeId || strikes.has(strike.strikeId) || strike.groupId !== group.groupId) {
+        throw new Error('CompletedPerformance strike identity is corrupt.');
+      }
+      strikes.add(strike.strikeId);
       if (strike.state === 'MATCHED') {
         if (!strike.match?.observation.observationId || !Number.isFinite(strike.match.observation.confidence)
           || !Number.isFinite(strike.match.timingOffsetMs)) throw new Error('CompletedPerformance matched strike metadata is required.');
-        declarations.push({ kind: 'STRIKE_MATCH', observationId: strike.match.observation.observationId, strikeId: strike.strikeId });
+        claim({ kind: 'STRIKE_MATCH', observationId: strike.match.observation.observationId, strikeId: strike.strikeId }, strike.match.observation);
       }
     }
-    declarations.push(...group.residualObservations.map((observation: import('./evidence-types').ContinuousObservation) => ({ kind: 'GROUP_RESIDUAL' as const, observationId: observation.observationId, groupId: group.groupId })));
+    for (const residual of residuals) {
+      const strike = groupStrikes.find(strike => strike.strikeId === residual.strikeId);
+      if (!strike || strike.state !== 'UNMATCHED' || residualSlots.has(residual.strikeId)
+        || !Number.isFinite(residual.timingOffsetMs)
+        || residual.timingOffsetMs !== residual.observation.performanceTimeMs - strike.expectedPerformanceTimeMs) {
+        throw new Error('CompletedPerformance residual strike assignment is corrupt.');
+      }
+      residualSlots.add(residual.strikeId);
+      claim({ kind: 'GROUP_RESIDUAL', observationId: residual.observation.observationId, groupId: group.groupId, strikeId: strike.strikeId }, residual.observation);
+    }
   }
-  declarations.push(...assignment.unattributedObservations.map(row => ({ kind: 'UNATTRIBUTED' as const, observationId: row.observation.observationId })));
+  for (const row of assignment.unattributedObservations) {
+    if (!row.finality) throw new Error('CompletedPerformance unattributed observation must be final.');
+    claim({ kind: 'UNATTRIBUTED', observationId: row.observation.observationId }, row.observation);
+  }
   const relations = assignment.observationAssignments;
-  if (new Set(declarations.map(row => row.observationId)).size !== declarations.length
-    || new Set(assignment.observations.map(row => row.observationId)).size !== assignment.observations.length
-    || relations.length !== declarations.length || relations.length !== assignment.observations.length
-    || declarations.some(row => !relations.some(other => JSON.stringify(other) === JSON.stringify(row)))
-    || assignment.observations.some(observation => !relations.some(row => row.observationId === observation.observationId))) {
+  const relatedIds = new Set(relations.map(row => row.observationId));
+  if (relatedIds.size !== relations.length || relations.length !== ledger.size || declarations.size !== ledger.size
+    || relations.some(row => !declarations.has(row.observationId)
+      || relationKey(row) !== relationKey(declarations.get(row.observationId)!))) {
     throw new Error('CompletedPerformance observation assignment is corrupt.');
   }
+}
+
+function relationKey(relation: CompletedContinuousAssignment['observationAssignments'][number]): string {
+  switch (relation.kind) {
+    case 'STRIKE_MATCH': return JSON.stringify([relation.kind, relation.observationId, relation.strikeId]);
+    case 'GROUP_RESIDUAL': return JSON.stringify([relation.kind, relation.observationId, relation.groupId, relation.strikeId]);
+    case 'UNATTRIBUTED': return JSON.stringify([relation.kind, relation.observationId]);
+    default: throw new Error('CompletedPerformance observation assignment is corrupt.');
+  }
+}
+
+function sameObservation(a: ContinuousObservation, b: ContinuousObservation): boolean {
+  return a.observationId === b.observationId && a.pitch === b.pitch
+    && a.performanceTimeMs === b.performanceTimeMs && a.confidence === b.confidence && a.source === b.source
+    && Boolean(a.provenance) === Boolean(b.provenance)
+    && a.provenance?.sourceDomainId === b.provenance?.sourceDomainId
+    && a.provenance?.sourceEventSample === b.provenance?.sourceEventSample
+    && a.provenance?.sourceSampleRateHz === b.provenance?.sourceSampleRateHz;
 }

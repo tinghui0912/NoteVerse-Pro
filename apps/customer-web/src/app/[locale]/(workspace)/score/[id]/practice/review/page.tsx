@@ -223,7 +223,8 @@ export default function PracticeReviewPage({
     if (!isScoreIdentityConfirmed || !draft?.evaluation) {
       return {
         supportedNoteIds: [],
-        errorNoteIds: [],
+        wrongNoteIds: [],
+        missedNoteIds: [],
       };
     }
     return noteAnnotationsFromCompletedEvaluation(draft.evaluation);
@@ -240,7 +241,8 @@ export default function PracticeReviewPage({
       if (!isScoreIdentityConfirmed) {
         annotationController.apply(container, {
           supportedNoteIds: [],
-          errorNoteIds: [],
+          wrongNoteIds: [],
+        missedNoteIds: [],
         }, {
           renderRevision: scoreRenderRevisionRef.current,
         });
@@ -248,7 +250,8 @@ export default function PracticeReviewPage({
       }
       annotationController.apply(container, {
         supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-        errorNoteIds: scoreNoteAnnotations.errorNoteIds,
+        wrongNoteIds: scoreNoteAnnotations.wrongNoteIds,
+        missedNoteIds: scoreNoteAnnotations.missedNoteIds,
       }, {
         renderRevision: scoreRenderRevisionRef.current,
       });
@@ -322,7 +325,8 @@ export default function PracticeReviewPage({
     if (!isScoreIdentityConfirmed) {
       annotationController.apply(container, {
         supportedNoteIds: [],
-        errorNoteIds: [],
+        wrongNoteIds: [],
+        missedNoteIds: [],
       }, {
         renderRevision: scoreRenderRevisionRef.current,
       });
@@ -331,7 +335,8 @@ export default function PracticeReviewPage({
     }
     annotationController.apply(container, {
       supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-      errorNoteIds: scoreNoteAnnotations.errorNoteIds,
+      wrongNoteIds: scoreNoteAnnotations.wrongNoteIds,
+        missedNoteIds: scoreNoteAnnotations.missedNoteIds,
     }, {
       renderRevision: scoreRenderRevisionRef.current,
     });
@@ -552,10 +557,14 @@ export default function PracticeReviewPage({
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-summary-score-svg .practice-summary-note-error {
+        .practice-summary-score-svg .practice-summary-note-wrong {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
+        }
+        .practice-summary-score-svg .practice-summary-note-missed {
+          fill: #94a3b8 !important;
+          color: #94a3b8 !important;
         }
         .practice-summary-score-svg .practice-playhead-cursor {
           stroke-width: 1.5px;
@@ -613,27 +622,42 @@ export default function PracticeReviewPage({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Card className="rounded-lg bg-card">
-          <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('targetStrikes')}</CardTitle></CardHeader>
-          <CardContent><div className="text-xl font-bold">{strikeSummary.targetStrikeCount}</div></CardContent>
-        </Card>
-        {strikeSummary.status === 'COMPLETE' && <>
+      <section aria-labelledby="target-feedback-heading" className="space-y-3">
+        <h2 id="target-feedback-heading" className="text-sm font-semibold">
+          {t(strikeSummary.inputSource === 'MIDI' ? 'targetNoteOutcomes' : 'targetNoteEvidence')}
+        </h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <Card className="rounded-lg bg-card">
-            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'confirmedCorrectStrikes' : 'detectedTargetNotes')}</CardTitle></CardHeader>
-            <CardContent><div className="text-xl font-bold text-green-600">{strikeSummary.inputSource === 'MIDI' ? strikeSummary.correctStrikeCount : strikeSummary.supportedStrikeCount}</div></CardContent>
+            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('targetStrikes')}</CardTitle></CardHeader>
+            <CardContent><div className="text-xl font-bold">{strikeSummary.targetStrikeCount}</div></CardContent>
           </Card>
-          <Card className="rounded-lg bg-card">
-            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'missingStrikes' : 'unconfirmedTargetNotes')}</CardTitle></CardHeader>
-            <CardContent><div className={strikeSummary.inputSource === 'MIDI' ? 'text-xl font-bold text-red-600' : 'text-xl font-bold text-slate-600'}>{strikeSummary.inputSource === 'MIDI' ? strikeSummary.missingStrikeCount : strikeSummary.unconfirmedStrikeCount}</div></CardContent>
-          </Card>
-          {strikeSummary.inputSource === 'MIDI' && <>
-            <Card className="rounded-lg bg-card"><CardHeader><CardTitle className="text-xs text-muted-foreground">{t('wrongObservationCount')}</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-red-600">{strikeSummary.wrongObservationCount}</div></CardContent></Card>
-            <Card className="rounded-lg bg-card"><CardHeader><CardTitle className="text-xs text-muted-foreground">{t('extraPitchCount')}</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-amber-600">{strikeSummary.extraObservationCount}</div></CardContent></Card>
+          {strikeSummary.status === 'COMPLETE' && <>
+            <Card className="rounded-lg bg-card">
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'confirmedCorrectStrikes' : 'detectedTargetNotes')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-green-600">{strikeSummary.inputSource === 'MIDI' ? strikeSummary.correctStrikeCount : strikeSummary.supportedStrikeCount}</div></CardContent>
+            </Card>
+            {strikeSummary.inputSource === 'MIDI' && <Card className="rounded-lg bg-card">
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('wrongStrikeCount')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-red-600">{strikeSummary.wrongStrikeCount}</div></CardContent>
+            </Card>}
+            <Card className="rounded-lg bg-card">
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'missingStrikes' : 'unconfirmedTargetNotes')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-slate-600">{strikeSummary.inputSource === 'MIDI' ? strikeSummary.missingStrikeCount : strikeSummary.unconfirmedStrikeCount}</div></CardContent>
+            </Card>
+            <Card className="rounded-lg bg-card">
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('notReachedStrikes')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-slate-600">{strikeSummary.notReachedStrikeCount}</div></CardContent>
+            </Card>
           </>}
-          {strikeSummary.notReachedStrikeCount > 0 && <Card className="rounded-lg bg-card"><CardHeader><CardTitle className="text-xs text-muted-foreground">{t('notReachedStrikes')}</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-slate-600">{strikeSummary.notReachedStrikeCount}</div></CardContent></Card>}
-        </>}
-      </div>
+        </div>
+      </section>
+      {strikeSummary.status === 'COMPLETE' && strikeSummary.inputSource === 'MIDI' && <section aria-labelledby="additional-playing-heading" className="space-y-3 border-t pt-4">
+        <h2 id="additional-playing-heading" className="text-sm font-semibold">{t('additionalPlaying')}</h2>
+        <Card className="max-w-xs rounded-lg bg-card">
+          <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('extraPitchCount')}</CardTitle></CardHeader>
+          <CardContent><div className="text-xl font-bold text-amber-600">{strikeSummary.extraObservationCount}</div></CardContent>
+        </Card>
+      </section>}
       {strikeSummary.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
         : strikeSummary.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
       {strikeSummary.status === 'COMPLETE' && strikeSummary.notReachedStrikeCount > 0 ? <p className="text-sm text-muted-foreground">{t('notReachedStrikesDesc')}</p> : null}

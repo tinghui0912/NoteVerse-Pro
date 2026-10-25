@@ -25,15 +25,20 @@ export type ContinuousStrikeAssignment = ContinuousExpectedStrike & (
   | Readonly<{ state: 'UNMATCHED' | 'NOT_REACHED'; finality: ContinuousFinality }>
 );
 export type FinalizedContinuousStrikeAssignment = Exclude<ContinuousStrikeAssignment, { state: 'PENDING' }>;
+export type ContinuousGroupResidualAssignment = Readonly<{
+  strikeId: string;
+  observation: ContinuousObservation;
+  timingOffsetMs: number;
+}>;
 export type ContinuousGroupAssignment = Readonly<{ groupId: string; performanceTimeMs: number }> & (
-  | Readonly<{ state: 'PENDING'; strikes: readonly ContinuousStrikeAssignment[]; residualObservations: readonly []; finality: null }>
-  | Readonly<{ state: 'FINALIZED'; strikes: readonly FinalizedContinuousStrikeAssignment[]; residualObservations: readonly ContinuousObservation[]; finality: ContinuousFinality }>
+  | Readonly<{ state: 'PENDING'; strikes: readonly ContinuousStrikeAssignment[]; residualAssignments: readonly []; finality: null }>
+  | Readonly<{ state: 'FINALIZED'; strikes: readonly FinalizedContinuousStrikeAssignment[]; residualAssignments: readonly ContinuousGroupResidualAssignment[]; finality: ContinuousFinality }>
 );
 export type FinalizedContinuousGroupAssignment = Extract<ContinuousGroupAssignment, { state: 'FINALIZED' }>;
 export type UnattributedContinuousObservation = Readonly<{ observation: ContinuousObservation; finality: ContinuousFinality }>;
 export type ContinuousObservationAssignment =
   | Readonly<{ kind: 'STRIKE_MATCH'; observationId: string; strikeId: string }>
-  | Readonly<{ kind: 'GROUP_RESIDUAL'; observationId: string; groupId: string }>
+  | Readonly<{ kind: 'GROUP_RESIDUAL'; observationId: string; groupId: string; strikeId: string }>
   | Readonly<{ kind: 'UNATTRIBUTED'; observationId: string }>;
 export type ContinuousAssignmentSnapshot = Readonly<{
   sessionDomainId: string;

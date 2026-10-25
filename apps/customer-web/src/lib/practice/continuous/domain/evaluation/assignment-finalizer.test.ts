@@ -28,7 +28,7 @@ describe('bounded source-blind Continuous assignment', () => {
     const l = ledger(expected); l.publish(pub('p', 1250, observations));
     expect(group(l).state).toBe('FINALIZED');
     expect(group(l).strikes.map(strike => strike.state)).toEqual(states);
-    expect(group(l).residualObservations).toHaveLength(residualCount);
+    expect(group(l).residualAssignments).toHaveLength(residualCount);
   });
   it('unattributed without legal claims', () => { const l = ledger([]); l.publish(pub('p', 1000, [observation('o', 900)])); expect(l.snapshot().unattributedObservations[0].observation.observationId).toBe('o'); });
   it('repeated same pitch has distinct owners', () => {
@@ -47,7 +47,7 @@ describe('bounded source-blind Continuous assignment', () => {
   it('releases evidence to group residual when the direct claimant uses a better observation', () => {
     const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
     expect(group(l, 'g').state).toBe('PENDING'); l.publish(pub('q', 2050));
-    expect(group(l, 'g').residualObservations).toHaveLength(1); expect(group(l, 'g').residualObservations[0].observationId).toBe('r');
+    expect(group(l, 'g').residualAssignments).toHaveLength(1); expect(group(l, 'g').residualAssignments[0].observation.observationId).toBe('r');
     expect(group(l, 'g').finality?.requiredAnalysisFrontierMs).toBe(2050);
     expect(group(l, 'next').strikes[0].state).toBe('PENDING');
   });
@@ -63,7 +63,7 @@ describe('bounded source-blind Continuous assignment', () => {
   it('one group residual observation cannot also be unattributed or claimed by two groups', () => {
     const l = ledger([strike('a'), strike('b', 1100)]); l.publish(pub('p', 1900, [observation('o', 1050, 'D4')])); finish(l);
     expect(l.snapshot().observationAssignments).toHaveLength(1); expect(l.snapshot().unattributedObservations).toHaveLength(0);
-    expect(l.snapshot().groups.filter(g => g.residualObservations.length > 0)).toHaveLength(1);
+    expect(l.snapshot().groups.filter(g => g.residualAssignments.length > 0)).toHaveLength(1);
   });
   it('MATCHED cannot also be group residual or unattributed', () => {
     const l = ledger([strike('a', 1000, 'D4'), strike('b')]); l.publish(pub('p', 1500, [observation('o', 1000, 'D4')])); finish(l);
@@ -133,5 +133,47 @@ describe('bounded source-blind Continuous assignment', () => {
       for (const g of result.groups) expect(g.finality!.unclampedRequiredFrontierMs - g.performanceTimeMs).toBeLessThanOrEqual(1250);
       expect(result.reservedObservationIds).toEqual([]);
     }
+  });
+});
+
+
+describe('deterministic residual slot relations', () => {
+  it.each([
+    { pitches: ['C4','E4'], matched: ['C4'], residual: ['E4'], unattributed: [], slots: ['D4'] },
+    { pitches: ['C4'], matched: ['C4'], residual: [], unattributed: [], slots: [] },
+    { pitches: ['E4'], matched: [], residual: ['E4'], unattributed: [], slots: ['C4'] },
+    { pitches: ['E4','F4'], matched: [], residual: ['E4','F4'], unattributed: [], slots: ['C4','D4'] },
+    { pitches: ['C4','D4','E4'], matched: ['C4','D4'], residual: [], unattributed: ['E4'], slots: [] },
+    { pitches: ['C4','E4','F4'], matched: ['C4'], residual: ['E4'], unattributed: ['F4'], slots: ['D4'] },
+    { pitches: [], matched: [], residual: [], unattributed: [], slots: [] },
+  ])('$pitches preserves matching geometry, ownership and fixed finality', ({ pitches, matched, residual, unattributed, slots }) => {
+    const run = (rows: readonly string[], targets: readonly string[]) => {
+      const l = ledger(targets.map(pitch => strike(pitch, 1000, pitch, 'g')));
+      l.publish(pub('p', 4000, rows.map(pitch => observation(pitch, 1000, pitch)), 4100));
+      l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilityTimeMs: 4100 });
+      return l.snapshot();
+    };
+    const snapshot = run(pitches, ['C4','D4']), group = snapshot.groups[0];
+    expect(run([...pitches].reverse(), ['D4','C4'])).toEqual(snapshot);
+    expect(group.strikes.filter(s => s.state === 'MATCHED').map(s => s.strikeId)).toEqual(matched);
+    expect(group.residualAssignments.map(row => row.observation.observationId)).toEqual(residual);
+    expect(snapshot.unattributedObservations.map(row => row.observation.observationId)).toEqual(unattributed);
+    expect(group.residualAssignments.map(row => row.strikeId)).toEqual(slots);
+    expect(group.residualAssignments.every(row => row.timingOffsetMs === 0)).toBe(true);
+    const finality = { requiredAnalysisFrontierMs: 1250, unclampedRequiredFrontierMs: 1250,
+      enablingPublicationId: 'p', enablingAnalysisFrontierMs: 4000, finalizationTimeMs: 4100, terminalClamp: false };
+    expect(group.finality).toEqual(finality);
+    expect(group.strikes.every(s => s.state !== 'PENDING' && JSON.stringify(s.finality) === JSON.stringify(finality))).toBe(true);
+    expect(snapshot.unattributedObservations.every(row => JSON.stringify(row.finality) === JSON.stringify(finality))).toBe(true);
+    expect(snapshot.observationAssignments.filter(row => row.kind === 'GROUP_RESIDUAL')).toEqual(residual.map((observationId, index) => ({
+      kind: 'GROUP_RESIDUAL', groupId: 'g', strikeId: slots[index], observationId,
+    })));
+    expect(snapshot.reservedObservationIds).toEqual([]);
+    expect(new Set(snapshot.observationAssignments.map(row => row.observationId)).size).toBe(pitches.length);
+  });
+  it('records signed timing once at the selected residual strike', () => {
+    const l = ledger([strike('target')]);
+    l.publish(pub('p', 2000, [observation('early', 877, 'E4')]));
+    expect(group(l, 'target').residualAssignments[0]).toMatchObject({ strikeId: 'target', observation: { observationId: 'early' }, timingOffsetMs: -123 });
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const navigationMocks = vi.hoisted(() => ({
@@ -31,12 +31,15 @@ const translationMocks = vi.hoisted(() => {
     performanceOutcomes: '音符匹配结果',
     performanceDetails: '演奏详情',
     targetStrikes: '目标音',
-    confirmedCorrectStrikes: '正确击键',
+    confirmedCorrectStrikes: '正确',
     missingStrikes: '漏弹',
     notReachedStrikes: '未完成',
     notReachedStrikesDesc: '这些目标音位于本次已完成演奏范围之外。',
-    extraPitchCount: '额外演奏',
-    wrongObservationCount: '错音',
+    extraPitchCount: '额外音',
+    wrongStrikeCount: '错音',
+    targetNoteOutcomes: '目标音结果',
+    targetNoteEvidence: '目标音识别',
+    additionalPlaying: '额外演奏',
     detectedTargetNotes: '已识别目标音',
     unconfirmedTargetNotes: '未确认目标音',
     acousticEvidenceDesc: '麦克风结果表示声学识别证据；未归属的声学识别结果不会直接视为错音或多弹。',
@@ -293,10 +296,12 @@ function completeEvaluation(
   return completedEvaluationFixture(inputSource, outcomes.map(outcome => ({
     groupId: outcome.expectedGroupId, performanceTimeMs: outcome.performanceTimeMs,
     state: 'FINALIZED', finality,
-    residualObservations: outcome.residualPitches.map((pitch, index) => ({
-      observationId: `${outcome.expectedGroupId}:residual:${index}`, pitch,
+    residualAssignments: outcome.residualPitches.map((pitch, index) => ({
+      strikeId: outcome.expectedStrikeOutcomes.filter(strike => strike.result === 'UNMATCHED')[index].strikeId,
+      timingOffsetMs: 0,
+      observation: { observationId: `${outcome.expectedGroupId}:residual:${index}`, pitch,
       performanceTimeMs: outcome.performanceTimeMs, confidence: outcome.confidence,
-      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
+      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const },
     })),
     strikes: outcome.expectedStrikeOutcomes.map((strike) => {
         const base = {
@@ -578,19 +583,36 @@ describe('PracticeReviewPage', () => {
 
     // Four supported targets, two unsupported targets, two not reached; only MIDI uses error labels.
     expect(screen.getByText('目标音')).toBeDefined();
-    expect(screen.getByText(inputSource === 'MIDI' ? '正确击键' : '已识别目标音')).toBeDefined();
+    expect(screen.getByText(inputSource === 'MIDI' ? '正确' : '已识别目标音')).toBeDefined();
     expect(screen.getByText(inputSource === 'MIDI' ? '漏弹' : '未确认目标音')).toBeDefined();
     expect(screen.getByText('未完成')).toBeDefined();
     expect(screen.queryByText('额外演奏') !== null).toBe(inputSource === 'MIDI');
     expect(screen.queryByText('错音') !== null).toBe(inputSource === 'MIDI');
+    const targetRegion = screen.getByRole('region', { name: inputSource === 'MIDI' ? '目标音结果' : '目标音识别' });
+    const targetCounts = inputSource === 'MIDI'
+      ? [['目标音', 8], ['正确', 4], ['错音', 1], ['漏弹', 1], ['未完成', 2]] as const
+      : [['目标音', 8], ['已识别目标音', 4], ['未确认目标音', 2], ['未完成', 2]] as const;
+    for (const [label, count] of targetCounts) {
+      const card = within(targetRegion).getByText(label, { exact: true }).parentElement!.parentElement!;
+      expect(within(card).getByText(String(count), { exact: true })).toBeDefined();
+    }
+    expect(within(targetRegion).queryByText('额外音')).toBeNull();
+    if (inputSource === 'MIDI') {
+      const additional = screen.getByRole('region', { name: '额外演奏' });
+      expect(within(additional).getByText('额外音')).toBeDefined();
+      expect(within(additional).getByText('0')).toBeDefined();
+      expect(within(additional).queryByText('目标音')).toBeNull();
+    } else {
+      expect(screen.queryByRole('region', { name: '额外演奏' })).toBeNull();
+    }
     expect(screen.getByText('8')).toBeDefined();
     expect(screen.getByText('4')).toBeDefined();
-    expect(screen.getAllByText('2')).toHaveLength(2);
+    expect(screen.getAllByText('2')).toHaveLength(inputSource === 'MIDI' ? 1 : 2);
     expect(screen.getByText('这些目标音位于本次已完成演奏范围之外。')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
-    // MIDI missing targets are red; acoustic unconfirmed targets remain neutral.
+    // MIDI wrong targets are red, missed targets are neutral; acoustic unconfirmed targets remain neutral.
     // Neutral (not reached): note-f4, note-a4 should NOT be in either
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
@@ -598,13 +620,14 @@ describe('PracticeReviewPage', () => {
     expect(annotations.supportedNoteIds).toEqual(
       expect.arrayContaining(['note-c4', 'note-e4', 'note-g4', 'note-c5'])
     );
-    expect(annotations.errorNoteIds).toEqual(
-      inputSource === 'MIDI' ? ['note-b4', 'note-e5'] : []
+    expect(annotations.wrongNoteIds).toEqual(
+      inputSource === 'MIDI' ? ['note-e5'] : []
     );
     expect(annotations.supportedNoteIds).not.toContain('note-f4');
     expect(annotations.supportedNoteIds).not.toContain('note-a4');
-    expect(annotations.errorNoteIds).not.toContain('note-f4');
-    expect(annotations.errorNoteIds).not.toContain('note-a4');
+    expect(annotations.missedNoteIds).toEqual(inputSource === 'MIDI' ? ['note-b4'] : []);
+    expect(annotations.wrongNoteIds).not.toContain('note-f4');
+    expect(annotations.wrongNoteIds).not.toContain('note-a4');
   });
 
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
@@ -667,7 +690,7 @@ describe('PracticeReviewPage', () => {
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
     expect(lastCall[1].supportedNoteIds).toEqual([]);
-    expect(lastCall[1].errorNoteIds).toEqual([]);
+    expect(lastCall[1].wrongNoteIds).toEqual([]);
 
     // Player and factual stats remain rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();

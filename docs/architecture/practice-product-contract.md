@@ -193,17 +193,21 @@ Raw strike states are PENDING, MATCHED, UNMATCHED and NOT_REACHED. MATCHED means
 exact-pitch observation was allocated within the legal window. UNMATCHED means no
 observation was allocated under the completed coverage and assignment policy;
 it does not claim that the learner missed a note. Groups are PENDING or FINALIZED,
-with strike assignments, residual observations and finality metadata, without a
+with strike assignments, residual relations and finality metadata, without a
 product verdict.
 
 Each observation has at most one tagged assignment: STRIKE_MATCH names a strike,
-GROUP_RESIDUAL names a nearby group with an unmatched target, and UNATTRIBUTED has
+GROUP_RESIDUAL names a nearby group and a specific unmatched strike slot, and UNATTRIBUTED has
 no strike/group owner. Residual slots are formed only for unmatched strikes;
 incompatible-pitch observations within the group window are assigned globally and
 deterministically. Unattributed observations wait until all legal strike and group
 opportunities finalize. A completed assignment has no pending strikes/groups,
 reserved observations or observations without an assignment. These relations are
-bookkeeping, not an account of learner mistakes.
+bookkeeping, not an account of learner mistakes. Each group residual relation retains
+its strike ID, immutable observation and signed timing offset computed at assignment.
+The flat observation relation identifies the same group/strike slot. A slot can
+receive at most one residual observation; completed-artifact validation requires
+both relation views and the complete evidence ledger to agree.
 
 ### Source-specific feedback
 
@@ -212,12 +216,24 @@ an immutable pure projection of the accumulated assignment; it does not assign
 evidence again or recalculate timing.
 
 MIDI uses `MIDI_PHYSICAL_NOTE_EVENTS_V1`. Physical NOTE_ON events support stronger
-pedagogical feedback: matched targets are CORRECT, unmatched targets are MISSING,
-group residuals are wrong observations, and unattributed events are EXTRA.
-Final group feedback is NOT_REACHED if any target was not reached, CORRECT if all
-matched, WRONG if residual observations exist, INCOMPLETE_CHORD if some matched,
-and MISSING otherwise. Wrong observations and extra observations have separate
-Review counts.
+pedagogical feedback. Matched targets are CORRECT. An unmatched target with a
+residual relation to its strike slot is WRONG, retaining the played observation
+and assigned timing offset so feedback can state expected D4 / played E4. An
+unmatched target without such a relation is MISSING. NOT_REACHED retains transport
+meaning. Every target has exactly one outcome:
+
+`Target = Correct + Wrong + Missing + Not Reached`.
+
+Final group feedback is derived from those target outcomes: NOT_REACHED if any
+is not reached, CORRECT if all are correct, WRONG if any is wrong, INCOMPLETE_CHORD
+if some are correct, and MISSING otherwise. There is no separate group-level wrong
+observation list. Interpretation reads assigned timing; it does not calculate it.
+
+Only raw UNATTRIBUTED events become MIDI extra notes. They form a separate
+additional-playing metric, outside the target denominator. For target C4+D4 and
+played C4+E4, the target outcomes are correct 1 / wrong 1 / missing 0 / not reached 0,
+with extra notes 0. The residual slot is an assignment fact; the stronger target
+meaning belongs only to MIDI interpretation.
 
 Microphone uses `ACOUSTIC_CONSERVATIVE_SUPPORT_V1`. Matched targets are SUPPORTED;
 unmatched targets are UNCONFIRMED. Group feedback is NOT_REACHED if any target was
@@ -226,6 +242,8 @@ UNCONFIRMED otherwise. Acoustic residual/unattributed detections remain raw
 diagnostics and never become learner-facing wrong/extra notes. Conservative
 acoustic V1 interprets decoder-qualified observations without adding a second,
 uncalibrated confidence threshold; confidence and provenance remain in the ledger.
+Residual strike-slot identity does not enter acoustic learner errors. Its target
+partition is `Target = Supported + Unconfirmed + Not Reached`.
 
 Manual-stop targets outside complete legal coverage are NOT_REACHED for both
 sources. UNCONFIRMED means completed analysis did not support a target;
@@ -235,11 +253,14 @@ results carry input source, policy identity and reason, without dummy assignment
 ### Live feedback and Review
 
 Live feedback, Review summaries and score annotations consume interpretation.
-MIDI Review reports correct/missing target counts plus wrong/extra observation
-counts. Microphone Review reports supported/unconfirmed target counts and does
+MIDI Review groups correct/wrong/missed/not-reached target counts together,
+with extra notes in a separate additional-playing section. Microphone Review reports supported/unconfirmed target counts and does
 not count residual detections as learner errors. Supported targets are green;
-only MIDI missing targets receive red error annotations. Acoustic unconfirmed and
-not-reached targets remain neutral.
+MIDI WRONG targets are red and MISSING targets have a separate neutral missed
+annotation. Acoustic unconfirmed and not-reached targets remain neutral. Production
+consumers receive the evaluation session's bound interpretation; only evaluation
+composition imports the interpreter. There is no overall accuracy percentage or
+aggregate score in this contract.
 
 Completed performances retain both the full raw assignment/evidence ledger and
 its deterministic interpretation for diagnostics, future calibration and analytics.

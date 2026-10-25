@@ -135,7 +135,7 @@ export function PracticeScoreViewer({
       container,
       performanceEvaluation
         ? noteAnnotationsFromContinuousEvaluation(performanceEvaluation)
-        : { supportedNoteIds: [], errorNoteIds: [] },
+        : { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: [] },
       { renderRevision }
     );
   }, [
@@ -322,10 +322,14 @@ export function PracticeScoreViewer({
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-summary-note-error {
+        .practice-score-svg .practice-summary-note-wrong {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
+        }
+        .practice-score-svg .practice-summary-note-missed {
+          fill: #94a3b8 !important;
+          color: #94a3b8 !important;
         }
         .practice-score-svg svg {
           display: block;
