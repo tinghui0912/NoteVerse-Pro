@@ -1,7 +1,7 @@
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
-import type { StepAttemptEvidence } from '@/lib/practice/step/domain/attempt';
+import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';
 import type { StepMicrophonePlatform, StepMicrophoneWorker } from './step-microphone-platform';
@@ -33,7 +33,7 @@ export class StepMicrophoneInput<Identity> {
   private captureConnected = false;
   private delivering = false;
   private notifying = false;
-  private completed: { identity: Identity; evidence: StepAttemptEvidence } | null = null;
+  private completed: { identity: Identity; evidence: StepPitchEvidence } | null = null;
   private regionStarted = false;
   private publications = 0;
   private sequence = 0;

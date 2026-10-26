@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { SourceAcousticObservation, SourceAcousticPublication } from '../acoustic/runtime/source-publication';
-import type { StepAttemptEvidence } from '@/lib/practice/step/domain/attempt';
+import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { StepAcousticAttemptAssembler, STEP_ACOUSTIC_GESTURE_MS } from './step-acoustic-attempt-assembler';
+import { StepAcousticAttemptAssembler, STEP_ACOUSTIC_GESTURE_MS, type StepAcousticAssemblerOptions } from './step-acoustic-attempt-assembler';
 
 const observation = (sample: number, id = `o:${sample}`, pitch = 'C4', confidence = .8): SourceAcousticObservation => ({
   observationId: id, pitch, midiPitch: pitch === 'C5' ? 72 : 60, confidence,
@@ -16,7 +16,7 @@ const publication = (frontier: number, observations: readonly SourceAcousticObse
   window: { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 0, ownedEndTarget: frontier / 3, startSample: 0, endSample: 29120 },
 });
 function setup(open = vi.fn((): number | null => 1)) {
-  const completed: { identity: number; evidence: StepAttemptEvidence }[] = [];
+  const completed: { identity: number; evidence: StepPitchEvidence }[] = [];
   const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,
     localSessionId: 'session', sourceAnchorSample: 0, sessionAnchorTime: { domainId: 'session', ms: 0 },
     sink: { open, complete: (identity, evidence) => { completed.push({ identity, evidence }); } } });
@@ -37,7 +37,7 @@ describe('score-blind source-frontier H50 bounded ownership', () => {
       observation(3, 'b', 'C5', .7), observation(3, 'a', 'C4', .9)]));
     expect(STEP_ACOUSTIC_GESTURE_MS).toBe(50);
     expect(sealed?.observations.map(o => o.observationId)).toEqual(['a', 'b', 'near']);
-    expect(sealed?.evidence).toMatchObject({ kind: 'EVIDENCE', observedAttackPitches: ['C4', 'C5', 'E4'], confidence: .4,
+    expect(sealed?.evidence).toMatchObject({ observedAttackPitches: ['C4', 'C5', 'E4'], confidence: .4,
       captureEndSessionTime: { domainId: 'session', ms: 2403 / 48000 * 1000, sampleIndex: 2403 } });
     expect(s.completed).toHaveLength(1); expect(s.assembler.snapshot().phase).toBe('BLOCKED');
   });
@@ -138,7 +138,7 @@ describe('score-blind source-frontier H50 bounded ownership', () => {
   });
 });
 
-it('one persistent assembler plus actual v6 runtime cannot let one gesture satisfy identical consecutive targets', () => {
+it('one persistent assembler plus actual STEP runtime cannot let one gesture satisfy identical consecutive targets', () => {
   const base = fixture as PracticeScoreArtifact;
   const artifact: PracticeScoreArtifact = { ...base,
     expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pitches: ['C4'], strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4' }] })),
@@ -166,7 +166,7 @@ it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('actual runtime %s 
   const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock, localSessionId: domainId });
   const first = runtime.openAttempt({ domainId, ms: .001 })!;
   if (phase !== 'CAPTURING') runtime.analyzeAttempt(first);
-  if (phase === 'POST_VERDICT') runtime.completeAttempt(first, { kind: 'EVIDENCE', observedAttackPitches: ['A0'], confidence: .8, captureEndSessionTime: { domainId, ms: .002 } });
+  if (phase === 'POST_VERDICT') runtime.completeAttempt(first, { observedAttackPitches: ['A0'], confidence: .8, captureEndSessionTime: { domainId, ms: .002 } });
   const complete = vi.fn();
   const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000, localSessionId: domainId,
     sourceAnchorSample: 0, sessionAnchorTime: { domainId, ms: 0 }, sink: { open: time => runtime.openAttempt(time), complete } });
@@ -174,4 +174,48 @@ it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('actual runtime %s 
   expect(complete).not.toHaveBeenCalled(); expect(assembler.snapshot().phase).toBe('BLOCKED');
   expect(runtime.snapshot().step.attemptState).toBe(phase);
   expect(runtime.snapshot().step.attempts).toHaveLength(phase === 'POST_VERDICT' ? 1 : 0);
+});
+
+
+it('silence advances source coverage without opening an attempt, verdict or timer', () => {
+  vi.useFakeTimers();
+  try {
+    const s = setup();
+    for (const frontier of [1000, 5000, 10000, 100000]) {
+      expect(s.assembler.accept(publication(frontier, []))).toBeNull();
+      vi.advanceTimersByTime(100000);
+      expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
+      expect(s.assembler.snapshot()).toMatchObject({ phase: 'READY', activeObservationCount: 0, retainedObservationIdentityCount: 0 });
+    }
+    expect(vi.getTimerCount()).toBe(0);
+  } finally { vi.useRealTimers(); }
+});
+
+it.each([100, 999999])('microphone superset retry preserves H50 retirement despite publication availability %s', availability => {
+  const domainId = 'abstention', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
+  const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', localSessionId: domainId, clock: new ManualClock() });
+  const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,
+    localSessionId: domainId, sourceAnchorSample: 0, sessionAnchorTime: time(0), sink: {
+      open: t => runtime.openAttempt(t), complete: (id, evidence) => { runtime.analyzeAttempt(id); runtime.completeAttempt(id, evidence); },
+    } });
+  assembler.acceptInputAfter(0);
+  assembler.accept(publication(4800, [observation(3,'target','C4'), observation(4,'additional','E4')], availability));
+  const first = runtime.snapshot().step.attempts[0];
+  expect(first).toMatchObject({ verdict: 'RETRY', retry: { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' },
+    observedAttackPitches: ['C4','E4'], confidence: .8, captureEndSessionTime: time(2403) });
+  expect(runtime.snapshot().step).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'POST_VERDICT' });
+  runtime.rearm(time(4800)); assembler.acceptInputAfter(4800);
+  assembler.accept(publication(9600, [observation(4000,'delayed'), observation(4800,'equality'), observation(4801,'new')], availability + 1000));
+  const records = runtime.snapshot().step.attempts;
+  expect(records).toHaveLength(2);
+  expect(records[1]).toMatchObject({ verdict: 'MATCH', retry: null, targetGeneration: 1, attemptStartSessionTime: time(4801), observedAttackPitches: ['C4'] });
+  expect(records[1].attemptId).not.toBe(first.attemptId);
+  expect(runtime.currentStepIndex).toBe(0); runtime.rearm(time(9600)); expect(runtime.currentStepIndex).toBe(1);
+});
+
+
+it('acoustic assembler options describe source chronology and opaque sink ownership only', () => {
+  expectTypeOf<keyof StepAcousticAssemblerOptions<number>>().toEqualTypeOf<
+    'sourceDomainId' | 'sourceSampleRateHz' | 'localSessionId' | 'sourceAnchorSample' | 'sessionAnchorTime' | 'sink'
+  >();
 });

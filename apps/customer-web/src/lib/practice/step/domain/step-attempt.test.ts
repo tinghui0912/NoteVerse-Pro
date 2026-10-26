@@ -1,24 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { MAX_STEP_HISTORY_RECORDS, type StepAttemptEvidence, type StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import { MAX_STEP_HISTORY_RECORDS, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepRetry } from '@/lib/practice/step/domain/attempt';
 
 const artifact = fixture as PracticeScoreArtifact;
 function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
   runtime.rearm(runtime.snapshot().step.attempts.at(-1)!.captureEndSessionTime);
 }
-function setup(index = 0, id = 'step-test') {
+function setup(index = 0, id = 'step-test', inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI') {
   const clock = new ManualClock(100);
   const groupId = artifact.expectedPracticeGroups[index].groupId;
-  const runtime = new StepPracticeRuntime({ artifact, clock, inputSource: 'MIDI', localSessionId: id,
+  const runtime = new StepPracticeRuntime({ artifact, clock, inputSource, localSessionId: id,
     scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId } });
   const time = (ms = clock.nowMs()) => ({ domainId: id, ms });
   const begin = () => { clock.advance(100); return runtime.openAttempt(time())!; };
-  const finish = (identity: StepAttemptIdentity, pitches: readonly string[]) => {
+  const finish = (identity: StepAttemptIdentity, pitches: StepPitchEvidence['observedAttackPitches']) => {
     runtime.analyzeAttempt(identity);
-    return runtime.completeAttempt(identity, { kind: 'EVIDENCE', confidence: 1,
+    return runtime.completeAttempt(identity, { confidence: 1,
       observedAttackPitches: pitches, captureEndSessionTime: time(identity.attemptStartSessionTime.ms + 35) });
   };
   return { runtime, clock, time, begin, finish };
@@ -58,12 +58,15 @@ describe('one target / one bounded attempt / one verdict', () => {
     const second = begin(); expect(second.attemptId).not.toBe(first.attemptId);
     finish(second, ['C4']); rearmAtCaptureEnd(runtime); expect(runtime.currentStepIndex).toBe(2);
   });
-  it.each(['UNCERTAIN', 'TOO_QUIET'] as const)('RETRY %s records without advancing', reason => {
-    const { runtime, begin, time } = setup(), identity = begin(); runtime.analyzeAttempt(identity);
-    expect(runtime.completeAttempt(identity, { kind: 'RETRY', reason, captureEndSessionTime: time(235) }))
-      .toMatchObject({ kind: 'FINALIZED', record: { verdict: 'RETRY', retryReason: reason, confidence: null } });
+  it('target-policy abstention preserves pitch evidence and stays on the answered target', () => {
+    const { runtime, begin, time } = setup(0, 'retry', 'MICROPHONE'), identity = begin(); runtime.analyzeAttempt(identity);
+    const evidence: StepPitchEvidence = { observedAttackPitches: ['C4','G4'], confidence: .45, captureEndSessionTime: time(250) };
+    const result = runtime.completeAttempt(identity, evidence);
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, ...evidence, verdict: 'RETRY',
+      retry: { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } } });
     expect(runtime.currentStepIndex).toBe(0); expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime); expect(runtime.snapshot().step.attemptState).toBe('READY');
+    expect(runtime.currentStepIndex).toBe(0); expect(runtime.currentTarget()!.targetGeneration).toBe(identity.targetGeneration);
   });
   it.each(['setInputUnavailable', 'end'] as const)('%s invalidates active capture and late analysis', command => {
     const { runtime, begin, finish } = setup(), old = begin(); runtime[command]();
@@ -84,14 +87,14 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step).toEqual(snapshot.step); expect(snapshot.step.attempts).toEqual([]);
     expect(snapshot.completionReason).toBe('STOPPED_BY_USER');
   });
-  it('final MATCH waits in POST_VERDICT; scope ends once at rearm, v6 immutable snapshot', () => {
+  it('final MATCH waits in POST_VERDICT; scope ends once at rearm, immutable session snapshot', () => {
     const { runtime, begin, finish } = setup(4); finish(begin(), ['D5']);
     expect(runtime.isCompleted).toBe(false);
     expect(runtime.currentStepIndex).toBe(4);
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
     expect(() => rearmAtCaptureEnd(runtime)).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 6, runtimeVersion: 'step-source-sensitive-verdict-v6' },
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' },
       runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });
@@ -99,7 +102,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     const s = setup(); expect(s.runtime.openAttempt(s.time(99))).toBeNull();
     expect(() => s.runtime.openAttempt({ domainId: 'other', ms: 200 })).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
     const id = s.begin(); s.runtime.analyzeAttempt(id);
-    const evidence: StepAttemptEvidence = { kind: 'EVIDENCE', observedAttackPitches: ['C4'], confidence: NaN, captureEndSessionTime: s.time(235) };
+    const evidence: StepPitchEvidence = { observedAttackPitches: ['C4'], confidence: NaN, captureEndSessionTime: s.time(235) };
     expect(() => s.runtime.completeAttempt(id, evidence)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
     expect(s.runtime.completeAttempt({ ...id, inputSource: 'MICROPHONE' }, { ...evidence, confidence: 1 }).kind).toBe('REJECTED');
   });
@@ -128,5 +131,51 @@ describe('one target / one bounded attempt / one verdict', () => {
       expect(s.runtime.currentStepIndex).toBe(4); expect(s.finish(id, ['A4','C5']).kind).toBe('REJECTED');
       expect(s.runtime.snapshot().step.attempts).toHaveLength(11);
     }
+  });
+});
+
+
+describe('STEP evidence and outcome integrity', () => {
+  it('only permits nonempty pitch evidence and discriminated retry metadata', () => {
+    type Common = StepAttemptIdentity & StepPitchEvidence;
+    expectTypeOf<[]>().not.toExtend<StepPitchEvidence['observedAttackPitches']>();
+    expectTypeOf<StepAttemptRecord['confidence']>().toEqualTypeOf<number>();
+    expectTypeOf<Common & { verdict: 'MATCH'; retry: StepRetry }>().not.toExtend<StepAttemptRecord>();
+    expectTypeOf<Common & { verdict: 'MISMATCH'; retry: StepRetry }>().not.toExtend<StepAttemptRecord>();
+    expectTypeOf<Common & { verdict: 'RETRY'; retry: null }>().not.toExtend<StepAttemptRecord>();
+    expectTypeOf<Omit<Common, 'confidence'> & { verdict: 'RETRY'; retry: StepRetry; confidence: null }>().not.toExtend<StepAttemptRecord>();
+    expectTypeOf<Omit<Common, 'observedAttackPitches'> & { verdict: 'RETRY'; retry: StepRetry; observedAttackPitches: [] }>().not.toExtend<StepAttemptRecord>();
+  });
+  it.each<[string, Record<string, unknown>]>([
+    ['empty pitch list', { observedAttackPitches: [] }],
+    ['too many pitch entries', { observedAttackPitches: Array(129).fill('C4') }],
+    ['missing pitch list', { observedAttackPitches: undefined }],
+    ['non-array pitch list', { observedAttackPitches: 'C4' }],
+    ['invalid pitch', { observedAttackPitches: ['H4'] }],
+    ['non-string pitch', { observedAttackPitches: ['C4', 42] }],
+    ['empty pitch string', { observedAttackPitches: [''] }],
+    ['non-canonical flat pitch', { observedAttackPitches: ['Ab3'] }],
+    ['non-finite confidence', { confidence: NaN }],
+    ['infinite confidence', { confidence: Infinity }],
+    ['negative confidence', { confidence: -.01 }],
+    ['confidence above one', { confidence: 1.01 }],
+    ['missing confidence', { confidence: undefined }],
+    ['non-numeric confidence', { confidence: '1' }],
+    ['foreign capture domain', { captureEndSessionTime: { domainId: 'other', ms: 235 } }],
+    ['capture end before start', { captureEndSessionTime: { domainId: 'step-test', ms: 199 } }],
+    ['non-finite capture end', { captureEndSessionTime: { domainId: 'step-test', ms: NaN } }],
+  ])('rejects %s without fabricating an outcome', (_name, patch) => {
+    const s = setup(), identity = s.begin(); s.runtime.analyzeAttempt(identity);
+    // Untrusted protocol data deliberately bypasses static shape checks to exercise fail-closed validation.
+    const evidence = { observedAttackPitches: ['C4'], confidence: 1, captureEndSessionTime: s.time(235), ...patch } as StepPitchEvidence;
+    expect(() => s.runtime.completeAttempt(identity, evidence)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', attempts: [], pendingPostVerdict: null, activeAttempt: identity });
+  });
+  it('accepts the pitch-entry upper bound and normalizes without losing evidence identity', () => {
+    const s = setup(), identity = s.begin();
+    s.runtime.analyzeAttempt(identity);
+    const result = s.runtime.completeAttempt(identity, { observedAttackPitches: ['C4', ...Array<string>(127).fill('C4')], confidence: 0,
+      captureEndSessionTime: s.time(235) });
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, verdict: 'MATCH', retry: null, observedAttackPitches: ['C4'], confidence: 0 } });
   });
 });

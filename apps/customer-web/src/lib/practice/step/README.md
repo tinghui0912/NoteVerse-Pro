@@ -22,10 +22,26 @@ and the application controller remain outside `domain/`.
   `StepAcousticAttemptAssembler`. H50 groups observations within one 50ms gesture
   and seals it using processed source coverage. Physical capture chronology
   supplies retirement boundaries independently of analysis progress.
-- `StepPracticeRuntime` alone compares physical attack pitch sets. Exact sets
-  MATCH; other MIDI sets MISMATCH. A microphone superset produces RETRY/UNCERTAIN;
-  other non-exact sets MISMATCH. Explicit retry evidence retains its reason.
-  Continuation pitches are excluded. TOO_QUIET classification is not implemented.
+- Input owners publish `StepPitchEvidence`: a nonempty bounded observed pitch set,
+  finite confidence in `[0,1]`, and capture-end session time. They have no target
+  knowledge. Silence opens no attempt and produces no outcome. There is no
+  acquisition retry channel or silence timeout.
+- `StepPracticeRuntime` compares that evidence with the attack target, excluding
+  continuation pitches. Input source fixes the versioned policy:
+  `MIDI_EXACT_SET_V1` or `MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1`.
+  Callers cannot select a policy.
+- MIDI: exact sets MATCH; every other nonempty set MISMATCHes, including subsets
+  and supersets. MIDI confidence is 1.
+- Microphone: exact sets MATCH. A proper superset covering every target pitch
+  yields RETRY with `{ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }`.
+  Every other non-exact set, including subsets, MISMATCHes. RETRY is target-policy
+  abstention, not an acquisition-quality classification: additional acoustic
+  detections do not establish extra physical key presses.
+- All records retain the observed pitches, numeric confidence and capture end.
+  Confidence is evidence metadata and does not choose the verdict; no secondary
+  confidence threshold is applied. MATCH/MISMATCH have `retry: null`; RETRY
+  requires the structured provenance. Evidence and nested metadata are immutable.
+  Empty pitch evidence, invalid confidence or invalid capture chronology fail closed.
 
 READY -> CAPTURING -> ANALYZING -> POST_VERDICT permits one active attempt.
 POST_VERDICT retains the answered target and finalized pending transition. Rearm

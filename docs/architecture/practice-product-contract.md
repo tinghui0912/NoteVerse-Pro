@@ -78,12 +78,32 @@ or Pause/Resume lifecycle. Its elapsed presentation time does not drive progress
 READY -> CAPTURING -> ANALYZING -> POST_VERDICT -> READY / scope completion
 ```
 
-The domain compares physical attack pitches, excluding continuation pitches.
-Exact pitch sets yield MATCH. MIDI uses exact-set evaluation: any other set yields
-MISMATCH. Microphone evaluation yields RETRY/UNCERTAIN when all expected pitches
-are present with additional pitches; other non-exact sets yield MISMATCH. Explicit
-retry evidence produces RETRY with its reason. TOO_QUIET classification is not
-implemented by the microphone input.
+STEP input owners publish bounded, score-blind `StepPitchEvidence`: a nonempty
+observed pitch set, confidence and capture-end session time. Silence opens no
+attempt and produces no synthetic result. There is no acquisition retry channel
+or silence timeout. Runtime validation requires 1–128 pitch entries, valid pitch
+syntax, finite confidence in `[0,1]`, same-session capture end and capture end at
+or after attempt start. Confidence remains evidence metadata, without a secondary
+threshold or influence on classification.
+
+The runtime compares observed attack pitches, excluding continuation pitches.
+The pinned input source fixes one policy; callers cannot choose it:
+
+- `MIDI_EXACT_SET_V1`: exact pitch sets MATCH; subsets, supersets and other
+  non-exact nonempty sets MISMATCH. MIDI evidence has confidence 1.
+- `MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1`: exact sets MATCH. A proper
+  superset covering every expected pitch yields RETRY. Other non-exact sets,
+  including subsets, MISMATCH. This classifies the provided pitch set; acoustic
+  false negatives and physical-device accuracy require separate qualification.
+
+RETRY is target-policy abstention with
+`{ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }`. It says target
+notes were detected together with other notes, without claiming the learner
+physically played extra keys. It is not acquisition uncertainty. All outcomes
+retain normalized observed pitches, numeric confidence and capture end. MATCH
+and MISMATCH require `retry: null`; RETRY requires the structured provenance.
+Records use STEP runtime schema 7 (`step-explicit-target-policy-retry-v7`), with
+immutable identity, evidence, capture chronology and nested retry metadata.
 
 Finalization records an immutable result and preserves the answered target in
 POST_VERDICT. Explicit rearm commits MATCH progression once; MISMATCH and RETRY

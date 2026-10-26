@@ -19,7 +19,7 @@
   "stepAnalyzing": "Checking your answer...",
   "stepPostVerdictMatch": "Correct. Preparing the next answer...",
   "stepPostVerdictMismatch": "Not quite. Preparing another try...",
-  "stepPostVerdictRetry": "Please try again. Preparing input...",
+  "stepTargetCoveredWithExtra": "Target notes were detected along with other notes. Try once more.",
   "inputNoiseElevatedTitle": "Background sound is elevated",
   "inputNoiseElevatedDesc": "Background sound may affect recognition accuracy. Moving closer to the piano or lowering playback volume can make recognition steadier.",
   "inputNoiseHighTitle": "Background sound is high",

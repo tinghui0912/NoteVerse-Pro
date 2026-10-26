@@ -14,17 +14,17 @@ function setup() {
   const begin = () => runtime.openAttempt(time(200))!;
   const finish = (identity: StepAttemptIdentity) => {
     expect(runtime.analyzeAttempt(identity)).toBe(true);
-    return runtime.completeAttempt(identity, { kind: 'EVIDENCE', observedAttackPitches: ['D5'], confidence: 1, captureEndSessionTime: time(235) });
+    return runtime.completeAttempt(identity, { observedAttackPitches: ['D5'], confidence: 1, captureEndSessionTime: time(235) });
   };
   return { runtime, clock, time, begin, finish };
 }
 
 describe('local STEP domain status, independent of browser resources', () => {
-  it('constructs ACTIVE with local instance identity and truthful v6 snapshot', () => {
+  it('constructs ACTIVE with local instance identity and versioned snapshot', () => {
     const s = setup(), snapshot = s.runtime.snapshot();
     expect(s.runtime.state).toBe('ACTIVE');
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
-      version: { schemaVersion: 6, runtimeVersion: 'step-source-sensitive-verdict-v6' }, step: { completed: false, attemptState: 'READY' } });
+      version: { schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' }, step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
     expect(snapshot.scoreId).toBe(fixture.scoreId);
     expect(snapshot.revisionId).toBe(fixture.revisionId); expect(snapshot.artifactId).toBe(fixture.artifactId);
@@ -63,7 +63,7 @@ describe('local STEP domain status, independent of browser resources', () => {
     expect(ended.completionReason).toBe(terminalFrom === 'SCOPE_COMPLETED' ? 'SCOPE_COMPLETED' : 'STOPPED_BY_USER');
     expect(s.runtime.currentTarget()).toBeNull(); expect(s.runtime.canAcceptAttempt).toBe(false);
     expect(s.runtime.openAttempt(s.time(500))).toBeNull(); expect(s.runtime.analyzeAttempt(id)).toBe(false);
-    expect(s.runtime.completeAttempt(id, { kind: 'EVIDENCE', confidence: 1, observedAttackPitches: ['D5'], captureEndSessionTime: s.time(535) }).kind).toBe('REJECTED');
+    expect(s.runtime.completeAttempt(id, { confidence: 1, observedAttackPitches: ['D5'], captureEndSessionTime: s.time(535) }).kind).toBe('REJECTED');
     expect(() => s.runtime.rearm(s.time(600))).toThrow('STEP_ATTEMPT_STATE_INVALID');
     expect(s.runtime.skip()).toBe(false); s.runtime.setInputUnavailable();
     expect(() => s.runtime.acceptInputAfter(s.time(700))).toThrow('STEP_ATTEMPT_STATE_INVALID');

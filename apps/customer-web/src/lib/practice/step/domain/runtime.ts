@@ -3,7 +3,7 @@ import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
-import { MAX_STEP_HISTORY_RECORDS, normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget, type StepVerdictPolicy } from '@/lib/practice/step/domain/attempt';
+import { MAX_STEP_HISTORY_RECORDS, normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget, type StepVerdictPolicy } from '@/lib/practice/step/domain/attempt';
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
 import { attackPitchesForStep, continuationPitchesForStep, groupForStep } from './target';
 
@@ -72,25 +72,25 @@ export class StepPracticeRuntime {
     if (!this.owns(identity) || this.attemptState !== 'CAPTURING') return false;
     this.attemptState = 'ANALYZING'; return true;
   }
-  completeAttempt(identity: StepAttemptIdentity, evidence: StepAttemptEvidence): StepAttemptCompletion {
+  completeAttempt(identity: StepAttemptIdentity, evidence: StepPitchEvidence): StepAttemptCompletion {
     if (!this.owns(identity) || this.attemptState !== 'ANALYZING') return Object.freeze({ kind: 'REJECTED', reason: 'STALE_ATTEMPT' });
     this.validateTime(evidence.captureEndSessionTime);
     if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
-    if (evidence.kind === 'EVIDENCE' && (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
-      || evidence.observedAttackPitches.length > 128 || evidence.observedAttackPitches.some(p => !/^[A-G]#?-?\d$/.test(p)))) {
+    if (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
+      || !Array.isArray(evidence.observedAttackPitches) || evidence.observedAttackPitches.length < 1
+      || evidence.observedAttackPitches.length > 128
+      || evidence.observedAttackPitches.some((pitch: unknown) => typeof pitch !== 'string' || !/^[A-G]#?-?\d$/.test(pitch))) {
       throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
-    if (evidence.kind === 'RETRY' && evidence.reason !== 'UNCERTAIN' && evidence.reason !== 'TOO_QUIET') throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
-    const pitches = Object.freeze(evidence.kind === 'EVIDENCE' ? normalizePitchSet(evidence.observedAttackPitches) : []);
+    const normalized = normalizePitchSet(evidence.observedAttackPitches);
+    const pitches = Object.freeze([normalized[0], ...normalized.slice(1)] as const);
     const expected = this.currentTarget()!.attackPitches;
-    // Target-relative uncertainty belongs here, not in an evidence producer.
-    const verdict = evidence.kind === 'RETRY' ? 'RETRY' : pitchSetsEqual(pitches, expected) ? 'MATCH'
-      : this.verdictPolicy === 'MICROPHONE_CONSERVATIVE_TRISTATE' && expected.every(pitch => pitches.includes(pitch))
-        ? 'RETRY' : 'MISMATCH';
-    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
-      confidence: evidence.kind === 'EVIDENCE' ? evidence.confidence : null,
-      captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }),
-      retryReason: evidence.kind === 'RETRY' ? evidence.reason : verdict === 'RETRY' ? 'UNCERTAIN' : null });
+    const outcome = pitchSetsEqual(pitches, expected) ? { verdict: 'MATCH', retry: null } as const
+      : this.verdictPolicy === 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1' && expected.every(pitch => pitches.includes(pitch))
+        ? { verdict: 'RETRY', retry: Object.freeze({ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }) } as const
+        : { verdict: 'MISMATCH', retry: null } as const;
+    const record: StepAttemptRecord = Object.freeze({ ...this.active!, ...outcome, observedAttackPitches: pitches,
+      confidence: evidence.confidence, captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }) });
     this.attempts.push(record); this.active = null; this.attemptState = 'POST_VERDICT';
     this.pendingPostVerdict = record;
     this.boundary = record.captureEndSessionTime;
@@ -158,7 +158,7 @@ export class StepPracticeRuntime {
   get isCompleted(): boolean { return this.completed; }
   get state(): StepRuntimeStatus { return this.status; }
   get verdictPolicy(): StepVerdictPolicy {
-    return this.inputSource === 'MIDI' ? 'MIDI_EXACT_SET' : 'MICROPHONE_CONSERVATIVE_TRISTATE';
+    return this.inputSource === 'MIDI' ? 'MIDI_EXACT_SET_V1' : 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1';
   }
   get canAcceptAttempt(): boolean {
     return this.status === 'ACTIVE' && this.inputAvailable && this.attemptState === 'READY' && this.currentTarget() !== null;

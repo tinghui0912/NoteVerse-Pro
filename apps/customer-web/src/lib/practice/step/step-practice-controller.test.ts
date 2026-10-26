@@ -89,6 +89,8 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.timers).toHaveLength(1); expect(s.timers[0].delay).toBe(STEP_MIDI_CHORD_COHERENCE_MS);
     s.close(); const snapshot = s.controller.snapshot().sessionSnapshot!;
     expect(snapshot.step.attempts[0].verdict).toBe(verdict);
+    expect(snapshot.step.attempts[0].retry).toBeNull();
+    expect(snapshot.step.attempts[0].confidence).toBe(1);
     expect(snapshot.step.currentIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));
     expect(snapshot.step.attemptState).toBe('READY');
     s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(1);

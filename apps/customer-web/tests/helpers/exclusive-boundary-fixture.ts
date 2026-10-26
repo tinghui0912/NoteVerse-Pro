@@ -5,18 +5,16 @@ import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepMidiAttemptInput } from '../../src/lib/practice/step/step-midi-attempt-input';
 
-type Verdict = 'MATCH' | 'MISMATCH' | 'RETRY';
+type Verdict = 'MATCH' | 'MISMATCH';
 const artifact = fixture as PracticeScoreArtifact;
-function harness(verdict: Verdict = 'MATCH', chord = false) {
+function harness(chord = false) {
   const clock = new ManualClock(100), session = 'exclusive-boundary', callbacks: (() => void)[] = [];
   const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: session, inputSource: 'MIDI',
     scope: chord ? { kind:'RANGE',startGroupId:artifact.expectedPracticeGroups[3].groupId,endGroupId:artifact.expectedPracticeGroups[4].groupId } : {kind:'FULL'} });
-  let closed = 0;
   const input = new StepMidiAttemptInput({ open: time => runtime.openAttempt(time),
     complete: (identity,evidence) => {
       assert.equal(runtime.analyzeAttempt(identity),true);
-      const result = runtime.completeAttempt(identity, verdict === 'RETRY' && closed++ === 0
-        ? {kind:'RETRY',reason:'UNCERTAIN',captureEndSessionTime:evidence.captureEndSessionTime} : evidence);
+      const result = runtime.completeAttempt(identity, evidence);
       assert.equal(result.kind,'FINALIZED'); runtime.rearm(evidence.captureEndSessionTime);
     }, failure: error => { throw error; },
   }, {schedule: (callback,delay) => { assert.equal(delay,35); callbacks.push(callback); return callback; },cancel: () => {}});
@@ -27,7 +25,7 @@ function harness(verdict: Verdict = 'MATCH', chord = false) {
   return {runtime,input,clock,time,note,close,state,callbacks};
 }
 export function raceWitness(verdict: Verdict, order: 'BEFORE' | 'AFTER') {
-  const h = harness(verdict);
+  const h = harness();
   assert.equal(h.runtime.openAttempt(h.time(100)),null);
   h.note(200,verdict === 'MISMATCH' ? 'D4' : 'C4');
   const first = h.state().activeAttempt!; assert.ok(first);
@@ -59,7 +57,7 @@ export function lifecycleWitnesses() {
   assert.equal(h.runtime.skip(),true);
   const skipped = h.state(); h.note(350); assert.equal(h.state().activeAttempt,null);
   for(const callback of h.callbacks) callback(); assert.equal(h.state().attempts.length,0);
-  const late = h.runtime.completeAttempt(old,{kind:'EVIDENCE',observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:h.time(235)});
+  const late = h.runtime.completeAttempt(old,{observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:h.time(235)});
   assert.equal(late.kind,'REJECTED');
   h.note(351); const afterSkip = h.state().activeAttempt!; assert.ok(afterSkip);
   assert.equal(afterSkip.targetGeneration,skipped.targetGeneration);
@@ -69,7 +67,7 @@ export function lifecycleWitnesses() {
     {name:'late prior identity rejected',status:'PASS',oldAttempt:old,result:late}];
 }
 export function accumulationWitness() {
-  const h=harness('MISMATCH',true);
+  const h=harness(true);
   h.note(200,'A4');h.close(235);h.note(236,'C5');h.close(271);
   assert.deepEqual(h.state().attempts.map(r=>r.verdict),['MISMATCH','MISMATCH']);
   assert.equal(h.state().currentIndex,3);

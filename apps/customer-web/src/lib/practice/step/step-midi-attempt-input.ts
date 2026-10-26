@@ -1,5 +1,5 @@
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
-import type { StepAttemptEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import type { StepPitchEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import type { MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
 
 export const STEP_MIDI_CHORD_COHERENCE_MS = 35;
@@ -9,7 +9,7 @@ export interface StepGestureTimer {
 }
 export type StepMidiAttemptSink = Readonly<{
   open(time: SessionTime): StepAttemptIdentity | null;
-  complete(identity: StepAttemptIdentity, evidence: StepAttemptEvidence): void;
+  complete(identity: StepAttemptIdentity, evidence: StepPitchEvidence): void;
   failure(error: unknown): void;
 }>;
 /** Fixed first-NOTE_ON window, never extended or closed early by target content. */
@@ -36,8 +36,12 @@ export class StepMidiAttemptInput {
       this.handle = this.timer.schedule(() => {
         if (epoch !== this.epoch || !this.active) return;
         const gesture = this.active; this.active = null; this.handle = null;
-        try { this.sink.complete(gesture.identity, Object.freeze({ kind: 'EVIDENCE', confidence: 1,
-          observedAttackPitches: Object.freeze([...gesture.pitches].sort()), captureEndSessionTime: Object.freeze(gesture.end) })); }
+        try {
+          const [firstPitch, ...otherPitches] = [...gesture.pitches].sort();
+          if (firstPitch === undefined) throw new Error('STEP_ATTEMPT_EVIDENCE_INVALID');
+          this.sink.complete(gesture.identity, Object.freeze({ confidence: 1,
+            observedAttackPitches: Object.freeze([firstPitch, ...otherPitches] as const), captureEndSessionTime: Object.freeze(gesture.end) }));
+        }
         catch (error) { this.sink.failure(error); }
       }, STEP_MIDI_CHORD_COHERENCE_MS);
     } catch (error) { this.cancel(); this.sink.failure(error); }

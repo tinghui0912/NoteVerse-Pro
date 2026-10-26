@@ -10,7 +10,7 @@ import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/
 import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
+import type { StepAttemptState, StepAttemptRecord, StepRetry } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
@@ -27,7 +27,7 @@ type PracticeStatusMessageKey =
   | 'stepAnalyzing'
   | 'stepPostVerdictMatch'
   | 'stepPostVerdictMismatch'
-  | 'stepPostVerdictRetry'
+  | 'stepTargetCoveredWithExtra'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
   | 'settingStatusReady'
@@ -36,6 +36,10 @@ type PracticeStatusMessageKey =
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
+
+const stepRetryMessageKeys: Readonly<Record<StepRetry['reason'], PracticeStatusMessageKey>> = {
+  TARGET_COVERED_WITH_EXTRA: 'stepTargetCoveredWithExtra',
+};
 
 export type PracticeStatusView = {
   messageKey?: PracticeStatusMessageKey;
@@ -184,7 +188,8 @@ export function resolvePracticeStatusView({
   }
   if (stepInteractionPhase === 'POST_VERDICT' && lastFinalizedVerdict) {
     const messageKey = lastFinalizedVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch'
-      : lastFinalizedVerdict.verdict === 'MISMATCH' ? 'stepPostVerdictMismatch' : 'stepPostVerdictRetry';
+      : lastFinalizedVerdict.verdict === 'MISMATCH' ? 'stepPostVerdictMismatch'
+        : stepRetryMessageKeys[lastFinalizedVerdict.retry.reason];
     return { messageKey, pending: false, countInPulse: null };
   }
   return {

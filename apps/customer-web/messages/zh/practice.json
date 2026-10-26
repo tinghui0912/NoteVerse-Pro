@@ -19,7 +19,7 @@
   "stepAnalyzing": "正在核对本次回答…",
   "stepPostVerdictMatch": "回答正确，正在准备下一次输入…",
   "stepPostVerdictMismatch": "尚未匹配，正在准备重试…",
-  "stepPostVerdictRetry": "请再试一次，正在准备输入…",
+  "stepTargetCoveredWithExtra": "已识别到目标音，同时检测到其他音，请再试一次。",
   "inputNoiseElevatedTitle": "环境声音较大",
   "inputNoiseElevatedDesc": "背景声音可能影响识别准确性。靠近钢琴或降低外放音量会更稳定。",
   "inputNoiseHighTitle": "环境声音过大",

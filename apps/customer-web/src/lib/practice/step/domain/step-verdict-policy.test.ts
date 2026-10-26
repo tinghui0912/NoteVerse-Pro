@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
-import { normalizePitchSet } from '@/lib/practice/step/domain/attempt';
+import { normalizePitchSet, type StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepPracticeRuntime, type StepPracticeRuntimeOptions } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 
@@ -21,7 +21,7 @@ function setup(inputSource: PracticeInputSource, expected: readonly string[] = [
   const finish = (observed: readonly string[], start = 100) => {
     const id = runtime.openAttempt(time(start))!;
     expect(runtime.analyzeAttempt(id)).toBe(true);
-    const evidence = { kind: 'EVIDENCE' as const, observedAttackPitches: observed, confidence: .873,
+    const evidence: StepPitchEvidence = { observedAttackPitches: observed as StepPitchEvidence['observedAttackPitches'], confidence: .873,
       captureEndSessionTime: time(start + 50) };
     const result = runtime.completeAttempt(id, evidence);
     if (result.kind !== 'FINALIZED') throw Error('Expected finalized evidence');
@@ -30,8 +30,14 @@ function setup(inputSource: PracticeInputSource, expected: readonly string[] = [
   return { runtime, options, clock, time, finish };
 }
 
-describe('runtime-owned source-sensitive verdict, ordinary EVIDENCE only', () => {
+describe('source-bound STEP pitch-evidence verdict policy', () => {
   it.each([
+    { source: 'MIDI', target: ['C4','E4'], observed: ['D4'], verdict: 'MISMATCH' },
+    { source: 'MICROPHONE', target: ['C4','E4'], observed: ['C4','E4'], verdict: 'MATCH' },
+    { source: 'MICROPHONE', target: ['C4','E4'], observed: ['C4','E4','G4'], verdict: 'RETRY' },
+    { source: 'MICROPHONE', target: ['C4','E4'], observed: ['C4'], verdict: 'MISMATCH' },
+    { source: 'MICROPHONE', target: ['C4','E4'], observed: ['D4'], verdict: 'MISMATCH' },
+    { source: 'MICROPHONE', target: ['C4','E4'], observed: ['C4','G4'], verdict: 'MISMATCH' },
     { source: 'MIDI', target: ['C4', 'E4'], observed: ['C4', 'E4'], verdict: 'MATCH' },
     { source: 'MIDI', target: ['C4', 'E4'], observed: ['C4'], verdict: 'MISMATCH' },
     { source: 'MIDI', target: ['C4', 'E4'], observed: ['C4', 'E4', 'G4'], verdict: 'MISMATCH' },
@@ -45,40 +51,42 @@ describe('runtime-owned source-sensitive verdict, ordinary EVIDENCE only', () =>
     { source: 'MICROPHONE', target: ['A0', 'G#3', 'E4'], observed: ['E3', 'G#3', 'E4', 'G#4'], verdict: 'MISMATCH' },
     { source: 'MICROPHONE', target: ['G#3', 'D#4'], observed: ['E3', 'G#3', 'E4', 'G#4'], verdict: 'MISMATCH' },
     { source: 'MICROPHONE', target: ['E3', 'G#3'], observed: ['E3', 'G#3', 'E4', 'G#4'], verdict: 'RETRY' },
-    { source: 'MICROPHONE', target: ['C4'], observed: [], verdict: 'MISMATCH' },
+    { source: 'MICROPHONE', target: ['C4'], observed: [], verdict: 'INVALID' },
     { source: 'MICROPHONE', target: ['C4'], observed: ['C4'], verdict: 'MATCH' },
   ] as const)('$source $observed relative to $target -> $verdict', ({ source, target, observed, verdict }) => {
     const s = setup(source, target);
     if (verdict === 'INVALID') { expect(() => s.finish(observed)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID'); return; }
     const { record, evidence } = s.finish(observed);
-    expect(record).toMatchObject({ verdict, retryReason: verdict === 'RETRY' ? 'UNCERTAIN' : null,
+    expect(record).toMatchObject({ verdict, retry: verdict === 'RETRY' ? { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } : null,
       observedAttackPitches: normalizePitchSet(observed), confidence: evidence.confidence,
       captureEndSessionTime: evidence.captureEndSessionTime });
     expect(record.observedAttackPitches).not.toBe(observed);
+    expect(Number.isFinite(record.confidence)).toBe(true);
+    if (record.verdict === 'RETRY') expect(Object.isFrozen(record.retry)).toBe(true);
     expect(Object.isFrozen(record)).toBe(true); expect(Object.isFrozen(record.observedAttackPitches)).toBe(true);
     expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'POST_VERDICT', currentIndex: 0, targetGeneration: 1,
-      verdictPolicy: source === 'MIDI' ? 'MIDI_EXACT_SET' : 'MICROPHONE_CONSERVATIVE_TRISTATE' });
+      verdictPolicy: source === 'MIDI' ? 'MIDI_EXACT_SET_V1' : 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1' });
   });
   it('policy is resolved from pinned input source, never a caller-selectable policy', () => {
     expectTypeOf<Extract<keyof StepPracticeRuntimeOptions, 'verdictPolicy'>>().toEqualTypeOf<never>();
     const s = setup('MIDI', ['C4']);
     s.options.inputSource = 'MICROPHONE';
-    expect(s.runtime.verdictPolicy).toBe('MIDI_EXACT_SET');
+    expect(s.runtime.verdictPolicy).toBe('MIDI_EXACT_SET_V1');
     expect(s.finish(['C4', 'G4']).record).toMatchObject({ inputSource: 'MIDI', verdict: 'MISMATCH' });
     expect(s.runtime.snapshot().inputSource).toBe('MIDI');
   });
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s still supports score-blind acquisition RETRY with no asserted pitches', source => {
-    for (const reason of ['UNCERTAIN', 'TOO_QUIET'] as const) {
-      const s = setup(source), id = s.runtime.openAttempt(s.time(100))!;
-      s.runtime.analyzeAttempt(id);
-      const result = s.runtime.completeAttempt(id, { kind: 'RETRY', reason, captureEndSessionTime: s.time(150) });
-      expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict: 'RETRY', retryReason: reason,
-        observedAttackPitches: [], confidence: null } });
-      expect(s.runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
-      s.runtime.rearm(s.time(500)); expect(s.runtime.currentTarget()?.targetGeneration).toBe(1);
+  it.each(['MIDI', 'MICROPHONE'] as const)('%s confidence is retained metadata, not a verdict threshold', source => {
+    for (const confidence of [0, .01, .49, .99, 1]) {
+      for (const observed of [['C4','E4'], ['C4','E4','G4'], ['C4']] as const) {
+        const s = setup(source, ['C4','E4']), id = s.runtime.openAttempt(s.time(100))!;
+        s.runtime.analyzeAttempt(id);
+        const result = s.runtime.completeAttempt(id, { observedAttackPitches: observed, confidence, captureEndSessionTime: s.time(150) });
+        expect(result).toMatchObject({ kind: 'FINALIZED', record: { confidence, verdict: observed.length === 2 ? 'MATCH'
+          : source === 'MICROPHONE' && observed.length === 3 ? 'RETRY' : 'MISMATCH' } });
+      }
     }
   });
-  it('runtime uncertainty preserves evidence, never advances or carries it across rearm', () => {
+  it('target-policy abstention preserves evidence, never advances or carries it across rearm', () => {
     const s = setup('MICROPHONE'), target = s.runtime.currentTarget()!, raw = ['E3', 'G#3', 'E4', 'G#4'];
     const first = s.finish(raw), post = s.runtime.snapshot(); raw.push('C6');
     expect(first.record.observedAttackPitches).not.toContain('C6');

@@ -112,7 +112,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const initial = r.controller.snapshot().sessionSnapshot!.step;
     expect(initial.inputEligibleAfter.sampleIndex).toBe(r.input().snapshot().capture!.capturedThroughSourceSample);
     expect(initial.inputEligibleAfter.ms).toBe(7000 + initial.inputEligibleAfter.sampleIndex! / rate * 1000);
-    expect(initial.verdictPolicy).toBe('MICROPHONE_CONSERVATIVE_TRISTATE');
+    expect(initial.verdictPolicy).toBe('MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1');
     expect(r.platform.microphone!.acquireMicrophone).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createWorker).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
@@ -125,7 +125,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.completion).toHaveBeenCalledOnce();
   });
 
-  it.each([['C4'], ['C4', 'C5'], ['D4']])('ordinary evidence %j keeps v6 policy, exact H50 and synchronous physical rearm', async (...pitches) => {
+  it.each([['C4'], ['C4', 'C5'], ['D4']])('pitch evidence %j keeps target policy, exact H50 and synchronous physical rearm', async (...pitches) => {
     const r = rig(rate); r.pitches(pitches);
     const trace: string[] = [], rearm = StepPracticeRuntime.prototype.rearm, arm = StepMicrophoneInput.prototype.arm;
     vi.spyOn(StepPracticeRuntime.prototype, 'rearm').mockImplementation(function (this: StepPracticeRuntime, boundary) {
@@ -143,7 +143,9 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     await r.untilAttempts(1);
     const step = r.controller.snapshot().sessionSnapshot!.step, record = step.attempts[0];
     const verdict = pitches.length > 1 ? 'RETRY' : pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH';
-    expect(record.verdict).toBe(verdict); expect(record.retryReason).toBe(verdict === 'RETRY' ? 'UNCERTAIN' : null);
+    expect(record.verdict).toBe(verdict); expect(record.retry).toEqual(verdict === 'RETRY' ? { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } : null);
+    expect(record.observedAttackPitches).toEqual([...pitches].sort());
+    expect(record.confidence).toBe(.8);
     expect(record.captureEndSessionTime.sampleIndex).toBe(record.attemptStartSessionTime.sampleIndex! + rate * 50 / 1000);
     expect(step).toMatchObject({ currentIndex: verdict === 'MATCH' ? 1 : 0, attemptState: 'READY', inputAvailable: true });
     expect(trace).toEqual(['rearm', 'arm']);
@@ -225,12 +227,14 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
 
   it.each(['context', 'root', 'worker', 'analysis'] as const)('%s interruption is terminal, releases once and never reconnects', async kind => {
     const r = rig(rate); await r.controller.start();
+    const history = r.controller.snapshot().sessionSnapshot!.step.attempts;
     if (kind === 'context') { r.context.state = 'suspended'; r.context.dispatchEvent(new Event('statechange')); }
     if (kind === 'root') r.track.dispatchEvent(new Event('mute'));
     if (kind === 'worker') r.workerFailure();
     if (kind === 'analysis') r.source().failAnalysis(new Error('ANALYSIS_FAILURE'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', canAcceptAttempt: false });
     expect(r.controller.snapshot().error).not.toMatch(/MIDI/);
+    expect(r.controller.snapshot().sessionSnapshot!.step.attempts).toEqual(history);
     await r.controller.finish(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
     expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
@@ -319,4 +323,16 @@ it('browser STEP platform requests the same unprocessed microphone constraints a
   expect(acquire).toHaveBeenCalledWith({ video: false,
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   expect(platform.microphone!.createAudioContext()).toBe(context); expect(createContext).toHaveBeenCalledOnce();
+});
+
+
+it.each([44100, 48000] as const)('%s microphone silence stays READY without any attempt or synthetic verdict', async rate => {
+  const r = rig(rate); r.pitches([]);
+  await r.controller.start(); await r.feed(120);
+  const snapshot = r.controller.snapshot();
+  expect(snapshot).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true, stepInteractionPhase: 'READY', lastFinalizedVerdict: null });
+  expect(snapshot.sessionSnapshot!.step).toMatchObject({ currentIndex: 0, targetGeneration: 1, activeAttempt: null, attempts: [], pendingPostVerdict: null });
+  expect(snapshot.microphoneDiagnostics!.analysis!.counts.windowsPublished).toBeGreaterThan(0);
+  await r.controller.finish();
+  expect(r.controller.snapshot().lastSnapshot!.step.attempts).toEqual([]);
 });

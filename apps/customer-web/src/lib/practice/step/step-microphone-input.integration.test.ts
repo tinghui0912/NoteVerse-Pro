@@ -75,7 +75,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   };
   const input: StepMicrophoneInput<StepAttemptIdentity> = new StepMicrophoneInput<StepAttemptIdentity>(platform, {
     open: time => runtime.openAttempt(time), complete: (id, evidence) => {
-      expect(evidence.kind).toBe('EVIDENCE'); expect(runtime.analyzeAttempt(id)).toBe(true);
+      expect(Object.keys(evidence).sort()).toEqual(['captureEndSessionTime','confidence','observedAttackPitches']); expect(runtime.analyzeAttempt(id)).toBe(true);
       records.push(runtime.completeAttempt(id, evidence)); extraComplete?.();
     }, failure: error => failures.push(error),
   });
@@ -135,7 +135,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
     await r.input.dispose(); expect(r.worker.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it.each([{ pitches: ['C4'] }, { pitches: ['C4', 'C5'] }, { pitches: ['D4'] }])('runtime v6 alone interprets ordinary acoustic evidence $pitches', async ({ pitches }) => {
+  it.each([{ pitches: ['C4'] }, { pitches: ['C4', 'C5'] }, { pitches: ['D4'] }])('runtime alone interprets acoustic pitch evidence $pitches', async ({ pitches }) => {
     const r = await rig(rate, pitches);
     try {
       r.activate(); await r.untilPublications(1);
@@ -143,7 +143,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(record.verdict).toBe(pitches.length > 1 ? 'RETRY' : pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
       expect(record.observedAttackPitches).toEqual([...pitches].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 6, runtimeVersion: 'step-source-sensitive-verdict-v6' });
+      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);
