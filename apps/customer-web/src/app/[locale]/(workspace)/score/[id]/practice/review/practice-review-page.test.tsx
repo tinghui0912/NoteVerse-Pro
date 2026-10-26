@@ -53,15 +53,15 @@ const translationMocks = vi.hoisted(() => {
     scoreRevisionMismatchTitle: '乐谱版本不一致',
     scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。',
     audioPlaybackFailed: '本次录音不可回放',
-    savePerformance: '保存录制',
-    performanceSaved: '已保存',
-    savingPerformance: '正在保存...',
-    retrySavePerformance: '重试保存',
+    saveRecording: '保存录制',
+    recordingSaved: '已保存',
+    savingRecording: '正在保存...',
+    retrySaveRecording: '重试保存',
     viewMyPerformances: '查看我的演奏',
-    savePerformanceSuccessTitle: '录制已保存',
-    savePerformanceSuccessDesc: '可以稍后在已保存录制中查看。',
-    savePerformanceFailedTitle: '保存失败',
-    savePerformanceFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
+    saveRecordingSuccessTitle: '录制已保存',
+    saveRecordingSuccessDesc: '可以稍后在已保存录制中查看。',
+    saveRecordingFailedTitle: '保存失败',
+    saveRecordingFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
     exportOriginalVideo: '导出原始视频',
     exportScoreVideo: '导出乐谱＋视频',
     exportScoreVideoProgressTitle: '正在合成乐谱＋演奏视频',
@@ -74,8 +74,8 @@ const translationMocks = vi.hoisted(() => {
     exportScoreVideoUnavailableScoreMismatch: '当前乐谱版本与录像不一致，暂不能可靠合成。',
     exportScoreVideoUnavailableSync: '缺少可靠的录像与乐谱时间映射，暂不能合成。',
     exportScoreVideoUnsupportedBrowser: '当前浏览器不支持本地视频合成导出。',
-    savePerformanceMediaTooLarge: '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
-    savePerformanceVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
+    saveRecordingMediaTooLarge: '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
+    saveRecordingVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
     retryPractice: '重弹一次',
     playback: '练习回放',
     makeShareVideoTitle: '制作分享视频',
@@ -261,7 +261,7 @@ const shareVideoMocks = vi.hoisted(() => ({
   getShareVideoExportReadiness: vi.fn(),
 }));
 
-vi.mock('@/lib/practice/share-video-export', () => ({
+vi.mock('@/lib/practice/sharing/video/export', () => ({
   exportShareVideo: shareVideoMocks.exportShareVideo,
   getShareVideoExportReadiness: shareVideoMocks.getShareVideoExportReadiness,
 }));
@@ -272,7 +272,7 @@ import {
 } from '@/lib/practice/continuous/completion-store';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { completedEvaluationFixture, finality } from '@/lib/practice/__fixtures__/continuous-evaluation';
-import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
+import { EvaluationAnnotationController } from '@/lib/practice/score-view/evaluation-annotations';
 
 type TestOutcome = {
   expectedGroupId: string;
@@ -478,7 +478,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it.each(['MIDI','MICROPHONE'] as const)('%s review uses its own feedback counts and annotation semantics', (inputSource) => {
-    const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
+    const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
 
     const completionWithChordsAndOutcomes: ContinuousPracticeCompletion = {
       result: continuousResultFixture({
@@ -631,7 +631,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
-    const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
+    const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
 
     // Artifact has revision 'rev-2', while completion has revision 'rev-1'
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });

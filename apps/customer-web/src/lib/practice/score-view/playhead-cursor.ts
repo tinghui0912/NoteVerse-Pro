@@ -1,5 +1,8 @@
-const PLAYHEAD_CURSOR_CLASS = 'practice-playhead-cursor';
-const PLAYHEAD_CURSOR_DATA_ATTR = 'data-practice-playhead-cursor';
+import { SCORE_DECORATIONS } from './decorations';
+import { findScoreGraphicsElementByRenderId } from './dom';
+
+const PLAYHEAD_CURSOR_CLASS = SCORE_DECORATIONS.cursor;
+const PLAYHEAD_CURSOR_DATA_ATTR = SCORE_DECORATIONS.cursorAttribute;
 
 const PLAYHEAD_CURSOR_STYLE = {
   radius: 4,
@@ -87,27 +90,6 @@ type PlayheadCursorGeometryFailureReason =
   | 'matrix_not_invertible'
   | 'non_finite_root_rect';
 
-function cssStringLiteral(value: string) {
-  return JSON.stringify(value);
-}
-
-function escapeCssId(id: string) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(id);
-  }
-  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
-}
-
-function findElementByVerovioId(
-  container: ParentNode,
-  verovioId: string
-): SVGGraphicsElement | null {
-  return (
-    container.querySelector<SVGGraphicsElement>(`[data-id=${cssStringLiteral(verovioId)}]`) ??
-    container.querySelector<SVGGraphicsElement>(`#${escapeCssId(verovioId)}`)
-  );
-}
-
 export function clearPlayheadCursor(container: ParentNode) {
   container
     .querySelectorAll(`[${PLAYHEAD_CURSOR_DATA_ATTR}]`)
@@ -142,7 +124,7 @@ export function applyPlayheadCursor(
     geometry.layer.insertBefore(rect, geometry.layer.firstChild);
     firstGeometry ??= geometry;
     firstAnchor ??= group.noteIds
-      .map((noteId) => findElementByVerovioId(container, noteId))
+      .map((noteId) => findScoreGraphicsElementByRenderId(container, noteId))
       .find((node): node is SVGGraphicsElement => node !== null) ?? null;
   }
   return { anchor: firstAnchor, geometry: firstGeometry };
@@ -154,7 +136,7 @@ export function applyExportPlayheadCursor(
   anchorNoteId: string
 ): { anchor: SVGGraphicsElement | null; geometry: ExportPlayheadCursorGeometry | null } {
   const result = applyPlayheadCursor(container, noteIds);
-  const anchor = findElementByVerovioId(container, anchorNoteId) ?? result.anchor;
+  const anchor = findScoreGraphicsElementByRenderId(container, anchorNoteId) ?? result.anchor;
   if (!result.geometry || !anchor) {
     return { anchor: anchor as SVGGraphicsElement | null, geometry: null };
   }
@@ -176,7 +158,7 @@ function groupActiveNotesByStaff(
 ): ActivePlayheadStaffGroup[] {
   const groups = new Map<SVGGraphicsElement, ActivePlayheadStaffGroup>();
   for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
-    const note = findElementByVerovioId(container, noteId);
+    const note = findScoreGraphicsElementByRenderId(container, noteId);
     if (!note) continue;
     const layer = getCursorLayer(note);
     if (!layer) continue;
@@ -216,7 +198,7 @@ function getPlayheadCursorGeometryForGroup(
   container: ParentNode
 ): PlayheadCursorGeometry | null {
   const notes = group.noteIds
-    .map((noteId) => findElementByVerovioId(container, noteId))
+    .map((noteId) => findScoreGraphicsElementByRenderId(container, noteId))
     .filter((note): note is SVGGraphicsElement => note !== null);
   const noteBoxes = notes
     .map((note) => getElementBoxInLayer(note, group.layer))
@@ -342,7 +324,7 @@ export function getPlayheadCursorGeometry(
   options: { requireRootCoordinates?: boolean } = {}
 ): PlayheadCursorGeometry | null {
   const allNotes = Array.from(new Set(noteIds.filter(Boolean)))
-    .map((noteId) => findElementByVerovioId(container, noteId))
+    .map((noteId) => findScoreGraphicsElementByRenderId(container, noteId))
     .filter((node): node is SVGGraphicsElement => node !== null);
   if (allNotes.length === 0) {
     return null;

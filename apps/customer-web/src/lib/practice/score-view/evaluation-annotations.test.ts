@@ -2,17 +2,17 @@ import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domai
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { completedEvaluationFixture } from './__fixtures__/continuous-evaluation';
-import { noteAnnotationsFromCompletedEvaluation } from './performance-annotation-controller';
+import { completedEvaluationFixture } from '@/lib/practice/__fixtures__/continuous-evaluation';
+import { noteAnnotationsFromCompletedEvaluation } from './evaluation-annotations';
 import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 
 import {
-  PerformanceAnnotationController,
+  EvaluationAnnotationController,
   noteAnnotationsFromContinuousEvaluation,
-} from './performance-annotation-controller';
+} from './evaluation-annotations';
 
-describe('PerformanceAnnotationController', () => {
+describe('EvaluationAnnotationController', () => {
   it('applies performance annotations and replaces stale annotations', () => {
     const container = document.createElement('div');
     container.innerHTML = `
@@ -20,7 +20,7 @@ describe('PerformanceAnnotationController', () => {
       <span data-id="n2"></span>
       <span id="n3"></span>
     `;
-    const controller = new PerformanceAnnotationController();
+    const controller = new EvaluationAnnotationController();
 
     controller.apply(container, {
       supportedNoteIds: ['n1'],
@@ -53,7 +53,7 @@ describe('PerformanceAnnotationController', () => {
   it('clears annotations from the current container', () => {
     const container = document.createElement('div');
     container.innerHTML = '<span data-id="n1"></span>';
-    const controller = new PerformanceAnnotationController();
+    const controller = new EvaluationAnnotationController();
 
     controller.apply(container, {
       supportedNoteIds: ['n1'],
@@ -72,7 +72,7 @@ describe('PerformanceAnnotationController', () => {
       <span data-id="n1"></span>
       <span data-id="n2"></span>
     `;
-    const controller = new PerformanceAnnotationController();
+    const controller = new EvaluationAnnotationController();
     controller.apply(
       container,
       {
@@ -110,7 +110,7 @@ describe('PerformanceAnnotationController', () => {
   it('rehydrates settled annotations when the score DOM render revision changes', () => {
     const container = document.createElement('div');
     container.innerHTML = '<span data-id="n1"></span>';
-    const controller = new PerformanceAnnotationController();
+    const controller = new EvaluationAnnotationController();
     controller.apply(
       container,
       {
@@ -147,7 +147,7 @@ describe('PerformanceAnnotationController', () => {
     ]);
     finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilityTimeMs: 1600,
       observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
-    const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('./continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
+    const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('@/lib/practice/continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
 
     expect(annotations.supportedNoteIds).toEqual(['note-c']);
     expect(annotations.wrongNoteIds).toEqual([]);
@@ -178,7 +178,7 @@ it('keeps missed targets distinct through DOM annotation replacement and clearin
   const container = document.createElement('div');
   container.innerHTML = '<span data-id="n"></span>';
   const note = container.querySelector('[data-id="n"]')!;
-  const controller = new PerformanceAnnotationController();
+  const controller = new EvaluationAnnotationController();
   controller.apply(container, { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: ['n'] });
   expect([...note.classList]).toEqual(['practice-summary-note-missed']);
   controller.apply(container, { supportedNoteIds: [], wrongNoteIds: ['n'], missedNoteIds: [] });

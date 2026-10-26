@@ -9,13 +9,15 @@ import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
-import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import { StepPlayheadController } from '@/lib/practice/score-view/step-playhead-controller';
+import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
-  PerformanceAnnotationController,
+  EvaluationAnnotationController,
   noteAnnotationsFromContinuousEvaluation,
-} from '@/lib/practice/performance-annotation-controller';
-import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
+} from '@/lib/practice/score-view/evaluation-annotations';
+import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import { syncRangeOverlay, clearRangeOverlay, isRangeBackgroundMutation } from '@/lib/practice/score-view/range-overlay';
+import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import type { PracticeMode } from '@/lib/practice/kernel/session';
@@ -60,7 +62,7 @@ export function PracticeScoreViewer({
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const stepPlayheadController = useMemo(() => new StepPlayheadController(), []);
   const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
-  const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
+  const annotationController = useMemo(() => new EvaluationAnnotationController(), []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
@@ -202,10 +204,7 @@ export function PracticeScoreViewer({
       }
       frame = window.requestAnimationFrame(() => {
         frame = null;
-        clearRangeBackgrounds(container);
-        applyRangeBackgrounds(container, rangeNoteIds);
-        clearRangeClasses(container);
-        applyRangeClasses(container, rangeNoteIds);
+        syncRangeOverlay(container, rangeNoteIds);
       });
     };
 
@@ -231,8 +230,7 @@ export function PracticeScoreViewer({
       if (frame !== null) {
         window.cancelAnimationFrame(frame);
       }
-      clearRangeBackgrounds(container);
-      clearRangeClasses(container);
+      clearRangeOverlay(container);
     };
   }, [
     renderRevision,
@@ -289,45 +287,45 @@ export function PracticeScoreViewer({
         .practice-score-svg-selectable [data-class='chord'] * {
           pointer-events: auto;
         }
-        .practice-score-svg .practice-range-background {
+        .practice-score-svg .${SCORE_DECORATIONS.rangeBackground} {
           fill: rgb(251 191 36 / 15%);
           stroke: rgb(245 158 11 / 40%);
           stroke-width: 1.5px;
           pointer-events: none !important;
         }
-        .practice-score-svg .practice-range-selected {
+        .practice-score-svg .${SCORE_DECORATIONS.rangeSelected} {
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-playhead-cursor {
+        .practice-score-svg .${SCORE_DECORATIONS.cursor} {
           stroke-width: 1.5px;
           pointer-events: none !important;
         }
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='treble'] {
+        .practice-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='treble'] {
           fill: rgb(125 211 252 / 24%);
           stroke: rgb(14 165 233 / 48%);
           filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
         }
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
+        .practice-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='bass'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
         }
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+        .practice-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='other'] {
           fill: rgb(148 163 184 / 20%);
           stroke: rgb(100 116 139 / 44%);
           filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
         }
-        .practice-score-svg .practice-summary-note-supported {
+        .practice-score-svg .${SCORE_DECORATIONS.supported} {
           fill: #16a34a !important;
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-summary-note-wrong {
+        .practice-score-svg .${SCORE_DECORATIONS.wrong} {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-summary-note-missed {
+        .practice-score-svg .${SCORE_DECORATIONS.missed} {
           fill: #94a3b8 !important;
           color: #94a3b8 !important;
         }
@@ -389,134 +387,4 @@ export function PracticeScoreViewer({
       />
     </div>
   );
-}
-
-function cssStringLiteral(value: string) {
-  return JSON.stringify(value);
-}
-
-function escapeCssId(id: string) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(id);
-  }
-  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
-}
-
-function findElementByVerovioId(container: HTMLElement, verovioId: string): SVGGraphicsElement | null {
-  return (
-    container.querySelector<SVGGraphicsElement>(`[data-id=${cssStringLiteral(verovioId)}]`) ??
-    container.querySelector<SVGGraphicsElement>(`#${escapeCssId(verovioId)}`)
-  );
-}
-
-function clearRangeBackgrounds(container: HTMLElement) {
-  container
-    .querySelectorAll('[data-practice-range-background]')
-    .forEach((element) => element.remove());
-}
-
-function isRangeBackgroundMutation(mutation: MutationRecord) {
-  const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
-  return (
-    changedNodes.length > 0 &&
-    changedNodes.every(
-      (node) =>
-        node instanceof Element &&
-        node.hasAttribute('data-practice-range-background')
-    )
-  );
-}
-
-function applyRangeBackgrounds(
-  container: HTMLElement,
-  noteIds: readonly string[]
-) {
-  const systemBoxes = new Map<SVGGraphicsElement, DOMRect>();
-  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
-    const note = findElementByVerovioId(container, noteId);
-    if (!note || typeof note.getBBox !== 'function') {
-      continue;
-    }
-
-    let box: DOMRect;
-    try {
-      box = note.getBBox();
-    } catch {
-      continue;
-    }
-
-    const system = note.closest<SVGGraphicsElement>('.system');
-    const layer = system ?? note.ownerSVGElement;
-    if (!layer) {
-      continue;
-    }
-
-    const currentBox = systemBoxes.get(layer);
-    systemBoxes.set(layer, currentBox ? mergeRangeBox(currentBox, box) : box);
-  }
-
-  for (const [layer, rangeBox] of systemBoxes) {
-    const verticalBox = rangeVerticalBox(layer, rangeBox);
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    const paddingX = Math.max(8, rangeBox.width * 0.02);
-    const paddingY = Math.max(8, verticalBox.height * 0.04);
-    rect.setAttribute('data-practice-range-background', 'true');
-    rect.setAttribute('class', 'practice-range-background');
-    rect.setAttribute('x', String(rangeBox.x - paddingX));
-    rect.setAttribute('y', String(verticalBox.y - paddingY));
-    rect.setAttribute('width', String(rangeBox.width + paddingX * 2));
-    rect.setAttribute('height', String(verticalBox.height + paddingY * 2));
-    rect.setAttribute('rx', '4');
-    layer.insertBefore(rect, layer.firstChild);
-  }
-}
-
-function mergeRangeBox(first: DOMRect, second: DOMRect): DOMRect {
-  const x = Math.min(first.x, second.x);
-  const y = Math.min(first.y, second.y);
-  const right = Math.max(first.x + first.width, second.x + second.width);
-  const bottom = Math.max(first.y + first.height, second.y + second.height);
-  return DOMRect.fromRect({
-    x,
-    y,
-    width: right - x,
-    height: bottom - y,
-  });
-}
-
-function rangeVerticalBox(layer: SVGGraphicsElement, rangeBox: DOMRect): DOMRect {
-  if (!layer.classList.contains('system')) {
-    return rangeBox;
-  }
-
-  try {
-    const systemBox = layer.getBBox();
-    return DOMRect.fromRect({
-      x: rangeBox.x,
-      y: systemBox.y,
-      width: rangeBox.width,
-      height: systemBox.height,
-    });
-  } catch {
-    return rangeBox;
-  }
-}
-
-function clearRangeClasses(container: HTMLElement) {
-  container
-    .querySelectorAll('.practice-range-selected')
-    .forEach((element) => element.classList.remove('practice-range-selected'));
-  container
-    .querySelectorAll('.practice-range-boundary')
-    .forEach((element) => element.classList.remove('practice-range-boundary'));
-}
-
-function applyRangeClasses(
-  container: HTMLElement,
-  selectedNoteIds: readonly string[]
-) {
-  for (const id of Array.from(new Set(selectedNoteIds.filter(Boolean)))) {
-    const el = findElementByVerovioId(container, id);
-    el?.classList.add('practice-range-selected');
-  }
 }

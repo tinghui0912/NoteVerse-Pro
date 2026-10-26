@@ -7,13 +7,13 @@ import {
   drawExportFrame,
   getShareVideoExportReadiness,
   selectSupportedShareVideoMimeType,
-} from './share-video-export';
-import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
-import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
-import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
-import { getEventScoreImage, prepareScorePageCache } from './share-video-score-model';
-import { getShareVideoLayout } from './share-video-templates';
-import type { ShareVideoSession } from './share-video-session';
+} from './export';
+import { resolveShareVideoPlaybackPosition } from './playback-position';
+import { renderShareVideoFrameAtTime } from './frame-renderer';
+import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from '@/lib/practice/score-view/playhead-cursor';
+import { getEventScoreImage, prepareScorePageCache } from './score-model';
+import { getShareVideoLayout } from './templates';
+import type { ShareVideoSession } from './session';
 
 function createSession(
   overrides: Partial<ShareVideoSession> = {}

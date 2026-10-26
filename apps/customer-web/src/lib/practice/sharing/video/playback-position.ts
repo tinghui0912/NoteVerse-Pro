@@ -1,8 +1,8 @@
 import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
-import { resolveScopeTiming } from './scope-timing';
-import type { ShareVideoSession } from './share-video-session';
-import type { PracticeVerovioAdapter } from './verovio-adapter';
+import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
+import type { ShareVideoSession } from './session';
+import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 export type ResolveShareVideoPlaybackPositionInput = {
   session: ShareVideoSession;

@@ -26,8 +26,8 @@ import type { PlayablePerformanceReplay } from '@/lib/practice/recording/perform
 import {
   createShareVideoSessionFromSavedTake,
   hasSavedTakeShareVideoMetadata,
-} from '@/lib/practice/share-video-session';
-import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
+} from '@/lib/practice/sharing/video/saved-take-adapter';
+import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
   const value = params?.takeId;

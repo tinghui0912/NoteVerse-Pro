@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ShareVideoSession } from './share-video-session';
-import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
+import type { ShareVideoSession } from './session';
+import { renderShareVideoFrameAtTime } from './frame-renderer';
 import {
   findStablePageNumber,
   prepareScorePageCache,
   type ScorePageCache,
-} from './share-video-score-model';
-import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
-import { getShareVideoLayout, type ShareVideoConfig } from './share-video-templates';
-import type { PracticeVerovioAdapter } from './verovio-adapter';
+} from './score-model';
+import { resolveShareVideoPlaybackPosition } from './playback-position';
+import { getShareVideoLayout, type ShareVideoConfig } from './templates';
+import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 type PreviewStatus = 'idle' | 'preparing' | 'ready' | 'error';
 

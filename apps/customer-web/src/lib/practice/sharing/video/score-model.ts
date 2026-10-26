@@ -1,9 +1,10 @@
+import { SCORE_DECORATIONS, REPORT_NOTE_CLASSES } from '@/lib/practice/score-view/decorations';
 import {
   applyPlayheadCursor,
   rootSvgRectForElement,
   snapshotPlayheadCursorGeometry,
   type SvgRect,
-} from './playhead-cursor';
+} from '@/lib/practice/score-view/playhead-cursor';
 import { applyFloatingScoreSvgStyle } from './floating-score-svg';
 
 export type SvgViewBox = { x: number; y: number; width: number; height: number };
@@ -190,7 +191,7 @@ async function buildEventScoreImage(
     if (!result.geometry) {
       throw new Error('share_video_export_failed:event_score_cursor_unavailable');
     }
-    const cursorCount = svg.querySelectorAll('[data-practice-playhead-cursor]').length;
+    const cursorCount = svg.querySelectorAll(`[${SCORE_DECORATIONS.cursorAttribute}]`).length;
     if (cursorCount < 1 || cursorCount > 2) {
       throw new Error('share_video_export_failed:event_score_cursor_count');
     }
@@ -378,11 +379,11 @@ function systemContentBounds(
 ): SvgRect {
   const candidates = Array.from(systemElement.querySelectorAll<SVGGraphicsElement>('*'))
     .filter((element) => {
-      if (element.hasAttribute('data-practice-playhead-cursor')) return false;
+      if (element.hasAttribute(SCORE_DECORATIONS.cursorAttribute)) return false;
       const dataClass = element.getAttribute('data-class') ?? '';
       const className = element.getAttribute('class') ?? '';
       return !['section', 'pb'].includes(dataClass) &&
-        !className.split(/\s+/).some((name) => name === 'systemMilestone' || name === 'practice-playhead-cursor');
+        !className.split(/\s+/).some((name) => name === 'systemMilestone' || name === SCORE_DECORATIONS.cursor);
     })
     .map((element) => rootSvgRectForElement(rootSvg, element))
     .filter((rect): rect is SvgRect => rect !== null && rect.width > 0 && rect.height > 0)
@@ -517,11 +518,10 @@ function loadImageFromSvg(svgText: string): Promise<HTMLImageElement> {
 
 /** Apply only to the frozen clone; Review keeps its learner-facing annotations. */
 function stripPracticeReportDecorations(clone: SVGSVGElement): void {
-  const classes = ['practice-summary-note-supported', 'practice-summary-note-wrong',
-    'practice-summary-note-missed', 'practice-note-active'];
+  const classes = [...REPORT_NOTE_CLASSES, SCORE_DECORATIONS.activeNote];
   for (const element of [clone, ...clone.querySelectorAll('*')]) {
     element.classList.remove(...classes);
   }
-  clone.querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
+  clone.querySelectorAll(`.${SCORE_DECORATIONS.cursor}, [${SCORE_DECORATIONS.cursorAttribute}]`)
     .forEach(element => element.remove());
 }

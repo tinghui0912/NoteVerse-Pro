@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PracticeScoreViewer } from './practice-score-viewer';
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import * as evaluationAnnotations from '@/lib/practice/score-view/evaluation-annotations';
 import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+
+const renderEvents = vi.hoisted(() => ({ notify: () => {} }));
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -53,7 +58,8 @@ vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
     useEffect(() => {
       const container = containerRef.current;
       if (container) {
-        onRendered?.({}, container, [{ pageNumber: 1 }]);
+        renderEvents.notify = () => onRendered?.({}, container, [{ pageNumber: 1 }]);
+        renderEvents.notify();
       }
     }, [onRendered]);
 
@@ -228,4 +234,35 @@ describe('PracticeScoreViewer', () => {
 
     delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   });
+});
+
+it('composes Continuous cursor/annotations, restores them on score rerender, and clears them on mode change', async () => {
+  Object.defineProperty(SVGElement.prototype, 'getBBox', { configurable: true,
+    value: function(this: SVGElement) { return DOMRect.fromRect(this.classList.contains('system')
+      ? { x: 0, y: 0, width: 120, height: 80 } : { x: 10, y: 20, width: 30, height: 40 }); } });
+  const timeline = vi.spyOn(PracticeVerovioAdapter.prototype, 'getCursorTimelineEntryForBeatRange')
+    .mockReturnValue({ index: 0, beat: 0, endBeat: 1, noteIds: ['note-a'] });
+  const page = vi.spyOn(PracticeVerovioAdapter.prototype, 'getPageWithElement').mockReturnValue(1);
+  const projection = vi.spyOn(evaluationAnnotations, 'noteAnnotationsFromContinuousEvaluation')
+    .mockReturnValue({ supportedNoteIds: ['note-a'], wrongNoteIds: [], missedNoteIds: [] });
+  const evaluation = canonicalContinuousResultFixture().evaluation;
+  if (evaluation.status !== 'COMPLETE' || evaluation.inputSource !== 'MIDI') throw new Error('Expected complete MIDI fixture');
+  const props: PracticeScoreViewerProps = { xmlContent: '<score-partwise />', isLoadingXml: false, lifecycle: 'ACTIVE',
+    sessionMode: 'CONTINUOUS_PLAY', performanceMusicalBeat: 0, performanceScope: { kind: 'FULL', startBeat: 0, terminalBeat: 4 },
+    performanceEvaluation: { ...evaluation, assignment: { ...evaluation.assignment, analyzedThroughPerformanceMs: 10000, reservedObservationIds: [] } } };
+  const view = render(<PracticeScoreViewer {...props} />);
+  try {
+    await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
+    expect(view.container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
+    const note = screen.getByTestId('selected-note'); const replacement = note.cloneNode(true) as Element;
+    replacement.classList.remove('practice-summary-note-supported'); note.replaceWith(replacement);
+    act(() => renderEvents.notify());
+    await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="IDLE" sessionMode="STEP_BY_STEP" performanceEvaluation={null} />);
+    expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
+    expect(view.container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
+  } finally {
+    view.unmount(); timeline.mockRestore(); page.mockRestore(); projection.mockRestore();
+    delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
+  }
 });

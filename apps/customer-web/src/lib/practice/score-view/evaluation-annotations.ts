@@ -1,28 +1,16 @@
+import { findScoreElementByRenderId } from './dom';
+import { REPORT_NOTE_CLASSES } from './decorations';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 
-function escapeCssId(id: string) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(id);
-  }
-  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
-}
-
-function findElementByVerovioId(container: HTMLElement, verovioId: string) {
-  return (
-    container.querySelector<HTMLElement>(`[data-id="${verovioId}"]`) ??
-    container.querySelector<HTMLElement>(`#${escapeCssId(verovioId)}`)
-  );
-}
-
-type PerformanceNoteAnnotations = {
+type EvaluationNoteAnnotations = {
   supportedNoteIds: string[];
   wrongNoteIds: string[];
   missedNoteIds: string[];
 };
-const annotationClasses = ['practice-summary-note-supported', 'practice-summary-note-wrong', 'practice-summary-note-missed'] as const;
+const annotationClasses = REPORT_NOTE_CLASSES;
 
-export class PerformanceAnnotationController {
+export class EvaluationAnnotationController {
   private supportedNoteIds = new Set<string>();
   private wrongNoteIds = new Set<string>();
   private missedNoteIds = new Set<string>();
@@ -31,7 +19,7 @@ export class PerformanceAnnotationController {
 
   clear(container: HTMLElement) {
     for (const id of new Set([...this.supportedNoteIds, ...this.wrongNoteIds, ...this.missedNoteIds])) {
-      findElementByVerovioId(container, id)?.classList.remove(...annotationClasses);
+      findScoreElementByRenderId(container, id)?.classList.remove(...annotationClasses);
     }
     this.supportedNoteIds.clear();
     this.wrongNoteIds.clear();
@@ -40,7 +28,7 @@ export class PerformanceAnnotationController {
     this.renderRevision = null;
   }
 
-  apply(container: HTMLElement, annotations: PerformanceNoteAnnotations, options: { renderRevision?: number | string } = {}) {
+  apply(container: HTMLElement, annotations: EvaluationNoteAnnotations, options: { renderRevision?: number | string } = {}) {
     const wrong = new Set(annotations.wrongNoteIds.filter(Boolean));
     const supported = new Set(annotations.supportedNoteIds.filter(id => id && !wrong.has(id)));
     const missed = new Set(annotations.missedNoteIds.filter(id => id && !wrong.has(id) && !supported.has(id)));
@@ -49,15 +37,15 @@ export class PerformanceAnnotationController {
     const rehydrate = this.currentContainer !== container || this.renderRevision !== (options.renderRevision ?? null);
     if (rehydrate) {
       for (const id of new Set([...previous, ...next].flatMap(ids => [...ids]))) {
-        findElementByVerovioId(container, id)?.classList.remove(...annotationClasses);
+        findScoreElementByRenderId(container, id)?.classList.remove(...annotationClasses);
       }
     }
     for (const [index, className] of annotationClasses.entries()) {
       for (const id of previous[index]) {
-        if (!next[index].has(id) && !rehydrate) findElementByVerovioId(container, id)?.classList.remove(className);
+        if (!next[index].has(id) && !rehydrate) findScoreElementByRenderId(container, id)?.classList.remove(className);
       }
       for (const id of next[index]) {
-        if (rehydrate || !previous[index].has(id)) findElementByVerovioId(container, id)?.classList.add(className);
+        if (rehydrate || !previous[index].has(id)) findScoreElementByRenderId(container, id)?.classList.add(className);
       }
     }
     this.supportedNoteIds = supported;
@@ -68,7 +56,7 @@ export class PerformanceAnnotationController {
   }
 }
 
-function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnapshot['interpretation']): PerformanceNoteAnnotations {
+function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnapshot['interpretation']): EvaluationNoteAnnotations {
   const supportedNoteIds: string[] = [], wrongNoteIds: string[] = [], missedNoteIds: string[] = [];
   for (const group of interpretation.groups) {
     if (group.verdict === 'PENDING') continue;
@@ -83,7 +71,7 @@ function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnaps
 export function noteAnnotationsFromContinuousEvaluation(evaluation: ContinuousEvaluationSnapshot) {
   return annotationsFromInterpretation(evaluation.interpretation);
 }
-export function noteAnnotationsFromCompletedEvaluation(evaluation: CompletedContinuousEvaluation): PerformanceNoteAnnotations {
+export function noteAnnotationsFromCompletedEvaluation(evaluation: CompletedContinuousEvaluation): EvaluationNoteAnnotations {
   return evaluation.status === 'UNAVAILABLE' ? { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: [] }
     : annotationsFromInterpretation(evaluation.interpretation);
 }

@@ -4,65 +4,14 @@ import type {
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
-import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import { assertRecordingTimebase, type RecordingTimebaseMapping } from '@/lib/practice/recording/recording-timebase';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeTempoSegmentSource, ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { ShareVideoSession } from './session';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 import { cursorScopeFromResolvedPracticeScope, type CursorScope } from '@/lib/practice/score-view/cursor-scope';
-
-export type ShareVideoSession = {
-  sourceId: string;
-  scoreIdentity: {
-    scoreId: string;
-    revisionId: string;
-    artifactId: string;
-  };
-  video: Pick<Extract<PerformanceRecording, { status: 'READY' }>, 'status' | 'blob' | 'mimeType' | 'durationMs'> & { kind: 'VIDEO'; actualMediaDurationMs?: number };
-  scope: CursorScope;
-  tempoPlan: ResolvedPracticeTempoPlan;
-  recordingTimebase: RecordingTimebaseMapping;
-};
-
-export function createShareVideoSessionFromCompletion(
-  completion: Readonly<{
-    result: Readonly<{ localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
-      scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan }>;
-    recording: PerformanceRecording;
-  }>,
-  artifact: PracticeScoreArtifact
-): ShareVideoSession {
-  const { result, recording } = completion;
-  if (recording.status !== 'READY' || recording.kind !== 'VIDEO') {
-    throw new Error('Share video requires a ready video recording.');
-  }
-  if (
-    artifact.scoreId !== result.scoreId ||
-    artifact.revisionId !== result.revisionId ||
-    artifact.artifactId !== result.artifactId
-  ) {
-    throw new Error('Share video score artifact identity mismatch.');
-  }
-  const scope = cursorScopeFromResolvedPracticeScope(
-    result.scope,
-    resolvePracticeScopeCursorNoteIds(artifact, result.scope)
-  );
-  return {
-    sourceId: result.localSessionId,
-    scoreIdentity: {
-      scoreId: result.scoreId,
-      revisionId: result.revisionId,
-      artifactId: result.artifactId,
-    },
-    video: { status: 'READY', kind: 'VIDEO', blob: recording.blob,
-      mimeType: recording.mimeType, durationMs: recording.durationMs },
-    scope,
-    tempoPlan: result.tempoPlan,
-    recordingTimebase: recording.timebase,
-  };
-}
 
 type ParsedRecordingTimebase = RecordingTimebaseMapping;
 

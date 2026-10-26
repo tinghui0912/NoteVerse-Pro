@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import { resolveShareVideoPlaybackPosition } from '@/lib/practice/share-video-playback-position';
-import type { ShareVideoSession } from '@/lib/practice/share-video-session';
-import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
+import { resolveShareVideoPlaybackPosition } from '@/lib/practice/sharing/video/playback-position';
+import type { ShareVideoSession } from '@/lib/practice/sharing/video/session';
+import { PracticeVerovioAdapter } from './verovio-adapter';
 
 function artifact(): PracticeScoreArtifact {
   const groups = [

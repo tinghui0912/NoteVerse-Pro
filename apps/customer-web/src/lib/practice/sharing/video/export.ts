@@ -1,18 +1,18 @@
-import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
-import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
+import { resolveShareVideoPlaybackPosition } from './playback-position';
+import { renderShareVideoFrameAtTime } from './frame-renderer';
 import {
   getShareVideoLayout,
   type ShareVideoConfig,
-} from './share-video-templates';
+} from './templates';
 import {
   findStablePageNumber,
   prefetchEventScoreImage,
   prepareScorePageCache,
   resolveExportPlaybackGeometry,
   type ScorePageCache,
-} from './share-video-score-model';
-import type { PracticeVerovioAdapter } from './verovio-adapter';
-import type { ShareVideoSession } from './share-video-session';
+} from './score-model';
+import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import type { ShareVideoSession } from './session';
 
 const EXPORT_FPS = 30;
 

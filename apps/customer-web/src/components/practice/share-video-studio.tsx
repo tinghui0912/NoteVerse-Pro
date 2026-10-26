@@ -16,15 +16,15 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
-import type { ShareVideoConfig } from '@/lib/practice/share-video-templates';
+import { ShareVideoPreview } from '@/lib/practice/sharing/video/preview';
+import type { ShareVideoConfig } from '@/lib/practice/sharing/video/templates';
 import {
   exportShareVideo,
   getShareVideoExportReadiness,
   type ShareVideoExportBlockReason,
-} from '@/lib/practice/share-video-export';
-import type { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import type { ShareVideoSession } from '@/lib/practice/share-video-session';
+} from '@/lib/practice/sharing/video/export';
+import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import type { ShareVideoSession } from '@/lib/practice/sharing/video/session';
 
 const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 

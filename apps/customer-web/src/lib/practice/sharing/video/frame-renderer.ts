@@ -1,11 +1,11 @@
-import type { SvgRect } from './playhead-cursor';
+import type { SvgRect } from '@/lib/practice/score-view/playhead-cursor';
 import {
   getEventScoreImage,
   resolveExportPlaybackGeometry,
   type ScorePageCache,
   type SvgViewBox,
-} from './share-video-score-model';
-import { svgRectToCanvasRect, type Rect } from './share-video-score-camera';
+} from './score-model';
+import { svgRectToCanvasRect, type Rect } from './score-camera';
 
 type ShareVideoFramePosition = {
   eventId?: string;

@@ -447,3 +447,44 @@ classes and existing active/playhead decorations from the cloned SVG only. Live
 Review annotations remain intact. Current recordings and saved takes share this
 clean-score contract; ShareVideoSession contains score/scope/tempo/media/timebase,
 without evaluation or metrics.
+
+## Score View, Review and Sharing Ownership
+
+`score-view/` owns the Practice Verovio adapter, render identity, DOM render-ID
+lookup, cursor geometry, viewport scrolling, range overlay and evaluation note
+decorations. `dom.ts` resolves exact backend-prepared IDs without remapping;
+`decorations.ts` owns class/data-attribute identity. Only evaluation-annotations.ts
+consumes evaluation types, as a source-aware presentation projection. Score-view
+primitives do not own lifecycle, assignment, metrics, recording or persistence.
+
+PracticeScoreViewer composes these primitives and owns React effects, observer
+subscriptions and animation-frame cancellation. Range geometry and DOM mutation
+belong to range-overlay.ts. STEP and Continuous retain distinct playhead controllers
+with their respective group and beat/scope input contracts. Rendering options,
+cursor dimensions, staff mapping, colors and scroll thresholds remain fixed.
+
+`review/` consumes the current transient completion. review-score-state.ts gates
+annotations, playhead and share-score rendering on exact score/revision/artifact
+identity and a valid cursor scope. Missing/mismatched score content does not change
+retained result metrics, tempo, input, duration or scope metadata. review-replay.ts
+projects READY media and delegates synchronization to the recording timebase;
+review-view-model.ts reads result.metrics directly, without evaluating evidence.
+The route owns queries, subscriptions, save-recording mutation, navigation, leave
+confirmation and ShareVideoStudio state. Pure review modules do not access network
+or storage. Save Recording remains an explicit media-only action.
+
+`sharing/video/session.ts` defines a source-neutral score/scope/tempo/video/timebase
+contract. current-completion-adapter.ts accepts only the necessary completion
+metadata and media; saved-take-adapter.ts alone knows the backend PerformanceTake
+entity and parses its archived scope/tempo/timebase. Both produce the same session
+for preview, rendering and export, without a downstream source switch. Sharing
+imports no result, evaluation, review or Practice capture owner. Its output recorder
+belongs to the export pipeline. Floating-score styling is share-template policy.
+
+Share score snapshots consume canonical decoration constants and remove report
+classes and existing active/playhead nodes from the frozen clone only. Live Review
+annotations remain untouched; export inserts only its own playback cursor. Sharing
+retains 30fps, MIME preference, geometry, audio extraction, frame prefetch and abort
+behavior. No presentation context is imported by kernel, STEP/Continuous domain,
+acoustic, result or recording owners. Concrete module imports define these boundaries
+without aggregate barrels or forwarding paths.

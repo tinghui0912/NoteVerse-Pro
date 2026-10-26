@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { VerovioScoreAdapter } from '@/lib/score/verovio';
+import { PracticeVerovioAdapter } from './verovio-adapter';
 
 const PRACTICE_READY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -26,9 +26,9 @@ const PRACTICE_READY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('practice render identity contract', () => {
   it('preserves backend-prepared note ids as Verovio data-id values', async () => {
-    const adapter = new VerovioScoreAdapter();
+    const adapter = new PracticeVerovioAdapter();
 
-    await adapter.loadMusicXml(PRACTICE_READY_XML, { prepareGenericRenderIds: false });
+    await adapter.loadMusicXml(PRACTICE_READY_XML);
     const svg = adapter.renderAllPages().map((page) => page.svg).join('\n');
 
     expect(svg).toContain('data-id="nv-p1-m1-note1"');

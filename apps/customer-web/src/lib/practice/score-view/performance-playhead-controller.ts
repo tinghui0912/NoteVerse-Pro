@@ -2,18 +2,18 @@ import {
   focusPageContainer,
   keepElementInViewport,
   shouldFocusPage,
-} from './practice-scroll';
+} from './scroll';
 import {
   applyPlayheadCursor,
   clearPlayheadCursor,
 } from './playhead-cursor';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
+import type { CursorScope } from './cursor-scope';
 
-type StepPlayheadState = {
+type PerformancePlayheadState = {
   activeNoteIds: string[];
   activePage: number | null;
-  activeGroupId: string | null;
+  displayedBeat: number | null;
 };
 
 function extractPageNumber(node: Element | null): number | null {
@@ -26,11 +26,11 @@ function extractPageNumber(node: Element | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export class StepPlayheadController {
-  private state: StepPlayheadState = {
+export class PerformancePlayheadController {
+  private state: PerformancePlayheadState = {
     activeNoteIds: [],
     activePage: null,
-    activeGroupId: null,
+    displayedBeat: null,
   };
 
   clear(container: HTMLElement): void {
@@ -38,39 +38,49 @@ export class StepPlayheadController {
     this.state = {
       activeNoteIds: [],
       activePage: null,
-      activeGroupId: null,
+      displayedBeat: null,
     };
-  }
-
-  refreshDecorations(container: HTMLElement): void {
-    if (this.state.activeNoteIds.length > 0) {
-      applyPlayheadCursor(container, this.state.activeNoteIds);
-    }
   }
 
   apply(
     container: HTMLElement,
     adapter: PracticeVerovioAdapter,
-    group: ExpectedPracticeGroup | null
+    musicalBeat: number | null,
+    scope: CursorScope
   ): void {
-    const previousPage = this.state.activePage;
-    this.clearDecorations(container);
-
-    if (!group) {
-      this.state.activeGroupId = null;
+    if (musicalBeat === null) {
+      this.clearDecorations(container);
+      return;
+    }
+    if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
+      this.clearDecorations(container);
       return;
     }
 
-    this.state.activeGroupId = group.groupId;
-    const noteIds = group.renderNoteIds ?? [];
+    const previousPage = this.state.activePage;
+    this.clearDecorations(container);
+
+    const entry = adapter.getCursorTimelineEntryForBeatRange(
+      musicalBeat,
+      scope.startBeat,
+      scope.terminalBeat,
+      scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined
+    );
+
+    if (!entry) {
+      return;
+    }
+    this.state.displayedBeat = musicalBeat;
+
+    const noteIds = Array.from(new Set(entry.noteIds.filter(Boolean)));
     const { anchor } = applyPlayheadCursor(container, noteIds);
-    this.state.activeNoteIds.push(...Array.from(new Set(noteIds.filter(Boolean))));
+    this.state.activeNoteIds = noteIds;
 
     const anchorNode = anchor;
     let activePage: number | null = extractPageNumber(anchorNode);
-    if (activePage === null && noteIds[0]) {
+    if (activePage === null && entry.noteIds[0]) {
       try {
-        activePage = adapter.getPageWithElement(noteIds[0]);
+        activePage = adapter.getPageWithElement(entry.noteIds[0]);
       } catch {
         activePage = previousPage;
       }
@@ -94,6 +104,12 @@ export class StepPlayheadController {
 
     if (anchorNode) {
       keepElementInViewport(container, anchorNode);
+    }
+  }
+
+  refreshDecorations(container: HTMLElement): void {
+    if (this.state.activeNoteIds.length > 0) {
+      applyPlayheadCursor(container, this.state.activeNoteIds);
     }
   }
 

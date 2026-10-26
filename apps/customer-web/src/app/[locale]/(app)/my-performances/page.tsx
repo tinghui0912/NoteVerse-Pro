@@ -30,7 +30,7 @@ import {
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
-import { hasSavedTakeShareVideoMetadata } from '@/lib/practice/share-video-session';
+import { hasSavedTakeShareVideoMetadata } from '@/lib/practice/sharing/video/saved-take-adapter';
 import { useToast } from '@/hooks/use-toast';
 
 const DELETE_POLL_INTERVAL_MS = 2500;

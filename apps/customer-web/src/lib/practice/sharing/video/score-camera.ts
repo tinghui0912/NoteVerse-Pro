@@ -1,4 +1,4 @@
-import type { SvgRect } from './playhead-cursor';
+import type { SvgRect } from '@/lib/practice/score-view/playhead-cursor';
 
 export type Rect = { x: number; y: number; width: number; height: number };
 

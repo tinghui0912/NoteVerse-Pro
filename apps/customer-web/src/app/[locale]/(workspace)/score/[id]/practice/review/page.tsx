@@ -1,5 +1,7 @@
 'use client';
 
+import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
@@ -38,21 +40,18 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
-import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
-import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
-  PerformanceAnnotationController,
+  EvaluationAnnotationController,
   noteAnnotationsFromCompletedEvaluation,
-} from '@/lib/practice/performance-annotation-controller';
-import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+} from '@/lib/practice/score-view/evaluation-annotations';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
-import { resolveScopeTiming } from '@/lib/practice/scope-timing';
-import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
+import { reviewReplay, reviewReplayMusicalBeat } from '@/lib/practice/review/review-replay';
+import { reviewViewModel } from '@/lib/practice/review/review-view-model';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
-import { createShareVideoSessionFromCompletion } from '@/lib/practice/share-video-session';
+import { createShareVideoSessionFromCompletion } from '@/lib/practice/sharing/video/current-completion-adapter';
 import type { PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
 
 
@@ -61,13 +60,6 @@ const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
   return Array.isArray(id) ? id[0] ?? '' : id ?? '';
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function extensionForMime(mimeType: string): string {
@@ -128,83 +120,19 @@ export default function PracticeReviewPage({
     isValidCompletion && Boolean(id)
   );
   const artifact = artifactQuery.data ?? null;
-  const cursorScopeResolution = useMemo<
-    | { status: 'ready'; scope: CursorScope }
-    | { status: 'invalid'; reason: string }
-  >(() => {
-    if (!artifact || !result) {
-      return { status: 'invalid', reason: 'score_source_unavailable' };
-    }
-    try {
-      const isRange = result.scope.kind === 'RANGE';
-      if (!isRange) {
-        return {
-          status: 'ready',
-          scope: {
-            kind: 'FULL',
-            startBeat: result.scope.startBeat,
-            terminalBeat: result.scope.terminalBeat,
-          },
-        };
-      }
-      const allowedNoteIds = resolvePracticeScopeCursorNoteIds(artifact, result.scope);
-      if (allowedNoteIds.length === 0) {
-        return { status: 'invalid', reason: 'range_has_no_selectable_notes' };
-      }
-      return {
-        status: 'ready',
-        scope: {
-          kind: 'RANGE',
-          startBeat: result.scope.startBeat,
-          terminalBeat: result.scope.terminalBeat,
-          allowedNoteIds,
-        },
-      };
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.warn('[NoteVerse] invalid review cursor scope', error);
-      }
-      return {
-        status: 'invalid',
-        reason: error instanceof Error ? error.message : 'cursor_scope_invalid',
-      };
-    }
-  }, [artifact, result]);
-  const shareVideoSession = useMemo(
-    () => {
-      if (!completion || !artifact) return null;
-      try {
-        return createShareVideoSessionFromCompletion(completion, artifact);
-      } catch {
-        return null;
-      }
-    },
-    [artifact, completion]
-  );
-
-  const isRevisionMismatched = useMemo(() => {
-    if (!isValidCompletion || !result || !artifact) return false;
-    if (artifact.scoreId !== result.scoreId) return true;
-    if (artifact.artifactId !== result.artifactId) return true;
-    return artifact.revisionId !== result.revisionId;
-  }, [artifact, result, isValidCompletion]);
-
-  const isScoreIdentityConfirmed = useMemo(() => {
-    if (!isValidCompletion || !result || !artifact || !xmlContent || isRevisionMismatched) {
-      return false;
-    }
-    return (
-      artifact.scoreId === result.scoreId &&
-      artifact.artifactId === result.artifactId &&
-      artifact.revisionId === result.revisionId
-    );
-  }, [artifact, result, isRevisionMismatched, isValidCompletion, xmlContent]);
+  const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, xmlAvailable: Boolean(xmlContent), scoreId: id }),
+    [artifact, result, xmlContent, id]);
+  const isRevisionMismatched = scoreState.status === 'IDENTITY_MISMATCH';
+  const isScoreIdentityConfirmed = scoreState.status === 'READY';
+  const shareVideoSession = useMemo(() => {
+    if (!completion || !artifact || scoreState.status !== 'READY') return null;
+    try { return createShareVideoSessionFromCompletion(completion, artifact); } catch { return null; }
+  }, [artifact, completion, scoreState]);
 
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const playheadController = useMemo(() => new PerformancePlayheadController(), []);
-  const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
+  const annotationController = useMemo(() => new EvaluationAnnotationController(), []);
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const scoreRenderRevisionRef = useRef(0);
@@ -267,34 +195,20 @@ export default function PracticeReviewPage({
         replayTimeMs === null ||
         recording?.status !== 'READY' ||
         !isScoreIdentityConfirmed ||
-        cursorScopeResolution.status !== 'ready'
+        scoreState.status !== 'READY'
       ) {
         playheadController.clear(container);
         return;
       }
-      const perfTimeMs = mediaTimeToPerformanceTimeMs(
-        replayTimeMs,
-        recording.timebase,
-        actualMediaDurationMs
-      );
-      if (perfTimeMs === null) {
-        playheadController.clear(container);
-        return;
-      }
-      const scoreEndBeat = artifact?.scoreEndBeat ?? result.scope.terminalBeat;
-      const timeline = new PracticeTempoTimeline(result.tempoPlan, scoreEndBeat);
-      const scopeStartMs = resolveScopeTiming(
-        result.scope,
-        result.tempoPlan,
-        scoreEndBeat
-      ).scopeStartMs;
-      const nominalTimeMs = scopeStartMs + perfTimeMs;
-      const musicalBeat = timeline.timeMsToBeat(nominalTimeMs);
+      const musicalBeat = reviewReplayMusicalBeat({ recording, mediaTimeMs: replayTimeMs,
+        actualMediaDurationMs, scope: result.scope, tempoPlan: result.tempoPlan,
+        scoreEndBeat: artifact?.scoreEndBeat ?? result.scope.terminalBeat });
+      if (musicalBeat === null) { playheadController.clear(container); return; }
       playheadController.apply(
         container,
         adapter,
         musicalBeat,
-        cursorScopeResolution.scope
+        scoreState.scope
       );
     },
     [
@@ -304,7 +218,7 @@ export default function PracticeReviewPage({
       recording,
       isScoreIdentityConfirmed,
       playheadController,
-      cursorScopeResolution,
+      scoreState,
     ]
   );
 
@@ -343,30 +257,7 @@ export default function PracticeReviewPage({
     });
   }, [annotationController, isScoreIdentityConfirmed, playheadController, scoreNoteAnnotations]);
 
-  const replay = useMemo<PlayablePerformanceReplay | null>(() => {
-    if (!recording) {
-      return null;
-    }
-    if (recording?.status === 'READY' && recording.kind === 'VIDEO') {
-      return {
-        kind: 'VIDEO_RECORDING',
-        blob: recording.blob,
-        contentType: recording.mimeType,
-        byteSize: recording.blob.size,
-        durationMs: recording.durationMs,
-      };
-    }
-    if (recording?.status !== 'READY' || recording.kind !== 'AUDIO') {
-      return null;
-    }
-    return {
-      kind: 'AUDIO_RECORDING',
-      blob: recording.blob,
-      contentType: recording.mimeType,
-      byteSize: recording.blob.size,
-      durationMs: recording.durationMs,
-    };
-  }, [recording]);
+  const replay = useMemo(() => reviewReplay(recording), [recording]);
 
   const saveMedia = useMemo(() => {
     if (recording?.status === 'READY') {
@@ -382,9 +273,9 @@ export default function PracticeReviewPage({
   }, [recording]);
 
   const clientRequestIdRef = useRef<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
-  const saveMutation = useSavePerformanceTake();
+  const [saveRecordingStatus, setSaveRecordingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveRecordingErrorMessage, setSaveRecordingErrorMessage] = useState<string | null>(null);
+  const saveRecordingMutation = useSavePerformanceTake();
 
   const handleExportOriginalVideo = useCallback(() => {
     if (
@@ -405,12 +296,12 @@ export default function PracticeReviewPage({
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [recording]);
 
-  const handleSavePerformance = useCallback(async () => {
+  const handleSaveRecording = useCallback(async () => {
     if (
       !result ||
       !saveMedia ||
-      saveStatus === 'saving' ||
-      saveStatus === 'saved'
+      saveRecordingStatus === 'saving' ||
+      saveRecordingStatus === 'saved'
     ) {
       return;
     }
@@ -421,20 +312,20 @@ export default function PracticeReviewPage({
       saveMedia.kind === 'VIDEO' &&
       saveMedia.mimeType.split(';')[0]?.trim().toLowerCase() !== 'video/webm'
     ) {
-      setSaveStatus('error');
-      setSaveErrorMessage(t('savePerformanceVideoFormatUnsupported'));
+      setSaveRecordingStatus('error');
+      setSaveRecordingErrorMessage(t('saveRecordingVideoFormatUnsupported'));
       return;
     }
     if (saveMedia.blob.size > MAX_TAKE_MEDIA_BYTES) {
-      setSaveStatus('error');
-      setSaveErrorMessage(t('savePerformanceMediaTooLarge'));
+      setSaveRecordingStatus('error');
+      setSaveRecordingErrorMessage(t('saveRecordingMediaTooLarge'));
       return;
     }
-    setSaveStatus('saving');
-    setSaveErrorMessage(null);
+    setSaveRecordingStatus('saving');
+    setSaveRecordingErrorMessage(null);
 
     try {
-      await saveMutation.mutateAsync({
+      await saveRecordingMutation.mutateAsync({
         scoreId: id,
         revisionId: result.revisionId,
         artifactId: result.artifactId,
@@ -461,14 +352,14 @@ export default function PracticeReviewPage({
         recordingTimebase: { nominalMediaDurationMs: saveMedia.timebase.nominalMediaDurationMs,
           activeSegments: saveMedia.timebase.activeSegments.map(segment => ({ ...segment })) },
       });
-      setSaveStatus('saved');
+      setSaveRecordingStatus('saved');
     } catch (err: unknown) {
-      setSaveStatus('error');
-      setSaveErrorMessage(
-        err instanceof Error ? err.message : t('savePerformanceFailed')
+      setSaveRecordingStatus('error');
+      setSaveRecordingErrorMessage(
+        err instanceof Error ? err.message : t('saveRecordingFailed')
       );
     }
-  }, [result, id, saveMedia, saveMutation, saveStatus, t]);
+  }, [result, id, saveMedia, saveRecordingMutation, saveRecordingStatus, t]);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     continuousCompletionStore.clearCompletion();
@@ -479,7 +370,7 @@ export default function PracticeReviewPage({
     (target: 'score' | 'practice') => {
       const hasUncommittedMedia = Boolean(
         recording?.status === 'READY' &&
-          saveStatus !== 'saved' &&
+          saveRecordingStatus !== 'saved' &&
           !hasExportedOriginalMedia
       );
       if (hasUncommittedMedia || isShareExporting) {
@@ -488,7 +379,7 @@ export default function PracticeReviewPage({
       }
       performLeave(target);
     },
-    [recording, hasExportedOriginalMedia, isShareExporting, performLeave, saveStatus]
+    [recording, hasExportedOriginalMedia, isShareExporting, performLeave, saveRecordingStatus]
   );
 
   const handleRestart = useCallback(() => {
@@ -501,7 +392,7 @@ export default function PracticeReviewPage({
 
   const hasUncommittedReviewMedia = Boolean(
     recording?.status === 'READY' &&
-      saveStatus !== 'saved' &&
+      saveRecordingStatus !== 'saved' &&
       !hasExportedOriginalMedia
   );
   const leaveReviewDescription = isShareExporting
@@ -530,54 +421,43 @@ export default function PracticeReviewPage({
     );
   }
 
-  const metrics = result.metrics;
-
-  const tempoText =
-    result.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'
-      ? `${result.tempoPlan.selection.bpm} BPM`
-      : '原曲速度';
-
-  const scopeText = result.scope.kind === 'RANGE'
-    ? `${t('scopeSection')} (${result.scope.startBeat} - ${result.scope.terminalBeat} 拍)`
-    : `${t('scopeFull')} (${result.scope.startBeat} - ${result.scope.terminalBeat} 拍)`;
-
-  const inputSourceText =
-    result.inputSource === 'MICROPHONE'
-      ? t('inputSourceMic')
-      : t('inputSourceMidi');
+  const view = reviewViewModel(result);
+  const { metrics, tempoText } = view;
+  const scopeText = `${t(view.scopeLabel)} ${view.scopeBeatText}`;
+  const inputSourceText = t(view.inputSourceLabel);
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 py-6 px-4 sm:px-6 lg:px-8">
       <style>{`
-        .practice-summary-score-svg .practice-summary-note-supported {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.supported} {
           fill: #16a34a !important;
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-summary-score-svg .practice-summary-note-wrong {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.wrong} {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
         }
-        .practice-summary-score-svg .practice-summary-note-missed {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.missed} {
           fill: #94a3b8 !important;
           color: #94a3b8 !important;
         }
-        .practice-summary-score-svg .practice-playhead-cursor {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.cursor} {
           stroke-width: 1.5px;
           pointer-events: none !important;
         }
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='treble'] {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='treble'] {
           fill: rgb(125 211 252 / 24%);
           stroke: rgb(14 165 233 / 48%);
           filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
         }
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='bass'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
         }
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.cursor}[data-playhead-staff='other'] {
           fill: rgb(148 163 184 / 20%);
           stroke: rgb(100 116 139 / 44%);
           filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
@@ -624,28 +504,10 @@ export default function PracticeReviewPage({
           {t(metrics.inputSource === 'MIDI' ? 'targetNoteOutcomes' : 'targetNoteEvidence')}
         </h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          <Card className="rounded-lg bg-card">
-            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('targetStrikes')}</CardTitle></CardHeader>
-            <CardContent><div className="text-xl font-bold">{metrics.targetStrikeCount}</div></CardContent>
-          </Card>
-          {metrics.status === 'COMPLETE' && <>
-            <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(metrics.inputSource === 'MIDI' ? 'confirmedCorrectStrikes' : 'detectedTargetNotes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-green-600">{metrics.inputSource === 'MIDI' ? metrics.correctStrikeCount : metrics.supportedStrikeCount}</div></CardContent>
-            </Card>
-            {metrics.inputSource === 'MIDI' && <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('wrongStrikeCount')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-red-600">{metrics.wrongStrikeCount}</div></CardContent>
-            </Card>}
-            <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(metrics.inputSource === 'MIDI' ? 'missingStrikes' : 'unconfirmedTargetNotes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-slate-600">{metrics.inputSource === 'MIDI' ? metrics.missingStrikeCount : metrics.unconfirmedStrikeCount}</div></CardContent>
-            </Card>
-            <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('notReachedStrikes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-slate-600">{metrics.notReachedStrikeCount}</div></CardContent>
-            </Card>
-          </>}
+          {view.targetCards.map(card => <Card key={card.label} className="rounded-lg bg-card">
+            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(card.label)}</CardTitle></CardHeader>
+            <CardContent><div className={`text-xl font-bold${card.tone === 'supported' ? ' text-green-600' : card.tone === 'wrong' ? ' text-red-600' : card.tone === 'neutral' ? ' text-slate-600' : ''}`}>{card.value}</div></CardContent>
+          </Card>)}
         </div>
       </section>
       {metrics.status === 'COMPLETE' && metrics.inputSource === 'MIDI' && <section aria-labelledby="additional-playing-heading" className="space-y-3 border-t pt-4">
@@ -746,7 +608,7 @@ export default function PracticeReviewPage({
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="text-xs text-muted-foreground">{t('performanceDuration')}</div>
-              <div className="font-semibold">{formatDuration(result.activeElapsedMs)}</div>
+              <div className="font-semibold">{view.durationText}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">{t('performanceTempo')}</div>
@@ -766,9 +628,9 @@ export default function PracticeReviewPage({
 
       <Card className="rounded-lg bg-card" data-testid="original-performance-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">{t('saveOriginalPerformanceTitle')}</CardTitle>
+          <CardTitle className="text-sm font-semibold">{t('saveOriginalRecordingTitle')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            {t('saveOriginalPerformanceDesc')}
+            {t('saveOriginalRecordingDesc')}
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
@@ -779,30 +641,30 @@ export default function PracticeReviewPage({
             </Button>
           ) : null}
           {saveMedia ? (
-            saveStatus === 'saved' ? (
+            saveRecordingStatus === 'saved' ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="secondary" disabled>
                   <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
-                  {t('performanceSaved')}
+                  {t('recordingSaved')}
                 </Button>
                 <Button size="sm" onClick={() => router.push('/my-performances')}>
                   {t('viewMyPerformances')}
                 </Button>
               </div>
-            ) : saveStatus === 'saving' ? (
+            ) : saveRecordingStatus === 'saving' ? (
               <Button size="sm" disabled>
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                {t('savingPerformance')}
+                {t('savingRecording')}
               </Button>
-            ) : saveStatus === 'error' ? (
-              <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
+            ) : saveRecordingStatus === 'error' ? (
+              <Button size="sm" variant="destructive" onClick={handleSaveRecording}>
                 <AlertCircle className="mr-1.5 h-4 w-4" />
-                {t('retrySavePerformance')}
+                {t('retrySaveRecording')}
               </Button>
             ) : (
-              <Button size="sm" onClick={handleSavePerformance}>
+              <Button size="sm" onClick={handleSaveRecording}>
                 <Bookmark className="mr-1.5 h-4 w-4" />
-                {t('savePerformance')}
+                {t('saveRecording')}
               </Button>
             )
           ) : (
@@ -817,17 +679,17 @@ export default function PracticeReviewPage({
               }
             >
               <Bookmark className="mr-1.5 h-4 w-4" />
-              {t('savePerformance')}
+              {t('saveRecording')}
             </Button>
           )}
-          {saveStatus === 'error' ? (
+          {saveRecordingStatus === 'error' ? (
             <div className="basis-full rounded-lg border border-red-300 bg-red-50 p-3 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
               <div className="flex items-start gap-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{t('savePerformanceFailedTitle')}</p>
+                  <p className="text-sm font-semibold">{t('saveRecordingFailedTitle')}</p>
                   <p className="text-xs text-red-700 dark:text-red-300">
-                    {saveErrorMessage ?? t('savePerformanceFailedDesc')}
+                    {saveRecordingErrorMessage ?? t('saveRecordingFailedDesc')}
                   </p>
                 </div>
               </div>

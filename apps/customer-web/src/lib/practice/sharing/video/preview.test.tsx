@@ -3,28 +3,28 @@
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ShareVideoSession } from './share-video-session';
+import type { ShareVideoSession } from './session';
 
 const mocks = vi.hoisted(() => ({
   prepareScorePageCache: vi.fn(async () => new Map()),
   renderShareVideoFrameAtTime: vi.fn(async (_options: unknown) => undefined),
 }));
 
-vi.mock('./share-video-score-model', () => ({
+vi.mock('./score-model', () => ({
   findStablePageNumber: vi.fn(() => 1),
   prepareScorePageCache: mocks.prepareScorePageCache,
 }));
 
-vi.mock('./share-video-frame-renderer', () => ({
+vi.mock('./frame-renderer', () => ({
   renderShareVideoFrameAtTime: mocks.renderShareVideoFrameAtTime,
 }));
 
-vi.mock('./share-video-playback-position', () => ({
+vi.mock('./playback-position', () => ({
   resolveShareVideoPlaybackPosition: vi.fn(() => null),
 }));
 
-import { ShareVideoPreview } from './share-video-preview';
-import { captureReplayVideoFrame } from './share-video-preview';
+import { ShareVideoPreview } from './preview';
+import { captureReplayVideoFrame } from './preview';
 
 const session: ShareVideoSession = {
   sourceId: 'session-1',

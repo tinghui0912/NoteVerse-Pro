@@ -10,7 +10,7 @@ import {
   practiceScopeFromRangeSelection,
   transitionPracticeRangeSelection,
   type PracticeRangeSelection,
-} from '@/lib/practice/range-selection';
+} from '@/lib/practice/score-view/range-selection';
 
 type SelectionPhase = 'idle' | 'selecting-start' | 'selecting-end' | 'selected';
 
