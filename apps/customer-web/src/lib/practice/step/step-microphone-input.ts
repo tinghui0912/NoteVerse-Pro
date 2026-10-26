@@ -82,6 +82,19 @@ export class StepMicrophoneInput<Identity> {
     } catch (error) { this.fail(error); throw error; }
   }
 
+  /** Cancel unfinished physical input without losing publication identity or capture chronology. */
+  suspendInput(): void {
+    this.check();
+    this.assembler?.suspend();
+    this.completed = null;
+  }
+
+  /** Recovery retires all capture through the current physical frontier, including delayed analysis. */
+  recoveryBoundary(): StepMicrophoneRetirementBoundary {
+    this.suspendInput();
+    return this.retirementBoundary();
+  }
+
   /** Retire an armed, idle input before an application target transition, never an active gesture. */
   transitionBoundary(): StepMicrophoneRetirementBoundary {
     try {

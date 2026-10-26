@@ -74,7 +74,14 @@ is ACTIVE / ENDED, with an explicit completion reason. Readiness is derived from
 the controller/domain snapshot. MIDI loss cancels unfinished attempts, retains
 MIDIAccess and establishes a fresh input boundary on reconnection. A finalized
 POST_VERDICT transition survives MIDI loss and commits once after reconnection.
-Microphone infrastructure or analysis loss is terminal.
+Temporary microphone root mute cancels unfinished input and marks it unavailable,
+preserving the current target and progress without a synthetic verdict or completion.
+On same-root unmute, the controller commits a fresh physical capture watermark then
+arms the assembler; only evidence strictly after that boundary is eligible. It returns
+to waiting automatically without a Continue action. Hard root loss ends the old
+session; explicit page Device Lease reconnect creates a fresh auto-armed session.
+Context/capture or analysis loss remains an Attempt failure. None of these device or
+Attempt errors generically invalidates Environment qualification or navigates to Setup.
 
 ## Resources and Capability
 

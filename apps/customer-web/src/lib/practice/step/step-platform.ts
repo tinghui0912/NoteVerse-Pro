@@ -3,7 +3,6 @@ import { MetronomeController, type MetronomeControllerOptions } from '@/lib/prac
 import type { LocalClock } from '@/lib/practice/kernel/timebase';
 import type { StepGestureTimer } from './step-midi-attempt-input';
 import { browserStepMicrophonePlatform, type StepMicrophonePlatform } from './step-microphone-platform';
-import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
 
 export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'dispose' | 'getState'>;
 export type StepMetronomePort = Pick<MetronomeController, 'start' | 'destroy' | 'setEnabled' | 'setStepContext'>;
@@ -14,7 +13,6 @@ export interface StepPlatform {
   createMetronome(options: MetronomeControllerOptions): StepMetronomePort;
   microphone?: StepMicrophonePlatform & {
     createAudioContext(): AudioContext;
-    watchInfrastructure: typeof watchMicrophoneInfrastructure;
   };
 }
 export function browserStepPlatform(acquireInference: StepMicrophonePlatform['acquireInference'] = async () => { throw new Error('PRACTICE_ENVIRONMENT_NOT_READY'); }): StepPlatform {
@@ -23,5 +21,5 @@ export function browserStepPlatform(acquireInference: StepMicrophonePlatform['ac
     cancel: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
   }, createMidi: options => new BrowserMidiController(options), createMetronome: options => new MetronomeController(options),
   microphone: { ...browserStepMicrophonePlatform(acquireInference),
-    createAudioContext: () => new AudioContext(), watchInfrastructure: watchMicrophoneInfrastructure } };
+    createAudioContext: () => new AudioContext() } };
 }

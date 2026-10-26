@@ -4,7 +4,7 @@ import { expect, type Page } from '@playwright/test';
 export async function installAcousticEngineFixture(page: Page) {
   await page.addInitScript(() => {
     const nativeWorker = window.Worker;
-    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0 };
+    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[] };
     (window as unknown as { __practiceAcousticEngineFixture: typeof stats }).__practiceAcousticEngineFixture = stats;
     class EngineWorker extends EventTarget {
       private closed = false;
@@ -14,14 +14,16 @@ export async function installAcousticEngineFixture(page: Page) {
         super();
         if (!String(url).includes('acoustic-worker')) return new nativeWorker(url, options) as unknown as EngineWorker;
       }
-      postMessage(message: { id: number; type: string; sessionId?: string; input?: { window: { jobIndex: number } } }) {
+      postMessage(message: { id: number; type: string; sessionId?: string; input?: { window: { jobIndex: number; ownedStartTarget: number } } }) {
         queueMicrotask(() => {
           if (this.closed) return;
           let result: unknown, error: string | undefined;
           if (message.type === 'LOAD') { stats.loads++; result = { actualSessionLoadCount: stats.loads, automaticFallback: false }; }
           else if (message.type === 'BEGIN_SESSION' && !this.token && message.sessionId) { this.token = message.sessionId; this.job = 0; stats.sessions++; }
           else if (message.type === 'INFER' && message.sessionId === this.token && message.input?.window.jobIndex === this.job) {
-            stats.inferences++; result = { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++this.job };
+            stats.inferences++; result = { events: stats.pitches.map(pitch => ({ pitch, midiPitch: pitch === 'D4' ? 62 : 60,
+              targetSample: Math.ceil(message.input!.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
+              inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++this.job };
           } else if (message.type === 'END_SESSION' && message.sessionId === this.token) { this.token = null; this.job = 0; }
           else if (message.type === 'DISPOSE') this.token = null;
           else error = 'INVALID_FIXTURE_ENGINE_PROTOCOL';

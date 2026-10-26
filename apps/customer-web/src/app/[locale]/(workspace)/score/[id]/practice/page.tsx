@@ -19,6 +19,7 @@ import { PracticeCompletionDialog } from '@/components/practice/practice-complet
 import { PracticeFeedbackSettings } from '@/components/practice/practice-feedback-settings';
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
+import { PracticeDeviceIssue } from '@/components/practice/practice-device-issue';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
@@ -165,12 +166,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     },
   });
   const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.resourceIntervention : null;
-  useEffect(() => {
-    if (localPractice.inputError && workspace.ready && localPractice.lifecycle !== 'ACTIVE' && localPractice.lifecycle !== 'PAUSED') workspace.environment.invalidate(localPractice.inputError);
-  }, [localPractice.inputError, localPractice.lifecycle, workspace.ready, workspace.environment]);
-  useEffect(() => {
-    if (device.snapshot?.error) workspace.environment.invalidate(device.snapshot.error);
-  }, [device.snapshot?.error, workspace.environment]);
 
   const handleMetronomeEnabledChange = useCallback(
     (enabled: boolean) => {
@@ -232,6 +227,18 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     localPractice.inputState === 'STARTING' ||
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
+  const idleDeviceIssue = !isActive ? device.snapshot?.issue : null;
+  const handleReconnect = async () => {
+    if (!await device.renewFailed()) return;
+    if (isStepMode && !stepManuallyEnded) {
+      stepAutoArm.current = stepKey;
+      await localPractice.restart();
+    }
+  };
+  const handleConfigure = () => {
+    workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION');
+    router.push(practiceLocation(id, 'setup', selectedRevisionId));
+  };
 
   useEffect(() => {
     if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isRestarting && !isCompletionDialogOpen) {
@@ -302,7 +309,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
         onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
 
-  const practiceSessionStatus = (
+  const practiceSessionStatus = idleDeviceIssue ? (
+    <PracticeDeviceIssue issue={idleDeviceIssue} onReconnect={() => void handleReconnect()} onConfigure={handleConfigure} />
+  ) : (
     <PracticeStatus
       className="border-0 bg-transparent px-0 py-0 shadow-none"
       lifecycle={localPractice.lifecycle}

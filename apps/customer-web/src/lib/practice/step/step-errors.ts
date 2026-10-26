@@ -3,6 +3,7 @@ export type StepApplicationErrorCode = 'STEP_SCORE_UNAVAILABLE'
   | 'STEP_MIDI_PERMISSION_DENIED' | 'NO_CONNECTED_INPUT' | 'STEP_MIDI_UNAVAILABLE'
   | 'STEP_MICROPHONE_PERMISSION_DENIED' | 'STEP_MICROPHONE_UNAVAILABLE' | 'STEP_ACOUSTIC_PREPARATION_FAILED'
   | 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED'
+  | 'STEP_MICROPHONE_INTERRUPTED'
   | 'STEP_ACOUSTIC_RUNTIME_FAILED'
   | 'STEP_ATTEMPT_FAILED' | 'STEP_RESOURCE_CLEANUP_FAILED';
 export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, string>> = Object.freeze({
@@ -15,6 +16,7 @@ export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, stri
   STEP_MICROPHONE_UNAVAILABLE: 'Microphone input is unavailable.',
   STEP_ACOUSTIC_PREPARATION_FAILED: 'Microphone analysis could not be prepared.',
   STEP_MICROPHONE_INFRASTRUCTURE_FAILED: 'Microphone audio was interrupted. Start a new session.',
+  STEP_MICROPHONE_INTERRUPTED: 'Microphone input is temporarily interrupted.',
   STEP_ACOUSTIC_RUNTIME_FAILED: 'Microphone analysis failed. Start a new session.',
   STEP_ATTEMPT_FAILED: 'The attempt could not be completed.',
   STEP_RESOURCE_CLEANUP_FAILED: 'Practice resources could not be released.',

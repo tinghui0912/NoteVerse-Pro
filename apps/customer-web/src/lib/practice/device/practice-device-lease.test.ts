@@ -42,9 +42,12 @@ describe('page-scoped Practice Device Lease', () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' });
     await f.owner.open(); const [input, camera] = f.acquired, changes = vi.fn(); f.owner.subscribe(changes);
     input.track.muted = true; input.track.dispatchEvent(new Event('mute'));
+    expect(f.owner.snapshot().issue).toEqual({ resource: 'inputMicrophone', phase: 'RUNTIME', condition: 'INTERRUPTED' });
     expect(f.owner.snapshot().health.inputMicrophone).toBe('INTERRUPTED'); expect(f.platform.acquireStream).toHaveBeenCalledTimes(2);
     input.track.muted = false; input.track.dispatchEvent(new Event('unmute')); expect(f.owner.snapshot().state).toBe('READY');
+    expect(f.owner.snapshot().issue).toBeNull();
     camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended'));
+    expect(f.owner.snapshot().issue).toEqual({ resource: 'camera', phase: 'RUNTIME', condition: 'LOST' });
     expect(f.owner.snapshot().health.camera).toBe('LOST'); expect(f.platform.acquireStream).toHaveBeenCalledTimes(2);
     await f.owner.renewFailed(); expect(f.platform.acquireStream).toHaveBeenCalledTimes(3);
     expect(f.owner.snapshot().roots.inputMicrophone).toBe(input.stream); expect(input.track.stop).not.toHaveBeenCalled();
@@ -54,6 +57,7 @@ describe('page-scoped Practice Device Lease', () => {
     const configuration = { mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' } as const;
     const f = rig(configuration), other = vi.fn(); f.midi.access.addEventListener('statechange', other);
     await f.owner.open(); f.midi.connect(false); expect(f.owner.snapshot().health.midi).toBe('LOST');
+    expect(f.owner.snapshot().issue).toEqual({ resource: 'midi', phase: 'RUNTIME', condition: 'LOST' });
     f.midi.connect(true); expect(f.owner.snapshot().state).toBe('READY'); f.owner.close();
     f.midi.connect(false); expect(other).toHaveBeenCalledTimes(3); expect(f.owner.snapshot().roots.midi).toBeNull();
     f.midi.connect(true); const next = new PracticeDeviceLease(configuration, f.platform); await next.open();
@@ -63,7 +67,7 @@ describe('page-scoped Practice Device Lease', () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
     f.platform.acquireStream.mockRejectedValueOnce(new DOMException('private browser details', name));
     await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
-    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', error: 'PRACTICE_DEVICE_UNAVAILABLE', roots: { recordingMicrophone: null } });
+    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: name === 'NotAllowedError' ? 'PERMISSION_DENIED' : name === 'NotFoundError' ? 'NOT_FOUND' : 'BUSY' }, roots: { recordingMicrophone: null } });
     f.owner.close();
   });
   it('page departure stops a late stream and never revives a closed owner', async () => {
@@ -72,5 +76,27 @@ describe('page-scoped Practice Device Lease', () => {
     f.platform.acquireStream.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
     const opening = f.owner.open(); f.owner.close(); release(late.stream); await opening;
     expect(late.track.stop).toHaveBeenCalledOnce(); expect(f.owner.snapshot().state).toBe('CLOSED');
+  });
+  it('rolls back the entire opening transaction when camera permission fails after microphone acquisition', async () => {
+    const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' });
+    f.platform.acquireStream.mockImplementationOnce(async () => {
+      const root = media(); f.acquired.push(root); return root.stream;
+    }).mockRejectedValueOnce(new DOMException('private detail', 'NotAllowedError'));
+    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    expect(f.acquired[0].track.stop).toHaveBeenCalledOnce();
+    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { inputMicrophone: null, camera: null },
+      issue: { resource: 'camera', phase: 'OPEN', condition: 'PERMISSION_DENIED' } });
+    const changes = vi.fn(); f.owner.subscribe(changes);
+    f.acquired[0].track.dispatchEvent(new Event('unmute')); expect(changes).not.toHaveBeenCalled();
+    await f.owner.renewFailed(); expect(f.owner.snapshot().state).toBe('READY'); f.owner.close();
+  });
+  it('detaches and clears acquired MIDI when a later recording microphone open fails', async () => {
+    const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
+    f.platform.acquireStream.mockRejectedValueOnce(new DOMException('private', 'NotFoundError'));
+    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { midi: null, recordingMicrophone: null },
+      issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: 'NOT_FOUND' } });
+    const changed = vi.fn(); f.owner.subscribe(changed); f.midi.connect(false); f.midi.connect(true);
+    expect(changed).not.toHaveBeenCalled(); f.owner.close();
   });
 });

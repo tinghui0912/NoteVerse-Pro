@@ -42,6 +42,6 @@ it('renewal failure publishes the lease error without admitting an attempt or re
   act(() => { camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended')); });
   acquire.mockRejectedValueOnce(new DOMException('private detail', 'NotAllowedError'));
   await act(async () => { expect(await result.current.renewFailed()).toBe(false); });
-  expect(result.current.snapshot).toMatchObject({ state: 'FAULTED', error: 'PRACTICE_DEVICE_UNAVAILABLE' });
+  expect(result.current.snapshot).toMatchObject({ state: 'FAULTED', issue: { resource: 'camera', phase: 'OPEN', condition: 'PERMISSION_DENIED' } });
   expect(result.current.borrow()).toBeNull(); expect(root.track.stop).not.toHaveBeenCalled(); unmount();
 });

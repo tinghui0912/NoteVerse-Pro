@@ -64,6 +64,26 @@ Practice Attempt (one fresh play-through)
 observes mute/unmute/ended and MIDI statechange events without polling, and owns
 all root-track disposal. Healthy devices have no persistent status UI.
 
+Fault ownership follows the same three lifetimes. Environment invalidates only its
+own qualification/model/runtime truth (including AcousticEngine failure), or an
+explicit user request to requalify. Device and Attempt errors do not invalidate
+Environment or automatically navigate to Setup; warm model/Worker/ONNX remain ready.
+An Attempt owns its failure/retry and Device Lease owns root recovery.
+
+Device issues identify a resource (`inputMicrophone`, `recordingMicrophone`, `camera`
+or `midi`), phase (`OPEN` or `RUNTIME`) and stable condition. Permission denial maps
+to PERMISSION_DENIED, missing hardware to NOT_FOUND, browser NotReadableError to
+BUSY, mute to INTERRUPTED, ended/disconnected input to LOST, and other acquisition
+failure to UNAVAILABLE. Browser exception text is not public product state.
+Open is transactional: failure releases every root/listener acquired by that open.
+Renewal retains pre-existing healthy roots and replaces only missing/lost resources.
+
+Between attempts, temporary interruption displays a small device message and waits
+for event-driven recovery on the same root. Loss or failed acquisition offers
+Reconnect/Retry and Change practice configuration. Recovery never repeats Environment
+qualification. Only the explicit configuration action navigates to Setup and may
+mark qualification stale; an exception alone never does so.
+
 | Configuration | Device Lease roots |
 | --- | --- |
 | STEP / microphone | Input microphone |
@@ -482,8 +502,8 @@ second evaluation pass. End during count-in discards the session without a resul
 
 Analysis failure with healthy infrastructure stops analysis resources while clock,
 playhead, metronome and recording continue. Preparation failure never starts
-transport. Root track loss/mute or unexpected AudioContext interruption terminates
-the session, withholds completed truth and releases owned resources. Listeners are
+transport. Temporary required-input interruption pauses Continuous through its
+canonical resource intervention; hard loss requires Restart or End. Listeners are
 detached before intentional cleanup. Cleanup failure is terminal failure; each
 owned release is attempted once. Product errors are localized; bounded diagnostics
 retain causal metadata separately from observations and user recordings.
@@ -558,8 +578,8 @@ VIDEO requires successful recording admission before transport/count-in begins.
 or dead required tracks, permission/device loss, unsupported recorder/MIME and
 initialization failure reject with stable recording preparation codes. Admission
 is rechecked immediately before transport starts. Failure releases this Start's
-owned resources and inference lease, preserves recording intent, invalidates current
-readiness and offers explicit Prepare. It creates no Result, dialog or recording
+owned resources and inference lease, preserves recording intent and remains an
+Attempt admission failure, without invalidating Environment. It creates no Result, dialog or recording
 artifact, and does not classify recording faults as acoustic-analysis faults.
 Setup success does not promise immutable permissions; Device Lease binding acquires
 roots and recorder admission checks its fresh attempt clones. Start never acquires
@@ -585,8 +605,13 @@ can offer Continue without recording while interruption is unresolved. Recovered
 recording offers only Continue, Restart or End, preserving the now-recoverable intent. Root microphone mute and temporary AudioContext
 interruption pause canonical transport and wait for the same input/capture pipeline to
 recover. Continuous capture explicitly retains its existing graph across temporary
-context suspension; closure or invalid chronology still invalidates it. STEP keeps
-fail-on-interruption capture behavior. Root ended, context closure and invalid capture require Restart or End. Required
+context suspension; closure or invalid chronology still invalidates it. STEP temporary
+root mute cancels unfinished input, preserves target/progress and automatically returns
+to waiting on same-root recovery. Its recovery commits a fresh physical capture
+watermark before rearming, excluding delayed or partial evidence. STEP hard root loss
+ends the old Attempt; explicit Device Lease reconnect creates a fresh auto-armed STEP
+session from the configured scope. Context/capture/analysis failure remains owned by
+the Attempt or engine, without generic Environment invalidation. Root ended, context closure and invalid capture require Restart or End. Required
 input loss never offers recording-only degradation. Shared-source callbacks converge
 on one intervention, with input-required impact taking priority and one canonical pause.
 MIDI disconnection retains its existing pause/reconnect contract and cannot accept

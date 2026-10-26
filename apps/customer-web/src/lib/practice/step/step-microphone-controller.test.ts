@@ -10,7 +10,6 @@ import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/r
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureConsumer } from '../acoustic/source/capture-types';
 import type { AcousticInferenceInput } from '../acoustic/runtime/inference-types';
-import { watchMicrophoneInfrastructure } from '../acoustic/source/microphone-infrastructure';
 import { StepMicrophoneInput } from './step-microphone-input';
 import { StepPracticeController } from './step-practice-controller';
 import { browserStepPlatform, type StepPlatform } from './step-platform';
@@ -69,7 +68,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     clock: new ManualClock(999_000), timer: { schedule: vi.fn(), cancel: vi.fn() },
     createMidi: vi.fn(), createMetronome: vi.fn(() => metronome),
     microphone: {
-      createAudioContext: vi.fn(() => context as unknown as AudioContext), watchInfrastructure: watchMicrophoneInfrastructure,
+      createAudioContext: vi.fn(() => context as unknown as AudioContext),
       acquireInference: vi.fn(async () => worker), workletUrl: 'fake://worklet',
       coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
       connectCapture: vi.fn(async options => {
@@ -100,6 +99,41 @@ function rig(rate: 44100 | 48000 = 48000) {
 }
 
 describe.each([44100, 48000] as const)('STEP microphone controller / %i / deterministic ports', rate => {
+  it.each(['READY', 'CAPTURING', 'ANALYZING'] as const)('temporary mute in %s cancels unfinished evidence, preserves progress and recovers after fresh physical retirement', async phase => {
+    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
+    const prior = r.controller.snapshot().sessionSnapshot!;
+    const old = r.publications.at(-1)!;
+    r.pause(); await r.feed(4);
+    if (phase !== 'READY') {
+      const sample = r.input().snapshot().retiredThroughSourceSample + 1;
+      r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 1 }, ownedThroughSourceSample: sample + 1,
+        observations: [{ ...old.observations[0], observationId: 'unfinished', sourceEventSample: sample }] });
+      if (phase === 'ANALYZING') {
+        const runtime = (r.controller as unknown as { runtime: StepPracticeRuntime }).runtime;
+        runtime.analyzeAttempt(runtime.snapshot().step.activeAttempt!);
+      }
+      expect(r.controller.snapshot().stepInteractionPhase).toBe(phase);
+    }
+    r.track.muted = true; r.track.dispatchEvent(new Event('mute'));
+    expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: 'STEP_MICROPHONE_INTERRUPTED', canAcceptAttempt: false,
+      sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, activeAttempt: null, inputAvailable: false } } });
+    await r.feed(3);
+    const watermark = r.input().snapshot().capture!.capturedThroughSourceSample;
+    r.track.muted = false; r.track.dispatchEvent(new Event('unmute'));
+    expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true,
+      sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, inputEligibleAfter: { sampleIndex: watermark } } } });
+    await r.feed(3);
+    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: watermark + 1,
+      observations: [watermark - 1, watermark].map((sample, i) => ({ ...old.observations[0], observationId: `retired-${i}`, sourceEventSample: sample })) });
+    expect(r.finalized).toHaveLength(1); expect(r.completion).not.toHaveBeenCalled();
+    const through = r.input().snapshot().capture!.capturedThroughSourceSample;
+    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 3 }, ownedThroughSourceSample: through,
+      observations: [{ ...old.observations[0], observationId: 'fresh-recovery', sourceEventSample: watermark + 1 }] });
+    expect(r.finalized).toHaveLength(2); expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
+    expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
+    expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
+    await r.controller.dispose();
+  });
   it('initial availability commits physical retirement then arms, with one persistent graph and shared clock/context', async () => {
     const r = rig(rate), order: string[] = [];
     const accept = StepPracticeRuntime.prototype.acceptInputAfter;
@@ -280,7 +314,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const r = rig(rate); await r.controller.start();
     const finalizedBeforeFailure = [...r.finalized];
     if (kind === 'context') { r.context.state = 'suspended'; r.context.dispatchEvent(new Event('statechange')); }
-    if (kind === 'root') r.track.dispatchEvent(new Event('mute'));
+    if (kind === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); }
     if (kind === 'worker') r.workerFailure();
     if (kind === 'analysis') r.source().failAnalysis(new Error('ANALYSIS_FAILURE'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', canAcceptAttempt: false });

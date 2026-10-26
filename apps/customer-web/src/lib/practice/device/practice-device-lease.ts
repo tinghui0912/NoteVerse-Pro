@@ -1,5 +1,5 @@
 import { practiceDeviceRequirements, type PracticeDeviceConfiguration, type PracticeDeviceHealth,
-  type PracticeDeviceResource, type PracticeDeviceRoots } from './device-contract';
+  type PracticeDeviceResource, type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
 import { browserDevicePlatform, type PracticeDevicePlatform } from './browser-device-platform';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 
@@ -9,7 +9,7 @@ export class PracticeDeviceLease {
     inputMicrophone: null, recordingMicrophone: null, camera: null, midi: null,
   };
   private state: 'NEW' | 'OPENING' | 'READY' | 'FAULTED' | 'CLOSED' = 'NEW';
-  private error: string | null = null;
+  private issue: PracticeDeviceIssue | null = null;
   private readonly required: readonly PracticeDeviceResource[];
   private readonly listeners = new Set<() => void>();
   private readonly detach = new Map<PracticeDeviceResource, () => void>();
@@ -21,7 +21,7 @@ export class PracticeDeviceLease {
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot() {
     const health = Object.fromEntries(this.required.map(resource => [resource, this.health(resource)])) as Partial<Record<PracticeDeviceResource, PracticeDeviceHealth>>;
-    return Object.freeze({ state: this.state, error: this.error, roots: Object.freeze({ ...this.roots }), health: Object.freeze(health) });
+    return Object.freeze({ state: this.state, issue: this.issue, roots: Object.freeze({ ...this.roots }), health: Object.freeze(health) });
   }
   engineeringSnapshot() { return this.timings.snapshot(); }
   open(): Promise<void> { return this.bind(false); }
@@ -30,17 +30,21 @@ export class PracticeDeviceLease {
   private bind(renew: boolean): Promise<void> {
     if (this.pending) return this.pending;
     if (this.state === 'CLOSED') return Promise.reject(new Error('PRACTICE_DEVICE_LEASE_CLOSED'));
-    this.state = 'OPENING'; this.error = null; this.notify();
+    this.state = 'OPENING'; this.issue = null; this.notify();
     this.pending = this.timings.measure('deviceLeaseOpen', async () => {
+      const acquired: PracticeDeviceResource[] = [];
+      let opening = this.required[0];
       try {
         for (const resource of this.required) {
           if (this.state === 'CLOSED') return;
           if (this.roots[resource] && (!renew || this.health(resource) !== 'LOST')) continue;
+          opening = resource;
           this.release(resource);
           if (resource === 'midi') {
             const access = await this.platform.acquireMidi();
             if (this.isClosed()) return;
             this.roots.midi = access;
+            acquired.push(resource);
             const changed = () => this.changed();
             access.addEventListener('statechange', changed);
             this.detach.set(resource, () => access.removeEventListener('statechange', changed));
@@ -48,16 +52,27 @@ export class PracticeDeviceLease {
             const stream = await this.platform.acquireStream(resource);
             if (this.isClosed()) { stream.getTracks().forEach(track => track.stop()); return; }
             this.roots[resource] = stream;
+            acquired.push(resource);
             const changed = () => this.changed();
             const tracks = stream.getTracks();
             for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.addEventListener(event, changed);
             this.detach.set(resource, () => { for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.removeEventListener(event, changed); });
           }
         }
+        const unhealthy = this.required.find(resource => this.health(resource) !== 'HEALTHY');
+        if (unhealthy) {
+          this.issue = Object.freeze({ resource: unhealthy, phase: 'RUNTIME', condition: this.health(unhealthy) === 'INTERRUPTED' ? 'INTERRUPTED' : 'LOST' });
+          throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
+        }
         this.changed();
-        if (this.required.some(resource => this.health(resource) !== 'HEALTHY')) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
-      } catch {
-        if (!this.isClosed()) { this.error = 'PRACTICE_DEVICE_UNAVAILABLE'; this.state = 'FAULTED'; this.notify(); }
+      } catch (error) {
+        for (const resource of acquired) this.release(resource);
+        if (!this.isClosed()) {
+          const name = typeof error === 'object' && error !== null && 'name' in error ? error.name : '';
+          this.issue ??= Object.freeze({ resource: opening, phase: 'OPEN', condition: name === 'NotAllowedError' ? 'PERMISSION_DENIED'
+            : name === 'NotFoundError' ? 'NOT_FOUND' : name === 'NotReadableError' ? 'BUSY' : 'UNAVAILABLE' });
+          this.state = 'FAULTED'; this.notify();
+        }
         throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       }
     }).finally(() => { this.pending = null; });
@@ -84,7 +99,12 @@ export class PracticeDeviceLease {
   }
   private changed(): void {
     if (this.isClosed()) return;
-    this.state = this.required.every(resource => this.health(resource) === 'HEALTHY') ? 'READY' : 'FAULTED'; this.notify();
+    // Keep a failed-open identity until that resource is explicitly acquired again.
+    const failedOpen = this.issue?.phase === 'OPEN' && !this.roots[this.issue.resource] ? this.issue : null;
+    const resource = this.required.find(resource => this.health(resource) !== 'HEALTHY');
+    this.issue = failedOpen ?? (resource ? Object.freeze({ resource, phase: 'RUNTIME',
+      condition: this.health(resource) === 'INTERRUPTED' ? 'INTERRUPTED' : 'LOST' }) : null);
+    this.state = this.issue ? 'FAULTED' : 'READY'; this.notify();
   }
   private notify(): void { for (const listener of this.listeners) listener(); }
 }

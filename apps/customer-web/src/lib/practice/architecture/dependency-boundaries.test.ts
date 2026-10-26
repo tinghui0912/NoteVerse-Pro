@@ -544,3 +544,21 @@ it('STEP learning is subscription-driven without an elapsed timer or animation s
     ts.forEachChild(node, visit);
   }; visit(ast);
 });
+
+it('execution page never propagates arbitrary device or attempt errors into Environment invalidation', () => {
+  const page = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  const ast = ts.createSourceFile(page, readFileSync(page, 'utf8'), ts.ScriptTarget.Latest, true);
+  const invalidations: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'invalidate') {
+      expect(node.arguments).toHaveLength(1);
+      expect(ts.isStringLiteral(node.arguments[0])).toBe(true);
+      if (ts.isStringLiteral(node.arguments[0])) invalidations.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast); expect(invalidations).toEqual(['USER_REQUESTED_REQUALIFICATION']);
+  for (const file of files.filter(file => /^(device|step|continuous|recording)\//.test(relative(file)))) {
+    expect(imports(file).some(edge => edge.target && relative(edge.target).startsWith('environment/')), relative(file)).toBe(false);
+  }
+});

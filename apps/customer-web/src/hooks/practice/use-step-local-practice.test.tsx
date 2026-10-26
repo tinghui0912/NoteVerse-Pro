@@ -30,7 +30,7 @@ function pendingMicrophone() {
       isSupported: true, isRunning: true, hasPermission: true, connectedInputCount: 1 }) })),
     createMetronome: () => ({ start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() }),
     microphone: {
-      createAudioContext: () => context as unknown as AudioContext, watchInfrastructure: () => () => {},
+      createAudioContext: () => context as unknown as AudioContext,
       acquireInference, coefficients: vi.fn(),
       connectCapture: connect, workletUrl: 'fake://not-started' } };
   const factory = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue(platform);

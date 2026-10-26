@@ -12,6 +12,11 @@ export type PracticeDeviceRoots = Readonly<{
   midi: MIDIAccess | null;
 }>;
 export type PracticeDeviceHealth = 'HEALTHY' | 'INTERRUPTED' | 'LOST';
+export type PracticeDeviceIssue = Readonly<{
+  resource: PracticeDeviceResource;
+  phase: 'OPEN' | 'RUNTIME';
+  condition: 'INTERRUPTED' | 'LOST' | 'PERMISSION_DENIED' | 'NOT_FOUND' | 'BUSY' | 'UNAVAILABLE';
+}>;
 export function practiceDeviceRequirements(configuration: PracticeDeviceConfiguration): readonly PracticeDeviceResource[] {
   const resources: PracticeDeviceResource[] = [configuration.inputSource === 'MICROPHONE' ? 'inputMicrophone' : 'midi'];
   if (configuration.mode === 'CONTINUOUS_PLAY' && configuration.recordingMode !== 'OFF') {

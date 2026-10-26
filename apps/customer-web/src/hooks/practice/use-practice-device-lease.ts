@@ -20,7 +20,7 @@ export function usePracticeDeviceLease(configuration: PracticeDeviceConfiguratio
     const owner = lease.current;
     if (!owner) return false;
     try { await owner.renewFailed(); return lease.current === owner && owner.snapshot().state === 'READY'; }
-    catch { return false; } // The lease publishes its stable error; page wiring returns to Setup.
+    catch { return false; } // Recovery stays with the page-scoped lease, independently of qualification.
   }, []);
   const observe = useCallback((listener: () => void) => lease.current?.subscribe(listener) ?? (() => {}), []);
   const borrow = useCallback(() => { const current = lease.current?.snapshot();

@@ -128,7 +128,12 @@ export class StepPracticeController {
     await this.startup.measure('audioContextResume', async () => { if (context.state !== 'running') await context.resume(); });
     if (generation !== this.generation) return;
     if (![44100, 48000].includes(context.sampleRate)) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
-    this.detachInfrastructure = platform.watchInfrastructure(stream, context, code => this.failAttempt(new Error(code)));
+    const tracks = stream.getAudioTracks();
+    const changed = () => this.microphoneHealthChanged();
+    for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.addEventListener(event, changed);
+    this.detachInfrastructure = () => {
+      for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.removeEventListener(event, changed);
+    };
     const microphone = new StepMicrophoneInput<StepAttemptIdentity>({ ...platform, acquireInference: async () => {
       const lease = this.unboundInference;
       if (!lease) throw new Error('PRACTICE_INFERENCE_LEASE_NOT_OWNED');
@@ -244,6 +249,26 @@ export class StepPracticeController {
       this.input?.cancel(); this.runtime?.setInputUnavailable();
       this.error = 'NO_CONNECTED_INPUT'; this.emit();
     }
+  }
+  private microphoneHealthChanged(): void {
+    if (this.state !== 'ACTIVE') return;
+    const tracks = this.stream?.getAudioTracks();
+    if (!tracks?.length || tracks.some(track => track.readyState !== 'live')) {
+      this.failAttempt(new Error('MICROPHONE_SOURCE_LOST')); return;
+    }
+    try {
+      if (tracks.some(track => track.muted)) {
+        if (this.error === 'STEP_MICROPHONE_INTERRUPTED') return;
+        this.runtime?.setInputUnavailable(); this.microphone?.suspendInput();
+        this.error = 'STEP_MICROPHONE_INTERRUPTED'; this.emit();
+      } else if (this.error === 'STEP_MICROPHONE_INTERRUPTED' && this.runtime && this.microphone) {
+        const boundary = this.microphone.recoveryBoundary();
+        this.runtime.acceptInputAfter(boundary.sessionTime);
+        this.error = null;
+        if (this.runtime.snapshot().step.attemptState === 'POST_VERDICT') this.commitPostVerdict();
+        else { this.microphone.arm(boundary); this.emit(); }
+      }
+    } catch (error) { this.failAttempt(error); }
   }
   private failAttempt(error: unknown): void {
     if (this.state === 'ENDED' || this.state === 'DISPOSED') return;
