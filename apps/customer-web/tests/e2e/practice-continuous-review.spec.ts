@@ -135,6 +135,7 @@ type MockOptions = {
 };
 
 type MediaMock = {
+  audioStreams: MediaStream[];
   requests: MediaStreamConstraints[];
   tracks: Array<{ track: MediaStreamTrack; stopCalls: number }>;
   resolveCamera: (() => void) | null;
@@ -245,7 +246,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       }
     }
     // Camera controls apply only to video requests; existing audio-only mocks stay intact.
-    const media: MediaMock = { requests: [], tracks: [], resolveCamera: null };
+    const media: MediaMock = { audioStreams: [], requests: [], tracks: [], resolveCamera: null };
     (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia = media;
     const audioOnly = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     let cameraRequests = 0;
@@ -276,7 +277,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     };
     navigator.mediaDevices.getUserMedia = async constraints => {
       media.requests.push(structuredClone(constraints ?? {}));
-      if (!camera || !constraints?.video) return audioOnly(constraints);
+      if (!camera || !constraints?.video) { const stream = await audioOnly(constraints); media.audioStreams.push(stream); return stream; }
       if (camera === 'DENIED') throw new DOMException('Camera permission denied', 'NotAllowedError');
       cameraRequests++;
       if (camera === 'PENDING' && cameraRequests > 1) {
@@ -533,7 +534,8 @@ test('warm microphone engine survives STEP End, next Start, Continuous completio
   for (let i = 0; i < 2; i++) {
     if (i === 0) { await expect(start).toBeEnabled(); await start.click(); }
     else await page.getByRole('button', { name: '重弹一次', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 15000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible({ timeout: 15000 });
   }
   await page.getByRole('button', { name: '查看报告', exact: true }).click();
@@ -559,7 +561,8 @@ test('live feedback is off by default, toggles without restarting, and Review re
   await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
   await page.getByRole('button', { name: '开始', exact: true }).click();
   await page.clock.runFor(2000);
-  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+  await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
   await page.evaluate(() => (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100));
   await page.clock.runFor(800);
   await expect(page.locator('.practice-summary-note-supported')).toHaveCount(0);
@@ -800,7 +803,8 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await preparePracticeSetup(page);
     await expectCameraReady(page, 1);
     await page.getByRole('button', { name: '开始', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
     // Allow the scope to complete naturally; End discards recordings.
     await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
     await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
@@ -870,7 +874,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Advance exactly the four count-in beats at 120 BPM, leaving performance time at 0.
     await expect(page.getByRole('status')).toContainText('预备拍');
     await page.clock.runFor(2000);
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // Emit notes
     await page.evaluate(() => {
@@ -940,7 +945,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await page.clock.runFor(2000);
 
     // Wait until running
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // Pause practice
     const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
@@ -953,7 +959,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Resume practice
     const resumeButton = page.getByRole('button', { name: '继续', exact: true });
     await resumeButton.click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     await page.clock.runFor(2200);
     await page.clock.resume();
@@ -1068,7 +1075,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await startButton.click();
 
     // Wait until running
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // Natural completion finishes this short scope without an End command.
     await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
@@ -1169,13 +1177,14 @@ test('runtime AUDIO interruption pauses until explicit no-recording continuation
   await interruptRecordingTrack(page, 'audio');
   const dialog = page.getByRole('alertdialog'); await expect(dialog).toBeVisible();
   await expect(page.getByRole('status')).toContainText('录制已中断，练习已暂停');
-  await expect(dialog.getByRole('button', { name: '检查设备并继续' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /检查/ })).toHaveCount(0);
   const cursor = await page.locator('[data-practice-playhead-cursor]').getAttribute('x');
   await page.clock.runFor(5000);
   await expect(page.locator('[data-practice-playhead-cursor]')).toHaveAttribute('x', cursor!);
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
   await dialog.getByRole('button', { name: '不录制并继续', exact: true }).click();
-  await expect(dialog).toHaveCount(0); await expect(page.getByRole('status')).toContainText('连贯演奏中');
+  await expect(dialog).toHaveCount(0); await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('AUDIO');
   await page.clock.runFor(2000); await page.clock.resume();
   await page.getByRole('button', { name: '查看报告', exact: true }).click();
@@ -1196,10 +1205,92 @@ test('hard VIDEO interruption requires fresh admission on Restart and discards t
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
   await dialog.getByRole('button', { name: '重新开始', exact: true }).click();
   await expect(dialog).toHaveCount(0); await expect(page.getByRole('status')).toContainText('预备拍');
-  await page.clock.runFor(2100); await expect(page.getByRole('status')).toContainText('连贯演奏中');
+  await page.clock.runFor(2100); await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.length)).toBe(count + 1);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('VIDEO');
   await page.getByRole('button', { name: '结束', exact: true }).click();
   await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
   await expect(page.getByRole('dialog')).toHaveCount(0); await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
+});
+
+test('recording-only mute passively recovers but waits for explicit Continue, without any Check action', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await observeNativeRecorders(page); await setupContinuousPracticeMocks(page);
+  await openPreparedPractice(page, scoreId, revisionId); await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+  await expect(page.getByRole('status')).toHaveCount(0); await expect(page.getByRole('button', { name: '更改练习配置', exact: true })).toHaveCount(0);
+  await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
+  await page.getByRole('button', { name: '开始', exact: true }).click(); await page.clock.runFor(2200);
+  await page.evaluate(() => {
+    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast(r => r.state === 'recording')!;
+    const track = recorder.stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: true }); track.dispatchEvent(new Event('mute'));
+  });
+  const dialog = page.getByRole('alertdialog'); await expect(dialog).toHaveCount(1);
+  await expect(dialog.getByRole('heading', { name: '录制暂时中断' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /检查/ })).toHaveCount(0); await expect(dialog.getByRole('button', { name: '继续', exact: true })).toHaveCount(0);
+  const time = await page.getByTestId('practice-timer').innerText(); await page.clock.runFor(3000);
+  await expect(page.getByTestId('practice-timer')).toHaveText(time);
+  await page.evaluate(() => {
+    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast(r => r.state === 'paused')!;
+    const track = recorder.stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: false }); track.dispatchEvent(new Event('unmute'));
+  });
+  await expect(dialog.getByRole('heading', { name: '录制设备已恢复' })).toBeVisible();
+  await page.clock.runFor(3000); await expect(page.getByTestId('practice-timer')).toHaveText(time);
+  await dialog.getByRole('button', { name: '继续', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('status')).toHaveCount(0); await page.clock.runFor(500);
+  await page.getByRole('button', { name: '结束', exact: true }).click(); await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('AUDIO');
+});
+
+test('shared microphone interruption requires input recovery and never offers no-recording continuation', async ({ page }) => {
+  await observeNativeRecorders(page); await setupContinuousPracticeMocks(page);
+  await openPreparedPractice(page, scoreId, revisionId); await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'AUDIO');
+  await page.getByRole('button', { name: '开始', exact: true }).click(); await expect(page.getByRole('status')).toContainText('预备拍');
+  await page.evaluate(() => {
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const track = stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: true }); track.dispatchEvent(new Event('mute'));
+  });
+  const dialog = page.getByRole('alertdialog'); await expect(dialog).toHaveCount(1);
+  await expect(dialog.getByRole('heading', { name: '输入暂时中断' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /检查/ })).toHaveCount(0);
+  await page.evaluate(() => {
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const track = stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: false }); track.dispatchEvent(new Event('unmute'));
+  });
+  await expect(dialog.getByRole('heading', { name: '输入设备已恢复' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('输入已中断，练习已暂停');
+  await dialog.getByRole('button', { name: '继续', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await page.evaluate(() => {
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const track = stream.getAudioTracks()[0]; track.stop(); track.dispatchEvent(new Event('ended'));
+  });
+  await expect(dialog).toHaveCount(1); await expect(dialog.getByRole('heading', { name: '输入设备已断开' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '继续', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
+  await dialog.getByRole('button', { name: '结束', exact: true }).click(); await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
+});
+
+test('temporary session AudioContext suspension retains the capture graph and waits for explicit Continue', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeContext = window.AudioContext, contexts: AudioContext[] = [];
+    (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts = contexts;
+    window.AudioContext = class extends NativeContext { constructor(options?: AudioContextOptions) { super(options); contexts.push(this); } };
+  });
+  await setupContinuousPracticeMocks(page); await openPreparedPractice(page, scoreId, revisionId);
+  await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'OFF');
+  await page.getByRole('button', { name: '开始', exact: true }).click(); await expect(page.getByRole('status')).toContainText('预备拍');
+  const identity = await page.evaluate(async () => {
+    const contexts = (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts;
+    const context = contexts.findLast(c => c.state === 'running')!; await context.suspend(); return contexts.indexOf(context);
+  });
+  const dialog = page.getByRole('alertdialog'); await expect(dialog.getByRole('heading', { name: '输入暂时中断' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
+  await page.evaluate(async index => { await (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts[index].resume(); }, identity);
+  await expect(dialog.getByRole('heading', { name: '输入设备已恢复' })).toBeVisible();
+  await dialog.getByRole('button', { name: '继续', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId('practice-timer')).toBeVisible();
+  await page.getByRole('button', { name: '结束', exact: true }).click(); await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+  expect(await page.evaluate(index => (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts[index].state, identity)).toBe('closed');
 });

@@ -17,7 +17,7 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { StepPracticeControls, ContinuousPracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeFeedbackSettings } from '@/components/practice/practice-feedback-settings';
-import { RecordingInterruptionDialog } from '@/components/practice/recording-interruption-dialog';
+import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
@@ -182,7 +182,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       setIsCompletionDialogOpen(true);
     },
   });
-  const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.recordingIntervention : null;
+  const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.resourceIntervention : null;
   useEffect(() => {
     if (intervention?.recoverability !== 'RESTART_REQUIRED' || recordingMode !== 'VIDEO') return;
     queueMicrotask(() => { setPreviewEnabled(false); releaseCameraPreview(); });
@@ -303,7 +303,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
         setPreviewEnabled(false);
         void localPractice.abandon().then(() => { releaseCameraPreview(); setPreviewEnabled(true); });
       },
-      ...(practiceMode === 'CONTINUOUS_PLAY' ? { onOpenSettings: () => setIsSettingsOpen(true) } : {}),
+      onOpenSettings: () => setIsSettingsOpen(true),
+      elapsedSeconds: localPractice.elapsedSeconds,
       onToggleRangeSelection: range.toggleSelection,
   };
   const practiceControls = localPractice.mode === 'STEP_BY_STEP'
@@ -317,12 +318,11 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       lifecycle={localPractice.lifecycle}
       inputState={localPractice.inputState}
       inputError={localPractice.inputError}
-      recordingInterrupted={intervention !== null}
+      resourceImpact={intervention?.impact ?? null}
       inputSource={inputSource}
       selectedInputCapability={selectedInputCapability}
       rangePrompt={rangeSelectionPrompt}
       sessionMode={practiceMode}
-      practiceTime={localPractice.elapsedSeconds}
       performanceClock={localPractice.performanceClock}
       stepInteractionPhase={localPractice.mode === 'STEP_BY_STEP' ? localPractice.stepInteractionPhase : null}
       pendingPostVerdict={localPractice.mode === 'STEP_BY_STEP' ? localPractice.pendingPostVerdict : null}
@@ -363,8 +363,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
         />
       ) : (
         <>
-          {!isActive && <button type="button" className="m-3 rounded border p-3"
-            onClick={() => router.push(practiceLocation(id, 'setup', selectedRevisionId))}>{t('setupChangeConfiguration')}</button>}
           <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
             <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
               <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
@@ -425,18 +423,20 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             </main>
           </div>
 
-          {!isStepMode && <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          {<Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <SheetContent side="right" className="w-full p-0 sm:max-w-md">
               <SheetTitle className="sr-only">{t('settingsTitle')}</SheetTitle>
               <SheetDescription className="sr-only">{t('settingsSubtitle')}</SheetDescription>
-              <PracticeFeedbackSettings enabled={profile.continuous.liveFeedbackEnabled}
-                onChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })} />
+              {!isStepMode && <PracticeFeedbackSettings enabled={profile.continuous.liveFeedbackEnabled}
+                onChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })} />}
+              <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isActive}
+                onClick={() => { setIsSettingsOpen(false); router.push(practiceLocation(id, 'setup', selectedRevisionId)); }}>{t('setupChangeConfiguration')}</button>
             </SheetContent>
           </Sheet>}
 
-          {localPractice.mode === 'CONTINUOUS_PLAY' && intervention && <RecordingInterruptionDialog
+          {localPractice.mode === 'CONTINUOUS_PLAY' && intervention && <ResourceInterruptionDialog
             intervention={intervention} onContinueWithout={localPractice.continueWithoutRecording}
-            onCheck={localPractice.checkAndResumeRecording}
+            onContinue={() => { localPractice.continueAfterRecovery(); }}
             onEnd={() => { setPreviewEnabled(false); void localPractice.abandon().then(() => { releaseCameraPreview(); setPreviewEnabled(true); }); }}
             onRestart={async () => {
               setIsRestarting(true); setPreviewEnabled(false);

@@ -1,3 +1,4 @@
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { ContinuousAcousticProjection } from '@/lib/practice/acoustic/continuous/continuous-projection';
 import { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';
@@ -15,7 +16,7 @@ export class ContinuousMicrophoneInput {
   private publications = 0;
   private disposal: Promise<void> | null = null;
   private detachWorker: (() => void) | undefined;
-  constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (reason: string) => void) {}
+  constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (reason: string) => void, private readonly startup = new PracticeStartupTimings()) {}
   async acquire(signal: AbortSignal): Promise<void> {
     this.worker = await this.platform.acquireInference(signal);
     if (this.disposed || signal.aborted) await this.worker.dispose();
@@ -24,7 +25,7 @@ export class ContinuousMicrophoneInput {
   }
   async connect(connection: MicrophoneConnection, signal: AbortSignal): Promise<void> {
     this.context = connection.context;
-    const coefficients = await this.platform.coefficients(connection.context.sampleRate); this.check(signal);
+    const coefficients = await this.startup.measure('firLoad', () => this.platform.coefficients(connection.context.sampleRate)); this.check(signal);
     this.runtime = await ContinuousAcousticProjection.create({ sessionDomainId: connection.sessionDomainId,
       sourceDomainId: `${connection.sessionDomainId}:capture`, sourceSampleRateHz: connection.context.sampleRate,
       coefficientBytes: coefficients, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
@@ -34,11 +35,11 @@ export class ContinuousMicrophoneInput {
     if (this.disposed || signal.aborted) { await this.runtime.dispose(); this.check(signal); }
     this.check(signal);
     this.bridge = new ContinuousCaptureBridge(this.runtime, connection.context.sampleRate);
-    const capture = await this.platform.connectCapture({ bridge: this.bridge, stream: connection.stream,
-      ownership: 'BORROWED_SESSION_STREAM', context: connection.context, workletUrl: this.platform.workletUrl });
+    const capture = await this.startup.measure('captureConnect', () => this.platform.connectCapture({ bridge: this.bridge!, stream: connection.stream,
+      ownership: 'BORROWED_SESSION_STREAM', contextInterruption: 'RETAIN_GRAPH', context: connection.context, workletUrl: this.platform.workletUrl }));
     this.capture = capture;
     if (signal.aborted || this.disposed) { capture.stop(); this.check(signal); }
-    await this.wait(() => Boolean(this.runtime?.prerollReady), signal, 15000);
+    await this.startup.measure('acousticPreroll', () => this.wait(() => Boolean(this.runtime?.prerollReady), signal, 15000));
   }
   boundary(type: 'BEGIN' | 'PAUSE' | 'TERMINAL', contextTime: number, performanceTimeMs: number): string {
     this.check();

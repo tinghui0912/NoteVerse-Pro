@@ -5,3 +5,7 @@ export type RecordingRuntimeFault = Readonly<{
   reason: RecordingRuntimeFailureReason;
   recoverability: 'SAME_PIPELINE_RECOVERABLE' | 'RESTART_REQUIRED';
 }>;
+
+export type RecordingRuntimeInterruption = RecordingRuntimeFault & Readonly<{
+  state: 'WAITING_FOR_USER' | 'RECOVERED_WAITING_FOR_USER';
+}>;

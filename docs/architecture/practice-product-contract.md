@@ -41,11 +41,37 @@ SCORE, OFF and FULL. Retry and same-page Try Again retain all these options.
 Setup exclusively edits mode, input source and recording mode. Practice exposes execution
 controls and presentation preferences, with no inline editors for readiness-affecting
 configuration. Idle not-ready entry returns to Setup; an active recording intervention
-keeps the current attempt in Practice while the user decides. STEP has no empty settings
-sheet. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
+keeps the current attempt in Practice while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
 not Setup. It only changes current score feedback visibility: readiness, session identity,
 inference, evaluation, Review and Share Video remain unchanged. The preference persists
 with the profile and defaults to OFF.
+
+## Attempt and Environment Lifetimes
+
+The Practice Environment belongs to the workspace layout. Each Practice Attempt
+(internally a session) has a fresh localSessionId, timebase/source identity, evaluation
+ledger, capture chronology, recorder, recording timebase and completion ownership.
+Start, same-page Try Again, fault Restart and Review Retry do not repeat environment
+qualification, readiness probes, model access fetches, model loading or ONNX creation.
+A healthy workspace loads its model and creates its ONNX session once.
+
+Fresh microphone streams, AudioContexts, worklets, inference leases, MIDI listeners and
+recorders are attempt binding, not Setup. End and natural completion release these
+resources, including the microphone stream and session AudioContext, for privacy.
+Try Again and Restart bind and start automatically. Binding failure fails closed and
+returns the user to explicit Setup preparation; it never reuses a dirty domain session.
+
+Setup is the qualification/progress UI. Practice has no ready prose or global startup
+banner. Start alone shows a compact disabled busy state during binding. Continuous
+normal running has a compact transport timer without redundant prose; count-in, pause,
+interventions and errors remain visible. STEP retains its pedagogical instructions.
+Both modes expose Change practice configuration inside settings, linking to Setup.
+Continuous settings also owns the presentation-only Live Feedback Switch.
+
+Per-attempt engineering diagnostics measure waitPreviousRelease, acquireInferenceLease,
+getUserMedia, audioContextResume, firLoad, captureConnect, acousticPreroll, midiBind and
+recorderAdmission as applicable. They never enter Result, metrics, PerformanceTake or
+backend data and have no learner-facing debug UI.
 
 ## Practice Readiness
 
@@ -74,9 +100,9 @@ VIDEO/AUDIO/MIDI failures keep the selected intent and block Start; no fallback
 changes the configuration. Technical reason codes are available behind details.
 
 `/practice/setup` owns explicit preparation. Practice entry redirects there until
-the selected requirements are satisfied, preserving revision identity. Idle settings
-can change high-impact configuration and expose Prepare when needed; active sessions
-lock those choices. Full reload restores preferences, not readiness or GPU memory.
+the selected requirements are satisfied, preserving revision identity. Practice settings
+only link back to Setup to change mode, input or recording; no inline selector or
+standalone Prepare patch is present. Full reload restores preferences, not readiness or GPU memory.
 Setup success does not promise immutable permissions: Start reacquires fresh device
 resources and fails closed on device/permission loss without cold model bootstrap.
 
@@ -491,20 +517,32 @@ Continuous controller pauses its canonical transport, metronome and evidence
 chronology and exposes a dedicated recording intervention. Performance time and
 finality cannot advance beyond that pause boundary while the user decides.
 
-A temporary muted track is recoverable only while every required track remains live
-and becomes unmuted and the same MediaRecorder remains usable. Checking health never
-resumes automatically. Explicit check-and-continue resumes that pipeline and Practice
-at the same performance time. Ended tracks, recorder errors and unusable pipelines
-require restart or explicit continuation without recording. No new recorder/stream
-is spliced into the current artifact. Duplicate browser events do not create duplicate
-interventions; a hard failure can invalidate recovery of an unresolved mute.
+A temporary muted recording track is recoverable only while every required track
+remains live, becomes unmuted, and the same MediaRecorder remains usable. Original
+track unmute/ended and recorder events update health passively. There is no manual
+Check Device action. Recovery only exposes Continue; it never resumes automatically.
+Ended tracks, recorder errors, pause/resume/start failures and unusable pipelines
+require restart or explicit continuation without recording. No new recorder or stream
+is spliced into the current artifact.
 
-Continue without recording accepts degradation for this attempt, preserves the original
-fault reason and persistent AUDIO/VIDEO preference, then resumes an intervention-owned
-pause. A pre-existing user pause remains paused until the user resumes. Restart abandons
-the old attempt and discards all media, then uses fresh recording admission and session
-resources while retaining the warm acoustic engine and workspace options. End abandons
-without any result. A latched natural completion wins late recorder callbacks.
+Resource impact is explicit: RECORDING_ONLY, INPUT_REQUIRED or INPUT_AND_RECORDING.
+A recorder-owned clone fault with healthy input, or recording loss with healthy MIDI,
+can offer Continue without recording. Root microphone mute and temporary AudioContext
+interruption pause canonical transport and wait for the same input/capture pipeline to
+recover. Continuous capture explicitly retains its existing graph across temporary
+context suspension; closure or invalid chronology still invalidates it. STEP keeps
+fail-on-interruption capture behavior. Root ended, context closure and invalid capture require Restart or End. Required
+input loss never offers recording-only degradation. Shared-source callbacks converge
+on one intervention, with input-required impact taking priority and one canonical pause.
+MIDI disconnection retains its existing pause/reconnect contract and cannot accept
+recording-only degradation while input is unavailable.
+
+Continue without recording accepts loss for this attempt, preserves the original fault
+reason and persistent recording preference, then resumes only an intervention-owned
+pause. A pre-existing user pause stays paused. Explicit Continue after passive recovery
+resumes the original healthy pipeline at the same paused performance time. Restart
+abandons the old attempt and media, then automatically binds and starts a fresh attempt.
+End abandons without any result. A latched natural completion wins late callbacks.
 
 UNAVAILABLE represents explicitly accepted runtime recording loss, or media that could
 not finish reliably after natural completion was already latched. Finalization failure

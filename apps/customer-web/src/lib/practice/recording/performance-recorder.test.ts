@@ -95,10 +95,11 @@ describe('PerformanceRecorder', () => {
     recorder.onRuntimeFault(listener); await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
     const pipeline = lastRecorder;
     track.mute(); track.mute(); recorder.pause(100);
-    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE' });
-    expect(recorder.snapshot().state).toBe('INTERRUPTED'); expect(recorder.checkRuntimeRecovery()).toBe(false);
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE', state: 'WAITING_FOR_USER' });
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); expect((recorder.runtimeFault()?.state === 'RECOVERED_WAITING_FOR_USER')).toBe(false);
     expect(recorder.recoverRuntime()).toBe(false); track.unmute();
-    expect(recorder.checkRuntimeRecovery()).toBe(true); expect(recorder.snapshot().state).toBe('INTERRUPTED');
+    expect(listener).toHaveBeenLastCalledWith({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE', state: 'RECOVERED_WAITING_FOR_USER' });
+    expect((recorder.runtimeFault()?.state === 'RECOVERED_WAITING_FOR_USER')).toBe(true); expect(recorder.snapshot().state).toBe('INTERRUPTED');
     expect(recorder.recoverRuntime()).toBe(true); recorder.resume(100);
     expect(recorder.snapshot().state).toBe('RECORDING'); expect(lastRecorder).toBe(pipeline);
     await recorder.freeze(200); expect((await recorder.finalize()).status).toBe('READY'); recorder.stopAndCleanup();
@@ -111,7 +112,7 @@ describe('PerformanceRecorder', () => {
     if (event === 'ended') track.end(); else lastRecorder!.onerror!();
     lastRecorder!.onerror!(); track.end();
     expect(listener).toHaveBeenCalledOnce(); expect(recorder.runtimeFault()?.recoverability).toBe('RESTART_REQUIRED');
-    expect(recorder.checkRuntimeRecovery()).toBe(false); expect(recorder.recoverRuntime()).toBe(false);
+    expect((recorder.runtimeFault()?.state === 'RECOVERED_WAITING_FOR_USER')).toBe(false); expect(recorder.recoverRuntime()).toBe(false);
     expect(recorder.snapshot().state).toBe('INTERRUPTED'); await expect(recorder.finalize()).rejects.toThrow('RECORDING_DECISION_REQUIRED');
     recorder.continueWithoutRecording(); expect(recorder.snapshot().state).toBe('UNAVAILABLE');
     await recorder.freeze(10); expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: event === 'ended' ? 'AUDIO_TRACK_ENDED' : 'MEDIA_RECORDER_ERROR' });
@@ -121,8 +122,9 @@ describe('PerformanceRecorder', () => {
     const track = createTrack(); Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream([track]) } });
     const recorder = new PerformanceRecorder('AUDIO'), listener = vi.fn(); recorder.onRuntimeFault(listener);
     await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
-    track.mute(); track.end(); expect(listener).toHaveBeenCalledOnce();
-    expect(recorder.runtimeFault()).toEqual({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'RESTART_REQUIRED' });
+    track.mute(); track.end(); expect(listener).toHaveBeenCalledTimes(2);
+    track.end(); expect(listener).toHaveBeenCalledTimes(2);
+    expect(recorder.runtimeFault()).toEqual({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'RESTART_REQUIRED', state: 'WAITING_FOR_USER' });
     expect(recorder.recoverRuntime()).toBe(false); recorder.stopAndCleanup();
   });
 
@@ -133,7 +135,7 @@ describe('PerformanceRecorder', () => {
     if (operation === 'pause') behavior.throwOnPause = true;
     recorder.pause(10);
     if (operation === 'resume') { behavior.throwOnResume = true; recorder.resume(10); }
-    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: operation === 'pause' ? 'RECORDER_PAUSE_FAILED' : 'RECORDER_RESUME_FAILED', recoverability: 'RESTART_REQUIRED' });
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: operation === 'pause' ? 'RECORDER_PAUSE_FAILED' : 'RECORDER_RESUME_FAILED', recoverability: 'RESTART_REQUIRED', state: 'WAITING_FOR_USER' });
     expect(recorder.snapshot().state).toBe('INTERRUPTED'); expect(recorder.recoverRuntime()).toBe(false); recorder.stopAndCleanup();
   });
 

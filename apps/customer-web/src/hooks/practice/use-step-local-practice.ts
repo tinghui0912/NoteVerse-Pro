@@ -1,4 +1,5 @@
 'use client';
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { browserStepPlatform } from '@/lib/practice/step/step-platform';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';
@@ -17,6 +18,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const completion = useRef(options.onNaturalCompletion);
   useEffect(() => { completion.current = options.onNaturalCompletion; }, [options.onNaturalCompletion]);
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
+  const [pendingBinding, setPendingBinding] = useState<Binding<boolean> | null>(null);
   type Snapshot = ReturnType<StepPracticeController['snapshot']> | null;
   type Binding<T> = { key: string; artifact: UseLocalPracticeOptions['artifact']; value: T };
   const [savedSnapshot, saveSnapshot] = useState<Binding<Snapshot> | null>(null);
@@ -46,11 +48,13 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     if (!options.artifact || !options.scope || !tempoPlan) { setPreparationError('STEP_SCORE_UNAVAILABLE'); return; }
     const released = dispose(), operation = generation.current;
     starting.current = true;
+    setPendingBinding({ key, artifact: options.artifact, value: true });
+    const startupTimings = new PracticeStartupTimings();
     try {
-      await released;
+      await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
       onSessionStart();
-      const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
+      const controller = new StepPracticeController({ startupTimings, artifact: options.artifact, scope: options.scope,
         platform: browserStepPlatform(options.acquireInference), inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         onNaturalCompletion: result => {
           if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);
@@ -58,9 +62,9 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
       owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
       setPreparationError(null); await controller.start();
     } finally {
-      if (operation === generation.current) starting.current = false;
+      if (operation === generation.current) { starting.current = false; setPendingBinding({ key, artifact: options.artifact, value: false }); }
     }
-  }, [options, tempoPlan, setPreparationError, setSnapshot, dispose, onSessionStart]);
+  }, [options, key, tempoPlan, setPreparationError, setSnapshot, dispose, onSessionStart]);
   const abandon = useCallback(async () => {
     const current = owner.current, operation = generation.current;
     if (!current) return;
@@ -82,7 +86,8 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
   const applicationState: StepControllerState = snapshot?.state ?? 'IDLE';
   const inputError = preparationError ?? snapshot?.error ?? null;
-  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : applicationState === 'PREPARING' ? 'STARTING' : applicationState === 'ACTIVE' ? 'RUNNING' : 'IDLE';
+  const bindingPending = pendingBinding?.key === key && pendingBinding.artifact === options.artifact && pendingBinding.value;
+  const inputState: LocalPracticeInputState = bindingPending ? 'STARTING' : inputError ? 'ERROR' : applicationState === 'PREPARING' ? 'STARTING' : applicationState === 'ACTIVE' ? 'RUNNING' : 'IDLE';
   // Generic UI boundary only: lifecycle denotes application presentation, never domain status.
   return { mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
     runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,

@@ -57,7 +57,7 @@ function makePerformanceClock(
 }
 
 describe('resolvePracticeStatusView', () => {
-  it('shows preparingPractice during STARTING inputState', () => {
+  it('keeps binding silent in the global status surface', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'READY',
@@ -65,8 +65,7 @@ describe('resolvePracticeStatusView', () => {
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'preparingPractice',
-      pending: true,
+      pending: false, countInPulse: null,
     });
   });
 
@@ -113,7 +112,7 @@ describe('resolvePracticeStatusView', () => {
     });
   });
 
-  it('shows performanceRunning during CONTINUOUS playing', () => {
+  it('does not narrate normal Continuous running', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
@@ -123,7 +122,6 @@ describe('resolvePracticeStatusView', () => {
         }),
       })
     ).toMatchObject({
-      messageKey: 'performanceRunning',
       pending: false,
     });
   });
@@ -254,7 +252,7 @@ describe('resolvePracticeStatusView', () => {
 });
 
 describe('PracticeStatus rendering', () => {
-  it('renders status text and recording time', () => {
+  it('renders paced STEP instruction without a transport timer', () => {
     render(
       createElement(
         IntlProvider,
@@ -264,14 +262,13 @@ describe('PracticeStatus rendering', () => {
         },
         createElement(PracticeStatus, {
           lifecycle: 'ACTIVE',
-          sessionMode: 'STEP_BY_STEP',
-          practiceTime: 65, // 01:05
+          sessionMode: 'STEP_BY_STEP', // 01:05
         })
       )
     );
 
     expect(screen.getByText('Play the highlighted note. Wait for the result before playing again.')).toBeTruthy();
-    expect(screen.getByText('01:05')).toBeTruthy();
+    expect(screen.queryByText('01:05')).toBeNull();
   });
 
   it('renders visible error message on inputState ERROR', () => {
@@ -288,7 +285,6 @@ describe('PracticeStatus rendering', () => {
           inputError: 'Device disconnected',
           inputSource: 'MICROPHONE',
           sessionMode: 'STEP_BY_STEP',
-          practiceTime: 0,
         })
       )
     );
@@ -314,7 +310,6 @@ describe('PracticeStatus rendering', () => {
             reason: 'BROWSER_UNSUPPORTED',
           },
           sessionMode: 'CONTINUOUS_PLAY',
-          practiceTime: 0,
         })
       )
     );
@@ -338,7 +333,6 @@ describe('PracticeStatus rendering', () => {
           inputError: 'NO_CONNECTED_INPUT',
           inputSource: 'MIDI',
           sessionMode: 'STEP_BY_STEP',
-          practiceTime: 0,
         })
       )
     );
@@ -359,7 +353,7 @@ describe('paced STEP learning feedback', () => {
   ])('$locale microphone instructions pace input without claiming physical mistakes', ({ locale, messages, ready, busy, mismatch }) => {
     const status = (phase: 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT') => createElement(IntlProvider,
       { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
-        lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase, practiceTime: 0,
+        lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,
         inputSource: 'MICROPHONE', pendingPostVerdict: phase === 'POST_VERDICT' ? stepRecord('MISMATCH') : null,
       }));
     const view = render(status('READY')); expect(screen.getByRole('status')).toHaveTextContent(ready);
@@ -380,6 +374,19 @@ describe('paced STEP learning feedback', () => {
 });
 
 it('recording intervention has dedicated status rather than input or acoustic error semantics', () => {
-  const status = resolvePracticeStatusView({ lifecycle: 'PAUSED', sessionMode: 'CONTINUOUS_PLAY', recordingInterrupted: true });
+  const status = resolvePracticeStatusView({ lifecycle: 'PAUSED', sessionMode: 'CONTINUOUS_PLAY', resourceImpact: 'RECORDING_ONLY' });
   expect(status.messageKey).toBe('recordingPaused');
+});
+
+for (const lifecycle of ['READY', 'ACTIVE'] as const) it(`Continuous ${lifecycle} has no redundant prose or global readiness banner`, () => {
+  render(createElement(IntlProvider, { locale: 'en', messages: { practice: practiceMessages } }, createElement(PracticeStatus, {
+    lifecycle, sessionMode: 'CONTINUOUS_PLAY', performanceClock: lifecycle === 'ACTIVE' ? makePerformanceClock() : null,
+  })));
+  expect(screen.queryByRole('status')).toBeNull();
+});
+it('attempt binding remains silent even for STEP; busy belongs to Start', () => {
+  render(createElement(IntlProvider, { locale: 'en', messages: { practice: practiceMessages } }, createElement(PracticeStatus, {
+    lifecycle: 'PREPARING', inputState: 'STARTING', sessionMode: 'STEP_BY_STEP',
+  })));
+  expect(screen.queryByRole('status')).toBeNull();
 });

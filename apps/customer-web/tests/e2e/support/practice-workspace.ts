@@ -43,6 +43,7 @@ export async function openPreparedPractice(page: Page, scoreId: string, revision
 }
 
 export async function openPracticeSetup(page: Page) {
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('button', { name: '更改练习配置', exact: true }).click();
   await expect(page.getByTestId('practice-setup')).toBeVisible();
 }

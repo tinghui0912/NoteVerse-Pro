@@ -1,5 +1,6 @@
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
-import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
+import { ContinuousMicrophoneResources, type MicrophoneResourceHealth } from './microphone-resource-health';
 import { continuousCompletionStore } from './completion-store';
 import type { ContinuousPracticeCompletion } from './completion';
 import { createNaturalContinuousCompletion } from './natural-completion';
@@ -17,7 +18,7 @@ import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/pra
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
 import type { RecordingRuntimeFault } from '@/lib/practice/recording/recording-runtime-fault';
-import type { RecordingIntervention } from './recording-intervention';
+import type { PracticeResourceIntervention } from './resource-intervention';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
@@ -30,6 +31,7 @@ import { continuousMetronomeSyncPoint } from './metronome-sync';
 const DIAGNOSTIC_LIMIT = 32;
 
 export type ContinuousControllerOptions = Readonly<{
+  startupTimings?: PracticeStartupTimings;
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
   tempoSelection?: PracticeTempoSelection; countInBeats?: number; metronomeEnabled?: boolean;
   recordingMode?: PracticeRecordingMode; cameraStream?: MediaStream | null;
@@ -40,7 +42,7 @@ export type ContinuousControllerSnapshot = Readonly<{
   session: ContinuousControllerState; transport: PerformanceClockSnapshot | null;
   analysis: 'NOT_REQUIRED' | 'PREPARING' | 'PREROLL' | 'RUNNING' | 'PAUSED' | 'DRAINING' | 'COMPLETE' | 'FAILED';
   analysisError: string | null; inputError: string | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
-  recordingIntervention: RecordingIntervention | null;
+  resourceIntervention: PracticeResourceIntervention | null;
   evaluation: ContinuousEvaluationSnapshot | null; completed: ContinuousPracticeCompletion | null;
   sessionSnapshot: LocalPerformanceSessionSnapshot | null;
 }>;
@@ -72,10 +74,12 @@ export class ContinuousPracticeController {
   private cleanupPromise: Promise<void> | null = null;
   private cleanupFailure: string | null = null;
   private fatalFailure: ContinuousErrorCode | null = null;
-  private detachInfrastructure: (() => void) | null = null;
+  private inputResources: ContinuousMicrophoneResources | null = null;
+  private inputIncident: MicrophoneResourceHealth | null = null;
+  private updatingIntervention = false;
   private disposed = false;
   private recordingBegan = false;
-  private intervention: RecordingIntervention | null = null;
+  private intervention: PracticeResourceIntervention | null = null;
   private detachRecorder: (() => void) | null = null;
   private transitioning = false;
   private pendingRecordingFault: RecordingRuntimeFault | null = null;
@@ -83,7 +87,9 @@ export class ContinuousPracticeController {
   private readonly listeners = new Set<() => void>();
   private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
   private readonly tempoPlan;
+  private readonly startup: PracticeStartupTimings;
   constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform()) {
+    this.startup = options.startupTimings ?? new PracticeStartupTimings();
     this.tempoPlan = resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
     this.enabled = options.metronomeEnabled ?? false;
   }
@@ -96,11 +102,11 @@ export class ContinuousPracticeController {
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
       analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot() ?? null,
-      recordingIntervention: this.intervention ? Object.freeze({ ...this.intervention, ...this.recorder?.runtimeFault() }) : null,
+      resourceIntervention: this.intervention,
       evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
-  engineeringSnapshot() { return Object.freeze({ microphone: this.microphone?.snapshot() ?? null,
+  engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.session?.timebase.domainId ?? null, microphone: this.microphone?.snapshot() ?? null,
     diagnostics: Object.freeze([...this.diagnostics]), diagnosticLimit: DIAGNOSTIC_LIMIT,
     diagnosticPlanningBytes: DIAGNOSTIC_LIMIT * 1024, rootTrackStates: this.rootStream?.getTracks().map(t => t.readyState) ?? [],
     audioContextState: this.context?.state ?? 'CLOSED', audioContextRate: this.context?.sampleRate ?? null }); }
@@ -113,13 +119,13 @@ export class ContinuousPracticeController {
   private async prepareAndStart(): Promise<void> {
     try {
       if (this.options.inputSource === 'MICROPHONE') {
-        this.microphone = new ContinuousMicrophoneInput(this.platform, reason => this.analysisFailed(reason));
-        await this.microphone.acquire(this.abort.signal); this.checkAlive();
-        const stream = await this.platform.acquireMicrophone();
+        this.microphone = new ContinuousMicrophoneInput(this.platform, reason => this.analysisFailed(reason), this.startup);
+        await this.startup.measure('acquireInferenceLease', () => this.microphone!.acquire(this.abort.signal)); this.checkAlive();
+        const stream = await this.startup.measure('getUserMedia', () => this.platform.acquireMicrophone());
         if (this.disposed || this.state === 'ABANDONED') { stream.getTracks().forEach(track => track.stop()); this.checkAlive(); }
         this.rootStream = stream; this.checkAlive();
-        this.context = this.platform.createAudioContext(); await this.context.resume(); this.checkAlive();
-        this.detachInfrastructure = watchMicrophoneInfrastructure(this.rootStream, this.context, code => { void this.failSession(code); });
+        this.context = this.platform.createAudioContext(); await this.startup.measure('audioContextResume', () => this.context!.resume()); this.checkAlive();
+        this.inputResources = new ContinuousMicrophoneResources(this.rootStream, this.context, health => this.inputHealthChanged(health));
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
         this.evidenceProvenance = microphoneEvidenceProvenance(sourceRate(this.context.sampleRate));
@@ -144,16 +150,16 @@ export class ContinuousPracticeController {
             if (!['ACTIVE', 'PREPARING'].includes(this.state)) return;
             if (state.connectedInputCount === 0 && this.state === 'ACTIVE') {
               if (this.transport?.state !== 'PAUSED') this.pause();
-              this.inputError = 'NO_CONNECTED_INPUT'; this.notify();
-            } else if (state.connectedInputCount > 0 && this.inputError === 'NO_CONNECTED_INPUT') { this.inputError = null; this.notify(); }
+              this.inputError = 'NO_CONNECTED_INPUT'; this.updateResourceIntervention(); this.notify();
+            } else if (state.connectedInputCount > 0 && this.inputError === 'NO_CONNECTED_INPUT') { this.inputError = null; this.updateResourceIntervention(); this.notify(); }
           } });
-        await this.midi.prepare();
+        await this.startup.measure('midiBind', () => this.midi!.prepare());
       }
       this.checkAlive();
       try {
         this.recorder = this.platform.createRecorder(this.options.recordingMode ?? 'OFF');
-        await this.recorder.prepare({ inputSource: this.options.inputSource, sessionMicrophoneStream: this.rootStream,
-          cameraStream: this.options.cameraStream });
+        await this.startup.measure('recorderAdmission', () => this.recorder!.prepare({ inputSource: this.options.inputSource, sessionMicrophoneStream: this.rootStream,
+          cameraStream: this.options.cameraStream }));
       } catch (error) { throw recordingPreparationError(error); }
       this.detachRecorder = this.recorder.onRuntimeFault(fault => {
         if (this.transitioning) this.pendingRecordingFault = fault;
@@ -193,12 +199,12 @@ export class ContinuousPracticeController {
       if (before.state === 'ENDED') { this.transport = before; return; }
       this.cancelFuture(before.state === 'COUNT_IN');
       this.transport = this.session!.pause();
-      if (before.state === 'RUNNING' || this.microphone?.hasRunningSegment) this.boundary('PAUSE', C, this.transport.performanceTimeMs);
+      if ((before.state === 'RUNNING' || this.microphone?.hasRunningSegment) && this.context?.state !== 'closed' && !this.microphone?.snapshot().capture?.failed) this.boundary('PAUSE', C, this.transport.performanceTimeMs);
       this.recorder?.pause(this.transport.performanceTimeMs); this.metronome?.pause();
     }); this.record('PAUSE'); this.notify();
   }
   resume(): void {
-    if (this.intervention || this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
+    if (this.intervention || this.inputResources && !this.inputResources.snapshot().healthy || this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
     try { this.midi?.assertConnected(); } catch (error) { this.inputError = (error as Error).message; this.notify(); return; }
     this.inputError = null;
     this.transition(C => {
@@ -279,24 +285,53 @@ export class ContinuousPracticeController {
       if (fault) this.recordingFault(fault);
     }
   }
-  private recordingFault(fault: RecordingRuntimeFault): void {
-    if (this.disposed || this.state !== 'ACTIVE' || this.intervention || this.session?.clock.terminationReason === 'SCOPE_COMPLETED') return;
-    const pauseOrigin = this.transport?.state === 'PAUSED' ? 'USER' : 'RECORDING';
-    if (pauseOrigin === 'RECORDING') this.pauseTransport();
-    if (this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
-    this.intervention = Object.freeze({ ...fault, state: 'WAITING_FOR_USER', pauseOrigin });
-    this.record('RECORDING_INTERRUPTED', fault.reason); this.notify();
+  private recordingFault(_fault: RecordingRuntimeFault): void { this.updateResourceIntervention(); }
+  private inputHealthChanged(health: MicrophoneResourceHealth): void {
+    if (this.disposed) return;
+    if (this.state === 'FINALIZING' && !health.healthy) { void this.failSession(health.reason === 'CAPTURE_PIPELINE_INVALID' ? 'ANALYSIS_FAILED' : health.reason); return; }
+    if (this.session?.clock.terminationReason === 'SCOPE_COMPLETED' || !['ACTIVE', 'PREPARING'].includes(this.state)) return;
+    if (this.state === 'PREPARING') { if (!health.healthy) void this.failSession(health.reason === 'CAPTURE_PIPELINE_INVALID' ? 'ANALYSIS_FAILED' : health.reason); return; }
+    if (!health.healthy || this.inputIncident) this.inputIncident = this.inputIncident?.recoverability === 'RESTART_REQUIRED'
+      ? Object.freeze({ ...this.inputIncident, healthy: false })
+      : health.healthy && this.inputIncident ? Object.freeze({ ...health, reason: this.inputIncident.reason }) : health;
+    this.updateResourceIntervention();
+  }
+  private updateResourceIntervention(): void {
+    if (this.updatingIntervention || this.disposed || this.state !== 'ACTIVE' || this.session?.clock.terminationReason === 'SCOPE_COMPLETED') return;
+    const recording = this.recorder?.runtimeFault();
+    let input = this.inputIncident;
+    if (!input && !recording) return;
+    this.updatingIntervention = true;
+    try {
+      const pauseOrigin = this.intervention?.pauseOrigin ?? (this.transport?.state === 'PAUSED' ? 'USER' : 'INTERVENTION');
+      this.pauseTransport();
+      input = this.inputIncident;
+      if (this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
+      const currentRecording = this.recorder?.runtimeFault();
+      const inputRequired = Boolean(input || this.inputError === 'NO_CONNECTED_INPUT');
+      const hard = input?.recoverability === 'RESTART_REQUIRED' || currentRecording?.recoverability === 'RESTART_REQUIRED';
+      const recovered = !hard && (!input || input.healthy) && this.inputError !== 'NO_CONNECTED_INPUT'
+        && (!currentRecording || currentRecording.state === 'RECOVERED_WAITING_FOR_USER');
+      this.intervention = Object.freeze({ impact: inputRequired ? (this.options.recordingMode && this.options.recordingMode !== 'OFF' ? 'INPUT_AND_RECORDING' : 'INPUT_REQUIRED') : 'RECORDING_ONLY',
+        reason: input?.reason ?? (this.inputError === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT' : currentRecording!.reason),
+        recoverability: hard ? 'RESTART_REQUIRED' : 'SAME_PIPELINE_RECOVERABLE',
+        state: recovered ? 'RECOVERED_WAITING_FOR_USER' : 'WAITING_FOR_USER', pauseOrigin });
+      this.record('RESOURCE_INTERVENTION', this.intervention.impact); this.notify();
+    } finally { this.updatingIntervention = false; }
   }
   continueWithoutRecording(): void {
-    if (!this.intervention || this.state !== 'ACTIVE') return;
-    const resume = this.intervention.pauseOrigin === 'RECORDING';
+    if (this.intervention?.impact !== 'RECORDING_ONLY' || this.state !== 'ACTIVE'
+      || this.inputResources && !this.inputResources.snapshot().healthy || this.inputError === 'NO_CONNECTED_INPUT') return;
+    try { this.midi?.assertConnected(); } catch { this.inputError = 'NO_CONNECTED_INPUT'; this.updateResourceIntervention(); return; }
+    const resume = this.intervention.pauseOrigin === 'INTERVENTION';
     this.recorder!.continueWithoutRecording(); this.intervention = null;
     this.record('RECORDING_LOSS_ACCEPTED'); if (resume) this.resume(); this.notify();
   }
-  checkAndResumeRecording(): boolean {
-    if (!this.intervention || this.state !== 'ACTIVE') return false;
-    if (!this.recorder!.checkRuntimeRecovery() || !this.recorder!.recoverRuntime()) { this.notify(); return false; }
-    const resume = this.intervention.pauseOrigin === 'RECORDING'; this.intervention = null;
+  continueAfterRecovery(): boolean {
+    if (this.intervention?.state !== 'RECOVERED_WAITING_FOR_USER' || this.state !== 'ACTIVE'
+      || this.inputResources && !this.inputResources.snapshot().healthy || this.inputError === 'NO_CONNECTED_INPUT') return false;
+    if (this.recorder?.runtimeFault() && !this.recorder.recoverRuntime()) return false;
+    const resume = this.intervention.pauseOrigin === 'INTERVENTION'; this.inputIncident = null; this.intervention = null;
     if (resume) this.resume(); this.notify(); return this.intervention === null;
   }
   private completeNaturally(mediaStop: Promise<unknown>): Promise<void> {
@@ -333,6 +368,9 @@ export class ContinuousPracticeController {
   }
   private analysisFailed(reason: string): void {
     if (this.fatalFailure || this.disposed || this.state === 'ABANDONED') return;
+    if (this.state === 'ACTIVE' && this.microphone?.snapshot().capture?.failed) {
+      this.inputHealthChanged({ healthy: false, reason: 'CAPTURE_PIPELINE_INVALID', recoverability: 'RESTART_REQUIRED' }); return;
+    }
     this.analysisError ??= continuousErrorCode(reason, 'ANALYSIS_FAILED'); this.record('ANALYSIS_FAILED', reason); this.notify();
   }
   private async failSession(code: ContinuousErrorCode, cause: unknown = code): Promise<void> {
@@ -350,7 +388,7 @@ export class ContinuousPracticeController {
   private cleanup(): Promise<void> {
     if (this.cleanupPromise) return this.cleanupPromise;
     if (this.timer) clearInterval(this.timer); this.timer = null;
-    this.detachInfrastructure?.(); this.detachInfrastructure = null;
+    this.inputResources?.dispose(); this.inputResources = null; this.inputIncident = null;
     this.detachRecorder?.(); this.detachRecorder = null; this.intervention = null; this.pendingRecordingFault = null;
     this.cleanupPromise = (async () => {
       const failed = (error: unknown) => {

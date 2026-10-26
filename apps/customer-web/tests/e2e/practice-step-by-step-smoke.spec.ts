@@ -433,10 +433,11 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await startButton.click();
 
     // Verify count-in or running status
-    await expect(page.getByRole('status')).toContainText(/预备拍|连贯演奏中/);
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
 
     // Wait until running
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // Pause
     const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
@@ -448,7 +449,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const resumeButton = page.getByRole('button', { name: '继续', exact: true });
     await expect(resumeButton).toBeEnabled();
     await resumeButton.click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中');
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // End without a completion artifact
     const endButton = page.getByRole('button', { name: '结束', exact: true });
@@ -568,7 +570,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await resumeButton.click();
 
     // Eventually completes count-in and enters running
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     // Abandon the active session
     const endButton = page.getByRole('button', { name: '结束', exact: true });
@@ -696,7 +699,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.locator('aside')).toHaveCount(0);
 
     // Setup exclusively owns mode, input and recording. STEP has no empty settings sheet.
-    await expect(page.getByRole('button', { name: '设置', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '设置', exact: true })).toBeVisible();
     for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '录音', '录像', '准备练习']) {
       await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
@@ -806,8 +809,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     await sectionButton.click();
     await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
-    await expect(status).not.toContainText('请选择');
-    await expect(status).not.toContainText('第 1 小节');
+    await expect(status).toHaveCount(0);
     await expect(page.locator('.practice-range-selected')).toHaveCount(0);
     await expect(startButton).toBeEnabled();
 
@@ -942,7 +944,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
     await page.context().setOffline(true);
     try {
@@ -960,7 +963,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
       const resumeButton = page.getByRole('button', { name: '继续', exact: true });
       await expect(resumeButton).toBeEnabled();
       await resumeButton.click();
-      await expect(page.getByRole('status')).toContainText('连贯演奏中');
+      await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveCount(0);
 
       const endButton = page.getByRole('button', { name: '结束', exact: true });
       await expect(endButton).toBeEnabled();

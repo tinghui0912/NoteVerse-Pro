@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
+import { LoaderCircle, Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -35,6 +35,7 @@ interface PracticeControlSurfaceProps {
   onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
+  elapsedSeconds?: number;
   onStart: () => void;
   transportControl?: React.ReactNode;
   onEnd: () => void;
@@ -42,8 +43,8 @@ interface PracticeControlSurfaceProps {
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl' | 'onOpenSettings'> & { lifecycle: StepControllerState }) {
-  return <PracticeControlSurface {...props} onOpenSettings={undefined} />;
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
+  return <PracticeControlSurface {...props} />;
 }
 
 export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
@@ -77,6 +78,7 @@ function PracticeControlSurface({
   onTempoSelectionChange,
   metronomeEnabled = false,
   onMetronomeEnabledChange,
+  elapsedSeconds = 0,
   onStart,
   transportControl,
   onEnd,
@@ -105,10 +107,11 @@ function PracticeControlSurface({
             onClick={onStart}
             size="lg"
             disabled={!canStart}
+            aria-busy={isPreparingSession}
             className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
           >
-            <Mic className="mr-2 h-4 w-4" />
-            {t('start')}
+            <span aria-hidden="true">{isPreparingSession ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Mic className="mr-2 h-4 w-4" />}</span>
+            {t(isPreparingSession ? 'startingAttempt' : 'start')}
           </Button>
         )}
         <Button
@@ -127,6 +130,9 @@ function PracticeControlSurface({
         </Button>
       </div>
 
+      {isActive && <time data-testid="practice-timer" aria-label={t('practiceElapsedTime')} className="text-sm font-semibold tabular-nums text-slate-600">
+        {`${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`}
+      </time>}
       <div className="hidden h-8 w-px bg-slate-200 lg:block" aria-hidden="true" />
 
       <TooltipProvider>

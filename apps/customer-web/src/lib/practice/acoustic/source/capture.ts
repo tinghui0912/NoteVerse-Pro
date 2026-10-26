@@ -14,16 +14,18 @@ export class BrowserAcousticCapture {
   private readyTimer: ReturnType<typeof setTimeout> | undefined;
   private constructor(private readonly bridge: CaptureConsumer, private readonly stream: MediaStream,
     private readonly context: AudioContext, private readonly source: MediaStreamAudioSourceNode,
-    private readonly node: AudioWorkletNode, private readonly gain: GainNode) {
+    private readonly node: AudioWorkletNode, private readonly gain: GainNode,
+    private readonly contextInterruption: 'FAIL' | 'RETAIN_GRAPH') {
     this.readiness = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject; });
     void this.readiness.catch(() => {});
   }
 
   static async connect(options: {
     bridge: CaptureConsumer; stream: MediaStream; ownership: CaptureOwnership;
-    context: AudioContext; workletUrl: string;
+    context: AudioContext; workletUrl: string; contextInterruption?: 'FAIL' | 'RETAIN_GRAPH';
   }): Promise<BrowserAcousticCapture> {
-    onlyFields(options, ['bridge', 'stream', 'ownership', 'context', 'workletUrl']);
+    onlyFields(options, ['bridge', 'stream', 'ownership', 'context', 'workletUrl', 'contextInterruption']);
+    if (options.contextInterruption !== undefined && !['FAIL', 'RETAIN_GRAPH'].includes(options.contextInterruption)) fail('INVALID_CAPTURE_CONTEXT_POLICY');
     if (!['BORROWED_SESSION_STREAM', 'OWNED_ANALYSIS'].includes(options.ownership)) fail('INVALID_CAPTURE_OWNERSHIP');
     const stream = options.ownership === 'BORROWED_SESSION_STREAM' ? options.stream.clone() : options.stream;
     let capture: BrowserAcousticCapture | null = null;
@@ -34,7 +36,7 @@ export class BrowserAcousticCapture {
       node = new AudioWorkletNode(options.context, 'noteverse-practice-pcm');
       source = options.context.createMediaStreamSource(stream); gain = options.context.createGain();
       gain.gain.value = 0;
-      capture = new BrowserAcousticCapture(options.bridge, stream, options.context, source, node, gain);
+      capture = new BrowserAcousticCapture(options.bridge, stream, options.context, source, node, gain, options.contextInterruption ?? 'FAIL');
       const owner = capture;
       owner.detachCleanup = options.bridge.attachCaptureCleanup(() => owner.stop());
       node.port.onmessage = (event: MessageEvent<CaptureChunk | { type: 'capture-failure'; code: string }>) => {
@@ -68,7 +70,7 @@ export class BrowserAcousticCapture {
     }
   }
   private readonly onStateChange = () => {
-    if (!this.stopped && this.context.state !== 'running') this.fail(new Error('ACOUSTIC_CONTEXT_SUSPENDED'));
+    if (!this.stopped && this.context.state !== 'running' && (this.contextInterruption === 'FAIL' || this.context.state === 'closed')) this.fail(new Error('ACOUSTIC_CONTEXT_SUSPENDED'));
   };
   private settleReady(): void { clearTimeout(this.readyTimer); this.resolveReady = null; this.rejectReady = null; }
   private fail(error: unknown): void {

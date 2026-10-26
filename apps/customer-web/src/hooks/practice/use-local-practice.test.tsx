@@ -659,7 +659,7 @@ describe('useLocalPractice', () => {
 
   it('delegates microphone Start to the Continuous owner and reflects its lifecycle without fabricated evidence', async () => {
     let snapshot: ContinuousControllerSnapshot = { session: 'PREPARING', transport: null, analysis: 'PREPARING',
-      recordingIntervention: null, analysisError: null, inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null };
+      resourceIntervention: null, analysisError: null, inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null };
     const listeners = new Set<() => void>();
     const unsubscribe = vi.fn(() => listeners.clear());
     vi.spyOn(ContinuousPracticeController.prototype, 'subscribe').mockImplementation(listener => { listeners.add(listener); return unsubscribe; });

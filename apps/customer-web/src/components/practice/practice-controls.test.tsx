@@ -248,3 +248,23 @@ describe('ContinuousPracticeControls', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeEnabled();
   });
 });
+
+it('Start owns compact binding busy state and prevents a second click', () => {
+  const start = vi.fn(); renderControls(false, { isPreparingSession: true, onStart: start });
+  const button = screen.getByRole('button', { name: messages.startingAttempt });
+  expect(button).toBeDisabled(); expect(button).toHaveAttribute('aria-busy', 'true');
+  expect(button.querySelector('.animate-spin')).not.toBeNull(); fireEvent.click(button); expect(start).not.toHaveBeenCalled();
+  expect(screen.queryByRole('status')).toBeNull();
+});
+it('STEP settings is a discoverable configuration navigation action without input editors', () => {
+  const settings = vi.fn(); render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+    <StepPracticeControls lifecycle="IDLE" isLoading={false} isPreparingSession={false} canPrepareSession
+      rangeSelectionActive={false} canSelectRange onStart={vi.fn()} onEnd={vi.fn()} onToggleRangeSelection={vi.fn()} onOpenSettings={settings} />
+  </NextIntlClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: messages.settingsButton })); expect(settings).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('button', { name: messages.settingMidi })).toBeNull();
+});
+it('running time is compact transport data, independent of a status banner', () => {
+  renderControls(false, { lifecycle: 'ACTIVE', elapsedSeconds: 65 });
+  expect(screen.getByTestId('practice-timer')).toHaveTextContent('01:05'); expect(screen.queryByRole('status')).toBeNull();
+});

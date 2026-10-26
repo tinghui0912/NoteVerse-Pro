@@ -1,6 +1,7 @@
 'use client';
+import type { PracticeResourceImpact } from '@/lib/practice/continuous/resource-intervention';
 
-import { AlertCircle, LoaderCircle, Mic } from 'lucide-react';
+import { AlertCircle, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
@@ -18,10 +19,9 @@ import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practi
 type PracticeStatusMessageKey =
   | typeof continuousErrorMessageKeys[ContinuousErrorCode]
   | 'recordingPaused'
-  | 'preparingPractice'
+  | 'inputPaused'
   | 'performanceCountIn'
   | 'performanceStarting'
-  | 'performanceRunning'
   | 'finishingPractice'
   | 'waitingForFirstNote'
   | 'stepCapturing'
@@ -32,7 +32,6 @@ type PracticeStatusMessageKey =
   | 'stepMicrophoneChecking'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
-  | 'settingStatusReady'
   | 'micStartFailed'
   | 'midiStartFailed'
   | 'micBrowserUnsupported'
@@ -54,26 +53,19 @@ export type PracticeStatusProps = {
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
-  recordingInterrupted?: boolean;
+  resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
   sessionMode: PracticeMode;
-  practiceTime: number;
   performanceClock?: PerformanceClockSnapshot | null;
 };
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
 
 export function resolvePracticeStatusView({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
-  recordingInterrupted = false,
+  resourceImpact = null,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
@@ -87,7 +79,7 @@ export function resolvePracticeStatusView({
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
-  recordingInterrupted?: boolean;
+  resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
@@ -119,15 +111,8 @@ export function resolvePracticeStatusView({
     };
   }
 
-  if (inputState === 'STARTING') {
-    return {
-      messageKey: 'preparingPractice',
-      pending: true,
-      countInPulse: null,
-    };
-  }
-
-  if (recordingInterrupted) return { messageKey: 'recordingPaused', pending: false, countInPulse: null };
+  if (inputState === 'STARTING') return { pending: false, countInPulse: null };
+  if (resourceImpact) return { messageKey: resourceImpact === 'RECORDING_ONLY' ? 'recordingPaused' : 'inputPaused', pending: false, countInPulse: null };
 
   if (sessionMode === 'CONTINUOUS_PLAY' && lifecycle === 'PAUSED') {
     return {
@@ -164,7 +149,6 @@ export function resolvePracticeStatusView({
       }
     }
     return {
-      messageKey: 'settingStatusReady',
       pending: false,
       countInPulse: null,
     };
@@ -180,7 +164,6 @@ export function resolvePracticeStatusView({
 
   if (sessionMode === 'CONTINUOUS_PLAY') {
     return {
-      messageKey: 'performanceRunning',
       pending: false,
       countInPulse: null,
     };
@@ -205,12 +188,11 @@ export function PracticeStatus({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
-  recordingInterrupted = false,
+  resourceImpact = null,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
   sessionMode,
-  practiceTime,
   performanceClock,
   stepInteractionPhase,
   pendingPostVerdict,
@@ -222,7 +204,7 @@ export function PracticeStatus({
         lifecycle,
         inputState,
         inputError,
-        recordingInterrupted,
+        resourceImpact,
         inputSource,
         selectedInputCapability,
         rangePrompt,
@@ -233,7 +215,7 @@ export function PracticeStatus({
       }),
     [
       inputError,
-      recordingInterrupted,
+      resourceImpact,
       inputSource,
       inputState,
       lifecycle,
@@ -246,7 +228,6 @@ export function PracticeStatus({
     ]
   );
 
-  const isRecording = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
 
   let messageText = '';
   if (resolvedView.countInPulse !== null) {
@@ -270,6 +251,7 @@ export function PracticeStatus({
     messageText = t(resolvedView.messageKey);
   }
 
+  if (!messageText) return null;
   return (
     <div
       role="status"
@@ -307,12 +289,7 @@ export function PracticeStatus({
       >
         {messageText}
       </span>
-      {isRecording ? (
-        <span className="flex shrink-0 items-center gap-1.5 border-l border-slate-200 pl-2.5 font-semibold tabular-nums text-rose-600">
-          <Mic className="h-3.5 w-3.5" aria-hidden="true" />
-          {formatTime(practiceTime)}
-        </span>
-      ) : null}
+
     </div>
   );
 }

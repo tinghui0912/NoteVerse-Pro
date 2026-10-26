@@ -486,3 +486,21 @@ it('Practice owns only presentation preference writes; Setup owns mode, input an
   const setup = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx');
   expect(imports(setup).some(edge => edge.target?.endsWith('/ui/switch.tsx'))).toBe(false);
 });
+
+it('fresh attempt binding cannot reach cold Setup qualification', () => {
+  const roots = ['step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts',
+    '../../hooks/practice/use-local-practice.ts'];
+  const visited = new Set<string>();
+  const visit = (file: string) => {
+    if (visited.has(file)) return; visited.add(file);
+    for (const edge of sourceGraph.get(file) ?? []) {
+      if (!edge.target) continue;
+      const owner = relative(edge.target);
+      expect(owner.startsWith('environment/'), `${relative(file)} -> ${owner}`).toBe(false);
+      expect(owner.includes('practice-acoustic-model-asset'), owner).toBe(false);
+      expect(edge.bindings.some(name => ['PracticeEnvironment', 'probePracticeRequirements', 'getPracticeAcousticModelAccess', 'AcousticEngine'].includes(name)), owner).toBe(false);
+      if (sourceGraph.has(edge.target)) visit(edge.target);
+    }
+  };
+  for (const root of roots) visit(normalize(path.resolve(practiceRoot, root)));
+});

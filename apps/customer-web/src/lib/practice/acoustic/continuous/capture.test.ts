@@ -17,9 +17,9 @@ function fixture() {
     createMediaStreamSource: () => source, createGain: () => gain, destination: {} });
   return { runtime, bridge, recordingTrack, analysisTrack, node, source, gain, stream, context };
 }
-async function connected(f: ReturnType<typeof fixture>, ownership: 'BORROWED_SESSION_STREAM' | 'OWNED_ANALYSIS') {
+async function connected(f: ReturnType<typeof fixture>, ownership: 'BORROWED_SESSION_STREAM' | 'OWNED_ANALYSIS', contextInterruption?: 'FAIL' | 'RETAIN_GRAPH') {
   const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
-    stream: f.stream as unknown as MediaStream, ownership, context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+    stream: f.stream as unknown as MediaStream, ownership, contextInterruption, context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
   await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
   (f.node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 0, samples: new Float32Array(2048) } });
   return pending;
@@ -79,4 +79,23 @@ it('pre-domain readiness timeout is bounded and does not close the borrowed sess
   const rejected = expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_READINESS_TIMEOUT');
   await vi.advanceTimersByTimeAsync(10000); await rejected;
   expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1); expect(f.context.state).toBe('running');
+});
+
+it('retained capture keeps the original graph across temporary context suspension, but closure still invalidates it', async () => {
+  const f = fixture(), capture = await connected(f, 'BORROWED_SESSION_STREAM', 'RETAIN_GRAPH');
+  const source = f.source, node = f.node;
+  f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+  expect(f.bridge.abort).not.toHaveBeenCalled(); expect(f.analysisTrack.stop).not.toHaveBeenCalled(); expect(node.port.close).not.toHaveBeenCalled();
+  f.context.state = 'running'; f.context.dispatchEvent(new Event('statechange'));
+  (node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 1, samples: new Float32Array(2048) } });
+  expect(node.port.postMessage).toHaveBeenCalledWith({ type: 'ACK', sequence: 1 }); expect(f.context.audioWorklet.addModule).toHaveBeenCalledOnce();
+  expect(f.source).toBe(source); expect(f.bridge.receive).toHaveBeenCalledTimes(2);
+  f.context.state = 'closed'; f.context.dispatchEvent(new Event('statechange'));
+  expect(f.bridge.abort).toHaveBeenCalledOnce(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce(); expect(f.recordingTrack.stop).not.toHaveBeenCalled();
+  capture.stop(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce();
+});
+it('borrowed capture retains fail-on-interruption semantics unless its owner explicitly retains the graph', async () => {
+  const f = fixture(); await connected(f, 'BORROWED_SESSION_STREAM');
+  f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+  expect(f.bridge.abort).toHaveBeenCalledOnce(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce();
 });

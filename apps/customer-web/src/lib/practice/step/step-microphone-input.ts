@@ -1,3 +1,4 @@
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
@@ -48,7 +49,7 @@ export class StepMicrophoneInput<Identity> {
     return this.connection.context.currentTime * 1000;
   } });
 
-  constructor(private readonly platform: StepMicrophonePlatform, private readonly sink: StepMicrophoneSink<Identity>) {
+  constructor(private readonly platform: StepMicrophonePlatform, private readonly sink: StepMicrophoneSink<Identity>, private readonly startup = new PracticeStartupTimings()) {
     void this.ready.catch(() => {});
   }
 
@@ -61,7 +62,7 @@ export class StepMicrophoneInput<Identity> {
     connection.context.addEventListener('statechange', this.contextChanged);
     this.setupTask = this.setup(signal);
     return this.setupTask.then(async () => {
-      this.check(); this.captureConnected = true; this.maybeReady(); await this.ready; this.check();
+      this.check(); this.captureConnected = true; this.maybeReady(); await this.startup.measure('acousticPreroll', () => this.ready); this.check();
       return this.retirementBoundary();
     }).catch(error => { this.fail(error); throw error; });
   }
@@ -142,7 +143,7 @@ export class StepMicrophoneInput<Identity> {
       || !c.localSessionId || !c.sourceDomainId || c.sourceDomainId.length > 192) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
     this.worker = await this.platform.acquireInference(signal); this.check();
     this.detachWorker = this.worker.onFailure?.(error => this.fail(error));
-    const coefficientBytes = await this.platform.coefficients(c.context.sampleRate); this.check();
+    const coefficientBytes = await this.startup.measure('firLoad', () => this.platform.coefficients(c.context.sampleRate)); this.check();
     this.runtime = await SourceAnalysisRuntime.create({ sourceDomainId: c.sourceDomainId, sourceSampleRateHz: c.context.sampleRate,
       coefficientBytes, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
       nowAvailabilityMs: () => c.context.currentTime * 1000,
@@ -150,8 +151,8 @@ export class StepMicrophoneInput<Identity> {
     this.check();
     this.bridge = new StepAcousticCaptureBridge(this.runtime, c.context.sampleRate as 44100 | 48000,
       () => this.captured(), error => this.fail(error));
-    this.capture = await this.platform.connectCapture({ bridge: this.bridge, stream: c.stream, ownership: 'BORROWED_SESSION_STREAM',
-      context: c.context, workletUrl: this.platform.workletUrl });
+    this.capture = await this.startup.measure('captureConnect', () => this.platform.connectCapture({ bridge: this.bridge!, stream: c.stream, ownership: 'BORROWED_SESSION_STREAM',
+      context: c.context, workletUrl: this.platform.workletUrl }));
     if (this.closed()) this.capture.stop();
     this.check();
   }

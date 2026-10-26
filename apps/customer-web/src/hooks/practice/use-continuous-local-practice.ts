@@ -1,4 +1,5 @@
 'use client';
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,11 +19,11 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const controller = useRef<ContinuousPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
   const [binding, setBinding] = useState({ identity: { key, artifact: options.artifact },
-    snapshot: null as ContinuousControllerSnapshot | null, error: null as string | null });
+    snapshot: null as ContinuousControllerSnapshot | null, error: null as string | null, pending: false });
   // Reset presentation when ownership changes, including a return to an earlier input/key.
   // This conditional render adjustment avoids an effect publishing the previous owner's state.
   if (binding.identity.key !== key || binding.identity.artifact !== options.artifact) {
-    setBinding({ identity: { key, artifact: options.artifact }, snapshot: null, error: null });
+    setBinding({ identity: { key, artifact: options.artifact }, snapshot: null, error: null, pending: false });
   }
   const { identity, snapshot, error } = binding;
   const setSnapshot = useCallback((value: ContinuousControllerSnapshot | null) => setBinding(current =>
@@ -52,12 +53,14 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     const released = controller.current ? dispose() : resources.waitForRelease();
     const operation = generation.current;
     starting.current = true;
+    setBinding(current => current.identity === identity ? { ...current, pending: true } : current);
+    const startupTimings = new PracticeStartupTimings();
     try {
-      await released;
+      await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
       if (!options.artifact || !options.scope) throw new Error('Score artifact is not available yet.');
       onSessionStart();
-      const current = new ContinuousPracticeController({ artifact: options.artifact, scope: options.scope,
+      const current = new ContinuousPracticeController({ startupTimings, artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         recordingMode: options.recordingMode, cameraStream: options.getCameraMediaStream?.(),
         onNaturalCompletion: value => {
@@ -69,8 +72,8 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       setError(null); preparation.current = current.start(); await preparation.current;
       if (operation === generation.current) setSnapshot(current.snapshot());
     } catch (failure) { if (operation === generation.current) setError((failure as Error).message); }
-    finally { if (operation === generation.current) starting.current = false; }
-  }, [options, dispose, resources, setSnapshot, setError, onSessionStart]);
+    finally { if (operation === generation.current) { starting.current = false; setBinding(current => current.identity === identity ? { ...current, pending: false } : current); } }
+  }, [options, identity, dispose, resources, setSnapshot, setError, onSessionStart]);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
     await released;
@@ -80,7 +83,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const pause = useCallback(async () => { controller.current?.pause(); }, []);
   const resume = useCallback(async () => { controller.current?.resume(); }, []);
   const continueWithoutRecording = useCallback(() => controller.current?.continueWithoutRecording(), []);
-  const checkAndResumeRecording = useCallback(() => controller.current?.checkAndResumeRecording() ?? false, []);
+  const continueAfterRecovery = useCallback(() => controller.current?.continueAfterRecovery() ?? false, []);
   const abandon = useCallback(async () => {
     const current = controller.current, operation = generation.current;
     if (!current) return;
@@ -95,9 +98,9 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const transport = snapshot?.transport;
   const view = continuousControllerView(snapshot), lifecycle = view.lifecycle;
   const inputError = error ?? view.inputError;
-  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : view.inputState;
+  const inputState: LocalPracticeInputState = binding.pending ? 'STARTING' : inputError ? 'ERROR' : view.inputState;
   return { mode: 'CONTINUOUS_PLAY' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
-    recordingIntervention: snapshot?.recordingIntervention ?? null, continueWithoutRecording, checkAndResumeRecording,
+    resourceIntervention: snapshot?.resourceIntervention ?? null, continueWithoutRecording, continueAfterRecovery,
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
     elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,
