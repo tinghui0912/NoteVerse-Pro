@@ -3,7 +3,7 @@
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -89,6 +89,7 @@ export default function PracticeReviewPage({
   const urlParams = useParams();
   const id = scoreIdFromParams(urlParams);
   const t = useTranslations('practice');
+  const format = useFormatter();
   const router = useRouter();
 
   const [completion, setCompletion] = useState<ContinuousPracticeCompletion | null>(() =>
@@ -422,9 +423,16 @@ export default function PracticeReviewPage({
   }
 
   const view = reviewViewModel(result);
-  const { metrics, tempoText } = view;
-  const scopeText = `${t(view.scopeLabel)} ${view.scopeBeatText}`;
+  const { metrics } = view;
+  const tempoText = view.tempo.kind === 'SCORE' ? t('tempoScoreMode') : `${view.tempo.bpm} BPM`;
+  const scopeText = `${t(view.scope.label)} (${t('takeScopeBeats', {
+    start: view.scope.startBeat, end: view.scope.terminalBeat,
+  })})`;
   const inputSourceText = t(view.inputSourceLabel);
+  const completedTime = format.dateTime(new Date(result.completedAt), {
+    hour: 'numeric', minute: '2-digit', second: '2-digit',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 py-6 px-4 sm:px-6 lg:px-8">
@@ -471,7 +479,7 @@ export default function PracticeReviewPage({
 
       <PageHeader
         title={t('reviewTitle')}
-        description={`完成时间：${new Date(result.completedAt).toLocaleTimeString()}`}
+        description={t('reviewCompletedAt', { time: completedTime })}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleBackToScore}>
@@ -582,10 +590,10 @@ export default function PracticeReviewPage({
               pageClassName="w-full overflow-hidden bg-white"
               svgClassName="practice-summary-score-svg"
               loadingContent={
-                <PreviewLoading label="正在加载乐谱..." className="min-h-80" />
+                <PreviewLoading label={t('reviewLoadingScore')} className="min-h-80" />
               }
               emptyContent={
-                <EmptyState title="乐谱未加载" className="min-h-80" />
+                <EmptyState title={t('reviewScoreUnavailable')} className="min-h-80" />
               }
               renderError={(message) => (
                 <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">

@@ -21,9 +21,14 @@ export function reviewViewModel(result: ContinuousPerformanceResult) {
   return {
     metrics, targetCards,
     durationText: `${Math.floor(totalSeconds / 60).toString().padStart(2, '0')}:${(totalSeconds % 60).toString().padStart(2, '0')}`,
-    tempoText: result.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM' ? `${result.tempoPlan.selection.bpm} BPM` : '原曲速度',
-    scopeLabel: result.scope.kind === 'RANGE' ? 'scopeSection' as const : 'scopeFull' as const,
-    scopeBeatText: `(${result.scope.startBeat} - ${result.scope.terminalBeat} 拍)`,
+    tempo: result.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'
+      ? { kind: 'CUSTOM_FIXED_BPM' as const, bpm: result.tempoPlan.selection.bpm }
+      : { kind: 'SCORE' as const },
+    scope: {
+      label: result.scope.kind === 'RANGE' ? 'scopeSection' as const : 'scopeFull' as const,
+      startBeat: result.scope.startBeat,
+      terminalBeat: result.scope.terminalBeat,
+    },
     inputSourceLabel: result.inputSource === 'MICROPHONE' ? 'inputSourceMic' as const : 'inputSourceMidi' as const,
   };
 }

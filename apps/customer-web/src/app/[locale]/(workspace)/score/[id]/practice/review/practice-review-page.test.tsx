@@ -4,6 +4,8 @@ import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import englishPractice from '../../../../../../../../messages/en/practice.json';
+import chinesePractice from '../../../../../../../../messages/zh/practice.json';
 
 const navigationMocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -30,6 +32,11 @@ const translationMocks = vi.hoisted(() => {
     inputSourceMidi: 'MIDI 键盘',
     scopeFull: '全曲演奏',
     scopeSection: '选段演奏',
+    tempoScoreMode: '原速',
+    takeScopeBeats: '第 {start} - {end} 拍',
+    reviewCompletedAt: '完成时间：{time}',
+    reviewLoadingScore: '正在加载乐谱...',
+    reviewScoreUnavailable: '乐谱未加载',
     performanceOutcomes: '音符匹配结果',
     performanceDetails: '演奏详情',
     targetStrikes: '目标音',
@@ -137,14 +144,20 @@ const translationMocks = vi.hoisted(() => {
   }
 
   return {
+    locale: 'zh' as 'en' | 'zh',
+    defaultPractice: translate(practice),
     practice: translate(practice),
   };
 });
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'zh',
-  useTranslations: () => translationMocks.practice,
-}));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createFormatter } = await importOriginal<typeof import('next-intl')>();
+  return {
+    useLocale: () => translationMocks.locale,
+    useTranslations: () => translationMocks.practice,
+    useFormatter: () => createFormatter({ locale: translationMocks.locale, timeZone: 'UTC' }),
+  };
+});
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: navigationMocks.scoreId }),
@@ -171,14 +184,16 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
   useSavePerformanceTake: () => saveMutationMock,
 }));
 
+let currentMockScoreState: 'ready' | 'loading' | 'unavailable' = 'ready';
+
 vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
   usePracticeReadyScoreContent: vi.fn(() => ({
     data: {
       data: {
-        content: '<score-partwise></score-partwise>',
+        content: currentMockScoreState === 'unavailable' ? '' : '<score-partwise></score-partwise>',
       },
     },
-    isLoading: false,
+    isLoading: currentMockScoreState === 'loading',
     selectedRevisionId: 'rev-1',
   })),
 }));
@@ -236,7 +251,13 @@ vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({
 }));
 
 vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
-  VerovioScoreViewer: ({ onRendered }: { onRendered?: (adapter: unknown, el: HTMLElement) => void }) => {
+  VerovioScoreViewer: ({ onRendered, isLoading, xmlContent, loadingContent, emptyContent }: {
+    onRendered?: (adapter: unknown, el: HTMLElement) => void;
+    isLoading?: boolean; xmlContent?: string | null;
+    loadingContent?: React.ReactNode; emptyContent?: React.ReactNode;
+  }) => {
+    if (isLoading) return <>{loadingContent}</>;
+    if (!xmlContent) return <>{emptyContent}</>;
     return (
       <div
         data-testid="mock-verovio-viewer"
@@ -331,6 +352,9 @@ function completeEvaluation(
 
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
+    translationMocks.locale = 'zh';
+    translationMocks.practice = translationMocks.defaultPractice;
+    currentMockScoreState = 'ready';
     navigationMocks.push.mockClear();
     continuousCompletionStore.clearCompletion();
     currentMockArtifact = createMockArtifact();
@@ -377,6 +401,47 @@ describe('PracticeReviewPage', () => {
     const backButton = screen.getByRole('button', { name: /返回练习/i });
     fireEvent.click(backButton);
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
+  });
+
+  it.each((['en', 'zh'] as const).flatMap(locale =>
+    (['ready', 'loading', 'unavailable'] as const).map(scoreState => ({ locale, scoreState }))
+  ))('localizes the $locale SCORE/RANGE review with score state $scoreState', async ({ locale, scoreState }) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+    translationMocks.locale = locale;
+    translationMocks.practice = createTranslator({
+      locale,
+      messages: (locale === 'en' ? englishPractice : chinesePractice) as Record<string, string>,
+      onError: error => { throw error; },
+    });
+    currentMockScoreState = scoreState;
+    const completion = createVideoCompletion();
+    continuousCompletionStore.setCompletion({
+      ...completion,
+      result: { ...completion.result, scope: {
+        kind: 'RANGE', startIndex: 1, endIndex: 1, startGroupId: 'g-2', endGroupId: 'g-2',
+        startBeat: 4, terminalBeat: 8,
+      } },
+    });
+
+    const view = render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    expect(screen.getByText(locale === 'en' ? 'Score Tempo' : '原速')).toBeInTheDocument();
+    expect(screen.getByText(locale === 'en'
+      ? 'Section Performance (Beats 4 - 8)' : '选段演奏 (第 4 - 8 拍)')).toBeInTheDocument();
+    const completedTime = new Intl.DateTimeFormat(locale, {
+      hour: 'numeric', minute: '2-digit', second: '2-digit',
+    }).format(new Date(completion.result.completedAt));
+    expect(screen.getByText(locale === 'en' ? `Completed at ${completedTime}` : `完成时间：${completedTime}`)).toBeInTheDocument();
+    if (scoreState === 'loading') {
+      expect(screen.getByText(locale === 'en' ? 'Loading score...' : '正在加载乐谱...')).toBeInTheDocument();
+    } else if (scoreState === 'unavailable') {
+      expect(screen.getByText(locale === 'en' ? 'Score unavailable' : '乐谱未加载')).toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId('mock-verovio-viewer')).toBeInTheDocument();
+    }
+    if (locale === 'en') {
+      expect(view.container.textContent).not.toMatch(/原曲速度|拍|完成时间|正在加载乐谱|乐谱未加载/);
+    }
+    expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('renders expired empty state when completion scoreId does not match url', () => {
@@ -457,7 +522,7 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('00:09')).toBeDefined(); // 9600ms = 9s
     expect(screen.getByText('100 BPM')).toBeDefined();
     expect(screen.getByText('麦克风 (Acoustic)')).toBeDefined();
-    expect(screen.getByText('全曲演奏 (0 - 16 拍)')).toBeDefined();
+    expect(screen.getByText('全曲演奏 (第 0 - 16 拍)')).toBeDefined();
 
     // Strike-level summary
     expect(screen.getByText('目标音')).toBeDefined();
