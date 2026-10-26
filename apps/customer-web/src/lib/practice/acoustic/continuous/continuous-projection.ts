@@ -7,7 +7,7 @@ import { deliverPublication, projectContinuousEvidence, type AcousticPublication
 export type AcousticRuntimeOptions = Readonly<{
   sessionDomainId: string; sourceDomainId: string; sourceSampleRateHz: number;
   coefficientBytes: Uint8Array; worker: AcousticInferencePort;
-  nowAvailabilityMs(): number; onPublication: AcousticPublicationSink; onFailure?(error: Error): void;
+  nowAvailabilityRuntimeMs(): number; onPublication: AcousticPublicationSink; onFailure?(error: Error): void;
 }>;
 /** Continuous projection owns only performance mapping and terminal coverage. */
 export class ContinuousAcousticProjection {
@@ -18,14 +18,15 @@ export class ContinuousAcousticProjection {
   private terminal: number | null = null;
   private terminalPublications = 0;
   private frontier = -Infinity;
+  private availabilitySessionTimeMs = -Infinity;
   private delivering = false;
   private constructor(private readonly options: AcousticRuntimeOptions) {}
   static async create(options: AcousticRuntimeOptions): Promise<ContinuousAcousticProjection> {
-    onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityMs', 'onPublication', 'onFailure']);
+    onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
     if (!options.sessionDomainId || options.sessionDomainId.length > 192) fail('INVALID_ACOUSTIC_DOMAIN');
     const owner = new ContinuousAcousticProjection(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }));
     owner.source = await SourceAnalysisRuntime.create({ sourceDomainId: options.sourceDomainId, sourceSampleRateHz: options.sourceSampleRateHz,
-      coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityMs: options.nowAvailabilityMs,
+      coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityRuntimeMs: options.nowAvailabilityRuntimeMs,
       onFailure: options.onFailure, onPublication: publication => {
         const segment = owner.segments.get(publication.window.regionIndex);
         if (!segment) fail('UNKNOWN_ACOUSTIC_PERFORMANCE_SEGMENT');
@@ -75,7 +76,7 @@ export class ContinuousAcousticProjection {
     await this.source.drain();
     try {
       this.deliver(Object.freeze({ publicationId: `${this.options.sourceDomainId}:terminal`, sessionDomainId: this.options.sessionDomainId,
-        analyzedThroughPerformanceMs: this.terminal!, availabilityTimeMs: this.options.nowAvailabilityMs(), observations: Object.freeze([]) }));
+        analyzedThroughPerformanceMs: this.terminal!, availabilitySessionTimeMs: this.options.nowAvailabilityRuntimeMs(), observations: Object.freeze([]) }));
       await this.source.seal(); this.terminalPublications++; this.segments.clear();
     } catch (error) { this.failAnalysis(error); throw error; }
   }
@@ -95,9 +96,13 @@ export class ContinuousAcousticProjection {
     if (s.state === 'SEALED' || s.state === 'DISPOSED') fail('ACOUSTIC_RUNTIME_CLOSED');
   }
   private deliver(publication: Parameters<AcousticPublicationSink>[0]): void {
-    if (publication.analyzedThroughPerformanceMs < this.frontier || publication.availabilityTimeMs < publication.analyzedThroughPerformanceMs) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
+    if (!Number.isFinite(publication.analyzedThroughPerformanceMs) || publication.analyzedThroughPerformanceMs < 0
+      || publication.analyzedThroughPerformanceMs < this.frontier
+      || !Number.isFinite(publication.availabilitySessionTimeMs) || publication.availabilitySessionTimeMs < 0
+      || publication.availabilitySessionTimeMs < this.availabilitySessionTimeMs) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
     this.delivering = true;
     try { deliverPublication(this.options.onPublication, publication); } finally { this.delivering = false; }
     this.frontier = publication.analyzedThroughPerformanceMs;
+    this.availabilitySessionTimeMs = publication.availabilitySessionTimeMs;
   }
 }

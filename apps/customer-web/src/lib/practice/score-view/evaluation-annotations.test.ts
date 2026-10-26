@@ -145,7 +145,7 @@ describe('EvaluationAnnotationController', () => {
       { strikeId: 'e', groupId: 'g-1', pitch: 'E4', expectedPerformanceTimeMs: 1000, renderNoteIds: ['note-e'] },
       { strikeId: 'g', groupId: 'future', pitch: 'G4', expectedPerformanceTimeMs: 5000, renderNoteIds: ['note-g'] },
     ]);
-    finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilityTimeMs: 1600,
+    finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilitySessionTimeMs: 1600,
       observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
     const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('@/lib/practice/continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
 
@@ -162,9 +162,9 @@ describe('EvaluationAnnotationController', () => {
 describe('source-safe score annotations', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s interprets unmatched targets without changing assignment', inputSource => {
     const raw = new ContinuousAssignmentFinalizer('annotation', ['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })));
-    raw.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 3000, availabilityTimeMs: 3100,
+    raw.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100,
       observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) });
-    raw.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilityTimeMs: 3100 });
+    raw.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
     const result = raw.completedAssignment();
     if (result.status !== 'COMPLETE') throw new Error('incomplete');
     expect(noteAnnotationsFromCompletedEvaluation(completedEvaluationFixture(inputSource,result.assignment.groups))).toEqual({

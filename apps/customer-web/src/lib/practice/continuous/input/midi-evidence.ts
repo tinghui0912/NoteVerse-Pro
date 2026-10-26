@@ -23,21 +23,21 @@ export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort
 
   advance(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null {
     if (snapshot.state === 'RUNNING' && snapshot.performanceTimeMs > DEFAULT_MIDI_COVERAGE_GRACE_MS) {
-      return this.cover(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS, snapshot.performanceTimeMs);
+      return this.cover(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS, snapshot.nowMs);
     }
     return null;
   }
 
   complete(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null {
-    return this.cover(snapshot.performanceTimeMs, snapshot.performanceTimeMs);
+    return this.cover(snapshot.performanceTimeMs, snapshot.nowMs);
   }
 
-  cover(frontier: number, availabilityTimeMs: number): ContinuousEvidencePublication | null {
+  cover(frontier: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null {
     if (frontier <= this.frontier) return null;
     const observations = this.pending.filter(observation => observation.performanceTimeMs <= frontier);
     this.pending = this.pending.filter(observation => observation.performanceTimeMs > frontier);
     this.frontier = frontier;
     return { publicationId: `${this.sessionDomainId}:midi-publication:${this.publicationSequence++}`,
-      sessionDomainId: this.sessionDomainId, analyzedThroughPerformanceMs: frontier, availabilityTimeMs, observations };
+      sessionDomainId: this.sessionDomainId, analyzedThroughPerformanceMs: frontier, availabilitySessionTimeMs, observations };
   }
 }

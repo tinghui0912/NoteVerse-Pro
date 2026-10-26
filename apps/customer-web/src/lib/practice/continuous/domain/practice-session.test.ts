@@ -21,6 +21,32 @@ function midiAttack(domainId: string, ms: number, pitches: string[]) {
 }
 
 describe('Continuous session composition and record ownership', () => {
+  it('MIDI events exclude a 5-second pause and Resume Count-In while availability and completion use session time', () => {
+    const clock = new ManualClock(), evidence = new ContinuousMidiEvidence('timing');
+    const publications: ReturnType<ContinuousMidiEvidence['cover']>[] = [];
+    const advance = evidence.advance.bind(evidence), complete = evidence.complete.bind(evidence);
+    vi.spyOn(evidence, 'advance').mockImplementation(snapshot => { const p = advance(snapshot); if (p) publications.push(p); return p; });
+    vi.spyOn(evidence, 'complete').mockImplementation(snapshot => { const p = complete(snapshot); if (p) publications.push(p); return p; });
+    const session = new ContinuousPracticeSession({ artifact, scope: { kind: 'FULL' }, clock, localSessionId: 'timing',
+      inputSource: 'MIDI', countInBeats: 4, createClockEvidence: () => evidence });
+    const start = session.start();
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(false);
+    clock.set(start.countInTotalMs + 1000); expect(session.pause().performanceTimeMs).toBe(1000);
+    clock.advance(5000); const resumed = session.resume();
+    expect(resumed.countInKind).toBe('RESUME');
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(false);
+    expect(session.snapshot().performanceTimeMs).toBe(1000);
+    clock.advance(resumed.countInRemainingMs - 100); session.snapshot();
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(true);
+    clock.advance(300); const snapshot = session.snapshot();
+    const publication = publications.find(p => p?.observations.length)!;
+    expect(publication?.observations[0].performanceTimeMs).toBe(1100);
+    expect(publication?.availabilitySessionTimeMs).toBe(snapshot.nowMs);
+    expect(publication?.availabilitySessionTimeMs).toBeGreaterThan(snapshot.performanceTimeMs + 5000);
+    const terminal = session.end('STOPPED_BY_USER');
+    expect(session.evaluationSnapshot.assignment.completion).toMatchObject({ performanceTimeMs: terminal.performanceTimeMs,
+      availabilitySessionTimeMs: terminal.nowMs });
+  });
   it('requires MIDI evidence in the type contract and excludes it from microphone options', () => {
     type Midi = Extract<ContinuousPracticeSessionOptions, { inputSource: 'MIDI' }>;
     type Microphone = Extract<ContinuousPracticeSessionOptions, { inputSource: 'MICROPHONE' }>;

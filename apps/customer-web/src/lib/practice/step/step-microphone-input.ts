@@ -159,7 +159,7 @@ export class StepMicrophoneInput<Identity> {
     const coefficientBytes = await this.startup.measure('firLoad', () => this.platform.coefficients(c.context.sampleRate)); this.check();
     this.runtime = await SourceAnalysisRuntime.create({ sourceDomainId: c.sourceDomainId, sourceSampleRateHz: c.context.sampleRate,
       coefficientBytes, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
-      nowAvailabilityMs: () => c.context.currentTime * 1000,
+      nowAvailabilityRuntimeMs: () => c.context.currentTime * 1000,
       onPublication: publication => this.publication(publication), onFailure: error => this.fail(error) });
     this.check();
     this.bridge = new StepAcousticCaptureBridge(this.runtime, c.context.sampleRate as 44100 | 48000,

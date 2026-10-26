@@ -7,8 +7,8 @@ function chord(pitches: readonly string[], source: ContinuousObservation['source
   const finalizer = new ContinuousAssignmentFinalizer('chord', ['C4', 'D4'].map(pitch => ({
     strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch],
   })));
-  finalizer.complete({ reason: terminal < 1000 ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED', performanceTimeMs: terminal, availabilityTimeMs: 3100 });
-  finalizer.publish({ publicationId: 'p', sessionDomainId: 'chord', analyzedThroughPerformanceMs: terminal, availabilityTimeMs: 3100,
+  finalizer.complete({ reason: terminal < 1000 ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED', performanceTimeMs: terminal, availabilitySessionTimeMs: 3100 });
+  finalizer.publish({ publicationId: 'p', sessionDomainId: 'chord', analyzedThroughPerformanceMs: terminal, availabilitySessionTimeMs: 3100,
     observations: pitches.map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, source, confidence,
       provenance: { sourceDomainId: 'source', sourceEventSample: 44100, sourceSampleRateHz: 44100 } })) });
   return finalizer;

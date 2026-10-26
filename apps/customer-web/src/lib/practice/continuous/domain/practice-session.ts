@@ -211,7 +211,7 @@ export class ContinuousPracticeSession {
       this.evaluator.complete({
         reason: snapshot.completionReason,
         performanceTimeMs: snapshot.performanceTimeMs,
-        availabilityTimeMs: snapshot.performanceTimeMs,
+        availabilitySessionTimeMs: snapshot.nowMs,
       });
       this.syncedCompletionReason = snapshot.completionReason;
       return snapshot;

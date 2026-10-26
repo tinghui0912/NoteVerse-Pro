@@ -15,6 +15,7 @@ export type ContinuousEvidencePublication = Readonly<{
   publicationId: string;
   sessionDomainId: string;
   analyzedThroughPerformanceMs: number;
-  availabilityTimeMs: number;
+  /** When this evidence/coverage became known, in the publication's session domain. */
+  availabilitySessionTimeMs: number;
   observations: readonly ContinuousObservation[];
 }>;

@@ -23,8 +23,8 @@ export function canonicalContinuousResultFixture(inputSource: 'MIDI' | 'MICROPHO
   const artifact = artifactJson as PracticeScoreArtifact, scope = { kind: 'FULL' } as const, localSessionId = 'result-fixture';
   const session = new ContinuousEvaluationSession({ artifact, scope, inputSource, sessionDomainId: localSessionId,
     timeline: { beatToTimeMs: beat => beat * 500 } });
-  session.publish({ publicationId: 'coverage', sessionDomainId: localSessionId, analyzedThroughPerformanceMs: 10000, availabilityTimeMs: 10000, observations: [] });
-  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilityTimeMs: 10000 });
+  session.publish({ publicationId: 'coverage', sessionDomainId: localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000, observations: [] });
+  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 });
   return createContinuousPerformanceResult({ artifact, scope, localSessionId, inputSource, activeElapsedMs: 10000,
     tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }),
     evaluation: available ? session.completedEvaluation() : unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),

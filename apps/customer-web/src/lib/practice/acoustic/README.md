@@ -56,6 +56,13 @@ Only terminal real-tail drain publishes the empty exact-T coverage handshake.
 Healthy-context analysis failure stops analysis only; product controllers interpret
 infrastructure-loss facts.
 
+Source publications retain physical `sourceEventSample` and score-blind
+`availabilityRuntimeMs`, supplied by `nowAvailabilityRuntimeMs`. Continuous injects
+its established AudioContext session clock; `continuous/` projects that availability
+to `availabilitySessionTimeMs`, separately from event/analysis Performance Time.
+Pause and inference delay affect knowledge availability, not source event identity.
+The 170ms model future context is lookahead, not event timestamp compensation.
+
 Target PCM retains 65,536 float32 samples. At most four queued/active model inputs
 retain 465,920 bytes, with a separately bounded transport/active copy. The fifth
 ready input fails before allocation. Worklet transport permits 32 unacknowledged

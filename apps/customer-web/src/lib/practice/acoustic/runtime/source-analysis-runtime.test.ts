@@ -7,7 +7,7 @@ for (const rate of [44100, 48000]) it(`${rate}: source-only regions publish immu
   const publications: SourceAcousticPublication[] = [];
   const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'source', sourceSampleRateHz: rate,
     coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
-    nowAvailabilityMs: () => 10000, onPublication: p => { publications.push(p); }, worker: {
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); }, worker: {
       run: async input => ({ events: [{ pitch: 'C4', midiPitch: 60, confidence: .5, onsetScore: .5, frameScore: .5,
         targetSample: input.window.ownedStartTarget + 1600 }], inferenceMs: 1, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 }),
       dispose: async () => {} } });

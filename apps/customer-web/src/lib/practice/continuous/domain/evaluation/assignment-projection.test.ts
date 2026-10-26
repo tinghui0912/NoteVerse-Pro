@@ -9,9 +9,9 @@ function assignment(): Mutable<CompletedContinuousAssignment> {
     ...['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })),
     { strikeId: 'G4', groupId: 'h', pitch: 'G4', expectedPerformanceTimeMs: 1800, renderNoteIds: ['G4'] },
   ]);
-  f.publish({ publicationId: 'p', sessionDomainId: 'validation', analyzedThroughPerformanceMs: 4000, availabilityTimeMs: 4100,
+  f.publish({ publicationId: 'p', sessionDomainId: 'validation', analyzedThroughPerformanceMs: 4000, availabilitySessionTimeMs: 4100,
     observations: ['C4','E4','F4','A4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: pitch === 'A4' ? 1800 : 1000, confidence: 1, source: 'MIDI' })) });
-  f.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilityTimeMs: 4100 });
+  f.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 });
   const result = f.completedAssignment();
   if (result.status !== 'COMPLETE') throw new Error('incomplete');
   return structuredClone(result.assignment) as Mutable<CompletedContinuousAssignment>;

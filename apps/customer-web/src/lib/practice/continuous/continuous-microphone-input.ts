@@ -29,7 +29,8 @@ export class ContinuousMicrophoneInput {
     this.runtime = await ContinuousAcousticProjection.create({ sessionDomainId: connection.sessionDomainId,
       sourceDomainId: `${connection.sessionDomainId}:capture`, sourceSampleRateHz: connection.context.sampleRate,
       coefficientBytes: coefficients, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
-      nowAvailabilityMs: () => connection.clock.nowMs(),
+      // AudioContextPerformanceClock shares the established Continuous session coordinate.
+      nowAvailabilityRuntimeMs: () => connection.clock.nowMs(),
       onPublication: publication => { deliverPublication(connection.publish, publication); this.publications++; },
       onFailure: error => this.recordFailure(error) });
     if (this.disposed || signal.aborted) { await this.runtime.dispose(); this.check(signal); }

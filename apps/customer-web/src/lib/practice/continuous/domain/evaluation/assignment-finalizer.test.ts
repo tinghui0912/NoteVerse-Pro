@@ -8,16 +8,32 @@ const strike = (strikeId: string, time = 1000, pitch = 'C4', groupId = strikeId)
 const observation = (observationId: string, time = 1000, pitch = 'C4'): ContinuousObservation =>
   ({ observationId, pitch, performanceTimeMs: time, confidence: 0.8, source: 'ACOUSTIC' });
 const pub = (publicationId: string, frontier: number, observations: readonly ContinuousObservation[] = [], availability = frontier + 100): ContinuousEvidencePublication =>
-  ({ publicationId, sessionDomainId: 'session', analyzedThroughPerformanceMs: frontier, availabilityTimeMs: availability, observations });
+  ({ publicationId, sessionDomainId: 'session', analyzedThroughPerformanceMs: frontier, availabilitySessionTimeMs: availability, observations });
 const ledger = (strikes: readonly ContinuousExpectedStrike[] = [strike('a')]) => new ContinuousAssignmentFinalizer('session', strikes);
 const group = (l: ContinuousAssignmentFinalizer, id = 'a') => l.snapshot().groups.find(g => g.groupId === id)!;
 const finish = (l: ContinuousAssignmentFinalizer, time = 4000, reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER' = 'SCOPE_COMPLETED') => {
   l.publish(pub('end-coverage', time));
-  return l.complete({ reason, performanceTimeMs: time, availabilityTimeMs: time + 100 });
+  return l.complete({ reason, performanceTimeMs: time, availabilitySessionTimeMs: time + 100 });
 };
 const reservation = () => [strike('g'), strike('claim', 1400, 'D4'), strike('next', 1800, 'D4'), strike('other', 2200, 'D4')];
 
 describe('bounded source-blind Continuous assignment', () => {
+  it('finality records session knowledge availability separately from required performance coverage', () => {
+    const l = ledger(); l.publish(pub('delayed', 1250, [observation('o')], 4000));
+    expect(group(l).strikes[0]).toMatchObject({ state: 'MATCHED', match: { timingOffsetMs: 0 },
+      finality: { requiredAnalysisFrontierMs: 1250, finalizationSessionTimeMs: 4000 } });
+  });
+  it('completion has an independent nonnegative session coordinate and rejects availability regression', () => {
+    const l = ledger(); l.publish(pub('coverage', 5000, [], 3000));
+    expect(() => l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 2999 })).toThrow('INVALID_PUBLICATION');
+    expect(l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 }).completion)
+      .toEqual({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 });
+  });
+  it('terminal coverage arriving after a completion request cannot regress session availability', () => {
+    const l = ledger();
+    l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 });
+    expect(() => l.publish(pub('late-coverage', 5000, [], 2999))).toThrow('INVALID_PUBLICATION');
+  });
   it.each([
     ['matched', [strike('a')], [observation('o')], ['MATCHED'], 0],
     ['unmatched', [strike('a')], [], ['UNMATCHED'], 0],
@@ -87,7 +103,7 @@ describe('bounded source-blind Continuous assignment', () => {
   it('wrong session fails closed', () => { expect(() => ledger().publish({ ...pub('p', 1250), sessionDomainId: 'other' })).toThrow('SESSION_DOMAIN_MISMATCH'); });
   it('terminal closes reservations and disallows new publications', () => {
     const l = ledger(reservation()); l.publish(pub('p', 1500, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
-    const completion = { reason: 'SCOPE_COMPLETED', performanceTimeMs: 1500, availabilityTimeMs: 1600 } as const;
+    const completion = { reason: 'SCOPE_COMPLETED', performanceTimeMs: 1500, availabilitySessionTimeMs: 1600 } as const;
     l.complete(completion); expect(l.snapshot().reservedObservationIds).toEqual([]);
     expect(l.completedAssignment().status).toBe('COMPLETE'); expect(l.complete(completion)).toEqual(l.snapshot());
     expect(() => l.publish(pub('new', 1600))).toThrow('PUBLICATION_AFTER_COMPLETION');
@@ -100,19 +116,19 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(() => ledger([strike('a', 1000, 'C4', 'g'), strike('b', 1001, 'E4', 'g')])).toThrow('canonical onset');
   });
   it('completion cannot extend coverage beyond the stopped performance boundary', () => {
-    const l = ledger(); l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilityTimeMs: 1000 });
+    const l = ledger(); l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 1000 });
     expect(() => l.publish(pub('beyond', 1001))).toThrow('PUBLICATION_AFTER_COMPLETION');
   });
   it('manual partial chord retains committed match metadata without calling the chord complete', () => {
     const l = ledger([strike('a', 1000, 'C4', 'chord'), strike('b', 1000, 'E4', 'chord')]);
     l.publish(pub('p', 1100, [observation('o')]));
-    l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1100, availabilityTimeMs: 1200 });
+    l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1100, availabilitySessionTimeMs: 1200 });
     expect(group(l, 'chord').strikes.some(strike => strike.state === 'NOT_REACHED')).toBe(true);
     expect(group(l, 'chord').strikes.map(strike => strike.state)).toEqual(['MATCHED', 'NOT_REACHED']);
   });
   it('exact finality timestamps use availability, never attack time', () => {
     const l = ledger(); l.publish(pub('p', 1250, [observation('o')], 1800));
-    expect(group(l).finality).toMatchObject({ requiredAnalysisFrontierMs: 1250, finalizationTimeMs: 1800, enablingPublicationId: 'p' });
+    expect(group(l).finality).toMatchObject({ requiredAnalysisFrontierMs: 1250, finalizationSessionTimeMs: 1800, enablingPublicationId: 'p' });
   });
   it('stable ties and permutation-invariant completed truth', () => {
     const run = (reverse: boolean) => {
@@ -150,7 +166,7 @@ describe('deterministic residual slot relations', () => {
     const run = (rows: readonly string[], targets: readonly string[]) => {
       const l = ledger(targets.map(pitch => strike(pitch, 1000, pitch, 'g')));
       l.publish(pub('p', 4000, rows.map(pitch => observation(pitch, 1000, pitch)), 4100));
-      l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilityTimeMs: 4100 });
+      l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 });
       return l.snapshot();
     };
     const snapshot = run(pitches, ['C4','D4']), group = snapshot.groups[0];
@@ -161,7 +177,7 @@ describe('deterministic residual slot relations', () => {
     expect(group.residualAssignments.map(row => row.strikeId)).toEqual(slots);
     expect(group.residualAssignments.every(row => row.timingOffsetMs === 0)).toBe(true);
     const finality = { requiredAnalysisFrontierMs: 1250, unclampedRequiredFrontierMs: 1250,
-      enablingPublicationId: 'p', enablingAnalysisFrontierMs: 4000, finalizationTimeMs: 4100, terminalClamp: false };
+      enablingPublicationId: 'p', enablingAnalysisFrontierMs: 4000, finalizationSessionTimeMs: 4100, terminalClamp: false };
     expect(group.finality).toEqual(finality);
     expect(group.strikes.every(s => s.state !== 'PENDING' && JSON.stringify(s.finality) === JSON.stringify(finality))).toBe(true);
     expect(snapshot.unattributedObservations.every(row => JSON.stringify(row.finality) === JSON.stringify(finality))).toBe(true);

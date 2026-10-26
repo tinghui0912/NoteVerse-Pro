@@ -11,8 +11,8 @@ const observation = (sample: number, id = `o:${sample}`, pitch = 'C4', confidenc
   observationId: id, pitch, midiPitch: pitch === 'C5' ? 72 : 60, confidence,
   sourceDomainId: 'source', sourceSampleRateHz: 48000, sourceEventSample: sample, targetSample: Math.round(sample / 3),
 });
-const publication = (frontier: number, observations: readonly SourceAcousticObservation[], availabilityTimeMs = 0): SourceAcousticPublication => ({
-  sourceDomainId: 'source', sourceSampleRateHz: 48000, ownedThroughSourceSample: frontier, availabilityTimeMs, observations,
+const publication = (frontier: number, observations: readonly SourceAcousticObservation[], availabilityRuntimeMs = 0): SourceAcousticPublication => ({
+  sourceDomainId: 'source', sourceSampleRateHz: 48000, ownedThroughSourceSample: frontier, availabilityRuntimeMs, observations,
   window: { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 0, ownedEndTarget: frontier / 3, startSample: 0, endSample: 29120 },
 });
 function setup(open = vi.fn((): number | null => 1)) {

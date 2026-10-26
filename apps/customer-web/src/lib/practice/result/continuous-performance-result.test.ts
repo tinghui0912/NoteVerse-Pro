@@ -10,6 +10,8 @@ describe('immutable Continuous product result', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities, metrics and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(result));
+    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.evidenceProvenance.timing.calibrationApplied).toBe(false);
     expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
     expect(parsed).toEqual(result);
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.scope)).toBe(true);
@@ -18,7 +20,7 @@ describe('immutable Continuous product result', () => {
     expectTypeOf<Extract<keyof Parameters<typeof createContinuousPerformanceResult>[0], 'metrics'>>().toEqualTypeOf<never>();
   });
   it.each([
-    ['schema', (value: ReturnType<typeof clone>) => { value.schemaVersion = 2; }],
+    ['schema', (value: ReturnType<typeof clone>) => { value.schemaVersion = 1; }],
     ['session', (value: ReturnType<typeof clone>) => { value.localSessionId = 'foreign'; }],
     ['source', (value: ReturnType<typeof clone>) => { value.inputSource = 'STEP'; }],
     ['cross-source evaluation', (value: ReturnType<typeof clone>) => { value.inputSource = 'MICROPHONE'; }],
@@ -27,6 +29,13 @@ describe('immutable Continuous product result', () => {
     ['metrics policy', (value: ReturnType<typeof clone>) => { value.metrics.metricsPolicyId = 'other'; }],
     ['metrics source', (value: ReturnType<typeof clone>) => { value.metrics.inputSource = 'MICROPHONE'; }],
     ['provenance', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.evidencePolicyId = 'other'; }],
+    ['timing mapping', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.eventTimeMappingPolicyId = 'OTHER'; }],
+    ['calibration policy', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.calibrationPolicyId = 'MEASURED'; }],
+    ['applied calibration', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.calibrationApplied = true; }],
+    ['ambiguous finality field', (value: ReturnType<typeof clone>) => {
+      const finality = value.evaluation.assignment.groups[0].finality;
+      finality.finalizationTimeMs = finality.finalizationSessionTimeMs; delete finality.finalizationSessionTimeMs;
+    }],
     ['completion date', (value: ReturnType<typeof clone>) => { value.completedAt = 'today'; }],
     ['elapsed', (value: ReturnType<typeof clone>) => { value.activeElapsedMs = -1; }],
     ['scope', (value: ReturnType<typeof clone>) => { value.scope.endIndex = -1; }],
@@ -44,21 +53,27 @@ describe('immutable Continuous product result', () => {
       source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
       ...(inputSource === 'MICROPHONE' ? { provenance: { sourceDomainId: 'capture', sourceEventSample: 2400, sourceSampleRateHz: 48000 } } : {}) };
     evaluator.publish({ publicationId: 'evidence', sessionDomainId: localSessionId, observations: [observation],
-      analyzedThroughPerformanceMs: 10000, availabilityTimeMs: 10000 });
-    evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilityTimeMs: 10000 });
+      analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000 });
+    evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
     const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: { kind: 'FULL' },
       tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
     const parsed = JSON.parse(JSON.stringify(result)); assertContinuousPerformanceResult(parsed);
     expect(parsed.evaluation.status).toBe('COMPLETE');
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
     expect(parsed.evaluation.assignment.observations).toEqual([observation]);
+    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.evaluation.assignment.completion).toMatchObject({ performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
+    expect(parsed.evaluation.assignment.groups[0].strikes[0].finality.finalizationSessionTimeMs).toBe(3000);
+    expect(parsed.evidenceProvenance.timing).toMatchObject({ calibrationApplied: false,
+      calibrationPolicyId: 'CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1', eventTimeMappingPolicyId: inputSource === 'MIDI'
+        ? 'MIDI_EVENT_TIMESTAMP_TO_PERFORMANCE_TIME_V1' : 'ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1' });
     expect(parsed.evaluation.assignment.observationAssignments).toMatchObject([{ kind: 'STRIKE_MATCH', observationId: observation.observationId }]);
   });
   it('unavailable evaluation retains canonical target count, identities and provenance without fabricated outcomes', () => {
     const result = canonicalContinuousResultFixture('MICROPHONE', 44100, false);
     expect(result.metrics).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', metricsPolicyId: 'CONTINUOUS_PRODUCT_METRICS_V1',
       targetStrikeCount: artifact.expectedPracticeGroups.flatMap(group => group.strikeTargets).length, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V1',
+    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2',
       interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1' });
     expect(result.evidenceProvenance).toMatchObject({ sourceSampleRateHz: 44100 });
     expect(() => assertContinuousPerformanceResult(JSON.parse(JSON.stringify(result)))).not.toThrow();

@@ -9,7 +9,7 @@ export type SourcePcmBlock = Readonly<{ sourceSampleRateHz: number; sourceStartS
   sourceEndSampleIndex: number; samples: Float32Array }>;
 export type SourceAnalysisOptions = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: number; coefficientBytes: Uint8Array; worker: AcousticInferencePort;
-  nowAvailabilityMs(): number; onPublication: SourcePublicationSink; onFailure?(error: Error): void;
+  nowAvailabilityRuntimeMs(): number; onPublication: SourcePublicationSink; onFailure?(error: Error): void;
 }>;
 type WindowDiagnostic = Readonly<{ jobIndex: number; regionIndex: number; ownedStartTarget: number; ownedEndTarget: number;
   inputStartSample: number; inputEndSample: number; queueDelayMs: number; inferenceMs: number; decodeMs: number;
@@ -39,7 +39,7 @@ export class SourceAnalysisRuntime {
     this.detachWorker = options.worker.onFailure?.(error => this.failAnalysis(error));
   }
   static async create(options: SourceAnalysisOptions): Promise<SourceAnalysisRuntime> {
-    onlyFields(options, ['sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityMs', 'onPublication', 'onFailure']);
+    onlyFields(options, ['sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
     if (!options.sourceDomainId || options.sourceDomainId.length > 192) fail('INVALID_ACOUSTIC_DOMAIN');
     await assertAcousticIdentity();
     const adapter = await QualifiedSourceAdapter.create(options.sourceSampleRateHz, options.coefficientBytes);
@@ -133,8 +133,8 @@ export class SourceAnalysisRuntime {
     if (this.state === 'SEALED' || this.state === 'DISPOSED') fail('ACOUSTIC_RUNTIME_CLOSED');
   }
   private clock(): number {
-    const time = this.options.nowAvailabilityMs();
-    if (!Number.isFinite(time) || time < this.lastClock) fail('NONMONOTONIC_ACOUSTIC_AVAILABILITY');
+    const time = this.options.nowAvailabilityRuntimeMs();
+    if (!Number.isFinite(time) || time < 0 || time < this.lastClock) fail('NONMONOTONIC_ACOUSTIC_AVAILABILITY');
     this.lastClock = time; return time;
   }
   private planAvailable(): void {

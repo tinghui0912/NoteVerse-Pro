@@ -18,6 +18,10 @@ import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { ContinuousCaptureBridge } from './capture-bridge';
 import { ContinuousAcousticProjection, type AcousticRuntimeOptions } from './continuous-projection';
 import { projectContinuousEvidence } from './publication';
+import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
+import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
+import { createContinuousPerformanceMetrics } from '@/lib/practice/result/continuous-performance-metrics';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
 function result(input: AcousticInferenceInput): AcousticInferenceResult {
@@ -25,11 +29,11 @@ function result(input: AcousticInferenceInput): AcousticInferenceResult {
   return { events: [{ midiPitch: 60, pitch: 'C4', confidence: .4, onsetScore: .6, frameScore: .4,
     targetSample }], inferenceMs: 1, decodeMs: .1, actualSessionRunCount: w.jobIndex + 1 };
 }
-async function setup(rate = 48000, port?: AcousticInferencePort, sink?: AcousticRuntimeOptions['onPublication']) {
+async function setup(rate = 48000, port?: AcousticInferencePort, sink?: AcousticRuntimeOptions['onPublication'], nowAvailabilityRuntimeMs = () => 10000000) {
   const publications: ContinuousEvidencePublication[] = [], calls: AcousticInferenceInput[] = [];
   const worker = port ?? { run: async (input: AcousticInferenceInput) => { calls.push(input); return result(input); }, dispose: vi.fn(async () => {}) };
   const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'session', sourceDomainId: 'capture', sourceSampleRateHz: rate,
-    coefficientBytes: await coefficients(rate), worker, nowAvailabilityMs: () => 10000000,
+    coefficientBytes: await coefficients(rate), worker, nowAvailabilityRuntimeMs,
     onPublication: sink ?? (p => { publications.push(p); }) });
   const bridge = new ContinuousCaptureBridge(runtime, rate);
   let next = 0, sequence = 0;
@@ -134,7 +138,7 @@ for (const duration of [50, 601, 1180]) it(`terminal partial ${duration}ms prese
 it('pre-roll is real; early begin and padded/insufficient terminal context fail closed', async () => {
   const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 's', sourceDomainId: 'd', sourceSampleRateHz: 48000,
     coefficientBytes: await coefficients(), worker: { run: async i => result(i), dispose: async () => {} },
-    nowAvailabilityMs: () => 10000, onPublication: () => {} });
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: () => {} });
   runtime.append({ sourceSampleRateHz: 48000, sourceStartSampleIndex: 0, sourceEndSampleIndex: 128, samples: new Float32Array(128) });
   expect(() => runtime.beginSegment(0)).toThrow('ACOUSTIC_PREROLL_NOT_READY');
   const b = await setup(); b.bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
@@ -236,7 +240,7 @@ it('real assignment finalizer retains source-blind ownership from the model-agno
   bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
   for (let n = 96000; n < 268800; n += 28800) { feedTo(n + 28800); await runtime.drain(); }
   runtime.requestTerminal(3600); feedTo(278400); await runtime.seal();
-  const finished = finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilityTimeMs: 10000000 });
+  const finished = finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilitySessionTimeMs: 10000000 });
   expect(finished.groups.map(g => g.strikes.map(s => s.state))).toEqual([['MATCHED'], ['UNMATCHED'], ['UNMATCHED'], ['MATCHED', 'UNMATCHED']]);
   expect(finished.unattributedObservations).toHaveLength(1); expect(finished.observationAssignments).toHaveLength(4);
   await runtime.dispose();
@@ -252,7 +256,7 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
   const before = session.clock.snapshot();
   const port: AcousticInferencePort = { run: async input => result(input), dispose: async () => {} };
   const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: session.timebase.domainId, sourceDomainId: 'clock-independent',
-    sourceSampleRateHz: 48000, coefficientBytes: await coefficients(), worker: port, nowAvailabilityMs: () => 2000, onPublication: p => session.publishAnalysis(p) });
+    sourceSampleRateHz: 48000, coefficientBytes: await coefficients(), worker: port, nowAvailabilityRuntimeMs: () => 2000, onPublication: p => session.publishAnalysis(p) });
   let next = 0;
   function feed(end: number) { while (next < end) { const n = Math.min(2048, end - next); runtime.append({ sourceSampleRateHz: 48000,
     sourceStartSampleIndex: next, sourceEndSampleIndex: next + n, samples: new Float32Array(n) }); next += n; } }
@@ -271,11 +275,72 @@ it('exact pause boundary belongs only to resumed segment, with immutable IDs ind
     startSample: 31200, endSample: 60320 };
   const events = [599.9375, 600, 1199.9375, 1200].map(ms => ({ midiPitch: 60, pitch: 'C4', confidence: .9,
     onsetScore: .9, frameScore: .9, targetSample: 48000 + (ms - 600) * 16 }));
-  const project = (availabilityTimeMs: number) => projectContinuousEvidence(sourcePublication('source', 48000, 0,
-    window, { events, inferenceMs: 1, decodeMs: .1, actualSessionRunCount: 2 }, availabilityTimeMs), segment, 'session');
+  const project = (availabilityRuntimeMs: number) => projectContinuousEvidence(sourcePublication('source', 48000, 0,
+    window, { events, inferenceMs: 1, decodeMs: .1, actualSessionRunCount: 2 }, availabilityRuntimeMs), segment, 'session');
   expect(project(2000).observations.map(o => o.performanceTimeMs)).toEqual([600, 1199.9375]);
   expect(project(2000).observations).toEqual(project(3000).observations);
   expect(project(2000).observations[0].provenance?.sourceEventSample).toBe(144000);
+});
+
+it('acoustic pause keeps event position gapless while session availability includes the physical pause', async () => {
+  let available = 2000;
+  const rate = 48000, r = await setup(rate, undefined, undefined, () => available);
+  r.bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
+  r.bridge.schedule({ type: 'PAUSE', sourceSampleIndex: 124800, performanceTimeMs: 600 });
+  r.bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 364800, performanceTimeMs: 600 });
+  r.bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: 393600, performanceTimeMs: 1200 });
+  for (let end = 96000; end < 403200;) {
+    end = Math.min(end + 2048, 403200); available = end / 48;
+    r.feedTo(end); await r.runtime.drain();
+  }
+  await r.runtime.seal();
+  expect(r.publications.flatMap(p => p.observations).map(o => o.performanceTimeMs)).toEqual([100, 700]);
+  expect(r.publications[1].availabilitySessionTimeMs - r.publications[0].availabilitySessionTimeMs).toBeGreaterThan(5000);
+  expect(r.publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 1200, availabilitySessionTimeMs: available });
+  await r.runtime.dispose();
+});
+
+it('MIDI and acoustic publish the same independent session-availability / performance-frontier coordinates', () => {
+  const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 0, ownedEndTarget: 9600, startSample: -16800, endSample: 12320 };
+  const acoustic = projectContinuousEvidence(sourcePublication('source', 48000, 0, window,
+    { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 300),
+  { index: 0, sourceStart: 0, originTarget: 0, performanceStartMs: 5000 }, 'session');
+  const midi = new ContinuousMidiEvidence('session').advance({ state: 'RUNNING',
+    performanceTimeMs: acoustic.analyzedThroughPerformanceMs + 250, nowMs: 300 } as PerformanceClockSnapshot)!;
+  expect(acoustic.analyzedThroughPerformanceMs).toBeGreaterThan(300);
+  expect(midi.analyzedThroughPerformanceMs).toBe(acoustic.analyzedThroughPerformanceMs);
+  expect(midi.availabilitySessionTimeMs).toBe(300); expect(acoustic.availabilitySessionTimeMs).toBe(300);
+});
+
+it('analysis delay changes only knowledge finalization, never event timing, assignment or metrics', () => {
+  const evaluate = (available: number) => {
+    const session = new ContinuousEvaluationSession({ artifact: canonicalArtifact as PracticeScoreArtifact, inputSource: 'MICROPHONE',
+      scope: { kind: 'FULL' }, sessionDomainId: 'delayed', timeline: { beatToTimeMs: beat => beat * 500 } });
+    const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 32000, ownedEndTarget: 41600, startSample: 15200, endSample: 44320 };
+    const publication = projectContinuousEvidence(sourcePublication('source', 48000, 0, window,
+      { events: [{ midiPitch: 60, pitch: 'C4', confidence: .42, onsetScore: .8, frameScore: .8, targetSample: 33600 }],
+        inferenceMs: 1, decodeMs: 0, actualSessionRunCount: 1 }, available),
+    { index: 0, sourceStart: 96000, originTarget: 32000, performanceStartMs: 0 }, 'delayed');
+    session.publish(publication);
+    session.publish({ publicationId: 'terminal', sessionDomainId: 'delayed', analyzedThroughPerformanceMs: 10000,
+      availabilitySessionTimeMs: available + 100, observations: [] });
+    session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: available + 100 });
+    const evaluation = session.completedEvaluation();
+    if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
+    return { assignment: evaluation.assignment, metrics: createContinuousPerformanceMetrics(evaluation,
+      evaluation.assignment.groups.flatMap(g => g.strikes).length) };
+  };
+  const early = evaluate(4000), late = evaluate(8000);
+  const stripKnowledge = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (key, item) =>
+    ['finalizationSessionTimeMs', 'availabilitySessionTimeMs'].includes(key) ? undefined : item));
+  expect(late.assignment.observations).toEqual(early.assignment.observations);
+  expect(stripKnowledge(late.assignment)).toEqual(stripKnowledge(early.assignment));
+  expect(late.metrics).toEqual(early.metrics);
+  const earlyStrike = early.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
+  const lateStrike = late.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
+  expect(earlyStrike.finality.finalizationSessionTimeMs).toBe(4100);
+  expect(lateStrike.finality.finalizationSessionTimeMs).toBe(8100);
+  expect(lateStrike.state === 'MATCHED' && lateStrike.match.timingOffsetMs).toBe(100);
 });
 
 it('manual/natural terminal waits for outstanding real work before exact-T coverage', async () => {

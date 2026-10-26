@@ -72,6 +72,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
+  if (source.startsWith('continuous/timing/')) return Boolean(target && (target.startsWith('continuous/timing/') || target.startsWith('kernel/')));
   if (source.startsWith('configuration/')) return Boolean(target && (target.startsWith('configuration/')
     || target.startsWith('kernel/') || target === 'recording/recording-mode.ts'));
   if (source.startsWith('readiness/')) return Boolean(target && (target.startsWith('readiness/') || target.startsWith('configuration/')));
@@ -109,6 +110,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   }
   if (source.startsWith('result/')) return Boolean(target && (
     target.startsWith('result/') || target.startsWith('kernel/') || target.startsWith('continuous/domain/evaluation/')
+    || target === 'continuous/timing/timing-provenance.ts'
     || ['acoustic/model/analysis-identity.ts', 'acoustic/model/model-contract.ts', 'continuous/input/midi-evidence-identity.ts'].includes(target)));
   if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || target.startsWith('kernel/')));
   if (source.startsWith('step/')) return !target || !['continuous/', 'result/', 'recording/'].some(owner => target.startsWith(owner));
@@ -460,6 +462,28 @@ describe('Practice bounded domain dependencies', () => {
     };
     for (const file of graph.keys()) visit(file, []);
   });
+});
+
+it('timing calibration cannot enter transport, interpretation, metrics or presentation', () => {
+  const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts', 'result/continuous-performance-metrics.ts',
+    'continuous/domain/evaluation/interpretation.ts'].includes(relative(file))
+    || /^(score-view|review|sharing)\//.test(relative(file))),
+    ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review'))];
+  for (const start of forbidden) {
+    // Type-only artifact contracts are allowed; executable timing policy does not belong in these owners.
+    for (const edge of graph.get(normalize(start)) ?? []) {
+      expect(edge.target && relative(edge.target).startsWith('continuous/timing/'), relative(start)).toBeFalsy();
+    }
+    const ast = ts.createSourceFile(start, readFileSync(start, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isPropertyAccessExpression(node)) expect(['calibrationApplied', 'calibrationPolicyId', 'offsetMs'].includes(node.name.text), relative(start)).toBe(false);
+      ts.forEachChild(node, visit);
+    }; visit(ast);
+  }
+  for (const [file, edges] of sourceGraph) for (const edge of edges) {
+    if (!edge.target || !relative(edge.target).startsWith('continuous/timing/')) continue;
+    expect(relative(file).startsWith('continuous/timing/') || relative(file) === 'result/continuous-result-provenance.ts', relative(file)).toBe(true);
+  }
 });
 
 it('Practice owns only presentation preference writes; Setup owns mode, input and recording editors', () => {

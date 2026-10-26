@@ -11,13 +11,14 @@ export type ContinuousFinality = Readonly<{
   unclampedRequiredFrontierMs: number;
   enablingPublicationId: string;
   enablingAnalysisFrontierMs: number;
-  finalizationTimeMs: number;
+  /** Knowledge availability in Session Time; all frontier fields above use Performance Time. */
+  finalizationSessionTimeMs: number;
   terminalClamp: boolean;
 }>;
 export type ContinuousCompletion = Readonly<{
   reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
   performanceTimeMs: number;
-  availabilityTimeMs: number;
+  availabilitySessionTimeMs: number;
 }>;
 export type ContinuousStrikeAssignment = ContinuousExpectedStrike & (
   | Readonly<{ state: 'PENDING' }>

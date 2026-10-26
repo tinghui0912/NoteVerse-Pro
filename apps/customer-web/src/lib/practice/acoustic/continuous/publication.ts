@@ -22,9 +22,11 @@ export function projectContinuousEvidence(input: SourceAcousticPublication, segm
     confidence: e.confidence, source: 'ACOUSTIC' as const,
     provenance: Object.freeze({ sourceDomainId: e.sourceDomainId, sourceSampleRateHz: e.sourceSampleRateHz, sourceEventSample: e.sourceEventSample })
   })).filter(e => e.performanceTimeMs >= start && e.performanceTimeMs < end);
-  if (input.availabilityTimeMs < end) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
+  if (!Number.isFinite(input.availabilityRuntimeMs) || input.availabilityRuntimeMs < 0) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
+  // The injected Continuous runtime clock is the established session clock domain.
+  // Physical/source event mapping above is independent of when analysis becomes available.
   return Object.freeze({ publicationId: `${input.sourceDomainId}:window:${w.jobIndex}`, sessionDomainId,
-    analyzedThroughPerformanceMs: previousFloat(end), availabilityTimeMs: input.availabilityTimeMs, observations: Object.freeze(observations) });
+    analyzedThroughPerformanceMs: previousFloat(end), availabilitySessionTimeMs: input.availabilityRuntimeMs, observations: Object.freeze(observations) });
 }
 export function deliverPublication(sink: AcousticPublicationSink, publication: ContinuousEvidencePublication): void {
   deliverSynchronously(sink, publication);

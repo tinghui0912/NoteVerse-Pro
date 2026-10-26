@@ -394,6 +394,79 @@ analysis, then publishes empty exact-T coverage for the completed `[0,T)` domain
 
 ## Continuous Evidence, Assignment and Interpretation
 
+### Timing coordinates and calibration
+
+Session Time is the `PracticeTimebase` domain. Microphone Continuous establishes it
+with `AudioContextPerformanceClock`; MIDI maps performance.now/native MIDI timestamps
+through its timebase. Session Time includes initial count-in, pauses, resume count-in
+and analysis delay. It is not an epoch timestamp.
+
+Performance Time starts at zero at the resolved scope performance start and excludes
+initial count-in, pauses and resume count-in. Expected strikes, observation event
+positions, playhead, signed timing offsets and analyzed-through frontiers use it.
+Source Time remains physical acoustic samples (`sourceEventSample`, source sample
+rate/domain), independently of score or transport.
+
+```text
+MIDI native timestamp / acoustic source sample
+                  ↓
+       Session / source coordinate
+                  ↓
+       event → performance mapping
+                  ↓
+       [future optional calibration]
+                  ↓
+       observation.performanceTimeMs
+                  ↓
+          neutral assignment
+
+Analysis / coverage / completion becomes known
+                  ↓
+       availabilitySessionTimeMs
+```
+
+Evidence position and evidence knowledge availability are orthogonal axes. Publication
+`analyzedThroughPerformanceMs` and `availabilitySessionTimeMs` are each finite,
+nonnegative and independently monotonic. No numeric inequality compares the two.
+Completion similarly carries its performance terminal and session availability.
+Finality is enabled by performance analysis coverage; `requiredAnalysisFrontierMs`
+and `enablingAnalysisFrontierMs` remain performance coordinates, while
+`finalizationSessionTimeMs` records when the enabling knowledge became available.
+
+MIDI availability comes from `PerformanceClockSnapshot.nowMs`, never performance
+elapsed time. Its event time still comes from the native MIDI timestamp, independent
+of callback arrival. Source analysis uses `availabilityRuntimeMs` and injected
+`nowAvailabilityRuntimeMs`; the score-blind runtime knows no product clock. The
+`acoustic/continuous` projection declares this injected Continuous runtime clock to
+be the established Session Time and publishes `availabilitySessionTimeMs`. Analysis
+delay never shifts source events or their mapped performance positions.
+
+`continuous/timing/timing-provenance.ts` records these mapping identities:
+`MIDI_EVENT_TIMESTAMP_TO_PERFORMANCE_TIME_V1` and
+`ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1`. Both declare
+`CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` with `calibrationApplied: false`.
+There is no offset, measured-zero claim, calibration profile/storage or learner UI.
+Transport, interpretation, metrics, Review and score annotations do not apply timing
+correction. Result evidence provenance retains the source-bound mapping/calibration
+identity without turning it into a learner metric.
+
+The independent numeric policies keep their semantic owners: STEP MIDI 35ms groups
+one chord gesture; acoustic H50/50ms groups bounded evidence; Continuous ±250ms is
+assignment eligibility; MIDI 250ms grace delays coverage publication. Equal numeric
+values do not make these policies interchangeable or device-latency calibration.
+Strike/group/residual +750/+1250/+1500ms bounds require analysis coverage, not elapsed
+device/model latency. Acoustic 170ms future context is model lookahead, never an
+event timestamp subtraction. Model windows, decoder thresholds and these constants
+are unchanged.
+
+Non-zero input timing calibration requires empirical device/runtime qualification.
+Browser API latency hints alone are insufficient; baseLatency/outputLatency and
+matched-note timing medians do not establish physical input latency. Any future
+versioned calibration belongs at the source-specific evidence mapping boundary,
+before source-blind assignment. It must shift event coordinates and safe analyzed
+frontiers coherently to prevent late evidence and premature finalization. No non-zero
+calibration is implemented by this contract.
+
 A performance retains three distinct layers: immutable evidence truth,
 source-blind assignment truth, and source-specific product interpretation.
 MIDI publishes each physical NOTE_ON independently; its 250ms delivery grace is a
@@ -401,7 +474,7 @@ coverage-publication policy. Microphone observations describe decoder-qualified
 acoustic evidence, not proof of physical key attacks.
 
 Publications carry immutable publication/observation identity, session domain,
-source provenance, confidence, availability time and monotonic analyzed-through
+source provenance, confidence, session availability and monotonic performance analyzed-through
 coverage. Availability is not attack time. Exact replay is idempotent; mutated
 identities and genuinely new evidence at or before declared coverage fail closed.
 The evaluation session rejects observations whose source disagrees with its input:
@@ -511,7 +584,7 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-1: local session and score/revision/artifact identities, resolved scope, tempo plan,
+2: local session and score/revision/artifact identities, resolved scope, tempo plan,
 input source, active performance duration, completed evaluation, metrics, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
@@ -545,19 +618,22 @@ and fail closed independently of aggregate presentation.
 ## Evaluation / Evidence Provenance
 
 Every live/completed evaluation declares `assignmentPolicyId` and
-`interpretationPolicyId`. `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V1` covers
+`interpretationPolicyId`. `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2` covers
 same-pitch ±250ms eligibility, maximum cardinality then minimum absolute timing
 error, stable deterministic ties, residual assignment, one-observation ownership,
 +750/+1250/+1500ms finality bounds and terminal clamps. Any semantic change to
-these rules requires an assignment-policy version change. Interpretation identity
+these rules requires an assignment-policy version change. V2 explicitly records
+finalization availability in Session Time; assignment, tolerance and frontier math
+are unchanged. Interpretation identity
 is fixed by session source: `MIDI_PHYSICAL_NOTE_EVENTS_V1` or
 `ACOUSTIC_CONSERVATIVE_SUPPORT_V1`. Validation checks both identities and that
 interpretation is the pure assignment projection, without a second assignment pass.
 
 MIDI evidence declares
-`MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V1`: physical NOTE_ON facts,
+`MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`: physical NOTE_ON facts,
 session-time capture, one observation per NOTE_ON, 250ms publication-coverage grace
-and exact terminal coverage. The evidence owner supplies this identity.
+and exact terminal coverage. V2 corrects availability to Session Time; native NOTE_ON
+event mapping and 250ms coverage behavior remain unchanged. The evidence owner supplies this identity.
 
 Microphone results retain the public canonical acoustic analysis descriptor:
 acoustic identity name/core SHA-256, model SHA-256 and authoritative decoder-source

@@ -59,6 +59,9 @@ export class ContinuousAssignmentFinalizer {
       }
       const accepted = this.evidence.accept(publication, this.completion !== null);
       if (!accepted) return this.snapshot();
+      if (this.requestedCompletion && accepted.availabilitySessionTimeMs < this.requestedCompletion.availabilitySessionTimeMs) {
+        throw new ContinuousEvaluationError('INVALID_PUBLICATION');
+      }
       this.publication = accepted;
       this.commit();
       this.closeCompletion();
@@ -72,8 +75,9 @@ export class ContinuousAssignmentFinalizer {
   complete(completion: ContinuousCompletion): ContinuousAssignmentSnapshot {
     if (this.failure) throw this.failure;
     if (!['SCOPE_COMPLETED', 'STOPPED_BY_USER'].includes(completion.reason)
-      || !Number.isFinite(completion.performanceTimeMs) || completion.performanceTimeMs < this.evidence.analyzedThrough
-      || !Number.isFinite(completion.availabilityTimeMs) || completion.availabilityTimeMs < completion.performanceTimeMs) {
+      || !Number.isFinite(completion.performanceTimeMs) || completion.performanceTimeMs < 0 || completion.performanceTimeMs < this.evidence.analyzedThrough
+      || !Number.isFinite(completion.availabilitySessionTimeMs) || completion.availabilitySessionTimeMs < 0
+      || !this.requestedCompletion && completion.availabilitySessionTimeMs < this.evidence.availableSessionTimeMs) {
       throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     }
     if (this.requestedCompletion) {
@@ -84,7 +88,7 @@ export class ContinuousAssignmentFinalizer {
     if (this.evidence.analyzedThrough >= completion.performanceTimeMs) {
       this.publication = { publicationId: 'completion', sessionDomainId: this.evidence.sessionDomainId,
         analyzedThroughPerformanceMs: this.evidence.analyzedThrough,
-        availabilityTimeMs: Math.max(this.evidence.availableAt, completion.availabilityTimeMs), observations: [] };
+        availabilitySessionTimeMs: Math.max(this.evidence.availableSessionTimeMs, completion.availabilitySessionTimeMs), observations: [] };
       this.commit();
       this.closeCompletion();
     }
@@ -126,7 +130,7 @@ export class ContinuousAssignmentFinalizer {
     const publication = this.publication!;
     return { requiredAnalysisFrontierMs: Math.min(required, this.terminal), unclampedRequiredFrontierMs: required,
       enablingPublicationId: publication.publicationId, enablingAnalysisFrontierMs: this.evidence.analyzedThrough,
-      finalizationTimeMs: publication.availabilityTimeMs, terminalClamp: required > this.terminal };
+      finalizationSessionTimeMs: publication.availabilitySessionTimeMs, terminalClamp: required > this.terminal };
   }
 
   private groupFrontier(group: Group): number {

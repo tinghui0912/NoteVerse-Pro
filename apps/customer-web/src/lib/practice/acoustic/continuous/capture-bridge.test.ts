@@ -22,7 +22,7 @@ for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves P
     const inputs: { window: AcousticInferenceInput['window']; sha256: string }[] = [];
     const publications: ContinuousEvidencePublication[] = [];
     const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'session', sourceDomainId: 'capture',
-      sourceSampleRateHz: rate, nowAvailabilityMs: () => 100000,
+      sourceSampleRateHz: rate, nowAvailabilityRuntimeMs: () => 100000,
       coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
       onPublication: publication => { publications.push(publication); },
       worker: { run: async input => {

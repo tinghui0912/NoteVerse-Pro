@@ -6,8 +6,8 @@ import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domai
 describe('source-aware Continuous performance metrics', () => {
   const summarize = (inputSource: 'MIDI' | 'MICROPHONE', pitches: readonly string[], targets: readonly string[] = ['C4','D4'], terminal = 3000) => {
     const raw = new ContinuousAssignmentFinalizer('test', targets.map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })));
-    raw.complete({ reason: terminal < 1000 ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED', performanceTimeMs: terminal, availabilityTimeMs: 3100 });
-    raw.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: terminal, availabilityTimeMs: 3100,
+    raw.complete({ reason: terminal < 1000 ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED', performanceTimeMs: terminal, availabilitySessionTimeMs: 3100 });
+    raw.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: terminal, availabilitySessionTimeMs: 3100,
       observations: pitches.map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) });
     const completed = raw.completedAssignment();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete');

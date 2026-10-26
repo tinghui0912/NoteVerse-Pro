@@ -28,7 +28,7 @@ export function replayContinuousScenarios(notes:TruthNote[], publications:Contin
   return specs.map(spec=>{
     const ledger=new ContinuousAssignmentFinalizer(publications[0].sessionDomainId,spec.expected);
     for(const p of publications.slice(0,-1))ledger.publish(p);
-    ledger.complete({reason:spec.family==='NOT_REACHED'?'STOPPED_BY_USER':'SCOPE_COMPLETED',performanceTimeMs:6000,availabilityTimeMs:publications.at(-1)!.availabilityTimeMs});
+    ledger.complete({reason:spec.family==='NOT_REACHED'?'STOPPED_BY_USER':'SCOPE_COMPLETED',performanceTimeMs:6000,availabilitySessionTimeMs:publications.at(-1)!.availabilitySessionTimeMs});
     ledger.publish(publications.at(-1)!);
     const completed=ledger.completedAssignment();
     if(completed.status!=='COMPLETE')throw new Error('PRODUCT_REPLAY_INCOMPLETE');

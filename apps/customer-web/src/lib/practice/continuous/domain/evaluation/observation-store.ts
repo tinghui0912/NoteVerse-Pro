@@ -26,7 +26,7 @@ export class ContinuousEvidenceStore {
   }
 
   get analyzedThrough(): number { return this.frontier; }
-  get availableAt(): number { return this.availability; }
+  get availableSessionTimeMs(): number { return this.availability; }
   values(): readonly ContinuousObservation[] { return [...this.observations.values()]; }
 
   accept(input: ContinuousEvidencePublication, closed: boolean): ContinuousEvidencePublication | null {
@@ -41,9 +41,9 @@ export class ContinuousEvidenceStore {
     }
     if (closed) throw new ContinuousEvaluationError('PUBLICATION_AFTER_COMPLETION');
     if (publication.sessionDomainId !== this.sessionDomainId) throw new ContinuousEvaluationError('SESSION_DOMAIN_MISMATCH');
-    const { analyzedThroughPerformanceMs: frontier, availabilityTimeMs: availability } = publication;
+    const { analyzedThroughPerformanceMs: frontier, availabilitySessionTimeMs: availability } = publication;
     if (!publication.publicationId || !Number.isFinite(frontier) || frontier < 0 || frontier < this.frontier
-      || !Number.isFinite(availability) || availability < frontier || availability < this.availability) {
+      || !Number.isFinite(availability) || availability < 0 || availability < this.availability) {
       throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     }
     const incoming = new Set<string>();

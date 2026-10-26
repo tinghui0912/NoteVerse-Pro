@@ -25,7 +25,7 @@ describe('Continuous analysis publication admission', () => {
 
     session.publishAnalysis({
       publicationId: 'publication-32484', sessionDomainId: session.timebase.domainId,
-      analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+      analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-32484:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -46,7 +46,7 @@ describe('Continuous analysis publication admission', () => {
     const readyBefore = ready.evaluationSnapshot;
     expect(() => ready.publishAnalysis({
       publicationId: 'publication-33169', sessionDomainId: ready.timebase.domainId,
-      analyzedThroughPerformanceMs: 0, availabilityTimeMs: 0,
+      analyzedThroughPerformanceMs: 0, availabilitySessionTimeMs: 0,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-33169:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: ready.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -67,7 +67,7 @@ describe('Continuous analysis publication admission', () => {
     expect(countIn.snapshot().state).toBe('COUNT_IN');
     expect(() => countIn.publishAnalysis({
       publicationId: 'publication-33821', sessionDomainId: countIn.timebase.domainId,
-      analyzedThroughPerformanceMs: 0, availabilityTimeMs: 0,
+      analyzedThroughPerformanceMs: 0, availabilitySessionTimeMs: 0,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-33821:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: countIn.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -92,7 +92,7 @@ describe('Continuous analysis publication admission', () => {
 
     expect(() => session.publishAnalysis({
       publicationId: 'publication-34573', sessionDomainId: session.timebase.domainId,
-      analyzedThroughPerformanceMs: 2000, availabilityTimeMs: 2000,
+      analyzedThroughPerformanceMs: 2000, availabilitySessionTimeMs: 2000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-34573:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -118,7 +118,7 @@ describe('Continuous analysis publication admission', () => {
     const pausedBefore = paused.evaluationSnapshot;
     expect(() => paused.publishAnalysis({
       publicationId: 'publication-35374', sessionDomainId: paused.timebase.domainId,
-      analyzedThroughPerformanceMs: 1001, availabilityTimeMs: 1001,
+      analyzedThroughPerformanceMs: 1001, availabilitySessionTimeMs: 1001,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-35374:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: paused.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -141,7 +141,7 @@ describe('Continuous analysis publication admission', () => {
     const stoppedBefore = stopped.evaluationSnapshot;
     expect(() => stopped.publishAnalysis({
       publicationId: 'publication-36075', sessionDomainId: stopped.timebase.domainId,
-      analyzedThroughPerformanceMs: 1001, availabilityTimeMs: 1001,
+      analyzedThroughPerformanceMs: 1001, availabilitySessionTimeMs: 1001,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-36075:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: stopped.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -170,7 +170,7 @@ describe('Continuous analysis publication admission', () => {
 
     expect(() => range.publishAnalysis({
       publicationId: 'publication-36999', sessionDomainId: range.timebase.domainId,
-      analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs, availabilityTimeMs: range.snapshot().performanceTimeMs,
+      analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs, availabilitySessionTimeMs: range.snapshot().nowMs,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-36999:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: range.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -194,7 +194,7 @@ describe('Continuous analysis publication admission', () => {
 
     session.publishAnalysis({
       publicationId: 'publication-37656', sessionDomainId: session.timebase.domainId,
-      analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+      analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-37656:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -203,7 +203,7 @@ describe('Continuous analysis publication admission', () => {
     const afterForward = session.evaluationSnapshot;
     expect(() => session.publishAnalysis({
       publicationId: 'publication-37877', sessionDomainId: session.timebase.domainId,
-      analyzedThroughPerformanceMs: 100, availabilityTimeMs: 100,
+      analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 100,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
         observationId: 'publication-37877:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
@@ -241,7 +241,7 @@ describe('Continuous analysis publication admission', () => {
 
     expect(() => sessionB.publishAnalysis({
       publicationId: 'publication-38978', sessionDomainId: sessionA.timebase.domainId,
-      analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+      analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([{
         captureTime: sessionA.timebase.atSessionMs(100),
         pitch: 'C4',
@@ -273,7 +273,7 @@ describe('Continuous analysis publication admission', () => {
 
     expect(() => session.publishAnalysis({
       publicationId: 'publication-39883', sessionDomainId: 'wrong-domain',
-      analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+      analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([{
         captureTime: { domainId: 'wrong-domain', ms: 100 },
         pitch: 'C4',
@@ -305,7 +305,7 @@ describe('Continuous analysis publication admission', () => {
 
     expect(() => session.publishAnalysis({
       publicationId: 'publication-42062', sessionDomainId: session.timebase.domainId,
-      analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY, availabilityTimeMs: Number.POSITIVE_INFINITY,
+      analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY, availabilitySessionTimeMs: Number.POSITIVE_INFINITY,
       observations: ([{
         captureTime: session.timebase.atSessionMs(100),
         pitch: 'C4',
@@ -340,7 +340,7 @@ it('rejects a mixed valid/invalid observation batch atomically', () => {
 
   expect(() => session.publishAnalysis({
     publicationId: 'publication-40802', sessionDomainId: session.timebase.domainId,
-    analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+    analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
     observations: ([
       {
         captureTime: session.timebase.atSessionMs(100),

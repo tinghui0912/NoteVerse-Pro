@@ -8,7 +8,7 @@ import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { createContinuousPerformanceMetrics, assertContinuousPerformanceMetrics, type ContinuousPerformanceMetrics } from './continuous-performance-metrics';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
 
-export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 1;
+export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 2;
 export type ContinuousPerformanceResult = Readonly<{
   schemaVersion: typeof CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION;
   localSessionId: string; scoreId: string; revisionId: string; artifactId: string;

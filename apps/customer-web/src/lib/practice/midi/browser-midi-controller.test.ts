@@ -9,6 +9,18 @@ import {
 } from './browser-midi-controller';
 
 describe('browser MIDI controller', () => {
+  it('delayed callback delivery never replaces the native MIDI event timestamp', async () => {
+    const device = midiDeviceFixture(), attack = vi.fn(), arrival = vi.spyOn(performance, 'now');
+    const controller = new BrowserMidiController({ access: device.access,
+      timebase: new PracticeTimebase({ domainId: 'native-event', runtimeOriginMs: 1000 }), onAttack: attack });
+    try {
+      await controller.start();
+      arrival.mockReturnValue(2000); device.send([0x90, 60, 80], 1500);
+      arrival.mockReturnValue(9000); device.send([0x90, 60, 80], 1500);
+      expect(attack.mock.calls.map(call => call[0].sessionTime)).toEqual([
+        { domainId: 'native-event', ms: 500 }, { domainId: 'native-event', ms: 500 }]);
+    } finally { controller.dispose(); arrival.mockRestore(); }
+  });
   it('converts MIDI note numbers to scientific pitch notation', () => {
     expect(midiNoteToPitch(60)).toBe('C4');
     expect(midiNoteToPitch(69)).toBe('A4');

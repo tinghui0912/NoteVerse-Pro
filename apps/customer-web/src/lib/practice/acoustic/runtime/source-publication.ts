@@ -11,11 +11,11 @@ export type SourceAcousticPublication = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: SourceRate; window: AcousticWindow;
   /** Exclusive absolute source frontier processed by this publication, not physical captured-through. */
   ownedThroughSourceSample: number;
-  availabilityTimeMs: number; observations: readonly SourceAcousticObservation[];
+  availabilityRuntimeMs: number; observations: readonly SourceAcousticObservation[];
 }>;
 export type SourcePublicationSink = (publication: SourceAcousticPublication) => void;
 export function sourcePublication(domain: string, rate: SourceRate, base: number,
-  window: AcousticWindow, result: AcousticInferenceResult, availabilityTimeMs: number): SourceAcousticPublication {
+  window: AcousticWindow, result: AcousticInferenceResult, availabilityRuntimeMs: number): SourceAcousticPublication {
   if (result.events.length > ACOUSTIC_RESOURCES.maxEventsPerWindow) fail('ACOUSTIC_EVENT_BOUND_EXCEEDED');
   const ids = new Set<string>();
   const observations = result.events.filter(e => e.targetSample >= window.ownedStartTarget && e.targetSample < window.ownedEndTarget).map(e => {
@@ -34,7 +34,7 @@ export function sourcePublication(domain: string, rate: SourceRate, base: number
   if (!Number.isFinite(ownedThroughSourceSample) || ownedThroughSourceSample < 0
     || ownedThroughSourceSample > Number.MAX_SAFE_INTEGER) fail('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
   return Object.freeze({ sourceDomainId: domain, sourceSampleRateHz: rate, window, ownedThroughSourceSample,
-    availabilityTimeMs, observations: Object.freeze(observations) });
+    availabilityRuntimeMs, observations: Object.freeze(observations) });
 }
 export function deliverSynchronously<T>(sink: (value: T) => void, value: T): void {
   try {
