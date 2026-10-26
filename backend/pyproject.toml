@@ -113,7 +113,7 @@ worker = [
   "Levenshtein==0.27.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "pyparsing==3.3.3; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "tqdm==4.70.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "transformers==4.54.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "transformers==5.20.2; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "zss==1.2.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 quality = [
