@@ -35,7 +35,7 @@ jobs:
       with:
         python-version-file: backend/.python-version
     - name: Set up approved uv from project authority
-      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
       with:
         version-file: backend/pyproject.toml
         enable-cache: false
