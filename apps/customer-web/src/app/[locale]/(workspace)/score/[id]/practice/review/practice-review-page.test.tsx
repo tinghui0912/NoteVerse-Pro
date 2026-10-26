@@ -53,13 +53,13 @@ const translationMocks = vi.hoisted(() => {
     scoreRevisionMismatchTitle: '乐谱版本不一致',
     scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。',
     audioPlaybackFailed: '本次录音不可回放',
-    savePerformance: '保存演奏',
+    savePerformance: '保存录制',
     performanceSaved: '已保存',
     savingPerformance: '正在保存...',
     retrySavePerformance: '重试保存',
     viewMyPerformances: '查看我的演奏',
-    savePerformanceSuccessTitle: '演奏已保存',
-    savePerformanceSuccessDesc: '可以稍后在已保存演奏中查看。',
+    savePerformanceSuccessTitle: '录制已保存',
+    savePerformanceSuccessDesc: '可以稍后在已保存录制中查看。',
     savePerformanceFailedTitle: '保存失败',
     savePerformanceFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
     exportOriginalVideo: '导出原始视频',
@@ -68,7 +68,7 @@ const translationMocks = vi.hoisted(() => {
     exportScoreVideoProgressDesc: '已处理 {progress}%。请保持页面打开。',
     cancelExportScoreVideo: '取消合成',
     exportScoreVideoFailedTitle: '合成导出失败',
-    exportScoreVideoFailedDesc: '暂时无法合成这次乐谱＋演奏视频。原始视频和保存演奏仍可继续使用。',
+    exportScoreVideoFailedDesc: '暂时无法合成这次乐谱＋演奏视频。原始视频和保存录制仍可继续使用。',
     exportScoreVideoUnavailableVideo: '需要一段可播放的本地视频才能合成导出。',
     exportScoreVideoUnavailableScore: '乐谱尚未准备好，暂不能可靠合成。',
     exportScoreVideoUnavailableScoreMismatch: '当前乐谱版本与录像不一致，暂不能可靠合成。',
@@ -734,7 +734,7 @@ describe('PracticeReviewPage', () => {
     expect(screen.queryByTestId('mock-replay-player')).toBeNull();
 
     // When audio is UNAVAILABLE, Save Performance button is disabled
-    const saveBtn = screen.getByRole('button', { name: '保存演奏' });
+    const saveBtn = screen.getByRole('button', { name: '保存录制' });
     expect(saveBtn.hasAttribute('disabled')).toBe(true);
   });
 
@@ -780,8 +780,9 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    const saveBtn = screen.getByRole('button', { name: '保存演奏' });
+    const saveBtn = screen.getByRole('button', { name: '保存录制' });
     expect(saveBtn.hasAttribute('disabled')).toBe(false);
+    expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
 
     fireEvent.click(saveBtn);
 
@@ -793,6 +794,7 @@ describe('PracticeReviewPage', () => {
     expect(saveCall.artifactId).toBe('art-1');
     expect(saveCall.mediaKind).toBe('AUDIO');
     expect(saveCall.mediaBlob).toBeDefined();
+    for (const key of ['result', 'evaluation', 'metrics', 'assignment', 'interpretation', 'provenance']) expect(saveCall).not.toHaveProperty(key);
 
     // After resolution, shows "已保存" and "查看我的演奏"
     await screen.findByText('已保存');
@@ -848,7 +850,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
 
-    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
     expect(saveCall.mediaKind).toBe('VIDEO');
     expect(saveCall.mediaBlob).toBe(videoBlob);
@@ -895,7 +897,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
 
-    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
     expect(saveMutationMock.mutateAsync.mock.calls[0][0].mediaKind).toBe('VIDEO');
   });
@@ -981,7 +983,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
   });
 
@@ -1006,7 +1008,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByText('当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。')).toBeInTheDocument();
   });

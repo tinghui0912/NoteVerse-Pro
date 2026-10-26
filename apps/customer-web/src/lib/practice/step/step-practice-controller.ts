@@ -18,7 +18,7 @@ import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler'
 export type StepControllerOptions = Readonly<{
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
   tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
-  onCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
+  onNaturalCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
 }>;
 /** Local browser application/resource ownership, not the domain runtime status. */
 export type StepControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'ENDED' | 'DISPOSED';
@@ -174,18 +174,19 @@ export class StepPracticeController {
     try {
       const boundary = this.microphone?.transitionBoundary();
       if (!this.runtime?.skip(boundary?.sessionTime)) return;
-      if (this.runtime.isCompleted) void this.complete();
+      if (this.runtime.isCompleted) void this.completeNaturally();
       else { if (boundary) this.microphone!.arm(boundary); this.updateTarget(); this.emit(); }
     } catch (error) { this.failAttempt(error); }
   }
-  async finish(): Promise<void> {
-    if (this.state !== 'ENDED' && this.state !== 'DISPOSED') {
-      this.generation++; this.input?.cancel(); this.runtime?.end(); void this.complete();
+  async abandon(): Promise<void> {
+    if (this.runtime?.snapshot().completionReason === 'SCOPE_COMPLETED') {
+      await this.completeNaturally(); return;
     }
-    await this.preparation; await this.cleanupTask; await this.completionTask;
+    await this.dispose();
   }
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
+    if (this.state === 'DISPOSED') return this.cleanupTask ?? Promise.resolve();
     this.generation++; this.holdElapsed(); this.input?.cancel(); this.runtime?.end();
     this.state = 'DISPOSED'; const cleanup = this.cleanup(); this.emit(); this.listeners.clear();
     this.disposal = Promise.all([this.preparation, cleanup, this.completionTask]).then(() => {});
@@ -195,13 +196,17 @@ export class StepPracticeController {
     this.enabled = enabled; this.runtime?.setMetronomeEnabled(enabled); this.metronome?.setEnabled(enabled);
     if (enabled) this.updateTarget(); this.emit();
   }
-  private complete(): Promise<void> {
+  private completeNaturally(): Promise<void> {
     if (this.completionTask || this.state === 'ENDED' || this.state === 'DISPOSED') return this.completionTask ?? Promise.resolve();
-    this.holdElapsed(); this.input?.cancel(); this.finalSnapshot = this.runtime?.snapshot() ?? null;
+    const snapshot = this.runtime?.snapshot();
+    if (!snapshot || snapshot.completionReason !== 'SCOPE_COMPLETED') throw new Error('STEP completion requires a naturally completed scope.');
+    this.holdElapsed(); this.input?.cancel(); this.finalSnapshot = snapshot;
     this.state = 'ENDED'; const cleanup = this.cleanup(); this.emit();
-    const notify = () => { if (this.finalSnapshot) this.options.onCompletion?.(this.finalSnapshot); };
-    if (this.options.inputSource === 'MICROPHONE') this.completionTask = cleanup.then(notify);
-    else { notify(); this.completionTask = cleanup; }
+    this.completionTask = cleanup.then(() => {
+      if (this.state === 'ENDED' && !this.error && this.finalSnapshot?.completionReason === 'SCOPE_COMPLETED') {
+        this.options.onNaturalCompletion?.(this.finalSnapshot);
+      }
+    });
     return this.completionTask;
   }
   private updateTarget(): void { if (this.runtime && !this.runtime.isCompleted) this.metronome?.setStepContext(this.runtime.currentOnsetBeat); }
@@ -215,7 +220,7 @@ export class StepPracticeController {
     const matched = step.pendingPostVerdict?.verdict === 'MATCH';
     this.runtime.rearm(watermark);
     if (boundary) this.microphone!.arm(boundary);
-    if (this.runtime.isCompleted) void this.complete();
+    if (this.runtime.isCompleted) void this.completeNaturally();
     else { if (matched) this.updateTarget(); this.emit(); }
   }
   private holdElapsed(): void {

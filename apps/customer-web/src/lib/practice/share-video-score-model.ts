@@ -495,10 +495,7 @@ function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement, viewBox: SvgV
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   clone.setAttribute('width', clone.getAttribute('width') || String(viewBox.width));
   clone.setAttribute('height', clone.getAttribute('height') || String(viewBox.height));
-  clone.querySelectorAll('.practice-note-active, .practice-playhead-cursor, [data-practice-playhead-cursor]')
-    .forEach((element) => element.classList.remove('practice-note-active'));
-  clone.querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
-    .forEach((element) => element.remove());
+  stripPracticeReportDecorations(clone);
   clone.querySelectorAll('rect').forEach((element) => {
     const fill = element.getAttribute('fill')?.trim().toLowerCase();
     if (fill === '#fff' || fill === '#ffffff' || fill === 'white') {
@@ -516,4 +513,15 @@ function loadImageFromSvg(svgText: string): Promise<HTMLImageElement> {
     image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('share_video_export_failed:score_image_decode')); };
     image.src = url;
   });
+}
+
+/** Apply only to the frozen clone; Review keeps its learner-facing annotations. */
+function stripPracticeReportDecorations(clone: SVGSVGElement): void {
+  const classes = ['practice-summary-note-supported', 'practice-summary-note-wrong',
+    'practice-summary-note-missed', 'practice-note-active'];
+  for (const element of [clone, ...clone.querySelectorAll('*')]) {
+    element.classList.remove(...classes);
+  }
+  clone.querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
+    .forEach(element => element.remove());
 }

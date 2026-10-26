@@ -13,8 +13,8 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const unsubscribe = useRef<(() => void) | null>(null);
   const generation = useRef(0);
   const starting = useRef(false);
-  const completion = useRef(options.onCompletion);
-  useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
+  const completion = useRef(options.onNaturalCompletion);
+  useEffect(() => { completion.current = options.onNaturalCompletion; }, [options.onNaturalCompletion]);
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
   type Snapshot = ReturnType<StepPracticeController['snapshot']> | null;
   type Binding<T> = { key: string; artifact: UseLocalPracticeOptions['artifact']; value: T };
@@ -51,14 +51,26 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
       onSessionStart();
       const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
-        onCompletion: result => completion.current?.(result) });
+        onNaturalCompletion: result => {
+          if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);
+        } });
       owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
       setPreparationError(null); await controller.start();
     } finally {
       if (operation === generation.current) starting.current = false;
     }
   }, [options, tempoPlan, setPreparationError, setSnapshot, dispose, onSessionStart]);
-  const finish = useCallback(async () => { await owner.current?.finish(); }, []);
+  const abandon = useCallback(async () => {
+    const current = owner.current, operation = generation.current;
+    if (!current) return;
+    await current.abandon();
+    if (operation !== generation.current || owner.current !== current) return;
+    const terminal = current.snapshot();
+    if (terminal.lastSnapshot?.completionReason === 'SCOPE_COMPLETED' || terminal.error === 'STEP_RESOURCE_CLEANUP_FAILED') { setSnapshot(terminal); return; }
+    const released = dispose(), discarded = generation.current;
+    await released;
+    if (discarded === generation.current) { setSnapshot(null); setPreparationError(null); }
+  }, [dispose, setSnapshot, setPreparationError]);
   const skip = useCallback(() => { owner.current?.skip(); }, []);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
@@ -80,5 +92,5 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     performanceClock: null, performanceEvaluation: null, elapsedSeconds: snapshot?.elapsedSeconds ?? 0,
     completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: false, isFinalizingPerformance: false,
-    start, skip, finish, restart, setMetronomeEnabled };
+    start, skip, abandon, restart, setMetronomeEnabled };
 }

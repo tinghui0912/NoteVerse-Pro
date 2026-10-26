@@ -621,7 +621,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await page.getByRole('button', { name: /close/i }).click();
     await page.getByRole('button', { name: '开始', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
-    await page.getByRole('button', { name: '结束', exact: true }).click();
+    // Allow the scope to complete naturally; End discards recordings.
     await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
     await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
     await expectCameraStopped(page, 2);
@@ -652,10 +652,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(startButton).toBeEnabled();
     await startButton.click();
 
-    // Finish practice
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // Reaching the final learning target naturally is the only dialog source.
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '跳过', exact: true }).click();
 
     // Verify dialog opened
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
@@ -722,10 +720,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
       (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
     });
 
-    // Manually stop at the first target, before the targets at 500ms and 1000ms.
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // Run through the scope terminal; user End must never generate this report.
+    await page.clock.runFor(2200);
     await page.clock.resume();
 
     // Assert completion dialog opened with "查看报告"
@@ -753,10 +749,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     for (const [label, value] of [
       ['目标音', '3'],
       ['正确', '1'],
-      ['漏弹', '0'],
+      ['漏弹', '2'],
       ['错音', '0'],
       ['额外音', '0'],
-      ['未完成', '2'],
+      ['未完成', '0'],
     ]) {
       const title = page.getByText(label, { exact: true });
       await expect(title).toBeVisible();
@@ -772,6 +768,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
   test('CONTINUOUS_PLAY: Pause, resume, and complete session with synchronized audio review', async ({
     page,
   }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await setupContinuousPracticeMocks(page);
     await page.goto(`/zh/score/${scoreId}/practice`);
 
@@ -799,7 +796,9 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
+    await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
     await startButton.click();
+    await page.clock.runFor(2000);
 
     // Wait until running
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
@@ -817,10 +816,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await resumeButton.click();
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    // Finish practice
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    await page.clock.runFor(2200);
+    await page.clock.resume();
+    // Natural completion finishes this short scope without an End command.
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
 
     // Click "查看报告"
     const viewReportButton = page.getByRole('button', { name: '查看报告' });
@@ -871,10 +870,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Wait until running
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    // Finish practice
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // Natural completion finishes this short scope without an End command.
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
 
     // Click "查看报告"
     const viewReportButton = page.getByRole('button', { name: '查看报告' });
@@ -887,6 +884,40 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
 
     // Verify audio recording unavailable notice
     await expect(page.getByText('本次录音不可用')).toBeVisible();
+  });
+
+  for (const state of ['COUNT_IN', 'PAUSED'] as const) test(`Continuous End during ${state} discards the session and returns Start without a dialog`, async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+    const writes: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/performance-takes') && request.method() !== 'GET') writes.push(request.url());
+    });
+    await setupContinuousPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('button', { name: /连贯演奏/i }).click();
+    await page.getByRole('button', { name: /MIDI/i }).click();
+    await page.getByRole('button', { name: /close/i }).click();
+    await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
+    const start = page.getByRole('button', { name: '开始', exact: true });
+    const end = page.getByRole('button', { name: '结束', exact: true });
+    await start.click();
+    await expect(page.getByRole('status')).toContainText('预备拍');
+    if (state === 'PAUSED') {
+      await page.clock.runFor(2000);
+      await page.getByRole('button', { name: '暂停', exact: true }).click();
+      await expect(page.getByRole('status')).toContainText('练习已暂停');
+    }
+    await end.click();
+    await expect(start).toBeEnabled(); await expect(end).toBeDisabled();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
+    await page.clock.runFor(10000);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await start.click();
+    await expect(page.getByRole('status')).toContainText('预备拍');
+    await end.click(); await expect(start).toBeEnabled();
+    expect(writes).toEqual([]);
   });
 
   test('Direct visit / Reload on Review Page: Renders expired state with zero server requests', async ({
@@ -922,9 +953,13 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     expect(disallowedRequests).toEqual([]);
   });
 
-  test('CONTINUOUS_PLAY + Audio: Save performance, direct upload, view in My Performances, and delete', async ({
+  test('CONTINUOUS_PLAY + Audio: Save recording, direct upload, view in My Performances, and delete', async ({
     page,
   }) => {
+    const mediaWrites: { url: string; body: Record<string, unknown> }[] = [];
+    page.on('request', request => {
+      if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postDataJSON() });
+    });
     await setupContinuousPracticeMocks(page);
     await page.goto(`/zh/score/${scoreId}/practice`);
 
@@ -957,10 +992,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Wait until running
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    // Finish practice
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // Natural completion finishes this short scope without an End command.
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
 
     // Click "查看报告"
     const viewReportButton = page.getByRole('button', { name: '查看报告' });
@@ -971,16 +1004,21 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await page.waitForURL(`**/score/${scoreId}/practice/review`);
     await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
 
-    // Verify "保存演奏" button is visible and enabled
-    const saveButton = page.getByRole('button', { name: '保存演奏' });
+    // Verify "保存录制" button is visible and enabled
+    const saveButton = page.getByRole('button', { name: '保存录制' });
     await expect(saveButton).toBeVisible();
     await expect(saveButton).toBeEnabled();
 
-    // Click "保存演奏"
+    // Completion and Review mount never save a take.
+    expect(mediaWrites).toEqual([]);
+    // Only this explicit user action may persist media.
     await saveButton.click();
 
     // Verify button changes to "已保存"
     await expect(page.getByRole('button', { name: '已保存' })).toBeVisible({ timeout: 10_000 });
+
+    expect(mediaWrites).toHaveLength(2);
+    for (const { body } of mediaWrites) for (const key of ['evaluation', 'metrics', 'assignment', 'interpretation', 'provenance', 'result']) expect(body).not.toHaveProperty(key);
 
     // Click "查看我的演奏" button
     const viewMyPerformancesBtn = page.getByRole('button', { name: '查看我的演奏' }).first();

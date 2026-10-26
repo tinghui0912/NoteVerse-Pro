@@ -4,7 +4,6 @@ import type {
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
-import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import { assertRecordingTimebase, type RecordingTimebaseMapping } from '@/lib/practice/recording/recording-timebase';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -28,7 +27,11 @@ export type ShareVideoSession = {
 };
 
 export function createShareVideoSessionFromCompletion(
-  completion: ContinuousPracticeCompletion,
+  completion: Readonly<{
+    result: Readonly<{ localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
+      scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan }>;
+    recording: PerformanceRecording;
+  }>,
   artifact: PracticeScoreArtifact
 ): ShareVideoSession {
   const { result, recording } = completion;

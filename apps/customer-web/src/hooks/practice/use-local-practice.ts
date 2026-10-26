@@ -21,7 +21,7 @@ export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined; mode: PracticeMode; inputSource: PracticeInputSource;
   scope: PracticeScope | null; tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
   recordingMode?: PracticeRecordingMode; cameraMediaStream?: MediaStream | null;
-  onCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
+  onNaturalCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
 
 type PracticeBinding = ReturnType<typeof usePracticeModeBinding>;

@@ -89,3 +89,16 @@ Both product modes support microphone analysis when the browser acoustic runtime
 is available. Capability detection is side-effect-free and independent of MIDI.
 Physical-device recognition quality, permission UX and end-to-end latency require
 separate qualification.
+
+## Natural completion and End
+
+Only SCOPE_COMPLETED opens the learning completion dialog, after cleanup and a
+single onNaturalCompletion notification. MATCH and permitted Skip progression can
+reach the scope terminal. STEP never creates a report or result.
+
+End calls abandon(): it cancels the current gesture, retires the runtime, releases
+input resources and discards the owner. It does not notify natural completion.
+The hook resets to the pre-start ready state, without a pending verdict or elapsed
+session. The next Start creates a fresh identity. Input arriving after disposal
+cannot revive the retired owner. A formally latched natural completion wins a later
+End; End before that latch abandons the session.

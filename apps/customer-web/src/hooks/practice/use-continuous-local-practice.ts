@@ -28,8 +28,8 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     current.identity === identity ? { ...current, snapshot: value } : current), [identity]);
   const setError = useCallback((value: string | null) => setBinding(current =>
     current.identity === identity ? { ...current, error: value } : current), [identity]);
-  const completion = useRef(options.onCompletion);
-  useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
+  const completion = useRef(options.onNaturalCompletion);
+  useEffect(() => { completion.current = options.onNaturalCompletion; }, [options.onNaturalCompletion]);
   const dispose = useCallback(() => {
     generation.current++; starting.current = false;
     unsubscribe.current?.(); unsubscribe.current = null;
@@ -59,7 +59,9 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       const current = new ContinuousPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         recordingMode: options.recordingMode, cameraStream: options.cameraMediaStream,
-        onCompletion: value => completion.current?.(value) });
+        onNaturalCompletion: value => {
+          if (operation === generation.current && controller.current === current && value.completionReason === 'SCOPE_COMPLETED') completion.current?.(value);
+        } });
       controller.current = current; unsubscribe.current = current.subscribe(() => {
         if (operation === generation.current) setSnapshot(current.snapshot());
       });
@@ -76,7 +78,16 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   }, [dispose, start, setSnapshot, setError]);
   const pause = useCallback(async () => { controller.current?.pause(); }, []);
   const resume = useCallback(async () => { controller.current?.resume(); }, []);
-  const finish = useCallback(async () => { await controller.current?.finish(); }, []);
+  const abandon = useCallback(async () => {
+    const current = controller.current, operation = generation.current;
+    if (!current) return;
+    await current.abandon();
+    if (operation !== generation.current || controller.current !== current) return;
+    if (!['ABANDONED', 'DISPOSED'].includes(current.snapshot().session)) { setSnapshot(current.snapshot()); return; }
+    const released = dispose(), discarded = generation.current;
+    await released;
+    if (discarded === generation.current) { setSnapshot(null); setError(null); }
+  }, [dispose, setSnapshot, setError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => controller.current?.setMetronomeEnabled(enabled), []);
   const transport = snapshot?.transport;
   const view = continuousControllerView(snapshot), lifecycle = view.lifecycle;
@@ -87,5 +98,5 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: snapshot?.session === 'FINALIZING', isFinalizingPerformance: snapshot?.session === 'FINALIZING',
-    setMetronomeEnabled, start, pause, resume, finish, restart };
+    setMetronomeEnabled, start, pause, resume, abandon, restart };
 }

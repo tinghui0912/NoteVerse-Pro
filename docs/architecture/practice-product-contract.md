@@ -184,7 +184,7 @@ observation publication. Window width does not define assignment finalization.
 `practice/acoustic/continuous` projects source observations into performance time
 and publishes `ContinuousEvidencePublication` through the session. Paused context
 does not extend performance duration or evaluation coverage. At pause T coverage
-remains below T. Stop/natural completion drains real tail context and outstanding
+remains below T. Natural completion drains real tail context and outstanding
 analysis, then publishes empty exact-T coverage for the completed `[0,T)` domain.
 
 ## Continuous Evidence, Assignment and Interpretation
@@ -268,8 +268,8 @@ uncalibrated confidence threshold; confidence and provenance remain in the ledge
 Residual strike-slot identity does not enter acoustic learner errors. Its target
 partition is `Target = Supported + Unconfirmed + Not Reached`.
 
-Manual-stop targets outside complete legal coverage are NOT_REACHED for both
-sources. UNCONFIRMED means completed analysis did not support a target;
+NOT_REACHED retains assignment coverage semantics within a natural result. User
+abandonment does not project targets into a partial report. UNCONFIRMED means completed analysis did not support a target;
 UNAVAILABLE instead means trustworthy analysis could not complete. Unavailable
 evaluations carry input source, assignmentPolicyId, interpretationPolicyId and reason,
 without dummy assignments.
@@ -291,10 +291,9 @@ aggregate score in this contract.
 Completed performances retain both the full raw assignment/evidence ledger and
 its deterministic interpretation for diagnostics, future calibration and analytics.
 There is no independent mutable feedback truth or second offline evaluation pass.
-Transport ENDED enters application FINALIZING until tail analysis and recording
-finish. Completion projects the same ledger; it drains unfinished work only. A
-zero-duration count-in Stop publishes empty zero-domain terminal coverage without
-inventing model input.
+Natural SCOPE_COMPLETED enters application FINALIZING until tail analysis and recording
+finish. Completion projects the same ledger and drains unfinished work without a
+second evaluation pass. End during count-in discards the session without a result.
 
 Analysis failure with healthy infrastructure stops analysis resources while clock,
 playhead, metronome and recording continue. Preparation failure never starts
@@ -386,9 +385,9 @@ and the appropriate audio clone. Each owner releases only its own resources.
 
 Saved Performance Take archives AUDIO/VIDEO media with source snapshot identity,
 scope, tempo and recording timebase. It does not persist Practice assignment,
-interpretation, metrics or implementation provenance. Review Save Performance reads
-only a READY recording and the existing archive metadata; durable result storage
-requires a separate contract.
+interpretation, metrics or implementation provenance. Review Save Recording is an
+explicit user action that reads only a READY recording and archive metadata.
+Completion, Review mount and Review exit never create a PerformanceTake.
 
 ## Transient Completion Handoff
 
@@ -406,3 +405,45 @@ The cross-mode Practice composition owner invalidates an existing completion on 
 explicit creation of a new session owner, including a STEP session. Ordinary renders
 and Review subscription do not clear it. STEP itself imports neither result/recording
 contexts nor the Continuous completion store.
+
+## Natural Completion and Abandonment
+
+SCOPE_COMPLETED is the only product completion. STEP reaches it through MATCH or
+Skip progression to the full-piece or selected-section terminal. Continuous reaches
+it through its transport. Only this terminal state calls onNaturalCompletion and
+opens the completion dialog. STEP offers Try Again and section adjustment, without
+report navigation. Continuous additionally offers View Report.
+
+STOPPED_BY_USER is abandonment. End calls abandon(), cancels pending work and
+releases input, metronome, Worker, streams and AudioContext ownership. It discards
+unfinished session state and recording chunks without draining the acoustic tail,
+finalizing a recording or creating result/metrics/completion handoff. No dialog or
+report appears. The presentation returns to its pre-start ready state; preferences
+may remain, but the next explicit Start creates fresh session/resource ownership.
+This applies during count-in, running and pause. A formally latched SCOPE_COMPLETED
+wins a later End; End before that latch wins over subsequent timer/publication work.
+
+## Ephemeral Practice Report
+
+Continuous Practice Reports are browser-local products of the most recent natural
+completion. The in-memory completion store and current Review page retain the result;
+new session start invalidates the handoff. No localStorage, sessionStorage, IndexedDB,
+backend result API, database or serialized URL persists it. Reload or reopen without
+that handoff shows the temporary-review-expired state. Saved PerformanceTake media
+never reconstructs a Practice Report.
+
+Save Recording persists media only through an explicit user action. It does not
+persist evaluation, metrics or provenance, and does not extend the report lifetime.
+My Performances is a saved media archive with playback/download/share actions,
+without learner report statistics or historical report navigation.
+
+## Clean Share-Video Score
+
+Review annotations remain ephemeral presentation of result.evaluation: MIDI correct
+is supported/green, wrong is red, missed is neutral; microphone supported is green
+and unconfirmed remains neutral. Share Video contains a clean musical score and its
+own playback cursor, never report annotations. Snapshot preparation strips report
+classes and existing active/playhead decorations from the cloned SVG only. Live
+Review annotations remain intact. Current recordings and saved takes share this
+clean-score contract; ShareVideoSession contains score/scope/tempo/media/timebase,
+without evaluation or metrics.

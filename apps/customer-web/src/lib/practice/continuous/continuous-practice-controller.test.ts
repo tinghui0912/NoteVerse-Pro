@@ -10,21 +10,22 @@ import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-input';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
+import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { PerformanceRecorder } from '../recording/performance-recorder';
 import { continuousCompletionStore } from './completion-store';
 
-function track() {
+function track(kind = 'audio') {
   const events = new EventTarget();
-  let state = 'live'; return { kind: 'audio', get readyState() { return state; },
+  let state = 'live'; return { kind, get readyState() { return state; },
     stop: vi.fn(() => { state = 'ended'; events.dispatchEvent(new Event('ended')); }),
     addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events),
     dispatchEvent: events.dispatchEvent.bind(events) };
 }
 type TestStream = { media: MediaStream; audio: ReturnType<typeof track>; copies: TestStream[] };
-function stream(): TestStream {
-  const audio = track(); const copies: TestStream[] = [];
-  const media = { getTracks: () => [audio], getAudioTracks: () => [audio], getVideoTracks: () => [],
-    clone: () => { const copy = stream(); copies.push(copy); return copy.media; } } as unknown as MediaStream;
+function stream(video = false): TestStream {
+  const audio = track(), tracks = video ? [audio, track('video')] : [audio]; const copies: TestStream[] = [];
+  const media = { getTracks: () => tracks, getAudioTracks: () => [audio], getVideoTracks: () => tracks.filter(t => t.kind === 'video'),
+    clone: () => { const copy = stream(video); copies.push(copy); return copy.media; } } as unknown as MediaStream;
   return { media, audio, copies };
 }
 class Recorder {
@@ -79,18 +80,23 @@ function environment(rate = 48000) {
     }
     await vi.advanceTimersByTimeAsync(10);
   }
-  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' = 'OFF') {
+  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream) {
     const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact, scoreEndBeat: 2.4,
       expectedPracticeGroups: fixture.expectedPracticeGroups.slice(0, 1), practiceAttackSteps: fixture.practiceAttackSteps.slice(0, 1) };
     controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource, countInBeats,
-      tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode }, platform);
+      tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode, onNaturalCompletion, cameraStream }, platform);
     return controller;
   }
   return { create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
     bridge: () => bridge!, midiOptions: () => midiOptions! };
 }
 
-beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('MediaRecorder', Recorder); });
+beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers(); vi.stubGlobal('MediaRecorder', Recorder);
+  vi.stubGlobal('MediaStream', class { constructor(private tracks: MediaStreamTrack[]) {}
+    getTracks() { return this.tracks; } getAudioTracks() { return this.tracks.filter(t => t.kind === 'audio'); }
+    getVideoTracks() { return this.tracks.filter(t => t.kind === 'video'); }
+    clone() { return stream(this.getVideoTracks().length > 0).media; }
+  }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
   for (const status of ['RUNNING', 'PAUSED', 'FINALIZING'] as const) for (const event of ['ended', 'mute']) {
@@ -99,7 +105,8 @@ describe('Continuous application owner', () => {
       const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO');
       await controller.start(); await f.feed(100);
       if (status === 'PAUSED') controller.pause();
-      const completion = status === 'FINALIZING' ? controller.finish() : Promise.resolve();
+      if (status === 'FINALIZING') { f.context.currentTime += 1.2; controller.refresh(); }
+      const completion = status === 'FINALIZING' ? controller.abandon() : Promise.resolve();
       f.root.audio.dispatchEvent(new Event(event));
       const count = f.bridge().runtime.snapshot().counts.windowsPublished;
       await f.feed(300); await completion;
@@ -138,7 +145,8 @@ describe('Continuous application owner', () => {
         const release = recorder.stopAndCleanup.bind(recorder);
         recorder.stopAndCleanup = () => { release(); throw new Error('RECORDER_CLEANUP_FAILED'); };
       }
-      const completion = controller.finish(); await f.feed(400); await completion;
+      await f.feed(1200);
+      const completion = controller.abandon(); await f.feed(400); await completion;
       expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().completed).toBeNull();
       expect(store).not.toHaveBeenCalled(); expect(f.root.audio.stop).toHaveBeenCalledTimes(1);
       expect(f.worker.dispose).toHaveBeenCalledTimes(1); expect(f.context.close).toHaveBeenCalledTimes(1);
@@ -153,13 +161,17 @@ describe('Continuous application owner', () => {
     expect(next.context).not.toBe(first.context); await fresh.dispose();
   });
   it('MIDI natural completion owns one evaluation without acoustic dependencies', async () => {
+    const authorize = vi.spyOn(performanceTakesApi, 'authorizeUpload');
+    const finalize = vi.spyOn(performanceTakesApi, 'finalizeTake');
     const f = environment(), controller = f.create('MIDI'); await controller.start();
-    f.clock.set(1201); controller.refresh(); await controller.finish();
+    f.clock.set(1201); controller.refresh(); await controller.abandon();
     expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
     expect(f.platform.createWorker).not.toHaveBeenCalled(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
-    expect(f.platform.createAudioContext).not.toHaveBeenCalled(); await controller.dispose();
+    expect(f.platform.createAudioContext).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
+    await controller.dispose(); authorize.mockRestore(); finalize.mockRestore();
   });
-  for (const natural of [false, true]) it(`MIDI ${natural ? 'natural' : 'manual'} completion preserves evaluation when optional recording permission is denied`, async () => {
+  it('MIDI natural completion preserves evaluation when optional recording permission is denied', async () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException('Permission denied', 'NotAllowedError'); });
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
     const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
@@ -174,9 +186,8 @@ describe('Continuous application owner', () => {
       expect(f.platform.createWorker).not.toHaveBeenCalled();
       expect(f.platform.createAudioContext).not.toHaveBeenCalled();
 
-      f.clock.set(natural ? 1201 : 100);
-      if (natural) controller.refresh();
-      await controller.finish(); await controller.finish();
+      f.clock.set(1201); controller.refresh();
+      await controller.abandon(); await controller.abandon();
 
       const completed = controller.snapshot().completed;
       expect(controller.snapshot().session).toBe('COMPLETE');
@@ -211,8 +222,8 @@ describe('Continuous application owner', () => {
     try {
       await controller.start();
       expect(controller.snapshot().recording?.state).toBe('RECORDING');
-      f.clock.set(100);
-      const completion = controller.finish();
+      f.clock.set(1201); controller.refresh();
+      const completion = controller.abandon();
       if (outcome === 'TIMEOUT') {
         await vi.advanceTimersByTimeAsync(1499);
         expect(controller.snapshot().session).toBe('FINALIZING');
@@ -234,21 +245,21 @@ describe('Continuous application owner', () => {
       await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); continuousCompletionStore.clearCompletion();
     }
   });
-  it('MIDI pause/resume and manual Stop preserve identity and accumulated result', async () => {
+  it('MIDI pause/resume preserves clock identity and abandonment discards the result', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(100); controller.pause(); const T = controller.snapshot().transport!.performanceTimeMs;
     f.clock.set(600); controller.resume(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(T);
-    await controller.finish(); expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE'); await controller.dispose();
+    await controller.abandon(); expect(controller.snapshot().completed).toBeNull(); await controller.dispose();
   });
   it('bounds controller diagnostics across 100 transport cycles', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     for (let i = 0; i < 100; i++) { f.clock.advance(1); controller.pause(); f.clock.advance(1); controller.resume(); }
     expect(controller.engineeringSnapshot().diagnostics).toHaveLength(32);
     expect(Object.isFrozen(controller.engineeringSnapshot().diagnostics)).toBe(true);
-    await controller.finish(); await controller.dispose();
+    await controller.abandon(); await controller.dispose();
   });
   for (const rate of [44100, 48000]) it(`microphone count-in and natural terminal at ${rate}`, async () => {
-    const f = environment(rate), controller = f.create('MICROPHONE', 1); await controller.start();
+    const f = environment(rate), callback = vi.fn(), controller = f.create('MICROPHONE', 1, 'OFF', callback); await controller.start();
     expect(controller.snapshot().transport?.state).toBe('COUNT_IN');
     expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(0);
     await f.feed(2100);
@@ -260,7 +271,9 @@ describe('Continuous application owner', () => {
     expect(result.evaluation.assignment.observations).toEqual([]);
     expect(f.platform.acquireMicrophone).toHaveBeenCalledTimes(1); expect(f.platform.createAudioContext).toHaveBeenCalledTimes(1);
     expect(f.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: f.context }));
-    expect(f.context.close).toHaveBeenCalledTimes(1); expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose();
+    expect(f.context.close).toHaveBeenCalledTimes(1); expect(f.root.audio.stop).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ completionReason: 'SCOPE_COMPLETED' }));
+    await controller.dispose();
   });
   it('cancels count-in BEGIN on pause, then replaces it on resume', async () => {
     const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
@@ -275,7 +288,7 @@ describe('Continuous application owner', () => {
     await f.feed(480); f.context.currentTime += .030; controller.pause();
     expect(controller.snapshot().transport?.state).toBe('PAUSED'); await f.feed(200);
     expect(controller.snapshot().analysis).toBe('PAUSED'); expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(1);
-    const done = controller.finish(); await f.feed(200); await done;
+    controller.resume(); await f.feed(1600); await controller.abandon();
     expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE'); await controller.dispose();
   });
   it('cancels stale natural terminal near its boundary and resumes to a new one', async () => {
@@ -285,23 +298,24 @@ describe('Continuous application owner', () => {
     controller.resume(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(T); await f.feed(500);
     expect(controller.snapshot().session).toBe('COMPLETE'); expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(1200); await controller.dispose();
   });
-  it('multiple pauses keep exact identity; manual stop drains only tail', async () => {
+  it('multiple pauses keep exact identity; abandonment does not drain the tail', async () => {
     const f = environment(), controller = f.create(); await controller.start();
     for (let i = 0; i < 3; i++) {
       await f.feed(180); controller.pause(); const T = controller.snapshot().transport!.performanceTimeMs;
       await f.feed(100); controller.resume(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(T);
     }
-    const completion = controller.finish(); expect(controller.snapshot().session).toBe('FINALIZING');
-    await f.feed(300); await completion; expect(controller.snapshot().session).toBe('COMPLETE'); await controller.dispose();
+    const windows = f.bridge().runtime.snapshot().counts.windowsStarted;
+    await controller.abandon(); await f.feed(300);
+    expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(windows);
+    expect(controller.snapshot().completed).toBeNull(); await controller.dispose();
   });
-  it('Stop during count-in produces zero-domain terminal, no fabricated input', async () => {
+  it('abandonment during count-in cancels boundaries and creates no completion', async () => {
     const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
-    const promise = controller.finish(); await f.feed(50); await promise;
+    const promise = controller.abandon(); await f.feed(50); await promise;
     expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(0);
-    expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(0);
-    const evaluation = controller.snapshot().completed?.result.evaluation;
-    expect(evaluation?.status).toBe('COMPLETE');
-    if (evaluation?.status === 'COMPLETE') expect(evaluation.interpretation.groups.every(group => group.verdict === 'NOT_REACHED')).toBe(true);
+    expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(-Infinity);
+    expect(controller.snapshot().completed).toBeNull();
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
     await controller.dispose();
   });
   for (const paused of [false, true]) it(`analysis failure ${paused ? 'PAUSED' : 'RUNNING'} does not stop clock/root/recording`, async () => {
@@ -312,7 +326,7 @@ describe('Continuous application owner', () => {
     const T = controller.snapshot().transport!.performanceTimeMs;
     if (paused) controller.resume(); await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await controller.finish(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
     expect(controller.snapshot().completed?.result).toMatchObject({ metrics: { status: 'UNAVAILABLE' },
       evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
         sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });
@@ -333,7 +347,8 @@ describe('Continuous application owner', () => {
     const f = environment(); let release: () => void = () => {};
     f.worker.dispose = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
     const controller = f.create(); await controller.start(); await f.feed(400);
-    const completion = controller.finish(); await f.feed(400);
+    await f.feed(1200);
+    const completion = controller.abandon(); await f.feed(400);
     expect(controller.snapshot().session).toBe('FINALIZING'); expect(controller.snapshot().completed).toBeNull();
     expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.context.close).not.toHaveBeenCalled();
     release(); await completion;
@@ -366,7 +381,7 @@ describe('Continuous application owner', () => {
   });
   for (const finalizing of [false, true]) it(`dispose during ${finalizing ? 'FINALIZING' : 'RUNNING'} cleans each resource once`, async () => {
     const f = environment(), controller = f.create(); await controller.start(); await f.feed(100);
-    if (finalizing) void controller.finish();
+    if (finalizing) { f.context.currentTime += 1.2; controller.refresh(); }
     await controller.dispose(); await controller.dispose();
     expect(f.worker.dispose).toHaveBeenCalledTimes(1); expect(f.context.close).toHaveBeenCalledTimes(1); expect(f.root.audio.stop).toHaveBeenCalledTimes(1);
   });
@@ -384,6 +399,100 @@ describe('Continuous application owner', () => {
       bridge.cancel(id); expect(bridge.isPending(id)).toBe(false);
     }
     expect(bridge.snapshot().pendingBoundaryCount).toBe(0); expect(bridge.snapshot().boundaryDiagnostics).toHaveLength(32);
-    await controller.finish(); await controller.dispose();
+    await controller.abandon(); await controller.dispose();
   });
+});
+
+for (const source of ['MIDI', 'MICROPHONE'] as const) for (const mode of ['OFF', 'AUDIO', 'VIDEO'] as const)
+for (const transport of ['COUNT_IN', 'RUNNING', 'PAUSED'] as const) {
+  it(`${source} ${mode} abandonment during ${transport} discards ownership without any completion`, async () => {
+    const f = environment(), camera = stream(true), callback = vi.fn();
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => f.root.media) } });
+    const recorder = new PerformanceRecorder(mode);
+    const finalize = vi.spyOn(recorder, 'finalize');
+    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
+    f.platform.createRecorder = () => recorder;
+    const controller = f.create(source, transport === 'COUNT_IN' ? 1 : 0, mode, callback, camera.media);
+    await controller.start();
+    if (mode !== 'OFF') expect(controller.snapshot().recording?.state).toBe(transport === 'COUNT_IN' ? 'NOT_STARTED' : 'RECORDING');
+    if (transport === 'PAUSED') controller.pause();
+    const owned = Reflect.get(recorder, 'ownedStream') as MediaStream | null;
+    const mediaRecorder = Reflect.get(recorder, 'recorder') as Recorder | null;
+    const lateData = mediaRecorder?.ondataavailable;
+    mediaRecorder?.requestData();
+    const completedEvaluation = vi.spyOn(Reflect.get(controller, 'session'), 'completedEvaluation');
+    await controller.abandon(); await controller.abandon();
+    f.clock.set(10000); controller.refresh(); await f.feed(200);
+    expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', transport: null,
+      sessionSnapshot: null, evaluation: null, recording: null, completed: null });
+    for (const track of owned?.getTracks() ?? []) expect(track.readyState).toBe('ended');
+    expect(mediaRecorder?.state ?? 'inactive').toBe('inactive');
+    lateData?.({ data: new Blob(['late chunk']) });
+    expect(Reflect.get(recorder, 'chunks')).toEqual([]);
+    expect(completedEvaluation).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
+    expect(store).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
+    await expect(recorder.finalize()).rejects.toThrow('RECORDING_DISCARDED');
+    expect(camera.audio.stop).not.toHaveBeenCalled(); // Borrowed page preview remains page-owned.
+    await controller.dispose(); store.mockRestore();
+  });
+}
+
+it('End before the scope latch wins even when the clock has passed the terminal time', async () => {
+  const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 0, 'OFF', callback);
+  await controller.start(); f.clock.set(1300);
+  // No transport refresh has latched the terminal transition yet.
+  await controller.abandon(); controller.refresh(); await vi.advanceTimersByTimeAsync(100);
+  expect(controller.snapshot().completed).toBeNull(); expect(callback).not.toHaveBeenCalled();
+  expect(continuousCompletionStore.getCompletion()).toBeNull(); await controller.dispose();
+});
+
+it('the formally latched natural completion wins a later End and publishes exactly once', async () => {
+  const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 0, 'OFF', callback);
+  const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
+  await controller.start(); f.clock.set(1300);
+  Reflect.get(controller, 'session').clock.snapshot(); // Domain latch, before application refresh.
+  await controller.abandon(); await controller.abandon(); controller.refresh();
+  expect(controller.snapshot().session).toBe('COMPLETE');
+  expect(controller.snapshot().completed?.result).toBeDefined();
+  expect(callback).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ completionReason: 'SCOPE_COMPLETED' }));
+  expect(store).toHaveBeenCalledTimes(1); await controller.dispose(); store.mockRestore();
+});
+
+it('late acoustic inference after abandonment cannot publish completion or mutate the next owner', async () => {
+  const f = environment(), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'OFF', callback);
+  await controller.start();
+  let resolve!: (value: Awaited<ReturnType<ContinuousModelWorker['run']>>) => void;
+  vi.mocked(f.worker.run).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await f.feed(1000); expect(resolve).toBeDefined();
+  const abandoning = controller.abandon();
+  expect(f.worker.dispose).toHaveBeenCalledOnce();
+  resolve({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 100 });
+  await abandoning;
+  const next = environment(), fresh = next.create('MIDI'); await fresh.start();
+  await f.feed(1000);
+  expect(callback).not.toHaveBeenCalled(); expect(controller.snapshot().completed).toBeNull();
+  expect(continuousCompletionStore.getCompletion()).toBeNull();
+  expect(fresh.snapshot()).toMatchObject({ session: 'ACTIVE', completed: null });
+  await fresh.abandon(); await controller.dispose(); await fresh.dispose();
+});
+
+it.each(['MIDI', 'MICROPHONE'] as const)('VIDEO %s Start after abandonment creates fresh live recording ownership', async source => {
+  const camera = stream(true), first = environment();
+  const firstOwner = first.create(source, 0, 'VIDEO', vi.fn(), camera.media);
+  await firstOwner.start();
+  expect(firstOwner.snapshot().recording?.state).toBe('RECORDING');
+  const oldId = Reflect.get(firstOwner, 'session').snapshotSession().localSessionId;
+  const oldRecorder = Reflect.get(firstOwner, 'recorder') as PerformanceRecorder;
+  const oldTracks = (Reflect.get(oldRecorder, 'ownedStream') as MediaStream).getTracks();
+  await firstOwner.abandon();
+  const next = environment(), fresh = next.create(source, 0, 'VIDEO', vi.fn(), camera.media);
+  await fresh.start();
+  expect(fresh.snapshot().recording?.state).toBe('RECORDING');
+  expect(Reflect.get(fresh, 'session').snapshotSession().localSessionId).not.toBe(oldId);
+  expect(Reflect.get(fresh, 'recorder')).not.toBe(oldRecorder);
+  for (const track of oldTracks) expect(track.readyState).toBe('ended');
+  for (const track of camera.media.getTracks()) expect(track.readyState).toBe('live');
+  expect(continuousCompletionStore.getCompletion()).toBeNull();
+  await fresh.abandon(); await firstOwner.dispose(); await fresh.dispose();
 });

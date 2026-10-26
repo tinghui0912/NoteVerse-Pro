@@ -25,7 +25,7 @@ function renderControls(
         onStart={vi.fn()}
         onPause={vi.fn()}
         onResume={vi.fn()}
-        onFinish={vi.fn()}
+        onEnd={vi.fn()}
         onOpenSettings={vi.fn()}
         onToggleRangeSelection={vi.fn()}
         {...overrides}
@@ -39,7 +39,7 @@ describe('ContinuousPracticeControls', () => {
     const finish = vi.fn();
     render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
       <StepPracticeControls lifecycle="ACTIVE" isLoading={false} isPreparingSession={false} canPrepareSession
-        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onFinish={finish}
+        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onEnd={finish}
         onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
     </NextIntlClientProvider>);
     expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
@@ -76,7 +76,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={onPause}
           onResume={onResume}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -101,7 +101,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={onPause}
           onResume={onResume}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -148,7 +148,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -199,7 +199,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -237,7 +237,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />

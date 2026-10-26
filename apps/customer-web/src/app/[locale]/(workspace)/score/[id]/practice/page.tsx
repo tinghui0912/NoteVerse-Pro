@@ -158,7 +158,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     metronomeEnabled,
     recordingMode: practiceMode === 'CONTINUOUS_PLAY' ? recordingMode : 'OFF',
     cameraMediaStream: cameraPreviewStream,
-    onCompletion: () => {
+    onNaturalCompletion: snapshot => {
+      if (snapshot.completionReason !== 'SCOPE_COMPLETED') return;
       releaseCameraPreview();
       setIsCompletionDialogOpen(true);
     },
@@ -203,7 +204,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const handleAdjustSelectedSection = () => {
     setIsCompletionDialogOpen(false);
-    void localPractice.finish();
     range.beginSelection();
   };
 
@@ -268,10 +268,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
       onStart: () => void localPractice.start(),
-      onFinish: () => {
-        void localPractice.finish();
-        setIsCompletionDialogOpen(true);
-      },
+      onEnd: () => { void localPractice.abandon(); },
       onOpenSettings: () => setIsSettingsOpen(true),
       onToggleRangeSelection: range.toggleSelection,
   };

@@ -322,6 +322,31 @@ describe('share-video video export helpers', () => {
     expect(loadImage).toHaveBeenCalledTimes(2);
   });
 
+  it.each(['data-practice-review-page', 'data-score-page'])('freezes clean share score through %s without changing live Review annotations', async pageAttribute => {
+    const container = createScoreContainer();
+    for (const page of container.querySelectorAll('[data-practice-review-page]')) {
+      page.setAttribute(pageAttribute, page.getAttribute('data-practice-review-page')!);
+      if (pageAttribute !== 'data-practice-review-page') page.removeAttribute('data-practice-review-page');
+    }
+    const decorations = ['practice-summary-note-supported', 'practice-summary-note-wrong', 'practice-summary-note-missed'];
+    const note = container.querySelector('[data-id="note-a"]')!;
+    note.classList.add(...decorations);
+    const svg = container.querySelector('svg')!;
+    svg.insertAdjacentHTML('beforeend', '<g class="practice-playhead-cursor" data-practice-playhead-cursor="true"></g>');
+    const frozen: string[] = [];
+    await prepareScorePageCache(container, async text => { frozen.push(text); return makeImage(); });
+    expect(frozen).toHaveLength(2);
+    for (const text of frozen) {
+      for (const decoration of [...decorations, 'practice-note-active', 'practice-playhead-cursor', 'data-practice-playhead-cursor']) {
+        expect(text).not.toContain(decoration);
+      }
+    }
+    expect(note.classList.contains(decorations[0])).toBe(true);
+    expect(note.classList.contains(decorations[1])).toBe(true);
+    expect(note.classList.contains(decorations[2])).toBe(true);
+    expect(svg.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
+  });
+
   it('renders the event cursor inside the frozen SVG image instead of on Canvas', async () => {
     const container = createScoreContainer();
     const serialized: string[] = [];

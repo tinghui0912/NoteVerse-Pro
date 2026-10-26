@@ -26,7 +26,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups[index].groupId,
     endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ artifact, scope, inputSource, platform, onCompletion: completion });
+  const create = () => new StepPracticeController({ artifact, scope, inputSource, platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
@@ -54,9 +54,9 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.resolveStart(); await pending;
     expect(states).toEqual(['PREPARING', 'ACTIVE']);
     expect(s.controller.snapshot()).toMatchObject({ state: 'ACTIVE', canAcceptAttempt: true, sessionSnapshot: { runtimeStatus: 'ACTIVE' } });
-    s.controller.finish(); s.controller.finish();
-    expect(s.controller.snapshot()).toMatchObject({ state: 'ENDED', sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' } });
-    expect(s.completion).toHaveBeenCalledTimes(1); s.controller.dispose(); s.controller.dispose();
+    await s.controller.abandon(); await s.controller.abandon();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'DISPOSED', sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' } });
+    expect(s.completion).not.toHaveBeenCalled(); s.controller.dispose(); s.controller.dispose();
     expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
   });
   it('preparation failure returns to application IDLE without inventing a domain IDLE snapshot', async () => {
@@ -133,7 +133,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1);
     s.clock.advance(1); s.note('C4'); s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2); s.controller.dispose();
   });
-  it.each(['finish', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
+  it.each(['abandon', 'disconnect', 'dispose'] as const)('%s cancels capturing, including stale timer callback', async command => {
     const s = setup(); await s.controller.start(); s.clock.set(101); s.note('C4'); const callback = s.timers[0].callback;
     if (command === 'disconnect') s.disconnect(); else s.controller[command]();
     const after = s.controller.snapshot(); callback();
@@ -232,7 +232,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
         expect(s.controller.snapshot().activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[4].groupId);
       }
     });
-    s.close(); expect(s.completion).toHaveBeenCalledTimes(1); s.controller.finish();
+    s.close(); await s.controller.abandon(); expect(s.completion).toHaveBeenCalledTimes(1);
     expect(s.completion).toHaveBeenCalledTimes(1); s.controller.dispose();
   });
   it('disconnect while waiting keeps target/session and automatically returns to waiting', async () => {
@@ -248,11 +248,11 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot().error).toBeNull();
     s.note('C4', 'NOTE_ON', 301); expect(s.timers).toHaveLength(1); s.controller.dispose();
   });
-  it('finish and disposal release resources exactly once, before completion notification', async () => {
-    const s = setup(4); await s.controller.start(); s.clock.set(101); s.note('D5'); s.close();
+  it('natural completion and disposal release resources exactly once, before completion notification', async () => {
+    const s = setup(4); await s.controller.start(); s.clock.set(101); s.note('D5'); s.close(); await s.controller.abandon();
     expect(s.controller.snapshot().state).toBe('ENDED'); expect(s.completion).toHaveBeenCalledTimes(1);
     expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
-    s.controller.finish(); s.controller.dispose(); s.controller.dispose();
+    s.controller.abandon(); s.controller.dispose(); s.controller.dispose();
     expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
   });
   it('dispose during preparation cancels late start and emits no successful session', async () => {
@@ -271,4 +271,27 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_UNAVAILABLE', sessionSnapshot: null });
     expect(s.midi.start).not.toHaveBeenCalled(); expect(s.metronome.start).not.toHaveBeenCalled(); s.controller.dispose();
   });
+});
+
+it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP End in %s retires the owner without natural completion or stale revival', async phase => {
+  const s = setup(); await s.controller.start();
+  const oldSession = s.controller.snapshot().sessionSnapshot!.localSessionId;
+  const staleInput = s.options().onMidiNote!;
+  const staleTimebase = s.options().timebase;
+  let ending: Promise<void> | undefined;
+  if (phase === 'ANALYZING' || phase === 'POST_VERDICT') s.controller.subscribe(() => {
+    if (!ending && s.controller.snapshot().state === 'ACTIVE' && s.controller.snapshot().stepInteractionPhase === phase) ending = s.controller.abandon();
+  });
+  if (phase !== 'READY') { s.clock.set(200); s.note('C4'); }
+  if (phase === 'ANALYZING' || phase === 'POST_VERDICT') s.close();
+  await (ending ?? s.controller.abandon());
+  const retired = s.controller.snapshot();
+  for (const task of s.timers) task.callback();
+  staleInput({ type: 'NOTE_ON', pitch: 'C4', noteNumber: 60, velocity: 80, sessionTime: staleTimebase.atSessionMs(1000) });
+  expect(s.controller.snapshot()).toMatchObject({ state: 'DISPOSED', canAcceptAttempt: false,
+    sessionSnapshot: { localSessionId: oldSession, step: retired.sessionSnapshot!.step, completionReason: 'STOPPED_BY_USER' } }); expect(s.completion).not.toHaveBeenCalled();
+  const fresh = s.create(); await fresh.start();
+  expect(fresh.snapshot().sessionSnapshot!.localSessionId).not.toBe(oldSession);
+  expect(fresh.snapshot()).toMatchObject({ state: 'ACTIVE', pendingPostVerdict: null, stepInteractionPhase: 'READY' });
+  await fresh.abandon();
 });

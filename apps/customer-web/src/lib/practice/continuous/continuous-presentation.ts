@@ -7,6 +7,7 @@ export function continuousControllerView(snapshot: ContinuousControllerSnapshot 
   lifecycle: ContinuousPracticeLifecycle; inputState: LocalPracticeInputState; inputError: string | null;
 } {
   if (!snapshot || snapshot.session === 'DISPOSED') return { lifecycle: 'READY', inputState: 'IDLE', inputError: null };
+  if (snapshot.session === 'ABANDONED') return { lifecycle: 'READY', inputState: 'STARTING', inputError: null };
   const inputError = snapshot.inputError ?? snapshot.analysisError;
   const failed = snapshot.session === 'FAILED' || snapshot.session === 'FAILED_BEFORE_START';
   const lifecycle = failed ? 'ENDED' : !snapshot.transport ? 'READY' : snapshot.transport.state === 'ENDED' ? 'ENDED'

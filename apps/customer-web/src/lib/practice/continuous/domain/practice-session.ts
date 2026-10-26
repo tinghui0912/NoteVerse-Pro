@@ -104,6 +104,9 @@ export class ContinuousPracticeSession {
     return this.syncFromClockSnapshot(snapshot);
   }
 
+  /** Discard transport without publishing terminal evidence for an unwanted result. */
+  abandon(): PerformanceClockSnapshot { return this.clock.end('STOPPED_BY_USER'); }
+
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
     const snapshot = this.clock.end(reason);
     return this.syncFromClockSnapshot(snapshot);

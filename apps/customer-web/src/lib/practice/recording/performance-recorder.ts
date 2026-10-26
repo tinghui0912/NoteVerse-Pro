@@ -203,11 +203,13 @@ export class PerformanceRecorder {
   }
 
   async finalize(): Promise<PerformanceRecording> {
+    if (this.disposed) throw new Error('RECORDING_DISCARDED');
     let stopResult: RecorderStopResult | null = null;
     if (this.stopPromise) {
       stopResult = await this.stopPromise;
     }
 
+    if (this.disposed) throw new Error('RECORDING_DISCARDED');
     if (this.mode === 'OFF') {
       return createPerformanceRecording({ status: 'NOT_RECORDED' });
     }
@@ -248,6 +250,7 @@ export class PerformanceRecorder {
     this.disposed = true;
     const recorder = this.recorder;
     this.recorder = null;
+    if (recorder) recorder.ondataavailable = null;
     if (recorder && recorder.state !== 'inactive') {
       try {
         recorder.stop();
@@ -256,6 +259,8 @@ export class PerformanceRecorder {
       }
     }
 
+    this.chunks.length = 0; this.timebase = createEmptyTimebase();
+    this.currentSegmentStartPerfMs = null; this.cumulativeMediaMs = 0;
     this.releaseStream();
   }
 
@@ -314,7 +319,7 @@ export class PerformanceRecorder {
 
     this.mediaKind = mediaKind;
     recorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
+      if (!this.disposed && event.data && event.data.size > 0) {
         this.chunks.push(event.data);
       }
     };

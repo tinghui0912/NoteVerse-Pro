@@ -85,7 +85,7 @@ describe('PracticeSettingsPanel', () => {
       const controls = { isLoading: false, isPreparingSession: false, canPrepareSession: true,
         selectedInputCapability: getSelectedInputCapability(input, capabilities, mode),
         rangeSelectionActive: false, canSelectRange: !active, onStart: () => { start(); setActive(true); },
-        onFinish: vi.fn(), onOpenSettings: vi.fn(), onToggleRangeSelection: vi.fn() };
+        onEnd: vi.fn(), onOpenSettings: vi.fn(), onToggleRangeSelection: vi.fn() };
       return <>
         <PracticeSettingsPanel practiceMode={mode} practiceModeLocked={active} inputSource={input}
           microphoneCapability={getSelectedMicrophoneCapability(capabilities, mode)} midiCapability={capabilities.midi}

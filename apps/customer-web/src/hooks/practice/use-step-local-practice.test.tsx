@@ -107,12 +107,14 @@ it('switching from pending Continuous startup waits for both disposal and late p
 it('STEP completion uses the latest callback after rerender without recreating its owner', async () => {
   const r = pendingMicrophone(), first = vi.fn(), latest = vi.fn();
   const starts = vi.spyOn(StepPracticeController.prototype, 'start');
-  const { result, rerender, unmount } = renderHook(({ onCompletion }) =>
-    useLocalPractice({ ...r.options('STEP_BY_STEP', 'MIDI'), onCompletion }),
-    { initialProps: { onCompletion: first } });
+  const { result, rerender, unmount } = renderHook(({ onNaturalCompletion }) =>
+    useLocalPractice({ ...r.options('STEP_BY_STEP', 'MIDI'), onNaturalCompletion }),
+    { initialProps: { onNaturalCompletion: first } });
   await act(async () => { await result.current.start(); });
-  rerender({ onCompletion: latest });
-  await act(async () => { await result.current.finish(); });
+  rerender({ onNaturalCompletion: latest });
+  await act(async () => { if (result.current.mode !== 'STEP_BY_STEP') throw new Error('Expected STEP');
+    for (const _ of artifact.expectedPracticeGroups) { void _; result.current.skip(); }
+    await Promise.resolve(); });
   expect(first).not.toHaveBeenCalled(); expect(latest).toHaveBeenCalledOnce();
   expect(starts).toHaveBeenCalledOnce();
   unmount();

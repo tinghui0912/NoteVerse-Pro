@@ -38,6 +38,7 @@ describe('PracticeCompletionDialog', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(screen.getByRole('heading', { name: practiceMessages.selectedSectionCompletionDialogTitle })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Adjust Section' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'View Report' })).not.toBeInTheDocument();
     expect(screen.queryByText('Preparing playback...')).not.toBeInTheDocument();

@@ -267,6 +267,45 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
+  it('keeps result creation natural-only and abandonment free of completion work', () => {
+    for (const [file, edges] of sourceGraph) for (const edge of edges) {
+      if (edge.bindings.includes('createContinuousPerformanceResult')) {
+        expect(relative(file)).toBe('continuous/natural-completion.ts');
+      }
+      const share = /(?:^|\/)share-video[^/]*\.tsx?$/.test(relative(file));
+      if (share && edge.target) {
+        const target = relative(edge.target);
+        expect(target.startsWith('result/') || target.startsWith('continuous/'), file + ' -> ' + target).toBe(false);
+      }
+    }
+    const controller = path.join(practiceRoot, 'continuous/continuous-practice-controller.ts');
+    const source = ts.createSourceFile(controller, readFileSync(controller, 'utf8'), ts.ScriptTarget.Latest, true);
+    const forbidden = new Set(['completedEvaluation', 'createContinuousPerformanceResult', 'createNaturalContinuousCompletion',
+      'createContinuousPerformanceMetrics', 'finalize', 'setCompletion', 'onNaturalCompletion', 'finish']);
+    let checked = false;
+    const visit = (node: ts.Node) => {
+      if (ts.isMethodDeclaration(node) && node.name.getText(source) === 'abandon') {
+        checked = true;
+        const inspect = (child: ts.Node) => {
+          if (ts.isCallExpression(child)) {
+            const name = ts.isPropertyAccessExpression(child.expression) ? child.expression.name.text : child.expression.getText(source);
+            expect(forbidden.has(name), 'abandon calls ' + name).toBe(false);
+          }
+          ts.forEachChild(child, inspect);
+        };
+        ts.forEachChild(node, inspect);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source); expect(checked).toBe(true);
+    const saveHook = productionFiles(path.join(sourceRoot, 'hooks')).find(file => readFileSync(file, 'utf8').includes('export function useSavePerformanceTake'));
+    expect(saveHook).toBeDefined();
+    for (const edge of imports(saveHook!)) {
+      expect(edge.target && relative(edge.target).startsWith('result/'), edge.specifier).toBeFalsy();
+      expect(edge.bindings.some(name => ['ContinuousPracticeCompletion', 'ContinuousPerformanceResult', 'CompletedContinuousEvaluation', 'ContinuousPerformanceMetrics'].includes(name))).toBe(false);
+    }
+  });
+
   it('has no production module dependency cycles', () => {
     const completed = new Set<string>();
     const visit = (file: string, stack: string[]) => {

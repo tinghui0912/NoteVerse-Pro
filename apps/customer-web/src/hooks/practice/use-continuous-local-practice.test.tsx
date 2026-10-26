@@ -51,7 +51,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   const cancel = vi.fn(); vi.stubGlobal('cancelAnimationFrame', cancel);
   const pause = vi.spyOn(ContinuousPracticeController.prototype, 'pause').mockImplementation(() => {});
   const resume = vi.spyOn(ContinuousPracticeController.prototype, 'resume').mockImplementation(() => {});
-  const finish = vi.spyOn(ContinuousPracticeController.prototype, 'finish').mockResolvedValue();
+  const finish = vi.spyOn(ContinuousPracticeController.prototype, 'abandon').mockResolvedValue();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
   const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()));
@@ -66,7 +66,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   expect(result.current).toMatchObject({ lifecycle: 'ACTIVE', inputState: 'RUNNING', performanceClock: transport,
     activeStepGroup: null, elapsedSeconds: 3, resolvedTempoPlan: tempoPlan });
   act(() => frames.shift()!(0)); expect(owner.refresh).toHaveBeenCalledOnce();
-  await act(async () => { await result.current.pause(); await result.current.resume(); await result.current.finish(); });
+  await act(async () => { await result.current.pause(); await result.current.resume(); await result.current.abandon(); });
   act(() => result.current.setMetronomeEnabled(true));
   expect(pause).toHaveBeenCalledOnce(); expect(resume).toHaveBeenCalledOnce(); expect(finish).toHaveBeenCalledOnce();
   expect(metronome).toHaveBeenCalledWith(true);
@@ -101,7 +101,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   expect(owner.start).toHaveBeenCalledOnce();
   if (invalidation === 'input change') {
     expect(result.current).toMatchObject({ lifecycle: 'READY', inputState: 'IDLE', performanceClock: null });
-    await act(async () => { await result.current.pause(); await result.current.finish(); });
+    await act(async () => { await result.current.pause(); await result.current.abandon(); });
     unmount(); expect(owner.dispose).toHaveBeenCalledOnce();
   }
 });
@@ -140,13 +140,13 @@ it('uses the latest completion callback and metronome option without replacing t
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
   const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
-    { initialProps: { ...options, onCompletion: first, metronomeEnabled: false } });
+    { initialProps: { ...options, onNaturalCompletion: first, metronomeEnabled: false } });
   await act(async () => { await result.current.start(); });
   const controller = owner.start.mock.contexts[0] as ContinuousPracticeController;
   // Simulate the controller's completion notification at its existing callback boundary.
-  const completion = Reflect.get(controller, 'options').onCompletion;
-  rerender({ ...options, onCompletion: latest, metronomeEnabled: true });
-  const completed = { localSessionId: 'latest-completion' };
+  const completion = Reflect.get(controller, 'options').onNaturalCompletion;
+  rerender({ ...options, onNaturalCompletion: latest, metronomeEnabled: true });
+  const completed = { localSessionId: 'latest-completion', completionReason: 'SCOPE_COMPLETED' };
   act(() => completion(completed));
   expect(first).not.toHaveBeenCalled();
   expect(latest).toHaveBeenCalledExactlyOnceWith(completed);

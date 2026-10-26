@@ -37,7 +37,7 @@ interface PracticeControlSurfaceProps {
   onMetronomeEnabledChange?: (enabled: boolean) => void;
   onStart: () => void;
   transportControl?: React.ReactNode;
-  onFinish: () => void;
+  onEnd: () => void;
   onOpenSettings: () => void;
   onToggleRangeSelection: () => void;
 }
@@ -79,7 +79,7 @@ function PracticeControlSurface({
   onMetronomeEnabledChange,
   onStart,
   transportControl,
-  onFinish,
+  onEnd,
   onOpenSettings,
   onToggleRangeSelection,
 }: PracticeControlSurfaceProps) {
@@ -115,7 +115,7 @@ function PracticeControlSurface({
           type="button"
           onClick={() => {
             if (isActive) {
-              onFinish();
+              onEnd();
             }
           }}
           variant="destructive"

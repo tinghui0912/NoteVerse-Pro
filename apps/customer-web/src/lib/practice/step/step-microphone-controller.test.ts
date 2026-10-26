@@ -82,7 +82,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onCompletion: completion });
+  const controller = new StepPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -124,10 +124,10 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(SourceAnalysisRuntime.create).toHaveBeenCalledOnce();
     expect(r.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: r.context }));
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
-    await r.controller.finish(); await r.controller.dispose(); await r.controller.dispose();
+    await r.controller.abandon(); await r.controller.dispose(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
     expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
-    expect(r.completion).toHaveBeenCalledOnce();
+    expect(r.completion).not.toHaveBeenCalled();
   });
 
   it.each([['C4'], ['C4', 'C5'], ['D4']])('pitch evidence %j keeps target policy, exact H50 and synchronous physical rearm', async (...pitches) => {
@@ -182,7 +182,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: end, observations: [] });
     expect(r.finalized.at(-1)!.attemptStartSessionTime.sampleIndex).toBe(sample);
     expect(r.finalized).toHaveLength(2);
-    await r.controller.finish(); expect(r.controller.snapshot().sessionSnapshot!.step.completed).toBe(true);
+    await r.controller.abandon(); expect(r.controller.snapshot().sessionSnapshot!.step.completed).toBe(true);
     await r.controller.dispose();
   });
 
@@ -258,7 +258,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const r = rig(rate); await r.controller.start(); await r.untilFinalized(1); await r.untilFinalized(2);
     // This test driver must not drain an already disposed source after the terminal publication.
     await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
-    await r.controller.finish(); await r.controller.finish();
+    await r.controller.abandon(); await r.controller.abandon();
     expect(r.controller.snapshot().lastSnapshot).toMatchObject({ runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED',
       step: { currentIndex: 3, completed: true } });
     expect(r.finalized.map(a => a.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH']);
@@ -270,8 +270,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   it('arm failure after domain rearm is terminal and never rolls back or reconnects', async () => {
     const r = rig(rate); await r.controller.start();
     const arm = vi.spyOn(r.input(), 'arm').mockImplementationOnce(() => { throw new Error('ARM_FAILED'); });
-    await expect(r.untilFinalized(1)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED'); await r.controller.finish();
-    expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', error: 'STEP_ACOUSTIC_RUNTIME_FAILED', canAcceptAttempt: false });
+    await expect(r.untilFinalized(1)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED'); await r.controller.abandon();
+    expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', error: 'STEP_ACOUSTIC_RUNTIME_FAILED', canAcceptAttempt: false });
     expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(1);
     expect(arm).toHaveBeenCalledOnce(); expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
@@ -287,7 +287,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', canAcceptAttempt: false });
     expect(r.controller.snapshot().error).not.toMatch(/MIDI/);
     expect(r.finalized).toEqual(finalizedBeforeFailure);
-    await r.controller.finish(); await r.controller.start(); await r.controller.dispose();
+    await r.controller.abandon(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
     expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
@@ -331,7 +331,7 @@ it.each(['worker', 'context'] as const)('%s cleanup failure is surfaced while al
   const r = rig(); await r.controller.start();
   if (resource === 'worker') r.worker.dispose.mockRejectedValueOnce(new Error('DISPOSAL_FAILURE'));
   else r.context.close.mockRejectedValueOnce(new Error('CLOSE_FAILURE'));
-  await r.controller.finish();
+  await r.controller.abandon();
   expect(r.controller.snapshot().error).toBe('STEP_RESOURCE_CLEANUP_FAILED');
   expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
   expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
@@ -385,6 +385,19 @@ it.each([44100, 48000] as const)('%s microphone silence stays READY without any 
   expect(snapshot).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true, stepInteractionPhase: 'READY', pendingPostVerdict: null });
   expect(snapshot.sessionSnapshot!.step).toMatchObject({ currentIndex: 0, targetGeneration: 1, activeAttempt: null, pendingPostVerdict: null });
   expect(snapshot.microphoneDiagnostics!.analysis!.counts.windowsPublished).toBeGreaterThan(0);
-  await r.controller.finish();
+  await r.controller.abandon();
   expect(r.finalized).toEqual([]);
+});
+
+it('STEP abandonment cancels outstanding acoustic work and rejects late owner publications', async () => {
+  const r = rig(); await r.controller.start(); await r.untilFinalized(1);
+  const publication = r.publications.at(-1)!; expect(publication).toBeDefined();
+  r.pause(); await r.feed(30);
+  await r.controller.abandon();
+  const discarded = r.controller.snapshot();
+  r.publish(publication);
+  expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', canAcceptAttempt: false,
+    sessionSnapshot: { localSessionId: discarded.sessionSnapshot!.localSessionId, step: discarded.sessionSnapshot!.step } });
+  expect(r.completion).not.toHaveBeenCalled(); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
 });

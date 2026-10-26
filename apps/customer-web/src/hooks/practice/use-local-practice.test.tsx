@@ -250,7 +250,7 @@ describe('useLocalPractice', () => {
     expect(result.current.performanceEvaluation).toBeNull();
     await act(async () => { await result.current.start(); });
     expect(result.current.performanceEvaluation).toBeNull();
-    await act(async () => { await result.current.finish(); });
+    await act(async () => { await result.current.abandon(); });
     expect(result.current.performanceEvaluation).toBeNull();
     expect(continuousCompletionStore.getCompletion()).toBeNull();
   });
@@ -264,7 +264,7 @@ describe('useLocalPractice', () => {
     await act(async () => { await result.current.start(); });
     expect(continuousCompletionStore.getCompletion()).toBeNull();
     expect(result.current.performanceEvaluation).toBeNull();
-    await act(async () => { await result.current.finish(); });
+    await act(async () => { await result.current.abandon(); });
     expect(continuousCompletionStore.getCompletion()).toBeNull();
   });
 
@@ -309,7 +309,7 @@ describe('useLocalPractice', () => {
     expect(result.current.inputError).toBeNull();
   });
 
-  it('finishes on user request and transitions to ENDED', async () => {
+  it('abandons on user End and returns to the pre-start state', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -324,11 +324,16 @@ describe('useLocalPractice', () => {
     });
 
     await act(async () => {
-      await result.current.finish();
+      await result.current.abandon();
     });
 
-    expect(result.current.lifecycle).toBe('ENDED');
-    expect(result.current.completionReason).toBe('STOPPED_BY_USER');
+    expect(result.current.lifecycle).toBe('IDLE');
+    expect(result.current.completionReason).toBeNull();
+    expect(result.current.elapsedSeconds).toBe(0);
+    expect(result.current).toMatchObject({ pendingPostVerdict: null, stepInteractionPhase: null, lastSnapshot: null,
+      activeStepGroup: null, performanceClock: null, performanceEvaluation: null, inputError: null });
+    await act(async () => { await result.current.start(); });
+    expect(result.current.lifecycle).toBe('ACTIVE');
   });
 
   it('skips steps and updates current group', async () => {
@@ -370,9 +375,9 @@ describe('useLocalPractice', () => {
       await result.current.start();
     });
     await act(async () => {
-      await result.current.finish();
+      await result.current.abandon();
     });
-    expect(result.current.lifecycle).toBe('ENDED');
+    expect(result.current.lifecycle).toBe('IDLE');
 
     await act(async () => {
       await result.current.restart();
@@ -420,9 +425,9 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
 
     await act(async () => {
-      await result.current.finish();
+      await result.current.abandon();
     });
-    expect(result.current.lifecycle).toBe('ENDED');
+    expect(result.current.lifecycle).toBe('READY');
   });
 
   it('creates Continuous runtime before MIDI start without accepting pre-performance NOTE_ON evidence', async () => {
@@ -472,11 +477,11 @@ describe('useLocalPractice', () => {
     expect(getUserMedia).not.toHaveBeenCalled();
 
     await act(async () => {
-      await result.current.finish();
+      await result.current.abandon();
     });
 
     expect(getUserMedia).not.toHaveBeenCalled();
-    expect(continuousCompletionStore.getCompletion()?.recording.status).toBe('NOT_RECORDED');
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
     expect(recorderEvents.events).not.toContain('MEDIA_RECORDER_STOP_INVOKED');
   });
 
@@ -619,15 +624,15 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
   });
 
-  it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {
-    const onCompletion = vi.fn();
+  it('serializes duplicate CONTINUOUS abandonment requests without a completion', async () => {
+    const onNaturalCompletion = vi.fn();
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MIDI',
         scope: { kind: 'FULL' },
-        onCompletion,
+        onNaturalCompletion,
       })
     );
 
@@ -638,17 +643,17 @@ describe('useLocalPractice', () => {
     let first!: Promise<void>;
     let second!: Promise<void>;
     act(() => {
-      first = result.current.finish();
-      second = result.current.finish();
+      first = result.current.abandon();
+      second = result.current.abandon();
     });
     await act(async () => {
       await first;
       await second;
     });
 
-    expect(result.current.lifecycle).toBe('ENDED');
+    expect(result.current.lifecycle).toBe('READY');
     expect(result.current.isFinalizingPerformance).toBe(false);
-    expect(onCompletion).toHaveBeenCalledTimes(1);
+    expect(onNaturalCompletion).not.toHaveBeenCalled();
   });
 
   it('delegates microphone Start to the Continuous owner and reflects its lifecycle without fabricated evidence', async () => {

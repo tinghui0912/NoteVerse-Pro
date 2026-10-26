@@ -386,13 +386,16 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(skipButton).toBeEnabled();
     await skipButton.click();
 
-    // Finish
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // End without a completion artifact
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
 
-    // Assert dialog opened
-    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    // End returns to the pre-start state without a dialog
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 
     // Strict assertions: 0 /practice/sessions, 0 WebSockets, 0 /model-assets
     expect(disallowedRequests).toEqual([]);
@@ -457,13 +460,16 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await resumeButton.click();
     await expect(page.getByRole('status')).toContainText('连贯演奏中');
 
-    // Finish
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // End without a completion artifact
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
 
-    // Assert dialog opened
-    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+    // End returns to the pre-start state without a dialog
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 
     // Strict assertions: 0 /practice/sessions, 0 WebSockets
     expect(disallowedRequests).toEqual([]);
@@ -531,12 +537,15 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-    // Finish
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // End without a completion artifact
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
 
-    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
     expect(disallowedRequests).toEqual([]);
   });
 
@@ -594,12 +603,15 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Eventually completes count-in and enters running
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    // Finish session cleanly
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
+    // Abandon the active session
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
 
-    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
     expect(disallowedRequests).toEqual([]);
   });
 
@@ -704,11 +716,14 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Practice remains ACTIVE and playable
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-    // Finish session cleanly
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
-    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    // Abandon the active session
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 
     expect(disallowedRequests).toEqual([]);
   });
@@ -819,11 +834,14 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByText('练习进行中速度已锁定')).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Finish session cleanly
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
-    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    // Abandon the active session
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
   });
 
   test('SECTION SELECTION: incomplete range disables Start and cancellation restores full-piece practice', async ({ page }) => {
@@ -855,7 +873,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // The restored scope completes as full-piece practice, not a partial range.
     await startButton.click();
     await expect(status).toContainText('可以开始，请弹奏当前音符');
-    await page.getByRole('button', { name: '结束', exact: true }).click();
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '跳过', exact: true }).click();
     await expect(page.getByRole('heading', { name: '练习已完成', exact: true })).toBeVisible();
   });
 
@@ -885,7 +903,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(status).toContainText('可以开始，请弹奏当前音符');
     await expect(sectionButton).toBeDisabled();
     await page.getByRole('button', { name: '结束', exact: true }).click();
-    await expect(page.getByRole('heading', { name: '选段练习已完成', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(startButton).toBeEnabled();
+    await expect(sectionButton).toBeEnabled();
   });
 
   test('SECTION SELECTION: selected-section completion can adjust and replace the range', async ({ page }) => {
@@ -907,7 +927,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(startButton).toBeEnabled();
     await startButton.click();
     await expect(status).toContainText('可以开始，请弹奏当前音符');
-    await page.getByRole('button', { name: '结束', exact: true }).click();
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '跳过', exact: true }).click();
 
     const completionDialog = page.getByRole('dialog');
     await expect(completionDialog.getByRole('heading', { name: '选段练习已完成', exact: true })).toBeVisible();
@@ -997,11 +1017,14 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Practice becomes ACTIVE
     await expect(status).toContainText('可以开始，请弹奏当前音符');
 
-    // Finish session cleanly
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
-    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    // Abandon the active session
+    const endButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(endButton).toBeEnabled();
+    await endButton.click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
     expect(modelAssetRequests).toEqual([]);
   });
 
@@ -1101,11 +1124,13 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
       await resumeButton.click();
       await expect(page.getByRole('status')).toContainText('连贯演奏中');
 
-      const finishButton = page.getByRole('button', { name: '结束', exact: true });
-      await expect(finishButton).toBeEnabled();
-      await finishButton.click();
-      await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
+      const endButton = page.getByRole('button', { name: '结束', exact: true });
+      await expect(endButton).toBeEnabled();
+      await endButton.click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+      await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+      await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
     } finally {
       await page.context().setOffline(false);
     }
