@@ -8,7 +8,7 @@ dependencies = []
 [dependency-groups]
 core = [
   "pydantic[email]==2.14.1",
-  "pydantic-settings==2.16.0",
+  "pydantic-settings==2.16.1",
   "loguru==0.7.3",
 ]
 db = [
@@ -34,7 +34,7 @@ tracing = [
 http = [
   { include-group = "core" },
   { include-group = "tracing" },
-  "fastapi==0.146.0",
+  "fastapi==0.161.1",
   "uvicorn[standard]==0.54.0",
   "python-multipart==0.0.32",
   "prometheus-client==0.26.0",
@@ -47,21 +47,21 @@ auth = [
 ]
 storage = [
   { include-group = "core" },
-  "boto3==1.43.114",
-  "alibabacloud-oss-v2==1.4.0",
+  "boto3==1.43.118",
+  "alibabacloud-oss-v2==1.4.1",
 ]
 image = [
   "Pillow==13.0.0",
 ]
 fingering = [
-  "numpy==2.3.5",
+  "numpy==2.5.4",
   "pianoplayer==3.0.2",
 ]
 practice-score = [
   "partitura==1.9.0",
 ]
 render = [
-  "numpy==2.3.5",
+  "numpy==2.5.4",
   "verovio==6.3.0",
 ]
 ocr = [
@@ -69,14 +69,14 @@ ocr = [
 ]
 migrations = [
   { include-group = "db" },
-  "alembic==1.20.0",
+  "alembic==1.20.1",
 ]
 quality-tools = [
   "httpx==0.28.1",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "ruff==0.17.1",
+  "ruff==0.17.2",
   "mypy==2.4.0",
   "pre-commit==4.7.0",
 ]
@@ -106,10 +106,10 @@ worker-app = [
 worker = [
   { include-group = "worker-app" },
   { include-group = "ocr" },
-  "torch==2.6.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "paddlepaddle==3.2.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "accelerate==1.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "fire==0.7.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "torch==2.14.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "paddlepaddle==3.3.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "accelerate==1.15.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "fire==0.7.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "Levenshtein==0.27.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "pyparsing==3.3.3; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "tqdm==4.70.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
