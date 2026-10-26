@@ -1,3 +1,4 @@
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
@@ -146,7 +147,7 @@ describe('PerformanceAnnotationController', () => {
     ]);
     finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilityTimeMs: 1600,
       observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
-    const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('./continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
+    const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('./continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
 
     expect(annotations.supportedNoteIds).toEqual(['note-c']);
     expect(annotations.wrongNoteIds).toEqual([]);

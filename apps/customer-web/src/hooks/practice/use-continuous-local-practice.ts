@@ -3,14 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
-  resources: PracticeResourceCoordinator) {
+  resources: PracticeResourceCoordinator, onSessionStart: () => void) {
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
   const generation = useRef(0);
   const starting = useRef(false);
@@ -56,6 +55,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       await released;
       if (operation !== generation.current) return;
       if (!options.artifact || !options.scope) throw new Error('Score artifact is not available yet.');
+      onSessionStart();
       const current = new ContinuousPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         recordingMode: options.recordingMode, cameraStream: options.cameraMediaStream,
@@ -67,12 +67,12 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       if (operation === generation.current) setSnapshot(current.snapshot());
     } catch (failure) { if (operation === generation.current) setError((failure as Error).message); }
     finally { if (operation === generation.current) starting.current = false; }
-  }, [options, dispose, resources, setSnapshot, setError]);
+  }, [options, dispose, resources, setSnapshot, setError, onSessionStart]);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
     await released;
     if (operation !== generation.current) return;
-    setSnapshot(null); setError(null); completedPerformanceStore.clearPerformance(); await start();
+    setSnapshot(null); setError(null); await start();
   }, [dispose, start, setSnapshot, setError]);
   const pause = useCallback(async () => { controller.current?.pause(); }, []);
   const resume = useCallback(async () => { controller.current?.resume(); }, []);

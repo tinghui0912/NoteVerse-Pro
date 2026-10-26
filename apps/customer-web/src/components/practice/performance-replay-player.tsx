@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 
 type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;

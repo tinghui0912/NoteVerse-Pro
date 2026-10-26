@@ -17,11 +17,11 @@ export type AcousticGroupFeedback = Readonly<{
   strikes: readonly AcousticStrikeFeedback[];
 }>;
 export type MidiContinuousInterpretation = Readonly<{
-  inputSource: 'MIDI'; policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1';
+  inputSource: 'MIDI'; interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1';
   groups: readonly MidiGroupFeedback[]; extraObservations: readonly ContinuousObservation[];
 }>;
 export type AcousticContinuousInterpretation = Readonly<{
-  inputSource: 'MICROPHONE'; policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1';
+  inputSource: 'MICROPHONE'; interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1';
   groups: readonly AcousticGroupFeedback[];
 }>;
 export type ContinuousInterpretation = MidiContinuousInterpretation | AcousticContinuousInterpretation;

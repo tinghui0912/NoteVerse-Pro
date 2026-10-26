@@ -5,7 +5,7 @@ import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/do
 import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import type { MetronomeController, MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
 import type { BrowserMidiControllerOptions, BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
-import type { PerformanceRecorder, PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { PerformanceRecorder, PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
 import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
 export interface ContinuousModelWorker extends AcousticInferencePort { load(url: string): Promise<unknown>; }

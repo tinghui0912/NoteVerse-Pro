@@ -1,0 +1,86 @@
+import { assertCompletedEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { PracticeInputSource } from '@/lib/practice/kernel/session';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { createContinuousPerformanceMetrics, assertContinuousPerformanceMetrics, type ContinuousPerformanceMetrics } from './continuous-performance-metrics';
+import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
+
+export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 1;
+export type ContinuousPerformanceResult = Readonly<{
+  schemaVersion: typeof CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION;
+  localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
+  scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
+  inputSource: PracticeInputSource; activeElapsedMs: number;
+  evaluation: CompletedContinuousEvaluation; metrics: ContinuousPerformanceMetrics;
+  evidenceProvenance: ContinuousEvidenceProvenance; completedAt: string;
+}>;
+
+type ResultCreation = Readonly<{
+  localSessionId: string; artifact: PracticeScoreArtifact; scope: PracticeScope; tempoPlan: ResolvedPracticeTempoPlan;
+  inputSource: PracticeInputSource; activeElapsedMs: number; evaluation: CompletedContinuousEvaluation;
+  evidenceProvenance: ContinuousEvidenceProvenance; completedAt: string;
+}>;
+export function createContinuousPerformanceResult(options: ResultCreation): ContinuousPerformanceResult {
+  const scope = resolvePracticeScope(options.artifact, options.scope);
+  const expected = options.artifact.expectedPracticeGroups.slice(scope.startIndex, scope.endIndex + 1).flatMap(group => group.strikeTargets);
+  if (options.evaluation.status === 'COMPLETE') {
+    const assigned = options.evaluation.assignment.groups.flatMap(group => group.strikes);
+    const ids = new Set(assigned.map(strike => strike.strikeId));
+    if (assigned.length !== expected.length || expected.some(strike => !ids.has(strike.strikeId))) {
+      throw new Error('Continuous result does not cover its canonical scoped targets.');
+    }
+  }
+  const value: ContinuousPerformanceResult = {
+    schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, localSessionId: options.localSessionId,
+    scoreId: options.artifact.scoreId, revisionId: options.artifact.revisionId, artifactId: options.artifact.artifactId,
+    scope, tempoPlan: options.tempoPlan, inputSource: options.inputSource, activeElapsedMs: options.activeElapsedMs,
+    evaluation: options.evaluation, metrics: createContinuousPerformanceMetrics(options.evaluation, expected.length),
+    evidenceProvenance: options.evidenceProvenance, completedAt: options.completedAt,
+  };
+  assertContinuousPerformanceResult(value);
+  return immutableContinuousValue(structuredClone(value));
+}
+
+/** Also accepts parsed JSON: validation never upgrades or repairs an artifact. */
+export function assertContinuousPerformanceResult(value: unknown): asserts value is ContinuousPerformanceResult {
+  assertJsonValue(value);
+  const result = value as ContinuousPerformanceResult;
+  const keys = ['schemaVersion', 'localSessionId', 'scoreId', 'revisionId', 'artifactId', 'scope', 'tempoPlan', 'inputSource',
+    'activeElapsedMs', 'evaluation', 'metrics', 'evidenceProvenance', 'completedAt'];
+  if (!result || Object.keys(result).sort().join() !== keys.sort().join() || result.schemaVersion !== CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION
+    || !['MIDI', 'MICROPHONE'].includes(result.inputSource)
+    || ![result.localSessionId, result.scoreId, result.revisionId, result.artifactId].every(id => typeof id === 'string' && id.length > 0)
+    || !Number.isFinite(result.activeElapsedMs) || result.activeElapsedMs < 0
+    || typeof result.completedAt !== 'string' || !Number.isFinite(Date.parse(result.completedAt))
+    || new Date(result.completedAt).toISOString() !== result.completedAt) throw new Error('Continuous result identity is invalid.');
+  const scope = result.scope;
+  if (!scope || !['FULL', 'RANGE'].includes(scope.kind) || !Number.isSafeInteger(scope.startIndex) || scope.startIndex < 0
+    || !Number.isSafeInteger(scope.endIndex) || scope.endIndex < scope.startIndex
+    || !Number.isFinite(scope.startBeat) || scope.startBeat < 0 || !Number.isFinite(scope.terminalBeat) || scope.terminalBeat < scope.startBeat
+    || scope.kind === 'RANGE' && (!scope.startGroupId || !scope.endGroupId)) throw new Error('Continuous result scope is invalid.');
+  const plan = result.tempoPlan;
+  if (!plan || !['SCORE', 'CUSTOM_FIXED_BPM'].includes(plan.selection?.mode)
+    || plan.selection.mode === 'CUSTOM_FIXED_BPM' && (!Number.isFinite(plan.selection.bpm) || plan.selection.bpm <= 0)
+    || !Array.isArray(plan.segments) || !plan.segments.length || plan.segments[0].startBeat !== 0
+    || plan.segments.some((segment, index) => !Number.isFinite(segment.startBeat) || segment.startBeat < 0
+      || !Number.isFinite(segment.bpm) || segment.bpm <= 0 || !['MUSICXML', 'PRODUCT_DEFAULT', 'CUSTOM'].includes(segment.source)
+      || index > 0 && segment.startBeat <= plan.segments[index - 1].startBeat)) throw new Error('Continuous result tempo is invalid.');
+  assertCompletedEvaluation(result.evaluation, result.inputSource);
+  if (result.evaluation.status === 'COMPLETE' && result.evaluation.assignment.sessionDomainId !== result.localSessionId) {
+    throw new Error('Continuous result session identity is inconsistent.');
+  }
+  assertContinuousPerformanceMetrics(result.metrics, result.evaluation);
+  assertContinuousEvidenceProvenance(result.evidenceProvenance);
+  if (result.evidenceProvenance.inputSource !== result.inputSource) throw new Error('Continuous evidence source identity is inconsistent.');
+}
+function assertJsonValue(value: unknown, ancestors = new Set<object>()): void {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)) return;
+  if (!value || typeof value !== 'object' || ancestors.has(value)
+    || !Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) throw new Error('Continuous result must contain only JSON values.');
+  ancestors.add(value);
+  for (const child of Object.values(value)) assertJsonValue(child, ancestors);
+  ancestors.delete(value);
+}

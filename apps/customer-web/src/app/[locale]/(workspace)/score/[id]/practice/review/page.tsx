@@ -36,11 +36,9 @@ import {
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
-import {
-  completedPerformanceStore,
-  type CompletedPerformance,
-  mediaTimeToPerformanceTimeMs,
-} from '@/lib/practice/completed-performance';
+import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
+import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
+import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import {
   PerformanceAnnotationController,
@@ -49,16 +47,14 @@ import {
 import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import { resolveScopeTiming } from '@/lib/practice/scope-timing';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
-import { createShareVideoSessionFromCompletedPerformance } from '@/lib/practice/share-video-session';
+import { createShareVideoSessionFromCompletion } from '@/lib/practice/share-video-session';
 import type { PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
 
-import { continuousReviewSummary } from '@/lib/practice/continuous/review-summary';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -103,22 +99,25 @@ export default function PracticeReviewPage({
   const t = useTranslations('practice');
   const router = useRouter();
 
-  const [draft, setDraft] = useState<CompletedPerformance | null>(() =>
-    completedPerformanceStore.getPerformance()
+  const [completion, setCompletion] = useState<ContinuousPracticeCompletion | null>(() =>
+    continuousCompletionStore.getCompletion()
   );
 
   useEffect(() => {
-    return completedPerformanceStore.subscribe(setDraft);
+    return continuousCompletionStore.subscribe(setCompletion);
   }, []);
 
-  const isValidDraft = Boolean(draft && draft.scoreId === id);
+  const result = completion?.result ?? null;
+  const recording = completion?.recording ?? null;
 
-  const selectedRevisionId = draft?.revisionId ?? undefined;
+  const isValidCompletion = Boolean(result && result.scoreId === id);
+
+  const selectedRevisionId = result?.revisionId ?? undefined;
 
   const revisionQuery = usePracticeReadyScoreContent(
     id,
     selectedRevisionId,
-    isValidDraft && Boolean(id)
+    isValidCompletion && Boolean(id)
   );
   const xmlContent = revisionQuery.data?.data?.content ?? null;
   const isLoadingXml = revisionQuery.isLoading;
@@ -126,29 +125,29 @@ export default function PracticeReviewPage({
   const artifactQuery = usePracticeScoreArtifact(
     id,
     selectedRevisionId,
-    isValidDraft && Boolean(id)
+    isValidCompletion && Boolean(id)
   );
   const artifact = artifactQuery.data ?? null;
   const cursorScopeResolution = useMemo<
     | { status: 'ready'; scope: CursorScope }
     | { status: 'invalid'; reason: string }
   >(() => {
-    if (!artifact || !draft) {
+    if (!artifact || !result) {
       return { status: 'invalid', reason: 'score_source_unavailable' };
     }
     try {
-      const isRange = draft.scope.kind === 'RANGE';
+      const isRange = result.scope.kind === 'RANGE';
       if (!isRange) {
         return {
           status: 'ready',
           scope: {
             kind: 'FULL',
-            startBeat: draft.scope.startBeat,
-            terminalBeat: draft.scope.terminalBeat,
+            startBeat: result.scope.startBeat,
+            terminalBeat: result.scope.terminalBeat,
           },
         };
       }
-      const allowedNoteIds = resolvePracticeScopeCursorNoteIds(artifact, draft.scope);
+      const allowedNoteIds = resolvePracticeScopeCursorNoteIds(artifact, result.scope);
       if (allowedNoteIds.length === 0) {
         return { status: 'invalid', reason: 'range_has_no_selectable_notes' };
       }
@@ -156,8 +155,8 @@ export default function PracticeReviewPage({
         status: 'ready',
         scope: {
           kind: 'RANGE',
-          startBeat: draft.scope.startBeat,
-          terminalBeat: draft.scope.terminalBeat,
+          startBeat: result.scope.startBeat,
+          terminalBeat: result.scope.terminalBeat,
           allowedNoteIds,
         },
       };
@@ -171,36 +170,36 @@ export default function PracticeReviewPage({
         reason: error instanceof Error ? error.message : 'cursor_scope_invalid',
       };
     }
-  }, [artifact, draft]);
+  }, [artifact, result]);
   const shareVideoSession = useMemo(
     () => {
-      if (!draft || !artifact) return null;
+      if (!completion || !artifact) return null;
       try {
-        return createShareVideoSessionFromCompletedPerformance(draft, artifact);
+        return createShareVideoSessionFromCompletion(completion, artifact);
       } catch {
         return null;
       }
     },
-    [artifact, draft]
+    [artifact, completion]
   );
 
   const isRevisionMismatched = useMemo(() => {
-    if (!isValidDraft || !draft || !artifact) return false;
-    if (artifact.scoreId !== draft.scoreId) return true;
-    if (artifact.artifactId !== draft.artifactId) return true;
-    return artifact.revisionId !== draft.revisionId;
-  }, [artifact, draft, isValidDraft]);
+    if (!isValidCompletion || !result || !artifact) return false;
+    if (artifact.scoreId !== result.scoreId) return true;
+    if (artifact.artifactId !== result.artifactId) return true;
+    return artifact.revisionId !== result.revisionId;
+  }, [artifact, result, isValidCompletion]);
 
   const isScoreIdentityConfirmed = useMemo(() => {
-    if (!isValidDraft || !draft || !artifact || !xmlContent || isRevisionMismatched) {
+    if (!isValidCompletion || !result || !artifact || !xmlContent || isRevisionMismatched) {
       return false;
     }
     return (
-      artifact.scoreId === draft.scoreId &&
-      artifact.artifactId === draft.artifactId &&
-      artifact.revisionId === draft.revisionId
+      artifact.scoreId === result.scoreId &&
+      artifact.artifactId === result.artifactId &&
+      artifact.revisionId === result.revisionId
     );
-  }, [artifact, draft, isRevisionMismatched, isValidDraft, xmlContent]);
+  }, [artifact, result, isRevisionMismatched, isValidCompletion, xmlContent]);
 
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
@@ -220,15 +219,15 @@ export default function PracticeReviewPage({
   const [isShareExporting, setIsShareExporting] = useState(false);
 
   const scoreNoteAnnotations = useMemo(() => {
-    if (!isScoreIdentityConfirmed || !draft?.evaluation) {
+    if (!isScoreIdentityConfirmed || !result?.evaluation) {
       return {
         supportedNoteIds: [],
         wrongNoteIds: [],
         missedNoteIds: [],
       };
     }
-    return noteAnnotationsFromCompletedEvaluation(draft.evaluation);
-  }, [draft, isScoreIdentityConfirmed]);
+    return noteAnnotationsFromCompletedEvaluation(result.evaluation);
+  }, [result, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
@@ -263,9 +262,10 @@ export default function PracticeReviewPage({
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
       latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
       const container = scoreContainerRef.current;
-      if (!container || !draft) return;
+      if (!container || !result) return;
       if (
         replayTimeMs === null ||
+        recording?.status !== 'READY' ||
         !isScoreIdentityConfirmed ||
         cursorScopeResolution.status !== 'ready'
       ) {
@@ -274,18 +274,18 @@ export default function PracticeReviewPage({
       }
       const perfTimeMs = mediaTimeToPerformanceTimeMs(
         replayTimeMs,
-        draft.recordingTimebase,
+        recording.timebase,
         actualMediaDurationMs
       );
       if (perfTimeMs === null) {
         playheadController.clear(container);
         return;
       }
-      const scoreEndBeat = artifact?.scoreEndBeat ?? draft.scope.terminalBeat;
-      const timeline = new PracticeTempoTimeline(draft.tempoPlan, scoreEndBeat);
+      const scoreEndBeat = artifact?.scoreEndBeat ?? result.scope.terminalBeat;
+      const timeline = new PracticeTempoTimeline(result.tempoPlan, scoreEndBeat);
       const scopeStartMs = resolveScopeTiming(
-        draft.scope,
-        draft.tempoPlan,
+        result.scope,
+        result.tempoPlan,
         scoreEndBeat
       ).scopeStartMs;
       const nominalTimeMs = scopeStartMs + perfTimeMs;
@@ -300,7 +300,8 @@ export default function PracticeReviewPage({
     [
       adapter,
       artifact,
-      draft,
+      result,
+      recording,
       isScoreIdentityConfirmed,
       playheadController,
       cursorScopeResolution,
@@ -343,41 +344,42 @@ export default function PracticeReviewPage({
   }, [annotationController, isScoreIdentityConfirmed, playheadController, scoreNoteAnnotations]);
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
-    if (!draft) {
+    if (!recording) {
       return null;
     }
-    if (draft.media.status === 'READY' && draft.media.kind === 'VIDEO') {
+    if (recording?.status === 'READY' && recording.kind === 'VIDEO') {
       return {
         kind: 'VIDEO_RECORDING',
-        blob: draft.media.blob,
-        contentType: draft.media.mimeType,
-        byteSize: draft.media.blob.size,
-        durationMs: draft.media.durationMs,
+        blob: recording.blob,
+        contentType: recording.mimeType,
+        byteSize: recording.blob.size,
+        durationMs: recording.durationMs,
       };
     }
-    if (draft.media.status !== 'READY' || draft.media.kind !== 'AUDIO') {
+    if (recording?.status !== 'READY' || recording.kind !== 'AUDIO') {
       return null;
     }
     return {
       kind: 'AUDIO_RECORDING',
-      blob: draft.media.blob,
-      contentType: draft.media.mimeType,
-      byteSize: draft.media.blob.size,
-      durationMs: draft.media.durationMs,
+      blob: recording.blob,
+      contentType: recording.mimeType,
+      byteSize: recording.blob.size,
+      durationMs: recording.durationMs,
     };
-  }, [draft]);
+  }, [recording]);
 
   const saveMedia = useMemo(() => {
-    if (draft?.media.status === 'READY') {
+    if (recording?.status === 'READY') {
       return {
-        kind: draft.media.kind,
-        blob: draft.media.blob,
-        mimeType: draft.media.mimeType,
-        durationMs: draft.media.durationMs,
+        kind: recording.kind,
+        blob: recording.blob,
+        mimeType: recording.mimeType,
+        durationMs: recording.durationMs,
+        timebase: recording.timebase,
       };
     }
     return null;
-  }, [draft]);
+  }, [recording]);
 
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -386,26 +388,26 @@ export default function PracticeReviewPage({
 
   const handleExportOriginalVideo = useCallback(() => {
     if (
-      draft?.media.status !== 'READY' ||
-      draft.media.kind !== 'VIDEO' ||
-      draft.media.blob.size <= 0
+      recording?.status !== 'READY' ||
+      recording.kind !== 'VIDEO' ||
+      recording.blob.size <= 0
     ) {
       return;
     }
-    const url = URL.createObjectURL(draft.media.blob);
+    const url = URL.createObjectURL(recording.blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `performance-video-${Date.now()}.${extensionForMime(draft.media.mimeType)}`;
+    a.download = `performance-video-${Date.now()}.${extensionForMime(recording.mimeType)}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setHasExportedOriginalMedia(true);
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }, [draft]);
+  }, [recording]);
 
   const handleSavePerformance = useCallback(async () => {
     if (
-      !draft ||
+      !result ||
       !saveMedia ||
       saveStatus === 'saving' ||
       saveStatus === 'saved'
@@ -434,29 +436,30 @@ export default function PracticeReviewPage({
     try {
       await saveMutation.mutateAsync({
         scoreId: id,
-        revisionId: draft.revisionId,
-        artifactId: draft.artifactId,
+        revisionId: result.revisionId,
+        artifactId: result.artifactId,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         mediaBlob: saveMedia.blob,
         mimeType: saveMedia.mimeType,
         durationMs: saveMedia.durationMs,
         scope:
-          draft.scope.kind === 'RANGE'
+          result.scope.kind === 'RANGE'
             ? {
                 kind: 'RANGE',
-                startBeat: draft.scope.startBeat,
-                terminalBeat: draft.scope.terminalBeat,
-                startGroupId: draft.scope.startGroupId,
-                endGroupId: draft.scope.endGroupId,
+                startBeat: result.scope.startBeat,
+                terminalBeat: result.scope.terminalBeat,
+                startGroupId: result.scope.startGroupId,
+                endGroupId: result.scope.endGroupId,
               }
             : {
                 kind: 'FULL',
-                startBeat: draft.scope.startBeat,
-                terminalBeat: draft.scope.terminalBeat,
+                startBeat: result.scope.startBeat,
+                terminalBeat: result.scope.terminalBeat,
               },
-        tempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
-        recordingTimebase: draft.recordingTimebase,
+        tempoPlan: toPerformanceTakeTempoPlan(result.tempoPlan),
+        recordingTimebase: { nominalMediaDurationMs: saveMedia.timebase.nominalMediaDurationMs,
+          activeSegments: saveMedia.timebase.activeSegments.map(segment => ({ ...segment })) },
       });
       setSaveStatus('saved');
     } catch (err: unknown) {
@@ -465,18 +468,17 @@ export default function PracticeReviewPage({
         err instanceof Error ? err.message : t('savePerformanceFailed')
       );
     }
-  }, [draft, id, saveMedia, saveMutation, saveStatus, t]);
+  }, [result, id, saveMedia, saveMutation, saveStatus, t]);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
-    completedPerformanceStore.clearPerformance();
+    continuousCompletionStore.clearCompletion();
     router.push(target === 'score' ? `/score/${id}` : `/score/${id}/practice`);
   }, [id, router]);
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {
       const hasUncommittedMedia = Boolean(
-        draft &&
-          draft.media.status === 'READY' &&
+        recording?.status === 'READY' &&
           saveStatus !== 'saved' &&
           !hasExportedOriginalMedia
       );
@@ -486,7 +488,7 @@ export default function PracticeReviewPage({
       }
       performLeave(target);
     },
-    [draft, hasExportedOriginalMedia, isShareExporting, performLeave, saveStatus]
+    [recording, hasExportedOriginalMedia, isShareExporting, performLeave, saveStatus]
   );
 
   const handleRestart = useCallback(() => {
@@ -498,8 +500,7 @@ export default function PracticeReviewPage({
   }, [requestLeave]);
 
   const hasUncommittedReviewMedia = Boolean(
-    draft &&
-      draft.media.status === 'READY' &&
+    recording?.status === 'READY' &&
       saveStatus !== 'saved' &&
       !hasExportedOriginalMedia
   );
@@ -511,7 +512,7 @@ export default function PracticeReviewPage({
       ? t('leaveReviewUnsavedMediaDesc')
       : t('leaveReviewDesc');
 
-  if (!isValidDraft || !draft) {
+  if (!isValidCompletion || !result || !recording) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center p-6 text-center">
         <EmptyState
@@ -529,23 +530,19 @@ export default function PracticeReviewPage({
     );
   }
 
-  const strikeSummary = continuousReviewSummary({
-    artifact: isScoreIdentityConfirmed ? artifact : null,
-    scope: draft.scope,
-    evaluation: draft.evaluation,
-  });
+  const metrics = result.metrics;
 
   const tempoText =
-    draft.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'
-      ? `${draft.tempoPlan.selection.bpm} BPM`
+    result.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'
+      ? `${result.tempoPlan.selection.bpm} BPM`
       : '原曲速度';
 
-  const scopeText = draft.scope.kind === 'RANGE'
-    ? `${t('scopeSection')} (${draft.scope.startBeat} - ${draft.scope.terminalBeat} 拍)`
-    : `${t('scopeFull')} (${draft.scope.startBeat} - ${draft.scope.terminalBeat} 拍)`;
+  const scopeText = result.scope.kind === 'RANGE'
+    ? `${t('scopeSection')} (${result.scope.startBeat} - ${result.scope.terminalBeat} 拍)`
+    : `${t('scopeFull')} (${result.scope.startBeat} - ${result.scope.terminalBeat} 拍)`;
 
   const inputSourceText =
-    draft.inputSource === 'MICROPHONE'
+    result.inputSource === 'MICROPHONE'
       ? t('inputSourceMic')
       : t('inputSourceMidi');
 
@@ -594,7 +591,7 @@ export default function PracticeReviewPage({
 
       <PageHeader
         title={t('reviewTitle')}
-        description={`完成时间：${new Date(draft.completedAt).toLocaleTimeString()}`}
+        description={`完成时间：${new Date(result.completedAt).toLocaleTimeString()}`}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleBackToScore}>
@@ -624,43 +621,43 @@ export default function PracticeReviewPage({
 
       <section aria-labelledby="target-feedback-heading" className="space-y-3">
         <h2 id="target-feedback-heading" className="text-sm font-semibold">
-          {t(strikeSummary.inputSource === 'MIDI' ? 'targetNoteOutcomes' : 'targetNoteEvidence')}
+          {t(metrics.inputSource === 'MIDI' ? 'targetNoteOutcomes' : 'targetNoteEvidence')}
         </h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <Card className="rounded-lg bg-card">
             <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('targetStrikes')}</CardTitle></CardHeader>
-            <CardContent><div className="text-xl font-bold">{strikeSummary.targetStrikeCount}</div></CardContent>
+            <CardContent><div className="text-xl font-bold">{metrics.targetStrikeCount}</div></CardContent>
           </Card>
-          {strikeSummary.status === 'COMPLETE' && <>
+          {metrics.status === 'COMPLETE' && <>
             <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'confirmedCorrectStrikes' : 'detectedTargetNotes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-green-600">{strikeSummary.inputSource === 'MIDI' ? strikeSummary.correctStrikeCount : strikeSummary.supportedStrikeCount}</div></CardContent>
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(metrics.inputSource === 'MIDI' ? 'confirmedCorrectStrikes' : 'detectedTargetNotes')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-green-600">{metrics.inputSource === 'MIDI' ? metrics.correctStrikeCount : metrics.supportedStrikeCount}</div></CardContent>
             </Card>
-            {strikeSummary.inputSource === 'MIDI' && <Card className="rounded-lg bg-card">
+            {metrics.inputSource === 'MIDI' && <Card className="rounded-lg bg-card">
               <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('wrongStrikeCount')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-red-600">{strikeSummary.wrongStrikeCount}</div></CardContent>
+              <CardContent><div className="text-xl font-bold text-red-600">{metrics.wrongStrikeCount}</div></CardContent>
             </Card>}
             <Card className="rounded-lg bg-card">
-              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(strikeSummary.inputSource === 'MIDI' ? 'missingStrikes' : 'unconfirmedTargetNotes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-slate-600">{strikeSummary.inputSource === 'MIDI' ? strikeSummary.missingStrikeCount : strikeSummary.unconfirmedStrikeCount}</div></CardContent>
+              <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(metrics.inputSource === 'MIDI' ? 'missingStrikes' : 'unconfirmedTargetNotes')}</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold text-slate-600">{metrics.inputSource === 'MIDI' ? metrics.missingStrikeCount : metrics.unconfirmedStrikeCount}</div></CardContent>
             </Card>
             <Card className="rounded-lg bg-card">
               <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('notReachedStrikes')}</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold text-slate-600">{strikeSummary.notReachedStrikeCount}</div></CardContent>
+              <CardContent><div className="text-xl font-bold text-slate-600">{metrics.notReachedStrikeCount}</div></CardContent>
             </Card>
           </>}
         </div>
       </section>
-      {strikeSummary.status === 'COMPLETE' && strikeSummary.inputSource === 'MIDI' && <section aria-labelledby="additional-playing-heading" className="space-y-3 border-t pt-4">
+      {metrics.status === 'COMPLETE' && metrics.inputSource === 'MIDI' && <section aria-labelledby="additional-playing-heading" className="space-y-3 border-t pt-4">
         <h2 id="additional-playing-heading" className="text-sm font-semibold">{t('additionalPlaying')}</h2>
         <Card className="max-w-xs rounded-lg bg-card">
           <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('extraPitchCount')}</CardTitle></CardHeader>
-          <CardContent><div className="text-xl font-bold text-amber-600">{strikeSummary.extraObservationCount}</div></CardContent>
+          <CardContent><div className="text-xl font-bold text-amber-600">{metrics.extraObservationCount}</div></CardContent>
         </Card>
       </section>}
-      {strikeSummary.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
-        : strikeSummary.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
-      {strikeSummary.status === 'COMPLETE' && strikeSummary.notReachedStrikeCount > 0 ? <p className="text-sm text-muted-foreground">{t('notReachedStrikesDesc')}</p> : null}
+      {metrics.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
+        : metrics.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
+      {metrics.status === 'COMPLETE' && metrics.notReachedStrikeCount > 0 ? <p className="text-sm text-muted-foreground">{t('notReachedStrikesDesc')}</p> : null}
 
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -683,7 +680,7 @@ export default function PracticeReviewPage({
               />
             </CardContent>
           </Card>
-        ) : draft.media.status === 'NOT_RECORDED' ? (
+        ) : recording.status === 'NOT_RECORDED' ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-300">
             <div className="flex items-center gap-2">
               <Music className="h-4 w-4 flex-shrink-0" />
@@ -700,9 +697,9 @@ export default function PracticeReviewPage({
               <span className="text-sm font-semibold">{t('audioRecordingUnavailable')}</span>
             </div>
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 pl-6">
-              {draft.media.status === 'UNAVAILABLE' &&
-              (draft.media.reason === 'PERMISSION_DENIED' ||
-                draft.media.reason === 'NotAllowedError')
+              {recording.status === 'UNAVAILABLE' &&
+              (recording.reason === 'PERMISSION_DENIED' ||
+                recording.reason === 'NotAllowedError')
                 ? t('audioRecordingUnavailableMicDenied')
                 : t('audioRecordingUnavailableDesc')}
             </p>
@@ -749,7 +746,7 @@ export default function PracticeReviewPage({
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="text-xs text-muted-foreground">{t('performanceDuration')}</div>
-              <div className="font-semibold">{formatDuration(draft.activeElapsedMs)}</div>
+              <div className="font-semibold">{formatDuration(result.activeElapsedMs)}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">{t('performanceTempo')}</div>
@@ -775,7 +772,7 @@ export default function PracticeReviewPage({
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
-          {draft.media.status === 'READY' && draft.media.kind === 'VIDEO' ? (
+          {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
             <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
               <Download className="mr-1.5 h-4 w-4" />
               {t('exportOriginalVideo')}
@@ -814,7 +811,7 @@ export default function PracticeReviewPage({
               variant="outline"
               disabled
               title={
-                draft.media.status === 'NOT_RECORDED'
+                recording.status === 'NOT_RECORDED'
                   ? t('performanceNotRecorded')
                   : t('audioRecordingUnavailable')
               }
@@ -839,13 +836,13 @@ export default function PracticeReviewPage({
         </CardContent>
       </Card>
 
-      {draft.media.status === 'READY' && draft.media.kind === 'VIDEO' ? (
+      {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
         <ShareVideoStudio
-          key={draft.localSessionId}
+          key={result.localSessionId}
           session={shareVideoSession}
           scoreContainer={scoreContainer}
           adapter={adapter}
-          scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
+          scoreEndBeat={artifact?.scoreEndBeat ?? result.scope.terminalBeat}
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
           mediaTimeMs={sharePreviewTimeMs}

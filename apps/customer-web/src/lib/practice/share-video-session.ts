@@ -4,11 +4,9 @@ import type {
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
-import type {
-  CompletedPerformance,
-  PerformanceMediaReady,
-  RecordingTimebaseMapping,
-} from './completed-performance';
+import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
+import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
+import { assertRecordingTimebase, type RecordingTimebaseMapping } from '@/lib/practice/recording/recording-timebase';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeTempoSegmentSource, ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
@@ -23,42 +21,43 @@ export type ShareVideoSession = {
     revisionId: string;
     artifactId: string;
   };
-  video: PerformanceMediaReady & { kind: 'VIDEO' };
+  video: Pick<Extract<PerformanceRecording, { status: 'READY' }>, 'status' | 'blob' | 'mimeType' | 'durationMs'> & { kind: 'VIDEO'; actualMediaDurationMs?: number };
   scope: CursorScope;
   tempoPlan: ResolvedPracticeTempoPlan;
   recordingTimebase: RecordingTimebaseMapping;
 };
 
-export function createShareVideoSessionFromCompletedPerformance(
-  draft: CompletedPerformance,
+export function createShareVideoSessionFromCompletion(
+  completion: ContinuousPracticeCompletion,
   artifact: PracticeScoreArtifact
 ): ShareVideoSession {
-  const media = draft.media;
-  if (media.status !== 'READY' || media.kind !== 'VIDEO') {
+  const { result, recording } = completion;
+  if (recording.status !== 'READY' || recording.kind !== 'VIDEO') {
     throw new Error('Share video requires a ready video recording.');
   }
   if (
-    artifact.scoreId !== draft.scoreId ||
-    artifact.revisionId !== draft.revisionId ||
-    artifact.artifactId !== draft.artifactId
+    artifact.scoreId !== result.scoreId ||
+    artifact.revisionId !== result.revisionId ||
+    artifact.artifactId !== result.artifactId
   ) {
     throw new Error('Share video score artifact identity mismatch.');
   }
   const scope = cursorScopeFromResolvedPracticeScope(
-    draft.scope,
-    resolvePracticeScopeCursorNoteIds(artifact, draft.scope)
+    result.scope,
+    resolvePracticeScopeCursorNoteIds(artifact, result.scope)
   );
   return {
-    sourceId: draft.localSessionId,
+    sourceId: result.localSessionId,
     scoreIdentity: {
-      scoreId: draft.scoreId,
-      revisionId: draft.revisionId,
-      artifactId: draft.artifactId,
+      scoreId: result.scoreId,
+      revisionId: result.revisionId,
+      artifactId: result.artifactId,
     },
-    video: media,
+    video: { status: 'READY', kind: 'VIDEO', blob: recording.blob,
+      mimeType: recording.mimeType, durationMs: recording.durationMs },
     scope,
-    tempoPlan: draft.tempoPlan,
-    recordingTimebase: draft.recordingTimebase,
+    tempoPlan: result.tempoPlan,
+    recordingTimebase: recording.timebase,
   };
 }
 
@@ -276,24 +275,11 @@ function parseRecordingTimebase(raw: RecordingTimebase): ParsedRecordingTimebase
       throw new Error('recording_timebase_segment_order_invalid');
     }
   }
-  for (let index = 1; index < parsed.length; index += 1) {
-    if (parsed[index].perfStartMs < parsed[index - 1].perfEndMs) {
-      throw new Error('recording_timebase_segments_overlap');
-    }
-    if (Math.abs(parsed[index].mediaStartMs - parsed[index - 1].mediaEndMs) > 1) {
-      throw new Error('recording_timebase_media_segments_not_continuous');
-    }
-  }
   const nominalMediaDurationMs = requireFinitePositive(
     raw.nominalMediaDurationMs,
     'nominalMediaDurationMs'
   );
-  if (parsed[0].mediaStartMs !== 0) {
-    throw new Error('recording_timebase_first_media_segment_invalid');
-  }
-  if (Math.abs(parsed[parsed.length - 1].mediaEndMs - nominalMediaDurationMs) > 1) {
-    throw new Error('recording_timebase_nominal_duration_mismatch');
-  }
+  assertRecordingTimebase({ nominalMediaDurationMs, activeSegments: parsed });
   return {
     nominalMediaDurationMs,
     activeSegments: parsed,

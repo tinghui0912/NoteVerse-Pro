@@ -2,7 +2,7 @@ import { getPracticeAcousticModelAccess } from '../../api/practice-acoustic-mode
 import { createAcousticModelWorker } from '@/lib/practice/acoustic/model/worker-client';
 import { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capture';
 import { BrowserMidiController } from '@/lib/practice/midi/browser-midi-controller';
-import { PerformanceRecorder } from '@/lib/practice/performance-recorder';
+import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
 import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
 import type { ContinuousPlatform } from './continuous-input';
 

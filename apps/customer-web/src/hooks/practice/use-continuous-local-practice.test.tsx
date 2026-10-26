@@ -6,7 +6,7 @@ import artifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-a
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
-import { completedPerformanceStore } from '@/lib/practice/completed-performance';
+import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import { useContinuousLocalPractice } from './use-continuous-local-practice';
 import { PracticeResourceCoordinator } from './practice-resource-coordinator';
@@ -54,7 +54,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   const finish = vi.spyOn(ContinuousPracticeController.prototype, 'finish').mockResolvedValue();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()));
   await act(async () => { await result.current.start(); await result.current.start(); });
   expect(owner.start).toHaveBeenCalledOnce(); expect(owner.subscribe).toHaveBeenCalledOnce();
   expect(owner.subscribe.mock.contexts[0]).toBe(owner.start.mock.contexts[0]);
@@ -80,7 +80,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   owner.start.mockReturnValueOnce(preparation.promise);
   owner.dispose.mockReturnValueOnce(release.promise);
   const barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
     { initialProps: options });
   let starting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
@@ -110,11 +110,12 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   const owner = ownerMocks(), preparation = deferred(), release = deferred();
   owner.start.mockReturnValueOnce(preparation.promise);
   owner.dispose.mockReturnValueOnce(release.promise);
-  const clear = vi.spyOn(completedPerformanceStore, 'clearPerformance');
+  const clear = vi.spyOn(continuousCompletionStore, 'clearCompletion');
   const barrier = new PracticeResourceCoordinator();
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()));
   let starting!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
+  expect(clear).toHaveBeenCalledOnce(); clear.mockClear();
   const first = owner.start.mock.contexts[0];
   const stalePublish = owner.subscribe.mock.calls[0][0];
   await act(async () => { restarting = result.current.restart(); });
@@ -138,7 +139,7 @@ it('uses the latest completion callback and metronome option without replacing t
   const owner = ownerMocks(), first = vi.fn(), latest = vi.fn();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
     { initialProps: { ...options, onCompletion: first, metronomeEnabled: false } });
   await act(async () => { await result.current.start(); });
   const controller = owner.start.mock.contexts[0] as ContinuousPracticeController;
@@ -156,7 +157,7 @@ it('uses the latest completion callback and metronome option without replacing t
 
 it('does not restore a previous snapshot when an input identity is revisited', async () => {
   const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier),
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
     { initialProps: options });
   await act(async () => { await result.current.start(); });
   const stalePublish = owner.subscribe.mock.calls[0][0];
@@ -176,7 +177,7 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
   let requestPublication = false, published = false;
   const clean = { inputState: 'IDLE', inputError: null, performanceClock: null, isFinalizingPerformance: false };
   const { result, rerender, unmount } = renderHook(props => {
-    const practice = useContinuousLocalPractice(props, tempoPlan, barrier);
+    const practice = useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion());
     // Layout runs after B's binding commits but before A's passive unsubscribe.
     // Keep the actual captured callback so cleanup cannot erase the queued publication.
     useLayoutEffect(() => {

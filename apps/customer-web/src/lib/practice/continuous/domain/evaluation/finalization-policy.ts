@@ -2,6 +2,8 @@ import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/eval
 import { type ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import { type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
+export const CONTINUOUS_ASSIGNMENT_POLICY_ID = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V1';
+
 export const CONTINUOUS_ASSIGNMENT_WINDOW_MS = 250;
 export const CONTINUOUS_ANALYSIS_BOUNDS_MS = Object.freeze({ strike: 750, group: 1250, residual: 1500 });
 export const withinContinuousWindow = (a: number, b: number): boolean => Math.abs(a - b) <= CONTINUOUS_ASSIGNMENT_WINDOW_MS;

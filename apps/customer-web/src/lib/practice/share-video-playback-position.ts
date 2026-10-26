@@ -1,4 +1,4 @@
-import { mediaTimeToPerformanceTimeMs } from './completed-performance';
+import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import { resolveScopeTiming } from './scope-timing';
 import type { ShareVideoSession } from './share-video-session';

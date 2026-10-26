@@ -2,14 +2,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
-import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 /** Presentation/commands only. Every STEP resource belongs to its application owner. */
 export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
-  resources: PracticeResourceCoordinator) {
+  resources: PracticeResourceCoordinator, onSessionStart: () => void) {
   const owner = useRef<StepPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
   const generation = useRef(0);
@@ -49,6 +48,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     try {
       await released;
       if (operation !== generation.current) return;
+      onSessionStart();
       const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         onCompletion: result => completion.current?.(result) });
@@ -57,14 +57,14 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     } finally {
       if (operation === generation.current) starting.current = false;
     }
-  }, [options, tempoPlan, setPreparationError, setSnapshot, dispose]);
+  }, [options, tempoPlan, setPreparationError, setSnapshot, dispose, onSessionStart]);
   const finish = useCallback(async () => { await owner.current?.finish(); }, []);
   const skip = useCallback(() => { owner.current?.skip(); }, []);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
     await released;
     if (operation !== generation.current) return;
-    completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start();
+    setSnapshot(null); setPreparationError(null); await start();
   }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
   const applicationState: StepControllerState = snapshot?.state ?? 'IDLE';

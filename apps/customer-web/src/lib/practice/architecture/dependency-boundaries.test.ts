@@ -80,7 +80,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   for (const infrastructure of ['midi/', 'metronome/']) {
     if (source.startsWith(infrastructure)) return targetOwner === 'kernel' || Boolean(target?.startsWith(infrastructure));
   }
-  if (source.startsWith('step/')) return !target?.startsWith('continuous/');
+  if (source.startsWith('result/')) return Boolean(target && (
+    target.startsWith('result/') || target.startsWith('kernel/') || target.startsWith('continuous/domain/evaluation/')
+    || ['acoustic/model/analysis-identity.ts', 'acoustic/model/model-contract.ts', 'continuous/input/midi-evidence-identity.ts'].includes(target)));
+  if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || target.startsWith('kernel/')));
+  if (source.startsWith('step/')) return !target || !['continuous/', 'result/', 'recording/'].some(owner => target.startsWith(owner));
   if (source.startsWith('continuous/')) return !target?.startsWith('step/');
   return true;
 }
@@ -101,10 +105,10 @@ describe('Practice bounded domain dependencies', () => {
   it('keeps kernel and mode domains pure and independent', () => {
     for (const file of files) {
       const owner = domain(relative(file));
-      if (!owner) continue;
+      if (!owner && !relative(file).startsWith('result/')) continue;
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const browserGlobals = new Set(['window', 'document', 'navigator', 'React', 'HTMLElement', 'HTMLMediaElement',
-        'MediaStream', 'MediaRecorder', 'AudioContext', 'Worker', 'MIDIAccess', 'MIDIInput', 'fetch', 'WebSocket',
+        'Blob', 'MediaStream', 'MediaRecorder', 'AudioContext', 'Worker', 'MIDIAccess', 'MIDIInput', 'fetch', 'WebSocket',
         'EventSource', 'localStorage', 'sessionStorage', 'setTimeout', 'setInterval', 'requestAnimationFrame']);
       const visit = (node: ts.Node) => {
         if (ts.isIdentifier(node)) expect(browserGlobals.has(node.text), `${relative(file)}: ${node.text}`).toBe(false);
@@ -187,7 +191,6 @@ describe('Practice bounded domain dependencies', () => {
       ...productionFiles(path.join(sourceRoot, 'components/practice')),
       ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice')),
       path.join(practiceRoot, 'performance-annotation-controller.ts'),
-      path.join(practiceRoot, 'continuous/review-summary.ts'),
     ];
     for (const file of presentation) {
       for (const edge of imports(file)) {
@@ -219,6 +222,49 @@ describe('Practice bounded domain dependencies', () => {
       ]) expect(allowed(file, imports(file, statement)[0]), statement).toBe(false);
     }
     expect(allowed(composition, imports(composition, "import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';")[0])).toBe(true);
+  });
+
+  it('keeps result, recording and STEP ownership separate, including hooks and boundary probes', () => {
+    for (const [file, edges] of sourceGraph) {
+      if (normalize(file) === normalize(path.join(sourceRoot, 'hooks/practice/use-step-local-practice.ts'))) {
+        for (const edge of edges) {
+          const target = edge.target ? relative(edge.target) : '';
+          expect(['result/', 'recording/', 'continuous/'].some(owner => target.startsWith(owner)), edge.specifier).toBe(false);
+        }
+      }
+    }
+    for (const [owner, forbidden] of [
+      ['result', ['recording/performance-recorder', 'step/domain/runtime']],
+      ['recording', ['result/continuous-performance-result', 'continuous/domain/evaluation/interpretation', 'step/domain/runtime']],
+      ['step', ['result/continuous-performance-result', 'recording/recording-artifact', 'continuous/completion-store']],
+    ] as const) {
+      const file = path.join(practiceRoot, owner, 'boundary-probe.ts');
+      for (const target of forbidden) for (const statement of [
+        `import type { Contract } from '@/lib/practice/${target}';`,
+        `export * from '@/lib/practice/${target}';`,
+        `type Contract = import('@/lib/practice/${target}').Contract;`,
+      ]) expect(dependencyAllowed(file, imports(file, statement)[0]), owner + ' -> ' + target).toBe(false);
+    }
+    const composition = path.join(practiceRoot, 'continuous/completion.ts');
+    for (const target of ['result/continuous-performance-result', 'recording/recording-artifact']) {
+      expect(dependencyAllowed(composition, imports(composition, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(true);
+    }
+  });
+
+  it('exposes concrete result/recording owners and keeps metrics projection out of presentation', () => {
+    for (const file of ['result/continuous-performance-result.ts', 'result/continuous-performance-metrics.ts',
+      'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-recorder.ts',
+      'recording/performance-replay.ts', 'continuous/completion.ts', 'continuous/completion-store.ts']) {
+      expect(existsSync(path.join(practiceRoot, file)), file).toBe(true);
+    }
+    for (const file of ['completed-performance.ts', 'performance-recorder.ts', 'performance-replay.ts']) {
+      expect(existsSync(path.join(practiceRoot, file)), file).toBe(false);
+    }
+    const metricsOwner = normalize(path.join(practiceRoot, 'result/continuous-performance-metrics.ts'));
+    for (const [file, edges] of sourceGraph) {
+      if (!file.includes('/components/practice/') && !file.includes('/practice/review/')) continue;
+      for (const edge of edges) if (edge.target === metricsOwner) expect(edge.typeOnly, file + ' -> ' + edge.specifier).toBe(true);
+    }
   });
 
   it('has no production module dependency cycles', () => {

@@ -40,7 +40,7 @@ function acousticGroup(group: ContinuousGroupAssignment): AcousticGroupFeedback 
 export function interpretContinuousAssignment(
   assignment: ContinuousAssignmentSnapshot | CompletedContinuousAssignment, inputSource: PracticeInputSource,
 ): ContinuousInterpretation {
-  if (inputSource === 'MIDI') return immutableContinuousValue({ inputSource, policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1',
+  if (inputSource === 'MIDI') return immutableContinuousValue({ inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1',
     groups: assignment.groups.map(midiGroup), extraObservations: assignment.unattributedObservations.map(row => row.observation) });
-  return immutableContinuousValue({ inputSource, policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', groups: assignment.groups.map(acousticGroup) });
+  return immutableContinuousValue({ inputSource, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', groups: assignment.groups.map(acousticGroup) });
 }

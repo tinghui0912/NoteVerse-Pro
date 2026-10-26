@@ -35,7 +35,7 @@ their own modules. Renderer note IDs are projected by `score-view/cursor-scope.t
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,
 source-blind assignment/finality, and source-specific interpretation. The evaluation
-session composes these layers; `continuous/review-summary.ts` projects learner-facing
+session composes these layers; `result/continuous-performance-metrics.ts` projects versioned learner-facing
 counts from interpretation. The two mode domains do not
 depend on one another. Consumers import concrete owner modules directly.
 
@@ -271,11 +271,14 @@ partition is `Target = Supported + Unconfirmed + Not Reached`.
 Manual-stop targets outside complete legal coverage are NOT_REACHED for both
 sources. UNCONFIRMED means completed analysis did not support a target;
 UNAVAILABLE instead means trustworthy analysis could not complete. Unavailable
-results carry input source, policy identity and reason, without dummy assignments.
+evaluations carry input source, assignmentPolicyId, interpretationPolicyId and reason,
+without dummy assignments.
 
 ### Live feedback and Review
 
-Live feedback, Review summaries and score annotations consume interpretation.
+Live feedback and score annotations consume interpretation. Review presents the
+metrics retained in the immutable completed result, without recomputing them from
+the currently opened score artifact.
 MIDI Review groups correct/wrong/missed/not-reached target counts together,
 with extra notes in a separate additional-playing section. Microphone Review reports supported/unconfirmed target counts and does
 not count residual detections as learner errors. Supported targets are green;
@@ -300,3 +303,106 @@ the session, withholds completed truth and releases owned resources. Listeners a
 detached before intentional cleanup. Cleanup failure is terminal failure; each
 owned release is attempted once. Product errors are localized; bounded diagnostics
 retain causal metadata separately from observations and user recordings.
+
+## Continuous Result Artifact
+
+`result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
+1: local session and score/revision/artifact identities, resolved scope, tempo plan,
+input source, active performance duration, completed evaluation, metrics, evidence
+provenance and ISO UTC completion time. The result is pure, deeply immutable and
+JSON-serializable. It contains no recording or browser-media resource. STEP creates
+no result artifact, metrics or performance report.
+
+The completion transaction creates the result from the canonical artifact and
+resolved scope. COMPLETE evaluation retains assignment and interpretation; UNAVAILABLE
+retains its reason and both policy identities, without inventing empty analysis.
+Validation rejects mismatched session/source identities, corrupt assignment or
+interpretation, inconsistent metrics and unsupported provenance. It never repairs
+or upgrades an artifact. JSON round-trip preserves these semantic checks.
+
+## Metrics
+
+`result/continuous-performance-metrics.ts` owns `CONTINUOUS_PRODUCT_METRICS_V1`.
+Metrics are a deterministic projection of the session-bound interpretation, not of
+raw assignment. The result factory derives them rather than accepting an independent
+caller-supplied aggregate. Stored metrics are validated against that projection.
+
+MIDI target counts partition as Correct + Wrong + Missing + Not Reached; extra
+notes are a separate played-event metric. Microphone counts partition as Supported
++ Unconfirmed + Not Reached, without wrong/extra learner counts. UNAVAILABLE metrics
+retain the canonical scoped target count and reason, without fabricated zero outcomes.
+No overall accuracy, timing grade, weighted score or telemetry transport is defined.
+
+Review reads `completion.result.metrics`. A current score revision mismatch does
+not alter the completed metrics, input, scope, tempo or active duration. Annotations,
+SVG playhead placement and share-score rendering require confirmed artifact identity
+and fail closed independently of aggregate presentation.
+
+## Evaluation / Evidence Provenance
+
+Every live/completed evaluation declares `assignmentPolicyId` and
+`interpretationPolicyId`. `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V1` covers
+same-pitch ±250ms eligibility, maximum cardinality then minimum absolute timing
+error, stable deterministic ties, residual assignment, one-observation ownership,
++750/+1250/+1500ms finality bounds and terminal clamps. Any semantic change to
+these rules requires an assignment-policy version change. Interpretation identity
+is fixed by session source: `MIDI_PHYSICAL_NOTE_EVENTS_V1` or
+`ACOUSTIC_CONSERVATIVE_SUPPORT_V1`. Validation checks both identities and that
+interpretation is the pure assignment projection, without a second assignment pass.
+
+MIDI evidence declares
+`MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V1`: physical NOTE_ON facts,
+session-time capture, one observation per NOTE_ON, 250ms publication-coverage grace
+and exact terminal coverage. The evidence owner supplies this identity.
+
+Microphone results retain the public canonical acoustic analysis descriptor:
+acoustic identity name/core SHA-256, model SHA-256 and authoritative decoder-source
+SHA-256. They also retain the actual session AudioContext source sample rate and
+that rate's source-adapter SHA-256. The 44.1kHz and 48kHz adapters have distinct
+identities. This session-level provenance is present even for silence and unavailable
+analysis; it is not inferred from observations or duplicated onto every observation.
+Confidence remains evidence metadata without another uncalibrated threshold.
+
+## Recording Artifact
+
+`recording/` owns media, recorder resource lifecycle, replay descriptors and
+media-to-performance synchronization. `PerformanceRecording` is a discriminated
+NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
+Blob, MIME, media duration and an immutable recording timebase. Recording is optional
+and independent of result/evaluation availability. Its media duration is distinct
+from the result's active performance duration; it is not a JSON result contract.
+
+The recorder can build segments mutably, but finalized timebase/segments are copied
+and frozen. READY validation requires finite nonnegative coordinates, ordered
+non-overlapping performance segments, a media timeline starting at zero with no
+unexplained gaps, and nominal duration matching the final media end. Existing
+container rounding tolerance is one millisecond; zero-duration boundaries are valid.
+Replay preserves pause/resume mapping, actual decoded-duration scaling, gap-to-null
+behavior and bounds clamping.
+
+Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
+stream; MIDI+AUDIO owns a separate microphone acquisition. VIDEO uses camera video
+and the appropriate audio clone. Each owner releases only its own resources.
+
+Saved Performance Take archives AUDIO/VIDEO media with source snapshot identity,
+scope, tempo and recording timebase. It does not persist Practice assignment,
+interpretation, metrics or implementation provenance. Review Save Performance reads
+only a READY recording and the existing archive metadata; durable result storage
+requires a separate contract.
+
+## Transient Completion Handoff
+
+`continuous/completion.ts` composes `{ result, recording }` without flattening either
+artifact. The controller terminates transport, freezes recording, drains acoustic
+tail work, finalizes evaluation/media, creates the result and completes resource
+cleanup before publishing the atomic completion and notifying completion listeners.
+The store validates both artifacts and publishes neither half independently.
+
+Analysis-unavailable can coexist with READY recording; complete evaluation/metrics
+can coexist with UNAVAILABLE recording. Neither failure invents or discards the other
+artifact's truth. The handoff is transient application state, not durable persistence.
+
+The cross-mode Practice composition owner invalidates an existing completion on the
+explicit creation of a new session owner, including a STEP session. Ordinary renders
+and Review subscription do not clear it. STEP itself imports neither result/recording
+contexts nor the Continuous completion store.

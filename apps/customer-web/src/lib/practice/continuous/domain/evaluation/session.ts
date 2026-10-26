@@ -1,3 +1,4 @@
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from './finalization-policy';
 import { buildContinuousExpectedStrikesFromTimeline } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import type { ContinuousCompletion, CompletedContinuousAssignment, ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
@@ -61,29 +62,35 @@ export class ContinuousEvaluationSession {
 function projectEvaluation<A extends ContinuousAssignmentSnapshot | CompletedContinuousAssignment>(assignment: A, inputSource: PracticeInputSource): ContinuousEvaluationLayers<A> {
   const interpretation = interpretContinuousAssignment(assignment, inputSource);
   return interpretation.inputSource === 'MIDI'
-    ? immutableContinuousValue({ inputSource: 'MIDI', policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation })
-    : immutableContinuousValue({ inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation });
+    ? immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MIDI', interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation })
+    : immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MICROPHONE', interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation });
 }
 export function unavailableContinuousEvaluation(inputSource: PracticeInputSource, reason: ContinuousEvaluationUnavailableReason): UnavailableContinuousEvaluation {
-  return inputSource === 'MIDI' ? Object.freeze({ status: 'UNAVAILABLE', inputSource, policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', reason })
-    : Object.freeze({ status: 'UNAVAILABLE', inputSource, policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason });
+  return inputSource === 'MIDI' ? Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', reason })
+    : Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason });
 }
 
 export function assertCompletedEvaluation(evaluation: CompletedContinuousEvaluation, inputSource: PracticeInputSource): void {
-  if (evaluation.inputSource !== inputSource || evaluation.policyId !== interpretationPolicyForInputSource(inputSource)) {
-    throw new Error('CompletedPerformance interpretation identity is corrupt.');
+  const fields = evaluation.status === 'COMPLETE'
+    ? ['status', 'inputSource', 'assignmentPolicyId', 'interpretationPolicyId', 'assignment', 'interpretation']
+    : ['status', 'inputSource', 'assignmentPolicyId', 'interpretationPolicyId', 'reason'];
+  if (Object.keys(evaluation).sort().join() !== fields.sort().join()) throw new Error('Continuous evaluation shape is corrupt.');
+  if (evaluation.assignmentPolicyId !== CONTINUOUS_ASSIGNMENT_POLICY_ID) throw new Error('Continuous assignment policy identity is corrupt.');
+  if (evaluation.inputSource !== inputSource || evaluation.interpretationPolicyId !== interpretationPolicyForInputSource(inputSource)) {
+    throw new Error('Continuous evaluation interpretation identity is corrupt.');
   }
   if (evaluation.status === 'UNAVAILABLE') {
-    if (!['CONTINUOUS_ANALYSIS_UNAVAILABLE', 'INCOMPLETE_ANALYSIS', 'CORRUPT_TRANSIENT_DRAFT'].includes(evaluation.reason)) {
-      throw new Error('CompletedPerformance unavailable reason is corrupt.');
+    if (!['CONTINUOUS_ANALYSIS_UNAVAILABLE', 'INCOMPLETE_ANALYSIS'].includes(evaluation.reason)) {
+      throw new Error('Continuous evaluation unavailable reason is corrupt.');
     }
     return;
   }
+  if (evaluation.status !== 'COMPLETE') throw new Error('Continuous evaluation status is corrupt.');
   assertCompletedAssignment(evaluation.assignment);
   if (evaluation.assignment.observations.some(observation => observation.source !== (inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC'))) {
     throw new ContinuousEvaluationError('OBSERVATION_SOURCE_MISMATCH');
   }
   if (JSON.stringify(evaluation.interpretation) !== JSON.stringify(interpretContinuousAssignment(evaluation.assignment, inputSource))) {
-    throw new Error('CompletedPerformance interpretation is not an assignment projection.');
+    throw new Error('Continuous evaluation interpretation is not an assignment projection.');
   }
 }

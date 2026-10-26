@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
-import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
 
 type CameraRecordingMessages = {
   continuousOnly: string;

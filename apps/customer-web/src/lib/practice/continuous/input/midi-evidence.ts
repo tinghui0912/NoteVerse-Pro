@@ -1,3 +1,4 @@
+import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './midi-evidence-identity';
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
@@ -6,6 +7,7 @@ export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;
 
 /** MIDI identity is a session-local capture sequence, not a pitch/time collision key. */
 export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort {
+  readonly evidencePolicyId = CONTINUOUS_MIDI_EVIDENCE_POLICY_ID;
   private observationSequence = 0;
   private publicationSequence = 0;
   private frontier = -Infinity;

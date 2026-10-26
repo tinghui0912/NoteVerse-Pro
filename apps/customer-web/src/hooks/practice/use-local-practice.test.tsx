@@ -1,7 +1,8 @@
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 // @vitest-environment jsdom
 
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import { completedPerformanceStore } from '@/lib/practice/completed-performance';
+import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -96,7 +97,7 @@ describe('useLocalPractice', () => {
     midiMock.connectedInputCount = 1;
     midiMock.emitAttackDuringStart = false;
     midiMock.onStateChange = null;
-    completedPerformanceStore.clearPerformance();
+    continuousCompletionStore.clearCompletion();
     class MockMediaRecorder {
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
       mimeType = 'audio/webm';
@@ -251,7 +252,20 @@ describe('useLocalPractice', () => {
     expect(result.current.performanceEvaluation).toBeNull();
     await act(async () => { await result.current.finish(); });
     expect(result.current.performanceEvaluation).toBeNull();
-    expect(completedPerformanceStore.getPerformance()).toBeNull();
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
+  });
+
+  it('starting a new STEP owner invalidates the previous Continuous handoff, without clearing on render', async () => {
+    continuousCompletionStore.setCompletion({ result: canonicalContinuousResultFixture(), recording: { status: 'NOT_RECORDED' } });
+    const saved = continuousCompletionStore.getCompletion();
+    const { result, rerender } = renderHook(() => useLocalPractice({ artifact, mode: 'STEP_BY_STEP', inputSource: 'MIDI', scope: { kind: 'FULL' } }));
+    expect(continuousCompletionStore.getCompletion()).toBe(saved);
+    rerender(); expect(continuousCompletionStore.getCompletion()).toBe(saved);
+    await act(async () => { await result.current.start(); });
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(result.current.performanceEvaluation).toBeNull();
+    await act(async () => { await result.current.finish(); });
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
   });
 
   it('handles MIDI disconnect by remaining ACTIVE and ERROR while preserving progress', async () => {
@@ -462,7 +476,7 @@ describe('useLocalPractice', () => {
     });
 
     expect(getUserMedia).not.toHaveBeenCalled();
-    expect(completedPerformanceStore.getPerformance()?.media.status).toBe('NOT_RECORDED');
+    expect(continuousCompletionStore.getCompletion()?.recording.status).toBe('NOT_RECORDED');
     expect(recorderEvents.events).not.toContain('MEDIA_RECORDER_STOP_INVOKED');
   });
 
@@ -663,7 +677,7 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
     expect(result.current.performanceEvaluation).toBeNull();
-    expect(completedPerformanceStore.getPerformance()).toBeNull();
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
     act(() => {
       snapshot = { ...snapshot, analysis: 'PAUSED', transport: { ...snapshot.transport!, state: 'PAUSED' } };
       listeners.forEach(listener => listener());
@@ -701,7 +715,7 @@ describe('useLocalPractice', () => {
       await act(async () => {});
       expect(dispose).toHaveBeenCalledOnce();
       expect(worker.dispose).toHaveBeenCalledOnce();
-      expect(completedPerformanceStore.getPerformance()).toBeNull();
+      expect(continuousCompletionStore.getCompletion()).toBeNull();
     });
   }
 

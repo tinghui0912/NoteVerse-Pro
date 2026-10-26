@@ -29,7 +29,7 @@ import {
 } from '@/hooks/queries/use-performance-take-queries';
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
-import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import { hasSavedTakeShareVideoMetadata } from '@/lib/practice/share-video-session';
 import { useToast } from '@/hooks/use-toast';
 

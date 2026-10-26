@@ -107,8 +107,8 @@ describe('PerformanceRecorder', () => {
 
     const result = await recorder.finalize();
 
-    expect(result.media.status).toBe('NOT_RECORDED');
-    expect(result.timebase.nominalMediaDurationMs).toBe(0);
+    expect(result.status).toBe('NOT_RECORDED');
+    expect(Object.keys(result)).toEqual(['status']);
   });
 
   it('owns a recorder clone, never acquires or stops the session root', async () => {
@@ -136,11 +136,13 @@ describe('PerformanceRecorder', () => {
 
     const result = await recorder.finalize();
 
-    expect(result.media.status).toBe('READY');
-    if (result.media.status === 'READY') {
-      expect(result.media.kind).toBe('AUDIO');
-      expect(result.media.durationMs).toBe(1200);
-      expect(result.media.blob.size).toBeGreaterThan(0);
+    expect(result.status).toBe('READY');
+    if (result.status === 'READY') {
+      expect(result.kind).toBe('AUDIO');
+      expect(result.durationMs).toBe(1200);
+      expect(result.blob.size).toBeGreaterThan(0);
+      expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.timebase)).toBe(true);
+      expect(Object.isFrozen(result.timebase.activeSegments)).toBe(true); expect(Object.isFrozen(result.timebase.activeSegments[0])).toBe(true);
     }
   });
 
@@ -158,7 +160,8 @@ describe('PerformanceRecorder', () => {
 
     const result = await recorder.finalize();
 
-    expect(result.media.status).toBe('READY');
+    expect(result.status).toBe('READY');
+    if (result.status !== 'READY') throw new Error('Expected ready recording');
     expect(result.timebase.activeSegments).toEqual([
       { perfStartMs: 0, perfEndMs: 500, mediaStartMs: 0, mediaEndMs: 500 },
       { perfStartMs: 900, perfEndMs: 1400, mediaStartMs: 500, mediaEndMs: 1000 },
@@ -175,7 +178,7 @@ describe('PerformanceRecorder', () => {
     await recorder.prepare({ inputSource: 'MIDI' });
     const result = await recorder.finalize();
 
-    expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
   });
 
   it('preserves the original prepare failure reason across freeze/finalize', async () => {
@@ -188,7 +191,7 @@ describe('PerformanceRecorder', () => {
     await recorder.freeze(1000);
     const result = await recorder.finalize();
 
-    expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
   });
 
   it('fails closed when recorder stop times out', async () => {
@@ -207,7 +210,7 @@ describe('PerformanceRecorder', () => {
     await freeze;
     const result = await recorder.finalize();
 
-    expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'RECORDER_STOP_TIMEOUT' });
+    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'RECORDER_STOP_TIMEOUT' });
   });
 
   it('reports UNAVAILABLE when a track ends before finalization completes', async () => {
@@ -224,7 +227,7 @@ describe('PerformanceRecorder', () => {
 
     const result = await recorder.finalize();
 
-    expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'AUDIO_TRACK_ENDED' });
+    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'AUDIO_TRACK_ENDED' });
   });
 
   it('cleans up owned microphone tracks but leaves borrowed analysis tracks alone', async () => {

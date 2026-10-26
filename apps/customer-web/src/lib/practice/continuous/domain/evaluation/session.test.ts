@@ -1,6 +1,7 @@
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { describe, expect, it } from 'vitest';
 import artifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
+import { assertCompletedEvaluation, ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import { buildContinuousExpectedStrikes } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
@@ -32,7 +33,7 @@ describe('artifact-bound Continuous evaluation session', () => {
   it('keeps incomplete analysis unavailable until coverage arrives', () => {
     const session = createSession();
     session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 100, availabilityTimeMs: 100 });
-    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS' });
+    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS' });
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 100, availabilityTimeMs: 200, observations: [] });
     expect(session.completedEvaluation().status).toBe('COMPLETE');
     expect(session.snapshot().interpretation.groups.some(group => group.verdict === 'NOT_REACHED')).toBe(true);
@@ -49,7 +50,7 @@ describe('source-bound evaluation composition', () => {
     expect(session.snapshot()).toEqual(before);
     expect(() => session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilityTimeMs: 1100 })).toThrow('OBSERVATION_SOURCE_MISMATCH');
     expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource,
-      policyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V1' : 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V1' : 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
   });
   it('completed acoustic analysis without support is UNCONFIRMED, never UNAVAILABLE', () => {
     const session = createSession();
@@ -58,8 +59,22 @@ describe('source-bound evaluation composition', () => {
     const result = session.completedEvaluation();
     expect(result.status).toBe('COMPLETE');
     if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(result.policyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
+    expect(result.interpretationPolicyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
     expect(result.interpretation.groups.every(group => group.verdict === 'UNCONFIRMED')).toBe(true);
     expect(result.assignment.groups.every(group => group.strikes.every(strike => strike.state === 'UNMATCHED'))).toBe(true);
   });
+});
+
+it.each(['assignmentPolicyId', 'interpretationPolicyId'] as const)('%s is retained on COMPLETE and UNAVAILABLE and rejects a different identity', key => {
+  const session = createSession();
+  const unavailable = session.completedEvaluation();
+  session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilityTimeMs: 20100, observations: [] });
+  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilityTimeMs: 20100 });
+  for (const result of [unavailable, session.completedEvaluation()]) {
+    expect(result.assignmentPolicyId).toBe(CONTINUOUS_ASSIGNMENT_POLICY_ID);
+    expect(result.interpretationPolicyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
+    expect(() => assertCompletedEvaluation(result, 'MICROPHONE')).not.toThrow();
+    const corrupt = JSON.parse(JSON.stringify(result)); corrupt[key] = 'wrong';
+    expect(() => assertCompletedEvaluation(corrupt, 'MICROPHONE')).toThrow();
+  }
 });

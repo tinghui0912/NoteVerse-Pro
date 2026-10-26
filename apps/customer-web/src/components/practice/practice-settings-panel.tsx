@@ -11,7 +11,7 @@ import type {
   PracticeMicrophoneCapability,
   PracticeMidiCapability,
 } from '@/lib/practice/input-capability';
-import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
 
 type PracticeSettingsPanelProps = {
   className?: string;

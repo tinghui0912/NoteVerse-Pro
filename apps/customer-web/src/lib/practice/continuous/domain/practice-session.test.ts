@@ -1,3 +1,4 @@
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
@@ -377,7 +378,7 @@ describe('Continuous clock and evaluation composition', () => {
     session.end('STOPPED_BY_USER');
 
     expect(session.completedEvaluation()).toEqual({
-      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS',
+      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS',
     });
   });
 

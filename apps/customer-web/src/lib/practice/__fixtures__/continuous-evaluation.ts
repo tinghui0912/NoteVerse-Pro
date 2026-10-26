@@ -1,3 +1,4 @@
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousFinality, FinalizedContinuousGroupAssignment, ContinuousObservationAssignment, CompletedContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
@@ -16,6 +17,6 @@ export function completedEvaluationFixture(inputSource: PracticeInputSource, gro
     completion: { reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilityTimeMs: 10000 } };
   const interpretation = interpretContinuousAssignment(assignment, inputSource);
   return interpretation.inputSource === 'MIDI'
-    ? { status: 'COMPLETE', inputSource: 'MIDI', policyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation }
-    : { status: 'COMPLETE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation };
+    ? { status: 'COMPLETE', inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation }
+    : { status: 'COMPLETE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation };
 }

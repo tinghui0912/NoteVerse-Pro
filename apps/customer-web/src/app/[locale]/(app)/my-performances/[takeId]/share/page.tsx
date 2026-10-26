@@ -22,7 +22,7 @@ import {
 import { ApiError } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { assertPracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
   hasSavedTakeShareVideoMetadata,

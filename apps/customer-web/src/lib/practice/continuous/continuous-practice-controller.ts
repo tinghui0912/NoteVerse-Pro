@@ -1,7 +1,10 @@
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { watchMicrophoneInfrastructure } from '@/lib/practice/acoustic/source/microphone-infrastructure';
-import { completedPerformanceStore, type CompletedPerformance } from '@/lib/practice/completed-performance';
-import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
+import { continuousCompletionStore } from './completion-store';
+import type { ContinuousPracticeCompletion } from './completion';
+import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
+import { midiEvidenceProvenance, microphoneEvidenceProvenance, type ContinuousEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
+import { sourceRate } from '@/lib/practice/acoustic/model/model-contract';
 import { type ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
@@ -11,7 +14,7 @@ import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/kernel/session';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
@@ -34,7 +37,7 @@ export type ContinuousControllerSnapshot = Readonly<{
   session: ContinuousControllerState; transport: PerformanceClockSnapshot | null;
   analysis: 'NOT_REQUIRED' | 'PREPARING' | 'PREROLL' | 'RUNNING' | 'PAUSED' | 'DRAINING' | 'COMPLETE' | 'FAILED';
   analysisError: string | null; inputError: string | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
-  evaluation: ContinuousEvaluationSnapshot | null; completed: CompletedPerformance | null;
+  evaluation: ContinuousEvaluationSnapshot | null; completed: ContinuousPracticeCompletion | null;
   sessionSnapshot: LocalPerformanceSessionSnapshot | null;
 }>;
 
@@ -56,7 +59,8 @@ export class ContinuousPracticeController {
   private futureTerminal: string | null = null;
   private inputError: string | null = null;
   private analysisError: string | null = null;
-  private completed: CompletedPerformance | null = null;
+  private completed: ContinuousPracticeCompletion | null = null;
+  private evidenceProvenance: ContinuousEvidenceProvenance | null = null;
   private finalSession: LocalPerformanceSessionSnapshot | null = null;
   private completion: Promise<void> | null = null;
   private preparing: Promise<void> | null = null;
@@ -108,10 +112,14 @@ export class ContinuousPracticeController {
         this.detachInfrastructure = watchMicrophoneInfrastructure(this.rootStream, this.context, code => { void this.failSession(code); });
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
+        this.evidenceProvenance = microphoneEvidenceProvenance(sourceRate(this.context.sampleRate));
       }
       this.session = new ContinuousPracticeSession({
         ...(this.options.inputSource === 'MIDI'
-          ? { inputSource: 'MIDI' as const, createClockEvidence: (domainId: string) => new ContinuousMidiEvidence(domainId) }
+          ? { inputSource: 'MIDI' as const, createClockEvidence: (domainId: string) => {
+              const evidence = new ContinuousMidiEvidence(domainId);
+              this.evidenceProvenance = midiEvidenceProvenance(evidence.evidencePolicyId); return evidence;
+            } }
           : { inputSource: 'MICROPHONE' as const }), artifact: this.options.artifact, scope: this.options.scope,
         tempoPlan: this.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
         localSessionId: createLocalSessionId(), countInBeats: this.options.countInBeats, metronomeEnabled: this.enabled });
@@ -241,17 +249,18 @@ export class ContinuousPracticeController {
         }
         await stopped; this.checkAlive();
         // Optional media availability is independent of Practice evaluation and completion.
-        const media = await this.recorder!.finalize(); this.checkAlive();
+        const recording = await this.recorder!.finalize(); this.checkAlive();
         const session = this.session!; this.finalSession = session.snapshotSession();
         const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
           : session.completedEvaluation();
-        this.completed = immutableContinuousValue({ localSessionId: this.finalSession.localSessionId,
-          scoreId: this.finalSession.scoreId, revisionId: this.finalSession.revisionId, artifactId: this.finalSession.artifactId,
-          scope: resolvePracticeScope(this.options.artifact, this.options.scope), tempoPlan: this.tempoPlan,
+        if (!this.evidenceProvenance) throw new Error('CONTINUOUS_EVIDENCE_IDENTITY_UNAVAILABLE');
+        const result = createContinuousPerformanceResult({ localSessionId: this.finalSession.localSessionId,
+          artifact: this.options.artifact, scope: this.options.scope, tempoPlan: this.tempoPlan,
           inputSource: this.options.inputSource, activeElapsedMs: this.finalSession.performance.activeElapsedMs,
-          evaluation, media: media.media, recordingTimebase: media.timebase, completedAt: new Date().toISOString() });
+          evaluation, evidenceProvenance: this.evidenceProvenance, completedAt: new Date().toISOString() });
+        this.completed = Object.freeze({ result, recording });
         await this.cleanup(); this.checkAlive();
-        this.state = 'COMPLETE'; completedPerformanceStore.setPerformance(this.completed); this.record('COMPLETE');
+        this.state = 'COMPLETE'; continuousCompletionStore.setCompletion(this.completed); this.record('COMPLETE');
         this.notify(); this.options.onCompletion?.(this.finalSession);
       } catch (error) {
         if (!this.disposed) await this.failSession(continuousErrorCode(error, this.cleanupFailure ? 'RESOURCE_CLEANUP_FAILED' : 'RECORDER_UNAVAILABLE'), error);

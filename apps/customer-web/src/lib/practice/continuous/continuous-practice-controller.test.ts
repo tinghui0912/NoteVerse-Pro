@@ -1,3 +1,6 @@
+import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './input/midi-evidence-identity';
+import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/model-contract';
+import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -7,8 +10,8 @@ import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-input';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
-import { PerformanceRecorder } from '../performance-recorder';
-import { completedPerformanceStore } from '../completed-performance';
+import { PerformanceRecorder } from '../recording/performance-recorder';
+import { continuousCompletionStore } from './completion-store';
 
 function track() {
   const events = new EventTarget();
@@ -92,7 +95,7 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
   for (const status of ['RUNNING', 'PAUSED', 'FINALIZING'] as const) for (const event of ['ended', 'mute']) {
     it(`source ${event} during ${status} fatally closes input and never stores completed truth`, async () => {
-      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
       const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO');
       await controller.start(); await f.feed(100);
       if (status === 'PAUSED') controller.pause();
@@ -111,7 +114,7 @@ describe('Continuous application owner', () => {
   }
   for (const state of ['suspended', 'interrupted', 'closed']) for (const paused of [false, true]) {
     it(`context ${state} while ${paused ? 'PAUSED' : 'RUNNING'} is fatal, unlike Worker failure`, async () => {
-      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
       const f = environment(), controller = f.create(); await controller.start(); if (paused) controller.pause();
       f.context.state = state; f.context.dispatchEvent(new Event('statechange')); await f.feed(10);
       expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().inputError).toBe('AUDIO_CONTEXT_INTERRUPTED');
@@ -121,7 +124,7 @@ describe('Continuous application owner', () => {
   }
   for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize-throw', 'recorder-finalize', 'recorder-cleanup']) {
     it(`settles ${fault} failure without COMPLETE, unhandled rejection or double cleanup`, async () => {
-      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
       const f = environment(); const recorder = new PerformanceRecorder('AUDIO');
       f.platform.createRecorder = () => recorder;
       const controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
@@ -152,14 +155,14 @@ describe('Continuous application owner', () => {
   it('MIDI natural completion owns one evaluation without acoustic dependencies', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(1201); controller.refresh(); await controller.finish();
-    expect(controller.snapshot().completed?.evaluation.status).toBe('COMPLETE');
+    expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
     expect(f.platform.createWorker).not.toHaveBeenCalled(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
     expect(f.platform.createAudioContext).not.toHaveBeenCalled(); await controller.dispose();
   });
   for (const natural of [false, true]) it(`MIDI ${natural ? 'natural' : 'manual'} completion preserves evaluation when optional recording permission is denied`, async () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException('Permission denied', 'NotAllowedError'); });
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
-    const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
     const f = environment(), controller = f.create('MIDI', 0, 'AUDIO');
     try {
       await controller.start();
@@ -179,13 +182,14 @@ describe('Continuous application owner', () => {
       expect(controller.snapshot().session).toBe('COMPLETE');
       expect(controller.snapshot().inputError).toBeNull();
       expect(controller.snapshot().analysisError).toBeNull();
-      expect(completed?.inputSource).toBe('MIDI');
-      expect(completed?.evaluation.status).toBe('COMPLETE');
-      expect(completed?.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+      expect(completed?.result.inputSource).toBe('MIDI');
+      expect(completed?.result.evidenceProvenance).toEqual({ inputSource: 'MIDI', evidencePolicyId: CONTINUOUS_MIDI_EVIDENCE_POLICY_ID });
+      expect(completed?.result.evaluation.status).toBe('COMPLETE');
+      expect(completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
       expect(store).toHaveBeenCalledExactlyOnceWith(completed);
-      expect(completedPerformanceStore.getPerformance()).toMatchObject({ evaluation: { status: 'COMPLETE' }, media: completed!.media });
+      expect(continuousCompletionStore.getCompletion()).toMatchObject({ result: { evaluation: { status: 'COMPLETE' } }, recording: completed!.recording });
     } finally {
-      await controller.dispose(); store.mockRestore(); completedPerformanceStore.clearPerformance();
+      await controller.dispose(); store.mockRestore(); continuousCompletionStore.clearCompletion();
     }
   });
   for (const outcome of ['FAILED', 'TIMEOUT'] as const) it(`MIDI completion degrades optional media when recorder freeze resolves ${outcome}`, async () => {
@@ -201,7 +205,7 @@ describe('Continuous application owner', () => {
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => f.root.media) } });
     const recorder = new PerformanceRecorder('AUDIO');
     const freeze = vi.spyOn(recorder, 'freeze'), finalize = vi.spyOn(recorder, 'finalize');
-    const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
     f.platform.createRecorder = () => recorder;
     const controller = f.create('MIDI', 0, 'AUDIO');
     try {
@@ -222,19 +226,19 @@ describe('Continuous application owner', () => {
       expect(finalize).toHaveBeenCalledTimes(1);
       expect(controller.snapshot().session).toBe('COMPLETE');
       const completed = controller.snapshot().completed;
-      expect(completed?.evaluation.status).toBe('COMPLETE');
-      expect(completed?.media).toEqual({ status: 'UNAVAILABLE', reason: outcome === 'FAILED' ? 'RECORDER_STOP_FAILED' : 'RECORDER_STOP_TIMEOUT' });
+      expect(completed?.result.evaluation.status).toBe('COMPLETE');
+      expect(completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: outcome === 'FAILED' ? 'RECORDER_STOP_FAILED' : 'RECORDER_STOP_TIMEOUT' });
       expect(store).toHaveBeenCalledExactlyOnceWith(completed);
-      expect(completedPerformanceStore.getPerformance()?.media).toEqual(completed!.media);
+      expect(continuousCompletionStore.getCompletion()?.recording).toEqual(completed!.recording);
     } finally {
-      await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); completedPerformanceStore.clearPerformance();
+      await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); continuousCompletionStore.clearCompletion();
     }
   });
   it('MIDI pause/resume and manual Stop preserve identity and accumulated result', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(100); controller.pause(); const T = controller.snapshot().transport!.performanceTimeMs;
     f.clock.set(600); controller.resume(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(T);
-    await controller.finish(); expect(controller.snapshot().completed?.evaluation.status).toBe('COMPLETE'); await controller.dispose();
+    await controller.finish(); expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE'); await controller.dispose();
   });
   it('bounds controller diagnostics across 100 transport cycles', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
@@ -248,7 +252,12 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().transport?.state).toBe('COUNT_IN');
     expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(0);
     await f.feed(2100);
-    expect(controller.snapshot().session).toBe('COMPLETE'); expect(controller.snapshot().completed?.evaluation.status).toBe('COMPLETE');
+    expect(controller.snapshot().session).toBe('COMPLETE'); expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
+    const result = controller.snapshot().completed!.result;
+    expect(result.evidenceProvenance).toMatchObject({ inputSource: 'MICROPHONE', sourceSampleRateHz: rate,
+      sourceAdapterIdentitySha256: sourceIdentity(rate as 44100 | 48000).identitySha256, acousticCoreIdentitySha256: ACOUSTIC_MODEL.identitySha256 });
+    if (result.evaluation.status !== 'COMPLETE') throw new Error('Expected complete evaluation');
+    expect(result.evaluation.assignment.observations).toEqual([]);
     expect(f.platform.acquireMicrophone).toHaveBeenCalledTimes(1); expect(f.platform.createAudioContext).toHaveBeenCalledTimes(1);
     expect(f.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: f.context }));
     expect(f.context.close).toHaveBeenCalledTimes(1); expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose();
@@ -267,7 +276,7 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().transport?.state).toBe('PAUSED'); await f.feed(200);
     expect(controller.snapshot().analysis).toBe('PAUSED'); expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(1);
     const done = controller.finish(); await f.feed(200); await done;
-    expect(controller.snapshot().completed?.evaluation.status).toBe('COMPLETE'); await controller.dispose();
+    expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE'); await controller.dispose();
   });
   it('cancels stale natural terminal near its boundary and resumes to a new one', async () => {
     const f = environment(), controller = f.create(); await controller.start(); await f.feed(1100); controller.pause();
@@ -290,7 +299,7 @@ describe('Continuous application owner', () => {
     const promise = controller.finish(); await f.feed(50); await promise;
     expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(0);
     expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(0);
-    const evaluation = controller.snapshot().completed?.evaluation;
+    const evaluation = controller.snapshot().completed?.result.evaluation;
     expect(evaluation?.status).toBe('COMPLETE');
     if (evaluation?.status === 'COMPLETE') expect(evaluation.interpretation.groups.every(group => group.verdict === 'NOT_REACHED')).toBe(true);
     await controller.dispose();
@@ -303,17 +312,21 @@ describe('Continuous application owner', () => {
     const T = controller.snapshot().transport!.performanceTimeMs;
     if (paused) controller.resume(); await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await controller.finish(); expect(controller.snapshot().completed?.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', policyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-    expect(controller.snapshot().completed?.media.status).toBe('READY'); expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose();
+    await controller.finish(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    expect(controller.snapshot().completed?.result).toMatchObject({ metrics: { status: 'UNAVAILABLE' },
+      evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
+        sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });
+    expect(controller.snapshot().completed?.recording.status).toBe('READY'); expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose();
   });
   it('recording ON normal completion shares one acquisition and exact pause mapping', async () => {
     const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start();
     await f.feed(500); controller.pause(); const T = controller.snapshot().transport!.performanceTimeMs;
     await f.feed(300); controller.resume(); await f.feed(1000);
     const completed = controller.snapshot().completed!;
-    expect(completed.media.status).toBe('READY'); expect(completed.evaluation.status).toBe('COMPLETE');
-    expect(completed.recordingTimebase.activeSegments[0].perfEndMs).toBe(T);
-    expect(completed.recordingTimebase.activeSegments[1].perfStartMs).toBe(T);
+    expect(completed.recording.status).toBe('READY'); expect(completed.result.evaluation.status).toBe('COMPLETE');
+    if (completed.recording.status !== 'READY') throw new Error('Expected ready recording');
+    expect(completed.recording.timebase.activeSegments[0].perfEndMs).toBe(T);
+    expect(completed.recording.timebase.activeSegments[1].perfStartMs).toBe(T);
     expect(f.platform.acquireMicrophone).toHaveBeenCalledTimes(1); await controller.dispose();
   });
   it('does not expose COMPLETE or completed truth while Worker cleanup is still pending', async () => {

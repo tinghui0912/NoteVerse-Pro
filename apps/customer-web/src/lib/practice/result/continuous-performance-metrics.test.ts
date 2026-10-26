@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ContinuousAssignmentFinalizer } from './domain/evaluation/assignment-finalizer';
-import { completedEvaluationFixture } from '../__fixtures__/continuous-evaluation';
-import { continuousReviewSummary } from './review-summary';
-import { unavailableContinuousEvaluation } from './domain/evaluation/session';
-const scope = { kind: 'FULL' as const, startIndex: 0, endIndex: 0, startBeat: 0, terminalBeat: 4 };
-describe('source-aware Continuous review summary', () => {
+import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
+import { completedEvaluationFixture } from '@/lib/practice/__fixtures__/continuous-evaluation';
+import { createContinuousPerformanceMetrics, CONTINUOUS_METRICS_POLICY_ID } from './continuous-performance-metrics';
+import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
+describe('source-aware Continuous performance metrics', () => {
   const summarize = (inputSource: 'MIDI' | 'MICROPHONE', pitches: readonly string[], targets: readonly string[] = ['C4','D4'], terminal = 3000) => {
     const raw = new ContinuousAssignmentFinalizer('test', targets.map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })));
     raw.complete({ reason: terminal < 1000 ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED', performanceTimeMs: terminal, availabilityTimeMs: 3100 });
@@ -12,7 +11,7 @@ describe('source-aware Continuous review summary', () => {
       observations: pitches.map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) });
     const completed = raw.completedAssignment();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete');
-    return continuousReviewSummary({ artifact: null, scope, evaluation: completedEvaluationFixture(inputSource, completed.assignment.groups, completed.assignment.unattributedObservations.map(row => row.observation)) });
+    return createContinuousPerformanceMetrics(completedEvaluationFixture(inputSource, completed.assignment.groups, completed.assignment.unattributedObservations.map(row => row.observation)), targets.length);
   };
   it.each([
     { pitches: ['C4','E4'], correct: 1, wrong: 1, missing: 0, extra: 0 },
@@ -24,7 +23,7 @@ describe('source-aware Continuous review summary', () => {
     { pitches: [], correct: 0, wrong: 0, missing: 2, extra: 0 },
   ])('$pitches partitions MIDI targets independently from additional playing', ({ pitches, correct, wrong, missing, extra }) => {
     const result = summarize('MIDI', pitches);
-    expect(result).toEqual({ status: 'COMPLETE', inputSource: 'MIDI', targetStrikeCount: 2, correctStrikeCount: correct,
+    expect(result).toEqual({ metricsPolicyId: CONTINUOUS_METRICS_POLICY_ID, status: 'COMPLETE', inputSource: 'MIDI', targetStrikeCount: 2, correctStrikeCount: correct,
       wrongStrikeCount: wrong, missingStrikeCount: missing, notReachedStrikeCount: 0, extraObservationCount: extra });
     if (result.status !== 'COMPLETE' || result.inputSource !== 'MIDI') throw new Error('source');
     expect(result.targetStrikeCount).toBe(result.correctStrikeCount + result.wrongStrikeCount + result.missingStrikeCount + result.notReachedStrikeCount);
@@ -40,7 +39,7 @@ describe('source-aware Continuous review summary', () => {
           expect(result.targetStrikeCount).toBe(result.correctStrikeCount + result.wrongStrikeCount + result.missingStrikeCount + result.notReachedStrikeCount);
         } else {
           expect(result.targetStrikeCount).toBe(result.supportedStrikeCount + result.unconfirmedStrikeCount + result.notReachedStrikeCount);
-          expect(Object.keys(result).sort()).toEqual(['inputSource','notReachedStrikeCount','status','supportedStrikeCount','targetStrikeCount','unconfirmedStrikeCount']);
+          expect(Object.keys(result).sort()).toEqual(['inputSource','metricsPolicyId','notReachedStrikeCount','status','supportedStrikeCount','targetStrikeCount','unconfirmedStrikeCount']);
         }
       }
       const stopped = summarize(inputSource, [], targets, 500);
@@ -48,13 +47,13 @@ describe('source-aware Continuous review summary', () => {
     }
   });
   it('never counts acoustic residuals as learner errors', () => {
-    expect(summarize('MICROPHONE', ['C4','E4'])).toEqual({ status: 'COMPLETE', inputSource: 'MICROPHONE', targetStrikeCount: 2,
+    expect(summarize('MICROPHONE', ['C4','E4'])).toEqual({ metricsPolicyId: CONTINUOUS_METRICS_POLICY_ID, status: 'COMPLETE', inputSource: 'MICROPHONE', targetStrikeCount: 2,
       supportedStrikeCount: 1, unconfirmedStrikeCount: 1, notReachedStrikeCount: 0 });
-    expect(summarize('MICROPHONE', ['C4','D4','E4'])).toEqual({ status: 'COMPLETE', inputSource: 'MICROPHONE', targetStrikeCount: 2,
+    expect(summarize('MICROPHONE', ['C4','D4','E4'])).toEqual({ metricsPolicyId: CONTINUOUS_METRICS_POLICY_ID, status: 'COMPLETE', inputSource: 'MICROPHONE', targetStrikeCount: 2,
       supportedStrikeCount: 2, unconfirmedStrikeCount: 0, notReachedStrikeCount: 0 });
   });
   it('unavailable analysis has no invented learner counts', () => {
-    expect(continuousReviewSummary({ artifact: null, scope, evaluation: unavailableContinuousEvaluation('MICROPHONE','CONTINUOUS_ANALYSIS_UNAVAILABLE') })).toEqual({
-      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', targetStrikeCount: 0, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    expect(createContinuousPerformanceMetrics(unavailableContinuousEvaluation('MICROPHONE','CONTINUOUS_ANALYSIS_UNAVAILABLE'), 2)).toEqual({
+      metricsPolicyId: CONTINUOUS_METRICS_POLICY_ID, status: 'UNAVAILABLE', inputSource: 'MICROPHONE', targetStrikeCount: 2, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
   });
 });

@@ -1,7 +1,5 @@
-import type {
-  PerformanceMedia,
-  RecordingTimebaseMapping,
-} from './completed-performance';
+import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
+import type { RecordingActiveSegment } from './recording-timebase';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 
 export type PracticeRecordingMode = 'OFF' | 'AUDIO' | 'VIDEO';
@@ -18,11 +16,6 @@ type PrepareOptions = {
   inputSource: PracticeInputSource;
   sessionMicrophoneStream?: MediaStream | null;
   cameraStream?: MediaStream | null;
-};
-
-type FinalizedRecording = {
-  media: PerformanceMedia;
-  timebase: RecordingTimebaseMapping;
 };
 
 type RecorderStopResult = 'STOPPED' | 'TIMEOUT' | 'FAILED';
@@ -52,7 +45,7 @@ function createContinuousVideoStream(
   return new MediaStream([videoTracks[0], audioTracks[0]]);
 }
 
-function createEmptyTimebase(): RecordingTimebaseMapping {
+function createEmptyTimebase(): { activeSegments: RecordingActiveSegment[]; nominalMediaDurationMs: number } {
   return {
     activeSegments: [],
     nominalMediaDurationMs: 0,
@@ -70,7 +63,7 @@ export class PerformanceRecorder {
   private unavailableReason: string | null = null;
   private state: RecorderState = 'NOT_STARTED';
   private stopPromise: Promise<RecorderStopResult> | null = null;
-  private timebase: RecordingTimebaseMapping = createEmptyTimebase();
+  private timebase = createEmptyTimebase();
   private currentSegmentStartPerfMs: number | null = null;
   private currentSegmentStartMediaMs = 0;
   private cumulativeMediaMs = 0;
@@ -209,17 +202,14 @@ export class PerformanceRecorder {
     return this.stopPromise;
   }
 
-  async finalize(): Promise<FinalizedRecording> {
+  async finalize(): Promise<PerformanceRecording> {
     let stopResult: RecorderStopResult | null = null;
     if (this.stopPromise) {
       stopResult = await this.stopPromise;
     }
 
     if (this.mode === 'OFF') {
-      return {
-        media: { status: 'NOT_RECORDED' },
-        timebase: structuredClone(this.timebase),
-      };
+      return createPerformanceRecording({ status: 'NOT_RECORDED' });
     }
 
     const totalBytes = this.chunks.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
@@ -230,33 +220,28 @@ export class PerformanceRecorder {
       || this.state === 'UNAVAILABLE'
     ) {
       this.state = 'UNAVAILABLE';
-      return {
-        media: {
-          status: 'UNAVAILABLE',
-          reason: this.unavailableReason
-            ?? (stopResult && stopResult !== 'STOPPED'
-              ? 'RECORDER_STOP_FAILED'
-              : totalBytes === 0
-                ? 'EMPTY_RECORDING_BLOB'
-                : 'RECORDING_NOT_AVAILABLE'),
-        },
-        timebase: structuredClone(this.timebase),
-      };
+      return createPerformanceRecording({
+        status: 'UNAVAILABLE',
+        reason: this.unavailableReason
+          ?? (stopResult && stopResult !== 'STOPPED'
+            ? 'RECORDER_STOP_FAILED'
+            : totalBytes === 0
+              ? 'EMPTY_RECORDING_BLOB'
+              : 'RECORDING_NOT_AVAILABLE'),
+      });
     }
 
     this.state = 'READY';
     const fallbackMimeType = this.mediaKind === 'VIDEO' ? 'video/webm' : 'audio/webm';
     const mimeType = this.recorder?.mimeType || fallbackMimeType;
-    return {
-      media: {
-        status: 'READY',
-        kind: this.mediaKind,
-        blob: new Blob(this.chunks, { type: mimeType }),
-        mimeType,
-        durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)),
-      },
-      timebase: structuredClone(this.timebase),
-    };
+    return createPerformanceRecording({
+      status: 'READY',
+      kind: this.mediaKind,
+      blob: new Blob(this.chunks, { type: mimeType }),
+      mimeType,
+      durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)),
+      timebase: this.timebase,
+    });
   }
 
   stopAndCleanup(): void {

@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
 import { useStepLocalPractice } from './use-step-local-practice';
 import { useContinuousLocalPractice } from './use-continuous-local-practice';
+import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 import type { LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
@@ -35,7 +36,8 @@ function usePracticeModeBinding(options: UseLocalPracticeOptions) {
   const tempoPlan = useMemo(() => options.artifact ? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' }) : null,
     [options.artifact, options.tempoSelection]);
   const [resources] = useState(() => new PracticeResourceCoordinator());
-  const step = useStepLocalPractice(options, tempoPlan, resources);
-  const continuous = useContinuousLocalPractice(options, tempoPlan, resources);
+  const onSessionStart = useCallback(() => continuousCompletionStore.clearCompletion(), []);
+  const step = useStepLocalPractice(options, tempoPlan, resources, onSessionStart);
+  const continuous = useContinuousLocalPractice(options, tempoPlan, resources, onSessionStart);
   return options.mode === 'STEP_BY_STEP' ? step : continuous;
 }

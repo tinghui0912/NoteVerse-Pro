@@ -1,3 +1,5 @@
+import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
+import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -266,9 +268,8 @@ vi.mock('@/lib/practice/share-video-export', () => ({
 
 import PracticeReviewPage from './page';
 import {
-  completedPerformanceStore,
-  type CompletedPerformance,
-} from '@/lib/practice/completed-performance';
+  continuousCompletionStore,
+} from '@/lib/practice/continuous/completion-store';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { completedEvaluationFixture, finality } from '@/lib/practice/__fixtures__/continuous-evaluation';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
@@ -331,7 +332,7 @@ function completeEvaluation(
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
     navigationMocks.push.mockClear();
-    completedPerformanceStore.clearPerformance();
+    continuousCompletionStore.clearCompletion();
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
@@ -343,19 +344,19 @@ describe('PracticeReviewPage', () => {
     });
     shareVideoMocks.getShareVideoExportReadiness.mockImplementation(
       ({
-        draft,
+        completion,
         session,
         isScoreIdentityConfirmed,
         xmlContent,
         scoreContainer,
       }: {
-        draft: CompletedPerformance | null;
+        completion: ContinuousPracticeCompletion | null;
         session?: { video?: { status?: string } } | null;
         isScoreIdentityConfirmed: boolean;
         xmlContent: string | null;
         scoreContainer: HTMLElement | null;
       }) => {
-        if (draft?.media.status !== 'READY' && session?.video?.status !== 'READY') {
+        if (completion?.recording.status !== 'READY' && session?.video?.status !== 'READY') {
           return { ok: false, reason: 'video_not_ready' };
         }
         if (!isScoreIdentityConfirmed) return { ok: false, reason: 'score_identity_mismatch' };
@@ -365,7 +366,7 @@ describe('PracticeReviewPage', () => {
     );
   });
 
-  it('renders expired empty state when draft is absent', () => {
+  it('renders expired empty state when completion is absent', () => {
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     expect(screen.getByText('本次临时报告已失效')).toBeDefined();
@@ -378,79 +379,77 @@ describe('PracticeReviewPage', () => {
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
   });
 
-  it('renders expired empty state when draft scoreId does not match url', () => {
-    completedPerformanceStore.setPerformance({
-      localSessionId: 'sess-1',
-      scoreId: 'score-OTHER',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
-      tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
-      inputSource: 'MICROPHONE',
-      activeElapsedMs: 0,
-      evaluation: completeEvaluation(),
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      media: { status: 'UNAVAILABLE', reason: 'NONE' },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 6000, mediaStartMs: 0, mediaEndMs: 6000 }],
-        nominalMediaDurationMs: 6000,
-      },
-      completedAt: new Date().toISOString(),
+  it('renders expired empty state when completion scoreId does not match url', () => {
+    continuousCompletionStore.setCompletion({
+      result: continuousResultFixture({
+        localSessionId: 'sess-1',
+        scoreId: 'score-OTHER',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
+        tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
+        inputSource: 'MICROPHONE',
+        activeElapsedMs: 0,
+        evaluation: completeEvaluation(),
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        completedAt: new Date().toISOString()
+      }), recording: { status: 'UNAVAILABLE', reason: 'NONE' }
     });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次临时报告已失效')).toBeDefined();
   });
 
-  it('renders full review report with player when valid draft has audio READY', () => {
-    const validDraft: CompletedPerformance = {
-      localSessionId: 'sess-1',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
-      tempoPlan: {
-        selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
-        segments: [{ startBeat: 0, bpm: 100, source: 'CUSTOM' }],
-      },
-      inputSource: 'MICROPHONE',
-      activeElapsedMs: 9600,
-      evaluation: completeEvaluation([
-            {
-              expectedGroupId: 'g-1',
-              performanceTimeMs: 0,
-              confidence: 0.9,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-              residualPitches: [],
-              renderNoteIds: ['n-1'],
-              measureNumbers: ['1'],
-            },
-            {
-              expectedGroupId: 'g-2',
-              performanceTimeMs: 600,
-              confidence: 0.7,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
-              residualPitches: [],
-              renderNoteIds: ['n-2'],
-              measureNumbers: ['1'],
-            },
-          ]),
-      media: {
+  it('renders full review report with player when valid completion has audio READY', () => {
+    const validCompletion: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
+        tempoPlan: {
+          selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
+          segments: [{ startBeat: 0, bpm: 100, source: 'CUSTOM' }],
+        },
+        inputSource: 'MICROPHONE',
+        activeElapsedMs: 9600,
+        evaluation: completeEvaluation([
+          {
+            expectedGroupId: 'g-1',
+            performanceTimeMs: 0,
+            confidence: 0.9,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
+            residualPitches: [],
+            renderNoteIds: ['n-1'],
+            measureNumbers: ['1'],
+          },
+          {
+            expectedGroupId: 'g-2',
+            performanceTimeMs: 600,
+            confidence: 0.7,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
+            residualPitches: [],
+            renderNoteIds: ['n-2'],
+            measureNumbers: ['1'],
+          },
+        ]),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 9600,
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
-        nominalMediaDurationMs: 9600,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+        timebase: {
+          activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
+          nominalMediaDurationMs: 9600,
+        }
+      }
     };
 
-    completedPerformanceStore.setPerformance(validDraft);
+    continuousCompletionStore.setCompletion(validCompletion);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -470,114 +469,115 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
     expect(screen.getByTestId('mock-verovio-viewer')).toBeDefined();
 
-    // Clicking retry button clears draft and routes to practice
+    // Clicking retry button clears completion and routes to practice
     const retryButton = screen.getByRole('button', { name: /重弹一次/i });
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
-    expect(completedPerformanceStore.getPerformance()).toBeNull();
+    expect(continuousCompletionStore.getCompletion()).toBeNull();
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
   });
 
   it.each(['MIDI','MICROPHONE'] as const)('%s review uses its own feedback counts and annotation semantics', (inputSource) => {
     const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
 
-    const draftWithChordsAndOutcomes: CompletedPerformance = {
-      localSessionId: 'sess-1',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
-      },
-      inputSource,
-      activeElapsedMs: 10000,
-      evaluation: completeEvaluation([
-            // 1. MATCH group with 2 matched strikes in a chord
-            {
-              expectedGroupId: 'g-1',
-              performanceTimeMs: 0,
-              confidence: 0.95,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [
-                { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
-                { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
-              ],
-              residualPitches: [],
-              renderNoteIds: ['note-c4', 'note-e4'],
-              measureNumbers: ['1'],
-            },
-            // 2. One matched and one unmatched target
-            {
-              expectedGroupId: 'g-2',
-              performanceTimeMs: 1000,
-              confidence: 0.7,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [
-                { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
-                { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
-              ],
-              residualPitches: [],
-              renderNoteIds: ['note-g4', 'note-b4'],
-              measureNumbers: ['1'],
-            },
-            // 3. One supported target and one group residual observation
-            {
-              expectedGroupId: 'g-3',
-              performanceTimeMs: 2000,
-              confidence: 0.3,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [
-                { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
-                { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
-              ],
-              residualPitches: ['D#5'],
-              renderNoteIds: ['note-c5', 'note-e5'],
-              measureNumbers: ['2'],
-            },
-            // 4. Manual-stop tail group with a not-reached strike
-            {
-              expectedGroupId: 'g-4',
-              performanceTimeMs: 3000,
-              confidence: 0.4,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [
-                { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
-              ],
-              residualPitches: [],
-              renderNoteIds: ['note-f4'],
-              measureNumbers: ['2'],
-            },
-            // 5. Another target beyond terminal coverage
-            {
-              expectedGroupId: 'g-5',
-              performanceTimeMs: 4000,
-              confidence: 0,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [
-                { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
-              ],
-              residualPitches: [],
-              renderNoteIds: ['note-a4'],
-              measureNumbers: ['3'],
-            },
-          ], inputSource),
-      media: {
+    const completionWithChordsAndOutcomes: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
+        tempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+        },
+        inputSource,
+        activeElapsedMs: 10000,
+        evaluation: completeEvaluation([
+          // 1. MATCH group with 2 matched strikes in a chord
+          {
+            expectedGroupId: 'g-1',
+            performanceTimeMs: 0,
+            confidence: 0.95,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [
+              { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
+              { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
+            ],
+            residualPitches: [],
+            renderNoteIds: ['note-c4', 'note-e4'],
+            measureNumbers: ['1'],
+          },
+          // 2. One matched and one unmatched target
+          {
+            expectedGroupId: 'g-2',
+            performanceTimeMs: 1000,
+            confidence: 0.7,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [
+              { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
+              { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
+            ],
+            residualPitches: [],
+            renderNoteIds: ['note-g4', 'note-b4'],
+            measureNumbers: ['1'],
+          },
+          // 3. One supported target and one group residual observation
+          {
+            expectedGroupId: 'g-3',
+            performanceTimeMs: 2000,
+            confidence: 0.3,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [
+              { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
+              { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
+            ],
+            residualPitches: ['D#5'],
+            renderNoteIds: ['note-c5', 'note-e5'],
+            measureNumbers: ['2'],
+          },
+          // 4. Manual-stop tail group with a not-reached strike
+          {
+            expectedGroupId: 'g-4',
+            performanceTimeMs: 3000,
+            confidence: 0.4,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [
+              { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
+            ],
+            residualPitches: [],
+            renderNoteIds: ['note-f4'],
+            measureNumbers: ['2'],
+          },
+          // 5. Another target beyond terminal coverage
+          {
+            expectedGroupId: 'g-5',
+            performanceTimeMs: 4000,
+            confidence: 0,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [
+              { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
+            ],
+            residualPitches: [],
+            renderNoteIds: ['note-a4'],
+            measureNumbers: ['3'],
+          },
+        ], inputSource),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 10000,
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
-        nominalMediaDurationMs: 10000,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+        timebase: {
+          activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
+          nominalMediaDurationMs: 10000,
+        }
+      }
     };
 
-    completedPerformanceStore.setPerformance(draftWithChordsAndOutcomes);
+    continuousCompletionStore.setCompletion(completionWithChordsAndOutcomes);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -633,48 +633,49 @@ describe('PracticeReviewPage', () => {
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
     const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
 
-    // Artifact has revision 'rev-2', while draft has revision 'rev-1'
+    // Artifact has revision 'rev-2', while completion has revision 'rev-1'
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
 
-    const validDraft: CompletedPerformance = {
-      localSessionId: 'sess-1',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
-      },
-      inputSource: 'MICROPHONE',
-      activeElapsedMs: 3000,
-      evaluation: completeEvaluation([
-            {
-              expectedGroupId: 'g-1',
-              performanceTimeMs: 0,
-              confidence: 0.9,
-              source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-              residualPitches: [],
-              renderNoteIds: ['n-1'],
-              measureNumbers: ['1'],
-            },
-          ]),
-      media: {
+    const validCompletion: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        tempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+        },
+        inputSource: 'MICROPHONE',
+        activeElapsedMs: 3000,
+        evaluation: completeEvaluation([
+          {
+            expectedGroupId: 'g-1',
+            performanceTimeMs: 0,
+            confidence: 0.9,
+            source: 'ACOUSTIC',
+            expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
+            residualPitches: [],
+            renderNoteIds: ['n-1'],
+            measureNumbers: ['1'],
+          },
+        ]),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 3000,
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-        nominalMediaDurationMs: 3000,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+        timebase: {
+          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+          nominalMediaDurationMs: 3000,
+        }
+      }
     };
 
-    completedPerformanceStore.setPerformance(validDraft);
+    continuousCompletionStore.setCompletion(validCompletion);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -692,37 +693,39 @@ describe('PracticeReviewPage', () => {
     expect(lastCall[1].supportedNoteIds).toEqual([]);
     expect(lastCall[1].wrongNoteIds).toEqual([]);
 
+    // Aggregates belong to the completed result, independently of current artifact identity/target count.
+    const targetRegion = screen.getByRole('region', { name: '目标音识别' });
+    const targetCard = within(targetRegion).getByText('目标音', { exact: true }).parentElement!.parentElement!;
+    expect(within(targetCard).getByText(String(validCompletion.result.metrics.targetStrikeCount), { exact: true })).toBeDefined();
+    expect(validCompletion.result.metrics.targetStrikeCount).toBe(1);
     // Player and factual stats remain rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
     expect(screen.getByText('演奏时长')).toBeDefined();
   });
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {
-    const validDraft: CompletedPerformance = {
-      localSessionId: 'sess-1',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
-      },
-      inputSource: 'MIDI',
-      activeElapsedMs: 3000,
-      evaluation: completeEvaluation([], 'MIDI'),
-      media: {
+    const validCompletion: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        tempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+        },
+        inputSource: 'MIDI',
+        activeElapsedMs: 3000,
+        evaluation: completeEvaluation([], 'MIDI'),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-        nominalMediaDurationMs: 3000,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+      }
     };
 
-    completedPerformanceStore.setPerformance(validDraft);
+    continuousCompletionStore.setCompletion(validCompletion);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -735,8 +738,8 @@ describe('PracticeReviewPage', () => {
     expect(saveBtn.hasAttribute('disabled')).toBe(true);
   });
 
-  it('disables score queries when draft is absent', () => {
-    completedPerformanceStore.clearPerformance();
+  it('disables score queries when completion is absent', () => {
+    continuousCompletionStore.clearCompletion();
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -744,34 +747,35 @@ describe('PracticeReviewPage', () => {
   });
 
   it('handles save performance flow with success state', async () => {
-    const validDraft: CompletedPerformance = {
-      localSessionId: 'sess-save',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
-      },
-      inputSource: 'MIDI',
-      activeElapsedMs: 3000,
-      evaluation: completeEvaluation([], 'MIDI'),
-      media: {
+    const validCompletion: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-save',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        tempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+        },
+        inputSource: 'MIDI',
+        activeElapsedMs: 3000,
+        evaluation: completeEvaluation([], 'MIDI'),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 3000,
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-        nominalMediaDurationMs: 3000,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+        timebase: {
+          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+          nominalMediaDurationMs: 3000,
+        }
+      }
     };
 
-    completedPerformanceStore.setPerformance(validDraft);
+    continuousCompletionStore.setCompletion(validCompletion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-abc' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -808,34 +812,35 @@ describe('PracticeReviewPage', () => {
     const revokeObjectURL = vi.mocked(URL.revokeObjectURL);
 
     const videoBlob = new Blob(['video'], { type: 'video/webm' });
-    const validDraft: CompletedPerformance = {
-      localSessionId: 'sess-video-save',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
-      },
-      inputSource: 'MICROPHONE',
-      activeElapsedMs: 3000,
-      evaluation: completeEvaluation(),
-      media: {
+    const validCompletion: ContinuousPracticeCompletion = {
+      result: continuousResultFixture({
+        localSessionId: 'sess-video-save',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        tempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+        },
+        inputSource: 'MICROPHONE',
+        activeElapsedMs: 3000,
+        evaluation: completeEvaluation(),
+        completedAt: '2026-09-20T12:00:00.000Z'
+      }), recording: {
         status: 'READY',
         kind: 'VIDEO',
         blob: videoBlob,
         mimeType: 'video/webm',
         durationMs: 3000,
-      },
-      recordingTimebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-        nominalMediaDurationMs: 3000,
-      },
-      completedAt: '2026-09-20T12:00:00.000Z',
+        timebase: {
+          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+          nominalMediaDurationMs: 3000,
+        }
+      }
     };
 
-    completedPerformanceStore.setPerformance(validDraft);
+    continuousCompletionStore.setCompletion(validCompletion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -870,8 +875,8 @@ describe('PracticeReviewPage', () => {
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const videoBlob = new Blob(['raw-video'], { type: 'video/webm' });
-    const draft = createVideoDraft({ videoBlob });
-    completedPerformanceStore.setPerformance(draft);
+    const completion = createVideoCompletion({ videoBlob });
+    continuousCompletionStore.setCompletion(completion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -905,7 +910,7 @@ describe('PracticeReviewPage', () => {
       value: vi.fn(),
     });
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
-    completedPerformanceStore.setPerformance(createVideoDraft());
+    continuousCompletionStore.setCompletion(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByTestId('share-video-studio-unavailable')).toBeInTheDocument();
@@ -927,7 +932,7 @@ describe('PracticeReviewPage', () => {
         });
       }
     );
-    completedPerformanceStore.setPerformance(createVideoDraft());
+    continuousCompletionStore.setCompletion(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
@@ -963,7 +968,7 @@ describe('PracticeReviewPage', () => {
     shareVideoMocks.exportShareVideo.mockRejectedValueOnce(
       new Error('encoder failed')
     );
-    completedPerformanceStore.setPerformance(createVideoDraft());
+    continuousCompletionStore.setCompletion(createVideoCompletion());
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -989,8 +994,8 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    completedPerformanceStore.setPerformance(
-      createVideoDraft({
+    continuousCompletionStore.setCompletion(
+      createVideoCompletion({
         videoBlob: new Blob(['mp4-video'], { type: 'video/mp4' }),
         mimeType: 'video/mp4',
       })
@@ -1007,7 +1012,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps video orientation and score presentation independent when deriving export configs', async () => {
-    completedPerformanceStore.setPerformance(createVideoDraft());
+    continuousCompletionStore.setCompletion(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -1044,7 +1049,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps share selections when the studio is collapsed and reopened', () => {
-    completedPerformanceStore.setPerformance(createVideoDraft());
+    continuousCompletionStore.setCompletion(createVideoCompletion());
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
@@ -1065,37 +1070,38 @@ describe('PracticeReviewPage', () => {
   });
 });
 
-function createVideoDraft({
+function createVideoCompletion({
   videoBlob = new Blob(['video'], { type: 'video/webm' }),
   mimeType = videoBlob.type || 'video/webm',
 }: {
   videoBlob?: Blob;
   mimeType?: string;
-} = {}): CompletedPerformance {
+} = {}): ContinuousPracticeCompletion {
   return {
-    localSessionId: 'sess-video',
-    scoreId: 'score-123',
-    revisionId: 'rev-1',
-    artifactId: 'art-1',
-    scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-    tempoPlan: {
-      selection: { mode: 'SCORE' },
-      segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
-    },
-    inputSource: 'MICROPHONE',
+    result: continuousResultFixture({
+      localSessionId: 'sess-video',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+      },
+      inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,
       evaluation: completeEvaluation(),
-    media: {
+      completedAt: '2026-09-20T12:00:00.000Z'
+    }), recording: {
       status: 'READY',
       kind: 'VIDEO',
       blob: videoBlob,
       mimeType,
       durationMs: 3000,
-    },
-    recordingTimebase: {
-      activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-      nominalMediaDurationMs: 3000,
-    },
-    completedAt: '2026-09-20T12:00:00.000Z',
+      timebase: {
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+        nominalMediaDurationMs: 3000,
+      }
+    }
   };
 }
