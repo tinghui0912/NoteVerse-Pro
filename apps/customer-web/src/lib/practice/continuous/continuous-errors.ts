@@ -1,7 +1,7 @@
 import { acousticFailureCode, type AcousticFailureCode } from '@/lib/practice/acoustic/source/microphone-errors';
 export type ContinuousErrorCode =
   | Exclude<AcousticFailureCode, 'SOURCE_SAMPLE_RATE_NOT_QUALIFIED' | 'ACOUSTIC_WORKER_CRASH' | 'ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED' | 'ACOUSTIC_CAPTURE_FAILURE'>
-  | 'UNQUALIFIED_SOURCE_RATE' | 'ANALYSIS_FAILED' | 'RECORDER_UNAVAILABLE' | 'RESOURCE_CLEANUP_FAILED' | 'PRACTICE_ENVIRONMENT_NOT_READY';
+  | 'UNQUALIFIED_SOURCE_RATE' | 'ANALYSIS_FAILED' | 'RECORDER_UNAVAILABLE' | 'RECORDING_PREPARATION_FAILED' | 'RESOURCE_CLEANUP_FAILED' | 'PRACTICE_ENVIRONMENT_NOT_READY';
 
 /** Public categories never contain exception messages, URLs or stacks. */
 export function continuousErrorCode(cause: unknown, fallback: ContinuousErrorCode): ContinuousErrorCode {
@@ -15,6 +15,7 @@ export function continuousErrorCode(cause: unknown, fallback: ContinuousErrorCod
 }
 
 export const continuousErrorMessageKeys = {
+  RECORDING_PREPARATION_FAILED: 'recordingPreparationFailed',
   PRACTICE_ENVIRONMENT_NOT_READY: 'setupRequired',
   MICROPHONE_PERMISSION_DENIED: 'micPermissionDenied', MICROPHONE_SOURCE_LOST: 'micSourceLost',
   AUDIO_CONTEXT_INTERRUPTED: 'micContextInterrupted', MODEL_ASSET_UNAVAILABLE: 'micModelUnavailable',

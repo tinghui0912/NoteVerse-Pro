@@ -660,6 +660,50 @@ async function expectVideoIntentBlocked(page: Page) {
 }
 
 test.describe('Continuous VIDEO camera preparation', () => {
+  test('MIDI VIDEO fails admission when a ready preview video track dies before Start and preserves VIDEO intent', async ({ page }) => {
+    await openCameraSettings(page, 'MIDI', 'READY');
+    await recordingOption(page, 'VIDEO').click(); await prepareSelectedPractice(page, true);
+    await expectCameraReady(page, 1); await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await page.locator('video[aria-label="摄像头预览"]').evaluate(element => {
+      ((element as HTMLVideoElement).srcObject as MediaStream).getVideoTracks().forEach(track => track.stop());
+    });
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeDisabled();
+    await expect(page.getByRole('status')).not.toContainText(/预备拍|连贯演奏中/);
+    await expect(page.getByRole('status')).toContainText('录制无法开始，请重新准备或调整录制设置。');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('VIDEO');
+    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await expect(page.getByTestId('practice-setup')).toBeVisible();
+    await expect(recordingOption(page, 'VIDEO')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('MIDI AUDIO fails admission when recording microphone permission is revoked after Setup without changing AUDIO intent', async ({ page }) => {
+    await setupContinuousPracticeMocks(page); await openPreparedPractice(page, scoreId, revisionId);
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    await page.getByRole('button', { name: /连贯演奏/ }).click();
+    await recordingOption(page, 'AUDIO').click(); await prepareSelectedPractice(page);
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await page.evaluate(() => {
+      navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Permission revoked', 'NotAllowedError'); };
+    });
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeDisabled();
+    await expect(page.getByRole('status')).not.toContainText(/预备拍|连贯演奏中/);
+    await expect(page.getByRole('status')).toContainText('录制无法开始，请重新准备或调整录制设置。');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('AUDIO');
+    expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { loads: number } }).__practiceAcousticEngineFixture.loads)).toBe(0);
+    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await expect(page.getByTestId('practice-setup')).toBeVisible();
+    await expect(recordingOption(page, 'AUDIO')).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('MIDI requests camera video and real audio, then installs a live ready preview', async ({ page }) => {
     await openCameraSettings(page, 'MIDI', 'READY');
     expect((await mediaState(page)).requests).toEqual([]);

@@ -30,6 +30,7 @@
   "micSourceRateUnavailable": "当前音频源采样率尚不受支持。",
   "micAnalysisFailed": "音频分析已停止。播放时钟和录制可以继续，但评估不可用。",
   "micRecorderUnavailable": "录制未能完成。本次会话未保存为完成的演奏。",
+  "recordingPreparationFailed": "录制无法开始，请重新准备或调整录制设置。",
   "micCleanupFailed": "会话资源未能正常释放。请开始新会话。",
   "start": "开始",
   "preparingPractice": "正在准备练习...",

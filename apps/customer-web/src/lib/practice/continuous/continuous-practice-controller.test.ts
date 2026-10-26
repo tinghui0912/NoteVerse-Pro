@@ -1,5 +1,5 @@
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
-import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './input/midi-evidence-identity';
+import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/model-contract';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
@@ -173,38 +173,107 @@ describe('Continuous application owner', () => {
     expect(authorize).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
     await controller.dispose(); authorize.mockRestore(); finalize.mockRestore();
   });
-  it('MIDI natural completion preserves evaluation when optional recording permission is denied', async () => {
-    const getUserMedia = vi.fn(async () => { throw new DOMException('Permission denied', 'NotAllowedError'); });
+  it('MIDI AUDIO fails before Start when fresh recording permission is denied', async () => {
+    const getUserMedia = vi.fn(async () => { throw new DOMException('private browser detail', 'NotAllowedError'); });
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
-    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
-    const f = environment(), controller = f.create('MIDI', 0, 'AUDIO');
+    const store = vi.spyOn(continuousCompletionStore, 'setCompletion'), callback = vi.fn();
+    const f = environment(), controller = f.create('MIDI', 4, 'AUDIO', callback);
     try {
       await controller.start();
-      expect(controller.snapshot().session).toBe('ACTIVE');
-      expect(controller.snapshot().recording).toMatchObject({ state: 'UNAVAILABLE', unavailableReason: 'NotAllowedError' });
-      expect(getUserMedia).toHaveBeenCalledTimes(1);
-      expect(f.platform.createMidi).toHaveBeenCalledTimes(1);
+      expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
+        completed: null, evaluation: null, inputError: 'RECORDING_PREPARATION_FAILED', analysisError: null });
+      expect(controller.snapshot().recording).toMatchObject({ state: 'PREPARATION_FAILED', sourceOwnership: 'NONE' });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+      expect(f.platform.createMidi).toHaveBeenCalledOnce();
+      expect(vi.mocked(f.platform.createMidi).mock.results[0].value.dispose).toHaveBeenCalledOnce();
       expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
       expect(f.platform.acquireInference).not.toHaveBeenCalled();
       expect(f.platform.createAudioContext).not.toHaveBeenCalled();
-
-      f.clock.set(1201); controller.refresh();
-      await controller.abandon(); await controller.abandon();
-
-      const completed = controller.snapshot().completed;
-      expect(controller.snapshot().session).toBe('COMPLETE');
-      expect(controller.snapshot().inputError).toBeNull();
-      expect(controller.snapshot().analysisError).toBeNull();
-      expect(completed?.result.inputSource).toBe('MIDI');
-      expect(completed?.result.evidenceProvenance).toEqual({ inputSource: 'MIDI', evidencePolicyId: CONTINUOUS_MIDI_EVIDENCE_POLICY_ID });
-      expect(completed?.result.evaluation.status).toBe('COMPLETE');
-      expect(completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
-      expect(store).toHaveBeenCalledExactlyOnceWith(completed);
-      expect(continuousCompletionStore.getCompletion()).toMatchObject({ result: { evaluation: { status: 'COMPLETE' } }, recording: completed!.recording });
-    } finally {
-      await controller.dispose(); store.mockRestore(); continuousCompletionStore.clearCompletion();
-    }
+      expect(f.platform.createMetronome).not.toHaveBeenCalled();
+      f.clock.set(10000); controller.refresh();
+      expect(controller.snapshot().completed).toBeNull(); expect(callback).not.toHaveBeenCalled();
+      expect(store).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
+    } finally { await controller.dispose(); store.mockRestore(); }
   });
+
+  it('MIDI AUDIO track loss after Start preserves evaluation and completes with unavailable recording', async () => {
+    const recording = stream();
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => recording.media) } });
+    const f = environment(), controller = f.create('MIDI', 0, 'AUDIO');
+    await controller.start(); expect(controller.snapshot().session).toBe('ACTIVE');
+    recording.audio.stop();
+    expect(controller.snapshot().session).toBe('ACTIVE');
+    expect(controller.snapshot().analysisError).toBeNull();
+    f.clock.set(1201); controller.refresh(); await controller.abandon();
+    expect(controller.snapshot().session).toBe('COMPLETE');
+    expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
+    expect(controller.snapshot().completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: 'AUDIO_TRACK_ENDED' });
+    expect(continuousCompletionStore.getCompletion()).toEqual(controller.snapshot().completed);
+    await controller.dispose();
+  });
+
+  for (const input of ['MIDI', 'MICROPHONE'] as const) for (const kind of ['audio', 'video']) {
+    it(input + ' VIDEO rejects a preview track that died before admission without acoustic misclassification', async () => {
+      const f = environment(), camera = stream(true), callback = vi.fn();
+      camera.media.getTracks().find(track => track.kind === kind)!.stop();
+      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
+      const controller = f.create(input, 4, 'VIDEO', callback, camera.media);
+      await controller.start();
+      // Microphone VIDEO uses its independent session audio, not camera audio.
+      if (input === 'MICROPHONE' && kind === 'audio') {
+        expect(controller.snapshot().session).toBe('ACTIVE');
+        await controller.abandon();
+      } else {
+        expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
+          completed: null, evaluation: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
+        expect(callback).not.toHaveBeenCalled(); expect(store).not.toHaveBeenCalled();
+      }
+      if (input === 'MICROPHONE') {
+        expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).toHaveBeenCalledOnce();
+        expect(f.context.close).toHaveBeenCalledOnce();
+      }
+      await controller.dispose(); store.mockRestore();
+    });
+  }
+
+  it('microphone recorder initialization failure releases its warm lease without analysis failure or model disposal', async () => {
+    const f = environment(), worker = {
+      load: vi.fn(async () => ({})), beginSession: vi.fn(async () => {}), endSession: vi.fn(async () => {}),
+      run: async (_token: string, input: Parameters<AcousticInferencePort['run']>[0]) => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 }),
+      dispose: vi.fn(async () => {}), terminate: vi.fn(), onFailure: () => () => {},
+    }, engine = new AcousticEngine(() => worker);
+    await engine.prepare('/model');
+    f.platform.acquireInference = signal => engine.acquire(signal);
+    vi.stubGlobal('MediaRecorder', class { constructor() { throw new Error('private initialization detail'); } });
+    const controller = f.create('MICROPHONE', 4, 'AUDIO'); await controller.start();
+    expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
+      completed: null, evaluation: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
+    expect(f.root.audio.stop).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
+    expect(f.root.copies.every(copy => copy.audio.stop.mock.calls.length === 1)).toBe(true);
+    expect(engine.snapshot().state).toBe('READY_IDLE');
+    const next = await engine.acquire(); await next.dispose();
+    expect(worker.load).toHaveBeenCalledOnce(); expect(worker.dispose).not.toHaveBeenCalled();
+    await controller.dispose(); await engine.dispose(); expect(worker.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('rechecks an admitted VIDEO clone immediately before starting transport', async () => {
+    let recordingStream: MediaStream | undefined;
+    vi.stubGlobal('MediaRecorder', class extends Recorder { constructor(stream: MediaStream) { super(); recordingStream = stream; } });
+    const f = environment(), camera = stream(true), callback = vi.fn();
+    f.platform.createMetronome = vi.fn(() => {
+      recordingStream!.getVideoTracks()[0].stop(); return f.meter;
+    });
+    const controller = f.create('MIDI', 4, 'VIDEO', callback, camera.media);
+    await controller.start();
+    expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
+      evaluation: null, completed: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
+    expect(f.meter.start).not.toHaveBeenCalled(); expect(f.meter.destroy).toHaveBeenCalledOnce();
+    expect(callback).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(recordingStream!.getTracks().every(track => track.readyState === 'ended')).toBe(true);
+    expect(camera.media.getTracks().every(track => track.readyState === 'live')).toBe(true);
+    await controller.dispose();
+  });
+
   for (const outcome of ['FAILED', 'TIMEOUT'] as const) it(`MIDI completion degrades optional media when recorder freeze resolves ${outcome}`, async () => {
     class StopFaultRecorder extends Recorder {
       stop() {

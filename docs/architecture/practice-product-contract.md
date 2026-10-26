@@ -464,8 +464,23 @@ Confidence remains evidence metadata without another uncalibrated threshold.
 `recording/` owns media, recorder resource lifecycle, replay descriptors and
 media-to-performance synchronization. `PerformanceRecording` is a discriminated
 NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
-Blob, MIME, media duration and an immutable recording timebase. Recording is optional
-and independent of result/evaluation availability. Its media duration is distinct
+Blob, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
+VIDEO requires successful recording admission before transport/count-in begins.
+`PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
+or dead required tracks, permission/device loss, unsupported recorder/MIME and
+initialization failure reject with stable recording preparation codes. Admission
+is rechecked immediately before transport starts. Failure releases this Start's
+owned resources and inference lease, preserves recording intent, invalidates current
+readiness and offers explicit Prepare. It creates no Result, dialog or recording
+artifact, and does not classify recording faults as acoustic-analysis faults.
+Setup success does not promise immutable permissions; Start only reacquires/checks
+its fresh session resources and never repeats cold model preparation.
+
+UNAVAILABLE means recording admission succeeded, Practice started, and the media
+pipeline subsequently failed or could not finish reliably. Track loss, recorder
+runtime errors and unreliable stop/final media can degrade recording independently
+of continuing evaluation and natural completion. A known preparation failure cannot
+be represented as an UNAVAILABLE completion artifact. Its media duration is distinct
 from the result's active performance duration; it is not a JSON result contract.
 
 The recorder can build segments mutably, but finalized timebase/segments are copied

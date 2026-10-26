@@ -39,17 +39,20 @@ describe('PerformanceRecorder', () => {
   const originalMediaRecorder = globalThis.MediaRecorder;
   const originalMediaDevices = navigator.mediaDevices;
   let behavior: MockRecorderBehavior;
+  let lastRecorder: { onerror: (() => void) | null } | null = null;
 
   beforeEach(() => {
     behavior = { emitStop: true, emitData: true };
+    lastRecorder = null;
     class MockMediaRecorder {
+      static isTypeSupported() { return true; }
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
       mimeType = 'audio/webm';
       ondataavailable: ((event: { data: Blob }) => void) | null = null;
       onstop: (() => void) | null = null;
       onerror: (() => void) | null = null;
 
-      constructor() {}
+      constructor() { lastRecorder = this; }
 
       start() {
         this.state = 'recording';
@@ -169,29 +172,77 @@ describe('PerformanceRecorder', () => {
     expect(result.timebase.nominalMediaDurationMs).toBe(1000);
   });
 
-  it('reports UNAVAILABLE when microphone permission is denied', async () => {
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: { getUserMedia: vi.fn(async () => { throw new DOMException('denied', 'NotAllowedError'); }) },
-    });
+  it.each(['NotAllowedError', 'NotFoundError', 'NotReadableError'])('rejects fresh microphone %s before admission without retaining resources', async name => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true,
+      value: { getUserMedia: vi.fn(async () => { throw new DOMException('private browser detail', name); }) } });
     const recorder = new PerformanceRecorder('AUDIO');
-    await recorder.prepare({ inputSource: 'MIDI' });
-    const result = await recorder.finalize();
-
-    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+    await expect(recorder.prepare({ inputSource: 'MIDI' })).rejects.toMatchObject({
+      name: 'RecordingPreparationError', message: name === 'NotAllowedError' ? 'RECORDING_PERMISSION_DENIED' : 'RECORDING_AUDIO_UNAVAILABLE',
+    });
+    expect(recorder.snapshot()).toEqual({ state: 'PREPARATION_FAILED', sourceOwnership: 'NONE', unavailableReason: null });
+    expect(lastRecorder).toBeNull();
+    await expect(recorder.finalize()).rejects.toThrow('RECORDING_DISCARDED');
   });
 
-  it('preserves the original prepare failure reason across freeze/finalize', async () => {
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: { getUserMedia: vi.fn(async () => { throw new DOMException('denied', 'NotAllowedError'); }) },
-    });
+  it.each(['missing', 'empty', 'dead', 'invalid-clone'])('rejects %s session audio and never stops a borrowed root', async fault => {
+    const rootTrack = createTrack(), cloneTrack = createTrack();
+    const root = createStream(fault === 'empty' ? [] : [rootTrack]);
+    if (fault === 'dead') rootTrack.readyState = 'ended';
+    if (fault === 'invalid-clone') { cloneTrack.readyState = 'ended'; vi.spyOn(root, 'clone').mockReturnValue(createStream([cloneTrack])); }
     const recorder = new PerformanceRecorder('AUDIO');
-    await recorder.prepare({ inputSource: 'MIDI' });
-    await recorder.freeze(1000);
-    const result = await recorder.finalize();
+    await expect(recorder.prepare({ inputSource: 'MICROPHONE', sessionMicrophoneStream: fault === 'missing' ? null : root }))
+      .rejects.toThrow('RECORDING_AUDIO_UNAVAILABLE');
+    expect(rootTrack.stop).not.toHaveBeenCalled();
+    if (fault === 'invalid-clone') expect(cloneTrack.stop).toHaveBeenCalledOnce();
+    expect(recorder.snapshot().sourceOwnership).toBe('NONE'); expect(lastRecorder).toBeNull();
+  });
 
-    expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+  it.each(['missing-audio', 'missing-video', 'dead-audio', 'dead-video'])('VIDEO rejects %s before cloning or constructing a recorder', async fault => {
+    const audio = createTrack(), video = createTrack('video');
+    if (fault === 'dead-audio') audio.readyState = 'ended';
+    if (fault === 'dead-video') video.readyState = 'ended';
+    const root = createStream(fault === 'missing-audio' ? [video] : fault === 'missing-video' ? [audio] : [audio, video]);
+    const clone = vi.spyOn(root, 'clone'), recorder = new PerformanceRecorder('VIDEO');
+    await expect(recorder.prepare({ inputSource: 'MIDI', cameraStream: root })).rejects.toThrow(
+      fault.includes('audio') ? 'RECORDING_AUDIO_UNAVAILABLE' : 'RECORDING_VIDEO_UNAVAILABLE');
+    expect(clone).not.toHaveBeenCalled(); expect(lastRecorder).toBeNull();
+    expect(audio.stop).not.toHaveBeenCalled(); expect(video.stop).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported recorder or video MIME without acquiring recording microphone', async () => {
+    const acquire = vi.fn(); Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: acquire } });
+    Object.defineProperty(globalThis, 'MediaRecorder', { configurable: true, value: undefined });
+    await expect(new PerformanceRecorder('AUDIO').prepare({ inputSource: 'MIDI' })).rejects.toThrow('MEDIA_RECORDER_UNSUPPORTED');
+    Object.defineProperty(globalThis, 'MediaRecorder', { configurable: true, value: class { static isTypeSupported() { return false; } } });
+    await expect(new PerformanceRecorder('VIDEO').prepare({ inputSource: 'MIDI' })).rejects.toThrow('VIDEO_RECORDER_UNSUPPORTED');
+    expect(acquire).not.toHaveBeenCalled();
+  });
+
+  it('constructor failure releases acquired audio and exposes only a stable preparation code', async () => {
+    const track = createTrack();
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream([track]) } });
+    Object.defineProperty(globalThis, 'MediaRecorder', { configurable: true, value: class { constructor() { throw new Error('private URL/stack detail'); } } });
+    const recorder = new PerformanceRecorder('AUDIO');
+    await expect(recorder.prepare({ inputSource: 'MIDI' })).rejects.toThrow('RECORDER_INIT_FAILED');
+    expect(track.stop).toHaveBeenCalledOnce(); expect(recorder.snapshot().sourceOwnership).toBe('NONE');
+    recorder.stopAndCleanup(); expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('rechecks live prepared resources at the transport admission boundary', async () => {
+    const track = createTrack();
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream([track]) } });
+    const recorder = new PerformanceRecorder('AUDIO');
+    await recorder.prepare({ inputSource: 'MIDI' }); track.readyState = 'ended';
+    expect(() => recorder.assertPrepared()).toThrow('RECORDING_AUDIO_UNAVAILABLE');
+    recorder.stopAndCleanup(); expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('post-start recorder errors still produce unavailable media', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream() } });
+    const recorder = new PerformanceRecorder('AUDIO'); await recorder.prepare({ inputSource: 'MIDI' });
+    recorder.startIfReady(0); lastRecorder!.onerror!(); await recorder.freeze(1000);
+    expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: 'MEDIA_RECORDER_ERROR' });
+    recorder.stopAndCleanup();
   });
 
   it('fails closed when recorder stop times out', async () => {
@@ -211,6 +262,15 @@ describe('PerformanceRecorder', () => {
     const result = await recorder.finalize();
 
     expect(result).toEqual({ status: 'UNAVAILABLE', reason: 'RECORDER_STOP_TIMEOUT' });
+  });
+
+  it('successful admission and Start can still complete with unavailable empty final media', async () => {
+    behavior.emitData = false;
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream() } });
+    const recorder = new PerformanceRecorder('AUDIO');
+    await recorder.prepare({ inputSource: 'MIDI' }); recorder.startIfReady(0); await recorder.freeze(1000);
+    expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: 'EMPTY_RECORDING_BLOB' });
+    recorder.stopAndCleanup();
   });
 
   it('reports UNAVAILABLE when a track ends before finalization completes', async () => {

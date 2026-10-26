@@ -30,6 +30,7 @@
   "micSourceRateUnavailable": "This audio source rate is not supported.",
   "micAnalysisFailed": "Audio analysis stopped. Transport and recording may continue, but evaluation is unavailable.",
   "micRecorderUnavailable": "Recording could not finish. This session was not saved as a completed performance.",
+  "recordingPreparationFailed": "Recording could not start. Prepare again or change your recording settings.",
   "micCleanupFailed": "Session resources could not be released normally. Start a new session.",
   "start": "Start",
   "preparingPractice": "Preparing practice...",

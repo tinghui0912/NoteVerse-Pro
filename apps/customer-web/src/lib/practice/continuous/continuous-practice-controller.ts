@@ -15,6 +15,7 @@ import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/
 import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/kernel/session';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
+import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
@@ -88,7 +89,7 @@ export class ContinuousPracticeController {
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
       analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot() ?? null,
-      evaluation: this.fatalFailure || ['ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
+      evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
   engineeringSnapshot() { return Object.freeze({ microphone: this.microphone?.snapshot() ?? null,
@@ -141,24 +142,28 @@ export class ContinuousPracticeController {
         await this.midi.prepare();
       }
       this.checkAlive();
-      this.recorder = this.platform.createRecorder(this.options.recordingMode ?? 'OFF');
-      await this.recorder.prepare({ inputSource: this.options.inputSource, sessionMicrophoneStream: this.rootStream,
-        cameraStream: this.options.cameraStream }); this.checkAlive();
+      try {
+        this.recorder = this.platform.createRecorder(this.options.recordingMode ?? 'OFF');
+        await this.recorder.prepare({ inputSource: this.options.inputSource, sessionMicrophoneStream: this.rootStream,
+          cameraStream: this.options.cameraStream });
+      } catch (error) { throw recordingPreparationError(error); }
+      this.checkAlive();
       const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
       this.metronome = this.platform.createMetronome({ artifact: this.options.artifact, tempoPlan: this.tempoPlan, enabled: this.enabled,
         mode: 'CONTINUOUS', scopeStartBeat: scope.startBeat, scopeEndBeat: scope.terminalBeat,
         ...(this.context ? { audioContext: this.context } : {}) });
       this.transition(C => {
+        try { this.recorder!.assertPrepared(); } catch (error) { throw recordingPreparationError(error); }
         this.microphone?.assertBoundary(C);
         this.transport = session.start(); this.planRunning(C); this.metronome!.start(continuousMetronomeSyncPoint(this.transport));
         if (this.transport.state === 'RUNNING') this.startRecording();
       });
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
     } catch (error) {
-      if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = this.options.inputSource === 'MICROPHONE'
-        ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
+      if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = error instanceof RecordingPreparationError
+        ? 'RECORDING_PREPARATION_FAILED' : this.options.inputSource === 'MICROPHONE' ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
         this.record('PREPARATION_FAILED', String(error));
-        if (this.options.inputSource === 'MICROPHONE') this.analysisError ??= this.inputError.slice(0, 256);
+        if (this.options.inputSource === 'MICROPHONE' && !(error instanceof RecordingPreparationError)) this.analysisError ??= this.inputError.slice(0, 256);
         this.state = 'FAILED_BEFORE_START'; }
       await this.cleanup(); if (this.cleanupFailure && !this.disposed) this.state = 'FAILED'; this.notify();
     }
@@ -261,7 +266,7 @@ export class ContinuousPracticeController {
           catch (error) { if (this.disposed) return; this.analysisFailed((error as Error).message); }
         }
         await stopped; this.checkAlive();
-        // Optional media availability is independent of Practice evaluation and completion.
+        // After admission and Start, media degradation is independent of evaluation and completion.
         const recording = await this.recorder!.finalize(); this.checkAlive();
         const session = this.session!; this.finalSession = session.snapshotSession();
         const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
