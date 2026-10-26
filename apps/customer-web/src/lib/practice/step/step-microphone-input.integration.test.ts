@@ -139,11 +139,11 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
     const r = await rig(rate, pitches);
     try {
       r.activate(); await r.untilPublications(1);
-      const record = r.runtime.snapshot().step.attempts[0];
-      expect(record.verdict).toBe(pitches.length > 1 ? 'RETRY' : pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
+      const record = r.runtime.snapshot().step.pendingPostVerdict!;
+      expect(record.verdict).toBe(pitches.length === 1 && pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
       expect(record.observedAttackPitches).toEqual([...pitches].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' });
+      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);
@@ -167,7 +167,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       r.publish({ ...blocked, ownedThroughSourceSample: end, window: { ...blocked.window, windowIndex: blocked.window.windowIndex + 1 },
         observations: [observation(sample, 'watermark-equality'), observation(sample + 1, 'one-source-unit-later')] });
       expect(r.records).toHaveLength(2);
-      const second = r.runtime.snapshot().step.attempts[1];
+      const second = r.runtime.snapshot().step.pendingPostVerdict!;
       expect(second.attemptStartSessionTime.sampleIndex).toBe(sample + 1);
       expect(second.captureEndSessionTime.sampleIndex).toBe(sample + 1 + rate * .05);
       expect(second.verdict).toBe('MATCH'); expect(second.observedAttackPitches).toEqual(['C4']);

@@ -1,3 +1,4 @@
+import type { StepAttemptRecord } from './domain/attempt';
 import { describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -27,13 +28,18 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const completion = vi.fn();
   const create = () => new StepPracticeController({ artifact, scope, inputSource, platform, onCompletion: completion });
   const controller = create();
+  const finalized: StepAttemptRecord[] = [];
+  controller.subscribe(() => {
+    const record = controller.snapshot().pendingPostVerdict;
+    if (record && finalized.at(-1)?.attemptId !== record.attemptId) finalized.push(record);
+  });
   const note = (pitch: string, type: 'NOTE_ON' | 'NOTE_OFF' = 'NOTE_ON', ms = clock.nowMs()) => {
     options.onMidiNote?.({ type, pitch, velocity: 80, noteNumber: 60, sessionTime: options.timebase.atSessionMs(ms) });
   };
   const close = () => { const task = timers.at(-1)!; clock.advance(35); if (!task.cancelled) task.callback(); };
   const disconnect = () => { connected = 0; options.onStateChange?.(midi.getState()); };
   const reconnect = () => { connected = 1; options.onStateChange?.(midi.getState()); };
-  return { controller, create, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
+  return { finalized, controller, create, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
@@ -68,10 +74,10 @@ describe('STEP application owner / bounded MIDI gesture', () => {
       s.close();
       if (order === 'AFTER') s.note('C4','NOTE_ON',235);
       const step = s.controller.snapshot().sessionSnapshot!.step;
-      expect(step.attempts).toHaveLength(1); expect(step.activeAttempt).toBeNull(); expect(s.timers).toHaveLength(1);
+      expect(s.finalized).toHaveLength(1); expect(step.activeAttempt).toBeNull(); expect(s.timers).toHaveLength(1);
       s.clock.set(236); s.note('C4'); const later = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
       expect(later.attemptStartSessionTime.ms).toBe(236);
-      const semantic = {index:step.currentIndex,records:step.attempts.map(r=>({verdict:r.verdict,stepId:r.stepId,
+      const semantic = {index:step.currentIndex,records:s.finalized.map(r=>({verdict:r.verdict,stepId:r.stepId,
         generation:r.targetGeneration,pitches:r.observedAttackPitches,start:r.attemptStartSessionTime.ms,end:r.captureEndSessionTime.ms})),
         laterGeneration:later.targetGeneration,laterStep:later.stepId};
       s.controller.dispose(); return semantic;
@@ -84,36 +90,35 @@ describe('STEP application owner / bounded MIDI gesture', () => {
   ] as const)('target %s closes full gesture %j before %s', async (index, pitches, verdict) => {
     const s = setup(index); await s.controller.start(); s.clock.set(101);
     pitches.forEach(p => s.note(p));
-    expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
+    expect(s.finalized).toHaveLength(0);
     expect(s.controller.snapshot().sessionSnapshot?.step.attemptState).toBe('CAPTURING');
     expect(s.timers).toHaveLength(1); expect(s.timers[0].delay).toBe(STEP_MIDI_CHORD_COHERENCE_MS);
     s.close(); const snapshot = s.controller.snapshot().sessionSnapshot!;
-    expect(snapshot.step.attempts[0].verdict).toBe(verdict);
-    expect(snapshot.step.attempts[0].retry).toBeNull();
-    expect(snapshot.step.attempts[0].confidence).toBe(1);
+    expect(s.finalized[0].verdict).toBe(verdict);
+    expect(s.finalized[0].confidence).toBe(1);
     expect(snapshot.step.currentIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));
     expect(snapshot.step.attemptState).toBe('READY');
-    s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(1);
+    s.timers[0].callback(); expect(s.finalized).toHaveLength(1);
     s.controller.dispose();
   });
   it('near-simultaneous extra pitch cannot follow an early correct chord acceptance', async () => {
     const s = setup(3); await s.controller.start(); s.clock.set(101); s.note('A4'); s.note('C5', 'NOTE_ON', 110);
     expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(3);
     s.note('D5', 'NOTE_ON', 134); s.close();
-    expect(s.controller.snapshot().sessionSnapshot?.step.attempts[0].verdict).toBe('MISMATCH');
+    expect(s.finalized[0].verdict).toBe('MISMATCH');
     s.controller.dispose();
   });
   it('fixed first-note window is not extended by later notes or delayed timers', async () => {
     const s = setup(3); await s.controller.start(); s.clock.set(101); s.note('A4'); s.note('C5', 'NOTE_ON', 136); s.note('D5', 'NOTE_ON', 500);
     expect(s.timers).toHaveLength(1); s.close();
-    expect(s.controller.snapshot().sessionSnapshot?.step.attempts[0].observedAttackPitches).toEqual(['A4']);
+    expect(s.finalized[0].observedAttackPitches).toEqual(['A4']);
     expect(s.controller.snapshot().inputDiagnostics?.ignoredNotes).toBe(2); s.controller.dispose();
   });
   it('multiple wrong attempts then correct each close separately; metronome target changes only after MATCH', async () => {
     const s = setup(); await s.controller.start(); s.clock.set(101);
     const contexts = s.metronome.setStepContext.mock.calls.length;
     for (const p of ['C#4', 'C5', 'C4']) { s.clock.advance(1); s.note(p); s.close(); }
-    expect(s.controller.snapshot().sessionSnapshot?.step.attempts.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
+    expect(s.finalized.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
     expect(s.metronome.setStepContext.mock.calls.length).toBe(contexts + 1); s.controller.dispose();
   });
   it('partial then later full chord does not reuse the previous gesture', async () => {
@@ -133,7 +138,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     if (command === 'disconnect') s.disconnect(); else s.controller[command]();
     const after = s.controller.snapshot(); callback();
     expect(s.controller.snapshot().sessionSnapshot?.step).toEqual(after.sessionSnapshot?.step);
-    expect(after.sessionSnapshot?.step.attempts).toHaveLength(0);
+    expect(s.finalized).toHaveLength(0);
     if (command === 'disconnect') expect(after).toMatchObject({ state: 'ACTIVE', error: 'NO_CONNECTED_INPUT' });
     s.controller.dispose();
   });
@@ -148,7 +153,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(next.targetGeneration).toBe(first.targetGeneration);
     expect(next.stepId).toBe(first.stepId); expect(next.attemptId).not.toBe(first.attemptId);
     expect(s.midi.stop).not.toHaveBeenCalled(); expect(s.midi.start).toHaveBeenCalledTimes(1);
-    s.timers[0].callback(); expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
+    s.timers[0].callback(); expect(s.finalized).toHaveLength(0);
     s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1); s.controller.dispose();
   });
   it('ANALYZING/POST_VERDICT input is ignored, never queued for the next target', async () => {
@@ -179,7 +184,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
       const snapshot = s.controller.snapshot();
       trace.push({ phase: snapshot.stepInteractionPhase, index: snapshot.sessionSnapshot!.step.currentIndex, ready: snapshot.canAcceptAttempt });
       if (snapshot.stepInteractionPhase === 'POST_VERDICT') {
-        expect(snapshot.lastFinalizedVerdict?.verdict).toBe('MATCH');
+        expect(snapshot.pendingPostVerdict?.verdict).toBe('MATCH');
         expect(snapshot.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
         expect(s.metronome.setStepContext.mock.calls).toHaveLength(contexts);
         s.controller.skip();
@@ -197,7 +202,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.note('C4', 'NOTE_ON', 800); s.note('C4', 'NOTE_ON', 900);
     expect(s.timers).toHaveLength(1);
     s.clock.set(901); s.note('C4'); s.close();
-    expect(s.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(2); s.controller.dispose();
+    expect(s.finalized).toHaveLength(2); s.controller.dispose();
   });
   it.each(['ANALYZING', 'POST_VERDICT'] as const)('disconnect in synchronous %s notification does not revive or double-advance', async phase => {
     const s = setup(); await s.controller.start(); s.clock.set(200);
@@ -208,7 +213,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.note('C4'); s.close();
     expect(s.controller.snapshot().canAcceptAttempt).toBe(false);
     expect(s.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(0);
-    expect(s.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(phase === 'POST_VERDICT' ? 1 : 0);
+    expect(s.finalized).toHaveLength(phase === 'POST_VERDICT' ? 1 : 0);
     s.clock.set(500); s.reconnect(); s.reconnect();
     expect(s.controller.snapshot().canAcceptAttempt).toBe(true);
     expect(s.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(phase === 'POST_VERDICT' ? 1 : 0);
@@ -239,7 +244,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     const current = s.controller.snapshot().sessionSnapshot!;
     expect(current.localSessionId).toBe(original.localSessionId);
     expect(current.step.targetGeneration).toBe(original.step.targetGeneration);
-    expect(current.step.attempts).toHaveLength(0);
+    expect(s.finalized).toHaveLength(0);
     expect(s.controller.snapshot().error).toBeNull();
     s.note('C4', 'NOTE_ON', 301); expect(s.timers).toHaveLength(1); s.controller.dispose();
   });

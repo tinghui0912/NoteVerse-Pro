@@ -1,3 +1,4 @@
+import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import assert from 'node:assert/strict';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -11,18 +12,19 @@ function harness(chord = false) {
   const clock = new ManualClock(100), session = 'exclusive-boundary', callbacks: (() => void)[] = [];
   const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: session, inputSource: 'MIDI',
     scope: chord ? { kind:'RANGE',startGroupId:artifact.expectedPracticeGroups[3].groupId,endGroupId:artifact.expectedPracticeGroups[4].groupId } : {kind:'FULL'} });
+  const finalized: StepAttemptRecord[] = [];
   const input = new StepMidiAttemptInput({ open: time => runtime.openAttempt(time),
     complete: (identity,evidence) => {
       assert.equal(runtime.analyzeAttempt(identity),true);
       const result = runtime.completeAttempt(identity, evidence);
-      assert.equal(result.kind,'FINALIZED'); runtime.rearm(evidence.captureEndSessionTime);
+      assert.equal(result.kind,'FINALIZED'); finalized.push(result.record); runtime.rearm(evidence.captureEndSessionTime);
     }, failure: error => { throw error; },
   }, {schedule: (callback,delay) => { assert.equal(delay,35); callbacks.push(callback); return callback; },cancel: () => {}});
   const time = (ms: number) => ({domainId:session,ms});
   const note = (ms: number,pitch = 'C4') => input.note({type:'NOTE_ON',noteNumber:60,pitch,velocity:80,sessionTime:time(ms)});
   const close = (at: number) => {clock.set(at); callbacks.at(-1)!();};
   const state = () => runtime.snapshot().step;
-  return {runtime,input,clock,time,note,close,state,callbacks};
+  return {finalized,runtime,input,clock,time,note,close,state,callbacks};
 }
 export function raceWitness(verdict: Verdict, order: 'BEFORE' | 'AFTER') {
   const h = harness();
@@ -33,7 +35,7 @@ export function raceWitness(verdict: Verdict, order: 'BEFORE' | 'AFTER') {
   h.close(235);
   if(order === 'AFTER') h.note(235);
   assert.equal(h.state().activeAttempt,null); assert.equal(h.callbacks.length,1);
-  assert.equal(h.state().attempts.length,1); assert.equal(h.state().attempts[0].verdict,verdict);
+  assert.equal(h.finalized.length,1); assert.equal(h.finalized[0].verdict,verdict);
   const beforeLater = h.state();
   h.note(236); const later = h.state().activeAttempt!;
   assert.ok(later); assert.notEqual(later.attemptId,first.attemptId);
@@ -56,7 +58,7 @@ export function lifecycleWitnesses() {
   h.input.cancel(); h.runtime.setInputUnavailable(); h.runtime.acceptInputAfter(h.time(350));
   assert.equal(h.runtime.skip(),true);
   const skipped = h.state(); h.note(350); assert.equal(h.state().activeAttempt,null);
-  for(const callback of h.callbacks) callback(); assert.equal(h.state().attempts.length,0);
+  for(const callback of h.callbacks) callback(); assert.equal(h.finalized.length,0);
   const late = h.runtime.completeAttempt(old,{observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:h.time(235)});
   assert.equal(late.kind,'REJECTED');
   h.note(351); const afterSkip = h.state().activeAttempt!; assert.ok(afterSkip);
@@ -69,7 +71,7 @@ export function lifecycleWitnesses() {
 export function accumulationWitness() {
   const h=harness(true);
   h.note(200,'A4');h.close(235);h.note(236,'C5');h.close(271);
-  assert.deepEqual(h.state().attempts.map(r=>r.verdict),['MISMATCH','MISMATCH']);
+  assert.deepEqual(h.finalized.map(r=>r.verdict),['MISMATCH','MISMATCH']);
   assert.equal(h.state().currentIndex,3);
-  return {name:'no cross-target accumulation',status:'PASS',attempts:h.state().attempts,currentIndex:h.state().currentIndex};
+  return {name:'no cross-target accumulation',status:'PASS',finalized:h.finalized,currentIndex:h.state().currentIndex};
 }

@@ -14,18 +14,17 @@ import practiceMessages from '../../../messages/en/practice.json';
 import zhPracticeMessages from '../../../messages/zh/practice.json';
 import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 
-function stepRecord(verdict: 'MATCH' | 'MISMATCH' | 'RETRY'): StepAttemptRecord {
+function stepRecord(verdict: 'MATCH' | 'MISMATCH'): StepAttemptRecord {
   const evidence = { attemptId: 'attempt', localSessionId: 'step', stepId: 'target', targetGeneration: 1,
     inputSource: 'MICROPHONE' as const, attemptStartSessionTime: { domainId: 'step', ms: 100 },
     observedAttackPitches: ['C4','E4','G4'] as const, confidence: .8, captureEndSessionTime: { domainId: 'step', ms: 150 } };
-  return verdict === 'RETRY' ? { ...evidence, verdict, retry: { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } }
-    : { ...evidence, verdict, retry: null };
+  return { ...evidence, verdict };
 }
 
 it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP status presents runtime phase %s, not session ACTIVE as READY', phase => {
   const view = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,
-    lastFinalizedVerdict: stepRecord('MISMATCH') });
-  const keys = { READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing', POST_VERDICT: 'stepPostVerdictMismatch' };
+    pendingPostVerdict: stepRecord('MISMATCH') });
+  const keys = { READY: 'stepMicrophoneReady', CAPTURING: 'stepMicrophoneChecking', ANALYZING: 'stepMicrophoneChecking', POST_VERDICT: 'stepPostVerdictMismatch' };
   expect(view.messageKey).toBe(keys[phase]);
   expect(view.pending).toBe(phase === 'CAPTURING' || phase === 'ANALYZING');
 });
@@ -83,14 +82,14 @@ describe('resolvePracticeStatusView', () => {
     });
   });
 
-  it('shows waitingForFirstNote during ACTIVE STEP mode', () => {
+  it('shows paced microphone instructions during ACTIVE STEP mode', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'waitingForFirstNote',
+      messageKey: 'stepMicrophoneReady',
       pending: false,
     });
   });
@@ -271,7 +270,7 @@ describe('PracticeStatus rendering', () => {
       )
     );
 
-    expect(screen.getByText('Ready. Play the current note.')).toBeTruthy();
+    expect(screen.getByText('Play the highlighted note. Wait for the result before playing again.')).toBeTruthy();
     expect(screen.getByText('01:05')).toBeTruthy();
   });
 
@@ -353,25 +352,29 @@ describe('PracticeStatus rendering', () => {
 
 
 
-describe('STEP target-policy retry presentation', () => {
-  it('selects feedback from structured target-policy provenance', () => {
-    expect(resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: 'POST_VERDICT',
-      lastFinalizedVerdict: stepRecord('RETRY') })).toMatchObject({ messageKey: 'stepTargetCoveredWithExtra', pending: false });
-  });
+describe('paced STEP learning feedback', () => {
   it.each([
-    { locale: 'en', messages: practiceMessages, text: 'Target notes were detected along with other notes. Try once more.' },
-    { locale: 'zh', messages: zhPracticeMessages, text: '已识别到目标音，同时检测到其他音，请再试一次。' },
-  ])('$locale describes detected evidence without claiming extra physical playing', ({ locale, messages, text }) => {
-    render(createElement(IntlProvider, { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
-      lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: 'POST_VERDICT', practiceTime: 0,
-      inputSource: 'MICROPHONE', lastFinalizedVerdict: stepRecord('RETRY'),
-    })));
-    expect(screen.getByRole('status')).toHaveTextContent(text);
+    { locale: 'en', messages: practiceMessages, ready: 'Play the highlighted note. Wait for the result before playing again.', busy: 'Checking your answer. Wait before playing again.', mismatch: 'Not matched yet. Try again.' },
+    { locale: 'zh', messages: zhPracticeMessages, ready: '弹奏当前高亮音；识别结果出现前请等待，不要连续弹奏。', busy: '正在识别本次输入，请等待结果后再弹。', mismatch: '尚未匹配，请再试一次。' },
+  ])('$locale microphone instructions pace input without claiming physical mistakes', ({ locale, messages, ready, busy, mismatch }) => {
+    const status = (phase: 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT') => createElement(IntlProvider,
+      { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
+        lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase, practiceTime: 0,
+        inputSource: 'MICROPHONE', pendingPostVerdict: phase === 'POST_VERDICT' ? stepRecord('MISMATCH') : null,
+      }));
+    const view = render(status('READY')); expect(screen.getByRole('status')).toHaveTextContent(ready);
+    for (const phase of ['CAPTURING', 'ANALYZING'] as const) {
+      view.rerender(status(phase)); expect(screen.getByRole('status')).toHaveTextContent(busy);
+    }
+    view.rerender(status('POST_VERDICT')); expect(screen.getByRole('status')).toHaveTextContent(mismatch);
   });
-  it('infrastructure failure takes priority over a previous target-policy retry', () => {
+  it.each(['READY', 'CAPTURING', 'ANALYZING'] as const)('MIDI %s uses its short input status', phase => {
+    const result = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', inputSource: 'MIDI', stepInteractionPhase: phase });
+    expect(result.messageKey).toBe({ READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing' }[phase]);
+  });
+  it('infrastructure failure takes priority over a pending learning outcome', () => {
     const result = resolvePracticeStatusView({ lifecycle: 'ENDED', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR',
-      inputError: 'STEP_ACOUSTIC_RUNTIME_FAILED', inputSource: 'MICROPHONE', stepInteractionPhase: 'POST_VERDICT', lastFinalizedVerdict: stepRecord('RETRY') });
+      inputError: 'STEP_ACOUSTIC_RUNTIME_FAILED', inputSource: 'MICROPHONE', stepInteractionPhase: 'POST_VERDICT', pendingPostVerdict: stepRecord('MISMATCH') });
     expect(result).toMatchObject({ customMessage: 'Microphone analysis failed. Start a new session.', isError: true });
-    expect(result.messageKey).not.toBe('stepTargetCoveredWithExtra');
   });
 });

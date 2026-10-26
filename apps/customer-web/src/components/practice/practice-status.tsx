@@ -10,7 +10,7 @@ import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/
 import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { StepAttemptState, StepAttemptRecord, StepRetry } from '@/lib/practice/step/domain/attempt';
+import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
@@ -27,7 +27,8 @@ type PracticeStatusMessageKey =
   | 'stepAnalyzing'
   | 'stepPostVerdictMatch'
   | 'stepPostVerdictMismatch'
-  | 'stepTargetCoveredWithExtra'
+  | 'stepMicrophoneReady'
+  | 'stepMicrophoneChecking'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
   | 'settingStatusReady'
@@ -36,10 +37,6 @@ type PracticeStatusMessageKey =
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
-
-const stepRetryMessageKeys: Readonly<Record<StepRetry['reason'], PracticeStatusMessageKey>> = {
-  TARGET_COVERED_WITH_EXTRA: 'stepTargetCoveredWithExtra',
-};
 
 export type PracticeStatusView = {
   messageKey?: PracticeStatusMessageKey;
@@ -53,7 +50,7 @@ export type PracticeStatusProps = {
   className?: string;
   lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   stepInteractionPhase?: StepAttemptState | null;
-  lastFinalizedVerdict?: StepAttemptRecord | null;
+  pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -80,11 +77,11 @@ export function resolvePracticeStatusView({
   sessionMode,
   performanceClock,
   stepInteractionPhase,
-  lastFinalizedVerdict,
+  pendingPostVerdict,
 }: {
   lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   stepInteractionPhase?: StepAttemptState | null;
-  lastFinalizedVerdict?: StepAttemptRecord | null;
+  pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
@@ -184,16 +181,14 @@ export function resolvePracticeStatusView({
   }
 
   if (stepInteractionPhase === 'CAPTURING' || stepInteractionPhase === 'ANALYZING') {
-    return { messageKey: stepInteractionPhase === 'CAPTURING' ? 'stepCapturing' : 'stepAnalyzing', pending: true, countInPulse: null };
+    return { messageKey: inputSource === 'MICROPHONE' ? 'stepMicrophoneChecking' : stepInteractionPhase === 'CAPTURING' ? 'stepCapturing' : 'stepAnalyzing', pending: true, countInPulse: null };
   }
-  if (stepInteractionPhase === 'POST_VERDICT' && lastFinalizedVerdict) {
-    const messageKey = lastFinalizedVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch'
-      : lastFinalizedVerdict.verdict === 'MISMATCH' ? 'stepPostVerdictMismatch'
-        : stepRetryMessageKeys[lastFinalizedVerdict.retry.reason];
+  if (stepInteractionPhase === 'POST_VERDICT' && pendingPostVerdict) {
+    const messageKey = pendingPostVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch' : 'stepPostVerdictMismatch';
     return { messageKey, pending: false, countInPulse: null };
   }
   return {
-    messageKey: 'waitingForFirstNote',
+    messageKey: inputSource === 'MICROPHONE' ? 'stepMicrophoneReady' : 'waitingForFirstNote',
     pending: false,
     countInPulse: null,
   };
@@ -211,7 +206,7 @@ export function PracticeStatus({
   practiceTime,
   performanceClock,
   stepInteractionPhase,
-  lastFinalizedVerdict,
+  pendingPostVerdict,
 }: PracticeStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
@@ -226,7 +221,7 @@ export function PracticeStatus({
         sessionMode,
         performanceClock,
         stepInteractionPhase,
-        lastFinalizedVerdict,
+        pendingPostVerdict,
       }),
     [
       inputError,
@@ -238,7 +233,7 @@ export function PracticeStatus({
       selectedInputCapability,
       sessionMode,
       stepInteractionPhase,
-      lastFinalizedVerdict,
+      pendingPostVerdict,
     ]
   );
 
@@ -295,7 +290,9 @@ export function PracticeStatus({
       )}
       <span
         className={cn(
-          'min-w-0 max-w-xs truncate font-medium sm:max-w-md',
+          'min-w-0 font-medium',
+          sessionMode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE'
+            ? 'whitespace-normal' : 'max-w-xs truncate sm:max-w-md',
           resolvedView.isError ? 'text-rose-800' : 'text-slate-700'
         )}
       >

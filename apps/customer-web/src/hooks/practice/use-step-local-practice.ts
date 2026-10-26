@@ -76,7 +76,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,
     canAcceptAttempt: snapshot?.canAcceptAttempt ?? false,
-    lastFinalizedVerdict: snapshot?.lastFinalizedVerdict ?? null,
+    pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,
     performanceClock: null, performanceEvaluation: null, elapsedSeconds: snapshot?.elapsedSeconds ?? 0,
     completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: false, isFinalizingPerformance: false,

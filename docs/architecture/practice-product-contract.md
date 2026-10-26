@@ -31,7 +31,7 @@ metadata. It depends on neither mode, acoustic implementation nor browser resour
 Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
 their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
-`step/domain/` owns attempts, verdict policy, target progression and STEP snapshots.
+`step/domain/` owns pitch evidence, exact target comparison, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,
 source-blind assignment/finality, and source-specific interpretation. The evaluation
@@ -67,49 +67,41 @@ cycles to enforce these boundaries.
 
 ## STEP_BY_STEP
 
-STEP is correctness-driven and waits for user input. `StepPracticeController` owns
-the application lifecycle, selected input, metronome, cancellation and cleanup.
+STEP is a paced learning/recognition mode, not a performance-report mode.
+`StepPracticeController` owns input resources, metronome, cancellation and cleanup.
 React subscribes to snapshots and sends commands. STEP has no performance clock
-or Pause/Resume lifecycle. Its elapsed presentation time does not drive progression.
+or Pause/Resume lifecycle. Elapsed presentation time does not drive progression.
 
-`StepPracticeRuntime` owns one target, one bounded attempt and one verdict:
+`StepPracticeRuntime` owns one target and one bounded attempt:
 
 ```text
 READY -> CAPTURING -> ANALYZING -> POST_VERDICT -> READY / scope completion
 ```
 
-STEP input owners publish bounded, score-blind `StepPitchEvidence`: a nonempty
-observed pitch set, confidence and capture-end session time. Silence opens no
-attempt and produces no synthetic result. There is no acquisition retry channel
-or silence timeout. Runtime validation requires 1–128 pitch entries, valid pitch
-syntax, finite confidence in `[0,1]`, same-session capture end and capture end at
-or after attempt start. Confidence remains evidence metadata, without a secondary
-threshold or influence on classification.
+Input owners publish score-blind `StepPitchEvidence`: 1–128 canonical pitch entries,
+finite confidence in `[0,1]`, and a same-session capture end at or after attempt
+start. Silence opens no attempt and produces no synthetic outcome or timeout.
+Confidence remains evidence metadata, without a secondary confidence threshold.
 
-The runtime compares observed attack pitches, excluding continuation pitches.
-The pinned input source fixes one policy; callers cannot choose it:
+Both MIDI and microphone compare normalized observed attack pitches with normalized
+expected attack pitches. Exact equality yields MATCH. Every other nonempty evidence
+set yields MISMATCH, including subsets, supersets and unrelated pitches. Continuation
+pitches are excluded. The immutable record retains all evidence and either MATCH or
+MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v8`) defines this contract.
 
-- `MIDI_EXACT_SET_V1`: exact pitch sets MATCH; subsets, supersets and other
-  non-exact nonempty sets MISMATCH. MIDI evidence has confidence 1.
-- `MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1`: exact sets MATCH. A proper
-  superset covering every expected pitch yields RETRY. Other non-exact sets,
-  including subsets, MISMATCH. This classifies the provided pitch set; acoustic
-  false negatives and physical-device accuracy require separate qualification.
+POST_VERDICT holds only the current pending result. Explicit rearm clears it:
+MATCH advances exactly once; MISMATCH remains on the same target. Skip is a separate
+READY-only progression action. No full attempt/skip history, attempt counts,
+accuracy statistics or learner performance report belongs to STEP. Its performance
+evaluation is always null. Completion offers Try Again and Section Practice / Adjust
+Section. Review navigation belongs to Continuous performance; STEP completion
+cannot supply a report action.
 
-RETRY is target-policy abstention with
-`{ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }`. It says target
-notes were detected together with other notes, without claiming the learner
-physically played extra keys. It is not acquisition uncertainty. All outcomes
-retain normalized observed pitches, numeric confidence and capture end. MATCH
-and MISMATCH require `retry: null`; RETRY requires the structured provenance.
-Records use STEP runtime schema 7 (`step-explicit-target-policy-retry-v7`), with
-immutable identity, evidence, capture chronology and nested retry metadata.
-
-Finalization records an immutable result and preserves the answered target in
-POST_VERDICT. Explicit rearm commits MATCH progression once; MISMATCH and RETRY
-stay on the target. A final MATCH completes the scope at rearm. Skip is a separate
-READY-only action. Full attempt/Skip history has a 100,000-record ceiling and fails
-explicitly before accepting another record.
+Microphone READY instructions ask the learner to play the highlighted target and
+wait for the result before playing again. CAPTURING/ANALYZING asks them to wait while
+the answer is checked. These states reflect actual published evidence, without a
+physical-onset busy detector. MIDI uses shorter input instructions. MISMATCH copy
+says “Not matched yet. Try again.” rather than claiming wrong or extra physical notes.
 
 Attempt identity binds session, step, target generation, input source and capture
 start. Input eligibility is exclusive: `attemptStart > inputEligibleAfter`.
@@ -128,6 +120,17 @@ it using processed source coverage. Physical capture chronology supplies retirem
 boundaries independently of analysis progress. After a verdict, domain rearm and
 input arm run synchronously at that physical boundary. Skip blocks the idle
 assembler, changes the target and rearms at the same boundary.
+
+Physical input captured while an answer is busy is retired, never queued or deferred
+to the next target. The physical frontier may be ahead of the analysis frontier;
+domain rearm followed synchronously by microphone arm shares that capture watermark.
+Only a source event strictly after it can open another attempt, including when a
+publication arrives late. Retirement prevents already captured or delayed evidence
+from crossing attempt boundaries. It does not assert that future acoustic observations
+after the watermark represent a fresh physical key attack. Sustain/resonance may
+require evidence-based onset/activity/release policy; no cooldown or silence gate
+is part of this contract.
+
 
 The controller owns the root microphone stream and session AudioContext; the input
 borrows them and owns its analysis clone, capture bridge, assembler and Worker graph.

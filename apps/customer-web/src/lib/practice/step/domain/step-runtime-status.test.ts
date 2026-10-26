@@ -24,7 +24,7 @@ describe('local STEP domain status, independent of browser resources', () => {
     const s = setup(), snapshot = s.runtime.snapshot();
     expect(s.runtime.state).toBe('ACTIVE');
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
-      version: { schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' }, step: { completed: false, attemptState: 'READY' } });
+      version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' }, step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
     expect(snapshot.scoreId).toBe(fixture.scoreId);
     expect(snapshot.revisionId).toBe(fixture.revisionId); expect(snapshot.artifactId).toBe(fixture.artifactId);
@@ -45,7 +45,7 @@ describe('local STEP domain status, independent of browser resources', () => {
     s.runtime.end();
     expect(s.runtime.snapshot()).toMatchObject({ runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER',
       step: { currentIndex: 4, targetGeneration: 1, completed: false, pendingPostVerdict: pending } });
-    expect(s.runtime.snapshot().step.attempts).toHaveLength(1);
+    expect(s.runtime.snapshot().step.pendingPostVerdict).toBe(pending);
     expect(() => s.runtime.rearm(s.time(500))).toThrow('STEP_ATTEMPT_STATE_INVALID');
     expect(s.runtime.currentStepIndex).toBe(4);
   });

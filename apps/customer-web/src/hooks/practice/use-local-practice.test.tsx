@@ -244,6 +244,16 @@ describe('useLocalPractice', () => {
     expect(result.current.mode).toBe('STEP_BY_STEP');
   });
 
+  it('STEP learning never creates a performance evaluation or report', async () => {
+    const { result } = renderHook(() => useLocalPractice({ artifact, mode: 'STEP_BY_STEP', inputSource: 'MIDI', scope: { kind: 'FULL' } }));
+    expect(result.current.performanceEvaluation).toBeNull();
+    await act(async () => { await result.current.start(); });
+    expect(result.current.performanceEvaluation).toBeNull();
+    await act(async () => { await result.current.finish(); });
+    expect(result.current.performanceEvaluation).toBeNull();
+    expect(completedPerformanceStore.getPerformance()).toBeNull();
+  });
+
   it('handles MIDI disconnect by remaining ACTIVE and ERROR while preserving progress', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({

@@ -101,18 +101,25 @@ describe('STEP runtime target and session contracts', () => {
 });
 
 
-it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose the source-bound policy and current attempt schema', inputSource => {
+it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current learning interaction and attempt schema', inputSource => {
   const localSessionId = 'snapshot-contract', time = (ms: number) => ({ domainId: localSessionId, ms });
   const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId, scope: { kind: 'FULL' }, clock: new ManualClock(0) });
   const identity = runtime.openAttempt(time(100))!;
   runtime.analyzeAttempt(identity);
   runtime.completeAttempt(identity, { observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12, captureEndSessionTime: time(150) });
   const saved = runtime.snapshot();
-  expect(saved.version).toEqual({ schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' });
+  expect(saved.version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' });
   expect(saved.step).toMatchObject({ attemptState: 'POST_VERDICT', currentIndex: 0,
-    verdictPolicy: inputSource === 'MIDI' ? 'MIDI_EXACT_SET_V1' : 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1',
-    attempts: [{ ...identity, verdict: 'MATCH', retry: null, observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12 }] });
+    pendingPostVerdict: { ...identity, verdict: 'MATCH', observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12 } });
   runtime.rearm(time(200));
   expect(runtime.snapshot().step.currentIndex).toBe(1);
-  expect(saved.step.currentIndex).toBe(0); expect(Object.isFrozen(saved.step.attempts[0])).toBe(true);
+  expect(saved.step.currentIndex).toBe(0); expect(Object.isFrozen(saved.step.pendingPostVerdict)).toBe(true);
+});
+
+it('STEP snapshots contain only current learning interaction state', () => {
+  const runtime = new StepPracticeRuntime({ artifact, inputSource: 'MIDI', scope: { kind: 'FULL' }, clock: new ManualClock(0) });
+  expect(Object.keys(runtime.snapshot().step).sort()).toEqual([
+    'currentIndex', 'targetGeneration', 'inputEligibleAfter', 'inputAvailable', 'completed',
+    'attemptState', 'activeAttempt', 'pendingPostVerdict', 'canAcceptAttempt',
+  ].sort());
 });

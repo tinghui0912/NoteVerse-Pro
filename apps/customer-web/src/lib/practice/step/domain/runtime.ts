@@ -3,7 +3,7 @@ import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
-import { MAX_STEP_HISTORY_RECORDS, normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget, type StepVerdictPolicy } from '@/lib/practice/step/domain/attempt';
+import { normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepTarget } from '@/lib/practice/step/domain/attempt';
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
 import { attackPitchesForStep, continuationPitchesForStep, groupForStep } from './target';
 
@@ -34,8 +34,6 @@ export class StepPracticeRuntime {
   private pendingPostVerdict: StepAttemptRecord | null = null;
   private sequence = 0;
   private inputAvailable = true;
-  private readonly attempts: StepAttemptRecord[] = [];
-  private readonly skips: StepSkipRecord[] = [];
   private metronomeEnabled: boolean;
 
   constructor(private readonly options: StepPracticeRuntimeOptions) {
@@ -62,7 +60,6 @@ export class StepPracticeRuntime {
     // Input eligibility is exclusive: an event at the prior gesture end cannot be
     // rebound to a fresh attempt depending on timer/message callback order.
     if (start.ms <= this.boundary.ms) return null;
-    this.assertHistoryRoom();
     this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
       localSessionId: this.localSessionId, stepId: target.stepId, targetGeneration: this.generation,
       inputSource: this.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
@@ -85,13 +82,10 @@ export class StepPracticeRuntime {
     const normalized = normalizePitchSet(evidence.observedAttackPitches);
     const pitches = Object.freeze([normalized[0], ...normalized.slice(1)] as const);
     const expected = this.currentTarget()!.attackPitches;
-    const outcome = pitchSetsEqual(pitches, expected) ? { verdict: 'MATCH', retry: null } as const
-      : this.verdictPolicy === 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1' && expected.every(pitch => pitches.includes(pitch))
-        ? { verdict: 'RETRY', retry: Object.freeze({ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }) } as const
-        : { verdict: 'MISMATCH', retry: null } as const;
-    const record: StepAttemptRecord = Object.freeze({ ...this.active!, ...outcome, observedAttackPitches: pitches,
+    const verdict = pitchSetsEqual(pitches, expected) ? 'MATCH' : 'MISMATCH';
+    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
       confidence: evidence.confidence, captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }) });
-    this.attempts.push(record); this.active = null; this.attemptState = 'POST_VERDICT';
+    this.active = null; this.attemptState = 'POST_VERDICT';
     this.pendingPostVerdict = record;
     this.boundary = record.captureEndSessionTime;
     return Object.freeze({ kind: 'FINALIZED', record });
@@ -132,9 +126,8 @@ export class StepPracticeRuntime {
     const skippedAt = Object.freeze({ ...(capturedThrough ?? this.now()) });
     this.validateTime(skippedAt);
     if (capturedThrough && skippedAt.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
-    this.assertHistoryRoom(); this.cancelAttempt();
+    this.cancelAttempt();
     if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
-    this.skips.push(Object.freeze({ stepId: target.stepId, targetGeneration: this.generation, sessionTime: skippedAt }));
     this.advance(); return true;
   }
   end(): void {
@@ -147,19 +140,16 @@ export class StepPracticeRuntime {
       practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
       metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,
       version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
-      step: Object.freeze({ verdictPolicy: this.verdictPolicy, currentIndex: this.currentIndex, targetGeneration: this.generation,
+      step: Object.freeze({ currentIndex: this.currentIndex, targetGeneration: this.generation,
         inputEligibleAfter: this.boundary, inputAvailable: this.inputAvailable, completed: this.completed,
         attemptState: this.attemptState, activeAttempt: this.active, pendingPostVerdict: this.pendingPostVerdict,
-        canAcceptAttempt: this.canAcceptAttempt, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
+        canAcceptAttempt: this.canAcceptAttempt }) });
   }
   setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
   get currentStepIndex(): number { return this.currentIndex; }
   get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
   get isCompleted(): boolean { return this.completed; }
   get state(): StepRuntimeStatus { return this.status; }
-  get verdictPolicy(): StepVerdictPolicy {
-    return this.inputSource === 'MIDI' ? 'MIDI_EXACT_SET_V1' : 'MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1';
-  }
   get canAcceptAttempt(): boolean {
     return this.status === 'ACTIVE' && this.inputAvailable && this.attemptState === 'READY' && this.currentTarget() !== null;
   }
@@ -175,11 +165,6 @@ export class StepPracticeRuntime {
       && identity.targetGeneration === this.generation && identity.inputSource === this.inputSource
       && identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId
       && identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;
-  }
-  private assertHistoryRoom(): void {
-    if (this.attempts.length + this.skips.length >= MAX_STEP_HISTORY_RECORDS) {
-      this.end(); throw new StepDomainError('STEP_HISTORY_LIMIT_EXCEEDED');
-    }
   }
   private validateTime(time: SessionTime): void {
     if (!time || time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');

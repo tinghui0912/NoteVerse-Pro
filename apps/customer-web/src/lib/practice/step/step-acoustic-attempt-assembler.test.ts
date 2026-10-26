@@ -145,7 +145,7 @@ it('one persistent assembler plus actual STEP runtime cannot let one gesture sat
     practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pitch: 'C4' }] })) };
   const clock = new ManualClock(), domainId = 'same-target', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
   const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock, localSessionId: domainId, metadataClock: { nowEpochMs: () => 0 } });
-  const records: unknown[] = [];
+  const records: ReturnType<StepPracticeRuntime['completeAttempt']>[] = [];
   const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000, localSessionId: domainId,
     sourceAnchorSample: 0, sessionAnchorTime: time(0), sink: {
       open: t => runtime.openAttempt(t), complete: (id, evidence) => { expect(runtime.analyzeAttempt(id)).toBe(true); records.push(runtime.completeAttempt(id, evidence)); },
@@ -155,10 +155,10 @@ it('one persistent assembler plus actual STEP runtime cannot let one gesture sat
   runtime.rearm(time(4800)); assembler.acceptInputAfter(4800);
   expect(runtime.snapshot().step).toMatchObject({ currentIndex: 1, attemptState: 'READY' });
   for (const obs of [old, { ...old, observationId: 'delayed-alias' }]) assembler.accept(publication(4800, [obs], 9999999));
-  expect(records).toHaveLength(1); expect(runtime.snapshot().step.attempts).toHaveLength(1);
+  expect(records).toHaveLength(1); expect(runtime.snapshot().step.pendingPostVerdict).toBeNull();
   assembler.accept(publication(9000, [observation(4800, 'equality'), observation(4801, 'genuinely-new')]));
   expect(records).toHaveLength(2); expect(runtime.isCompleted).toBe(false); runtime.rearm(time(10000));
-  expect(runtime.isCompleted).toBe(true); expect(runtime.snapshot().step.attempts[0].attemptId).not.toBe(runtime.snapshot().step.attempts[1].attemptId);
+  expect(runtime.isCompleted).toBe(true); expect(records[0].kind === 'FINALIZED' && records[0].record.attemptId).not.toBe(records[1].kind === 'FINALIZED' && records[1].record.attemptId);
 });
 
 it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('actual runtime %s refuses a second acoustic attempt without queuing it', phase => {
@@ -173,7 +173,7 @@ it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('actual runtime %s 
   assembler.acceptInputAfter(0); assembler.accept(publication(5000, [observation(3)])); assembler.accept(publication(9000, [observation(6000)]));
   expect(complete).not.toHaveBeenCalled(); expect(assembler.snapshot().phase).toBe('BLOCKED');
   expect(runtime.snapshot().step.attemptState).toBe(phase);
-  expect(runtime.snapshot().step.attempts).toHaveLength(phase === 'POST_VERDICT' ? 1 : 0);
+  expect(runtime.snapshot().step.pendingPostVerdict?.verdict ?? null).toBe(phase === 'POST_VERDICT' ? 'MISMATCH' : null);
 });
 
 
@@ -191,8 +191,8 @@ it('silence advances source coverage without opening an attempt, verdict or time
   } finally { vi.useRealTimers(); }
 });
 
-it.each([100, 999999])('microphone superset retry preserves H50 retirement despite publication availability %s', availability => {
-  const domainId = 'abstention', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
+it.each([100, 999999])('microphone superset mismatch preserves H50 retirement despite publication availability %s', availability => {
+  const domainId = 'non-exact', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
   const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', localSessionId: domainId, clock: new ManualClock() });
   const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,
     localSessionId: domainId, sourceAnchorSample: 0, sessionAnchorTime: time(0), sink: {
@@ -200,16 +200,15 @@ it.each([100, 999999])('microphone superset retry preserves H50 retirement despi
     } });
   assembler.acceptInputAfter(0);
   assembler.accept(publication(4800, [observation(3,'target','C4'), observation(4,'additional','E4')], availability));
-  const first = runtime.snapshot().step.attempts[0];
-  expect(first).toMatchObject({ verdict: 'RETRY', retry: { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' },
+  const first = runtime.snapshot().step.pendingPostVerdict!;
+  expect(first).toMatchObject({ verdict: 'MISMATCH',
     observedAttackPitches: ['C4','E4'], confidence: .8, captureEndSessionTime: time(2403) });
   expect(runtime.snapshot().step).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'POST_VERDICT' });
   runtime.rearm(time(4800)); assembler.acceptInputAfter(4800);
   assembler.accept(publication(9600, [observation(4000,'delayed'), observation(4800,'equality'), observation(4801,'new')], availability + 1000));
-  const records = runtime.snapshot().step.attempts;
-  expect(records).toHaveLength(2);
-  expect(records[1]).toMatchObject({ verdict: 'MATCH', retry: null, targetGeneration: 1, attemptStartSessionTime: time(4801), observedAttackPitches: ['C4'] });
-  expect(records[1].attemptId).not.toBe(first.attemptId);
+  const second = runtime.snapshot().step.pendingPostVerdict!;
+  expect(second).toMatchObject({ verdict: 'MATCH', targetGeneration: 1, attemptStartSessionTime: time(4801), observedAttackPitches: ['C4'] });
+  expect(second.attemptId).not.toBe(first.attemptId);
   expect(runtime.currentStepIndex).toBe(0); runtime.rearm(time(9600)); expect(runtime.currentStepIndex).toBe(1);
 });
 

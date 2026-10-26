@@ -9,18 +9,18 @@ function harness() {
   const time = (ms: number) => ({ domainId, ms });
   const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact,
     scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', localSessionId: domainId, clock });
-  const finish = (kind: 'MATCH' | 'MISMATCH' | 'RETRY') => {
+  const finish = (kind: 'MATCH' | 'MISMATCH') => {
     const identity = runtime.openAttempt(time(100))!;
     expect(runtime.openAttempt(time(110))).toBeNull();
     runtime.analyzeAttempt(identity);
     expect(runtime.openAttempt(time(130))).toBeNull();
     return runtime.completeAttempt(identity, { confidence: 1,
-      observedAttackPitches: kind === 'RETRY' ? ['C4','G4'] : [kind === 'MATCH' ? 'C4' : 'D4'], captureEndSessionTime: time(135) });
+      observedAttackPitches: [kind === 'MATCH' ? 'C4' : 'D4'], captureEndSessionTime: time(135) });
   };
   return { runtime, clock, time, finish };
 }
 describe('explicit STEP accepted-input watermark', () => {
-  it.each(['MATCH', 'MISMATCH', 'RETRY'] as const)('%s cannot carry busy/late evidence across re-arm', verdict => {
+  it.each(['MATCH', 'MISMATCH'] as const)('%s cannot carry busy/late evidence across re-arm', verdict => {
     const s = harness(); s.finish(verdict);
     expect(s.runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
@@ -29,7 +29,7 @@ describe('explicit STEP accepted-input watermark', () => {
     for (const stale of [100, 135, 500, 700]) expect(s.runtime.openAttempt(s.time(stale))).toBeNull();
     expect(s.runtime.openAttempt(s.time(701))!.targetGeneration).toBe(verdict === 'MATCH' ? 2 : 1);
     expect(s.runtime.currentStepIndex).toBe(verdict === 'MATCH' ? 1 : 0);
-    expect(s.runtime.snapshot().step.attempts).toHaveLength(1);
+    expect(s.runtime.snapshot().step.pendingPostVerdict).toBeNull();
   });
   it('rejects foreign/nonfinite/backward watermark without leaving POST_VERDICT', () => {
     const s = harness(); s.finish('MISMATCH');
@@ -53,7 +53,7 @@ describe('explicit STEP accepted-input watermark', () => {
     s.runtime.acceptInputAfter(s.time(700));
     expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
     s.clock.set(500); s.runtime.skip();
-    expect(s.runtime.snapshot().step.skips[0].sessionTime.ms).toBe(500);
+    expect(s.runtime.currentStepIndex).toBe(1);
     expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(700);
     expect(s.runtime.openAttempt(s.time(700))).toBeNull();
     expect(s.runtime.openAttempt(s.time(701))).not.toBeNull();
@@ -64,15 +64,15 @@ describe('explicit STEP accepted-input watermark', () => {
     const boundary = { ...s.time(800), sampleIndex: 38400 };
     expect(s.runtime.skip(boundary)).toBe(true); boundary.ms = 1;
     expect(s.runtime.currentTarget()!.inputEligibleAfter.ms).toBe(800);
-    expect(s.runtime.snapshot().step.skips[0].sessionTime).toEqual({ ...s.time(800), sampleIndex: 38400 });
+    expect(s.runtime.snapshot().step.inputEligibleAfter).toEqual({ ...s.time(800), sampleIndex: 38400 });
     expect(s.runtime.openAttempt(s.time(800))).toBeNull();
     expect(s.runtime.openAttempt(s.time(801))).not.toBeNull();
   });
-  it('rejects invalid physical skip boundaries before changing the target or recording a skip', () => {
+  it('rejects invalid physical skip boundaries before changing the target', () => {
     const s = harness(); s.finish('MISMATCH'); s.runtime.rearm(s.time(700));
     for (const boundary of [s.time(699), s.time(NaN), { domainId: 'foreign', ms: 800 }]) {
       expect(() => s.runtime.skip(boundary)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
-      expect(s.runtime.currentStepIndex).toBe(0); expect(s.runtime.snapshot().step.skips).toEqual([]);
+      expect(s.runtime.currentStepIndex).toBe(0); expect(s.runtime.snapshot().step.targetGeneration).toBe(1);
       expect(s.runtime.canAcceptAttempt).toBe(true);
     }
   });

@@ -293,7 +293,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       practiceTime={localPractice.elapsedSeconds}
       performanceClock={localPractice.performanceClock}
       stepInteractionPhase={localPractice.mode === 'STEP_BY_STEP' ? localPractice.stepInteractionPhase : null}
-      lastFinalizedVerdict={localPractice.mode === 'STEP_BY_STEP' ? localPractice.lastFinalizedVerdict : null}
+      pendingPostVerdict={localPractice.mode === 'STEP_BY_STEP' ? localPractice.pendingPostVerdict : null}
     />
   );
 
@@ -418,12 +418,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           <PracticeCompletionDialog
             open={isCompletionDialogOpen}
             outcome={completionOutcome}
-            sessionMode={practiceMode}
+            {...(practiceMode === 'STEP_BY_STEP'
+              ? { sessionMode: 'STEP_BY_STEP' as const }
+              : { sessionMode: 'CONTINUOUS_PLAY' as const, onViewSummary: handleViewSummary })}
             isLoading={localPractice.isFinalizingPerformance}
             onOpenChange={setIsCompletionDialogOpen}
             onRestart={handleRestart}
             onAdjustSection={range.isRangeScopeReady ? handleAdjustSelectedSection : undefined}
-            onViewSummary={handleViewSummary}
           />
         </>
       )}

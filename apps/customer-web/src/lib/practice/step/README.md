@@ -24,30 +24,30 @@ and the application controller remain outside `domain/`.
   supplies retirement boundaries independently of analysis progress.
 - Input owners publish `StepPitchEvidence`: a nonempty bounded observed pitch set,
   finite confidence in `[0,1]`, and capture-end session time. They have no target
-  knowledge. Silence opens no attempt and produces no outcome. There is no
-  acquisition retry channel or silence timeout.
-- `StepPracticeRuntime` compares that evidence with the attack target, excluding
-  continuation pitches. Input source fixes the versioned policy:
-  `MIDI_EXACT_SET_V1` or `MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1`.
-  Callers cannot select a policy.
-- MIDI: exact sets MATCH; every other nonempty set MISMATCHes, including subsets
-  and supersets. MIDI confidence is 1.
-- Microphone: exact sets MATCH. A proper superset covering every target pitch
-  yields RETRY with `{ origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' }`.
-  Every other non-exact set, including subsets, MISMATCHes. RETRY is target-policy
-  abstention, not an acquisition-quality classification: additional acoustic
-  detections do not establish extra physical key presses.
-- All records retain the observed pitches, numeric confidence and capture end.
-  Confidence is evidence metadata and does not choose the verdict; no secondary
-  confidence threshold is applied. MATCH/MISMATCH have `retry: null`; RETRY
-  requires the structured provenance. Evidence and nested metadata are immutable.
-  Empty pitch evidence, invalid confidence or invalid capture chronology fail closed.
+  knowledge. Silence opens no attempt and produces no outcome or timeout.
+- Both MIDI and microphone use the same target comparison: normalized observed
+  attack pitch set equals the expected attack pitch set -> MATCH; every other
+  nonempty set -> MISMATCH. Continuation pitches are excluded from the target.
+- Confidence is retained evidence metadata, never a verdict threshold. MIDI
+  confidence is 1; microphone retains the assembler's confidence.
+- Every immutable attempt record retains observed pitches, confidence and capture
+  end. Invalid or empty evidence and invalid chronology fail closed.
 
-READY -> CAPTURING -> ANALYZING -> POST_VERDICT permits one active attempt.
-POST_VERDICT retains the answered target and finalized pending transition. Rearm
-commits MATCH progression once, including final scope completion; MISMATCH/RETRY
-stay on the target. Skip is a separate READY-only action. Attempt/Skip history
-fails explicitly at 100,000 records without eviction.
+STEP is a paced learning/recognition mode, not a performance-report mode. It has
+only MATCH and MISMATCH outcomes. READY -> CAPTURING -> ANALYZING -> POST_VERDICT
+permits one active attempt. POST_VERDICT retains the answered target and current
+pending result. Explicit rearm clears that result and commits MATCH progression
+once, including final scope completion; MISMATCH stays on the target. Skip is a
+separate READY-only progression action. Snapshots contain current interaction
+state, without attempt/skip history, statistics or learner reports. Completion
+offers Try Again and Section Practice / Adjust Section, without a Review action.
+The runtime contract is schema 8 (`step-exact-pitch-learning-v8`).
+
+Microphone instructions ask the learner to play the highlighted target and wait
+for the result before playing again. CAPTURING/ANALYZING asks them to wait while
+checking the answer; MIDI uses shorter input instructions. MISMATCH means only
+“Not matched yet. Try again.” It makes no claim of a wrong physical key press.
+The UI reflects published state and does not claim immediate physical-attack detection.
 
 ## Retirement and Lifecycle
 
@@ -62,6 +62,12 @@ After each microphone verdict, domain rearm and input arm run synchronously at t
 same physical boundary. Skip blocks the idle assembler, changes the target and
 rearms at that boundary. An active gesture cannot be skipped. H50 is within-gesture
 grouping; retirement adds no cooldown.
+
+Retirement prevents already captured or delayed evidence from crossing attempt
+boundaries. It is not a claim that future acoustic observations after the retirement
+watermark must represent a fresh physical key attack. Sustain/resonance qualification
+is a separate evidence question; there is no arbitrary cooldown or silence gate.
+
 
 Application states are IDLE / PREPARING / ACTIVE / ENDED / DISPOSED. Domain status
 is ACTIVE / ENDED, with an explicit completion reason. Readiness is derived from

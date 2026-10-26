@@ -1,3 +1,4 @@
+import type { StepAttemptRecord } from './domain/attempt';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -82,14 +83,19 @@ function rig(rate: 44100 | 48000 = 48000) {
   };
   const completion = vi.fn();
   const controller = new StepPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onCompletion: completion });
+  const finalized: StepAttemptRecord[] = [];
+  controller.subscribe(() => {
+    const record = controller.snapshot().pendingPostVerdict;
+    if (record && finalized.at(-1)?.attemptId !== record.attemptId) finalized.push(record);
+  });
   const startSpy = vi.spyOn(StepMicrophoneInput.prototype, 'start');
   const input = () => startSpy.mock.contexts[0] as StepMicrophoneInput<unknown>;
-  const untilAttempts = async (count: number) => {
-    for (let i = 0; i < 100 && controller.snapshot().sessionSnapshot!.step.attempts.length < count; i++) await feed();
-    expect(controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(count);
+  const untilFinalized = async (count: number) => {
+    for (let i = 0; i < 100 && finalized.length < count; i++) await feed();
+    expect(finalized).toHaveLength(count);
   };
-  return { controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
-    untilAttempts, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
+  return { finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
+    untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
     pause: () => { paused = true; }, pitches: (p: string[]) => { pitches = p; },
     workerFailure: () => workerFailure?.(new Error('WORKER_CRASH')), origin, rate };
 }
@@ -112,7 +118,6 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const initial = r.controller.snapshot().sessionSnapshot!.step;
     expect(initial.inputEligibleAfter.sampleIndex).toBe(r.input().snapshot().capture!.capturedThroughSourceSample);
     expect(initial.inputEligibleAfter.ms).toBe(7000 + initial.inputEligibleAfter.sampleIndex! / rate * 1000);
-    expect(initial.verdictPolicy).toBe('MICROPHONE_EXACT_SET_WITH_SUPERSET_ABSTENTION_V1');
     expect(r.platform.microphone!.acquireMicrophone).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createWorker).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
@@ -140,10 +145,10 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       arm.call(this, boundary); trace.push('arm');
     });
     await r.controller.start(); trace.length = 0;
-    await r.untilAttempts(1);
-    const step = r.controller.snapshot().sessionSnapshot!.step, record = step.attempts[0];
-    const verdict = pitches.length > 1 ? 'RETRY' : pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH';
-    expect(record.verdict).toBe(verdict); expect(record.retry).toEqual(verdict === 'RETRY' ? { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } : null);
+    await r.untilFinalized(1);
+    const step = r.controller.snapshot().sessionSnapshot!.step, record = r.finalized[0];
+    const verdict = pitches.length === 1 && pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH';
+    expect(record.verdict).toBe(verdict);
     expect(record.observedAttackPitches).toEqual([...pitches].sort());
     expect(record.confidence).toBe(.8);
     expect(record.captureEndSessionTime.sampleIndex).toBe(record.attemptStartSessionTime.sampleIndex! + rate * 50 / 1000);
@@ -154,7 +159,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   });
 
   it('skip retires physical capture while READY, rejects delayed IDs/old times, and cannot skip an active gesture', async () => {
-    const r = rig(rate); await r.controller.start(); await r.untilAttempts(1);
+    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
     r.pause(); await r.feed(2);
     // The context clock may lead the last delivered physical block; skip uses the block, not now().
     r.context.currentTime += 10;
@@ -166,7 +171,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     r.publish(old);
     r.publish({ ...old, ownedThroughSourceSample: boundary,
       observations: old.observations.map(o => ({ ...o, observationId: 'delayed-pre-skip', sourceEventSample: boundary - 1 })) });
-    expect(r.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(1);
+    expect(r.finalized).toHaveLength(1);
     await r.feed(3);
     const end = r.input().snapshot().capture!.capturedThroughSourceSample;
     const sample = boundary + 1;
@@ -175,41 +180,88 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.controller.snapshot().stepInteractionPhase).toBe('CAPTURING');
     r.controller.skip(); expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
     r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: end, observations: [] });
-    expect(r.controller.snapshot().lastFinalizedVerdict!.attemptStartSessionTime.sampleIndex).toBe(sample);
-    expect(r.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(2);
+    expect(r.finalized.at(-1)!.attemptStartSessionTime.sampleIndex).toBe(sample);
+    expect(r.finalized).toHaveLength(2);
     await r.controller.finish(); expect(r.controller.snapshot().sessionSnapshot!.step.completed).toBe(true);
     await r.controller.dispose();
   });
 
   it('post-verdict retirement rejects previously captured observations, including delayed new IDs and equality', async () => {
-    const r = rig(rate); await r.controller.start(); await r.untilAttempts(1);
+    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
     const retired = r.input().snapshot().retiredThroughSourceSample, old = r.publications[0];
     r.pause(); await r.feed(3);
     const captured = r.input().snapshot().capture!.capturedThroughSourceSample;
     r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 1 }, ownedThroughSourceSample: captured,
       observations: [...old.observations, ...[retired - 1, retired].map((s, i) => ({ ...old.observations[0],
         observationId: `busy-${i}`, sourceEventSample: s }))] });
-    expect(r.controller.snapshot().sessionSnapshot!.step.attempts).toHaveLength(1);
+    expect(r.finalized).toHaveLength(1);
     expect(r.controller.snapshot().canAcceptAttempt).toBe(true);
     await r.feed(3);
     const through = r.input().snapshot().capture!.capturedThroughSourceSample, fresh = captured + 1;
     r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: through,
       observations: [{ ...old.observations[0], observationId: 'fresh-target-2', sourceEventSample: fresh }] });
     const step = r.controller.snapshot().sessionSnapshot!.step;
-    expect(step.attempts).toHaveLength(2); expect(step.currentIndex).toBe(2);
-    expect(step.attempts[1].attemptStartSessionTime.sampleIndex).toBe(fresh);
-    expect(step.attempts[1].attemptId).not.toBe(step.attempts[0].attemptId);
+    expect(r.finalized).toHaveLength(2); expect(step.currentIndex).toBe(2);
+    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBe(fresh);
+    expect(r.finalized[1].attemptId).not.toBe(r.finalized[0].attemptId);
+    await r.controller.dispose();
+  });
+
+  it('physical input captured while the previous answer is busy is retired, never queued into the next attempt', async () => {
+    const r = rig(rate);
+    let release!: () => void;
+    r.worker.run.mockImplementationOnce(async input => {
+      await new Promise<void>(resolve => { release = resolve; });
+      const first = Math.ceil(input.window.ownedStartTarget) + 8000;
+      return { events: [first, first + 1000].map(targetSample => ({ pitch: 'C4', midiPitch: 60,
+        targetSample, confidence: .8, onsetScore: .8, frameScore: .8 })),
+        inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 };
+    });
+    await r.controller.start(); r.pause();
+    for (let i = 0; i < 100 && !release; i++) await r.feed();
+    expect(release).toBeTypeOf('function');
+    await r.feed(3);
+    // Both physical events are in captured PCM while the first inference is still outstanding.
+    const captureWhileBusy = r.input().snapshot().capture!.capturedThroughSourceSample;
+    expect(r.finalized).toHaveLength(0); expect(r.publications).toHaveLength(0);
+    expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(0);
+    release(); await vi.waitFor(() => expect(r.finalized).toHaveLength(1));
+    const firstPublication = r.publications[0];
+    expect(firstPublication.observations).toHaveLength(2);
+    const secondPhysicalEvent = firstPublication.observations[1];
+    expect(secondPhysicalEvent.sourceEventSample).toBeGreaterThan(r.finalized[0].captureEndSessionTime.sampleIndex!);
+    expect(secondPhysicalEvent.sourceEventSample).toBeLessThanOrEqual(captureWhileBusy);
+    const retired = r.input().snapshot().retiredThroughSourceSample;
+    expect(retired).toBe(captureWhileBusy);
+    expect(retired).toBeGreaterThanOrEqual(secondPhysicalEvent.sourceEventSample);
+    expect(r.controller.snapshot()).toMatchObject({ canAcceptAttempt: true, pendingPostVerdict: null,
+      sessionSnapshot: { step: { currentIndex: 1, targetGeneration: 2, activeAttempt: null, attemptState: 'READY' } } });
+    await r.feed(3);
+    const through = r.input().snapshot().capture!.capturedThroughSourceSample;
+    r.publish({ ...firstPublication, window: { ...firstPublication.window, windowIndex: firstPublication.window.windowIndex + 1 },
+      ownedThroughSourceSample: through, observations: [secondPhysicalEvent,
+        { ...secondPhysicalEvent, observationId: 'delayed-busy-event' },
+        { ...secondPhysicalEvent, observationId: 'retirement-equality', sourceEventSample: retired }] });
+    expect(r.finalized).toHaveLength(1);
+    expect(r.controller.snapshot().sessionSnapshot!.step).toMatchObject({ currentIndex: 1, activeAttempt: null, attemptState: 'READY' });
+    await r.feed(3);
+    const fresh = through + 1, end = r.input().snapshot().capture!.capturedThroughSourceSample;
+    r.publish({ ...firstPublication, window: { ...firstPublication.window, windowIndex: firstPublication.window.windowIndex + 2 },
+      ownedThroughSourceSample: end, observations: [{ ...secondPhysicalEvent, observationId: 'fresh-answer', sourceEventSample: fresh }] });
+    expect(r.finalized).toHaveLength(2);
+    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBe(fresh);
+    expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
     await r.controller.dispose();
   });
 
   it('final MATCH completes once after explicit rearm and awaited resource cleanup', async () => {
-    const r = rig(rate); await r.controller.start(); await r.untilAttempts(1); await r.untilAttempts(2);
+    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1); await r.untilFinalized(2);
     // This test driver must not drain an already disposed source after the terminal publication.
-    await expect(r.untilAttempts(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
+    await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
     await r.controller.finish(); await r.controller.finish();
     expect(r.controller.snapshot().lastSnapshot).toMatchObject({ runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED',
       step: { currentIndex: 3, completed: true } });
-    expect(r.controller.snapshot().lastSnapshot!.step.attempts.map(a => a.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH']);
+    expect(r.finalized.map(a => a.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH']);
     expect(r.completion).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
     expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.completion).toHaveBeenCalledOnce();
@@ -218,7 +270,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   it('arm failure after domain rearm is terminal and never rolls back or reconnects', async () => {
     const r = rig(rate); await r.controller.start();
     const arm = vi.spyOn(r.input(), 'arm').mockImplementationOnce(() => { throw new Error('ARM_FAILED'); });
-    await expect(r.untilAttempts(1)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED'); await r.controller.finish();
+    await expect(r.untilFinalized(1)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED'); await r.controller.finish();
     expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', error: 'STEP_ACOUSTIC_RUNTIME_FAILED', canAcceptAttempt: false });
     expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(1);
     expect(arm).toHaveBeenCalledOnce(); expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
@@ -227,14 +279,14 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
 
   it.each(['context', 'root', 'worker', 'analysis'] as const)('%s interruption is terminal, releases once and never reconnects', async kind => {
     const r = rig(rate); await r.controller.start();
-    const history = r.controller.snapshot().sessionSnapshot!.step.attempts;
+    const finalizedBeforeFailure = [...r.finalized];
     if (kind === 'context') { r.context.state = 'suspended'; r.context.dispatchEvent(new Event('statechange')); }
     if (kind === 'root') r.track.dispatchEvent(new Event('mute'));
     if (kind === 'worker') r.workerFailure();
     if (kind === 'analysis') r.source().failAnalysis(new Error('ANALYSIS_FAILURE'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', canAcceptAttempt: false });
     expect(r.controller.snapshot().error).not.toMatch(/MIDI/);
-    expect(r.controller.snapshot().sessionSnapshot!.step.attempts).toEqual(history);
+    expect(r.finalized).toEqual(finalizedBeforeFailure);
     await r.controller.finish(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
     expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
@@ -330,9 +382,9 @@ it.each([44100, 48000] as const)('%s microphone silence stays READY without any 
   const r = rig(rate); r.pitches([]);
   await r.controller.start(); await r.feed(120);
   const snapshot = r.controller.snapshot();
-  expect(snapshot).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true, stepInteractionPhase: 'READY', lastFinalizedVerdict: null });
-  expect(snapshot.sessionSnapshot!.step).toMatchObject({ currentIndex: 0, targetGeneration: 1, activeAttempt: null, attempts: [], pendingPostVerdict: null });
+  expect(snapshot).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true, stepInteractionPhase: 'READY', pendingPostVerdict: null });
+  expect(snapshot.sessionSnapshot!.step).toMatchObject({ currentIndex: 0, targetGeneration: 1, activeAttempt: null, pendingPostVerdict: null });
   expect(snapshot.microphoneDiagnostics!.analysis!.counts.windowsPublished).toBeGreaterThan(0);
   await r.controller.finish();
-  expect(r.controller.snapshot().lastSnapshot!.step.attempts).toEqual([]);
+  expect(r.finalized).toEqual([]);
 });

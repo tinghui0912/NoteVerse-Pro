@@ -16,13 +16,13 @@ it('controller and domain statuses are distinct; STEP runtime cannot represent a
   expectTypeOf<Extract<keyof LocalStepSessionSnapshot, 'lifecycleState'>>().toEqualTypeOf<never>();
   expectTypeOf<LocalPerformanceSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'PAUSED'|'ENDED'>();
 });
-it.each(['MATCH','MISMATCH','RETRY'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {
+it.each(['MATCH','MISMATCH'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {
   const clock=new ManualClock(100),domainId='capture-watermark',time=(ms:number)=>({domainId,ms});
   const runtime=new StepPracticeRuntime({artifact:fixture as PracticeScoreArtifact,scope:{kind:'FULL'},clock,localSessionId:domainId,inputSource:'MICROPHONE'});
   const old=runtime.openAttempt(time(200))!; runtime.analyzeAttempt(old);
   // Analysis covered only through 600, but physical capture continued through 1000.
   clock.set(1000);
-  const result=runtime.completeAttempt(old,{ observedAttackPitches: verdict === 'RETRY' ? ['C4','G4'] : [verdict === 'MATCH' ? 'C4' : 'D4'],
+  const result=runtime.completeAttempt(old,{ observedAttackPitches: [verdict === 'MATCH' ? 'C4' : 'D4'],
     confidence:1,captureEndSessionTime:time(235)});
   expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict } });
   expect(result.kind).toBe('FINALIZED');
@@ -30,5 +30,5 @@ it.each(['MATCH','MISMATCH','RETRY'] as const)('%s retires physical input beyond
   for(const ms of [235,600,800,1000]) expect(runtime.openAttempt(time(ms))).toBeNull();
   expect(runtime.completeAttempt(old,{observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:time(235)}).kind).toBe('REJECTED');
   expect(runtime.openAttempt(time(1001))).not.toBeNull();
-  expect(runtime.snapshot().step.attempts).toHaveLength(1);
+  expect(runtime.snapshot().step.pendingPostVerdict).toBeNull();
 });

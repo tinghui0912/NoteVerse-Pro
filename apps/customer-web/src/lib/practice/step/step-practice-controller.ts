@@ -61,7 +61,7 @@ export class StepPracticeController {
     return Object.freeze({ state: this.state, error: this.error,
       stepInteractionPhase: session?.step.attemptState ?? null,
       canAcceptAttempt: this.state === 'ACTIVE' && this.error === null && (this.runtime?.canAcceptAttempt ?? false),
-      lastFinalizedVerdict: session?.step.attempts.at(-1) ?? null,
+      pendingPostVerdict: session?.step.pendingPostVerdict ?? null,
       elapsedSeconds: Math.floor((this.elapsedMs + (this.activeAt === null ? 0 : this.clock.nowMs() - this.activeAt)) / 1000),
       activeStepGroup: this.runtime ? groupForCurrentStep(this.runtime) : null,
       sessionSnapshot: session,
@@ -241,7 +241,7 @@ export class StepPracticeController {
     if (this.state === 'ENDED' || this.state === 'DISPOSED') return;
     this.input?.cancel(); this.runtime?.end(); this.holdElapsed();
     this.error = this.options.inputSource === 'MICROPHONE' ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING')
-      : error instanceof Error && error.message === 'STEP_HISTORY_LIMIT_EXCEEDED' ? 'STEP_HISTORY_LIMIT_EXCEEDED' : 'STEP_ATTEMPT_FAILED';
+      : 'STEP_ATTEMPT_FAILED';
     this.generation++; this.state = 'ENDED'; void this.cleanup();
     this.emit();
   }

@@ -12,18 +12,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeMode } from '@/lib/practice/kernel/session';
 
-interface PracticeCompletionDialogProps {
+type PracticeCompletionDialogProps = {
   open: boolean;
   outcome: PracticeCompletionOutcome;
-  sessionMode: PracticeMode;
   isLoading: boolean;
   onOpenChange: (open: boolean) => void;
   onRestart: () => void;
   onAdjustSection?: () => void;
-  onViewSummary: () => void;
-}
+} & (
+  | { sessionMode: 'STEP_BY_STEP'; onViewSummary?: never }
+  | { sessionMode: 'CONTINUOUS_PLAY'; onViewSummary: () => void }
+);
 
 export function PracticeCompletionDialog({
   open,

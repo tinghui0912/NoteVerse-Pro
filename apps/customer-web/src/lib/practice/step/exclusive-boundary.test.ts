@@ -12,6 +12,6 @@ describe('exclusive STEP activation boundary', () => {
     expect(lifecycleWitnesses().every(w=>w.status==='PASS')).toBe(true);
   });
   it('partial attempts cannot accumulate across attempt/target ownership', () => {
-    expect(accumulationWitness().attempts.map(r=>r.verdict)).toEqual(['MISMATCH','MISMATCH']);
+    expect(accumulationWitness().finalized.map(r=>r.verdict)).toEqual(['MISMATCH','MISMATCH']);
   });
 });

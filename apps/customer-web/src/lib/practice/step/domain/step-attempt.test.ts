@@ -3,11 +3,13 @@ import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifa
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { MAX_STEP_HISTORY_RECORDS, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepRetry } from '@/lib/practice/step/domain/attempt';
+import { type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 
 const artifact = fixture as PracticeScoreArtifact;
 function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
-  runtime.rearm(runtime.snapshot().step.attempts.at(-1)!.captureEndSessionTime);
+  const record = runtime.snapshot().step.pendingPostVerdict;
+  if (!record) throw Error('Expected a pending answer before rearm');
+  runtime.rearm(record.captureEndSessionTime);
 }
 function setup(index = 0, id = 'step-test', inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI') {
   const clock = new ManualClock(100);
@@ -35,20 +37,19 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.currentStepIndex).toBe(index);
     expect(runtime.currentTarget()?.targetGeneration).toBe(identity.targetGeneration);
     expect(runtime.snapshot().step.pendingPostVerdict).toBe(result.kind === 'FINALIZED' ? result.record : null);
-    expect(runtime.snapshot().step.attempts).toHaveLength(1);
     rearmAtCaptureEnd(runtime);
     expect(runtime.currentStepIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));
-    expect(Object.isFrozen(runtime.snapshot().step.attempts[0].observedAttackPitches)).toBe(true);
+    expect(Object.isFrozen(result.kind === 'FINALIZED' && result.record.observedAttackPitches)).toBe(true);
     expect(finish(identity, pitches)).toMatchObject({ kind: 'REJECTED' });
-    expect(runtime.snapshot().step.attempts).toHaveLength(1);
+    expect(runtime.snapshot().step.pendingPostVerdict).toBeNull();
   });
   it('partial pitches never accumulate; mismatch then a fresh correct attempt', () => {
     const { runtime, begin, finish } = setup(3);
-    finish(begin(), ['A4']); rearmAtCaptureEnd(runtime); finish(begin(), ['C5']);
+    const first = finish(begin(), ['A4']); rearmAtCaptureEnd(runtime); const second = finish(begin(), ['C5']);
     expect(runtime.currentStepIndex).toBe(3);
-    rearmAtCaptureEnd(runtime); finish(begin(), ['A4', 'C5']); rearmAtCaptureEnd(runtime);
+    rearmAtCaptureEnd(runtime); const third = finish(begin(), ['A4', 'C5']); rearmAtCaptureEnd(runtime);
     expect(runtime.currentStepIndex).toBe(4);
-    expect(runtime.snapshot().step.attempts.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
+    expect([first, second, third].map(r => r.kind === 'FINALIZED' ? r.record.verdict : r.kind)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
   });
   it('repeated notes need new identity and POST_VERDICT is explicit backpressure', () => {
     const { runtime, begin, finish, time } = setup(), first = begin();
@@ -58,12 +59,11 @@ describe('one target / one bounded attempt / one verdict', () => {
     const second = begin(); expect(second.attemptId).not.toBe(first.attemptId);
     finish(second, ['C4']); rearmAtCaptureEnd(runtime); expect(runtime.currentStepIndex).toBe(2);
   });
-  it('target-policy abstention preserves pitch evidence and stays on the answered target', () => {
-    const { runtime, begin, time } = setup(0, 'retry', 'MICROPHONE'), identity = begin(); runtime.analyzeAttempt(identity);
+  it('non-exact microphone input preserves pitch evidence and stays on the answered target', () => {
+    const { runtime, begin, time } = setup(0, 'non-exact', 'MICROPHONE'), identity = begin(); runtime.analyzeAttempt(identity);
     const evidence: StepPitchEvidence = { observedAttackPitches: ['C4','G4'], confidence: .45, captureEndSessionTime: time(250) };
     const result = runtime.completeAttempt(identity, evidence);
-    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, ...evidence, verdict: 'RETRY',
-      retry: { origin: 'TARGET_POLICY', reason: 'TARGET_COVERED_WITH_EXTRA' } } });
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, ...evidence, verdict: 'MISMATCH' } });
     expect(runtime.currentStepIndex).toBe(0); expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime); expect(runtime.snapshot().step.attemptState).toBe('READY');
     expect(runtime.currentStepIndex).toBe(0); expect(runtime.currentTarget()!.targetGeneration).toBe(identity.targetGeneration);
@@ -71,9 +71,8 @@ describe('one target / one bounded attempt / one verdict', () => {
   it.each(['setInputUnavailable', 'end'] as const)('%s invalidates active capture and late analysis', command => {
     const { runtime, begin, finish } = setup(), old = begin(); runtime[command]();
     expect(finish(old, ['C4'])).toMatchObject({ kind: 'REJECTED' });
-    expect(runtime.snapshot().step.attempts).toHaveLength(0);
+    expect(runtime.snapshot().step.pendingPostVerdict).toBeNull();
     expect(runtime.snapshot().step.activeAttempt).toBeNull();
-    expect(runtime.snapshot().step.skips).toHaveLength(0);
   });
   it('input return preserves target generation; old attempt and session cannot complete', () => {
     const a = setup(), identity = a.begin(); a.runtime.setInputUnavailable(); a.runtime.acceptInputAfter(a.time());
@@ -84,7 +83,7 @@ describe('one target / one bounded attempt / one verdict', () => {
   });
   it('finish never fabricates a verdict and is idempotent', () => {
     const { runtime, begin } = setup(); begin(); runtime.end(); const snapshot = runtime.snapshot(); runtime.end();
-    expect(runtime.snapshot().step).toEqual(snapshot.step); expect(snapshot.step.attempts).toEqual([]);
+    expect(runtime.snapshot().step).toEqual(snapshot.step); expect(snapshot.step.pendingPostVerdict).toBeNull();
     expect(snapshot.completionReason).toBe('STOPPED_BY_USER');
   });
   it('final MATCH waits in POST_VERDICT; scope ends once at rearm, immutable session snapshot', () => {
@@ -93,8 +92,8 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.currentStepIndex).toBe(4);
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
-    expect(() => rearmAtCaptureEnd(runtime)).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 7, runtimeVersion: 'step-explicit-target-policy-retry-v7' },
+    expect(() => runtime.rearm({ domainId: runtime.localSessionId, ms: 0 })).toThrow('STEP_ATTEMPT_STATE_INVALID');
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' },
       runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });
@@ -105,18 +104,6 @@ describe('one target / one bounded attempt / one verdict', () => {
     const evidence: StepPitchEvidence = { observedAttackPitches: ['C4'], confidence: NaN, captureEndSessionTime: s.time(235) };
     expect(() => s.runtime.completeAttempt(id, evidence)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
     expect(s.runtime.completeAttempt({ ...id, inputSource: 'MICROPHONE' }, { ...evidence, confidence: 1 }).kind).toBe('REJECTED');
-  });
-  it('history ceiling fails before opening another attempt, retaining every record', () => {
-    const s = setup();
-    for (let i = 0; i < MAX_STEP_HISTORY_RECORDS; i++) {
-      const result = s.finish(s.begin(), ['D4']);
-      if (result.kind === 'FINALIZED') s.runtime.rearm(result.record.captureEndSessionTime);
-    }
-    expect(() => s.begin()).toThrow('STEP_HISTORY_LIMIT_EXCEEDED');
-    const result = s.runtime.snapshot();
-    expect(result.runtimeStatus).toBe('ENDED'); expect(result.step.activeAttempt).toBeNull();
-    expect(result.step.attempts.length).toBe(MAX_STEP_HISTORY_RECORDS);
-    expect(result.step.attempts[0].attemptId).toBe('step-test:attempt:1');
   });
   it('deterministic many-cycle input outage: one result, no stale attempt or partial carry', () => {
     for (let seed = 0; seed < 100; seed++) {
@@ -129,22 +116,18 @@ describe('one target / one bounded attempt / one verdict', () => {
       }
       const id = s.begin(); s.finish(id, ['C5','A4']); rearmAtCaptureEnd(s.runtime);
       expect(s.runtime.currentStepIndex).toBe(4); expect(s.finish(id, ['A4','C5']).kind).toBe('REJECTED');
-      expect(s.runtime.snapshot().step.attempts).toHaveLength(11);
+      expect(s.runtime.snapshot().step.pendingPostVerdict).toBeNull();
     }
   });
 });
 
 
 describe('STEP evidence and outcome integrity', () => {
-  it('only permits nonempty pitch evidence and discriminated retry metadata', () => {
-    type Common = StepAttemptIdentity & StepPitchEvidence;
+  it('only permits nonempty evidence and the two learning outcomes', () => {
     expectTypeOf<[]>().not.toExtend<StepPitchEvidence['observedAttackPitches']>();
     expectTypeOf<StepAttemptRecord['confidence']>().toEqualTypeOf<number>();
-    expectTypeOf<Common & { verdict: 'MATCH'; retry: StepRetry }>().not.toExtend<StepAttemptRecord>();
-    expectTypeOf<Common & { verdict: 'MISMATCH'; retry: StepRetry }>().not.toExtend<StepAttemptRecord>();
-    expectTypeOf<Common & { verdict: 'RETRY'; retry: null }>().not.toExtend<StepAttemptRecord>();
-    expectTypeOf<Omit<Common, 'confidence'> & { verdict: 'RETRY'; retry: StepRetry; confidence: null }>().not.toExtend<StepAttemptRecord>();
-    expectTypeOf<Omit<Common, 'observedAttackPitches'> & { verdict: 'RETRY'; retry: StepRetry; observedAttackPitches: [] }>().not.toExtend<StepAttemptRecord>();
+    expectTypeOf<StepAttemptRecord['verdict']>().toEqualTypeOf<'MATCH' | 'MISMATCH'>();
+    expectTypeOf<keyof StepAttemptRecord>().toEqualTypeOf<keyof StepAttemptIdentity | keyof StepPitchEvidence | 'verdict'>();
   });
   it.each<[string, Record<string, unknown>]>([
     ['empty pitch list', { observedAttackPitches: [] }],
@@ -169,13 +152,13 @@ describe('STEP evidence and outcome integrity', () => {
     // Untrusted protocol data deliberately bypasses static shape checks to exercise fail-closed validation.
     const evidence = { observedAttackPitches: ['C4'], confidence: 1, captureEndSessionTime: s.time(235), ...patch } as StepPitchEvidence;
     expect(() => s.runtime.completeAttempt(identity, evidence)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
-    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', attempts: [], pendingPostVerdict: null, activeAttempt: identity });
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', pendingPostVerdict: null, activeAttempt: identity });
   });
   it('accepts the pitch-entry upper bound and normalizes without losing evidence identity', () => {
     const s = setup(), identity = s.begin();
     s.runtime.analyzeAttempt(identity);
     const result = s.runtime.completeAttempt(identity, { observedAttackPitches: ['C4', ...Array<string>(127).fill('C4')], confidence: 0,
       captureEndSessionTime: s.time(235) });
-    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, verdict: 'MATCH', retry: null, observedAttackPitches: ['C4'], confidence: 0 } });
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, verdict: 'MATCH', observedAttackPitches: ['C4'], confidence: 0 } });
   });
 });
