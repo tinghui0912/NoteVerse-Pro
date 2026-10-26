@@ -9,7 +9,7 @@ describe('Continuous presentation and safe product errors', () => {
     for (const session of ['IDLE', 'PREPARING', 'ACTIVE', 'FINALIZING', 'COMPLETE', 'FAILED_BEFORE_START', 'FAILED', 'DISPOSED'] as const) {
       for (const analysis of ['PREPARING', 'PREROLL', 'RUNNING', 'PAUSED', 'DRAINING', 'COMPLETE', 'FAILED'] as const) {
         const snapshot: ContinuousControllerSnapshot = { session, analysis, transport: null, recording: null,
-          inputError: session.startsWith('FAILED') ? 'MICROPHONE_SOURCE_LOST' : null, analysisError: null,
+          inputError: session.startsWith('FAILED') ? 'MICROPHONE_SOURCE_LOST' : null, recordingIntervention: null, analysisError: null,
           evaluation: null, completed: null, sessionSnapshot: null };
         const before = JSON.stringify(snapshot), view = continuousControllerView(snapshot);
         expect(view.inputState).toBe(session.startsWith('FAILED') ? 'ERROR' : session === 'PREPARING' ? 'STARTING' : 'IDLE');

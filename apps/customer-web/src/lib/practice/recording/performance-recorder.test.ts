@@ -3,20 +3,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PerformanceRecorder } from './performance-recorder';
 
-type TrackListener = () => void;
-
 function createTrack(kind: 'audio' | 'video' = 'audio') {
-  const listeners: TrackListener[] = [];
+  const events = new EventTarget();
   return {
-    kind,
-    readyState: 'live',
-    stop: vi.fn(),
-    addEventListener: vi.fn((event: string, listener: TrackListener) => {
-      if (event === 'ended') listeners.push(listener);
-    }),
-    end() {
-      listeners.forEach((listener) => listener());
-    },
+    kind, readyState: 'live', muted: false, stop: vi.fn(),
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
+    end() { this.readyState = 'ended'; events.dispatchEvent(new Event('ended')); },
+    mute() { this.muted = true; events.dispatchEvent(new Event('mute')); },
+    unmute() { this.muted = false; events.dispatchEvent(new Event('unmute')); },
   };
 }
 
@@ -33,6 +28,8 @@ type MockRecorderBehavior = {
   emitStop?: boolean;
   emitData?: boolean;
   throwOnStop?: boolean;
+  throwOnPause?: boolean;
+  throwOnResume?: boolean;
 };
 
 describe('PerformanceRecorder', () => {
@@ -75,10 +72,12 @@ describe('PerformanceRecorder', () => {
       }
 
       pause() {
+        if (behavior.throwOnPause) throw new Error('pause failed');
         this.state = 'paused';
       }
 
       resume() {
+        if (behavior.throwOnResume) throw new Error('resume failed');
         this.state = 'recording';
       }
     }
@@ -87,6 +86,55 @@ describe('PerformanceRecorder', () => {
       writable: true,
       value: MockMediaRecorder,
     });
+  });
+
+  it('publishes one recoverable mute incident and recovers only the same healthy pipeline', async () => {
+    const track = createTrack(), media = createStream([track]);
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn(async () => media) } });
+    const recorder = new PerformanceRecorder('AUDIO'), listener = vi.fn();
+    recorder.onRuntimeFault(listener); await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
+    const pipeline = lastRecorder;
+    track.mute(); track.mute(); recorder.pause(100);
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE' });
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); expect(recorder.checkRuntimeRecovery()).toBe(false);
+    expect(recorder.recoverRuntime()).toBe(false); track.unmute();
+    expect(recorder.checkRuntimeRecovery()).toBe(true); expect(recorder.snapshot().state).toBe('INTERRUPTED');
+    expect(recorder.recoverRuntime()).toBe(true); recorder.resume(100);
+    expect(recorder.snapshot().state).toBe('RECORDING'); expect(lastRecorder).toBe(pipeline);
+    await recorder.freeze(200); expect((await recorder.finalize()).status).toBe('READY'); recorder.stopAndCleanup();
+  });
+  for (const event of ['ended', 'error'] as const) it(`${event} requires restart or explicit degradation, never fake recovery`, async () => {
+    const track = createTrack(), media = createStream([track]);
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn(async () => media) } });
+    const recorder = new PerformanceRecorder('AUDIO'), listener = vi.fn(); recorder.onRuntimeFault(listener);
+    await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
+    if (event === 'ended') track.end(); else lastRecorder!.onerror!();
+    lastRecorder!.onerror!(); track.end();
+    expect(listener).toHaveBeenCalledOnce(); expect(recorder.runtimeFault()?.recoverability).toBe('RESTART_REQUIRED');
+    expect(recorder.checkRuntimeRecovery()).toBe(false); expect(recorder.recoverRuntime()).toBe(false);
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); await expect(recorder.finalize()).rejects.toThrow('RECORDING_DECISION_REQUIRED');
+    recorder.continueWithoutRecording(); expect(recorder.snapshot().state).toBe('UNAVAILABLE');
+    await recorder.freeze(10); expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: event === 'ended' ? 'AUDIO_TRACK_ENDED' : 'MEDIA_RECORDER_ERROR' });
+    expect(track.stop).toHaveBeenCalledOnce(); recorder.stopAndCleanup(); track.mute(); expect(listener).toHaveBeenCalledOnce();
+  });
+  it('escalates an unresolved mute to hard failure without publishing duplicate incidents', async () => {
+    const track = createTrack(); Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream([track]) } });
+    const recorder = new PerformanceRecorder('AUDIO'), listener = vi.fn(); recorder.onRuntimeFault(listener);
+    await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
+    track.mute(); track.end(); expect(listener).toHaveBeenCalledOnce();
+    expect(recorder.runtimeFault()).toEqual({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'RESTART_REQUIRED' });
+    expect(recorder.recoverRuntime()).toBe(false); recorder.stopAndCleanup();
+  });
+
+  for (const operation of ['pause', 'resume'] as const) it(`${operation} failure is a hard runtime incident, never silent degradation`, async () => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream() } });
+    const recorder = new PerformanceRecorder('AUDIO'), listener = vi.fn(); recorder.onRuntimeFault(listener);
+    await recorder.prepare({ inputSource: 'MIDI' }); recorder.activate(); recorder.startIfReady(0);
+    if (operation === 'pause') behavior.throwOnPause = true;
+    recorder.pause(10);
+    if (operation === 'resume') { behavior.throwOnResume = true; recorder.resume(10); }
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: operation === 'pause' ? 'RECORDER_PAUSE_FAILED' : 'RECORDER_RESUME_FAILED', recoverability: 'RESTART_REQUIRED' });
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); expect(recorder.recoverRuntime()).toBe(false); recorder.stopAndCleanup();
   });
 
   afterEach(() => {
@@ -240,7 +288,8 @@ describe('PerformanceRecorder', () => {
   it('post-start recorder errors still produce unavailable media', async () => {
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => createStream() } });
     const recorder = new PerformanceRecorder('AUDIO'); await recorder.prepare({ inputSource: 'MIDI' });
-    recorder.startIfReady(0); lastRecorder!.onerror!(); await recorder.freeze(1000);
+    recorder.startIfReady(0); lastRecorder!.onerror!();
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); recorder.continueWithoutRecording(); await recorder.freeze(1000);
     expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: 'MEDIA_RECORDER_ERROR' });
     recorder.stopAndCleanup();
   });
@@ -283,6 +332,7 @@ describe('PerformanceRecorder', () => {
     await recorder.prepare({ inputSource: 'MIDI' });
     recorder.startIfReady(0);
     track.end();
+    expect(recorder.snapshot().state).toBe('INTERRUPTED'); recorder.continueWithoutRecording();
     await recorder.freeze(100);
 
     const result = await recorder.finalize();

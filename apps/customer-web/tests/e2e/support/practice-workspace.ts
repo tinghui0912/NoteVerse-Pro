@@ -34,33 +34,38 @@ export async function installAcousticEngineFixture(page: Page) {
   });
 }
 
-/** Existing runtime scenarios enter through real Setup with explicit MIDI/no-recording intent. */
+/** Enter the workspace through the real Setup admission boundary. */
 export async function openPreparedPractice(page: Page, scoreId: string, revisionId: string) {
   await page.goto(`/zh/score/${scoreId}/practice?practiceRevisionId=${encodeURIComponent(revisionId)}`);
   await expect(page.getByTestId('practice-setup')).toBeVisible();
-  await page.getByRole('button', { name: '连贯演奏', exact: true }).click();
-  await page.getByRole('button', { name: '不录制', exact: true }).click();
-  await page.getByRole('button', { name: '逐音练习', exact: true }).click();
-  await page.getByRole('button', { name: 'MIDI 键盘', exact: true }).click();
-  await page.getByRole('button', { name: '准备练习', exact: true }).click();
-  await expect(page.getByRole('button', { name: '设置', exact: true })).toBeVisible();
+  await selectPracticeConfiguration(page, 'STEP', 'MIDI', 'OFF');
+  expect(await preparePracticeSetup(page)).toBe('READY');
 }
 
-export async function prepareSelectedPractice(page: Page, reopenSettings = false): Promise<'READY' | 'BLOCKED'> {
-  const close = page.getByRole('button', { name: /close/i });
-  if (await close.isVisible()) {
-    await page.keyboard.press('Escape');
-    await expect(close).toBeHidden();
-  }
-  const prepare = page.getByRole('button', { name: '准备练习', exact: true });
-  if (await prepare.isVisible()) {
-    await prepare.click();
-    await expect(page.getByTestId('practice-setup')).toBeVisible();
-    await page.getByRole('button', { name: '准备练习', exact: true }).click();
-    await expect.poll(async () => !page.url().includes('/setup') || await page.getByTestId('practice-setup').getByRole('alert').count() > 0).toBe(true);
-    if (page.url().includes('/setup')) return 'BLOCKED';
-    await expect(page.getByRole('button', { name: '设置', exact: true })).toBeVisible();
-  }
-  if (reopenSettings) await page.getByRole('button', { name: '设置', exact: true }).click();
+export async function openPracticeSetup(page: Page) {
+  await page.getByRole('button', { name: '更改练习配置', exact: true }).click();
+  await expect(page.getByTestId('practice-setup')).toBeVisible();
+}
+
+export async function selectPracticeConfiguration(page: Page, mode: 'STEP' | 'CONTINUOUS', input: 'MIDI' | 'MICROPHONE', recording: 'OFF' | 'AUDIO' | 'VIDEO') {
+  const setup = page.getByTestId('practice-setup');
+  // Recording intent is explicit even when the selected mode does not use it.
+  await setup.getByRole('button', { name: '连贯演奏', exact: true }).click();
+  await setup.getByRole('button', { name: { OFF: '不录制', AUDIO: '录音', VIDEO: '录像' }[recording], exact: true }).click();
+  await setup.getByRole('button', { name: mode === 'STEP' ? '逐音练习' : '连贯演奏', exact: true }).click();
+  await setup.getByRole('button', { name: input === 'MIDI' ? 'MIDI 键盘' : '麦克风', exact: true }).click();
+  await expect(setup.getByRole('switch')).toHaveCount(0);
+}
+
+export async function configurePractice(page: Page, mode: 'STEP' | 'CONTINUOUS' = 'CONTINUOUS', input: 'MIDI' | 'MICROPHONE' = 'MIDI', recording: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF') {
+  await openPracticeSetup(page); await selectPracticeConfiguration(page, mode, input, recording);
+  return preparePracticeSetup(page);
+}
+
+export async function preparePracticeSetup(page: Page): Promise<'READY' | 'BLOCKED'> {
+  await page.getByTestId('practice-setup').getByRole('button', { name: /^(准备练习|进入练习)$/ }).click();
+  await expect.poll(async () => !page.url().includes('/setup') || await page.getByTestId('practice-setup').getByRole('alert').count() > 0).toBe(true);
+  if (page.url().includes('/setup')) return 'BLOCKED';
+  await expect(page.getByRole('button', { name: '开始', exact: true })).toBeVisible();
   return 'READY';
 }

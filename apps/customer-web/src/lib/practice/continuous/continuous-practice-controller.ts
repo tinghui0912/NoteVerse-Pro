@@ -16,6 +16,8 @@ import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/k
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
+import type { RecordingRuntimeFault } from '@/lib/practice/recording/recording-runtime-fault';
+import type { RecordingIntervention } from './recording-intervention';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
@@ -38,6 +40,7 @@ export type ContinuousControllerSnapshot = Readonly<{
   session: ContinuousControllerState; transport: PerformanceClockSnapshot | null;
   analysis: 'NOT_REQUIRED' | 'PREPARING' | 'PREROLL' | 'RUNNING' | 'PAUSED' | 'DRAINING' | 'COMPLETE' | 'FAILED';
   analysisError: string | null; inputError: string | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
+  recordingIntervention: RecordingIntervention | null;
   evaluation: ContinuousEvaluationSnapshot | null; completed: ContinuousPracticeCompletion | null;
   sessionSnapshot: LocalPerformanceSessionSnapshot | null;
 }>;
@@ -72,6 +75,10 @@ export class ContinuousPracticeController {
   private detachInfrastructure: (() => void) | null = null;
   private disposed = false;
   private recordingBegan = false;
+  private intervention: RecordingIntervention | null = null;
+  private detachRecorder: (() => void) | null = null;
+  private transitioning = false;
+  private pendingRecordingFault: RecordingRuntimeFault | null = null;
   private enabled: boolean;
   private readonly listeners = new Set<() => void>();
   private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
@@ -89,6 +96,7 @@ export class ContinuousPracticeController {
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
       analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot() ?? null,
+      recordingIntervention: this.intervention ? Object.freeze({ ...this.intervention, ...this.recorder?.runtimeFault() }) : null,
       evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
@@ -147,6 +155,10 @@ export class ContinuousPracticeController {
         await this.recorder.prepare({ inputSource: this.options.inputSource, sessionMicrophoneStream: this.rootStream,
           cameraStream: this.options.cameraStream });
       } catch (error) { throw recordingPreparationError(error); }
+      this.detachRecorder = this.recorder.onRuntimeFault(fault => {
+        if (this.transitioning) this.pendingRecordingFault = fault;
+        else this.recordingFault(fault);
+      });
       this.checkAlive();
       const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
       this.metronome = this.platform.createMetronome({ artifact: this.options.artifact, tempoPlan: this.tempoPlan, enabled: this.enabled,
@@ -155,7 +167,8 @@ export class ContinuousPracticeController {
       this.transition(C => {
         try { this.recorder!.assertPrepared(); } catch (error) { throw recordingPreparationError(error); }
         this.microphone?.assertBoundary(C);
-        this.transport = session.start(); this.planRunning(C); this.metronome!.start(continuousMetronomeSyncPoint(this.transport));
+        this.recorder!.activate(); this.transport = session.start(); this.state = 'ACTIVE';
+        this.planRunning(C); this.metronome!.start(continuousMetronomeSyncPoint(this.transport));
         if (this.transport.state === 'RUNNING') this.startRecording();
       });
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
@@ -169,6 +182,10 @@ export class ContinuousPracticeController {
     }
   }
   pause(): void {
+    if (this.intervention) this.intervention = Object.freeze({ ...this.intervention, pauseOrigin: 'USER' });
+    this.pauseTransport();
+  }
+  private pauseTransport(): void {
     if (this.state !== 'ACTIVE') return;
     this.refresh(); if (this.transport?.state === 'ENDED' || this.transport?.state === 'PAUSED') return;
     this.transition(C => {
@@ -181,7 +198,7 @@ export class ContinuousPracticeController {
     }); this.record('PAUSE'); this.notify();
   }
   resume(): void {
-    if (this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
+    if (this.intervention || this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
     try { this.midi?.assertConnected(); } catch (error) { this.inputError = (error as Error).message; this.notify(); return; }
     this.inputError = null;
     this.transition(C => {
@@ -201,6 +218,7 @@ export class ContinuousPracticeController {
     }
     if (this.disposed || !['ACTIVE', 'PREPARING'].includes(this.state)) return Promise.resolve();
     this.state = 'ABANDONED';
+    this.intervention = null;
     try {
       this.cancelFuture(true);
       this.transition(() => { if (this.session) this.transport = this.session.abandon(); });
@@ -252,10 +270,39 @@ export class ContinuousPracticeController {
     catch (error) { this.microphone.fail((error as Error).message); this.analysisFailed((error as Error).message);
       if (this.state === 'PREPARING') throw error; return null; }
   }
-  private transition(action: (C: number) => void): void { if (this.renderClock) this.renderClock.transaction(action); else action(0); }
+  private transition(action: (C: number) => void): void {
+    this.transitioning = true;
+    try { if (this.renderClock) this.renderClock.transaction(action); else action(0); }
+    finally {
+      this.transitioning = false;
+      const fault = this.pendingRecordingFault; this.pendingRecordingFault = null;
+      if (fault) this.recordingFault(fault);
+    }
+  }
+  private recordingFault(fault: RecordingRuntimeFault): void {
+    if (this.disposed || this.state !== 'ACTIVE' || this.intervention || this.session?.clock.terminationReason === 'SCOPE_COMPLETED') return;
+    const pauseOrigin = this.transport?.state === 'PAUSED' ? 'USER' : 'RECORDING';
+    if (pauseOrigin === 'RECORDING') this.pauseTransport();
+    if (this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
+    this.intervention = Object.freeze({ ...fault, state: 'WAITING_FOR_USER', pauseOrigin });
+    this.record('RECORDING_INTERRUPTED', fault.reason); this.notify();
+  }
+  continueWithoutRecording(): void {
+    if (!this.intervention || this.state !== 'ACTIVE') return;
+    const resume = this.intervention.pauseOrigin === 'RECORDING';
+    this.recorder!.continueWithoutRecording(); this.intervention = null;
+    this.record('RECORDING_LOSS_ACCEPTED'); if (resume) this.resume(); this.notify();
+  }
+  checkAndResumeRecording(): boolean {
+    if (!this.intervention || this.state !== 'ACTIVE') return false;
+    if (!this.recorder!.checkRuntimeRecovery() || !this.recorder!.recoverRuntime()) { this.notify(); return false; }
+    const resume = this.intervention.pauseOrigin === 'RECORDING'; this.intervention = null;
+    if (resume) this.resume(); this.notify(); return this.intervention === null;
+  }
   private completeNaturally(mediaStop: Promise<unknown>): Promise<void> {
     if (this.completion) return this.completion;
     if (this.session?.clock.terminationReason !== 'SCOPE_COMPLETED') throw new Error('Continuous completion requires a naturally completed scope.');
+    this.intervention = null;
     this.state = 'FINALIZING'; if (this.timer) clearInterval(this.timer); this.timer = null; this.metronome?.stop(); this.notify();
     // Observe unexpected stop rejection immediately, even while acoustic tail work is pending.
     const stopped = mediaStop.catch(error => this.failSession('RECORDER_UNAVAILABLE', error));
@@ -304,6 +351,7 @@ export class ContinuousPracticeController {
     if (this.cleanupPromise) return this.cleanupPromise;
     if (this.timer) clearInterval(this.timer); this.timer = null;
     this.detachInfrastructure?.(); this.detachInfrastructure = null;
+    this.detachRecorder?.(); this.detachRecorder = null; this.intervention = null; this.pendingRecordingFault = null;
     this.cleanupPromise = (async () => {
       const failed = (error: unknown) => {
         this.cleanupFailure ??= 'RESOURCE_CLEANUP_FAILED'; this.inputError ??= 'RESOURCE_CLEANUP_FAILED';

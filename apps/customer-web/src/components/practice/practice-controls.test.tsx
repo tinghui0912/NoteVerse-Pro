@@ -40,9 +40,10 @@ describe('ContinuousPracticeControls', () => {
     render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
       <StepPracticeControls lifecycle="ACTIVE" isLoading={false} isPreparingSession={false} canPrepareSession
         rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onEnd={finish}
-        onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
+        onToggleRangeSelection={vi.fn()} />
     </NextIntlClientProvider>);
     expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /settings/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: messages.finish })); expect(finish).toHaveBeenCalledOnce();
   });
   it('keeps the section button label stable while active', () => {

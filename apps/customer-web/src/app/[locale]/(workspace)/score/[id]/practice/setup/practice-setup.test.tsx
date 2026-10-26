@@ -50,3 +50,11 @@ it('requires explicit Continuous recording and keeps VIDEO intent when camera pr
   expect(screen.getByRole('button', { name: 'Video' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('alert')).toHaveTextContent('Check browser permissions'); expect(navigation.replace).not.toHaveBeenCalled();
 });
+
+it('Setup owns readiness configuration and exposes no presentation-feedback control', async () => {
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: /Continuous play/ }));
+  for (const name of ['MIDI keyboard', 'Microphone', 'Audio', 'Video']) expect(screen.getByRole('button', { name })).toBeVisible();
+  expect(screen.queryByRole('switch')).toBeNull(); expect(screen.queryByRole('checkbox')).toBeNull();
+  expect(screen.queryByText(messages.liveNoteFeedback)).toBeNull();
+});

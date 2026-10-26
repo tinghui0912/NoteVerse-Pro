@@ -378,3 +378,8 @@ describe('paced STEP learning feedback', () => {
     expect(result).toMatchObject({ customMessage: 'Microphone analysis failed. Start a new session.', isError: true });
   });
 });
+
+it('recording intervention has dedicated status rather than input or acoustic error semantics', () => {
+  const status = resolvePracticeStatusView({ lifecycle: 'PAUSED', sessionMode: 'CONTINUOUS_PLAY', recordingInterrupted: true });
+  expect(status.messageKey).toBe('recordingPaused');
+});

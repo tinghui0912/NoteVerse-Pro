@@ -126,7 +126,7 @@ export function getSelectedInputCapability(
   return getSelectedMicrophoneCapability(capabilities, mode);
 }
 
-export function getSelectedMicrophoneCapability(
+function getSelectedMicrophoneCapability(
   capabilities: PracticeInputCapabilities,
   mode: PracticeMode
 ): PracticeMicrophoneCapability {

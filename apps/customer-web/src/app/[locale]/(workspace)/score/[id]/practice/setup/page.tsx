@@ -35,8 +35,6 @@ export default function PracticeSetupPage() {
           onClick={() => updateProfile({ ...profile, continuous: { ...profile.continuous, recordingMode } })}>
           {t(recordingMode === 'OFF' ? 'setupRecordingOff' : recordingMode === 'AUDIO' ? 'setupRecordingAudio' : 'setupRecordingVideo')}</button>)}
       </fieldset>
-      <label className="flex gap-2"><input type="checkbox" checked={profile.continuous.liveFeedbackEnabled}
-        onChange={event => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: event.target.checked } })} />{t('liveNoteFeedback')}</label>
     </>}
     <section aria-live="polite" className="space-y-2">
       {currentRequirements.map(key => <p key={key}>

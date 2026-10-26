@@ -25,7 +25,7 @@ function deferred() {
 
 function ownerMocks() {
   let snapshot: ContinuousControllerSnapshot = {
-    session: 'PREPARING', transport: null, analysis: 'NOT_REQUIRED', analysisError: null,
+    session: 'PREPARING', transport: null, analysis: 'NOT_REQUIRED', recordingIntervention: null, analysisError: null,
     inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null,
   };
   const listeners = new Set<() => void>(), events: string[] = [];

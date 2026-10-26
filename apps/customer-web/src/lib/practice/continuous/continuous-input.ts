@@ -10,7 +10,8 @@ import type { PerformanceRecorder } from '@/lib/practice/recording/performance-r
 import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
 export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
-export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'assertPrepared' | 'startIfReady' | 'pause' | 'resume' | 'freeze' | 'finalize' | 'stopAndCleanup' | 'snapshot'>;
+export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'assertPrepared' | 'activate' | 'onRuntimeFault' | 'runtimeFault'
+  | 'checkRuntimeRecovery' | 'recoverRuntime' | 'continueWithoutRecording' | 'startIfReady' | 'pause' | 'resume' | 'freeze' | 'finalize' | 'stopAndCleanup' | 'snapshot'>;
 export type ContinuousMetronomePort = Pick<MetronomeController, 'start' | 'pause' | 'resume' | 'stop' | 'destroy' | 'setEnabled' | 'syncContinuous'>;
 /** Platform boundaries are injectable for deterministic tests, never alternate evaluation policies. */
 export interface ContinuousPlatform {

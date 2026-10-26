@@ -5,12 +5,14 @@ import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { PracticeRecordingMode } from './recording-mode';
 import { recordingOptions } from './recorder-capability';
 import { RecordingPreparationError, recordingPreparationError } from './recording-preparation-error';
+import type { RecordingRuntimeFault, RecordingRuntimeFailureReason } from './recording-runtime-fault';
 
 type RecorderState =
   | 'NOT_STARTED'
   | 'PREPARATION_FAILED'
   | 'RECORDING'
   | 'PAUSED'
+  | 'INTERRUPTED'
   | 'FINALIZING'
   | 'READY'
   | 'UNAVAILABLE';
@@ -49,6 +51,12 @@ export class PerformanceRecorder {
   private sourceOwnership: 'NONE' | 'OWNED_ACQUISITION' | 'OWNED_CLONE' = 'NONE';
   private disposed = false;
   private admitted = false;
+  private runtimeActive = false;
+  private fault: RecordingRuntimeFault | null = null;
+  private acceptedLoss = false;
+  private mediaStarted = false;
+  private readonly faultListeners = new Set<(fault: RecordingRuntimeFault) => void>();
+  private readonly detachTracks: (() => void)[] = [];
   private mediaKind: 'AUDIO' | 'VIDEO' = 'AUDIO';
   private unavailableReason: string | null = null;
   private state: RecorderState = 'NOT_STARTED';
@@ -102,6 +110,29 @@ export class PerformanceRecorder {
     this.assertTracks(this.ownedStream, this.mode);
   }
 
+  onRuntimeFault(listener: (fault: RecordingRuntimeFault) => void): () => void {
+    this.faultListeners.add(listener); return () => { this.faultListeners.delete(listener); };
+  }
+  activate(): void { this.assertPrepared(); this.runtimeActive = this.mode !== 'OFF'; }
+  runtimeFault(): RecordingRuntimeFault | null { return this.fault; }
+  checkRuntimeRecovery(): boolean {
+    if (this.disposed || !this.fault || this.fault.recoverability !== 'SAME_PIPELINE_RECOVERABLE' || !this.ownedStream || !this.recorder) return false;
+    if (!this.ownedStream.getTracks().every(track => track.readyState === 'live' && !track.muted)
+      || !['paused', 'recording', ...(!this.mediaStarted ? ['inactive'] : [])].includes(this.recorder.state)) return false;
+    return true;
+  }
+  recoverRuntime(): boolean {
+    if (!this.checkRuntimeRecovery()) return false;
+    this.fault = null;
+    this.state = this.recorder!.state === 'paused' ? 'PAUSED' : this.recorder!.state === 'recording' ? 'RECORDING' : 'NOT_STARTED';
+    return true;
+  }
+  continueWithoutRecording(): void {
+    if (!this.fault || this.disposed) return;
+    this.unavailableReason = this.fault.reason; this.acceptedLoss = true; this.runtimeActive = false;
+    this.state = 'UNAVAILABLE'; this.discardPipeline(); this.fault = null;
+  }
+
   startIfReady(performanceTimeMs: number): void {
     if (
       this.state !== 'NOT_STARTED' ||
@@ -110,14 +141,16 @@ export class PerformanceRecorder {
     ) {
       return;
     }
+    this.runtimeActive = true;
     this.currentSegmentStartPerfMs = performanceTimeMs;
     this.currentSegmentStartMediaMs = 0;
     this.cumulativeMediaMs = 0;
     try {
       this.recorder.start(250);
+      this.mediaStarted = true;
       this.state = 'RECORDING';
-    } catch (error) {
-      this.markUnavailable(error instanceof Error ? error.message : 'RECORDING_START_FAILED');
+    } catch {
+      this.interrupt('RECORDER_START_FAILED', 'RESTART_REQUIRED');
     }
   }
 
@@ -128,14 +161,14 @@ export class PerformanceRecorder {
     this.closeActiveSegment(performanceTimeMs);
     try {
       this.recorder.pause();
-      this.state = 'PAUSED';
+      if (!this.fault) this.state = 'PAUSED';
     } catch {
-      this.markUnavailable('RECORDER_PAUSE_FAILED');
+      this.interrupt('RECORDER_PAUSE_FAILED', 'RESTART_REQUIRED');
     }
   }
 
   resume(performanceTimeMs: number): void {
-    if (!this.recorder || this.recorder.state !== 'paused') {
+    if (this.fault || !this.recorder || this.recorder.state !== 'paused') {
       return;
     }
     try {
@@ -144,7 +177,7 @@ export class PerformanceRecorder {
       this.currentSegmentStartPerfMs = performanceTimeMs;
       this.currentSegmentStartMediaMs = this.cumulativeMediaMs;
     } catch {
-      this.markUnavailable('RECORDER_RESUME_FAILED');
+      this.interrupt('RECORDER_RESUME_FAILED', 'RESTART_REQUIRED');
     }
   }
 
@@ -152,12 +185,19 @@ export class PerformanceRecorder {
     if (this.stopPromise) {
       return this.stopPromise;
     }
+    this.runtimeActive = false;
     this.closeActiveSegment(performanceEndMs);
     this.timebase.nominalMediaDurationMs = this.cumulativeMediaMs;
 
     if (this.mode === 'OFF') {
       this.stopPromise = Promise.resolve('STOPPED');
       return this.stopPromise;
+    }
+    if (this.acceptedLoss) { this.stopPromise = Promise.resolve('FAILED'); return this.stopPromise; }
+    if (this.fault) {
+      // freeze belongs to the already-latched natural terminal transaction.
+      this.unavailableReason ??= this.fault.reason; this.fault = null; this.discardPipeline();
+      this.stopPromise = Promise.resolve('FAILED'); return this.stopPromise;
     }
 
     const recorder = this.recorder;
@@ -197,6 +237,7 @@ export class PerformanceRecorder {
   async finalize(): Promise<PerformanceRecording> {
     if (this.disposed) throw new Error('RECORDING_DISCARDED');
     if (this.mode !== 'OFF' && !this.admitted) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
+    if (this.fault) throw new Error('RECORDING_DECISION_REQUIRED');
     let stopResult: RecorderStopResult | null = null;
     if (this.stopPromise) {
       stopResult = await this.stopPromise;
@@ -241,6 +282,13 @@ export class PerformanceRecorder {
 
   stopAndCleanup(): void {
     this.disposed = true;
+    this.runtimeActive = false; this.fault = null; this.faultListeners.clear();
+    this.discardPipeline();
+    this.chunks.length = 0; this.timebase = createEmptyTimebase();
+    this.currentSegmentStartPerfMs = null; this.cumulativeMediaMs = 0;
+  }
+
+  private discardPipeline(): void {
     const recorder = this.recorder;
     this.recorder = null;
     if (recorder) { recorder.ondataavailable = null; recorder.onerror = null; }
@@ -252,8 +300,7 @@ export class PerformanceRecorder {
       }
     }
 
-    this.chunks.length = 0; this.timebase = createEmptyTimebase();
-    this.currentSegmentStartPerfMs = null; this.cumulativeMediaMs = 0;
+    this.chunks.length = 0;
     this.releaseStream();
   }
 
@@ -261,6 +308,7 @@ export class PerformanceRecorder {
     sourceOwnership: this.sourceOwnership, unavailableReason: this.unavailableReason }); }
 
   private releaseStream(): void {
+    this.detachTracks.splice(0).forEach(detach => detach());
     const stream = this.ownedStream;
     this.ownedStream = null;
     this.sourceOwnership = 'NONE';
@@ -309,22 +357,14 @@ export class PerformanceRecorder {
       }
     };
     recorder.onerror = () => {
-      this.markUnavailable('MEDIA_RECORDER_ERROR');
+      this.interrupt('MEDIA_RECORDER_ERROR', 'RESTART_REQUIRED');
     };
+    recorder.onstop = () => { if (this.runtimeActive) this.interrupt('RECORDER_NOT_ACTIVE', 'RESTART_REQUIRED'); };
     for (const track of tracks) {
-      track.addEventListener(
-        'ended',
-        () => {
-          if (this.state === 'RECORDING' || this.state === 'PAUSED' || this.state === 'FINALIZING') {
-            this.markUnavailable(
-              mediaKind === 'VIDEO' && track.kind === 'video'
-                ? 'VIDEO_TRACK_ENDED'
-                : 'AUDIO_TRACK_ENDED'
-            );
-          }
-        },
-        { once: true }
-      );
+      const ended = () => this.interrupt(track.kind === 'video' ? 'VIDEO_TRACK_ENDED' : 'AUDIO_TRACK_ENDED', 'RESTART_REQUIRED');
+      const muted = () => this.interrupt(track.kind === 'video' ? 'VIDEO_TRACK_MUTED' : 'AUDIO_TRACK_MUTED', 'SAME_PIPELINE_RECOVERABLE');
+      track.addEventListener('ended', ended); track.addEventListener('mute', muted);
+      this.detachTracks.push(() => { track.removeEventListener('ended', ended); track.removeEventListener('mute', muted); });
     }
   }
 
@@ -357,5 +397,15 @@ export class PerformanceRecorder {
   private markUnavailable(reason: string): void {
     this.unavailableReason = this.unavailableReason ?? reason;
     this.state = 'UNAVAILABLE';
+  }
+  private interrupt(reason: RecordingRuntimeFailureReason, recoverability: RecordingRuntimeFault['recoverability']): void {
+    if (this.disposed || this.acceptedLoss) return;
+    if (!this.runtimeActive) { this.markUnavailable(reason); return; }
+    if (this.fault) {
+      if (recoverability === 'RESTART_REQUIRED') this.fault = Object.freeze({ ...this.fault, recoverability });
+      return;
+    }
+    this.fault = Object.freeze({ reason, recoverability }); this.state = 'INTERRUPTED';
+    for (const listener of this.faultListeners) listener(this.fault);
   }
 }

@@ -38,6 +38,15 @@ in the URL through Setup, Practice and Review Retry; Retry uses the completed re
 revision. Tempo, metronome and committed scope are workspace-memory options, initially
 SCORE, OFF and FULL. Retry and same-page Try Again retain all these options.
 
+Setup exclusively edits mode, input source and recording mode. Practice exposes execution
+controls and presentation preferences, with no inline editors for readiness-affecting
+configuration. Idle not-ready entry returns to Setup; an active recording intervention
+keeps the current attempt in Practice while the user decides. STEP has no empty settings
+sheet. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
+not Setup. It only changes current score feedback visibility: readiness, session identity,
+inference, evaluation, Review and Share Video remain unchanged. The preference persists
+with the profile and defaults to OFF.
+
 ## Practice Readiness
 
 `readiness/` derives requirements purely from the complete configuration. Live
@@ -476,12 +485,32 @@ artifact, and does not classify recording faults as acoustic-analysis faults.
 Setup success does not promise immutable permissions; Start only reacquires/checks
 its fresh session resources and never repeats cold model preparation.
 
-UNAVAILABLE means recording admission succeeded, Practice started, and the media
-pipeline subsequently failed or could not finish reliably. Track loss, recorder
-runtime errors and unreliable stop/final media can degrade recording independently
-of continuing evaluation and natural completion. A known preparation failure cannot
-be represented as an UNAVAILABLE completion artifact. Its media duration is distinct
-from the result's active performance duration; it is not a JSON result contract.
+Post-start recording faults are actively published once per unresolved incident by
+`PerformanceRecorder`, independently of input and acoustic-analysis errors. The
+Continuous controller pauses its canonical transport, metronome and evidence
+chronology and exposes a dedicated recording intervention. Performance time and
+finality cannot advance beyond that pause boundary while the user decides.
+
+A temporary muted track is recoverable only while every required track remains live
+and becomes unmuted and the same MediaRecorder remains usable. Checking health never
+resumes automatically. Explicit check-and-continue resumes that pipeline and Practice
+at the same performance time. Ended tracks, recorder errors and unusable pipelines
+require restart or explicit continuation without recording. No new recorder/stream
+is spliced into the current artifact. Duplicate browser events do not create duplicate
+interventions; a hard failure can invalidate recovery of an unresolved mute.
+
+Continue without recording accepts degradation for this attempt, preserves the original
+fault reason and persistent AUDIO/VIDEO preference, then resumes an intervention-owned
+pause. A pre-existing user pause remains paused until the user resumes. Restart abandons
+the old attempt and discards all media, then uses fresh recording admission and session
+resources while retaining the warm acoustic engine and workspace options. End abandons
+without any result. A latched natural completion wins late recorder callbacks.
+
+UNAVAILABLE represents explicitly accepted runtime recording loss, or media that could
+not finish reliably after natural completion was already latched. Finalization failure
+cannot reopen transport or create a late intervention. A known preparation failure
+cannot be represented as an UNAVAILABLE completion artifact. Media duration is distinct
+from the result's active performance duration; recording is not a JSON result contract.
 
 The recorder can build segments mutably, but finalized timebase/segments are copied
 and frozen. READY validation requires finite nonnegative coordinates, ordered

@@ -17,6 +17,7 @@ import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practi
 
 type PracticeStatusMessageKey =
   | typeof continuousErrorMessageKeys[ContinuousErrorCode]
+  | 'recordingPaused'
   | 'preparingPractice'
   | 'performanceCountIn'
   | 'performanceStarting'
@@ -53,6 +54,7 @@ export type PracticeStatusProps = {
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
+  recordingInterrupted?: boolean;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
@@ -71,6 +73,7 @@ export function resolvePracticeStatusView({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
+  recordingInterrupted = false,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
@@ -84,6 +87,7 @@ export function resolvePracticeStatusView({
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
+  recordingInterrupted?: boolean;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
@@ -122,6 +126,8 @@ export function resolvePracticeStatusView({
       countInPulse: null,
     };
   }
+
+  if (recordingInterrupted) return { messageKey: 'recordingPaused', pending: false, countInPulse: null };
 
   if (sessionMode === 'CONTINUOUS_PLAY' && lifecycle === 'PAUSED') {
     return {
@@ -199,6 +205,7 @@ export function PracticeStatus({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
+  recordingInterrupted = false,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
@@ -215,6 +222,7 @@ export function PracticeStatus({
         lifecycle,
         inputState,
         inputError,
+        recordingInterrupted,
         inputSource,
         selectedInputCapability,
         rangePrompt,
@@ -225,6 +233,7 @@ export function PracticeStatus({
       }),
     [
       inputError,
+      recordingInterrupted,
       inputSource,
       inputState,
       lifecycle,

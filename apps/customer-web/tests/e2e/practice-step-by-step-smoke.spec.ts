@@ -1,4 +1,4 @@
-import { installAcousticEngineFixture, openPreparedPractice, prepareSelectedPractice } from './support/practice-workspace';
+import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
 import {
   mockAuthenticatedSession,
@@ -359,20 +359,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch input to MIDI
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    // Close settings if sheet opened
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
+    await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -436,24 +425,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to Continuous play mode and MIDI input
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-
-    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
-    await expect(continuousOption).toBeEnabled();
-    await continuousOption.click();
-
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
+    await configurePractice(page, 'CONTINUOUS', 'MIDI', 'OFF');
 
     // Start practice
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -534,20 +508,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await page.keyboard.press('Escape');
 
     // Select MIDI input for reliable headless execution
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    // Close settings if sheet opened
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
+    await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice with custom tempo & metronome
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -585,23 +548,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to Continuous mode and MIDI
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
-    await expect(continuousOption).toBeEnabled();
-    await continuousOption.click();
-
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
+    await configurePractice(page, 'CONTINUOUS', 'MIDI', 'OFF');
 
     // Start practice
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -701,19 +650,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Select MIDI input
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
+    await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice (starts with Metronome OFF by default)
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -756,30 +695,16 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // 1. Desktop Layout Parity: NO persistent right settings panel (aside)
     await expect(page.locator('aside')).toHaveCount(0);
 
-    // Click Settings: opens single Sheet
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
-
-    // Sheet contains Mode and Input options
-    await expect(page.getByText('逐音练习')).toBeVisible();
-    await expect(page.getByText('连贯演奏')).toBeVisible();
-    await expect(page.getByText('麦克风', { exact: true })).toBeVisible();
-    await expect(page.getByText('MIDI 键盘', { exact: true })).toBeVisible();
-
-    // Sheet does NOT contain Tempo and Metronome
-    await expect(page.getByText('速度与节拍器')).toHaveCount(0);
-
-    // Select MIDI input
-    const midiInput = page.getByRole('button', { name: /MIDI/i }).first();
-    await midiInput.click();
-
-    // Close Sheet
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
+    // Setup exclusively owns mode, input and recording. STEP has no empty settings sheet.
+    await expect(page.getByRole('button', { name: '设置', exact: true })).toHaveCount(0);
+    for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '录音', '录像', '准备练习']) {
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
-    await expect(page.getByText('逐音练习')).not.toBeVisible();
+    await openPracticeSetup(page);
+    await expect(page.getByRole('button', { name: '逐音练习', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'MIDI 键盘', exact: true })).toBeVisible();
+    await selectPracticeConfiguration(page, 'STEP', 'MIDI', 'OFF');
+    expect(await preparePracticeSetup(page)).toBe('READY');
 
     // 2. Bottom Bar Controls: Unified Tempo & Metronome Popover
     const tempoButton = page.getByRole('button', { name: '速度' });
@@ -842,7 +767,6 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
 
     // 4. Start Practice with Range
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -867,12 +791,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
   test('SECTION SELECTION: incomplete range disables Start and cancellation restores full-piece practice', async ({ page }) => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
-    await page.getByRole('button', { name: '设置' }).click();
-    await page.getByRole('button', { name: /MIDI/i }).click();
-    await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
@@ -901,12 +821,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
   test('SECTION SELECTION: reverse note clicks complete the inclusive range and lock selection during practice', async ({ page }) => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
-    await page.getByRole('button', { name: '设置' }).click();
-    await page.getByRole('button', { name: /MIDI/i }).click();
-    await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
@@ -933,12 +849,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
   test('SECTION SELECTION: selected-section completion can adjust and replace the range', async ({ page }) => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
-    await page.getByRole('button', { name: '设置' }).click();
-    await page.getByRole('button', { name: /MIDI/i }).click();
-    await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     const startNote = page.locator('[data-id="select-start-note"]').first().locator('path, use').first();
@@ -1025,23 +937,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
 
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await expect(settingsButton).toBeVisible();
-    await settingsButton.click();
+    await configurePractice(page, 'CONTINUOUS', 'MIDI', 'OFF');
 
-    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
-    await expect(continuousOption).toBeEnabled();
-    await continuousOption.click();
-
-    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
-    await expect(midiInputOption).toBeEnabled();
-    await midiInputOption.click();
-
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
-
-    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();

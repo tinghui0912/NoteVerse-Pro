@@ -459,3 +459,30 @@ describe('Practice bounded domain dependencies', () => {
     for (const file of graph.keys()) visit(file, []);
   });
 });
+
+it('Practice owns only presentation preference writes; Setup owns mode, input and recording editors', () => {
+  const page = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  const source = ts.createSourceFile(page, readFileSync(page, 'utf8'), ts.ScriptTarget.Latest, true);
+  const writes: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'updateProfile') {
+      const argument = node.arguments[0];
+      expect(ts.isObjectLiteralExpression(argument)).toBe(true);
+      if (ts.isObjectLiteralExpression(argument)) {
+        for (const property of argument.properties) {
+          if (ts.isSpreadAssignment(property)) continue;
+          expect(ts.isPropertyAssignment(property) && property.name.getText(source)).toBe('continuous');
+          if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)) {
+            for (const field of property.initializer.properties) if (ts.isPropertyAssignment(field)) writes.push(field.name.getText(source));
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source); expect(writes).toEqual(['liveFeedbackEnabled']);
+  const edges = imports(page);
+  expect(edges.some(edge => edge.bindings.includes('PracticeFeedbackSettings'))).toBe(true);
+  const setup = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx');
+  expect(imports(setup).some(edge => edge.target?.endsWith('/ui/switch.tsx'))).toBe(false);
+});

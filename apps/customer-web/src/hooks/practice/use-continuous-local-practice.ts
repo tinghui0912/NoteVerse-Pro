@@ -79,6 +79,8 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   }, [dispose, start, setSnapshot, setError]);
   const pause = useCallback(async () => { controller.current?.pause(); }, []);
   const resume = useCallback(async () => { controller.current?.resume(); }, []);
+  const continueWithoutRecording = useCallback(() => controller.current?.continueWithoutRecording(), []);
+  const checkAndResumeRecording = useCallback(() => controller.current?.checkAndResumeRecording() ?? false, []);
   const abandon = useCallback(async () => {
     const current = controller.current, operation = generation.current;
     if (!current) return;
@@ -95,6 +97,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   const inputError = error ?? view.inputError;
   const inputState: LocalPracticeInputState = inputError ? 'ERROR' : view.inputState;
   return { mode: 'CONTINUOUS_PLAY' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
+    recordingIntervention: snapshot?.recordingIntervention ?? null, continueWithoutRecording, checkAndResumeRecording,
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
     elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,

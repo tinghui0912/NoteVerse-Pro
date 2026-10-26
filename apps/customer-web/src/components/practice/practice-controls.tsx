@@ -38,12 +38,12 @@ interface PracticeControlSurfaceProps {
   onStart: () => void;
   transportControl?: React.ReactNode;
   onEnd: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
-  return <PracticeControlSurface {...props} />;
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl' | 'onOpenSettings'> & { lifecycle: StepControllerState }) {
+  return <PracticeControlSurface {...props} onOpenSettings={undefined} />;
 }
 
 export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
@@ -159,7 +159,7 @@ function PracticeControlSurface({
             {t('rangeSelectionStart')}
           </Button>
 
-          <Tooltip>
+          {onOpenSettings && <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
@@ -172,7 +172,7 @@ function PracticeControlSurface({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('settingsTitle')}</TooltipContent>
-          </Tooltip>
+          </Tooltip>}
         </div>
       </TooltipProvider>
     </div>
