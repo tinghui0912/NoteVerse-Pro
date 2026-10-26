@@ -7,7 +7,7 @@ import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
-import { usePracticeVideoPreview } from '@/hooks/practice/use-practice-video-preview';
+import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { PracticeReadinessGate } from '@/components/practice/practice-readiness-gate';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
@@ -92,7 +92,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled, profile, updateProfile } = workspace;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
-  const [previewEnabled, setPreviewEnabled] = useState(true);
+  const [stepManuallyEnded, setStepManuallyEnded] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
 
   // Score details and assets
@@ -143,26 +143,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
-  const cameraMessages = useMemo(() => ({
-    preparing: t('settingCameraPreparing'),
-    ready: t('settingCameraReady'),
-    permissionDenied: t('settingCameraPermissionDenied'),
-    unavailable: t('settingCameraUnavailable'),
-    audioMissing: t('settingCameraAudioMissing'),
-    videoMissing: t('settingCameraVideoMissing'),
-  }), [t]);
-  const invalidatePreview = useCallback((reason: string) => workspace.environment.invalidate(reason), [workspace.environment]);
-  const { cameraPreviewStream, cameraStatusMessage, isPreparingCamera, preparePreview,
-    releaseCameraPreview, getCameraMediaStream } = usePracticeVideoPreview({
-    practiceMode, inputSource, recordingMode, messages: cameraMessages, onFailure: invalidatePreview,
-  });
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled && workspace.ready && !isRestarting && previewEnabled && recordingMode === 'VIDEO' && !cameraPreviewStream && !isPreparingCamera && !isCompletionDialogOpen) void preparePreview();
-    });
-    return () => { cancelled = true; };
-  }, [workspace.ready, isRestarting, previewEnabled, recordingMode, cameraPreviewStream, isPreparingCamera, preparePreview, isCompletionDialogOpen]);
+  const device = usePracticeDeviceLease({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' }, true);
+  const devicesReady = device.snapshot?.state === 'READY';
+  const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
+  const stepAutoArm = useRef<string | null>(null);
 
   // Local Practice orchestration
   const localPractice = useLocalPractice({
@@ -173,23 +157,20 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     tempoSelection,
     metronomeEnabled,
     recordingMode: recordingMode ?? undefined,
-    getCameraMediaStream,
+    getDevices: device.borrow, observeDevices: device.observe,
     acquireInference: workspace.environment.acquireInference,
     onNaturalCompletion: snapshot => {
       if (snapshot.completionReason !== 'SCOPE_COMPLETED') return;
-      setPreviewEnabled(false);
-      releaseCameraPreview();
       setIsCompletionDialogOpen(true);
     },
   });
   const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.resourceIntervention : null;
   useEffect(() => {
-    if (intervention?.recoverability !== 'RESTART_REQUIRED' || recordingMode !== 'VIDEO') return;
-    queueMicrotask(() => { setPreviewEnabled(false); releaseCameraPreview(); });
-  }, [intervention?.recoverability, recordingMode, releaseCameraPreview]);
+    if (localPractice.inputError && workspace.ready && localPractice.lifecycle !== 'ACTIVE' && localPractice.lifecycle !== 'PAUSED') workspace.environment.invalidate(localPractice.inputError);
+  }, [localPractice.inputError, localPractice.lifecycle, workspace.ready, workspace.environment]);
   useEffect(() => {
-    if (localPractice.inputError && workspace.ready) workspace.environment.invalidate(localPractice.inputError);
-  }, [localPractice.inputError, workspace.ready, workspace.environment]);
+    if (device.snapshot?.error) workspace.environment.invalidate(device.snapshot.error);
+  }, [device.snapshot?.error, workspace.environment]);
 
   const handleMetronomeEnabledChange = useCallback(
     (enabled: boolean) => {
@@ -215,14 +196,13 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     Boolean(selectedRevisionId && xmlContent && artifact) &&
     Boolean(practiceScope) &&
     !range.isIncomplete &&
-    workspace.ready && (recordingMode !== 'VIDEO' || Boolean(cameraPreviewStream)) &&
+    workspace.ready && devicesReady &&
     !isResourceLoading &&
     !loadError;
 
   const handleRestart = async () => {
     setIsCompletionDialogOpen(false);
-    setPreviewEnabled(true);
-    if (recordingMode === 'VIDEO' && !await preparePreview()) return;
+    setStepManuallyEnded(false); if (!await device.renewFailed()) return;
     await localPractice.restart();
   };
 
@@ -283,32 +263,42 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     return null;
   }, [range.phase, range.selectedMeasureRange, t]);
 
+  const stepBusy = localPractice.mode === 'STEP_BY_STEP' && ['CAPTURING', 'ANALYZING'].includes(localPractice.stepInteractionPhase ?? '');
+  const stepKey = JSON.stringify([selectedRevisionId, practiceScope, tempoSelection]);
+  useEffect(() => {
+    if (practiceMode !== 'STEP_BY_STEP') return;
+    if (range.isSelecting) {
+      if (stepAutoArm.current !== null) { stepAutoArm.current = null; void localPractice.abandon(); }
+      return;
+    }
+    if (!canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
+    stepAutoArm.current = stepKey;
+    void localPractice.restart();
+  }, [practiceMode, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
+
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
-      isPreparingSession: localPractice.inputState === 'STARTING',
+      isPreparingSession: localPractice.inputState === 'STARTING' || !device.snapshot || device.snapshot.state === 'OPENING',
       canPrepareSession: canPreparePractice,
       selectedInputCapability,
       selectedInputSupported: selectedInputCapability.supported,
       rangeSelectionActive: range.rangeSelectionActive,
-      canSelectRange: !isActive,
+      canSelectRange: isStepMode ? !stepBusy : !isActive,
       tempoSelection,
       scoreTempoSegments: artifact?.scoreTempoSegments,
       scopeStartBeat,
-      tempoLocked: isActive,
+      tempoLocked: isStepMode ? stepBusy : isActive,
       onTempoSelectionChange: setTempoSelection,
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
-      onStart: () => void localPractice.start(),
-      onEnd: () => {
-        setPreviewEnabled(false);
-        void localPractice.abandon().then(() => { releaseCameraPreview(); setPreviewEnabled(true); });
-      },
+      onStart: () => { setStepManuallyEnded(false); void localPractice.start(); },
+      onEnd: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); void localPractice.abandon(); },
       onOpenSettings: () => setIsSettingsOpen(true),
-      elapsedSeconds: localPractice.elapsedSeconds,
+      recordingSeconds: localPractice.recordingIndicator,
       onToggleRangeSelection: range.toggleSelection,
   };
   const practiceControls = localPractice.mode === 'STEP_BY_STEP'
-    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} />
+    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} showContinue={stepManuallyEnded && localPractice.lifecycle === 'IDLE' && !localPractice.inputError} />
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
         onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
 
@@ -409,9 +399,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 ) : null}
 
-                {!isStepMode && recordingMode === 'VIDEO' && isPreparingCamera && <p className="absolute right-4 top-4 z-30 rounded bg-white p-2 text-sm">{cameraStatusMessage}</p>}
                 {!isStepMode && recordingMode === 'VIDEO' && cameraPreviewStream ? (
-                  <CameraPreview stream={cameraPreviewStream} label={t('settingCameraPreview')} status={intervention ? t('recordingInterrupted') : cameraStatusMessage} />
+                  <CameraPreview stream={cameraPreviewStream} label={t('settingCameraPreview')} status={intervention ? t('recordingInterrupted') : null} />
                 ) : null}
 
                 <footer className="absolute bottom-0 left-0 right-0 z-20 flex min-h-20 items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur sm:px-6">
@@ -429,7 +418,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
               <SheetDescription className="sr-only">{t('settingsSubtitle')}</SheetDescription>
               {!isStepMode && <PracticeFeedbackSettings enabled={profile.continuous.liveFeedbackEnabled}
                 onChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })} />}
-              <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isActive}
+              <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isStepMode ? stepBusy : isActive}
                 onClick={() => { setIsSettingsOpen(false); router.push(practiceLocation(id, 'setup', selectedRevisionId)); }}>{t('setupChangeConfiguration')}</button>
             </SheetContent>
           </Sheet>}
@@ -437,14 +426,11 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
           {localPractice.mode === 'CONTINUOUS_PLAY' && intervention && <ResourceInterruptionDialog
             intervention={intervention} onContinueWithout={localPractice.continueWithoutRecording}
             onContinue={() => { localPractice.continueAfterRecovery(); }}
-            onEnd={() => { setPreviewEnabled(false); void localPractice.abandon().then(() => { releaseCameraPreview(); setPreviewEnabled(true); }); }}
+            onEnd={() => { void localPractice.abandon(); }}
             onRestart={async () => {
-              setIsRestarting(true); setPreviewEnabled(false);
-              try {
-                await localPractice.abandon(); releaseCameraPreview();
-                if (recordingMode === 'VIDEO' && !await preparePreview()) return;
-                setPreviewEnabled(true); await localPractice.start();
-              } finally { setIsRestarting(false); }
+              setIsRestarting(true);
+              try { await localPractice.abandon(); if (!await device.renewFailed()) return; await localPractice.start(); }
+              finally { setIsRestarting(false); }
             }} />}
           <PracticeCompletionDialog
             open={isCompletionDialogOpen}

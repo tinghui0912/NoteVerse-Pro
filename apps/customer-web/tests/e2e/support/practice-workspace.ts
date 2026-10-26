@@ -37,6 +37,7 @@ export async function installAcousticEngineFixture(page: Page) {
 /** Enter the workspace through the real Setup admission boundary. */
 export async function openPreparedPractice(page: Page, scoreId: string, revisionId: string) {
   await page.goto(`/zh/score/${scoreId}/practice?practiceRevisionId=${encodeURIComponent(revisionId)}`);
+  await page.waitForURL(/\/practice\/setup\?/);
   await expect(page.getByTestId('practice-setup')).toBeVisible();
   await selectPracticeConfiguration(page, 'STEP', 'MIDI', 'OFF');
   expect(await preparePracticeSetup(page)).toBe('READY');
@@ -45,6 +46,7 @@ export async function openPreparedPractice(page: Page, scoreId: string, revision
 export async function openPracticeSetup(page: Page) {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('button', { name: '更改练习配置', exact: true }).click();
+  await page.waitForURL(/\/practice\/setup\?/);
   await expect(page.getByTestId('practice-setup')).toBeVisible();
 }
 
@@ -67,6 +69,6 @@ export async function preparePracticeSetup(page: Page): Promise<'READY' | 'BLOCK
   await page.getByTestId('practice-setup').getByRole('button', { name: /^(准备练习|进入练习)$/ }).click();
   await expect.poll(async () => !page.url().includes('/setup') || await page.getByTestId('practice-setup').getByRole('alert').count() > 0).toBe(true);
   if (page.url().includes('/setup')) return 'BLOCKED';
-  await expect(page.getByRole('button', { name: '开始', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '结束', exact: true })).toBeVisible();
   return 'READY';
 }

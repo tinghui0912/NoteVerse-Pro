@@ -10,14 +10,13 @@ import type { PerformanceRecorder } from '@/lib/practice/recording/performance-r
 import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
 export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
-export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'assertPrepared' | 'activate' | 'onRuntimeFault' | 'runtimeFault'
+export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'observeDeviceHealth' | 'assertPrepared' | 'activate' | 'onRuntimeFault' | 'runtimeFault'
   | 'recoverRuntime' | 'continueWithoutRecording' | 'startIfReady' | 'pause' | 'resume' | 'freeze' | 'finalize' | 'stopAndCleanup' | 'snapshot'>;
 export type ContinuousMetronomePort = Pick<MetronomeController, 'start' | 'pause' | 'resume' | 'stop' | 'destroy' | 'setEnabled' | 'syncContinuous'>;
 /** Platform boundaries are injectable for deterministic tests, never alternate evaluation policies. */
 export interface ContinuousPlatform {
   midiClock: LocalClock;
   acquireInference(signal: AbortSignal): Promise<AcousticInferencePort>;
-  acquireMicrophone(): Promise<MediaStream>;
   createAudioContext(): AudioContext;
   coefficients(rate: number): Promise<Uint8Array>;
   workletUrl: string;
@@ -30,6 +29,6 @@ export type MicrophoneConnection = Readonly<{
   context: AudioContext; stream: MediaStream; sessionDomainId: string;
   clock: LocalClock; publish(publication: ContinuousEvidencePublication): void;
 }>;
-export type MidiConnection = Readonly<{ timebase: PracticeTimebase;
+export type MidiConnection = Readonly<{ access: MIDIAccess; timebase: PracticeTimebase;
   observe(attack: ContinuousMidiAttack): void;
   onState: NonNullable<BrowserMidiControllerOptions['onStateChange']> }>;

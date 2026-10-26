@@ -265,6 +265,6 @@ it('STEP settings is a discoverable configuration navigation action without inpu
   expect(screen.queryByRole('button', { name: messages.settingMidi })).toBeNull();
 });
 it('running time is compact transport data, independent of a status banner', () => {
-  renderControls(false, { lifecycle: 'ACTIVE', elapsedSeconds: 65 });
-  expect(screen.getByTestId('practice-timer')).toHaveTextContent('01:05'); expect(screen.queryByRole('status')).toBeNull();
+  renderControls(false, { lifecycle: 'ACTIVE', recordingSeconds: 65 });
+  expect(screen.getByTestId('recording-indicator')).toHaveTextContent('01:05'); expect(screen.queryByRole('status')).toBeNull();
 });

@@ -39,7 +39,7 @@ function makePerformanceClock(
   overrides: Partial<PerformanceClockSnapshot> = {}
 ): PerformanceClockSnapshot {
   return {
-    state: 'RUNNING',
+    state: 'RUNNING', countInKind: null,
     nowMs: 1000,
     musicalBeat: 1,
     performanceTimeMs: 0,
@@ -99,7 +99,7 @@ describe('resolvePracticeStatusView', () => {
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
-          state: 'COUNT_IN',
+          state: 'COUNT_IN', countInKind: 'INITIAL',
           countInRemainingMs: 1000,
           countInPulses: 4,
           countInPulse: 3,
@@ -118,7 +118,7 @@ describe('resolvePracticeStatusView', () => {
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
-          state: 'RUNNING',
+          state: 'RUNNING', countInKind: null,
         }),
       })
     ).toMatchObject({

@@ -1,3 +1,4 @@
+import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
 import { describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -26,7 +27,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups[index].groupId,
     endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ artifact, scope, inputSource, platform, onNaturalCompletion: completion });
+  const create = () => new StepPracticeController({ devices: borrowedDevices(), artifact, scope, inputSource, platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {

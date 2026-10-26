@@ -49,6 +49,7 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
 }
 
 export type BrowserMidiControllerOptions = {
+  access: MIDIAccess;
   timebase: PracticeTimebase;
   onAttack?: (attack: MidiAttackFact) => void;
   onMidiNote?: (note: {
@@ -67,10 +68,6 @@ export type BrowserMidiState = {
   hasPermission: boolean | null;
   connectedInputCount: number;
   isRunning: boolean;
-};
-
-type NavigatorWithMidi = Navigator & {
-  requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
 };
 
 export class MidiNoConnectedInputError extends Error {
@@ -99,16 +96,19 @@ export class BrowserMidiController {
   private hasPermission: boolean | null = null;
   private connectedInputCount = 0;
 
-  private startGeneration = 0;
+  private readonly access: MIDIAccess;
+  private readonly boundInputs = new Set<MIDIInput>();
+  private readonly stateChanged = () => { this.syncInputs(this.access); this.notifyState(); };
+  private readonly message = (event: MIDIMessageEvent) => { if (event.data) this.dispatchMidiData(event.data, event.timeStamp); };
 
   constructor(options: BrowserMidiControllerOptions) {
     this.timebase = options.timebase;
     this.onAttack = options.onAttack;
     this.onMidiNote = options.onMidiNote;
     this.onStateChange = options.onStateChange;
-    this.isSupported =
-      typeof navigator !== 'undefined' &&
-      typeof (navigator as NavigatorWithMidi).requestMIDIAccess === 'function';
+    this.access = options.access;
+    this.isSupported = true;
+    this.hasPermission = true;
   }
 
   getState(): BrowserMidiState {
@@ -125,30 +125,8 @@ export class BrowserMidiController {
       return;
     }
 
-    const generation = ++this.startGeneration;
-    const requestMIDIAccess = (typeof navigator !== 'undefined'
-      ? (navigator as NavigatorWithMidi).requestMIDIAccess
-      : undefined);
-
-    if (typeof requestMIDIAccess !== 'function') {
-      this.isSupported = false;
-      this.notifyState();
-      throw new Error('Web MIDI is not supported in this browser environment.');
-    }
-
-    let access: MIDIAccess;
-    try {
-      access = await requestMIDIAccess.call(navigator, { sysex: false });
-      if (generation !== this.startGeneration) throw new Error('MIDI_START_CANCELLED');
-      this.midiAccess = access;
-      this.hasPermission = true;
-    } catch (err) {
-      this.hasPermission = false;
-      this.isRunning = false;
-      this.notifyState();
-      throw err;
-    }
-
+    const access = this.access;
+    this.midiAccess = access;
     this.bindAccess(access);
     this.syncInputs(access);
 
@@ -163,7 +141,6 @@ export class BrowserMidiController {
   }
 
   stop(): void {
-    this.startGeneration++;
     if (!this.isRunning && !this.midiAccess) {
       return;
     }
@@ -212,37 +189,20 @@ export class BrowserMidiController {
 
   }
 
-  private bindAccess(access: MIDIAccess): void {
-    access.onstatechange = () => {
-      this.syncInputs(access);
-      this.notifyState();
-    };
-  }
-
+  private bindAccess(access: MIDIAccess): void { access.addEventListener('statechange', this.stateChanged); }
   private unbindAccess(): void {
-    if (this.midiAccess) {
-      this.midiAccess.onstatechange = null;
-      this.midiAccess.inputs.forEach((input) => {
-        input.onmidimessage = null;
-      });
-    }
+    this.midiAccess?.removeEventListener('statechange', this.stateChanged);
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
   }
-
   private syncInputs(access: MIDIAccess): void {
-    const connectedInputs: MIDIInput[] = [];
-    access.inputs.forEach((input) => {
-      if (input.state === 'connected') {
-        connectedInputs.push(input);
-        input.onmidimessage = (event: MIDIMessageEvent) => {
-          if (event.data) {
-            this.dispatchMidiData(event.data, event.timeStamp);
-          }
-        };
-      } else {
-        input.onmidimessage = null;
-      }
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
+    access.inputs.forEach(input => {
+      if (input.state !== 'connected') return;
+      input.addEventListener('midimessage', this.message); this.boundInputs.add(input);
     });
-    this.connectedInputCount = connectedInputs.length;
+    this.connectedInputCount = this.boundInputs.size;
   }
 
   private notifyState(): void {

@@ -3,7 +3,7 @@ import type { ContinuousMidiPort, ContinuousPlatform, MidiConnection } from './c
 export class ContinuousMidiInput {
   private readonly port: ContinuousMidiPort;
   constructor(platform: Pick<ContinuousPlatform, 'createMidi'>, connection: MidiConnection) {
-    this.port = platform.createMidi({ timebase: connection.timebase, onAttack: fact => connection.observe({
+    this.port = platform.createMidi({ access: connection.access, timebase: connection.timebase, onAttack: fact => connection.observe({
       captureTime: fact.sessionTime, pitch: fact.pitch, confidence: fact.confidence,
     }), onStateChange: connection.onState });
   }

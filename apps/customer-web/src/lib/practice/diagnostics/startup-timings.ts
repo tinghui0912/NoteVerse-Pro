@@ -1,4 +1,4 @@
-export type PracticeStartupPhase = 'waitPreviousRelease' | 'acquireInferenceLease' | 'getUserMedia'
+export type PracticeStartupPhase = 'deviceLeaseOpen' | 'waitPreviousRelease' | 'acquireInferenceLease'
   | 'audioContextResume' | 'firLoad' | 'captureConnect' | 'acousticPreroll' | 'midiBind' | 'recorderAdmission';
 
 /** Bounded engineering diagnostics for one fresh attempt, never product/result data. */

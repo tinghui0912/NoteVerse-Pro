@@ -3,7 +3,7 @@ import type { PerformanceClockSnapshot } from './domain/performance-clock';
 import { continuousMetronomeSyncPoint } from './metronome-sync';
 
 const snapshot: PerformanceClockSnapshot = {
-  state: 'COUNT_IN', nowMs: 500, musicalBeat: 2, performanceTimeMs: 0,
+  state: 'COUNT_IN', countInKind: 'INITIAL', nowMs: 500, musicalBeat: 2, performanceTimeMs: 0,
   countInTotalMs: 2000, countInRemainingMs: 1500, countInBeats: 4, countInPulses: 4, countInPulse: 2,
   scopeCompleted: false, scopeStartBeat: 2, scopeTerminalBeat: 10, completionReason: null,
 };

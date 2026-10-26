@@ -78,7 +78,8 @@ Microphone infrastructure or analysis loss is terminal.
 
 ## Resources and Capability
 
-The controller owns the root stream, session AudioContext, metronome and runtime.
+The page Device Lease owns the root stream. The controller borrows it and owns its
+fresh attempt AudioContext, metronome and runtime.
 Microphone input borrows the stream/context and owns its analysis clone, capture
 bridge, assembler and exclusive inference lease from the prepared workspace engine.
 Initial input readiness requires an accepted physical
@@ -88,8 +89,9 @@ constructing a fresh owner. Owned resources are released once.
 
 Both product modes support microphone analysis when the browser acoustic runtime
 is available. Workspace Setup validates actual capture and warm recognition before
-Start; MIDI preparation is independent of acoustic requirements. Start acquires a
-fresh lease and stream/context without model access, loading or Worker creation.
+attempt binding; MIDI preparation is independent of acoustic requirements. The page
+Device Lease acquires device roots. Each attempt borrows them and creates a fresh
+context/capture/inference lease without model access, loading or Worker creation.
 Physical-device recognition quality, permission UX and end-to-end latency require
 separate qualification.
 
@@ -102,6 +104,12 @@ reach the scope terminal. STEP never creates a report or result.
 End calls abandon(): it cancels the current gesture, retires the runtime, releases
 input resources and discards the owner. It does not notify natural completion.
 The hook resets to the pre-start ready state, without a pending verdict or elapsed
-session. The next Start creates a fresh identity. Input arriving after disposal
+session. Continue practice creates a fresh identity on the same Device Lease. Input arriving after disposal
 cannot revive the retired owner. A formally latched natural completion wins a later
 End; End before that latch abandons the session.
+
+STEP auto-arms on first page entry. End discards the attempt and leaves the Device Lease
+open, waiting for Continue practice. Try Again starts directly. Scope/tempo edits while
+READY or POST_VERDICT rebind a fresh attempt on the same devices; CAPTURING/ANALYZING
+blocks edits. STEP has no initial Start or elapsed/recording timer. Leaving Practice
+stops root devices; leaving the Practice layout also releases the warm environment.

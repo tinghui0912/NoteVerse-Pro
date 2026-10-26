@@ -70,6 +70,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
+    || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
   if (source.startsWith('configuration/')) return Boolean(target && (target.startsWith('configuration/')
     || target.startsWith('kernel/') || target === 'recording/recording-mode.ts'));
   if (source.startsWith('readiness/')) return Boolean(target && (target.startsWith('readiness/') || target.startsWith('configuration/')));
@@ -503,4 +505,42 @@ it('fresh attempt binding cannot reach cold Setup qualification', () => {
     }
   };
   for (const root of roots) visit(normalize(path.resolve(practiceRoot, root)));
+});
+
+it('device acquisition belongs only to Device Lease or explicit Setup qualification, never attempts or recorder', () => {
+  const executionFiles = [...files, ...productionFiles(path.join(sourceRoot, 'hooks/practice')),
+    ...productionFiles(path.join(sourceRoot, 'components/practice')),
+    path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx')];
+  for (const file of executionFiles) {
+    const owner = relative(file);
+    const ast = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && ['getUserMedia', 'requestMIDIAccess'].includes(node.expression.name.text)) {
+        expect(owner.startsWith('environment/') || owner === 'device/browser-device-platform.ts', owner).toBe(true);
+      }
+      ts.forEachChild(node, visit);
+    }; visit(ast);
+  }
+  for (const start of files.filter(file => /^(step|continuous|recording)\//.test(relative(file)))) {
+    const visited = new Set<string>();
+    const visit = (file: string) => {
+      if (visited.has(file)) return; visited.add(file);
+      for (const edge of sourceGraph.get(file) ?? []) {
+        if (!edge.target || edge.typeOnly) continue;
+        expect(relative(edge.target), `${relative(start)} runtime acquisition`).not.toBe('device/browser-device-platform.ts');
+        visit(edge.target);
+      }
+    }; visit(normalize(start));
+  }
+  expect(existsSync(path.join(sourceRoot, 'hooks/practice/use-practice-video-preview.ts'))).toBe(false);
+});
+
+it('STEP learning is subscription-driven without an elapsed timer or animation sampling loop', () => {
+  const hook = path.join(sourceRoot, 'hooks/practice/use-step-local-practice.ts');
+  const ast = ts.createSourceFile(hook, readFileSync(hook, 'utf8'), ts.ScriptTarget.Latest, true);
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) expect(['requestAnimationFrame', 'setInterval'].includes(node.expression.text)).toBe(false);
+    ts.forEachChild(node, visit);
+  }; visit(ast);
 });

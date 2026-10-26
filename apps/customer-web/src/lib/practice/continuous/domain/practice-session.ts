@@ -152,7 +152,7 @@ export class ContinuousPracticeSession {
       throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
     }
     const snapshot = this.clock.snapshot();
-    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN' && snapshot.countInKind === 'INITIAL') {
       throw new Error('Continuous analysis publication requires captured performance evidence time.');
     }
     const maxAvailablePerformanceMs = this.maxAvailableAnalysisPerformanceTime(snapshot);
@@ -229,7 +229,7 @@ export class ContinuousPracticeSession {
   }
 
   private maxAvailableAnalysisPerformanceTime(snapshot: PerformanceClockSnapshot): number {
-    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN' && snapshot.countInKind === 'INITIAL') {
       return 0;
     }
     if (snapshot.state === 'ENDED' && snapshot.completionReason === 'SCOPE_COMPLETED') {

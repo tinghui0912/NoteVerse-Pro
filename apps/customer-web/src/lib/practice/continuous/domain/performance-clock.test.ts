@@ -129,3 +129,34 @@ describe('Continuous transport clock', () => {
     expect(snapshot.musicalBeat).toBeCloseTo(5.0, 2);
   });
 });
+
+describe('meter-aware Resume Count-In', () => {
+  it.each([3, 4])('%i/4 keeps performance/beat fixed until the resumed running boundary', beats => {
+    const score = cloneArtifact({ meterSegments: [{ startBeat: 0, numerator: beats, denominator: 4, measureDurationBeats: beats, countInPulses: beats, source: 'MUSICXML' }] } as Partial<PracticeScoreArtifact>);
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score,
+      tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: { kind: 'FULL' },
+      clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countInBeats: 1 });
+    expect(runtime.start()).toMatchObject({ state: 'COUNT_IN', countInKind: 'INITIAL', performanceTimeMs: 0 });
+    clock.advance(500); expect(runtime.snapshot().performanceTimeMs).toBe(0);
+    clock.advance(125); const paused = runtime.pause(); clock.advance(1000);
+    const countdown = runtime.resume();
+    expect(countdown).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', countInBeats: beats,
+      performanceTimeMs: paused.performanceTimeMs, musicalBeat: paused.musicalBeat });
+    expect(countdown.countInTotalMs).toBe(beats * 500);
+    clock.advance(countdown.countInTotalMs - 1);
+    expect(runtime.snapshot()).toMatchObject({ state: 'COUNT_IN', performanceTimeMs: paused.performanceTimeMs, musicalBeat: paused.musicalBeat });
+    expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBeNull();
+    clock.advance(1); expect(runtime.snapshot()).toMatchObject({ state: 'RUNNING', countInKind: null, performanceTimeMs: paused.performanceTimeMs });
+    clock.advance(50); expect(runtime.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs + 50);
+    expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBe(paused.performanceTimeMs + 50);
+  });
+  it('Pause cancels a resume countdown and End abandons without advancing frozen performance time', () => {
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact,
+      tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), scope: { kind: 'FULL' }, clock,
+      timebase: new PracticeTimebase({ domainId: 'cancel' }), countInBeats: 0 });
+    runtime.start(); clock.advance(100); runtime.pause(); runtime.resume(); clock.advance(500);
+    expect(runtime.pause()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
+    clock.advance(5000); expect(runtime.snapshot().performanceTimeMs).toBe(100);
+    runtime.resume(); clock.advance(100); expect(runtime.end()).toMatchObject({ state: 'ENDED', completionReason: 'STOPPED_BY_USER', performanceTimeMs: 100 });
+  });
+});

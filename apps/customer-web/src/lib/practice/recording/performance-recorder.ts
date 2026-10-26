@@ -1,6 +1,5 @@
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 import type { RecordingActiveSegment } from './recording-timebase';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 
 import type { PracticeRecordingMode } from './recording-mode';
 import { recordingOptions } from './recorder-capability';
@@ -18,8 +17,7 @@ type RecorderState =
   | 'UNAVAILABLE';
 
 type PrepareOptions = {
-  inputSource: PracticeInputSource;
-  sessionMicrophoneStream?: MediaStream | null;
+  audioRoot?: MediaStream | null;
   cameraStream?: MediaStream | null;
 };
 
@@ -30,7 +28,7 @@ function createContinuousVideoStream(
   audioStream?: MediaStream | null
 ): MediaStream {
   const videoTracks = cameraStream?.getVideoTracks() ?? [];
-  const audioTracks = audioStream?.getAudioTracks() ?? cameraStream?.getAudioTracks() ?? [];
+  const audioTracks = audioStream?.getAudioTracks() ?? [];
   if (videoTracks.length === 0 || videoTracks[0].readyState !== 'live') throw new RecordingPreparationError('RECORDING_VIDEO_UNAVAILABLE');
   if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
   return new MediaStream([videoTracks[0], audioTracks[0]]);
@@ -47,8 +45,9 @@ export class PerformanceRecorder {
   private readonly mode: PracticeRecordingMode;
   private recorder: MediaRecorder | null = null;
   private readonly chunks: Blob[] = [];
+  private borrowedRoots: readonly MediaStreamTrack[] = [];
   private ownedStream: MediaStream | null = null;
-  private sourceOwnership: 'NONE' | 'OWNED_ACQUISITION' | 'OWNED_CLONE' = 'NONE';
+  private sourceOwnership: 'NONE' | 'OWNED_CLONE' = 'NONE';
   private disposed = false;
   private admitted = false;
   private runtimeActive = false;
@@ -77,13 +76,14 @@ export class PerformanceRecorder {
     try {
       if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
       const recorderOptions = recordingOptions(this.mode);
+      this.borrowedRoots = [...(options.audioRoot?.getAudioTracks() ?? []), ...(this.mode === 'VIDEO' ? options.cameraStream?.getVideoTracks() ?? [] : [])];
       if (this.mode === 'AUDIO') {
         const stream = await this.resolveAudioStream(options);
         this.assertTracks(stream, 'AUDIO');
         if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
         this.installRecorder(new MediaRecorder(stream, recorderOptions), stream, 'AUDIO');
       } else {
-        const borrowed = createContinuousVideoStream(options.cameraStream, options.sessionMicrophoneStream);
+        const borrowed = createContinuousVideoStream(options.cameraStream, options.audioRoot);
         const stream = borrowed.clone();
         this.ownedStream = stream; this.sourceOwnership = 'OWNED_CLONE';
         this.assertTracks(stream, 'VIDEO');
@@ -107,6 +107,7 @@ export class PerformanceRecorder {
     if (!this.admitted || !this.recorder || this.recorder.state !== 'inactive' || this.state !== 'NOT_STARTED' || !this.ownedStream) {
       throw new RecordingPreparationError('RECORDER_INIT_FAILED');
     }
+    if (this.borrowedRoots.some(track => track.readyState !== 'live' || track.muted)) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
     this.assertTracks(this.ownedStream, this.mode);
   }
 
@@ -115,8 +116,17 @@ export class PerformanceRecorder {
   }
   activate(): void { this.assertPrepared(); this.runtimeActive = this.mode !== 'OFF'; }
   runtimeFault(): RecordingRuntimeInterruption | null { return this.fault; }
+  /** Device Lease health events are facts; this owner decides recorder continuity. */
+  observeDeviceHealth(): void {
+    if (!this.runtimeActive || this.disposed || this.acceptedLoss) return;
+    const failed = this.borrowedRoots.find(track => track.readyState !== 'live') ?? this.borrowedRoots.find(track => track.muted);
+    if (failed) this.interrupt(failed.kind === 'video' ? failed.readyState === 'live' ? 'VIDEO_TRACK_MUTED' : 'VIDEO_TRACK_ENDED'
+      : failed.readyState === 'live' ? 'AUDIO_TRACK_MUTED' : 'AUDIO_TRACK_ENDED', failed.readyState === 'live' ? 'SAME_PIPELINE_RECOVERABLE' : 'RESTART_REQUIRED');
+    else this.observeRecovery();
+  }
   private samePipelineHealthy(): boolean {
     if (this.disposed || !this.fault || this.fault.recoverability !== 'SAME_PIPELINE_RECOVERABLE' || !this.ownedStream || !this.recorder) return false;
+    if (this.borrowedRoots.some(track => track.readyState !== 'live' || track.muted)) return false;
     if (!this.ownedStream.getTracks().every(track => track.readyState === 'live' && !track.muted)
       || !['paused', 'recording', ...(!this.mediaStarted ? ['inactive'] : [])].includes(this.recorder.state)) return false;
     return true;
@@ -304,13 +314,16 @@ export class PerformanceRecorder {
     this.releaseStream();
   }
 
-  snapshot() { return Object.freeze({ state: this.mode === 'OFF' ? 'OFF' as const : this.state,
+  snapshot(performanceTimeMs = 0) { return Object.freeze({
+    indicatorVisible: this.mediaStarted && !this.acceptedLoss && !this.disposed,
+    elapsedMs: this.cumulativeMediaMs + (this.currentSegmentStartPerfMs === null ? 0 : Math.max(0, performanceTimeMs - this.currentSegmentStartPerfMs)),
+    state: this.mode === 'OFF' ? 'OFF' as const : this.state,
     sourceOwnership: this.sourceOwnership, unavailableReason: this.unavailableReason }); }
 
   private releaseStream(): void {
     this.detachTracks.splice(0).forEach(detach => detach());
     const stream = this.ownedStream;
-    this.ownedStream = null;
+    this.ownedStream = null; this.borrowedRoots = [];
     this.sourceOwnership = 'NONE';
     if (stream) {
       for (const track of stream.getTracks()) {
@@ -320,26 +333,10 @@ export class PerformanceRecorder {
   }
 
   private async resolveAudioStream(options: PrepareOptions): Promise<MediaStream> {
-    if (options.inputSource === 'MICROPHONE') {
-      if (!options.sessionMicrophoneStream) throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
-      this.assertTracks(options.sessionMicrophoneStream, 'AUDIO');
-      const clone = options.sessionMicrophoneStream.clone();
-      this.ownedStream = clone; this.sourceOwnership = 'OWNED_CLONE'; return clone;
-    }
-    const mediaDevices = globalThis.navigator?.mediaDevices;
-    if (!mediaDevices?.getUserMedia) {
-      throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
-    }
-    const stream = await mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    });
-    this.ownedStream = stream;
-    this.sourceOwnership = 'OWNED_ACQUISITION';
-    return stream;
+    if (!options.audioRoot) throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
+    this.assertTracks(options.audioRoot, 'AUDIO');
+    const clone = options.audioRoot.clone();
+    this.ownedStream = clone; this.sourceOwnership = 'OWNED_CLONE'; return clone;
   }
 
   private installRecorder(

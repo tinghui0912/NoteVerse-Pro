@@ -9,6 +9,7 @@ export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED
 
 export type PerformanceClockSnapshot = {
   state: PerformanceRuntimeState;
+  countInKind: 'INITIAL' | 'RESUME' | null;
   nowMs: number;
   musicalBeat: number;
   performanceTimeMs: number;
@@ -61,6 +62,7 @@ export class PerformanceClockRuntime {
   private stateBeforePause: PerformanceRuntimeState = 'READY';
   private completionReason: LocalPracticeCompletionReason | null = null;
   private activeElapsedMs = 0;
+  private resumeCountdown: { startMs: number; durationMs: number; beats: number; pulses: number } | null = null;
   private currentSegment: ClockSegment | null = null;
   private clockSegments: ClockSegment[] = [];
 
@@ -100,6 +102,7 @@ export class PerformanceClockRuntime {
     this.activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
     this.finishCurrentSegment(this.nowSessionMs());
     this.stateBeforePause = this.state;
+    this.resumeCountdown = null;
     this.state = 'PAUSED';
     return this.snapshot();
   }
@@ -108,10 +111,15 @@ export class PerformanceClockRuntime {
     if (this.state !== 'PAUSED') {
       throw new Error('Performance clock can only resume from PAUSED.');
     }
-    // Anchor the segment and immediate snapshot to one resume boundary.
     const nowMs = this.nowSessionMs();
-    this.state = this.stateBeforePause;
-    this.currentSegment = this.startClockSegmentAt(this.state, this.activeElapsedMs, nowMs);
+    const beat = this.musicalBeat(this.performanceElapsedMs(this.activeElapsedMs));
+    const contract = countInContractAt(this.artifact, beat);
+    this.activeElapsedMs = Math.max(this.countInMs, this.activeElapsedMs);
+    this.resumeCountdown = { startMs: nowMs, durationMs: beatsToMs(contract.durationBeats, this.timeline.bpmAtBeat(beat)),
+      beats: contract.durationBeats, pulses: contract.pulses };
+    this.state = 'COUNT_IN';
+    this.currentSegment = this.startClockSegmentAt('COUNT_IN', this.activeElapsedMs, nowMs);
+    this.currentSegment.frozen = true;
     return this.snapshotAt(nowMs);
   }
 
@@ -133,23 +141,26 @@ export class PerformanceClockRuntime {
   private snapshotAt(nowMs: number): PerformanceClockSnapshot {
     const activeElapsedMs = this.advanceState(nowMs);
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
-    const countInTotalMs = this.countInMs;
-    const countInRemainingMs = Math.max(0, this.countInMs - activeElapsedMs);
-    const countInPulse = this.countInPulses > 0 && countInTotalMs > 0 && this.state === 'COUNT_IN'
+    const countdown = this.resumeCountdown;
+    const countInTotalMs = countdown?.durationMs ?? this.countInMs;
+    const countInRemainingMs = countdown ? Math.max(0, countdown.durationMs - (nowMs - countdown.startMs)) : Math.max(0, this.countInMs - activeElapsedMs);
+    const pulses = countdown?.pulses ?? this.countInPulses;
+    const countInPulse = pulses > 0 && countInTotalMs > 0 && this.state === 'COUNT_IN'
       ? Math.min(
-          this.countInPulses,
-          Math.max(1, Math.floor(((countInTotalMs - countInRemainingMs) / countInTotalMs) * this.countInPulses) + 1)
+          pulses,
+          Math.max(1, Math.floor(((countInTotalMs - countInRemainingMs) / countInTotalMs) * pulses) + 1)
         )
       : 1;
     return {
       state: this.state,
+      countInKind: this.state === 'COUNT_IN' ? countdown ? 'RESUME' : 'INITIAL' : null,
       nowMs,
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
       countInTotalMs,
       countInRemainingMs,
-      countInBeats: this.countInBeats,
-      countInPulses: this.countInPulses,
+      countInBeats: countdown?.beats ?? this.countInBeats,
+      countInPulses: pulses,
       countInPulse,
       scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
       scopeStartBeat: this.scope.startBeat,
@@ -206,6 +217,13 @@ export class PerformanceClockRuntime {
     if (this.state === 'READY') {
       return 0;
     }
+    if (this.resumeCountdown && this.state === 'COUNT_IN') {
+      const boundary = this.resumeCountdown.startMs + this.resumeCountdown.durationMs;
+      if (nowMs < boundary) return this.activeElapsedMs;
+      this.finishCurrentSegment(boundary);
+      this.resumeCountdown = null; this.state = 'RUNNING';
+      this.currentSegment = this.startClockSegmentAt('RUNNING', this.activeElapsedMs, boundary);
+    }
     const activeElapsedMs = this.activeElapsedAt(nowMs);
     if (this.state === 'PAUSED' || this.state === 'ENDED') {
       return activeElapsedMs;
@@ -243,11 +261,11 @@ export class PerformanceClockRuntime {
       const end = segment.clockEndMs ?? (
         this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
       );
-      if (segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
+      if (!segment.frozen && segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
         return Math.max(0, this.activeElapsedAtSessionTime(segment, captureTimeMs));
       }
     }
-    if (this.currentSegment
+    if (this.currentSegment && !this.currentSegment.frozen
       && this.currentSegment.clockStartMs <= captureTimeMs
       && captureTimeMs <= this.nowSessionMs()) {
       return Math.max(0, this.activeElapsedAtSessionTime(this.currentSegment, captureTimeMs));
@@ -257,6 +275,7 @@ export class PerformanceClockRuntime {
 
   private sessionMsForActiveElapsed(activeElapsedMs: number, nowMs?: number): number {
     for (const segment of this.clockSegments) {
+      if (segment.frozen) continue;
       const segmentEndActiveElapsed = segment.clockEndMs === undefined
         ? this.activeElapsedAt(nowMs ?? this.nowSessionMs())
         : this.activeElapsedAtSessionTime(segment, segment.clockEndMs);
@@ -273,7 +292,7 @@ export class PerformanceClockRuntime {
   // Subtract in one time domain before adding the other domain's anchor. In
   // particular, a zero segment delta must preserve pause/resume identity exactly.
   private activeElapsedAtSessionTime(segment: ClockSegment, sessionTimeMs: number): number {
-    return segment.activeElapsedStartMs + (sessionTimeMs - segment.clockStartMs);
+    return segment.activeElapsedStartMs + (segment.frozen ? 0 : sessionTimeMs - segment.clockStartMs);
   }
 
   private sessionTimeAtActiveElapsed(segment: ClockSegment, activeElapsedMs: number): number {
@@ -325,6 +344,7 @@ export class PerformanceClockRuntime {
 }
 
 type ClockSegment = {
+  frozen?: boolean;
   state: PerformanceRuntimeState;
   clockStartMs: number;
   clockEndMs?: number;

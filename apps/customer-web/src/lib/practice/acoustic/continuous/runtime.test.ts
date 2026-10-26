@@ -262,7 +262,7 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
   await runtime.dispose();
   session.pause(); const paused = session.clock.snapshot(); clock.advance(5000);
   expect(session.clock.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);
-  session.resume(); clock.advance(100); expect(session.clock.snapshot().performanceTimeMs).toBe(1300);
+  const resumed = session.resume(); clock.advance(resumed.countInRemainingMs + 100); expect(session.clock.snapshot().performanceTimeMs).toBe(1300);
 });
 
 it('exact pause boundary belongs only to resumed segment, with immutable IDs independent of availability', () => {

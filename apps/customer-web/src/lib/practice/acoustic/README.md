@@ -48,7 +48,8 @@ and explicit onset/frame thresholds .30/.05 from `model-contract.ts`.
 
 ## Ownership, Clock and Bounds
 
-Product controllers own the root stream and AudioContext; analysis owns its clone.
+The page Device Lease owns the root stream. Product controllers borrow it and own
+attempt AudioContexts; analysis owns its clone.
 Continuous uses the session AudioContext for transport, capture and metronome.
 Pause PCM is context-only; resume preserves exact source/performance anchors.
 Only terminal real-tail drain publishes the empty exact-T coverage handshake.

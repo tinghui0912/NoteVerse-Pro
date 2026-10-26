@@ -202,16 +202,18 @@ async function setupPracticeMocks(
         inputsMap.set('mock-midi-in-1', fakeInput);
       }
 
+      const stateListeners = new Set<() => void>();
       const mockAccess = {
         inputs: inputsMap,
         outputs: new Map(),
         onstatechange: null,
-        addEventListener: () => {},
-        removeEventListener: () => {},
+        addEventListener: (_type: string, listener: () => void) => stateListeners.add(listener),
+        removeEventListener: (_type: string, listener: () => void) => stateListeners.delete(listener),
       };
 
       (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice = () => {
         inputsMap.set('mock-midi-in-1', fakeInput);
+        for (const listener of stateListeners) listener();
         if (typeof mockAccess.onstatechange === 'function') {
           (mockAccess.onstatechange as (e: unknown) => void)({ port: fakeInput });
         }
@@ -339,6 +341,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
   test('STEP MIDI: runs locally with zero session requests and zero WebSockets', async ({
     page,
   }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     const disallowedRequests: string[] = [];
     const modelAssetRequests: string[] = [];
     page.on('request', (request) => {
@@ -362,28 +365,38 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeEnabled();
 
     // Verify waiting for first note
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+    const learningCursor = page.locator('[data-practice-playhead-cursor]');
+    await expect(learningCursor).toHaveCount(1);
+    const firstTargetX = await learningCursor.getAttribute('x');
+    await expect(page.getByTestId('practice-timer')).toHaveCount(0);
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
+    await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
 
     // Emit wrong note -> remains on first target
     await page.evaluate(() => {
       (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(50, 100);
     });
+    await page.clock.runFor(35);
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+    await expect(learningCursor).toHaveAttribute('x', firstTargetX!);
 
     // Emit correct note 60 (C4) -> advances
+    await page.clock.runFor(1); // The next gesture must be strictly after the retirement watermark.
     await page.evaluate(() => {
       (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
     });
+    await page.clock.runFor(35);
 
     // STEP is paced waiting, not Continuous transport.
     await expect(page.getByRole('button', { name: '暂停', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: '继续', exact: true })).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+    await expect(learningCursor).not.toHaveAttribute('x', firstTargetX!);
 
     // Skip
     const skipButton = page.getByRole('button', { name: '跳过', exact: true });
@@ -397,7 +410,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // End returns to the pre-start state without a dialog
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '继续练习', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 
@@ -433,10 +446,10 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await startButton.click();
 
     // Verify count-in or running status
-    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
 
     // Wait until running
-    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveCount(0);
 
     // Pause
@@ -449,7 +462,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const resumeButton = page.getByRole('button', { name: '继续', exact: true });
     await expect(resumeButton).toBeEnabled();
     await resumeButton.click();
-    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveCount(0);
 
     // End without a completion artifact
@@ -513,9 +526,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice with custom tempo & metronome
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeEnabled();
 
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
@@ -525,7 +537,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await endButton.click();
 
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '继续练习', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
     expect(disallowedRequests).toEqual([]);
@@ -570,7 +582,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await resumeButton.click();
 
     // Eventually completes count-in and enters running
-    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveCount(0);
 
     // Abandon the active session
@@ -656,9 +668,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await configurePractice(page, 'STEP', 'MIDI', 'OFF');
 
     // Start practice (starts with Metronome OFF by default)
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeEnabled();
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
     // Toggle metronome ON while ACTIVE inside tempo popover
@@ -682,7 +693,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(endButton).toBeEnabled();
     await endButton.click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '继续练习', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 
@@ -750,7 +761,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await endNote.locator('path, use').first().click();
 
     // Range selection mode should auto-exit
-    await expect(page.getByRole('status')).toContainText('第 1 小节');
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
     // Section button remains active/highlighted when completed
     await expect(sectionButton).toHaveClass(/bg-slate-200/);
     // Selected range background remains on notes in the range
@@ -770,15 +781,15 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
 
     // 4. Start Practice with Range
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeEnabled();
 
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
     // While ACTIVE, tempo button triggers popover showing locked notice
     await tempoButton.click();
-    await expect(page.getByText('练习进行中速度已锁定')).toBeVisible();
+    await expect(page.getByText('练习进行中速度已锁定')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '+5 BPM' })).toBeEnabled();
     await page.keyboard.press('Escape');
 
     // Abandon the active session
@@ -786,17 +797,17 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(endButton).toBeEnabled();
     await endButton.click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '继续练习', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
   });
 
-  test('SECTION SELECTION: incomplete range disables Start and cancellation restores full-piece practice', async ({ page }) => {
+  test('SECTION SELECTION: incomplete range suspends auto-arm and cancellation restores full-piece learning', async ({ page }) => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const startButton = page.getByRole('button', { name: '继续练习', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
     await page.locator('[data-id="select-start-note"]').first().locator('path, use').first().click();
@@ -805,43 +816,40 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(status).toContainText('请选择结束音符');
     await expect(page.locator('.practice-range-selected')).toHaveCount(1);
     await expect(page.locator('[data-id="select-start-note"]').first()).toHaveClass(/practice-range-selected/);
-    await expect(startButton).toBeDisabled();
+    await expect(startButton).toHaveCount(0);
 
     await sectionButton.click();
     await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
-    await expect(status).toHaveCount(0);
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
     await expect(page.locator('.practice-range-selected')).toHaveCount(0);
-    await expect(startButton).toBeEnabled();
+    await expect(startButton).toHaveCount(0);
 
     // The restored scope completes as full-piece practice, not a partial range.
-    await startButton.click();
     await expect(status).toContainText('可以开始，请弹奏当前音符');
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '跳过', exact: true }).click();
     await expect(page.getByRole('heading', { name: '练习已完成', exact: true })).toBeVisible();
   });
 
-  test('SECTION SELECTION: reverse note clicks complete the inclusive range and lock selection during practice', async ({ page }) => {
+  test('SECTION SELECTION: reverse note clicks rebind the inclusive range while waiting remains editable', async ({ page }) => {
     await setupPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const startButton = page.getByRole('button', { name: '继续练习', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
     await page.locator('[data-id="select-end-note"]').first().locator('path, use').first().click();
     await expect(status).toContainText('请选择结束音符');
     await page.locator('[data-id="select-start-note"]').first().locator('path, use').first().click();
 
-    await expect(status).toContainText('第 1 小节');
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
     await expect(status).not.toContainText('请选择');
     await expect(sectionButton).toHaveClass(/bg-slate-200/);
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
     await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
-    await expect(startButton).toBeEnabled();
-
-    await startButton.click();
+    await expect(startButton).toHaveCount(0);
     await expect(status).toContainText('可以开始，请弹奏当前音符');
-    await expect(sectionButton).toBeDisabled();
+    await expect(sectionButton).toBeEnabled();
     await page.getByRole('button', { name: '结束', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(startButton).toBeEnabled();
@@ -853,7 +861,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await openPreparedPractice(page, scoreId, revisionId);
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    const startButton = page.getByRole('button', { name: '继续练习', exact: true });
     const status = page.getByRole('status');
     const startNote = page.locator('[data-id="select-start-note"]').first().locator('path, use').first();
     const endNote = page.locator('[data-id="select-end-note"]').first().locator('path, use').first();
@@ -861,8 +869,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await startNote.click();
     await endNote.click();
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeEnabled();
     await expect(status).toContainText('可以开始，请弹奏当前音符');
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: '跳过', exact: true }).click();
 
@@ -879,12 +887,12 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     await startNote.click();
     await expect(status).toContainText('请选择结束音符');
-    await expect(startButton).toBeDisabled();
+    await expect(startButton).toHaveCount(0);
     await endNote.click();
-    await expect(status).toContainText('第 1 小节');
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
     await expect(status).not.toContainText('请选择');
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
-    await expect(startButton).toBeEnabled();
+    await expect(startButton).toHaveCount(0);
   });
 
   test('STEP setup does not prefetch a model for MIDI and blocks until a device connects', async ({ page }) => {
@@ -904,9 +912,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.evaluate(() => (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice());
     await page.getByRole('button', { name: '准备练习', exact: true }).click();
-    const start = page.getByRole('button', { name: '开始', exact: true });
-    await expect(start).toBeEnabled();
-    await start.click(); await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+    const start = page.getByRole('button', { name: '继续练习', exact: true });
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0); await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
     await page.getByRole('button', { name: '结束', exact: true }).click();
     await expect(start).toBeEnabled(); await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
@@ -944,7 +951,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
-    await expect(page.getByTestId('practice-timer')).toBeVisible();
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveCount(0);
 
     await page.context().setOffline(true);
@@ -963,7 +970,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
       const resumeButton = page.getByRole('button', { name: '继续', exact: true });
       await expect(resumeButton).toBeEnabled();
       await resumeButton.click();
-      await expect(page.getByTestId('practice-timer')).toBeVisible();
+      await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByRole('status')).toHaveCount(0);
 
       const endButton = page.getByRole('button', { name: '结束', exact: true });

@@ -13,7 +13,6 @@ export interface StepPlatform {
   createMidi(options: BrowserMidiControllerOptions): StepMidiPort;
   createMetronome(options: MetronomeControllerOptions): StepMetronomePort;
   microphone?: StepMicrophonePlatform & {
-    acquireMicrophone(): Promise<MediaStream>;
     createAudioContext(): AudioContext;
     watchInfrastructure: typeof watchMicrophoneInfrastructure;
   };
@@ -24,7 +23,5 @@ export function browserStepPlatform(acquireInference: StepMicrophonePlatform['ac
     cancel: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
   }, createMidi: options => new BrowserMidiController(options), createMetronome: options => new MetronomeController(options),
   microphone: { ...browserStepMicrophonePlatform(acquireInference),
-    acquireMicrophone: () => navigator.mediaDevices.getUserMedia({ video: false,
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }),
     createAudioContext: () => new AudioContext(), watchInfrastructure: watchMicrophoneInfrastructure } };
 }

@@ -345,8 +345,8 @@ describe('Continuous clock and evaluation composition', () => {
       session.pause();
       offlineClock.advance(1_000);
       expect(session.snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 500 });
-      session.resume();
-      offlineClock.advance(600);
+      const resumed = session.resume();
+      offlineClock.advance(resumed.countInRemainingMs + 600);
       expect(session.snapshot()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 1100 });
       session.end('STOPPED_BY_USER');
 

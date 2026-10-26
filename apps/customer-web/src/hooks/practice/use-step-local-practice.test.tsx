@@ -1,3 +1,4 @@
+import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -16,7 +17,7 @@ const artifact = artifactJson as PracticeScoreArtifact;
 
 function pendingMicrophone() {
   let releaseLease!: () => void;
-  const stop = vi.fn(), stream = { getTracks: () => [{ stop }] };
+  const stop = vi.fn(), track = { stop, readyState: 'live' }, stream = { getTracks: () => [track], getAudioTracks: () => [track] };
   const context = Object.assign(new EventTarget(), { state: 'running', sampleRate: 48000, currentTime: 0,
     close: vi.fn(async () => {}), resume: vi.fn(async () => {}) });
   const inference = { run: vi.fn(), dispose: vi.fn(async () => {}) };
@@ -28,14 +29,14 @@ function pendingMicrophone() {
     createMidi: vi.fn(() => ({ start: midiStart, dispose: vi.fn(), getState: () => ({
       isSupported: true, isRunning: true, hasPermission: true, connectedInputCount: 1 }) })),
     createMetronome: () => ({ start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() }),
-    microphone: { acquireMicrophone: vi.fn(async () => stream as unknown as MediaStream),
+    microphone: {
       createAudioContext: () => context as unknown as AudioContext, watchInfrastructure: () => () => {},
       acquireInference, coefficients: vi.fn(),
       connectCapture: connect, workletUrl: 'fake://not-started' } };
   const factory = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue(platform);
   const options = (mode: PracticeMode = 'STEP_BY_STEP', inputSource: PracticeInputSource = 'MICROPHONE') =>
-    ({ artifact, mode, inputSource, scope: { kind: 'FULL' as const } });
-  return { platform, factory, options, inference, nextInference, acquireInference, stop, context, connect, midiStart, release: () => releaseLease() };
+    ({ getDevices: () => borrowedDevices(stream as unknown as MediaStream), artifact, mode, inputSource, scope: { kind: 'FULL' as const } });
+  return { platform, factory, options, inference, nextInference, acquireInference, stop, track, context, connect, midiStart, release: () => releaseLease() };
 }
 
 it('STEP Start is single-owner during preparation; unmount awaits late preparation without connecting capture', async () => {
@@ -53,7 +54,7 @@ it('STEP Start is single-owner during preparation; unmount awaits late preparati
   await act(async () => { r.release(); await starting; await pending; });
   expect(r.connect).not.toHaveBeenCalled(); expect(r.inference.dispose).toHaveBeenCalledOnce();
   expect(r.stop).not.toHaveBeenCalled(); expect(r.context.close).not.toHaveBeenCalled();
-  expect(r.platform.microphone!.acquireMicrophone).not.toHaveBeenCalled();
+  expect(r.platform.microphone!.createAudioContext).toBeTypeOf('function');
 });
 
 it.each(['input', 'mode'] as const)('%s switch waits for the old STEP microphone graph before another owner starts', async switchKind => {
@@ -70,7 +71,7 @@ it.each(['input', 'mode'] as const)('%s switch waits for the old STEP microphone
   await act(async () => { r.release(); await oldStart; await newStart; });
   expect(r.inference.dispose).toHaveBeenCalledOnce(); expect(r.connect).not.toHaveBeenCalled();
   expect(r.stop).not.toHaveBeenCalled(); expect(r.context.close).not.toHaveBeenCalled();
-  expect(r.platform.microphone!.acquireMicrophone).not.toHaveBeenCalled();
+  expect(r.platform.microphone!.createAudioContext).toBeTypeOf('function');
   if (switchKind === 'input') { expect(r.midiStart).toHaveBeenCalledOnce(); expect(result.current.inputState).toBe('RUNNING'); }
   else expect(continuousStart).toHaveBeenCalledOnce();
   unmount();
@@ -83,7 +84,7 @@ it('restart waits for disposal, uses a fresh STEP identity and surfaces a fresh 
   let first!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { first = result.current.start(); });
   const firstId = identity.mock.results[0].value;
-  vi.mocked(r.platform.microphone!.acquireMicrophone).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'));
+  r.track.readyState = 'ended';
   await act(async () => { restarting = result.current.restart(); });
   expect(starts).toHaveBeenCalledOnce();
   await act(async () => { r.release(); await first; await restarting; });
@@ -91,7 +92,7 @@ it('restart waits for disposal, uses a fresh STEP identity and surfaces a fresh 
   expect(identity.mock.results[1].value).not.toBe(firstId);
   expect(r.nextInference.dispose).toHaveBeenCalledOnce();
   expect(r.acquireInference.mock.invocationCallOrder[1]).toBeGreaterThan(r.inference.dispose.mock.invocationCallOrder[0]);
-  expect(result.current).toMatchObject({ lifecycle: 'IDLE', inputState: 'ERROR', inputError: 'STEP_MICROPHONE_PERMISSION_DENIED' });
+  expect(result.current).toMatchObject({ lifecycle: 'IDLE', inputState: 'ERROR', inputError: 'STEP_MICROPHONE_UNAVAILABLE' });
   expect(r.inference.dispose).toHaveBeenCalledOnce();
   unmount();
 });

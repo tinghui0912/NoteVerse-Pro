@@ -1,3 +1,4 @@
+import { borrowedDevices } from '../__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -68,7 +69,6 @@ function rig(rate: 44100 | 48000 = 48000) {
     clock: new ManualClock(999_000), timer: { schedule: vi.fn(), cancel: vi.fn() },
     createMidi: vi.fn(), createMetronome: vi.fn(() => metronome),
     microphone: {
-      acquireMicrophone: vi.fn(async () => stream as unknown as MediaStream),
       createAudioContext: vi.fn(() => context as unknown as AudioContext), watchInfrastructure: watchMicrophoneInfrastructure,
       acquireInference: vi.fn(async () => worker), workletUrl: 'fake://worklet',
       coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
@@ -81,7 +81,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
+  const controller = new StepPracticeController({ devices: borrowedDevices(stream as unknown as MediaStream), artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -117,7 +117,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const initial = r.controller.snapshot().sessionSnapshot!.step;
     expect(initial.inputEligibleAfter.sampleIndex).toBe(r.input().snapshot().capture!.capturedThroughSourceSample);
     expect(initial.inputEligibleAfter.ms).toBe(7000 + initial.inputEligibleAfter.sampleIndex! / rate * 1000);
-    expect(r.platform.microphone!.acquireMicrophone).toHaveBeenCalledOnce();
+    expect(r.controller.snapshot().sessionSnapshot?.inputSource).toBe('MICROPHONE');
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
     expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(SourceAnalysisRuntime.create).toHaveBeenCalledOnce();
@@ -125,7 +125,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     await r.controller.abandon(); await r.controller.dispose(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
     expect(r.completion).not.toHaveBeenCalled();
   });
 
@@ -262,7 +262,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       step: { currentIndex: 3, completed: true } });
     expect(r.finalized.map(a => a.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH']);
     expect(r.completion).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
-    expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
+    expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.completion).toHaveBeenCalledOnce();
   });
 
@@ -288,7 +288,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.finalized).toEqual(finalizedBeforeFailure);
     await r.controller.abandon(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     r.track.dispatchEvent(new Event('ended')); r.context.dispatchEvent(new Event('statechange'));
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
@@ -300,23 +300,21 @@ it('failed lease acquisition opens no microphone, context or capture', async () 
   await r.controller.start(); await r.controller.dispose();
   expect(r.controller.snapshot().error).toBe('STEP_ACOUSTIC_PREPARATION_FAILED');
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
-  expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.platform.microphone!.acquireMicrophone).not.toHaveBeenCalled();
+  expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled();
   expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).not.toHaveBeenCalled();
 });
 
-it('permission denial releases its inference lease without constructing a context or capture', async () => {
-  const r = rig(); vi.mocked(r.platform.microphone!.acquireMicrophone).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'));
-  await r.controller.start(); expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_PERMISSION_DENIED' });
+it('a lost borrowed root releases its inference lease before constructing a context or capture', async () => {
+  const r = rig(); r.track.readyState = 'ended';
+  await r.controller.start(); expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_UNAVAILABLE' });
   await r.controller.dispose();
-  expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled(); expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
-  expect(r.worker.dispose).toHaveBeenCalledOnce();
+  expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled(); expect(r.worker.dispose).toHaveBeenCalledOnce();
   expect(r.track.stop).not.toHaveBeenCalled();
 });
 
-it.each(['acquisition', 'lease'] as const)('dispose awaits pending %s and cannot resurrect a late graph', async stage => {
+it.each(['lease', 'context'] as const)('dispose awaits pending %s and cannot resurrect a late graph', async stage => {
   const r = rig(); let release!: () => void;
-  if (stage === 'acquisition') vi.mocked(r.platform.microphone!.acquireMicrophone).mockImplementationOnce(() =>
-    new Promise(resolve => { release = () => resolve(r.stream as unknown as MediaStream); }));
+  if (stage === 'context') { r.context.state = 'suspended'; vi.mocked(r.context.resume).mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; })); }
   else vi.mocked(r.platform.microphone!.acquireInference).mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(r.worker); }));
   const starting = r.controller.start();
   for (let i = 0; i < 20 && !release; i++) await Promise.resolve();
@@ -324,10 +322,9 @@ it.each(['acquisition', 'lease'] as const)('dispose awaits pending %s and cannot
   await Promise.resolve(); expect(disposed).toBe(false);
   release(); await starting; await disposal;
   expect(r.controller.snapshot().state).toBe('DISPOSED');
-  if (stage === 'acquisition') expect(r.track.stop).toHaveBeenCalledOnce();
-  else expect(r.track.stop).not.toHaveBeenCalled();
+  expect(r.track.stop).not.toHaveBeenCalled();
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled(); expect(r.completion).not.toHaveBeenCalled();
-  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.context.close).not.toHaveBeenCalled();
+  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledTimes(stage === 'context' ? 1 : 0);
 });
 
 it.each(['worker', 'context'] as const)('%s cleanup failure is surfaced while all other owners are released', async resource => {
@@ -337,7 +334,7 @@ it.each(['worker', 'context'] as const)('%s cleanup failure is surfaced while al
   await r.controller.abandon();
   expect(r.controller.snapshot().error).toBe('STEP_RESOURCE_CLEANUP_FAILED');
   expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-  expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
   await r.controller.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
 });
 
@@ -357,7 +354,7 @@ it('disposal while capture connection is pending cannot expose ACTIVE or leave a
   expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled();
   release(); await starting; await disposal;
   expect(states).not.toContain('ACTIVE'); expect(r.cloneStop).toHaveBeenCalledOnce();
-  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
+  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
 });
 
 it('unsupported sample rate releases its lease and fails closed before capture', async () => {
@@ -366,21 +363,15 @@ it('unsupported sample rate releases its lease and fails closed before capture',
   expect(r.controller.snapshot().error).toBe('STEP_MICROPHONE_INFRASTRUCTURE_FAILED');
   expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
-  expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
+  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
 });
 
-it('browser STEP platform requests the same unprocessed microphone constraints and standard context as Continuous', async () => {
-  const stream = {} as MediaStream, context = {} as AudioContext;
-  const acquire = vi.fn(async () => stream), createContext = vi.fn(function () { return context; });
-  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: acquire } });
-  vi.stubGlobal('AudioContext', createContext);
-  const platform = browserStepPlatform();
-  expect(await platform.microphone!.acquireMicrophone()).toBe(stream);
-  expect(acquire).toHaveBeenCalledWith({ video: false,
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  expect(platform.microphone!.createAudioContext()).toBe(context); expect(createContext).toHaveBeenCalledOnce();
+it('browser STEP platform creates an attempt context without acquiring browser roots', () => {
+  const context = {} as AudioContext, acquire = vi.fn(), createContext = vi.fn(function () { return context; });
+  vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: acquire } }); vi.stubGlobal('AudioContext', createContext);
+  expect(browserStepPlatform().microphone!.createAudioContext()).toBe(context);
+  expect(createContext).toHaveBeenCalledOnce(); expect(acquire).not.toHaveBeenCalled();
 });
-
 
 it.each([44100, 48000] as const)('%s microphone silence stays READY without any attempt or synthetic verdict', async rate => {
   const r = rig(rate); r.pitches([]);
@@ -403,5 +394,5 @@ it('STEP abandonment cancels outstanding acoustic work and rejects late owner pu
   expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', canAcceptAttempt: false,
     sessionSnapshot: { localSessionId: discarded.sessionSnapshot!.localSessionId, step: discarded.sessionSnapshot!.step } });
   expect(r.completion).not.toHaveBeenCalled(); expect(r.worker.dispose).toHaveBeenCalledOnce();
-  expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
+  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
 });

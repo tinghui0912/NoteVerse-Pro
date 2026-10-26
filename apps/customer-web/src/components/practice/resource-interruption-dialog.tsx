@@ -22,7 +22,7 @@ export function ResourceInterruptionDialog({ intervention, onContinueWithout, on
           : hard ? 'recordingRestartRequiredDescription' : 'recordingInterruptedDescription')}</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter className="flex-wrap gap-2">
         {recovered && !hard && <Button disabled={busy} onClick={onContinue}>{t('resume')}</Button>}
-        {!inputRequired && <Button disabled={busy} variant="outline" onClick={onContinueWithout}>{t('recordingContinueWithout')}</Button>}
+        {!inputRequired && !recovered && <Button disabled={busy} variant="outline" onClick={onContinueWithout}>{t('recordingContinueWithout')}</Button>}
         <Button disabled={busy} variant="outline" onClick={() => { setBusy(true); void onRestart().finally(() => setBusy(false)); }}>{t('recordingRestart')}</Button>
         <Button disabled={busy} variant="destructive" onClick={onEnd}>{t('finish')}</Button>
       </AlertDialogFooter>

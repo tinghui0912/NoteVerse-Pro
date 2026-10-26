@@ -59,10 +59,12 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
       if (!options.artifact || !options.scope) throw new Error('Score artifact is not available yet.');
+      const devices = options.getDevices();
+      if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       onSessionStart();
-      const current = new ContinuousPracticeController({ startupTimings, artifact: options.artifact, scope: options.scope,
+      const current = new ContinuousPracticeController({ devices, observeDevices: options.observeDevices, startupTimings, artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
-        recordingMode: options.recordingMode, cameraStream: options.getCameraMediaStream?.(),
+        recordingMode: options.recordingMode,
         onNaturalCompletion: value => {
           if (operation === generation.current && controller.current === current && value.completionReason === 'SCOPE_COMPLETED') completion.current?.(value);
         } }, browserContinuousPlatform(options.acquireInference));
@@ -102,7 +104,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
   return { mode: 'CONTINUOUS_PLAY' as const, lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
     resourceIntervention: snapshot?.resourceIntervention ?? null, continueWithoutRecording, continueAfterRecovery,
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
-    elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),
+    recordingIndicator: snapshot?.recording?.indicatorVisible ? Math.floor(snapshot.recording.elapsedMs / 1000) : null,
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: snapshot?.session === 'FINALIZING', isFinalizingPerformance: snapshot?.session === 'FINALIZING',
     setMetronomeEnabled, start, pause, resume, abandon, restart };

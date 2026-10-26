@@ -388,5 +388,7 @@
   "inputRestartRequiredDescription": "输入设备已断开，当前练习无法继续。请重新开始或结束练习。",
   "inputPaused": "输入已中断，练习已暂停",
   "startingAttempt": "启动中…",
-  "practiceElapsedTime": "练习用时"
+  "practiceElapsedTime": "练习用时",
+  "continueLearning": "继续练习",
+  "recordingDuration": "录制时长"
 }

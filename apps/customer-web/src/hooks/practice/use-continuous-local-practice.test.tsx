@@ -1,3 +1,4 @@
+import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { useLayoutEffect } from 'react';
@@ -13,7 +14,7 @@ import { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-const options: UseLocalPracticeOptions = {
+const options: UseLocalPracticeOptions = { getDevices: () => borrowedDevices(),
   artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', scope: { kind: 'FULL' },
 };
 
@@ -59,12 +60,12 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   expect(owner.start).toHaveBeenCalledOnce(); expect(owner.subscribe).toHaveBeenCalledOnce();
   expect(owner.subscribe.mock.contexts[0]).toBe(owner.start.mock.contexts[0]);
   expect(result.current).toMatchObject({ mode: 'CONTINUOUS_PLAY', lifecycle: 'READY', inputState: 'STARTING', inputError: null });
-  const transport = { state: 'RUNNING' as const, nowMs: 4000, musicalBeat: 2, performanceTimeMs: 1250,
+  const transport = { state: 'RUNNING' as const, countInKind: null, nowMs: 4000, musicalBeat: 2, performanceTimeMs: 1250,
     countInTotalMs: 2000, countInRemainingMs: 0, countInBeats: 4, countInPulses: 4, countInPulse: 1,
     scopeCompleted: false, scopeStartBeat: 0, scopeTerminalBeat: artifact.scoreEndBeat, completionReason: null };
   act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', transport }));
   expect(result.current).toMatchObject({ lifecycle: 'ACTIVE', inputState: 'RUNNING', performanceClock: transport,
-    activeStepGroup: null, elapsedSeconds: 3, resolvedTempoPlan: tempoPlan });
+    activeStepGroup: null, recordingIndicator: null, resolvedTempoPlan: tempoPlan });
   act(() => frames.shift()!(0)); expect(owner.refresh).toHaveBeenCalledOnce();
   await act(async () => { await result.current.pause(); await result.current.resume(); await result.current.abandon(); });
   act(() => result.current.setMetronomeEnabled(true));

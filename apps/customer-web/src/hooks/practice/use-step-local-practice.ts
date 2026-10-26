@@ -36,13 +36,6 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   }, [resources]);
   useEffect(() => () => { void dispose(); }, [key, options.artifact, dispose]);
   useEffect(() => { owner.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
-  useEffect(() => {
-    if (options.mode !== 'STEP_BY_STEP') return;
-    // Drawing reads elapsed time only; it does not assemble or finalize attempts.
-    let frame: number;
-    const draw = () => { if (owner.current) setSnapshot(owner.current.snapshot()); frame = requestAnimationFrame(draw); };
-    frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
-  }, [options.mode, setSnapshot]);
   const start = useCallback(async () => {
     if (starting.current || (owner.current && ['PREPARING', 'ACTIVE'].includes(owner.current.snapshot().state))) return;
     if (!options.artifact || !options.scope || !tempoPlan) { setPreparationError('STEP_SCORE_UNAVAILABLE'); return; }
@@ -53,15 +46,17 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     try {
       await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
+      const devices = options.getDevices();
+      if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       onSessionStart();
-      const controller = new StepPracticeController({ startupTimings, artifact: options.artifact, scope: options.scope,
+      const controller = new StepPracticeController({ devices, startupTimings, artifact: options.artifact, scope: options.scope,
         platform: browserStepPlatform(options.acquireInference), inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         onNaturalCompletion: result => {
           if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);
         } });
       owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
       setPreparationError(null); await controller.start();
-    } finally {
+    } catch (failure) { if (operation === generation.current) setPreparationError((failure as Error).message); } finally {
       if (operation === generation.current) { starting.current = false; setPendingBinding({ key, artifact: options.artifact, value: false }); }
     }
   }, [options, key, tempoPlan, setPreparationError, setSnapshot, dispose, onSessionStart]);
@@ -95,7 +90,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,
     canAcceptAttempt: snapshot?.canAcceptAttempt ?? false,
     pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,
-    performanceClock: null, performanceEvaluation: null, elapsedSeconds: snapshot?.elapsedSeconds ?? 0,
+    performanceClock: null, performanceEvaluation: null, recordingIndicator: null,
     completionReason: snapshot?.lastSnapshot?.completionReason ?? null, lastSnapshot: snapshot?.lastSnapshot ?? null,
     resolvedTempoPlan: tempoPlan, isFinalizingRecording: false, isFinalizingPerformance: false,
     start, skip, abandon, restart, setMetronomeEnabled };

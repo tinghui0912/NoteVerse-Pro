@@ -16,7 +16,7 @@ for (const impact of ['RECORDING_ONLY', 'INPUT_REQUIRED', 'INPUT_AND_RECORDING']
     const resume = screen.queryByRole('button', { name: messages.resume });
     if (phase === 'RECOVERED') { fireEvent.click(resume!); expect(onContinue).toHaveBeenCalledOnce(); } else expect(resume).toBeNull();
     const degrade = screen.queryByRole('button', { name: messages.recordingContinueWithout });
-    if (impact === 'RECORDING_ONLY') { fireEvent.click(degrade!); expect(onContinueWithout).toHaveBeenCalledOnce(); } else expect(degrade).toBeNull();
+    if (impact === 'RECORDING_ONLY' && phase !== 'RECOVERED') { fireEvent.click(degrade!); expect(onContinueWithout).toHaveBeenCalledOnce(); } else expect(degrade).toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' }); expect(onEnd).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: messages.finish })); expect(onEnd).toHaveBeenCalledOnce(); cleanup();
   });

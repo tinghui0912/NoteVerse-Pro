@@ -1,6 +1,7 @@
+import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { StepPracticeRuntime, groupForCurrentStep } from '@/lib/practice/step/domain/runtime';
-import { PracticeTimebase, type LocalClock } from '@/lib/practice/kernel/timebase';
+import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import { createLocalSessionId } from '@/lib/practice/kernel/session';
 import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
@@ -18,6 +19,7 @@ import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler'
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 
 export type StepControllerOptions = Readonly<{
+  devices: PracticeDeviceRoots;
   startupTimings?: PracticeStartupTimings;
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
   tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
@@ -45,21 +47,17 @@ export class StepPracticeController {
   private cleanupTask: Promise<void> | null = null;
   private completionTask: Promise<void> | null = null;
   private disposal: Promise<void> | null = null;
-  private clock: LocalClock;
   private state: StepControllerState = 'IDLE';
   private retirement: StepRetirementPolicy | null = null;
   private error: StepApplicationErrorCode | null = null;
   private readonly listeners = new Set<() => void>();
   private generation = 0;
   private suppressInputState = false;
-  private activeAt: number | null = null;
-  private elapsedMs = 0;
   private enabled: boolean;
   private finalSnapshot: LocalStepSessionSnapshot | null = null;
   constructor(private readonly options: StepControllerOptions) {
     this.startup = options.startupTimings ?? new PracticeStartupTimings();
     this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.metronomeEnabled ?? false;
-    this.clock = this.platform.clock;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
@@ -69,7 +67,6 @@ export class StepPracticeController {
       stepInteractionPhase: session?.step.attemptState ?? null,
       canAcceptAttempt: this.state === 'ACTIVE' && this.error === null && (this.runtime?.canAcceptAttempt ?? false),
       pendingPostVerdict: session?.step.pendingPostVerdict ?? null,
-      elapsedSeconds: Math.floor((this.elapsedMs + (this.activeAt === null ? 0 : this.clock.nowMs() - this.activeAt)) / 1000),
       activeStepGroup: this.runtime ? groupForCurrentStep(this.runtime) : null,
       sessionSnapshot: session,
       lastSnapshot: this.finalSnapshot, inputDiagnostics: this.input?.snapshot() ?? null,
@@ -98,7 +95,7 @@ export class StepPracticeController {
         this.runtime = runtime;
         this.createMetronome();
         this.input = new StepMidiAttemptInput({ ...this.attemptSink(runtime), failure: error => this.failAttempt(error) }, this.platform.timer);
-        this.midi = this.platform.createMidi({ timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
+        this.midi = this.platform.createMidi({ access: this.options.devices.midi!, timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
         await this.startup.measure('midiBind', () => this.midi!.start());
         if (generation !== this.generation) return;
         if (this.midi.getState().connectedInputCount > 0) {
@@ -106,7 +103,7 @@ export class StepPracticeController {
           this.error = null;
         } else this.error = 'NO_CONNECTED_INPUT';
       }
-      this.state = 'ACTIVE'; this.activeAt = this.clock.nowMs(); this.updateTarget();
+      this.state = 'ACTIVE'; this.updateTarget();
       this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
@@ -123,13 +120,9 @@ export class StepPracticeController {
     const inference = await this.startup.measure('acquireInferenceLease', () => platform.acquireInference(this.abort.signal));
     if (generation !== this.generation) { await inference.dispose(); return; }
     this.unboundInference = inference;
-    let stream: MediaStream;
-    try { stream = await this.startup.measure('getUserMedia', () => platform.acquireMicrophone()); }
-    catch (error) {
-      if (stepApplicationError(error, 'MICROPHONE') === 'STEP_MICROPHONE_PERMISSION_DENIED') throw new Error('STEP_MICROPHONE_PERMISSION_DENIED');
-      throw new Error('STEP_MICROPHONE_UNAVAILABLE');
-    }
-    if (generation !== this.generation) { this.stopRoot(stream); return; }
+    const stream = this.options.devices.inputMicrophone;
+    if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+    if (generation !== this.generation) return;
     this.stream = stream;
     const context = platform.createAudioContext(); this.context = context;
     await this.startup.measure('audioContextResume', async () => { if (context.state !== 'running') await context.resume(); });
@@ -145,7 +138,7 @@ export class StepPracticeController {
       complete: (identity, evidence) => { if (this.runtime) this.attemptSink(this.runtime).complete(identity, evidence); },
       failure: error => this.failAttempt(error),
     }, this.startup);
-    this.microphone = microphone; this.clock = microphone.clock;
+    this.microphone = microphone;
     const starting = microphone.start({ context, stream, localSessionId, sourceDomainId: `${localSessionId}:capture` }, this.abort.signal);
     void starting.catch(() => {});
     // start() attaches the shared AudioContext clock before any asynchronous acoustic preparation.
@@ -201,7 +194,7 @@ export class StepPracticeController {
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     if (this.state === 'DISPOSED') return this.cleanupTask ?? Promise.resolve();
-    this.generation++; this.holdElapsed(); this.input?.cancel(); this.runtime?.end();
+    this.generation++; this.input?.cancel(); this.runtime?.end();
     this.state = 'DISPOSED'; const cleanup = this.cleanup(); this.emit(); this.listeners.clear();
     this.disposal = Promise.all([this.preparation, cleanup, this.completionTask]).then(() => {});
     return this.disposal;
@@ -214,7 +207,7 @@ export class StepPracticeController {
     if (this.completionTask || this.state === 'ENDED' || this.state === 'DISPOSED') return this.completionTask ?? Promise.resolve();
     const snapshot = this.runtime?.snapshot();
     if (!snapshot || snapshot.completionReason !== 'SCOPE_COMPLETED') throw new Error('STEP completion requires a naturally completed scope.');
-    this.holdElapsed(); this.input?.cancel(); this.finalSnapshot = snapshot;
+    this.input?.cancel(); this.finalSnapshot = snapshot;
     this.state = 'ENDED'; const cleanup = this.cleanup(); this.emit();
     this.completionTask = cleanup.then(() => {
       if (this.state === 'ENDED' && !this.error && this.finalSnapshot?.completionReason === 'SCOPE_COMPLETED') {
@@ -237,10 +230,6 @@ export class StepPracticeController {
     if (this.runtime.isCompleted) void this.completeNaturally();
     else { if (matched) this.updateTarget(); this.emit(); }
   }
-  private holdElapsed(): void {
-    if (this.activeAt !== null) this.elapsedMs += this.clock.nowMs() - this.activeAt;
-    this.activeAt = null;
-  }
   private inputState(state: BrowserMidiState): void {
     if (this.suppressInputState || this.state === 'DISPOSED' || this.state === 'ENDED') return;
     if (state.connectedInputCount > 0) {
@@ -258,7 +247,7 @@ export class StepPracticeController {
   }
   private failAttempt(error: unknown): void {
     if (this.state === 'ENDED' || this.state === 'DISPOSED') return;
-    this.input?.cancel(); this.runtime?.end(); this.holdElapsed();
+    this.input?.cancel(); this.runtime?.end();
     this.error = this.options.inputSource === 'MICROPHONE' ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING')
       : 'STEP_ATTEMPT_FAILED';
     this.generation++; this.state = 'ENDED'; void this.cleanup();
@@ -269,7 +258,7 @@ export class StepPracticeController {
     this.suppressInputState = true;
     try { this.detachInfrastructure?.(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
     this.detachInfrastructure = null;
-    const microphone = this.microphone, stream = this.stream, context = this.context;
+    const microphone = this.microphone, context = this.context;
     this.microphone = null; this.stream = null; this.context = null;
     const midi = this.midi, metronome = this.metronome; this.midi = null; this.metronome = null;
     this.input?.cancel(); this.input = null;
@@ -278,18 +267,12 @@ export class StepPracticeController {
     const disposal = microphone?.dispose() ?? this.unboundInference?.dispose(); this.unboundInference = null; this.abort.abort();
     this.cleanupTask = (async () => {
       try { await disposal; } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-      if (stream) this.stopRoot(stream);
       try { if (context && context.state !== 'closed') await context.close(); }
       catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
       this.emit();
     })();
     this.suppressInputState = false;
     return this.cleanupTask;
-  }
-  private stopRoot(stream: MediaStream): void {
-    for (const track of stream.getTracks()) {
-      try { track.stop(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-    }
   }
   private emit(): void { for (const listener of [...this.listeners]) listener(); }
 }

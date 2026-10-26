@@ -1,3 +1,4 @@
+import { midiDeviceFixture } from '../__fixtures__/device-roots';
 import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import type { BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import { describe, expect, it, vi } from 'vitest';
@@ -17,7 +18,7 @@ describe('Continuous physical MIDI input projection', () => {
     const observe = vi.fn();
     const onState = vi.fn();
     const timebase = new PracticeTimebase({ domainId: 'physical-midi' });
-    new ContinuousMidiInput(platform, { timebase, observe, onState });
+    new ContinuousMidiInput(platform, { access: midiDeviceFixture().access, timebase, observe, onState });
     const sessionTime = timebase.atSessionMs(112);
     options.onAttack!({ sessionTime, pitch: 'E4', confidence: 1 });
     expect(options.timebase).toBe(timebase);
@@ -30,6 +31,7 @@ describe('Continuous physical MIDI input projection', () => {
     const port = { start: vi.fn(async () => { }), dispose: vi.fn(), getState: () => state };
     const platform = { createMidi: () => port } satisfies Pick<ContinuousPlatform, 'createMidi'>;
     const input = new ContinuousMidiInput(platform, {
+      access: midiDeviceFixture().access,
       timebase: new PracticeTimebase({ domainId: 'midi-resource' }), observe: vi.fn(), onState: vi.fn(),
     });
     await input.prepare();

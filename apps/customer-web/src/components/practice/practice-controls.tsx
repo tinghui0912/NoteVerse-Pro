@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { LoaderCircle, Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
+import { LoaderCircle, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -35,7 +35,9 @@ interface PracticeControlSurfaceProps {
   onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
-  elapsedSeconds?: number;
+  recordingSeconds?: number | null;
+  stepLearning?: boolean;
+  showContinue?: boolean;
   onStart: () => void;
   transportControl?: React.ReactNode;
   onEnd: () => void;
@@ -43,8 +45,8 @@ interface PracticeControlSurfaceProps {
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
-  return <PracticeControlSurface {...props} />;
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState; showContinue?: boolean }) {
+  return <PracticeControlSurface {...props} stepLearning />;
 }
 
 export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
@@ -78,7 +80,9 @@ function PracticeControlSurface({
   onTempoSelectionChange,
   metronomeEnabled = false,
   onMetronomeEnabledChange,
-  elapsedSeconds = 0,
+  recordingSeconds = null,
+  stepLearning = false,
+  showContinue = false,
   onStart,
   transportControl,
   onEnd,
@@ -101,7 +105,7 @@ function PracticeControlSurface({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex shrink-0 items-center gap-2">
-        {isActive ? transportControl : (
+        {isActive ? transportControl : stepLearning && !showContinue ? (isPreparingSession ? <LoaderCircle aria-label={t('startingAttempt')} className="h-4 w-4 animate-spin" /> : null) : (
           <Button
             type="button"
             onClick={onStart}
@@ -110,8 +114,8 @@ function PracticeControlSurface({
             aria-busy={isPreparingSession}
             className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
           >
-            <span aria-hidden="true">{isPreparingSession ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Mic className="mr-2 h-4 w-4" />}</span>
-            {t(isPreparingSession ? 'startingAttempt' : 'start')}
+            <span aria-hidden="true">{isPreparingSession ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}</span>
+            {t(isPreparingSession ? 'startingAttempt' : stepLearning ? 'continueLearning' : 'start')}
           </Button>
         )}
         <Button
@@ -130,8 +134,9 @@ function PracticeControlSurface({
         </Button>
       </div>
 
-      {isActive && <time data-testid="practice-timer" aria-label={t('practiceElapsedTime')} className="text-sm font-semibold tabular-nums text-slate-600">
-        {`${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`}
+      {recordingSeconds !== null && <time data-testid="recording-indicator" aria-label={t('recordingDuration')} className="flex items-center gap-2 text-sm font-semibold tabular-nums text-slate-600">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-red-500" />
+        {`${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`}
       </time>}
       <div className="hidden h-8 w-px bg-slate-200 lg:block" aria-hidden="true" />
 
@@ -152,7 +157,7 @@ function PracticeControlSurface({
           <Button
             type="button"
             variant={rangeSelectionActive ? 'default' : 'outline'}
-            disabled={!canSelectRange || isActive}
+            disabled={!canSelectRange}
             onClick={onToggleRangeSelection}
             className={cn(
               'h-11 gap-2',

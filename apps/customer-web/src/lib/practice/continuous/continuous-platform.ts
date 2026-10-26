@@ -7,8 +7,6 @@ import type { ContinuousPlatform } from './continuous-input';
 export function browserContinuousPlatform(acquireInference: ContinuousPlatform['acquireInference'] = async () => { throw new Error('PRACTICE_ENVIRONMENT_NOT_READY'); }): ContinuousPlatform { return {
   midiClock: { nowMs: () => performance.now() },
   acquireInference,
-  acquireMicrophone: () => navigator.mediaDevices.getUserMedia({ video: false,
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }),
   createAudioContext: () => new AudioContext(),
   ...browserMicrophoneCapture,
   createMidi: options => new BrowserMidiController(options),

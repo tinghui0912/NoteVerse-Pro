@@ -388,5 +388,7 @@
   "inputRestartRequiredDescription": "The input device is disconnected. This attempt cannot continue. Restart or end practice.",
   "inputPaused": "Input interrupted. Practice paused.",
   "startingAttempt": "Starting…",
-  "practiceElapsedTime": "Practice time"
+  "practiceElapsedTime": "Practice time",
+  "continueLearning": "Continue practice",
+  "recordingDuration": "Recording duration"
 }
