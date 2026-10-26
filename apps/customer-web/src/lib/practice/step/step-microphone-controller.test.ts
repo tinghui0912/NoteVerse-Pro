@@ -42,7 +42,6 @@ function rig(rate: 44100 | 48000 = 48000) {
     return source;
   });
   const worker = {
-    load: vi.fn(async () => {}),
     run: vi.fn(async (input: AcousticInferenceInput) => {
       if (paused) await new Promise<void>(resolve => releases.push(resolve));
       return { events: paused ? [] : pitches.map(pitch => ({ pitch, midiPitch: pitch === 'C5' ? 72 : pitch === 'D4' ? 62 : 60,
@@ -71,7 +70,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     microphone: {
       acquireMicrophone: vi.fn(async () => stream as unknown as MediaStream),
       createAudioContext: vi.fn(() => context as unknown as AudioContext), watchInfrastructure: watchMicrophoneInfrastructure,
-      modelUrl: vi.fn(async () => 'fake://deterministic-no-model'), createWorker: vi.fn(() => worker), workletUrl: 'fake://worklet',
+      acquireInference: vi.fn(async () => worker), workletUrl: 'fake://worklet',
       coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
       connectCapture: vi.fn(async options => {
         expect(options.stream).toBe(stream); expect(options.context).toBe(context);
@@ -120,7 +119,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(initial.inputEligibleAfter.ms).toBe(7000 + initial.inputEligibleAfter.sampleIndex! / rate * 1000);
     expect(r.platform.microphone!.acquireMicrophone).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
-    expect(r.platform.microphone!.createWorker).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+    expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
     expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(SourceAnalysisRuntime.create).toHaveBeenCalledOnce();
     expect(r.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: r.context }));
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
@@ -296,35 +295,39 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   });
 });
 
-it('model failure releases worker/root/context without ever connecting capture', async () => {
-  const r = rig(); r.worker.load.mockRejectedValueOnce(new Error('MODEL_LOAD_FAILURE'));
+it('failed lease acquisition opens no microphone, context or capture', async () => {
+  const r = rig(); vi.mocked(r.platform.microphone!.acquireInference).mockRejectedValueOnce(new Error('ACOUSTIC_LEASE_FAILURE'));
   await r.controller.start(); await r.controller.dispose();
   expect(r.controller.snapshot().error).toBe('STEP_ACOUSTIC_PREPARATION_FAILED');
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
-  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
+  expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.platform.microphone!.acquireMicrophone).not.toHaveBeenCalled();
+  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).not.toHaveBeenCalled();
 });
 
-it('permission denial is microphone-specific and creates no worker, context or capture', async () => {
+it('permission denial releases its inference lease without constructing a context or capture', async () => {
   const r = rig(); vi.mocked(r.platform.microphone!.acquireMicrophone).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'));
   await r.controller.start(); expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_PERMISSION_DENIED' });
   await r.controller.dispose();
-  expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled(); expect(r.platform.microphone!.createWorker).not.toHaveBeenCalled();
+  expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled(); expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
+  expect(r.worker.dispose).toHaveBeenCalledOnce();
   expect(r.track.stop).not.toHaveBeenCalled();
 });
 
-it.each(['acquisition', 'model'] as const)('dispose awaits pending %s and cannot resurrect a late graph', async stage => {
+it.each(['acquisition', 'lease'] as const)('dispose awaits pending %s and cannot resurrect a late graph', async stage => {
   const r = rig(); let release!: () => void;
   if (stage === 'acquisition') vi.mocked(r.platform.microphone!.acquireMicrophone).mockImplementationOnce(() =>
     new Promise(resolve => { release = () => resolve(r.stream as unknown as MediaStream); }));
-  else r.worker.load.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  else vi.mocked(r.platform.microphone!.acquireInference).mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(r.worker); }));
   const starting = r.controller.start();
   for (let i = 0; i < 20 && !release; i++) await Promise.resolve();
   let disposed = false; const disposal = r.controller.dispose().then(() => { disposed = true; });
   await Promise.resolve(); expect(disposed).toBe(false);
   release(); await starting; await disposal;
-  expect(r.controller.snapshot().state).toBe('DISPOSED'); expect(r.track.stop).toHaveBeenCalledOnce();
+  expect(r.controller.snapshot().state).toBe('DISPOSED');
+  if (stage === 'acquisition') expect(r.track.stop).toHaveBeenCalledOnce();
+  else expect(r.track.stop).not.toHaveBeenCalled();
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled(); expect(r.completion).not.toHaveBeenCalled();
-  if (stage === 'model') { expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); }
+  expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.context.close).not.toHaveBeenCalled();
 });
 
 it.each(['worker', 'context'] as const)('%s cleanup failure is surfaced while all other owners are released', async resource => {
@@ -357,11 +360,12 @@ it('disposal while capture connection is pending cannot expose ACTIVE or leave a
   expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
 });
 
-it('unsupported sample rate fails closed before model preparation or capture', async () => {
+it('unsupported sample rate releases its lease and fails closed before capture', async () => {
   const r = rig(); r.context.sampleRate = 32000;
   await r.controller.start(); await r.controller.dispose();
   expect(r.controller.snapshot().error).toBe('STEP_MICROPHONE_INFRASTRUCTURE_FAILED');
-  expect(r.platform.microphone!.createWorker).not.toHaveBeenCalled(); expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
+  expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
   expect(r.track.stop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce();
 });
 

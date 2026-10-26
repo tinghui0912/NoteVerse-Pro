@@ -14,6 +14,7 @@ import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-reti
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 
 export type StepControllerOptions = Readonly<{
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
@@ -32,6 +33,7 @@ export class StepPracticeController {
   private metronome: StepMetronomePort | null = null;
   private input: StepMidiAttemptInput | null = null;
   private microphone: StepMicrophoneInput<StepAttemptIdentity> | null = null;
+  private unboundInference: AcousticInferencePort | null = null;
   private stream: MediaStream | null = null;
   private context: AudioContext | null = null;
   private detachInfrastructure: (() => void) | null = null;
@@ -113,6 +115,9 @@ export class StepPracticeController {
   private async prepareMicrophone(localSessionId: string, generation: number): Promise<void> {
     const platform = this.platform.microphone;
     if (!platform) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+    const inference = await platform.acquireInference(this.abort.signal);
+    if (generation !== this.generation) { await inference.dispose(); return; }
+    this.unboundInference = inference;
     let stream: MediaStream;
     try { stream = await platform.acquireMicrophone(); }
     catch (error) {
@@ -126,7 +131,11 @@ export class StepPracticeController {
     if (generation !== this.generation) return;
     if (![44100, 48000].includes(context.sampleRate)) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
     this.detachInfrastructure = platform.watchInfrastructure(stream, context, code => this.failAttempt(new Error(code)));
-    const microphone = new StepMicrophoneInput<StepAttemptIdentity>(platform, {
+    const microphone = new StepMicrophoneInput<StepAttemptIdentity>({ ...platform, acquireInference: async () => {
+      const lease = this.unboundInference;
+      if (!lease) throw new Error('PRACTICE_INFERENCE_LEASE_NOT_OWNED');
+      this.unboundInference = null; return lease;
+    } }, {
       open: time => this.runtime ? this.attemptSink(this.runtime).open(time) : null,
       complete: (identity, evidence) => { if (this.runtime) this.attemptSink(this.runtime).complete(identity, evidence); },
       failure: error => this.failAttempt(error),
@@ -261,7 +270,7 @@ export class StepPracticeController {
     this.input?.cancel(); this.input = null;
     try { midi?.dispose(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
     try { metronome?.destroy(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-    const disposal = microphone?.dispose(); this.abort.abort();
+    const disposal = microphone?.dispose() ?? this.unboundInference?.dispose(); this.unboundInference = null; this.abort.abort();
     this.cleanupTask = (async () => {
       try { await disposal; } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
       if (stream) this.stopRoot(stream);

@@ -36,7 +36,7 @@ it('wrong input/output descriptors and nonfinite output fail closed', () => {
 });
 it('model port rejects inference before load and after disposal', async () => {
   const port = new AcousticModelSession();
-  await expect(port.run(input)).rejects.toThrow('ACOUSTIC_WORKER_NOT_READY');
+  await expect(port.run('test', input)).rejects.toThrow('ACOUSTIC_WORKER_NOT_READY');
   await port.dispose(); await expect(port.load('/model')).rejects.toThrow('ACOUSTIC_WORKER_NOT_EMPTY');
 });
 
@@ -58,15 +58,18 @@ for (const kind of ['error', 'messageerror']) it(`worker ${kind} rejects pending
 it('worker enforces one active inference, sequential reuse and dispose/terminate', async () => {
   const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker);
   const load = client.load('/exact-model'); worker.answer(); await load;
-  const run = client.run(input); await expect(client.run(input)).rejects.toThrow('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');
+  const begin = client.beginSession('test'); worker.answer(); await begin;
+  const run = client.run('test', input); await expect(client.run('test', input)).rejects.toThrow('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');
   worker.answer({ events: [], inferenceMs: 1, decodeMs: 0, actualSessionRunCount: 1 }); await run;
+  const end = client.endSession('test'); worker.answer(); await end;
   const dispose = client.dispose(); worker.answer(); await dispose;
-  expect(worker.messages.map(m => m.type)).toEqual(['LOAD', 'INFER', 'DISPOSE']); expect(worker.terminated).toBe(true);
-  await expect(client.run(input)).rejects.toThrow();
+  expect(worker.messages.map(m => m.type)).toEqual(['LOAD', 'BEGIN_SESSION', 'INFER', 'END_SESSION', 'DISPOSE']); expect(worker.terminated).toBe(true);
+  await expect(client.run('test', input)).rejects.toThrow();
 });
 it('disposing active worker rejects pending inference instead of hanging', async () => {
   const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker);
   const load = client.load('/exact-model'); worker.answer(); await load;
-  const run = client.run(input); await client.dispose(); await expect(run).rejects.toThrow('ACOUSTIC_WORKER_DISPOSED');
+  const begin = client.beginSession('test'); worker.answer(); await begin;
+  const run = client.run('test', input); await client.dispose(); await expect(run).rejects.toThrow('ACOUSTIC_WORKER_DISPOSED');
 });
 

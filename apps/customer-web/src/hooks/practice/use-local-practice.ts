@@ -1,4 +1,5 @@
 'use client';
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 
 import { useCallback, useMemo, useState } from 'react';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
@@ -6,7 +7,7 @@ import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { useStepLocalPractice } from './use-step-local-practice';
 import { useContinuousLocalPractice } from './use-continuous-local-practice';
 import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
@@ -20,7 +21,8 @@ type LocalPracticeSessionSnapshot = LocalStepSessionSnapshot | LocalPerformanceS
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined; mode: PracticeMode; inputSource: PracticeInputSource;
   scope: PracticeScope | null; tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
-  recordingMode?: PracticeRecordingMode; cameraMediaStream?: MediaStream | null;
+  recordingMode?: PracticeRecordingMode; getCameraMediaStream?: () => MediaStream | null;
+  acquireInference?: (signal: AbortSignal) => Promise<AcousticInferencePort>;
   onNaturalCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
 

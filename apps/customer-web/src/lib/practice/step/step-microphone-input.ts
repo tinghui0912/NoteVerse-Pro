@@ -1,10 +1,11 @@
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';
-import type { StepMicrophonePlatform, StepMicrophoneWorker } from './step-microphone-platform';
+import type { StepMicrophonePlatform } from './step-microphone-platform';
 
 export type StepMicrophoneRetirementBoundary = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: 44100 | 48000; capturedThroughSourceSample: number;
@@ -19,7 +20,7 @@ export type StepMicrophoneSink<Identity> = StepAcousticAttemptSink<Identity> & R
 export class StepMicrophoneInput<Identity> {
   private state: 'NEW' | 'PREPARING' | 'AVAILABLE' | 'FAILED' | 'DISPOSED' = 'NEW';
   private connection: StepMicrophoneConnection | null = null;
-  private worker: StepMicrophoneWorker | null = null;
+  private worker: AcousticInferencePort | null = null;
   private runtime: SourceAnalysisRuntime | null = null;
   private bridge: StepAcousticCaptureBridge | null = null;
   private assembler: StepAcousticAttemptAssembler<Identity> | null = null;
@@ -139,10 +140,8 @@ export class StepMicrophoneInput<Identity> {
     const c = this.connection!;
     if (signal.aborted || c.context.state !== 'running' || ![44100, 48000].includes(c.context.sampleRate)
       || !c.localSessionId || !c.sourceDomainId || c.sourceDomainId.length > 192) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
-    const url = await this.platform.modelUrl(signal); this.check();
-    this.worker = this.platform.createWorker();
+    this.worker = await this.platform.acquireInference(signal); this.check();
     this.detachWorker = this.worker.onFailure?.(error => this.fail(error));
-    await this.worker.load(url); this.check();
     const coefficientBytes = await this.platform.coefficients(c.context.sampleRate); this.check();
     this.runtime = await SourceAnalysisRuntime.create({ sourceDomainId: c.sourceDomainId, sourceSampleRateHz: c.context.sampleRate,
       coefficientBytes, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },

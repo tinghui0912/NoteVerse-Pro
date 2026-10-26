@@ -15,13 +15,110 @@ permission UX and end-to-end device latency require separate product qualificati
 
 Microphone analysis requires standard AudioContext, AudioWorklet, getUserMedia,
 Worker, WebGPU adapter access, OPFS and cryptographic digest support. MIDI capability
-is independent of these acoustic prerequisites. Detection is side-effect-free;
-permission, device acquisition and model loading occur during session preparation.
+is independent of these acoustic prerequisites. Setup performs actual permission,
+device, capture and model-runtime probes before session creation.
 
 Recording and input source are orthogonal. User-selected audio or video recording
 is a review artifact. Analysis capture supplies PCM directly to the acoustic runtime.
 MediaRecorder output is not the analysis PCM source. Generic application realtime
 notifications invalidate application data independently of Practice execution.
+
+## Practice Configuration
+
+`configuration/` owns serializable user intent. `PracticePreferenceProfile` schema 1
+stores mode, input source, and Continuous recording intention (OFF/AUDIO/VIDEO),
+each initially unselected. Live note feedback defaults to false. First use requires
+explicit mode/input selection and, for Continuous, recording selection. STEP needs
+no recording selection. Invalid JSON, unknown schemas, extra fields and illegal
+enums are treated as unconfigured rather than repaired.
+
+Only this profile is stored under `noteverse.practice.preferences.v1` in localStorage.
+Score/revision/artifact identity is not a preference. `practiceRevisionId` remains
+in the URL through Setup, Practice and Review Retry; Retry uses the completed result's
+revision. Tempo, metronome and committed scope are workspace-memory options, initially
+SCORE, OFF and FULL. Retry and same-page Try Again retain all these options.
+
+## Practice Readiness
+
+`readiness/` derives requirements purely from the complete configuration. Live
+readiness is UNCONFIGURED, CHECKING, READY or BLOCKED, with component diagnostics
+and download progress. Its fingerprint represents the effective requirement set,
+so equivalent configurations share qualification; unrelated presentation changes
+do not invalidate it. Readiness is never persisted.
+
+| Configuration | Required checks |
+| --- | --- |
+| STEP / microphone | Audio capture, qualified source adapter/worklet, warm recognition |
+| STEP / MIDI | MIDI access and at least one connected input |
+| Continuous / microphone / OFF | Audio capture, qualified source adapter/worklet, warm recognition |
+| Continuous / microphone / AUDIO | Microphone recognition plus audio recorder |
+| Continuous / microphone / VIDEO | Microphone recognition, video-only camera and video recorder |
+| Continuous / MIDI / OFF | MIDI access and at least one connected input |
+| Continuous / MIDI / AUDIO | MIDI, recording microphone and audio recorder |
+| Continuous / MIDI / VIDEO | MIDI, recording microphone, camera and video recorder |
+
+MIDI recording never starts acoustic analysis. Microphone recording uses the session
+microphone audio; camera acquisition is video-only. Recorder probes use the same
+MIME strategy as the session recorder, construct and start/stop a real recorder,
+and discard all probe data. Probe tracks, worklets and AudioContexts are released.
+VIDEO/AUDIO/MIDI failures keep the selected intent and block Start; no fallback
+changes the configuration. Technical reason codes are available behind details.
+
+`/practice/setup` owns explicit preparation. Practice entry redirects there until
+the selected requirements are satisfied, preserving revision identity. Idle settings
+can change high-impact configuration and expose Prepare when needed; active sessions
+lock those choices. Full reload restores preferences, not readiness or GPU memory.
+Setup success does not promise immutable permissions: Start reacquires fresh device
+resources and fails closed on device/permission loss without cold model bootstrap.
+
+## Practice Environment
+
+The shared Practice layout keeps one stable `PracticeEnvironment` service across
+Setup, Practice, Review and Retry. `environment/` owns infrastructure preparation,
+readiness diagnostics and the score-blind `acoustic/model/acoustic-engine.ts`.
+It owns no score, scope, evaluator, attempt, result or recording artifact.
+
+```text
+Preferences -> Readiness gate -> Warm environment -> Session inference lease
+                                  |                       |
+                           workspace lifetime       fresh every Start
+```
+
+Cold preparation verifies the OPFS/downloaded model identity, creates one Worker
+and one ONNX WebGPU session, then executes a controlled finite smoke inference.
+The smoke lease ends before READY and publishes no Practice evidence. Healthy
+repeated Starts, End, natural completion, Review and Retry reuse that model/GPU
+session. Engine states are EMPTY, PREPARING, READY_IDLE, LEASED, RETIRING, FAILED
+and DISPOSED. Failures invalidate readiness and require explicit Setup preparation;
+there is no provider or input fallback.
+
+Worker protocol is LOAD, BEGIN_SESSION, INFER, END_SESSION, DISPOSE. Each lease
+binds a fresh token and job sequence starting at zero. Old/no/wrong tokens and
+out-of-order jobs fail closed. Only one lease may exist; retirement waits for old
+inference to settle, suppresses its publication, ends that token, and only then
+permits the next lease. Session disposal releases a lease, not the ONNX session.
+Leaving the entire Practice layout disposes the environment, ONNX session and Worker.
+
+## Practice Session
+
+Every Start creates fresh identity, timebase, capture chronology, publication queue,
+analysis runtime, evaluator and optional recorder. STEP and Continuous microphone
+controllers acquire a prepared inference port before microphone capture; neither
+loads models, requests signed access nor creates Workers. `SourceAnalysisRuntime`
+knows only its session-local inference port. Session teardown releases capture,
+streams, AudioContexts, recorder and lease while retaining the healthy warm engine.
+Natural completion and abandonment retain their distinct contracts below.
+
+Persistent state consists only of user preferences and the existing verified OPFS
+model asset. Readiness, warm engine, tempo/metronome/scope and current completion
+are browser memory; capture, clocks, evaluation and recorder are session resources.
+Practice Results/reports remain transient and are never persisted.
+
+Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
+OFF removes live supported/wrong/missed decorations while retaining score, range
+and playhead. Evaluation, interpretation, metrics and natural Result production
+continue unchanged. ON/OFF does not restart a session or engine. Review always
+shows completed feedback; Share Video always uses its clean-score contract.
 
 ## Domain Ownership
 

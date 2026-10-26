@@ -18,12 +18,12 @@ export interface StepPlatform {
     watchInfrastructure: typeof watchMicrophoneInfrastructure;
   };
 }
-export function browserStepPlatform(): StepPlatform {
+export function browserStepPlatform(acquireInference: StepMicrophonePlatform['acquireInference'] = async () => { throw new Error('PRACTICE_ENVIRONMENT_NOT_READY'); }): StepPlatform {
   return { clock: { nowMs: () => performance.now() }, timer: {
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
   }, createMidi: options => new BrowserMidiController(options), createMetronome: options => new MetronomeController(options),
-  microphone: { ...browserStepMicrophonePlatform,
+  microphone: { ...browserStepMicrophonePlatform(acquireInference),
     acquireMicrophone: () => navigator.mediaDevices.getUserMedia({ video: false,
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }),
     createAudioContext: () => new AudioContext(), watchInfrastructure: watchMicrophoneInfrastructure } };

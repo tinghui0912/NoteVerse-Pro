@@ -70,6 +70,12 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('configuration/')) return Boolean(target && (target.startsWith('configuration/')
+    || target.startsWith('kernel/') || target === 'recording/recording-mode.ts'));
+  if (source.startsWith('readiness/')) return Boolean(target && (target.startsWith('readiness/') || target.startsWith('configuration/')));
+  if (source.startsWith('environment/')) return Boolean(target && (target.startsWith('environment/') || target.startsWith('acoustic/')
+    || target.startsWith('readiness/') || ['recording/recorder-capability.ts', 'recording/recording-mode.ts'].includes(target)
+    || edge.target === normalize(path.join(sourceRoot, 'lib/api/practice-acoustic-model-asset.ts'))));
   if (['kernel/', 'step/', 'continuous/', 'acoustic/', 'result/', 'recording/'].some(owner => source.startsWith(owner))
     && target && presentationOwners.some(owner => target.startsWith(owner))) return false;
   if (source.startsWith('score-view/')) {
@@ -390,6 +396,55 @@ describe('Practice bounded domain dependencies', () => {
     }
     for (const file of productionFiles(path.join(practiceRoot, 'review'))) for (const edge of imports(file)) {
       expect(edge.bindings.includes('createContinuousPerformanceMetrics'), file).toBe(false);
+    }
+  });
+
+  it('separates intent, readiness, workspace infrastructure and per-session production paths', () => {
+    for (const [file, edges] of graph) {
+      const owner = relative(file);
+      if (owner.startsWith('step/') || owner.startsWith('continuous/')) for (const edge of edges) {
+        expect(edge.bindings.some(name => ['getPracticeAcousticModelAccess', 'createAcousticModelWorker', 'createVerifiedModelAssetLoader'].includes(name)), owner + ' -> ' + edge.specifier).toBe(false);
+      }
+      if (owner.startsWith('configuration/') && owner !== 'configuration/preference-storage.ts') {
+        const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+        const visit = (node: ts.Node) => {
+          if (ts.isIdentifier(node)) expect(['window', 'navigator', 'MediaStream', 'AudioContext', 'Worker', 'localStorage', 'fetch'].includes(node.text), owner).toBe(false);
+          ts.forEachChild(node, visit);
+        }; visit(source);
+      }
+      if (owner.startsWith('environment/')) for (const edge of edges) {
+        expect(edge.target && ['kernel/artifact.ts', 'kernel/scope.ts', 'kernel/tempo.ts'].includes(relative(edge.target)), owner).toBe(false);
+      }
+    }
+    for (const source of ['configuration/preferences.ts', 'readiness/requirements.ts', 'environment/practice-environment.ts']) {
+      for (const target of ['step/domain/runtime', 'continuous/domain/practice-session', 'result/continuous-performance-result', 'review/review-view-model']) {
+        const file = path.join(practiceRoot, source);
+        expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
+      }
+    }
+    const profile = readFileSync(path.join(practiceRoot, 'configuration/preference-storage.ts'), 'utf8');
+    expect(profile).not.toMatch(/sessionStorage|indexedDB/);
+    for (const file of files.filter(file => relative(file).startsWith('readiness/'))) {
+      expect(readFileSync(file, 'utf8')).not.toMatch(/localStorage|sessionStorage|indexedDB/);
+    }
+  });
+
+  it('per-session runtime imports cannot reach cold model preparation transitively', () => {
+    const coldOwners = ['lib/api/practice-acoustic-model-asset.ts',
+      'lib/practice/acoustic/model/worker-client.ts', 'lib/model-assets/verified-model-asset-loader.ts'];
+    for (const start of files.filter(file => /^(step|continuous)\//.test(relative(file)))) {
+      const visited = new Set<string>();
+      const visit = (file: string) => {
+        if (visited.has(file)) return;
+        visited.add(file);
+        for (const edge of sourceGraph.get(file) ?? []) {
+          if (!edge.target || edge.typeOnly) continue;
+          const target = normalize(path.relative(sourceRoot, edge.target));
+          expect(coldOwners.includes(target), relative(start) + ' -> ' + target).toBe(false);
+          visit(edge.target);
+        }
+      };
+      visit(normalize(start));
     }
   });
 

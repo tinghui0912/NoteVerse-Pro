@@ -1,6 +1,7 @@
 'use client';
 
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
+import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -364,8 +365,8 @@ export default function PracticeReviewPage({
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     continuousCompletionStore.clearCompletion();
-    router.push(target === 'score' ? `/score/${id}` : `/score/${id}/practice`);
-  }, [id, router]);
+    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'practice', result?.revisionId));
+  }, [id, router, result?.revisionId]);
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {

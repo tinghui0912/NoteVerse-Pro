@@ -1,3 +1,4 @@
+import { installAcousticEngineFixture, openPreparedPractice, prepareSelectedPractice } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
 import {
   mockAuthenticatedSession,
@@ -152,6 +153,7 @@ async function setupPracticeMocks(
   const initialMidiInputs = options.initialMidiInputs ?? 1;
   const disableOpfs = Boolean(options.disableOpfs);
 
+  await installAcousticEngineFixture(page);
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
@@ -234,6 +236,18 @@ async function setupPracticeMocks(
           navigator.mediaDevices.getUserMedia = async () => ({}) as unknown as MediaStream;
         }
       }
+      navigator.mediaDevices.getUserMedia = async () => {
+        const context = new AudioContext({ sampleRate: 48000 });
+        await context.resume();
+        const oscillator = context.createOscillator(), destination = context.createMediaStreamDestination();
+        oscillator.connect(destination); oscillator.start();
+        for (const track of destination.stream.getTracks()) {
+          const stop = track.stop.bind(track);
+          track.stop = () => { stop(); oscillator.stop(); void context.close(); };
+        }
+        return destination.stream;
+      };
+
     },
     { initInputs: initialMidiInputs, disableOpfs }
   );
@@ -342,7 +356,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     });
 
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch input to MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -358,6 +372,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await sheetClose.click();
 
     // Start practice
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -418,7 +433,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     });
 
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to Continuous play mode and MIDI input
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -438,6 +453,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await sheetClose.click();
 
     // Start practice
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -491,7 +507,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     });
 
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Open tempo popover from bottom controls
     const tempoButton = page.getByRole('button', { name: '速度' });
@@ -531,6 +547,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await sheetClose.click();
 
     // Start practice with custom tempo & metronome
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -565,7 +582,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     });
 
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to Continuous mode and MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -584,6 +601,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await sheetClose.click();
 
     // Start practice
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -650,7 +668,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     };
 
     await setupPracticeMocks(page, leadingRestArtifact);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Open tempo popover from bottom controls
     const tempoButton = page.getByRole('button', { name: '速度' });
@@ -680,7 +698,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     });
 
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // Select MIDI input
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -695,6 +713,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await sheetClose.click();
 
     // Start practice (starts with Metronome OFF by default)
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -732,7 +751,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     page,
   }) => {
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     // 1. Desktop Layout Parity: NO persistent right settings panel (aside)
     await expect(page.locator('aside')).toHaveCount(0);
@@ -823,6 +842,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
 
     // 4. Start Practice with Range
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -846,12 +866,13 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
   test('SECTION SELECTION: incomplete range disables Start and cancellation restores full-piece practice', async ({ page }) => {
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
     await page.getByRole('button', { name: '设置' }).click();
     await page.getByRole('button', { name: /MIDI/i }).click();
     await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
@@ -879,12 +900,13 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
   test('SECTION SELECTION: reverse note clicks complete the inclusive range and lock selection during practice', async ({ page }) => {
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
     await page.getByRole('button', { name: '设置' }).click();
     await page.getByRole('button', { name: /MIDI/i }).click();
     await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     await sectionButton.click();
@@ -910,12 +932,13 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
   test('SECTION SELECTION: selected-section completion can adjust and replace the range', async ({ page }) => {
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
     await page.getByRole('button', { name: '设置' }).click();
     await page.getByRole('button', { name: /MIDI/i }).click();
     await page.getByRole('button', { name: /close/i }).click();
 
     const sectionButton = page.getByRole('button', { name: '分段', exact: true });
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     const status = page.getByRole('status');
     const startNote = page.locator('[data-id="select-start-note"]').first().locator('path, use').first();
@@ -950,140 +973,57 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(startButton).toBeEnabled();
   });
 
-  test('STEP microphone is capability-available without prefetch; MIDI retries after a device connects without acoustic loading', async ({
-    page,
-  }) => {
-    const modelAssetRequests: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().includes('/model-assets')) {
-        modelAssetRequests.push(`${request.method()} ${request.url()}`);
-      }
-    });
-
-    await setupPracticeMocks(page, {
-      initialMidiInputs: 0,
-    });
-
-    await page.goto(`/zh/score/${scoreId}/practice`);
-
-    // Microphone capability is ready before any model access or session preparation.
-    const status = page.getByRole('status');
-    await expect(status).toBeVisible();
-    await expect(status).toContainText('已准备就绪，请点击开始');
-
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(startButton).toBeEnabled();
-    expect(modelAssetRequests).toEqual([]);
-
-    // 2. Open Settings, switch to MIDI
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await settingsButton.click();
-    const microphoneOption = page.getByRole('button', { name: /^麦克风/ });
-    await expect(microphoneOption).toBeEnabled();
-    await expect(microphoneOption).toHaveAttribute('aria-pressed', 'true');
-    await expect(microphoneOption).toContainText('使用浏览器默认麦克风');
-    expect(modelAssetRequests).toEqual([]);
-    const midiOption = page.getByRole('button', { name: /MIDI/i }).first();
-    await midiOption.click();
-
-    // Close Settings Sheet
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    } else {
-      await page.keyboard.press('Escape');
-    }
-
-    // 3. MIDI selected: Start button is enabled (since Web MIDI is supported in browser)
-    await expect(startButton).toBeEnabled();
-
-    // Click Start: fails because 0 devices connected
-    await startButton.click();
-
-    // Practice does NOT enter ACTIVE, stays READY, displays 0-device error
-    await expect(status).toContainText('未检测到 MIDI 输入设备，请连接 MIDI 键盘后重试');
-    await expect(status).not.toContainText('可以开始，请弹奏当前音符');
-    expect(modelAssetRequests).toEqual([]);
-
-    // 4. User plugs in MIDI keyboard
-    await page.evaluate(() => {
-      (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice();
-    });
-
-    // Re-click Start to retry
-    await expect(startButton).toBeEnabled();
-    await startButton.click();
-
-    // Practice becomes ACTIVE
-    await expect(status).toContainText('可以开始，请弹奏当前音符');
-
-    // Abandon the active session
-    const endButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(endButton).toBeEnabled();
-    await endButton.click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
+  test('STEP setup does not prefetch a model for MIDI and blocks until a device connects', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', request => { if (request.url().includes('/model-assets')) requests.push(request.url()); });
+    await setupPracticeMocks(page, { initialMidiInputs: 0 });
+    await page.goto('/zh/score/' + scoreId + '/practice?practiceRevisionId=' + revisionId);
+    await expect(page.getByTestId('practice-setup')).toBeVisible();
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '逐音练习', exact: true }).click();
+    await page.getByRole('button', { name: 'MIDI 键盘', exact: true }).click();
+    expect(requests).toEqual([]);
+    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
+    await page.getByText('技术详情', { exact: true }).click();
+    await expect(page.getByText('NO_CONNECTED_INPUT', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.evaluate(() => (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice());
+    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    const start = page.getByRole('button', { name: '开始', exact: true });
+    await expect(start).toBeEnabled();
+    await start.click(); await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+    await page.getByRole('button', { name: '结束', exact: true }).click();
+    await expect(start).toBeEnabled(); await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
-    expect(modelAssetRequests).toEqual([]);
+    expect(requests).toEqual([]);
   });
 
-  test('Continuous microphone is capability-available without prefetch and fails closed if asset access fails during preparation', async ({
-    page,
-  }) => {
-    const modelAssetRequests: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().includes('/model-assets')) {
-        modelAssetRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
-      }
-    });
-
+  test('Continuous microphone cold setup fails closed on asset access without starting a session', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', request => { if (new URL(request.url()).pathname === practiceModelAccessPath) requests.push(request.url()); });
     await setupPracticeMocks(page, { modelAccessOverride: 'error' });
-    await page.goto(`/zh/score/${scoreId}/practice`);
-
-    const status = page.getByRole('status');
-    const startButton = page.getByRole('button', { name: '开始', exact: true });
-    await expect(status).toContainText('已准备就绪，请点击开始');
-    await expect(startButton).toBeEnabled();
-    expect(modelAssetRequests).toEqual([]);
-
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    await settingsButton.click();
-    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
-    await expect(continuousOption).toBeEnabled();
-    await continuousOption.click();
-    const microphoneOption = page.getByRole('button', { name: /^麦克风/ });
-    await expect(microphoneOption).toBeEnabled();
-    await microphoneOption.click();
-    await expect(microphoneOption).toHaveAttribute('aria-pressed', 'true');
-    await expect(microphoneOption).toContainText('使用浏览器默认麦克风');
-    expect(modelAssetRequests).toEqual([]);
-
-    const sheetClose = page.getByRole('button', { name: /close/i });
-    await expect(sheetClose).toBeVisible();
-    await sheetClose.click();
-
-    await expect(status).toContainText('已准备就绪，请点击开始');
-    await expect(startButton).toBeEnabled();
-    expect(modelAssetRequests).toEqual([]);
-
-    const assetAccessResponse = page.waitForResponse(
-      response => new URL(response.url()).pathname === practiceModelAccessPath
-    );
-    await startButton.click();
-    expect((await assetAccessResponse).status()).toBe(500);
-    await expect(status).toContainText('无法加载已校验的分析模型。请开始新会话重试。');
-    await expect(status).not.toContainText(/预备拍|连贯演奏中/);
-    await expect(page.getByRole('button', { name: '暂停', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '结束', exact: true })).toBeDisabled();
-    expect(modelAssetRequests).toEqual([`GET ${practiceModelAccessPath}`]);
+    await page.goto('/zh/score/' + scoreId + '/practice?practiceRevisionId=' + revisionId);
+    await expect(page.getByTestId('practice-setup')).toBeVisible();
+    await page.getByRole('button', { name: '连贯演奏', exact: true }).click();
+    await page.getByRole('button', { name: '麦克风', exact: true }).click();
+    await page.getByRole('button', { name: '不录制', exact: true }).click();
+    expect(requests).toEqual([]);
+    const access = page.waitForResponse(response => new URL(response.url()).pathname === practiceModelAccessPath);
+    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    expect((await access).status()).toBe(500);
+    await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('button', { name: '麦克风', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(requests).toHaveLength(1);
   });
 
   test('CONTINUOUS ACTIVE SESSION: survives backend API loss after score assets load', async ({
     page,
   }) => {
     await setupPracticeMocks(page);
-    await page.goto(`/zh/score/${scoreId}/practice`);
+    await openPreparedPractice(page, scoreId, revisionId);
 
     const settingsButton = page.getByRole('button', { name: '设置' });
     await expect(settingsButton).toBeVisible();
@@ -1101,6 +1041,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(sheetClose).toBeVisible();
     await sheetClose.click();
 
+    await prepareSelectedPractice(page);
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();

@@ -1,4 +1,5 @@
 'use client';
+import { browserStepPlatform } from '@/lib/practice/step/step-platform';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StepPracticeController, type StepControllerState } from '@/lib/practice/step/step-practice-controller';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
@@ -50,7 +51,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
       if (operation !== generation.current) return;
       onSessionStart();
       const controller = new StepPracticeController({ artifact: options.artifact, scope: options.scope,
-        inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
+        platform: browserStepPlatform(options.acquireInference), inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
         onNaturalCompletion: result => {
           if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);
         } });

@@ -2,7 +2,8 @@ import { createPerformanceRecording, type PerformanceRecording } from './recordi
 import type { RecordingActiveSegment } from './recording-timebase';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 
-export type PracticeRecordingMode = 'OFF' | 'AUDIO' | 'VIDEO';
+import type { PracticeRecordingMode } from './recording-mode';
+import { recordingOptions } from './recorder-capability';
 
 type RecorderState =
   | 'NOT_STARTED'
@@ -19,19 +20,6 @@ type PrepareOptions = {
 };
 
 type RecorderStopResult = 'STOPPED' | 'TIMEOUT' | 'FAILED';
-
-function preferredVideoRecorderMimeType(): string | undefined {
-  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
-    return undefined;
-  }
-  const candidates = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm',
-    'video/mp4',
-  ];
-  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-}
 
 function createContinuousVideoStream(
   cameraStream: MediaStream | null | undefined,
@@ -89,7 +77,7 @@ export class PerformanceRecorder {
           return;
         }
         if (this.disposed) { this.releaseStream(); return; }
-        this.installRecorder(new MediaRecorder(stream), stream, 'AUDIO');
+        this.installRecorder(new MediaRecorder(stream, recordingOptions('AUDIO')), stream, 'AUDIO');
         return;
       }
 
@@ -101,10 +89,7 @@ export class PerformanceRecorder {
       }
       this.ownedStream = stream; this.sourceOwnership = 'OWNED_CLONE';
       if (this.disposed) { this.releaseStream(); return; }
-      const recorderOptions = preferredVideoRecorderMimeType()
-        ? { mimeType: preferredVideoRecorderMimeType() }
-        : undefined;
-      this.installRecorder(new MediaRecorder(stream, recorderOptions), stream, 'VIDEO');
+      this.installRecorder(new MediaRecorder(stream, recordingOptions('VIDEO')), stream, 'VIDEO');
     } catch (error) {
       this.markUnavailable(error instanceof DOMException ? error.name : 'RECORDER_INIT_FAILED');
     }

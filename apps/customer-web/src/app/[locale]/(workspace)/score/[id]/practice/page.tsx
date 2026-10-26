@@ -7,7 +7,10 @@ import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
-import { usePracticeCameraRecording } from '@/hooks/practice/use-practice-camera-recording';
+import { usePracticeVideoPreview } from '@/hooks/practice/use-practice-video-preview';
+import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
+import { PracticeReadinessGate } from '@/components/practice/practice-readiness-gate';
+import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import { usePracticeRangeSelection } from '@/hooks/practice/use-practice-range-selection';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
@@ -24,8 +27,6 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
 import { type ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
-import { type PracticeInputSource, type PracticeMode } from '@/lib/practice/kernel/session';
-import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import {
   evaluatePracticeInputCapabilities,
   getSelectedInputCapability,
@@ -68,6 +69,10 @@ function CameraPreview({
 }
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
+  return <PracticeReadinessGate><PracticeWorkspace params={params} /></PracticeReadinessGate>;
+}
+
+function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
   const t = useTranslations('practice');
@@ -78,12 +83,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const searchParams = useSearchParams();
 
   // Mode and settings
-  const [practiceMode, setPracticeMode] = useState<PracticeMode>('STEP_BY_STEP');
-  const [inputSource, setInputSource] = useState<PracticeInputSource>('MICROPHONE');
-  const [tempoSelection, setTempoSelection] = useState<PracticeTempoSelection>({ mode: 'SCORE' });
-  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  const workspace = usePracticeWorkspace();
+  const practiceMode = workspace.profile.mode!;
+  const inputSource = workspace.profile.inputSource!;
+  const recordingMode = practiceMode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode;
+  const { tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled, profile, updateProfile } = workspace;
+  const setPracticeMode = (mode: typeof practiceMode) => updateProfile({ ...profile, mode });
+  const setInputSource = (source: typeof inputSource) => updateProfile({ ...profile, inputSource: source });
+  const changeRecordingMode = (mode: typeof recordingMode) => updateProfile({ ...profile, continuous: { ...profile.continuous, recordingMode: mode } });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const [previewEnabled, setPreviewEnabled] = useState(true);
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -122,7 +132,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     [artifact]
   );
 
-  const range = usePracticeRangeSelection(expectedGroups);
+  const range = usePracticeRangeSelection(expectedGroups, workspace.scope, workspace.setScope);
   const { practiceScope, selectedRangeRenderNoteIds } = range;
 
   const resolvedScope = useMemo(() => {
@@ -134,8 +144,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
   const cameraMessages = useMemo(() => ({
-    continuousOnly: t('settingCameraContinuousOnly'),
-    unsupported: t('settingCameraUnsupported'),
     preparing: t('settingCameraPreparing'),
     ready: t('settingCameraReady'),
     permissionDenied: t('settingCameraPermissionDenied'),
@@ -143,10 +151,18 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     audioMissing: t('settingCameraAudioMissing'),
     videoMissing: t('settingCameraVideoMissing'),
   }), [t]);
-  const { recordingMode, cameraPreviewStream, cameraStatusMessage, isPreparingCamera,
-    changeRecordingMode, releaseCameraPreview } = usePracticeCameraRecording({
-    practiceMode, inputSource, messages: cameraMessages,
+  const invalidatePreview = useCallback((reason: string) => workspace.environment.invalidate(reason), [workspace.environment]);
+  const { cameraPreviewStream, cameraStatusMessage, isPreparingCamera, preparePreview,
+    releaseCameraPreview, getCameraMediaStream } = usePracticeVideoPreview({
+    practiceMode, inputSource, recordingMode, messages: cameraMessages, onFailure: invalidatePreview,
   });
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled && workspace.ready && previewEnabled && recordingMode === 'VIDEO' && !cameraPreviewStream && !isPreparingCamera && !isCompletionDialogOpen) void preparePreview();
+    });
+    return () => { cancelled = true; };
+  }, [workspace.ready, previewEnabled, recordingMode, cameraPreviewStream, isPreparingCamera, preparePreview, isCompletionDialogOpen]);
 
   // Local Practice orchestration
   const localPractice = useLocalPractice({
@@ -156,21 +172,26 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     scope: practiceScope,
     tempoSelection,
     metronomeEnabled,
-    recordingMode: practiceMode === 'CONTINUOUS_PLAY' ? recordingMode : 'OFF',
-    cameraMediaStream: cameraPreviewStream,
+    recordingMode: recordingMode ?? undefined,
+    getCameraMediaStream,
+    acquireInference: workspace.environment.acquireInference,
     onNaturalCompletion: snapshot => {
       if (snapshot.completionReason !== 'SCOPE_COMPLETED') return;
+      setPreviewEnabled(false);
       releaseCameraPreview();
       setIsCompletionDialogOpen(true);
     },
   });
+  useEffect(() => {
+    if (localPractice.inputError && workspace.ready) workspace.environment.invalidate(localPractice.inputError);
+  }, [localPractice.inputError, workspace.ready, workspace.environment]);
 
   const handleMetronomeEnabledChange = useCallback(
     (enabled: boolean) => {
       setMetronomeEnabled(enabled);
       localPractice.setMetronomeEnabled(enabled);
     },
-    [localPractice]
+    [localPractice, setMetronomeEnabled]
   );
 
   const isLoadingXml = scoreQuery.isLoading || revisionQuery.isLoading || artifactQuery.isLoading;
@@ -189,11 +210,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     Boolean(selectedRevisionId && xmlContent && artifact) &&
     Boolean(practiceScope) &&
     !range.isIncomplete &&
+    workspace.ready && (recordingMode !== 'VIDEO' || Boolean(cameraPreviewStream)) &&
     !isResourceLoading &&
     !loadError;
 
   const handleRestart = async () => {
     setIsCompletionDialogOpen(false);
+    setPreviewEnabled(true);
+    if (recordingMode === 'VIDEO' && !await preparePreview()) return;
     await localPractice.restart();
   };
 
@@ -268,7 +292,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
       onStart: () => void localPractice.start(),
-      onEnd: () => { void localPractice.abandon(); },
+      onEnd: () => {
+        setPreviewEnabled(false);
+        void localPractice.abandon().then(releaseCameraPreview);
+      },
       onOpenSettings: () => setIsSettingsOpen(true),
       onToggleRangeSelection: range.toggleSelection,
   };
@@ -328,6 +355,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         />
       ) : (
         <>
+          {!isActive && !workspace.ready && <button type="button" className="m-3 rounded border p-3"
+            onClick={() => router.push(practiceLocation(id, 'setup', selectedRevisionId))}>{t('setupPrepare')}</button>}
+          {!isActive && workspace.ready && recordingMode === 'VIDEO' && !cameraPreviewStream && <button type="button"
+            className="m-3 rounded border p-3" disabled={isPreparingCamera} onClick={() => { setPreviewEnabled(true); void preparePreview(); }}>
+            {t('settingCameraPreparing')}
+          </button>}
           <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
             <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
               <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
@@ -342,6 +375,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     activeStepGroup={localPractice.activeStepGroup}
                     performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
                     performanceEvaluation={localPractice.performanceEvaluation}
+                    showContinuousFeedback={profile.continuous.liveFeedbackEnabled}
                     performanceScope={
                       localPractice.performanceClock
                         ? range.hasRangeSelection
@@ -406,8 +440,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 onPracticeModeChange={setPracticeMode}
                 onInputSourceChange={setInputSource}
                 onRecordingModeChange={(mode) => {
-                  void changeRecordingMode(mode);
+                  changeRecordingMode(mode);
                 }}
+                liveFeedbackEnabled={profile.continuous.liveFeedbackEnabled}
+                onLiveFeedbackChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })}
               />
             </SheetContent>
           </Sheet>

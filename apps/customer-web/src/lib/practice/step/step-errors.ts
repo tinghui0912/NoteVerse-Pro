@@ -1,4 +1,5 @@
 export type StepApplicationErrorCode = 'STEP_SCORE_UNAVAILABLE'
+  | 'PRACTICE_ENVIRONMENT_NOT_READY'
   | 'STEP_MIDI_PERMISSION_DENIED' | 'NO_CONNECTED_INPUT' | 'STEP_MIDI_UNAVAILABLE'
   | 'STEP_MICROPHONE_PERMISSION_DENIED' | 'STEP_MICROPHONE_UNAVAILABLE' | 'STEP_ACOUSTIC_PREPARATION_FAILED'
   | 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED'
@@ -6,6 +7,7 @@ export type StepApplicationErrorCode = 'STEP_SCORE_UNAVAILABLE'
   | 'STEP_ATTEMPT_FAILED' | 'STEP_RESOURCE_CLEANUP_FAILED';
 export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, string>> = Object.freeze({
   STEP_SCORE_UNAVAILABLE: 'The score is unavailable.',
+  PRACTICE_ENVIRONMENT_NOT_READY: 'Prepare the practice environment before starting.',
   STEP_MIDI_PERMISSION_DENIED: 'MIDI permission was denied.',
   NO_CONNECTED_INPUT: 'Connect a MIDI input to continue.',
   STEP_MIDI_UNAVAILABLE: 'MIDI input is unavailable.',

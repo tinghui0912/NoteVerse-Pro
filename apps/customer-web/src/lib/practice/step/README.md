@@ -80,13 +80,16 @@ Microphone infrastructure or analysis loss is terminal.
 
 The controller owns the root stream, session AudioContext, metronome and runtime.
 Microphone input borrows the stream/context and owns its analysis clone, capture
-bridge, assembler and Worker graph. Initial readiness requires an accepted physical
+bridge, assembler and exclusive inference lease from the prepared workspace engine.
+Initial input readiness requires an accepted physical
 boundary and armed input. MIDI execution constructs no microphone resources.
-Finish/dispose await release; restart and mode/input changes wait for cleanup before
+Abandon/dispose await release; restart and mode/input changes wait for cleanup before
 constructing a fresh owner. Owned resources are released once.
 
 Both product modes support microphone analysis when the browser acoustic runtime
-is available. Capability detection is side-effect-free and independent of MIDI.
+is available. Workspace Setup validates actual capture and warm recognition before
+Start; MIDI preparation is independent of acoustic requirements. Start acquires a
+fresh lease and stream/context without model access, loading or Worker creation.
 Physical-device recognition quality, permission UX and end-to-end latency require
 separate qualification.
 

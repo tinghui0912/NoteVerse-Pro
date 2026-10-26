@@ -38,6 +38,7 @@ type PracticeScoreViewerProps = {
   performanceMusicalBeat?: number | null;
   performanceScope?: CursorScope | null;
   performanceEvaluation?: ContinuousEvaluationSnapshot | null;
+  showContinuousFeedback?: boolean;
   selectedRangeRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
@@ -53,6 +54,7 @@ export function PracticeScoreViewer({
   performanceMusicalBeat = null,
   performanceScope = null,
   performanceEvaluation = null,
+  showContinuousFeedback = false,
   selectedRangeRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
@@ -124,6 +126,7 @@ export function PracticeScoreViewer({
     if (
       !container ||
       sessionMode !== 'CONTINUOUS_PLAY' ||
+      !showContinuousFeedback ||
       !xmlContent ||
       renderRevision === 0
     ) {
@@ -144,6 +147,7 @@ export function PracticeScoreViewer({
     annotationController,
     performanceAnnotationSignature,
     performanceEvaluation,
+    showContinuousFeedback,
     renderRevision,
     sessionMode,
     xmlContent,

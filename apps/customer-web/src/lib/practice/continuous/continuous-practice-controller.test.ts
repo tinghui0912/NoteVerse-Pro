@@ -1,3 +1,4 @@
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './input/midi-evidence-identity';
 import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/model-contract';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
@@ -7,7 +8,7 @@ import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifa
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
-import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-input';
+import type { ContinuousPlatform } from './continuous-input';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
@@ -29,6 +30,7 @@ function stream(video = false): TestStream {
   return { media, audio, copies };
 }
 class Recorder {
+  static isTypeSupported() { return true; }
   state = 'inactive'; mimeType = 'audio/webm';
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null; onerror: (() => void) | null = null;
@@ -46,12 +48,12 @@ function environment(rate = 48000) {
     addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events),
     dispatchEvent: events.dispatchEvent.bind(events),
     resume: vi.fn(async () => {}), close: vi.fn(async () => { context.state = 'closed'; events.dispatchEvent(new Event('statechange')); }) };
-  const worker: ContinuousModelWorker = { load: vi.fn(async () => ({})),
+  const worker: AcousticInferencePort = {
     run: vi.fn(async () => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++runs })),
     dispose: vi.fn(async () => {}), onFailure: listener => { fail = listener; return () => { fail = undefined; }; } };
   const meter = { start: vi.fn(), stop: vi.fn(), pause: vi.fn(), resume: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), syncContinuous: vi.fn() };
   const platform: ContinuousPlatform = {
-    midiClock: clock, modelUrl: vi.fn(async () => '/model'), createWorker: vi.fn(() => worker),
+    midiClock: clock, acquireInference: vi.fn(async () => worker),
     acquireMicrophone: vi.fn(async () => root.media), createAudioContext: vi.fn(() => context as unknown as AudioContext),
     coefficients: async sourceRate => {
       if (sourceRate !== 44100 && sourceRate !== 48000) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
@@ -166,7 +168,7 @@ describe('Continuous application owner', () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(1201); controller.refresh(); await controller.abandon();
     expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
-    expect(f.platform.createWorker).not.toHaveBeenCalled(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
+    expect(f.platform.acquireInference).not.toHaveBeenCalled(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
     expect(f.platform.createAudioContext).not.toHaveBeenCalled();
     expect(authorize).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
     await controller.dispose(); authorize.mockRestore(); finalize.mockRestore();
@@ -183,7 +185,7 @@ describe('Continuous application owner', () => {
       expect(getUserMedia).toHaveBeenCalledTimes(1);
       expect(f.platform.createMidi).toHaveBeenCalledTimes(1);
       expect(f.platform.acquireMicrophone).not.toHaveBeenCalled();
-      expect(f.platform.createWorker).not.toHaveBeenCalled();
+      expect(f.platform.acquireInference).not.toHaveBeenCalled();
       expect(f.platform.createAudioContext).not.toHaveBeenCalled();
 
       f.clock.set(1201); controller.refresh();
@@ -356,7 +358,7 @@ describe('Continuous application owner', () => {
     expect(f.context.close).toHaveBeenCalledTimes(1); await controller.dispose();
   });
   it('pre-start model failure never begins transport or acquires microphone', async () => {
-    const f = environment(); f.platform.modelUrl = async () => { throw new Error('ASSET_FAILURE'); };
+    const f = environment(); f.platform.acquireInference = async () => { throw new Error('ASSET_FAILURE'); };
     const controller = f.create(); await controller.start(); expect(controller.snapshot().session).toBe('FAILED_BEFORE_START');
     expect(controller.snapshot().transport).toBeNull(); expect(f.platform.acquireMicrophone).not.toHaveBeenCalled(); await controller.dispose();
   });
@@ -462,7 +464,7 @@ it('the formally latched natural completion wins a later End and publishes exact
 it('late acoustic inference after abandonment cannot publish completion or mutate the next owner', async () => {
   const f = environment(), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'OFF', callback);
   await controller.start();
-  let resolve!: (value: Awaited<ReturnType<ContinuousModelWorker['run']>>) => void;
+  let resolve!: (value: Awaited<ReturnType<AcousticInferencePort['run']>>) => void;
   vi.mocked(f.worker.run).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   await f.feed(1000); expect(resolve).toBeDefined();
   const abandoning = controller.abandon();

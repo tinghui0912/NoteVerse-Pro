@@ -5,18 +5,17 @@ import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/do
 import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import type { MetronomeController, MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
 import type { BrowserMidiControllerOptions, BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
-import type { PerformanceRecorder, PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
+import type { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
 import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
-export interface ContinuousModelWorker extends AcousticInferencePort { load(url: string): Promise<unknown>; }
 export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
 export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'startIfReady' | 'pause' | 'resume' | 'freeze' | 'finalize' | 'stopAndCleanup' | 'snapshot'>;
 export type ContinuousMetronomePort = Pick<MetronomeController, 'start' | 'pause' | 'resume' | 'stop' | 'destroy' | 'setEnabled' | 'syncContinuous'>;
 /** Platform boundaries are injectable for deterministic tests, never alternate evaluation policies. */
 export interface ContinuousPlatform {
   midiClock: LocalClock;
-  modelUrl(signal: AbortSignal): Promise<string>;
-  createWorker(): ContinuousModelWorker;
+  acquireInference(signal: AbortSignal): Promise<AcousticInferencePort>;
   acquireMicrophone(): Promise<MediaStream>;
   createAudioContext(): AudioContext;
   coefficients(rate: number): Promise<Uint8Array>;

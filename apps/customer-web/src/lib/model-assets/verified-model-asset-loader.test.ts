@@ -7,6 +7,6 @@ import { practiceAcousticModelManifest } from '../practice/acoustic/model/acoust
 it('delegates the actual immutable asset identity to the generic verified OPFS store without relabeling', async () => {
   const manifest = practiceAcousticModelManifest('https://example.invalid/exact-model');
   await createVerifiedModelAssetLoader()(manifest.asset);
-  expect(fake.ensureAsset).toHaveBeenCalledWith(manifest.asset);
+  expect(fake.ensureAsset).toHaveBeenCalledWith(manifest.asset, undefined);
   expect(fake.ensureAsset.mock.calls[0][0]).toMatchObject({ assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1', expectedByteSize: 98689283 });
 });

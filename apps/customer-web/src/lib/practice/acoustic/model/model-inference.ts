@@ -3,7 +3,8 @@ import { createVerifiedModelAssetLoader } from '../../../model-assets/verified-m
 import type { PianoRawOutputs } from './raw-output-contract';
 import { decodeRobustPiano } from './robust-piano-decoder';
 import { ACOUSTIC_MODEL as M, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
-import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
+import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
+import type { ModelAssetProgressCallback } from '../../../model-assets/types';
 import { assertModelNames, assertWindowGeometry, checkedOutput } from './model-validation';
 import { practiceAcousticModelManifest } from './acoustic-model-manifest';
 
@@ -19,14 +20,15 @@ function outputData(tensor: ort.Tensor | undefined): Float32Array {
 }
 
 /** One ONNX session. Window context is explicit; no recurrent state crosses segments. */
-export class AcousticModelSession implements AcousticInferencePort {
+export class AcousticModelSession {
   private state: 'EMPTY' | 'READY' | 'FAILED' | 'DISPOSED' = 'EMPTY';
   private busy = false;
   private session: ort.InferenceSession | null = null;
   private nextJob = 0;
   private loads = 0;
   private runs = 0;
-  async load(modelUrl: string): Promise<unknown> {
+  private activeSession: string | null = null;
+  async load(modelUrl: string, progress?: ModelAssetProgressCallback): Promise<unknown> {
     if (this.busy || this.state !== 'EMPTY') fail('ACOUSTIC_WORKER_NOT_EMPTY');
     this.busy = true;
     let session: ort.InferenceSession | null = null;
@@ -35,7 +37,7 @@ export class AcousticModelSession implements AcousticInferencePort {
       if (ort.env.versions.web !== M.ortVersion) fail('ORT_VERSION_MISMATCH');
       if (typeof navigator === 'undefined' || !navigator.gpu) fail('ACOUSTIC_WEBGPU_UNAVAILABLE');
       const manifest = practiceAcousticModelManifest(modelUrl), started = performance.now();
-      const loaded = await createVerifiedModelAssetLoader()(manifest.asset);
+      const loaded = await createVerifiedModelAssetLoader()(manifest.asset, progress);
       await verifyAcousticModel(loaded.bytes);
       const verifiedAt = performance.now();
       session = await ort.InferenceSession.create(loaded.bytes, { executionProviders: [manifest.provider], graphOptimizationLevel: 'disabled' });
@@ -51,11 +53,20 @@ export class AcousticModelSession implements AcousticInferencePort {
     } catch (error) { this.state = 'FAILED'; await session?.release(); throw error; }
     finally { this.busy = false; }
   }
-  async run(input: AcousticInferenceInput): Promise<AcousticInferenceResult> {
+  beginSession(sessionId: string): void {
+    if (this.busy || this.state !== 'READY' || this.activeSession !== null || !sessionId) fail('ACOUSTIC_SESSION_NOT_IDLE');
+    this.activeSession = sessionId; this.nextJob = 0; this.runs = 0;
+  }
+  endSession(sessionId: string): void {
+    if (this.busy || !sessionId || this.activeSession !== sessionId) fail('ACOUSTIC_SESSION_MISMATCH');
+    this.activeSession = null; this.nextJob = 0; this.runs = 0;
+  }
+  async run(sessionId: string, input: AcousticInferenceInput): Promise<AcousticInferenceResult> {
     onlyFields(input, ['window', 'pcm']);
     onlyFields(input.window, ['jobIndex', 'regionIndex', 'windowIndex', 'ownedStartTarget', 'ownedEndTarget', 'startSample', 'endSample']);
     if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');
     if (this.state !== 'READY' || !this.session) fail('ACOUSTIC_WORKER_NOT_READY');
+    if (!sessionId || this.activeSession !== sessionId) fail('ACOUSTIC_SESSION_MISMATCH');
     const w = input.window;
     assertWindowGeometry(w);
     if (w.jobIndex !== this.nextJob || !(input.pcm instanceof Float32Array) || input.pcm.length !== M.inputSamples
@@ -80,6 +91,6 @@ export class AcousticModelSession implements AcousticInferencePort {
   }
   async dispose(): Promise<void> {
     if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');
-    try { await this.session?.release(); } finally { this.session = null; this.state = 'DISPOSED'; }
+    try { await this.session?.release(); } finally { this.session = null; this.activeSession = null; this.state = 'DISPOSED'; }
   }
 }

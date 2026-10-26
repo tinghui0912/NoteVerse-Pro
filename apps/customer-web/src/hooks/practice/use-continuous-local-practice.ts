@@ -1,4 +1,5 @@
 'use client';
+import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
@@ -58,10 +59,10 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       onSessionStart();
       const current = new ContinuousPracticeController({ artifact: options.artifact, scope: options.scope,
         inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
-        recordingMode: options.recordingMode, cameraStream: options.cameraMediaStream,
+        recordingMode: options.recordingMode, cameraStream: options.getCameraMediaStream?.(),
         onNaturalCompletion: value => {
           if (operation === generation.current && controller.current === current && value.completionReason === 'SCOPE_COMPLETED') completion.current?.(value);
-        } });
+        } }, browserContinuousPlatform(options.acquireInference));
       controller.current = current; unsubscribe.current = current.subscribe(() => {
         if (operation === generation.current) setSnapshot(current.snapshot());
       });

@@ -40,7 +40,6 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
     return source;
   });
   const worker = {
-    load: vi.fn(async () => ({ testDouble: 'V25_DETERMINISTIC_INFERENCE_PORT_NO_MODEL' })),
     run: vi.fn(async (input: AcousticInferenceInput): Promise<AcousticInferenceResult> => {
       if (paused) await new Promise<void>(resolve => releases.push(resolve));
       return { events: paused ? [] : pitches.map(pitch => ({ pitch, midiPitch: pitch === 'C5' ? 72 : pitch === 'D4' ? 62 : 60,
@@ -64,7 +63,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   const stop = vi.fn(() => { if (captureStopped) return; captureStopped = true; detach(); cloneStop(); });
   let detach = () => {};
   const platform: StepMicrophonePlatform = {
-    modelUrl: vi.fn(async () => 'fake://v25-not-onnx'), createWorker: vi.fn(() => worker), workletUrl: 'fake://shared-worklet',
+    acquireInference: vi.fn(async () => worker), workletUrl: 'fake://shared-worklet',
     coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
     connectCapture: vi.fn(async options => {
       expect(options.ownership).toBe('BORROWED_SESSION_STREAM'); options.stream.clone(); bridge = options.bridge;
@@ -87,8 +86,8 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   runtime.setInputUnavailable();
   const initial = await starting;
   traces.push(() => ({ rate, initialBoundary: initial, finalInput: input.snapshot(), finalDomain: runtime.snapshot(), records,
-    failureMessages: failures.map(e => e.message), fakeWorkerConstructions: vi.mocked(platform.createWorker).mock.calls.length,
-    fakeModelLoads: worker.load.mock.calls.length, fakeInferenceRuns: worker.run.mock.calls.length,
+    failureMessages: failures.map(e => e.message), fakeWorkerConstructions: vi.mocked(platform.acquireInference).mock.calls.length,
+    fakeInferenceRuns: worker.run.mock.calls.length,
     fakeWorkerDisposals: worker.dispose.mock.calls.length, captureConnections: vi.mocked(platform.connectCapture).mock.calls.length,
     borrowedRootStops: rootStop.mock.calls.length, analysisCloneStops: cloneStop.mock.calls.length,
     publications: publications.map(p => ({ window: p.window, ownedThroughSourceSample: p.ownedThroughSourceSample, observations: p.observations })) }));
@@ -120,7 +119,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(r.initial.sessionTime).toEqual({ domainId: 'v25', sampleIndex: r.initial.capturedThroughSourceSample,
         ms: r.origin / rate * 1000 + r.initial.capturedThroughSourceSample / rate * 1000 });
       expect(r.input.clock.nowMs()).toBe(r.context.currentTime * 1000); expect(Object.isFrozen(r.initial)).toBe(true);
-      expect(r.worker.load).toHaveBeenCalledTimes(1); expect(r.platform.createWorker).toHaveBeenCalledTimes(1);
+       expect(r.platform.acquireInference).toHaveBeenCalledTimes(1);
       expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1); expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
       r.activate(); await r.untilPublications(1);
       expect(r.records).toHaveLength(1);
@@ -215,28 +214,28 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
 });
 
 it('dispose during asynchronous preparation cleans a late worker once and cannot reconnect', async () => {
-  let resolveUrl!: (url: string) => void;
+  const lateLease = { run: vi.fn(), dispose: vi.fn(async () => {}) };
+  let resolveLease!: (lease: typeof lateLease) => void;
   const context = Object.assign(new EventTarget(), { sampleRate: 48000, currentTime: 0, state: 'running' });
-  const platform: StepMicrophonePlatform = { modelUrl: () => new Promise(resolve => { resolveUrl = resolve; }),
-    createWorker: vi.fn(), coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
+  const platform: StepMicrophonePlatform = { acquireInference: () => new Promise(resolve => { resolveLease = resolve; }), coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
   const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: () => null, complete: vi.fn(), failure });
   const starting = input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
     localSessionId: 'cancel', sourceDomainId: 'cancel:capture' }, new AbortController().signal);
   const rejected = expect(starting).rejects.toThrow('DISPOSED');
-  const disposal = input.dispose(); resolveUrl('fake://never-loaded'); await rejected; await disposal;
-  expect(platform.createWorker).not.toHaveBeenCalled(); expect(platform.connectCapture).not.toHaveBeenCalled();
+  const disposal = input.dispose(); resolveLease(lateLease); await rejected; await disposal;
+  expect(lateLease.dispose).toHaveBeenCalledOnce(); expect(platform.connectCapture).not.toHaveBeenCalled();
   expect(failure).not.toHaveBeenCalled(); expect(input.snapshot().resourceState).toBe('DISPOSED');
   expect(input.dispose()).toBe(disposal);
 });
 
 it('model preparation failure is terminal without capture or fallback', async () => {
   const context = Object.assign(new EventTarget(), { sampleRate: 48000, currentTime: 0, state: 'running' });
-  const worker = { load: vi.fn(async () => { throw new Error('FAKE_LOAD_FAILURE'); }), run: vi.fn(), dispose: vi.fn(async () => {}) };
-  const platform: StepMicrophonePlatform = { modelUrl: async () => 'fake://not-model', createWorker: vi.fn(() => worker),
+  const acquireInference = vi.fn(async () => { throw new Error('FAKE_LEASE_FAILURE'); });
+  const platform: StepMicrophonePlatform = { acquireInference,
     coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
   const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: () => null, complete: vi.fn(), failure });
   await expect(input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
-    localSessionId: 'load-failure', sourceDomainId: 'load-failure:capture' }, new AbortController().signal)).rejects.toThrow('FAKE_LOAD_FAILURE');
-  await input.dispose(); expect(worker.load).toHaveBeenCalledTimes(1); expect(worker.dispose).toHaveBeenCalledTimes(1);
+    localSessionId: 'load-failure', sourceDomainId: 'load-failure:capture' }, new AbortController().signal)).rejects.toThrow('FAKE_LEASE_FAILURE');
+  await input.dispose(); expect(acquireInference).toHaveBeenCalledOnce();
   expect(failure).toHaveBeenCalledTimes(1); expect(platform.coefficients).not.toHaveBeenCalled(); expect(platform.connectCapture).not.toHaveBeenCalled();
 });

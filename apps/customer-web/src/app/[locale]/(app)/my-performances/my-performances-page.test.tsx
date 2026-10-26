@@ -566,6 +566,7 @@ describe('MyPerformancesPage', () => {
     await waitFor(() => {
       expect(mockApi.getPlaybackUrl).toHaveBeenCalledWith('take-1');
     });
+    await waitFor(() => expect(downloadBtn).toBeEnabled());
 
     // Failure simulation
     mockApi.getPlaybackUrl.mockRejectedValueOnce(new Error('Network error'));

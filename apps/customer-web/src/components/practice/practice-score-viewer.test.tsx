@@ -248,7 +248,7 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
   const evaluation = canonicalContinuousResultFixture().evaluation;
   if (evaluation.status !== 'COMPLETE' || evaluation.inputSource !== 'MIDI') throw new Error('Expected complete MIDI fixture');
   const props: PracticeScoreViewerProps = { xmlContent: '<score-partwise />', isLoadingXml: false, lifecycle: 'ACTIVE',
-    sessionMode: 'CONTINUOUS_PLAY', performanceMusicalBeat: 0, performanceScope: { kind: 'FULL', startBeat: 0, terminalBeat: 4 },
+    sessionMode: 'CONTINUOUS_PLAY', showContinuousFeedback: true, performanceMusicalBeat: 0, performanceScope: { kind: 'FULL', startBeat: 0, terminalBeat: 4 },
     performanceEvaluation: { ...evaluation, assignment: { ...evaluation.assignment, analyzedThroughPerformanceMs: 10000, reservedObservationIds: [] } } };
   const view = render(<PracticeScoreViewer {...props} />);
   try {
@@ -258,6 +258,12 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
     replacement.classList.remove('practice-summary-note-supported'); note.replaceWith(replacement);
     act(() => renderEvents.notify());
     await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
+    view.rerender(<PracticeScoreViewer {...props} showContinuousFeedback={false} />);
+    expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
+    expect(view.container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
+    expect(props.performanceEvaluation).not.toBeNull();
+    view.rerender(<PracticeScoreViewer {...props} showContinuousFeedback />);
+    expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported');
     view.rerender(<PracticeScoreViewer {...props} lifecycle="IDLE" sessionMode="STEP_BY_STEP" performanceEvaluation={null} />);
     expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
     expect(view.container.querySelector('[data-practice-playhead-cursor]')).toBeNull();

@@ -539,7 +539,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
     expect(continuousCompletionStore.getCompletion()).toBeNull();
-    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
+    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice?practiceRevisionId=rev-1');
   });
 
   it.each(['MIDI','MICROPHONE'] as const)('%s review uses its own feedback counts and annotation semantics', (inputSource) => {

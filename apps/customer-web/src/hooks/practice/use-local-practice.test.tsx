@@ -3,6 +3,7 @@ import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/co
 
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
+import * as continuousPlatformModule from '@/lib/practice/continuous/continuous-platform';
 import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -198,7 +199,7 @@ describe('useLocalPractice', () => {
     expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
   });
 
-  it('reaches STEP microphone acquisition and reports an unavailable device rather than a product gate', async () => {
+  it('rejects STEP microphone Start when no prepared environment provides an inference lease', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -214,7 +215,7 @@ describe('useLocalPractice', () => {
 
     expect(result.current.lifecycle).toBe('IDLE');
     expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('STEP_MICROPHONE_UNAVAILABLE');
+    expect(result.current.inputError).toBe('PRACTICE_ENVIRONMENT_NOT_READY');
   });
 
   it('handles MIDI input start failure by keeping IDLE lifecycle and setting ERROR inputState', async () => {
@@ -697,9 +698,9 @@ describe('useLocalPractice', () => {
     it(`surfaces real Continuous controller ${failure} failure and releases its worker once`, async () => {
       const worker = { load: vi.fn(async () => ({})), run: vi.fn(async () => { throw new Error('UNEXPECTED_INFERENCE'); }),
         dispose: vi.fn(async () => {}), onFailure: vi.fn(() => () => {}) };
-      vi.spyOn(browserContinuousPlatform, 'modelUrl').mockResolvedValue('/test-model');
-      vi.spyOn(browserContinuousPlatform, 'createWorker').mockReturnValue(worker);
-      const acquire = vi.spyOn(browserContinuousPlatform, 'acquireMicrophone');
+      const platform = browserContinuousPlatform(async () => { await worker.load(); return worker; });
+      vi.spyOn(continuousPlatformModule, 'browserContinuousPlatform').mockReturnValue(platform);
+      const acquire = vi.spyOn(platform, 'acquireMicrophone');
       if (failure === 'model-load') worker.load.mockRejectedValueOnce(new Error('MODEL_LOAD_FAILED'));
       else acquire.mockRejectedValueOnce(new DOMException('Test permission denial', 'NotAllowedError'));
       const start = vi.spyOn(ContinuousPracticeController.prototype, 'start');
@@ -707,7 +708,7 @@ describe('useLocalPractice', () => {
       const { result, unmount } = renderHook(() => useLocalPractice({ artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', scope: { kind: 'FULL' } }));
       await act(async () => { await result.current.start(); });
       expect(start).toHaveBeenCalledOnce();
-      expect(worker.load).toHaveBeenCalledWith('/test-model');
+      expect(worker.load).toHaveBeenCalledOnce();
       expect(result.current.lifecycle).toBe('ENDED');
       expect(result.current.inputState).toBe('ERROR');
       expect(result.current.inputError).toBe(failure === 'model-load' ? 'MODEL_LOAD_FAILED' : 'MICROPHONE_PERMISSION_DENIED');
@@ -715,11 +716,13 @@ describe('useLocalPractice', () => {
       if (failure === 'model-load') expect(acquire).not.toHaveBeenCalled();
       else expect(acquire).toHaveBeenCalledOnce();
       expect(worker.run).not.toHaveBeenCalled();
-      expect(worker.dispose).toHaveBeenCalledOnce();
+      if (failure === 'model-load') expect(worker.dispose).not.toHaveBeenCalled();
+      else expect(worker.dispose).toHaveBeenCalledOnce();
       unmount();
       await act(async () => {});
       expect(dispose).toHaveBeenCalledOnce();
-      expect(worker.dispose).toHaveBeenCalledOnce();
+      if (failure === 'model-load') expect(worker.dispose).not.toHaveBeenCalled();
+      else expect(worker.dispose).toHaveBeenCalledOnce();
       expect(continuousCompletionStore.getCompletion()).toBeNull();
     });
   }
@@ -728,9 +731,9 @@ describe('useLocalPractice', () => {
     let settleLoad!: () => void;
     const worker = { load: vi.fn(() => new Promise<void>(resolve => { settleLoad = resolve; })),
       run: vi.fn(async () => { throw new Error('UNEXPECTED_INFERENCE'); }), dispose: vi.fn(async () => {}), onFailure: vi.fn(() => () => {}) };
-    vi.spyOn(browserContinuousPlatform, 'modelUrl').mockResolvedValue('/test-model');
-    vi.spyOn(browserContinuousPlatform, 'createWorker').mockReturnValue(worker);
-    const acquire = vi.spyOn(browserContinuousPlatform, 'acquireMicrophone');
+    const platform = browserContinuousPlatform(async () => { await worker.load(); return worker; });
+    vi.spyOn(continuousPlatformModule, 'browserContinuousPlatform').mockReturnValue(platform);
+    const acquire = vi.spyOn(platform, 'acquireMicrophone');
     const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose');
     const { result, unmount } = renderHook(() => useLocalPractice({ artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', scope: { kind: 'FULL' } }));
     let started!: Promise<void>;

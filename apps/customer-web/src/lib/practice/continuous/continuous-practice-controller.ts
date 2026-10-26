@@ -14,7 +14,7 @@ import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/kernel/session';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
@@ -75,7 +75,7 @@ export class ContinuousPracticeController {
   private readonly listeners = new Set<() => void>();
   private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
   private readonly tempoPlan;
-  constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform) {
+  constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform()) {
     this.tempoPlan = resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
     this.enabled = options.metronomeEnabled ?? false;
   }
@@ -105,7 +105,7 @@ export class ContinuousPracticeController {
     try {
       if (this.options.inputSource === 'MICROPHONE') {
         this.microphone = new ContinuousMicrophoneInput(this.platform, reason => this.analysisFailed(reason));
-        await this.microphone.load(this.abort.signal); this.checkAlive();
+        await this.microphone.acquire(this.abort.signal); this.checkAlive();
         const stream = await this.platform.acquireMicrophone();
         if (this.disposed || this.state === 'ABANDONED') { stream.getTracks().forEach(track => track.stop()); this.checkAlive(); }
         this.rootStream = stream; this.checkAlive();

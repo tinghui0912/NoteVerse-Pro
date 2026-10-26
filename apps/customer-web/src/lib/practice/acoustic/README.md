@@ -19,8 +19,17 @@ product qualification.
 The foundation receives source samples and regions, without score targets, BPM,
 playhead, verdicts or product lifecycle ownership. Continuous projection introduces
 performance coordinates. STEP consumes source observations through its H50 assembler.
-Raw tensors remain inside the inference transaction. One capture stream uses one
-model session.
+Raw tensors remain inside the inference transaction. The workspace engine reuses
+one loaded ONNX session. Each capture stream receives an exclusive inference lease
+with fresh identity, job sequencing, runtime regions and publication state.
+
+`model/acoustic-engine.ts` owns cold model verification/load, WebGPU creation and
+smoke inference during explicit Setup. Its Worker protocol is LOAD, BEGIN_SESSION,
+INFER, END_SESSION and DISPOSE. Retiring a lease settles outstanding inference and
+rejects its late result before another lease can begin. End/natural completion
+release the lease; leaving the Practice layout releases ONNX and terminates Worker.
+The session-local analysis runtime only sees `AcousticInferencePort` and has no
+knowledge of workspace warmth, preferences or readiness.
 
 The Continuous adapter imports only the publication type contract from
 `continuous/domain/evaluation/evidence-types.ts`; it does not import the evaluator, score

@@ -1,26 +1,26 @@
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { ContinuousAcousticProjection } from '@/lib/practice/acoustic/continuous/continuous-projection';
 import { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';
 import { deliverPublication } from '@/lib/practice/acoustic/continuous/publication';
-import type { ContinuousModelWorker, ContinuousPlatform, MicrophoneConnection } from './continuous-input';
+import type { ContinuousPlatform, MicrophoneConnection } from './continuous-input';
 
 export class ContinuousMicrophoneInput {
-  private worker: ContinuousModelWorker | null = null;
+  private worker: AcousticInferencePort | null = null;
   private runtime: ContinuousAcousticProjection | null = null;
   private bridge: ContinuousCaptureBridge | null = null;
   private capture: { stop(): void } | null = null;
   private context: AudioContext | null = null;
   private disposed = false;
   private failure: string | null = null;
-  private model: unknown = null;
   private publications = 0;
   private disposal: Promise<void> | null = null;
   private detachWorker: (() => void) | undefined;
   constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (reason: string) => void) {}
-  async load(signal: AbortSignal): Promise<void> {
-    const url = await this.platform.modelUrl(signal); this.check(signal);
-    this.worker = this.platform.createWorker();
+  async acquire(signal: AbortSignal): Promise<void> {
+    this.worker = await this.platform.acquireInference(signal);
+    if (this.disposed || signal.aborted) await this.worker.dispose();
+    this.check(signal);
     this.detachWorker = this.worker.onFailure?.(error => this.recordFailure(error));
-    this.model = await this.worker.load(url); this.check(signal);
   }
   async connect(connection: MicrophoneConnection, signal: AbortSignal): Promise<void> {
     this.context = connection.context;
@@ -65,7 +65,7 @@ export class ContinuousMicrophoneInput {
     if (this.failure || this.disposed) return;
     this.failure = error.message; this.runtime?.failAnalysis(error); this.onFailure(error.message);
   }
-  snapshot() { return Object.freeze({ model: this.model, publications: this.publications,
+  snapshot() { return Object.freeze({ publications: this.publications,
     failure: this.failure, runtime: this.runtime?.snapshot() ?? null, capture: this.bridge?.snapshot() ?? null }); }
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;

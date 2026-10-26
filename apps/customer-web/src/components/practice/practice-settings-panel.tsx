@@ -11,7 +11,7 @@ import type {
   PracticeMicrophoneCapability,
   PracticeMidiCapability,
 } from '@/lib/practice/input-capability';
-import type { PracticeRecordingMode } from '@/lib/practice/recording/performance-recorder';
+import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 
 type PracticeSettingsPanelProps = {
   className?: string;
@@ -28,12 +28,14 @@ type PracticeSettingsPanelProps = {
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
-  recordingMode?: PracticeRecordingMode;
+  recordingMode?: PracticeRecordingMode | null;
   recordingModeLocked?: boolean;
   recordingStatus?: string | null;
   onPracticeModeChange: (practiceMode: PracticeMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
   onRecordingModeChange?: (mode: PracticeRecordingMode) => void;
+  liveFeedbackEnabled?: boolean;
+  onLiveFeedbackChange?: (enabled: boolean) => void;
 };
 
 export function PracticeSettingsPanel({
@@ -57,6 +59,8 @@ export function PracticeSettingsPanel({
   onPracticeModeChange,
   onInputSourceChange,
   onRecordingModeChange,
+  liveFeedbackEnabled = false,
+  onLiveFeedbackChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = microphoneCapability
@@ -238,6 +242,10 @@ export function PracticeSettingsPanel({
             </div>
           </section>
         ) : null}
+        {practiceMode === 'CONTINUOUS_PLAY' && <label className="flex gap-2 px-5 py-4">
+          <input type="checkbox" checked={liveFeedbackEnabled} onChange={event => onLiveFeedbackChange?.(event.target.checked)} />
+          {t('liveNoteFeedback')}
+        </label>}
       </div>
     </aside>
   );
