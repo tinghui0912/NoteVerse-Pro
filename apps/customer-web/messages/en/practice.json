@@ -74,7 +74,7 @@
   "inputClippingDesc": "The signal is too loud and may distort recognition. Move the microphone farther from the piano or lower input volume.",
   "inputUnavailableTitle": "Microphone unavailable",
   "inputUnavailableDesc": "The microphone input cannot be read. Check browser permission or your input device.",
-  "recordingDuration": "Practice time {time}",
+  "recordingDuration": "Recording duration",
   "pause": "Pause",
   "resume": "Resume",
   "finish": "End",
@@ -402,6 +402,5 @@
   "inputPaused": "Input interrupted. Practice paused.",
   "startingAttempt": "Starting…",
   "practiceElapsedTime": "Practice time",
-  "continueLearning": "Continue practice",
-  "recordingDuration": "Recording duration"
+  "continueLearning": "Continue practice"
 }

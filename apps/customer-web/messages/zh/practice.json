@@ -74,7 +74,7 @@
   "inputClippingDesc": "声音过大可能导致识别失真。请让麦克风离钢琴远一点，或降低输入音量。",
   "inputUnavailableTitle": "麦克风不可用",
   "inputUnavailableDesc": "当前无法读取麦克风输入，请检查浏览器权限或输入设备。",
-  "recordingDuration": "练习时长 {time}",
+  "recordingDuration": "录制时长",
   "pause": "暂停",
   "resume": "继续",
   "finish": "结束",
@@ -402,6 +402,5 @@
   "inputPaused": "输入已中断，练习已暂停",
   "startingAttempt": "启动中…",
   "practiceElapsedTime": "练习用时",
-  "continueLearning": "继续练习",
-  "recordingDuration": "录制时长"
+  "continueLearning": "继续练习"
 }

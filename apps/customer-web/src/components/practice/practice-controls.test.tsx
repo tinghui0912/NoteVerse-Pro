@@ -3,9 +3,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ComponentProps } from 'react';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
+import zhMessages from '../../../messages/zh/practice.json';
 import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 
 function renderControls(
@@ -264,7 +266,20 @@ it('STEP settings is a discoverable configuration navigation action without inpu
   fireEvent.click(screen.getByRole('button', { name: messages.settingsButton })); expect(settings).toHaveBeenCalledOnce();
   expect(screen.queryByRole('button', { name: messages.settingMidi })).toBeNull();
 });
-it('running time is compact transport data, independent of a status banner', () => {
+it('recording duration has neutral visible timing and the real English accessible name', () => {
   renderControls(false, { lifecycle: 'ACTIVE', recordingSeconds: 65 });
-  expect(screen.getByTestId('recording-indicator')).toHaveTextContent('01:05'); expect(screen.queryByRole('status')).toBeNull();
+  const indicator = screen.getByTestId('recording-indicator');
+  expect(indicator).toHaveTextContent(/^01:05$/);
+  expect(indicator).toHaveAccessibleName('Recording duration');
+  expect(screen.queryByRole('status')).toBeNull();
+});
+
+it('both recording duration labels are unique parameter-free accessible labels in the real catalogs', () => {
+  expect(messages.recordingDuration).toBe('Recording duration');
+  expect(zhMessages.recordingDuration).toBe('录制时长');
+  for (const [locale, catalog] of [['en', messages], ['zh', zhMessages]] as const) {
+    expect(catalog.recordingDuration).not.toMatch(/[{}]/);
+    const source = readFileSync(`messages/${locale}/practice.json`, 'utf8');
+    expect(source.match(/"recordingDuration"\s*:/g)).toHaveLength(1);
+  }
 });
