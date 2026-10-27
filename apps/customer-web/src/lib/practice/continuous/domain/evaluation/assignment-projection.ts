@@ -47,7 +47,7 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
       throw new Error('Continuous assignment group must be final and unique.');
     }
     groups.add(group.groupId);
-    assertFinality(group.finality);
+    assertFinality(group.finality, completion.availabilitySessionTimeMs);
     const groupStrikes: readonly FinalizedContinuousStrikeAssignment[] = group.strikes;
     const residuals: readonly ContinuousGroupResidualAssignment[] = group.residualAssignments;
     for (const strike of groupStrikes) {
@@ -59,7 +59,11 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
         throw new Error('Continuous assignment strike identity is corrupt.');
       }
       strikes.add(strike.strikeId);
-      assertFinality(strike.finality);
+      assertFinality(strike.finality, completion.availabilitySessionTimeMs);
+      if (group.finality.finalizationSessionTimeMs < strike.finality.finalizationSessionTimeMs
+        || group.finality.enablingAnalysisFrontierMs < strike.finality.enablingAnalysisFrontierMs) {
+        throw new Error('Continuous assignment group precedes child strike finality.');
+      }
       if (strike.state === 'MATCHED') {
         if (!strike.match?.observation.observationId || !Number.isFinite(strike.match.observation.confidence)
           || !Number.isFinite(strike.match.timingOffsetMs)) throw new Error('Continuous assignment matched strike metadata is required.');
@@ -79,7 +83,7 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
   }
   for (const row of assignment.unattributedObservations) {
     if (!row.finality) throw new Error('Continuous assignment unattributed observation must be final.');
-    assertFinality(row.finality);
+    assertFinality(row.finality, completion.availabilitySessionTimeMs);
     claim({ kind: 'UNATTRIBUTED', observationId: row.observation.observationId }, row.observation);
   }
   const relations = assignment.observationAssignments;
@@ -91,13 +95,18 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
   }
 }
 
-function assertFinality(value: CompletedContinuousAssignment['groups'][number]['finality']): void {
+function assertFinality(value: CompletedContinuousAssignment['groups'][number]['finality'], completionAvailabilitySessionTimeMs: number): void {
   const fields = ['requiredAnalysisFrontierMs', 'unclampedRequiredFrontierMs', 'enablingPublicationId',
     'enablingAnalysisFrontierMs', 'finalizationSessionTimeMs', 'terminalClamp'];
   if (Object.keys(value).sort().join() !== fields.sort().join() || !value.enablingPublicationId
     || typeof value.terminalClamp !== 'boolean'
     || ![value.requiredAnalysisFrontierMs, value.unclampedRequiredFrontierMs,
-      value.enablingAnalysisFrontierMs, value.finalizationSessionTimeMs].every(time => Number.isFinite(time) && time >= 0)) {
+      value.enablingAnalysisFrontierMs, value.finalizationSessionTimeMs].every(time => Number.isFinite(time) && time >= 0)
+    || value.requiredAnalysisFrontierMs > value.enablingAnalysisFrontierMs
+    || value.requiredAnalysisFrontierMs > value.unclampedRequiredFrontierMs
+    || (value.terminalClamp ? value.requiredAnalysisFrontierMs >= value.unclampedRequiredFrontierMs
+      : value.requiredAnalysisFrontierMs !== value.unclampedRequiredFrontierMs)
+    || value.finalizationSessionTimeMs > completionAvailabilitySessionTimeMs) {
     throw new Error('Continuous assignment finality coordinates are corrupt.');
   }
 }

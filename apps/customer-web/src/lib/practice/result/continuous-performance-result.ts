@@ -27,6 +27,7 @@ export function createContinuousPerformanceResult(options: ResultCreation): Cont
   const scope = resolvePracticeScope(options.artifact, options.scope);
   const expected = options.artifact.expectedPracticeGroups.slice(scope.startIndex, scope.endIndex + 1).flatMap(group => group.strikeTargets);
   if (options.evaluation.status === 'COMPLETE') {
+    assertNaturalResultCompletion(options.evaluation);
     const assigned = options.evaluation.assignment.groups.flatMap(group => group.strikes);
     const ids = new Set(assigned.map(strike => strike.strikeId));
     if (assigned.length !== expected.length || expected.some(strike => !ids.has(strike.strikeId))) {
@@ -69,12 +70,18 @@ export function assertContinuousPerformanceResult(value: unknown): asserts value
       || !Number.isFinite(segment.bpm) || segment.bpm <= 0 || !['MUSICXML', 'PRODUCT_DEFAULT', 'CUSTOM'].includes(segment.source)
       || index > 0 && segment.startBeat <= plan.segments[index - 1].startBeat)) throw new Error('Continuous result tempo is invalid.');
   assertCompletedEvaluation(result.evaluation, result.inputSource);
+  assertNaturalResultCompletion(result.evaluation);
   if (result.evaluation.status === 'COMPLETE' && result.evaluation.assignment.sessionDomainId !== result.localSessionId) {
     throw new Error('Continuous result session identity is inconsistent.');
   }
   assertContinuousPerformanceMetrics(result.metrics, result.evaluation);
   assertContinuousEvidenceProvenance(result.evidenceProvenance);
   if (result.evidenceProvenance.inputSource !== result.inputSource) throw new Error('Continuous evidence source identity is inconsistent.');
+}
+function assertNaturalResultCompletion(evaluation: CompletedContinuousEvaluation): void {
+  if (evaluation.status === 'COMPLETE' && evaluation.assignment.completion.reason !== 'SCOPE_COMPLETED') {
+    throw new Error('Continuous result requires natural scope completion.');
+  }
 }
 function assertJsonValue(value: unknown, ancestors = new Set<object>()): void {
   if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)) return;

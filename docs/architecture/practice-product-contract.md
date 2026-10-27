@@ -432,6 +432,15 @@ Completion similarly carries its performance terminal and session availability.
 Finality is enabled by performance analysis coverage; `requiredAnalysisFrontierMs`
 and `enablingAnalysisFrontierMs` remain performance coordinates, while
 `finalizationSessionTimeMs` records when the enabling knowledge became available.
+Retained finality must have required coverage no greater than enabling or unclamped
+coverage. An unclamped finality has equal required/unclamped bounds; a clamped
+finality has a strictly smaller required bound. Group finalization cannot precede
+its child strikes in either Session Time or enabling performance frontier. Completion
+session availability cannot precede any retained strike, group or unattributed
+observation finalization. These causal checks compare coordinates only within their
+own domain and reject corrupt artifacts without repair.
+Live completion records availability when terminal coverage actually closes the
+assignment, no earlier than either the completion request or accepted terminal evidence.
 
 MIDI availability comes from `PerformanceClockSnapshot.nowMs`, never performance
 elapsed time. Its event time still comes from the native MIDI timestamp, independent
@@ -596,6 +605,9 @@ retains its reason and both policy identities, without inventing empty analysis.
 Validation rejects mismatched session/source identities, corrupt assignment or
 interpretation, inconsistent metrics and unsupported provenance. It never repairs
 or upgrades an artifact. JSON round-trip preserves these semantic checks.
+Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
+COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
+for internal diagnostics; that does not make it eligible for a learner Result.
 
 ## Metrics
 

@@ -7,6 +7,20 @@ import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artif
 
 const clone = () => JSON.parse(JSON.stringify(canonicalContinuousResultFixture()));
 describe('immutable Continuous product result', () => {
+  it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed Result and direct creation reject stopped evaluations while generic evaluation accepts them', inputSource => {
+    const base = canonicalContinuousResultFixture(inputSource);
+    const parsed = JSON.parse(JSON.stringify(base)); parsed.evaluation.assignment.completion.reason = 'STOPPED_BY_USER';
+    expect(() => assertContinuousPerformanceResult(parsed)).toThrow('natural scope completion');
+    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: { kind: 'FULL' },
+      sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+    evaluator.publish({ publicationId: 'coverage', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000, observations: [] });
+    evaluator.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 10000, availabilitySessionTimeMs: 3000 });
+    const evaluation = evaluator.completedEvaluation();
+    expect(evaluation.status).toBe('COMPLETE');
+    expect(() => createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
+      inputSource, scope: { kind: 'FULL' }, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation,
+      evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
+  });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities, metrics and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(result));

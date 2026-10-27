@@ -237,6 +237,7 @@ export class ContinuousAssignmentFinalizer {
     if (this.committedStrikes.size !== this.strikes.length || this.committedGroups.size !== this.groups.length || this.residual().length) {
       throw new ContinuousEvaluationError('UNRESOLVED_RESERVATION');
     }
-    this.completion = this.requestedCompletion;
+    this.completion = immutableContinuousValue({ ...this.requestedCompletion,
+      availabilitySessionTimeMs: Math.max(this.requestedCompletion.availabilitySessionTimeMs, this.evidence.availableSessionTimeMs) });
   }
 }

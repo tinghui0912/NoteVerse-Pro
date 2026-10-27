@@ -17,6 +17,69 @@ function assignment(): Mutable<CompletedContinuousAssignment> {
   return structuredClone(result.assignment) as Mutable<CompletedContinuousAssignment>;
 }
 describe('completed assignment relation integrity', () => {
+  it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s requested before delayed terminal coverage retains causal completion availability', reason => {
+    const f = new ContinuousAssignmentFinalizer('tail', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+    f.publish({ publicationId: 'early', sessionDomainId: 'tail', analyzedThroughPerformanceMs: 500, availabilitySessionTimeMs: 1000, observations: [] });
+    const request = Object.freeze({ reason, performanceTimeMs: 2000, availabilitySessionTimeMs: 2000 });
+    f.complete(request);
+    f.publish({ publicationId: 'tail', sessionDomainId: 'tail', analyzedThroughPerformanceMs: 2000, availabilitySessionTimeMs: 3000, observations: [] });
+    const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
+    expect(result.assignment.groups[0].finality.finalizationSessionTimeMs).toBe(3000);
+    expect(result.assignment.completion).toEqual({ reason, performanceTimeMs: 2000, availabilitySessionTimeMs: 3000 });
+    expect(request.availabilitySessionTimeMs).toBe(2000);
+    expect(f.complete(request).completion).toEqual(result.assignment.completion);
+    expect(() => assertCompletedAssignment(result.assignment)).not.toThrow();
+  });
+  it.each<[string, (value: Mutable<CompletedContinuousAssignment>) => void]>([
+    ['coverage not reached', value => { value.groups[0].finality.requiredAnalysisFrontierMs = value.groups[0].finality.enablingAnalysisFrontierMs + 1; }],
+    ['required exceeds unclamped', value => { value.groups[0].finality.unclampedRequiredFrontierMs = value.groups[0].finality.requiredAnalysisFrontierMs - 1; }],
+    ['unclamped false with unequal bounds', value => { value.groups[0].finality.unclampedRequiredFrontierMs++; }],
+    ['clamped true with equal bounds', value => { value.groups[0].finality.terminalClamp = true; }],
+    ['clamped true with inverted bounds', value => { const f = value.groups[0].finality; f.terminalClamp = true; f.unclampedRequiredFrontierMs = f.requiredAnalysisFrontierMs - 1; }],
+    ['group session time before strike', value => { value.groups[0].strikes[0].finality.finalizationSessionTimeMs = 4000; value.groups[0].finality.finalizationSessionTimeMs = 3000; }],
+    ['group frontier before strike', value => { value.groups[0].strikes[0].finality.enablingAnalysisFrontierMs = value.groups[0].finality.enablingAnalysisFrontierMs + 1; }],
+    ['completion before strike', value => { value.completion.availabilitySessionTimeMs = 3000; value.groups[0].strikes[0].finality.finalizationSessionTimeMs = 4000; }],
+    ['completion before group', value => { value.completion.availabilitySessionTimeMs = 3000; value.groups[0].finality.finalizationSessionTimeMs = 4000; }],
+    ['completion before unattributed observation', value => { value.completion.availabilitySessionTimeMs = 3000; value.unattributedObservations[0].finality.finalizationSessionTimeMs = 4000; }],
+  ])('rejects causal corruption: %s without repair', (_name, corrupt) => {
+    const value = assignment();
+    if (_name.startsWith('completion before')) {
+      for (const group of value.groups) {
+        group.finality.finalizationSessionTimeMs = 2500;
+        for (const strike of group.strikes) strike.finality.finalizationSessionTimeMs = 2500;
+      }
+      for (const row of value.unattributedObservations) row.finality.finalizationSessionTimeMs = 2500;
+    }
+    corrupt(value); const before = structuredClone(value);
+    expect(() => assertCompletedAssignment(value)).toThrow(); expect(value).toEqual(before);
+  });
+  it.each(['group', 'strike', 'unattributed observation'] as const)('every retained %s validates its own enabling coverage and clamp', owner => {
+    for (const condition of ['coverage', 'false-clamp', 'true-clamp'] as const) {
+      const value = assignment();
+      const finality = owner === 'group' ? value.groups[0].finality : owner === 'strike'
+        ? value.groups[0].strikes[0].finality : value.unattributedObservations[0].finality;
+      if (condition === 'coverage') finality.enablingAnalysisFrontierMs = finality.requiredAnalysisFrontierMs - 1;
+      if (condition === 'false-clamp') finality.unclampedRequiredFrontierMs++;
+      if (condition === 'true-clamp') finality.terminalClamp = true;
+      expect(() => assertCompletedAssignment(value), `${owner}: ${condition}`).toThrow();
+    }
+  });
+  it('accepts independently valid session availability smaller than the performance frontier, including generic stopped evaluation', () => {
+    const f = new ContinuousAssignmentFinalizer('independent', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+    f.publish({ publicationId: 'coverage', sessionDomainId: 'independent', analyzedThroughPerformanceMs: 5000, availabilitySessionTimeMs: 3000, observations: [] });
+    f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 });
+    const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
+    expect(result.assignment.completion.reason).toBe('STOPPED_BY_USER');
+    expect(() => assertCompletedAssignment(JSON.parse(JSON.stringify(result.assignment)))).not.toThrow();
+  });
+  it('accepts consistent terminal clamps generated by generic evaluation', () => {
+    const f = new ContinuousAssignmentFinalizer('clamped', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+    f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 3000 });
+    f.publish({ publicationId: 'terminal', sessionDomainId: 'clamped', analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 3000, observations: [] });
+    const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
+    expect(result.assignment.groups[0].finality.terminalClamp).toBe(true);
+    expect(() => assertCompletedAssignment(result.assignment)).not.toThrow();
+  });
   it('accepts the complete relation without modifying it', () => {
     const value = assignment(), before = structuredClone(value);
     expect(() => assertCompletedAssignment(value)).not.toThrow();
