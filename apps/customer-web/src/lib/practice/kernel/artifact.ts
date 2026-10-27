@@ -71,23 +71,52 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
     if (roundBeat(step.onsetBeat) !== roundBeat(group.onsetBeat)) {
       throw new Error(`PracticeScoreArtifact step/group onset mismatch at index ${index}.`);
     }
-    const groupPitches = uniqueSorted(group.pitches);
-    const stepPitches = uniqueSorted(step.attackTargets.map((target) => target.pitch));
-    const strikePitches = uniqueSorted(group.strikeTargets.map((target) => target.pitch));
-    if (groupPitches.join('\u001f') !== stepPitches.join('\u001f')) {
+    const groupPitches = assertPhysicalPitchSet(group.pitches, 'group');
+    const stepPitches = assertPhysicalPitchSet(step.attackTargets.map((target) => target.pitch), 'attack targets');
+    const strikePitches = assertPhysicalPitchSet(group.strikeTargets.map((target) => target.pitch), 'strike targets');
+    if (JSON.stringify(groupPitches) !== JSON.stringify(stepPitches)) {
       throw new Error(`PracticeScoreArtifact step/group attack pitch mismatch at index ${index}.`);
     }
-    if (groupPitches.join('\u001f') !== strikePitches.join('\u001f')) {
+    if (JSON.stringify(groupPitches) !== JSON.stringify(strikePitches)) {
       throw new Error(`PracticeScoreArtifact group strike target mismatch at index ${index}.`);
     }
+    const expected = new Map(group.expectedNotes.map(note => [note.expectedNoteId, note]));
+    if (expected.size !== group.expectedNotes.length) throw new Error('PracticeScoreArtifact duplicate expected-note identity.');
+    const owned = new Set<string>();
+    for (const target of group.strikeTargets) {
+      assertTargetNotation(target.pitch, target.expectedNotes, target.renderNoteIds);
+      for (const note of target.expectedNotes) {
+        const canonical = expected.get(note.expectedNoteId);
+        if (owned.has(note.expectedNoteId) || !canonical || note.pitch !== canonical.pitch
+          || note.eventId !== canonical.eventId || note.renderNoteId !== canonical.renderNoteId
+          || JSON.stringify(note.measureNumbers) !== JSON.stringify(canonical.measureNumbers)) {
+          throw new Error('PracticeScoreArtifact strike expected-note partition is corrupt.');
+        }
+        owned.add(note.expectedNoteId);
+      }
+    }
+    if (owned.size !== expected.size) throw new Error('PracticeScoreArtifact strike expected-note partition is incomplete.');
+    for (const target of step.attackTargets) assertTargetNotation(target.pitch, target.notes, target.renderNoteIds);
     if (roundBeat(group.canonicalEndBeat) < roundBeat(group.onsetBeat)) {
       throw new Error(`PracticeScoreArtifact group canonical end precedes onset at index ${index}.`);
     }
   });
 }
 
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort();
+function assertPhysicalPitchSet(values: string[], owner: string): string[] {
+  if (!Array.isArray(values) || values.some(pitch => typeof pitch !== 'string' || !pitch)
+    || new Set(values).size !== values.length) throw new Error(`PracticeScoreArtifact duplicate or invalid physical pitch in ${owner}.`);
+  return [...values].sort();
+}
+
+function assertTargetNotation(pitch: string, notes: { pitch: string; renderNoteId: string }[], renderNoteIds: string[]): void {
+  if (!Array.isArray(notes) || notes.length === 0 || notes.some(note => note.pitch !== pitch)) {
+    throw new Error('PracticeScoreArtifact target notation pitches are corrupt.');
+  }
+  if (!Array.isArray(renderNoteIds) || new Set(renderNoteIds).size !== renderNoteIds.length
+    || JSON.stringify([...renderNoteIds].sort()) !== JSON.stringify([...new Set(notes.map(note => note.renderNoteId))].sort())) {
+    throw new Error('PracticeScoreArtifact target render-note identities are corrupt.');
+  }
 }
 
 export function roundBeat(value: number): number {

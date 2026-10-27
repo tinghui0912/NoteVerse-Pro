@@ -19,9 +19,10 @@ const createSource = SourceAnalysisRuntime.create.bind(SourceAnalysisRuntime);
 const base = fixture as PracticeScoreArtifact;
 const artifact: PracticeScoreArtifact = { ...base,
   expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 3).map(g => ({ ...g, pitches: ['C4'],
-    strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4' }] })),
+    expectedNotes: g.expectedNotes.map(n => ({ ...n, pitch: 'C4' })),
+    strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4', expectedNotes: g.strikeTargets[0].expectedNotes.map(n => ({ ...n, pitch: 'C4' })) }] })),
   practiceAttackSteps: base.practiceAttackSteps.slice(0, 3).map(s => ({ ...s,
-    attackTargets: [{ ...s.attackTargets[0], pitch: 'C4' }] })) };
+    attackTargets: [{ ...s.attackTargets[0], pitch: 'C4', notes: s.attackTargets[0].notes.map(n => ({ ...n, pitch: 'C4' })) }] })) };
 
 /** Real STEP/source/assembler/chronology, deterministic PCM/inference ports. No model or device qualification. */
 function rig(rate: 44100 | 48000 = 48000) {

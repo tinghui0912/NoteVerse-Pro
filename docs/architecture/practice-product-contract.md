@@ -229,6 +229,20 @@ metadata. It depends on neither mode, acoustic implementation nor browser resour
 Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
 their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
+Practice targets represent physical piano strikes, not notation multiplicity. At one
+onset each physical pitch has exactly one strike target and one attack target, and
+the unique target pitches equal the group's unique pitch set. Same-pitch notation
+across voices/staves is aggregated under that target, retaining every note identity,
+render identity and voice/staff metadata for rendering and annotations. Each target
+has nonempty, same-pitch notation and an exact render-ID aggregate; strike targets
+partition the group's flat expected notes by `expectedNoteId` without missing or
+duplicate ownership. Frontend artifact and backend source/catalog boundaries reject
+malformed duplicate physical targets or inconsistent notation without repair.
+Continuation is separate: a tied C4 continuation may coexist with a new C4 attack
+in another voice. Artifact schema remains 1; valid generator output and identity do
+not change. STEP pitch-set comparison and Continuous strike projection consume this
+shared physical contract without redefining multiplicity.
+
 `step/domain/` owns pitch evidence, exact target comparison, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,

@@ -592,6 +592,9 @@ def test_practice_attack_steps_consolidate_same_pitch_multi_voice_staff_targets(
     assert expected_group.pitches == ("C4",)
     assert len(expected_group.strike_targets) == 1
     assert expected_group.strike_targets[0].render_note_ids == ("n1", "n2")
+    assert len(expected_group.strike_targets[0].expected_notes) == 2
+    assert len(step.attack_targets) == 1
+    assert len(target.notes) == 2
 
 
 def test_practice_attack_steps_merge_multi_voice_staff_same_onset(tmp_path) -> None:

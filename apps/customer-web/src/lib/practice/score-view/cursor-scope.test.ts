@@ -21,12 +21,12 @@ function artifact(): PracticeScoreArtifact {
     expectedPracticeGroups: groups.map((group) => ({
       ...group,
       eventIds: [group.groupId],
-      expectedNotes: [],
+      expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
       strikeTargets: [
         {
           strikeId: group.groupId,
           pitch: group.groupId,
-          expectedNotes: [],
+          expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
           eventIds: [group.groupId],
           renderNoteIds: group.renderNoteIds,
           measureNumbers: ['1'],
@@ -45,7 +45,7 @@ function artifact(): PracticeScoreArtifact {
         {
           attackId: group.groupId,
           pitch: group.groupId,
-          notes: [],
+          notes: [{ stepNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'], staffIds: ['staff-1'], voiceIds: ['voice-1'] }],
           eventIds: [group.groupId],
           renderNoteIds: group.renderNoteIds,
           measureNumbers: ['1'],

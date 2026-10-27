@@ -129,6 +129,19 @@ def test_target_catalog_consolidates_same_pitch_multi_voice_notes(tmp_path) -> N
     assert attack_target.pitch == "C4"
     assert set(attack_target.render_note_ids) == {"upper-c4", "lower-c4"}
     assert len(attack_target.notes) == 2
+    group = timeline.expected_practice_groups[0]
+    assert group.pitches == ("C4",)
+    assert len(group.strike_targets) == 1
+    assert len(group.strike_targets[0].expected_notes) == 2
+    assert set(group.strike_targets[0].render_note_ids) == {"upper-c4", "lower-c4"}
+
+    from app.modules.practice.source_schemas import PracticeScoreArtifactRead
+    from app.modules.practice.source_service import PracticeSourceService
+    from app.processing.practice_score.practice_score_artifact import practice_score_artifact_from_timeline
+
+    artifact = practice_score_artifact_from_timeline(timeline, score_id="unison", revision_id="rev", score_tempo_segments=())
+    assert len(PracticeScoreArtifactRead.model_validate(artifact).expectedPracticeGroups[0].strikeTargets) == 1
+    assert len(PracticeSourceService._target_catalog_read("unison", "rev", catalog).targets[0].attack_targets) == 1
 
 
 def test_target_catalog_skips_pure_tie_continuation(tmp_path) -> None:

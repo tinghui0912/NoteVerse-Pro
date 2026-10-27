@@ -8,11 +8,19 @@ import { ManualClock } from '@/lib/practice/kernel/timebase';
 
 function setup(inputSource: PracticeInputSource, expected: readonly string[] = ['G#3', 'E4']) {
   const base = fixture as PracticeScoreArtifact;
+  const pitches = normalizePitchSet(expected);
   const artifact: PracticeScoreArtifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.map(g => ({ ...g, pitches: [...expected],
-      strikeTargets: expected.map(pitch => ({ ...g.strikeTargets[0], pitch })) })),
-    practiceAttackSteps: base.practiceAttackSteps.map(s => ({ ...s,
-      attackTargets: expected.map(pitch => ({ ...s.attackTargets[0], pitch })) })) };
+    expectedPracticeGroups: base.expectedPracticeGroups.map(g => {
+      const strikeTargets = pitches.map(pitch => {
+        const note = { ...g.expectedNotes[0], pitch, expectedNoteId: `${g.groupId}:${pitch}`, renderNoteId: `${g.groupId}:render:${pitch}` };
+        return { ...g.strikeTargets[0], strikeId: `${g.groupId}:strike:${pitch}`, pitch, expectedNotes: [note], renderNoteIds: [note.renderNoteId] };
+      });
+      return { ...g, pitches, strikeTargets, expectedNotes: strikeTargets.flatMap(t => t.expectedNotes), renderNoteIds: strikeTargets.flatMap(t => t.renderNoteIds) };
+    }),
+    practiceAttackSteps: base.practiceAttackSteps.map(s => ({ ...s, attackTargets: pitches.map(pitch => {
+      const note = { ...s.attackTargets[0].notes[0], pitch, stepNoteId: `${s.stepId}:${pitch}`, renderNoteId: `${s.stepId}:render:${pitch}` };
+      return { ...s.attackTargets[0], attackId: `${s.stepId}:attack:${pitch}`, pitch, notes: [note], renderNoteIds: [note.renderNoteId] };
+    }) })) };
   const clock = new ManualClock(), domainId = 'exact-learning';
   const options: StepPracticeRuntimeOptions = { artifact, inputSource, clock, localSessionId: domainId,
     metadataClock: { nowEpochMs: () => 0 }, scope: { kind: 'FULL' } };
