@@ -295,7 +295,7 @@ type TestOutcome = {
     renderNoteIds: string[];
     result: 'MATCHED' | 'UNMATCHED' | 'NOT_REACHED';
   }[];
-  residualPitches: string[];
+  unattributedPitches: string[];
   timingOffsetMs?: number;
   renderNoteIds?: string[];
   measureNumbers?: string[];
@@ -307,13 +307,6 @@ function completeEvaluation(
   return completedEvaluationFixture(inputSource, outcomes.map(outcome => ({
     groupId: outcome.expectedGroupId, performanceTimeMs: outcome.performanceTimeMs,
     state: 'FINALIZED', finality,
-    residualAssignments: outcome.residualPitches.map((pitch, index) => ({
-      strikeId: outcome.expectedStrikeOutcomes.filter(strike => strike.result === 'UNMATCHED')[index].strikeId,
-      timingOffsetMs: 0,
-      observation: { observationId: `${outcome.expectedGroupId}:residual:${index}`, pitch,
-      performanceTimeMs: outcome.performanceTimeMs, confidence: outcome.confidence,
-      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const },
-    })),
     strikes: outcome.expectedStrikeOutcomes.map((strike) => {
         const base = {
           strikeId: strike.strikeId,
@@ -336,7 +329,10 @@ function completeEvaluation(
           state: strike.result, finality,
         };
       }),
-  })));
+  })), outcomes.flatMap(outcome => outcome.unattributedPitches.map((pitch, index) => ({
+    observationId: `${outcome.expectedGroupId}:unattributed:${index}`, pitch, performanceTimeMs: outcome.performanceTimeMs,
+    confidence: outcome.confidence, source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
+  }))));
 }
 
 describe('PracticeReviewPage', () => {
@@ -474,7 +470,7 @@ describe('PracticeReviewPage', () => {
             confidence: 0.9,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['n-1'],
             measureNumbers: ['1'],
           },
@@ -484,7 +480,7 @@ describe('PracticeReviewPage', () => {
             confidence: 0.7,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['n-2'],
             measureNumbers: ['1'],
           },
@@ -556,7 +552,7 @@ describe('PracticeReviewPage', () => {
               { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
               { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
             ],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['note-c4', 'note-e4'],
             measureNumbers: ['1'],
           },
@@ -570,11 +566,11 @@ describe('PracticeReviewPage', () => {
               { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
               { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
             ],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['note-g4', 'note-b4'],
             measureNumbers: ['1'],
           },
-          // 3. One supported target and one group residual observation
+          // 3. One supported target and one unattributed physical observation
           {
             expectedGroupId: 'g-3',
             performanceTimeMs: 2000,
@@ -584,7 +580,7 @@ describe('PracticeReviewPage', () => {
               { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
               { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
             ],
-            residualPitches: ['D#5'],
+            unattributedPitches: ['D#5'],
             renderNoteIds: ['note-c5', 'note-e5'],
             measureNumbers: ['2'],
           },
@@ -597,7 +593,7 @@ describe('PracticeReviewPage', () => {
             expectedStrikeOutcomes: [
               { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
             ],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['note-f4'],
             measureNumbers: ['2'],
           },
@@ -610,7 +606,7 @@ describe('PracticeReviewPage', () => {
             expectedStrikeOutcomes: [
               { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
             ],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['note-a4'],
             measureNumbers: ['3'],
           },
@@ -641,7 +637,7 @@ describe('PracticeReviewPage', () => {
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
-    // MIDI wrong targets are red, missed targets are neutral; acoustic unconfirmed targets remain neutral.
+    // Unsupported targets are red for both input sources.
     // Neutral (not reached): note-f4, note-a4 should NOT be in either
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
@@ -649,14 +645,13 @@ describe('PracticeReviewPage', () => {
     expect(annotations.supportedNoteIds).toEqual(
       expect.arrayContaining(['note-c4', 'note-e4', 'note-g4', 'note-c5'])
     );
-    expect(annotations.wrongNoteIds).toEqual(
-      inputSource === 'MIDI' ? ['note-e5'] : []
+    expect(annotations.unsupportedNoteIds).toEqual(
+      ['note-b4', 'note-e5']
     );
     expect(annotations.supportedNoteIds).not.toContain('note-f4');
     expect(annotations.supportedNoteIds).not.toContain('note-a4');
-    expect(annotations.missedNoteIds).toEqual(inputSource === 'MIDI' ? ['note-b4'] : []);
-    expect(annotations.wrongNoteIds).not.toContain('note-f4');
-    expect(annotations.wrongNoteIds).not.toContain('note-a4');
+    expect(annotations.unsupportedNoteIds).not.toContain('note-f4');
+    expect(annotations.unsupportedNoteIds).not.toContain('note-a4');
   });
 
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
@@ -685,7 +680,7 @@ describe('PracticeReviewPage', () => {
             confidence: 0.9,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-            residualPitches: [],
+            unattributedPitches: [],
             renderNoteIds: ['n-1'],
             measureNumbers: ['1'],
           },
@@ -720,7 +715,7 @@ describe('PracticeReviewPage', () => {
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
     expect(lastCall[1].supportedNoteIds).toEqual([]);
-    expect(lastCall[1].wrongNoteIds).toEqual([]);
+    expect(lastCall[1].unsupportedNoteIds).toEqual([]);
 
     // Revision mismatch disables annotations, while replay metadata remains useful.
     expect(screen.queryByRole('region', { name: '目标音识别' })).toBeNull();
@@ -733,7 +728,7 @@ describe('PracticeReviewPage', () => {
       scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
-      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2', interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
+      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3', interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
     continuousCompletionStore.setCompletion({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });

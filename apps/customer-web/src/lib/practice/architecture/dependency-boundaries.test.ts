@@ -644,3 +644,22 @@ it('keeps live presentation on the narrow feedback contract, never the diagnosti
     visit(source); expect(checked).toBe(2);
   }
 });
+
+it('production cannot reintroduce target substitutions, old policies or retired decoration states', () => {
+  const retiredNames = new Set(['GROUP_RESIDUAL','ContinuousGroupResidualAssignment','residualAssignments',
+    'commitGroupResidualAssignments','residualGroups','groupFrontier','waitingGroups','extraObservations',
+    'wrongNoteIds','missedNoteIds','targetGroups','CONTINUOUS_ANALYSIS_BOUNDS_MS']);
+  const retiredValues = new Set(['WRONG','UNCONFIRMED','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2',
+    'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1']);
+  for (const file of productionFiles(sourceRoot)) {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isIdentifier(node)) expect(retiredNames.has(node.text), file + ': ' + node.text).toBe(false);
+      if (ts.isStringLiteralLike(node)) {
+        expect(retiredValues.has(node.text), file + ': ' + node.text).toBe(false);
+        expect(/practice-summary-note-(wrong|missed)/.test(node.text), file).toBe(false);
+      }
+      ts.forEachChild(node, visit);
+    }; visit(source);
+  }
+});

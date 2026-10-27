@@ -51,7 +51,7 @@ export class ContinuousEvaluationSession {
     this.finalizer.complete(completion);
     return;
   }
-  liveFeedback(): ContinuousLiveFeedback { return projectContinuousLiveFeedback(this.finalizer.targetGroups(), this.inputSource); }
+  liveFeedback(): ContinuousLiveFeedback { return projectContinuousLiveFeedback(this.finalizer.targetStates(), this.inputSource); }
   snapshot(): ContinuousEvaluationSnapshot { return projectEvaluation(this.finalizer.snapshot(), this.inputSource); }
   nextRequiredAnalysisFrontier(): number | null { return this.finalizer.nextRequiredAnalysisFrontier(); }
   completedEvaluation(): CompletedContinuousEvaluation {
@@ -65,12 +65,12 @@ export class ContinuousEvaluationSession {
 function projectEvaluation<A extends ContinuousAssignmentSnapshot | CompletedContinuousAssignment>(assignment: A, inputSource: PracticeInputSource): ContinuousEvaluationLayers<A> {
   const interpretation = interpretContinuousAssignment(assignment, inputSource);
   return interpretation.inputSource === 'MIDI'
-    ? immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MIDI', interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation })
-    : immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MICROPHONE', interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation });
+    ? immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MIDI', interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2', assignment, interpretation })
+    : immutableContinuousValue({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource: 'MICROPHONE', interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', assignment, interpretation });
 }
 export function unavailableContinuousEvaluation(inputSource: PracticeInputSource, reason: ContinuousEvaluationUnavailableReason): UnavailableContinuousEvaluation {
-  return inputSource === 'MIDI' ? Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', reason })
-    : Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason });
+  return inputSource === 'MIDI' ? Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2', reason })
+    : Object.freeze({ status: 'UNAVAILABLE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, inputSource, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason });
 }
 
 export function assertCompletedEvaluation(evaluation: CompletedContinuousEvaluation, inputSource: PracticeInputSource): void {

@@ -323,7 +323,7 @@ describe('Continuous clock and evaluation composition', () => {
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
   });
 
-  it('MIDI produces all five product verdicts through the sole accumulated evaluator', () => {
+  it('MIDI produces target-support verdicts through the sole accumulated evaluator', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       createClockEvidence: domainId => new ContinuousMidiEvidence(domainId),
@@ -346,9 +346,9 @@ describe('Continuous clock and evaluation composition', () => {
     clock.advance(2500); session.advanceToNow();
     const completed = session.completedEvaluation();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete MIDI truth');
-    expect(completed.interpretation.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'CORRECT']);
-    expect(completed.assignment.unattributedObservations).toHaveLength(1);
-    expect(completed.assignment.observationAssignments.map(owner => owner.kind).sort()).toEqual(['GROUP_RESIDUAL', 'STRIKE_MATCH', 'STRIKE_MATCH', 'STRIKE_MATCH', 'UNATTRIBUTED']);
+    expect(completed.interpretation.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'MISSING', 'INCOMPLETE_CHORD', 'CORRECT']);
+    expect(completed.assignment.unattributedObservations).toHaveLength(2);
+    expect(completed.assignment.observationAssignments.map(owner => owner.kind).sort()).toEqual(['STRIKE_MATCH', 'STRIKE_MATCH', 'STRIKE_MATCH', 'UNATTRIBUTED', 'UNATTRIBUTED']);
     expect(completed.assignment.groups).toEqual(session.evaluationSnapshot.assignment.groups);
   });
 
@@ -372,7 +372,7 @@ describe('Continuous clock and evaluation composition', () => {
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[1]).toMatchObject({ state: 'PENDING' });
   });
 
-  it('assigns an incompatible attack once as WRONG, not also EXTRA', () => {
+  it('retains an incompatible physical attack once as UNATTRIBUTED, never a target match', () => {
     const twoGroupArtifact = {
       ...artifact,
       expectedPracticeGroups: artifact.expectedPracticeGroups.slice(0, 2).map((group, index) => ({
@@ -404,8 +404,8 @@ describe('Continuous clock and evaluation composition', () => {
     session.advanceToNow();
     extraClock.advance(1500);
     session.advanceToNow();
-    expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
-    expect(session.evaluationSnapshot.assignment.observationAssignments.filter(owner => owner.kind === 'GROUP_RESIDUAL')).toHaveLength(1);
+    expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(1);
+    expect(session.evaluationSnapshot.assignment.observationAssignments.filter(owner => owner.kind === 'UNATTRIBUTED')).toHaveLength(1);
   });
 
   it('syncs natural clock auto-end into final continuous evaluation without explicit end', () => {
@@ -583,7 +583,7 @@ describe('Continuous clock and evaluation composition', () => {
     session.end('STOPPED_BY_USER');
 
     expect(session.completedEvaluation()).toEqual({
-      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS',
+      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'INCOMPLETE_ANALYSIS',
     });
   });
 

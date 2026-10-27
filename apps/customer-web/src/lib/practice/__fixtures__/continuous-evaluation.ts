@@ -9,14 +9,13 @@ export const finality: ContinuousFinality = Object.freeze({ requiredAnalysisFron
 export function completedEvaluationFixture(inputSource: PracticeInputSource, groups: readonly FinalizedContinuousGroupAssignment[] = [], unattributed: readonly ContinuousObservation[] = []): CompletedContinuousEvaluation {
   const observationAssignments: ContinuousObservationAssignment[] = [...groups.flatMap(group => [
     ...group.strikes.flatMap(strike => strike.state === 'MATCHED' ? [{ kind: 'STRIKE_MATCH' as const, observationId: strike.match.observation.observationId, strikeId: strike.strikeId }] : []),
-    ...group.residualAssignments.map(({ strikeId, observation }) => ({ kind: 'GROUP_RESIDUAL' as const, observationId: observation.observationId, groupId: group.groupId, strikeId })),
   ]), ...unattributed.map(observation => ({ kind: 'UNATTRIBUTED' as const, observationId: observation.observationId }))];
-  const observations = [...groups.flatMap(group => [ ...group.strikes.flatMap(strike => strike.state === 'MATCHED' ? [strike.match.observation] : []), ...group.residualAssignments.map(row => row.observation) ]), ...unattributed];
+  const observations = [...groups.flatMap(group => [ ...group.strikes.flatMap(strike => strike.state === 'MATCHED' ? [strike.match.observation] : []) ]), ...unattributed];
   const assignment: CompletedContinuousAssignment = { sessionDomainId: 'fixture', observations, groups,
     unattributedObservations: unattributed.map(observation => ({ observation, finality })), observationAssignments,
     completion: { reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 } };
   const interpretation = interpretContinuousAssignment(assignment, inputSource);
   return interpretation.inputSource === 'MIDI'
-    ? { status: 'COMPLETE', inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment, interpretation }
-    : { status: 'COMPLETE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', assignment, interpretation };
+    ? { status: 'COMPLETE', inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2', assignment, interpretation }
+    : { status: 'COMPLETE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', assignment, interpretation };
 }

@@ -379,7 +379,7 @@
   "leaveReviewWhileExportingAndUnsavedDesc": "分享视频正在生成，确认离开会取消当前合成任务；同时，原始录音或录像尚未保存为正式演奏，离开后这份临时媒体可能无法再次访问。",
   "leaveReviewContinue": "继续查看",
   "leaveReviewConfirm": "确认离开",
-  "acousticEvidenceDesc": "麦克风结果表示声学识别证据；未归属的声学识别结果不会直接视为错音或多弹。",
+  "acousticEvidenceDesc": "绿色表示检测到目标音的支持证据；红色表示健康完成的分析未检测到该目标音，不代表断言你没有弹奏。",
   "evaluationUnavailableDesc": "未能完成可靠的练习评估。",
   "recordingRecovered": "录制设备已恢复",
   "inputInterrupted": "输入暂时中断",

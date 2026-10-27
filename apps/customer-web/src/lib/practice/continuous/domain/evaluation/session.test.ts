@@ -33,7 +33,7 @@ describe('artifact-bound Continuous evaluation session', () => {
   it('keeps incomplete analysis unavailable until coverage arrives', () => {
     const session = createSession();
     session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 100, availabilitySessionTimeMs: 100 });
-    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'INCOMPLETE_ANALYSIS' });
+    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'INCOMPLETE_ANALYSIS' });
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 200, observations: [] });
     expect(session.completedEvaluation().status).toBe('COMPLETE');
     expect(session.snapshot().interpretation.groups.some(group => group.verdict === 'NOT_REACHED')).toBe(true);
@@ -50,17 +50,17 @@ describe('source-bound evaluation composition', () => {
     expect(session.snapshot()).toEqual(before);
     expect(() => session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 1100 })).toThrow('OBSERVATION_SOURCE_MISMATCH');
     expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource,
-      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V1' : 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V2' : 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
   });
-  it('completed acoustic analysis without support is UNCONFIRMED, never UNAVAILABLE', () => {
+  it('completed acoustic analysis without support is NOT_DETECTED, never UNAVAILABLE', () => {
     const session = createSession();
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100, observations: [] });
     session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
     const result = session.completedEvaluation();
     expect(result.status).toBe('COMPLETE');
     if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(result.interpretationPolicyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
-    expect(result.interpretation.groups.every(group => group.verdict === 'UNCONFIRMED')).toBe(true);
+    expect(result.interpretationPolicyId).toBe('ACOUSTIC_TARGET_DETECTION_V2');
+    expect(result.interpretation.groups.every(group => group.verdict === 'NOT_DETECTED')).toBe(true);
     expect(result.assignment.groups.every(group => group.strikes.every(strike => strike.state === 'UNMATCHED'))).toBe(true);
   });
 });
@@ -72,7 +72,7 @@ it.each(['assignmentPolicyId', 'interpretationPolicyId'] as const)('%s is retain
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
   for (const result of [unavailable, session.completedEvaluation()]) {
     expect(result.assignmentPolicyId).toBe(CONTINUOUS_ASSIGNMENT_POLICY_ID);
-    expect(result.interpretationPolicyId).toBe('ACOUSTIC_CONSERVATIVE_SUPPORT_V1');
+    expect(result.interpretationPolicyId).toBe('ACOUSTIC_TARGET_DETECTION_V2');
     expect(() => assertCompletedEvaluation(result, 'MICROPHONE')).not.toThrow();
     const corrupt = JSON.parse(JSON.stringify(result)); corrupt[key] = 'wrong';
     expect(() => assertCompletedEvaluation(corrupt, 'MICROPHONE')).toThrow();

@@ -139,7 +139,7 @@ export function PracticeScoreViewer({
       container,
       performanceEvaluation
         ? noteAnnotationsFromLiveFeedback(performanceEvaluation)
-        : { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: [] },
+        : { supportedNoteIds: [], unsupportedNoteIds: [] },
       { renderRevision }
     );
   }, [
@@ -323,14 +323,10 @@ export function PracticeScoreViewer({
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-score-svg .${SCORE_DECORATIONS.wrong} {
+        .practice-score-svg .${SCORE_DECORATIONS.unsupported} {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
-        }
-        .practice-score-svg .${SCORE_DECORATIONS.missed} {
-          fill: #94a3b8 !important;
-          color: #94a3b8 !important;
         }
         .practice-score-svg svg {
           display: block;

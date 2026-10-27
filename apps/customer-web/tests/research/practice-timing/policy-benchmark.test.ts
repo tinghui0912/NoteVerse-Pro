@@ -81,12 +81,12 @@ describe('production timing policy characterization', () => {
     expect(c.observations.map(o => o.assignedStrikeId)).toEqual(['g0:C4', 'g1:C4']);
     expect(c.observations.map(o => o.timingOffsetMs)).toEqual([10, -10]);
   });
-  it.each(tempoGrid)('retains chord residual-slot behavior at %i BPM', bpm => {
+  it.each(tempoGrid)('retains exact-pitch chord support and non-target evidence at %i BPM', bpm => {
     const timeline = fixedTimeline(bpm), strikes = expectedPattern(timeline, [['C4', 'E4', 'G4']], 1);
-    const c = characterizeCase({ caseId: 'residual', family: 'CHORD', variant: 'CONTROL', bpm, spacingBeats: 1,
+    const c = characterizeCase({ caseId: 'non-target', family: 'CHORD', variant: 'CONTROL', bpm, spacingBeats: 1,
       timeline, strikes, probes: strikes.map(s => ({ intendedStrikeId: s.strikeId, offsetMs: 0, pitch: s.pitch === 'G4' ? 'A4' : s.pitch })) });
     expect(c).toMatchObject({ matchedCount: 2, unmatchedCount: 1 });
-    expect(c.observations[2]).toMatchObject({ assignmentKind: 'GROUP_RESIDUAL', assignedStrikeId: 'g0:G4', claimantCount: 0, timingOffsetMs: 0 });
+    expect(c.observations[2]).toMatchObject({ assignmentKind: 'UNATTRIBUTED', assignedStrikeId: null, claimantCount: 0, timingOffsetMs: null });
   });
   it('characterizes an 80→160 tempo boundary without changing a physical window', () => {
     const [before, after] = transitionCases();

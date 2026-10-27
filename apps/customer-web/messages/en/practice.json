@@ -379,7 +379,7 @@
   "leaveReviewWhileExportingAndUnsavedDesc": "The share video is being generated, so leaving will cancel the current composite export. The original recording has also not been saved as a performance and may become unavailable after leaving.",
   "leaveReviewContinue": "Continue viewing",
   "leaveReviewConfirm": "Leave",
-  "acousticEvidenceDesc": "Microphone results reflect acoustic evidence. Unassigned acoustic detections are not treated as wrong or extra notes.",
+  "acousticEvidenceDesc": "Green indicates detected support for a target note. Red means healthy completed analysis did not detect that target; it does not prove the note was not played.",
   "evaluationUnavailableDesc": "A reliable evaluation could not be completed.",
   "recordingRecovered": "Recording device recovered",
   "inputInterrupted": "Input temporarily interrupted",

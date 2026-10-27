@@ -1,208 +1,81 @@
 // @vitest-environment jsdom
-
 import { describe, expect, it, vi } from 'vitest';
-import { completedEvaluationFixture } from '@/lib/practice/__fixtures__/continuous-evaluation';
-import { noteAnnotationsFromCompletedEvaluation } from './evaluation-annotations';
-import { projectContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
+import { projectContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
+import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';
+import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
+import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
+import { EvaluationAnnotationController, noteAnnotationsFromLiveFeedback, noteAnnotationsFromCompletedEvaluation } from './evaluation-annotations';
 
-import {
-  EvaluationAnnotationController,
-  noteAnnotationsFromLiveFeedback,
-} from './evaluation-annotations';
-
-describe('EvaluationAnnotationController', () => {
-  it('applies performance annotations and replaces stale annotations', () => {
-    const container = document.createElement('div');
-    container.innerHTML = `
-      <span data-id="n1"></span>
-      <span data-id="n2"></span>
-      <span id="n3"></span>
-    `;
+const targets = ['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] }));
+const matrix = [
+  { label: 'silence', pitches: [], supported: [], unsupported: ['C4','D4'] },
+  { label: 'C4 + E4', pitches: ['C4','E4'], supported: ['C4'], unsupported: ['D4'] },
+  { label: 'C4 only', pitches: ['C4'], supported: ['C4'], unsupported: ['D4'] },
+  { label: 'C4 + D4', pitches: ['C4','D4'], supported: ['C4','D4'], unsupported: [] },
+];
+for (const inputSource of ['MIDI','MICROPHONE'] as const) describe(inputSource + ' target annotation parity', () => {
+  it.each(matrix)('$label has the same supported/unsupported notes in Live and Review', row => {
+    const finalizer = new ContinuousAssignmentFinalizer('target', targets);
+    const observations = row.pitches.map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: .5,
+      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const }));
+    const before = structuredClone(observations), serialized = JSON.stringify(observations);
+    finalizer.publish({ publicationId: 'p', sessionDomainId: 'target', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100, observations });
+    const live = noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetStates(), inputSource));
+    finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
+    const completed = finalizer.completedAssignment(); if (completed.status !== 'COMPLETE') throw Error('incomplete');
+    assertCompletedAssignment(completed.assignment);
+    const interpretation = interpretContinuousAssignment(completed.assignment, inputSource);
+    const evaluation = interpretation.inputSource === 'MIDI'
+      ? { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const, inputSource: 'MIDI' as const, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2' as const, assignment: completed.assignment, interpretation }
+      : { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const, inputSource: 'MICROPHONE' as const, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2' as const, assignment: completed.assignment, interpretation };
+    const review = noteAnnotationsFromCompletedEvaluation(evaluation);
+    expect(live).toEqual({ supportedNoteIds: row.supported, unsupportedNoteIds: row.unsupported }); expect(review).toEqual(live);
+    expect(completed.assignment.observations.map(observation => observation.pitch)).toEqual(row.pitches);
+    expect(completed.assignment.unattributedObservations.map(entry => entry.observation.pitch)).toEqual(row.pitches.includes('E4') ? ['E4'] : []);
+    expect(completed.assignment.observationAssignments.filter(entry => entry.kind === 'STRIKE_MATCH').map(entry => entry.observationId)).toEqual(row.supported);
+    expect(completed.assignment.observationAssignments.every(entry => ['STRIKE_MATCH','UNATTRIBUTED'].includes(entry.kind))).toBe(true);
+    expect(finalizer.snapshot().reservedObservationIds).toEqual([]);
+    expect(observations).toEqual(before); expect(JSON.stringify(observations)).toBe(serialized); expect(observations.every(observation => !Object.isFrozen(observation))).toBe(true);
+    const container = document.createElement('div'); container.innerHTML = '<span data-id="C4"></span><span data-id="D4"></span>';
     const controller = new EvaluationAnnotationController();
-
-    controller.apply(container, {
-      supportedNoteIds: ['n1'],
-      wrongNoteIds: ['n2', 'missing', 'n2'],
-     missedNoteIds: [] });
-
-    expect(container.querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-supported'
-    );
-    expect(container.querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-wrong'
-    );
-
-    controller.apply(container, {
-      supportedNoteIds: [],
-      wrongNoteIds: ['n3'],
-     missedNoteIds: [] });
-
-    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
-      'practice-summary-note-supported'
-    );
-    expect(container.querySelector('[data-id="n2"]')).not.toHaveClass(
-      'practice-summary-note-wrong'
-    );
-    expect(container.querySelector('#n3')).toHaveClass(
-      'practice-summary-note-wrong'
-    );
+    for (const annotations of [live, review]) {
+      controller.apply(container, annotations);
+      for (const pitch of row.supported) expect(container.querySelector('[data-id="' + pitch + '"]')).toHaveClass('practice-summary-note-supported');
+      for (const pitch of row.unsupported) expect(container.querySelector('[data-id="' + pitch + '"]')).toHaveClass('practice-summary-note-unsupported');
+      expect(container.querySelector('[data-id="E4"]')).toBeNull(); controller.clear(container);
+    }
   });
-
-  it('clears annotations from the current container', () => {
-    const container = document.createElement('div');
-    container.innerHTML = '<span data-id="n1"></span>';
-    const controller = new EvaluationAnnotationController();
-
-    controller.apply(container, {
-      supportedNoteIds: ['n1'],
-      wrongNoteIds: [],
-     missedNoteIds: [] });
-    controller.clear(container);
-
-    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
-      'practice-summary-note-supported'
-    );
-  });
-
-  it('does not remove and re-add unchanged settled annotations', () => {
-    const container = document.createElement('div');
-    container.innerHTML = `
-      <span data-id="n1"></span>
-      <span data-id="n2"></span>
-    `;
-    const controller = new EvaluationAnnotationController();
-    controller.apply(
-      container,
-      {
-        supportedNoteIds: [],
-        wrongNoteIds: ['n1'],
-       missedNoteIds: [] },
-      { renderRevision: 1 }
-    );
-    const addSpy = vi.spyOn(DOMTokenList.prototype, 'add');
-    const removeSpy = vi.spyOn(DOMTokenList.prototype, 'remove');
-
-    controller.apply(
-      container,
-      {
-        supportedNoteIds: [],
-        wrongNoteIds: ['n1', 'n2'],
-       missedNoteIds: [] },
-      { renderRevision: 1 }
-    );
-
-    expect(container.querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-wrong'
-    );
-    expect(container.querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-wrong'
-    );
-    expect(
-      removeSpy.mock.calls.some((call) =>
-        call.includes('practice-summary-note-wrong')
-      )
-    ).toBe(false);
-    expect(addSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('rehydrates settled annotations when the score DOM render revision changes', () => {
-    const container = document.createElement('div');
-    container.innerHTML = '<span data-id="n1"></span>';
-    const controller = new EvaluationAnnotationController();
-    controller.apply(
-      container,
-      {
-        supportedNoteIds: [],
-        wrongNoteIds: ['n1'],
-       missedNoteIds: [] },
-      { renderRevision: 1 }
-    );
-
-    container.innerHTML = '<span data-id="n1"></span>';
-    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
-      'practice-summary-note-wrong'
-    );
-
-    controller.apply(
-      container,
-      {
-        supportedNoteIds: [],
-        wrongNoteIds: ['n1'],
-       missedNoteIds: [] },
-      { renderRevision: 2 }
-    );
-
-    expect(container.querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-wrong'
-    );
-  });
-
-  it('derives strike-level note annotations without coloring pending notes', () => {
-    const finalizer = new ContinuousAssignmentFinalizer('annotation', [
-      { strikeId: 'c', groupId: 'g-1', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: ['note-c'] },
-      { strikeId: 'e', groupId: 'g-1', pitch: 'E4', expectedPerformanceTimeMs: 1000, renderNoteIds: ['note-e'] },
-      { strikeId: 'g', groupId: 'future', pitch: 'G4', expectedPerformanceTimeMs: 5000, renderNoteIds: ['note-g'] },
-    ]);
-    finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilitySessionTimeMs: 1600,
-      observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
-    const annotations = noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetGroups(), 'MIDI'));
-
-    expect(annotations.supportedNoteIds).toEqual(['note-c']);
-    expect(annotations.wrongNoteIds).toEqual([]);
-    expect(annotations.missedNoteIds).toEqual(['note-e']);
-    expect(annotations.supportedNoteIds).not.toContain('note-g');
-    expect(annotations.wrongNoteIds).not.toContain('note-g');
-    expect(annotations.missedNoteIds).not.toContain('note-g');
+  it('pending, not-reached and unavailable analysis never fabricate red targets', () => {
+    const f = new ContinuousAssignmentFinalizer('pending', targets);
+    expect(noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(f.targetStates(), inputSource))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
+    f.publish({ publicationId: 'stop', sessionDomainId: 'pending', analyzedThroughPerformanceMs: 500, availabilitySessionTimeMs: 500, observations: [] });
+    f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 500, availabilitySessionTimeMs: 500 });
+    const interpretation = interpretContinuousAssignment(f.snapshot(), inputSource);
+    expect(interpretation.groups[0].strikes.every(strike => strike.state === 'NOT_REACHED')).toBe(true);
+    expect(noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(f.targetStates(), inputSource))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
+    expect(noteAnnotationsFromCompletedEvaluation(unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
   });
 });
 
-
-describe('source-safe score annotations', () => {
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s interprets unmatched targets without changing assignment', inputSource => {
-    const raw = new ContinuousAssignmentFinalizer('annotation', ['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })));
-    raw.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100,
-      observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) });
-    raw.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
-    const result = raw.completedAssignment();
-    if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(noteAnnotationsFromCompletedEvaluation(completedEvaluationFixture(inputSource,result.assignment.groups))).toEqual({
-      supportedNoteIds: ['C4'], wrongNoteIds: inputSource === 'MIDI' ? ['D4'] : [] , missedNoteIds: [] });
-    expect(result.assignment.groups[0].residualAssignments.map(row => row.observation.pitch)).toEqual(['E4']);
-  });
-});
-
-
-it('keeps missed targets distinct through DOM annotation replacement and clearing', () => {
-  const container = document.createElement('div');
-  container.innerHTML = '<span data-id="n"></span>';
-  const note = container.querySelector('[data-id="n"]')!;
+it('replaces stale classes, prioritizes unsupported overlap and clears both target decorations', () => {
+  const container = document.createElement('div'); container.innerHTML = '<span data-id="a"></span><span id="b"></span>';
   const controller = new EvaluationAnnotationController();
-  controller.apply(container, { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: ['n'] });
-  expect([...note.classList]).toEqual(['practice-summary-note-missed']);
-  controller.apply(container, { supportedNoteIds: [], wrongNoteIds: ['n'], missedNoteIds: [] });
-  expect([...note.classList]).toEqual(['practice-summary-note-wrong']);
-  controller.apply(container, { supportedNoteIds: ['n'], wrongNoteIds: [], missedNoteIds: [] });
-  expect([...note.classList]).toEqual(['practice-summary-note-supported']);
-  controller.clear(container);
-  expect([...note.classList]).toEqual([]);
+  controller.apply(container, { supportedNoteIds: ['a','b'], unsupportedNoteIds: ['b','b','absent'] });
+  expect(container.querySelector('#b')).toHaveClass('practice-summary-note-unsupported');
+  expect(container.querySelector('#b')).not.toHaveClass('practice-summary-note-supported');
+  controller.apply(container, { supportedNoteIds: ['b'], unsupportedNoteIds: ['a'] });
+  expect(container.querySelector('[data-id="a"]')).toHaveClass('practice-summary-note-unsupported');
+  expect(container.querySelector('#b')).toHaveClass('practice-summary-note-supported');
+  controller.clear(container); expect([...container.children].every(note => note.classList.length === 0)).toBe(true);
 });
-
- it('MIDI live WRONG leaves the target undecorated while completed Review WRONG is red', () => {
-  const finalizer = new ContinuousAssignmentFinalizer('live', ['C4','D4','G4'].map((pitch, index) => ({
-    strikeId: pitch, groupId: index === 2 ? 'missing' : 'chord', pitch, expectedPerformanceTimeMs: index === 2 ? 2000 : 1000, renderNoteIds: [pitch],
-  })));
-  finalizer.publish({ publicationId: 'p', sessionDomainId: 'live', analyzedThroughPerformanceMs: 4000, availabilitySessionTimeMs: 4100,
-    observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, source: 'MIDI', confidence: 1 })) });
-  const container = document.createElement('div'); container.innerHTML = '<span data-id="C4"></span><span data-id="D4"></span><span data-id="G4"></span>';
-  const controller = new EvaluationAnnotationController();
-  controller.apply(container, noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetGroups(), 'MIDI')));
-  expect(container.querySelector('[data-id="C4"]')).toHaveClass('practice-summary-note-supported');
-  expect(container.querySelector('[data-id="D4"]')!.classList).toHaveLength(0);
-  expect(container.querySelector('[data-id="G4"]')).toHaveClass('practice-summary-note-missed');
-  expect(container.querySelector('[data-id="E4"]')).toBeNull();
-  finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 });
-  const completed = finalizer.completedAssignment(); if (completed.status !== 'COMPLETE') throw Error('incomplete');
-  controller.apply(container, noteAnnotationsFromCompletedEvaluation(completedEvaluationFixture('MIDI', completed.assignment.groups)));
-  expect(container.querySelector('[data-id="D4"]')).toHaveClass('practice-summary-note-wrong');
- });
+it('does not reapply unchanged settled feedback and rehydrates after score DOM revision', () => {
+  const container = document.createElement('div'); container.innerHTML = '<span data-id="a"></span>';
+  const controller = new EvaluationAnnotationController(), annotations = { supportedNoteIds: [], unsupportedNoteIds: ['a'] };
+  controller.apply(container, annotations, { renderRevision: 1 });
+  const add = vi.spyOn(DOMTokenList.prototype, 'add'), remove = vi.spyOn(DOMTokenList.prototype, 'remove');
+  try { controller.apply(container, annotations, { renderRevision: 1 }); expect(add).not.toHaveBeenCalled(); expect(remove).not.toHaveBeenCalled(); }
+  finally { add.mockRestore(); remove.mockRestore(); }
+  container.innerHTML = '<span data-id="a"></span>'; controller.apply(container, annotations, { renderRevision: 2 });
+  expect(container.querySelector('[data-id="a"]')).toHaveClass('practice-summary-note-unsupported');
+});

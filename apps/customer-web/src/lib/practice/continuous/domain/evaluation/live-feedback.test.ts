@@ -15,15 +15,15 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s live feedback carries only committe
     observations: ['C4','E4','B7'].map((pitch, i) => ({ observationId: pitch, pitch, performanceTimeMs: i === 2 ? 3500 : 1000, confidence: 1,
       source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) });
   const before = finalizer.snapshot();
-  const feedback = projectContinuousLiveFeedback(finalizer.targetGroups(), inputSource);
+  const feedback = projectContinuousLiveFeedback(finalizer.targetStates(), inputSource);
   expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId','groups','inputSource','interpretationPolicyId']);
   for (const group of feedback.groups) {
     expect(Object.keys(group).sort()).toEqual(['groupId','strikes']);
     for (const strike of group.strikes) expect(Object.keys(strike).sort()).toEqual(['renderNoteIds','state','strikeId']);
   }
   expect(feedback.groups.flatMap(group => group.strikes)).toEqual(inputSource === 'MIDI'
-    ? [{ strikeId: 'C4', renderNoteIds: ['C4'], state: 'CORRECT' }, { strikeId: 'G4', renderNoteIds: ['G4'], state: 'MISSING' }]
-    : [{ strikeId: 'C4', renderNoteIds: ['C4'], state: 'SUPPORTED' }]);
+    ? [{ strikeId: 'C4', renderNoteIds: ['C4'], state: 'CORRECT' }, { strikeId: 'D4', renderNoteIds: ['D4'], state: 'MISSING' }, { strikeId: 'G4', renderNoteIds: ['G4'], state: 'MISSING' }]
+    : [{ strikeId: 'C4', renderNoteIds: ['C4'], state: 'SUPPORTED' }, { strikeId: 'D4', renderNoteIds: ['D4'], state: 'NOT_DETECTED' }, { strikeId: 'G4', renderNoteIds: ['G4'], state: 'NOT_DETECTED' }]);
   for (const key of ['assignment','observations','unattributedObservations','observationAssignments','reservedObservationIds','extraObservations']) {
     expect(JSON.stringify(feedback)).not.toContain('"' + key + '"');
   }
@@ -34,10 +34,11 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s live feedback carries only committe
   const result = finalizer.completedAssignment(); if (result.status !== 'COMPLETE') throw Error('incomplete');
   const interpretation = interpretContinuousAssignment(result.assignment, inputSource);
   expect(result.assignment.observations).toHaveLength(3);
-  expect(result.assignment.groups[0].residualAssignments[0].observation.pitch).toBe('E4');
+  expect(result.assignment.unattributedObservations.map(row => row.observation.pitch)).toEqual(['B7','E4']);
+  expect(finalizer.targetStates().every(group => group.strikes.every(strike => Object.keys(strike).sort().join() === 'renderNoteIds,state,strikeId'))).toBe(true);
   if (interpretation.inputSource === 'MIDI') {
-    expect(interpretation.groups[0].strikes.map(strike => strike.state)).toEqual(['CORRECT','WRONG']);
-    expect(interpretation.extraObservations.map(observation => observation.pitch)).toEqual(['B7']);
+    expect(interpretation.groups[0].strikes.map(strike => strike.state)).toEqual(['CORRECT','MISSING']);
+    expect(interpretation).not.toHaveProperty('extraObservations');
   }
 });
 

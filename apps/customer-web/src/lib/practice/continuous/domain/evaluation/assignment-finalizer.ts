@@ -1,15 +1,15 @@
 import { matchContinuousEvidence, type ContinuousMatchingEdge } from '@/lib/practice/continuous/domain/evaluation/matching';
-import { assertContinuousBound, CONTINUOUS_ANALYSIS_BOUNDS_MS, CONTINUOUS_ASSIGNMENT_WINDOW_MS, directObservationClaimants, directStrikeCohort, directStrikeFrontier, withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
+import { CONTINUOUS_ASSIGNMENT_WINDOW_MS, directObservationClaimants, directStrikeCohort, directStrikeFrontier, withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { compareContinuousId, ContinuousEvidenceStore, observationsInRange, type PreparedContinuousEvidence } from '@/lib/practice/continuous/domain/evaluation/observation-store';
 import { completeContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
 import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousGroupResidualAssignment, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousTargetStateGroup, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 
 
-type Group = { order: number; groupId: string; time: number; strikes: readonly ContinuousExpectedStrike[]; pitches: ReadonlySet<string> };
+type Group = { groupId: string; time: number; strikes: readonly ContinuousExpectedStrike[] };
 const byStrikeId = (a: ContinuousExpectedStrike, b: ContinuousExpectedStrike) => compareContinuousId(a.strikeId, b.strikeId);
 const byObservationId = (a: ContinuousObservation, b: ContinuousObservation) => compareContinuousId(a.observationId, b.observationId);
 
@@ -21,7 +21,6 @@ type AssignmentTransaction = {
   groups: Map<string, ContinuousGroupAssignment>;
   owners: Map<string, ContinuousObservationAssignment>;
   unattributed: UnattributedContinuousObservation[];
-  waitingGroups: Set<Group>;
   strikeCursor: number;
   completion: ContinuousCompletion | null;
 };
@@ -41,7 +40,6 @@ export class ContinuousAssignmentFinalizer {
   private readonly groupById = new Map<string, Group>();
   private readonly strikeOrder = new Map<string, number>();
   private readonly frontierOrder: readonly ContinuousExpectedStrike[];
-  private waitingGroups = new Set<Group>();
   private strikeCursor = 0;
   private transaction: AssignmentTransaction | null = null;
   private requestedCompletion: ContinuousCompletion | null = null;
@@ -70,9 +68,9 @@ export class ContinuousAssignmentFinalizer {
       grouped.set(strike.groupId, group);
     }
     this.groups = [...grouped].map(([groupId, strikes]) => ({
-      order: 0, groupId, strikes, time: strikes[0].expectedPerformanceTimeMs, pitches: new Set(strikes.map(strike => strike.pitch)),
+      groupId, strikes, time: strikes[0].expectedPerformanceTimeMs,
     })).sort((a, b) => a.time - b.time || compareContinuousId(a.groupId, b.groupId));
-    this.groups.forEach((group, order) => { group.order = order; this.groupById.set(group.groupId, group); });
+    for (const group of this.groups) this.groupById.set(group.groupId, group);
     for (const strike of this.strikes) this.strikeFrontiers.set(strike.strikeId, directStrikeFrontier(strike,
       this.strikeRange(strike.pitch, strike.expectedPerformanceTimeMs - 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS,
         strike.expectedPerformanceTimeMs + 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS)));
@@ -126,7 +124,7 @@ export class ContinuousAssignmentFinalizer {
   /** All incoming evidence/ownership/frontier work is staged. Correctness failure discards the plan. */
   private planAndCommit(publication: ContinuousEvidencePublication, evidence: PreparedContinuousEvidence | null, requested: ContinuousCompletion | null): void {
     const draft: AssignmentTransaction = { evidence, publication, requested, strikes: new Map(), groups: new Map(), owners: new Map(),
-      unattributed: [], waitingGroups: new Set(this.waitingGroups), strikeCursor: this.strikeCursor, completion: this.completion };
+      unattributed: [], strikeCursor: this.strikeCursor, completion: this.completion };
     this.transaction = draft;
     try { this.commit(); this.closeCompletion(); }
     finally { this.transaction = null; }
@@ -139,26 +137,29 @@ export class ContinuousAssignmentFinalizer {
     for (const [id, value] of draft.groups) this.committedGroups.set(id, value);
     for (const [id, value] of draft.owners) { this.owners.set(id, value); this.unowned.delete(id); }
     for (const observation of draft.unattributed) this.unattributedObservations.push(observation);
-    this.waitingGroups = draft.waitingGroups; this.strikeCursor = draft.strikeCursor;
+    this.strikeCursor = draft.strikeCursor;
     this.requestedCompletion = requested; this.completion = draft.completion;
   }
 
-  /** Target state only: no evidence ledger, owners, reservations or unattributed history. */
-  targetGroups(): readonly ContinuousGroupAssignment[] {
-    return Object.freeze(this.groups.map(group => this.committedGroups.get(group.groupId) ?? Object.freeze({
-        groupId: group.groupId, performanceTimeMs: group.time, state: 'PENDING' as const,
-        strikes: Object.freeze(group.strikes.map(strike => this.strikeState(strike))), residualAssignments: Object.freeze([] as const), finality: null,
-      })));
+  /** Presentation reads only source-blind target identity/state, never a match payload. */
+  targetStates(): readonly ContinuousTargetStateGroup[] {
+    return immutableContinuousValue(this.groups.map(group => ({ groupId: group.groupId,
+      strikes: group.strikes.map(strike => ({ strikeId: strike.strikeId, renderNoteIds: strike.renderNoteIds,
+        state: this.strikeState(strike).state })),
+    })));
   }
 
   snapshot(): ContinuousAssignmentSnapshot {
     return Object.freeze({
       sessionDomainId: this.evidence.sessionDomainId,
       analyzedThroughPerformanceMs: Number.isFinite(this.evidence.analyzedThrough) ? this.evidence.analyzedThrough : null,
-      groups: this.targetGroups(),
+      groups: Object.freeze(this.groups.map(group => this.committedGroups.get(group.groupId) ?? Object.freeze({
+        groupId: group.groupId, performanceTimeMs: group.time, state: 'PENDING' as const,
+        strikes: Object.freeze(group.strikes.map(strike => this.strikeState(strike))), finality: null,
+      }))),
       observations: this.evidence.values(), unattributedObservations: Object.freeze([...this.unattributedObservations]),
       observationAssignments: Object.freeze([...this.owners.values()].sort((a, b) => compareContinuousId(a.observationId, b.observationId))),
-      reservedObservationIds: Object.freeze(this.residual().filter(observation => this.claimants(observation).some(strike => !this.hasStrike(strike.strikeId)))
+      reservedObservationIds: Object.freeze(this.unownedObservations().filter(observation => this.claimants(observation).some(strike => !this.hasStrike(strike.strikeId)))
         .map(observation => observation.observationId).sort(compareContinuousId)),
       completion: this.completion,
     });
@@ -178,9 +179,6 @@ export class ContinuousAssignmentFinalizer {
     for (let i = this.strikeCursor; i < this.frontierOrder.length; i++) {
       const strike = this.frontierOrder[i];
       if (!this.hasStrike(strike.strikeId) && this.frontier(strike) > this.analyzedThrough) { next = this.frontier(strike); break; }
-    }
-    for (const group of this.waitingGroups) {
-      const frontier = this.groupFrontier(group); if (frontier > this.analyzedThrough) next = Math.min(next, frontier);
     }
     for (const observation of this.unowned.values()) {
       const frontier = this.unattributedFrontier(observation); if (frontier > this.analyzedThrough) next = Math.min(next, frontier);
@@ -212,7 +210,7 @@ export class ContinuousAssignmentFinalizer {
     return [...this.evidence.inRange(start, end, pitch), ...incoming];
   }
   private isUnowned(id: string): boolean { return !this.owners.has(id) && !this.transaction?.owners.has(id); }
-  private residual(): ContinuousObservation[] {
+  private unownedObservations(): ContinuousObservation[] {
     return [...this.unowned.values(), ...this.transaction?.evidence?.publication.observations ?? []].filter(o => this.isUnowned(o.observationId));
   }
   private claim(assignment: ContinuousObservationAssignment): void {
@@ -226,29 +224,13 @@ export class ContinuousAssignmentFinalizer {
       finalizationSessionTimeMs: publication.availabilitySessionTimeMs, terminalClamp: required > this.terminal };
   }
 
-  private groupFrontier(group: Group): number {
-    const local = this.observationRange(group.time - CONTINUOUS_ASSIGNMENT_WINDOW_MS, group.time + CONTINUOUS_ASSIGNMENT_WINDOW_MS)
-      .filter(observation => !group.pitches.has(observation.pitch) && withinContinuousWindow(group.time, observation.performanceTimeMs));
-    // A literal claimant contributes its OWN fixed frontier, never its group's frontier.
-    let required = group.time + CONTINUOUS_ASSIGNMENT_WINDOW_MS;
-    for (const strike of group.strikes) required = Math.max(required, this.frontier(strike));
-    for (const observation of local) for (const strike of this.claimants(observation)) required = Math.max(required, this.frontier(strike));
-    assertContinuousBound(required, group.time, CONTINUOUS_ANALYSIS_BOUNDS_MS.group);
-    return required;
-  }
-
   private commit(): void {
     this.commitStrikes();
-    const ready: Group[] = [];
-    for (const group of [...this.transaction!.waitingGroups].sort((a, b) => a.order - b.order)) {
-      if (this.hasGroup(group.groupId)) continue;
-      const states = group.strikes.map(strike => this.strikeState(strike));
-      if (states.some(strike => strike.state === 'PENDING')) continue;
-      if (states.some(strike => strike.state === 'NOT_REACHED')) this.finishGroup(group, [], this.groupFrontier(group));
-      else if (states.every(strike => strike.state === 'MATCHED')) this.finishGroup(group, [], Math.max(...group.strikes.map(strike => this.frontier(strike))));
-      else if (Math.min(this.groupFrontier(group), this.terminal) <= this.analyzedThrough) ready.push(group);
+    // Only groups touched by newly finalized strikes need a completion check.
+    const touched = new Set([...this.transaction!.strikes.values()].map(strike => this.groupById.get(strike.groupId)!));
+    for (const group of [...touched].sort((a, b) => a.time - b.time || compareContinuousId(a.groupId, b.groupId))) {
+      if (!this.hasGroup(group.groupId) && group.strikes.every(strike => this.strikeState(strike).state !== 'PENDING')) this.finishGroup(group);
     }
-    this.commitGroupResidualAssignments(ready);
     this.commitUnattributedObservations();
   }
 
@@ -288,7 +270,6 @@ export class ContinuousAssignmentFinalizer {
           && anchor.expectedPerformanceTimeMs + CONTINUOUS_ASSIGNMENT_WINDOW_MS > this.terminal;
         draft.strikes.set(anchor.strikeId, immutableContinuousValue({ ...anchor, state: notReached ? 'NOT_REACHED' : 'UNMATCHED', finality }));
       }
-      draft.waitingGroups.add(this.groupById.get(anchor.groupId)!);
     }
   }
 
@@ -296,79 +277,37 @@ export class ContinuousAssignmentFinalizer {
     edges.push({ left, right, cost });
   }
 
-  private commitGroupResidualAssignments(ready: readonly Group[]): void {
-    const slots = ready.flatMap(group => group.strikes.filter(strike => this.strikeState(strike).state === 'UNMATCHED')
-      .map(strike => ({ group, strike }))).sort((a, b) => byStrikeId(a.strike, b.strike));
-    const candidates = new Map<string, ContinuousObservation>();
-    for (const group of ready) {
-      for (const o of this.observationRange(group.time - CONTINUOUS_ASSIGNMENT_WINDOW_MS, group.time + CONTINUOUS_ASSIGNMENT_WINDOW_MS)) {
-        if (this.isUnowned(o.observationId) && withinContinuousWindow(group.time, o.performanceTimeMs) && !group.pitches.has(o.pitch) && this.claimants(o).every(s => this.hasStrike(s.strikeId))) candidates.set(o.observationId, o);
-      }
-    }
-    const observations = [...candidates.values()].sort(byObservationId);
-    const right = new Map(observations.map((o, j) => [o.observationId, j]));
-    const edges: ContinuousMatchingEdge[] = [];
-    slots.forEach(({ group }, i) => {
-      for (const o of this.observationRange(group.time - CONTINUOUS_ASSIGNMENT_WINDOW_MS, group.time + CONTINUOUS_ASSIGNMENT_WINDOW_MS)) {
-        const j = right.get(o.observationId);
-        if (j !== undefined && withinContinuousWindow(group.time, o.performanceTimeMs) && !group.pitches.has(o.pitch)) this.candidateEdge(edges, i, j, Math.abs(group.time - o.performanceTimeMs));
-      }
-    });
-    const residualByGroup = new Map<string, ContinuousGroupResidualAssignment[]>();
-    for (const [i, j] of matchContinuousEvidence(slots.length, observations.length, edges)) {
-      const { group, strike } = slots[i], observation = observations[j];
-      this.claim({ kind: 'GROUP_RESIDUAL', observationId: observation.observationId, groupId: group.groupId, strikeId: strike.strikeId });
-      residualByGroup.set(group.groupId, [...(residualByGroup.get(group.groupId) ?? []), {
-        strikeId: strike.strikeId, observation, timingOffsetMs: observation.performanceTimeMs - strike.expectedPerformanceTimeMs,
-      }]);
-    }
-    for (const group of ready) this.finishGroup(group, residualByGroup.get(group.groupId) ?? [], this.groupFrontier(group));
-  }
-
-  private finishGroup(group: Group, residualAssignments: readonly ContinuousGroupResidualAssignment[], required: number): void {
+  private finishGroup(group: Group): void {
     const strikes = group.strikes.map(strike => this.strikeState(strike));
-    if (!strikes.every((strike): strike is FinalizedContinuousStrikeAssignment => strike.state !== 'PENDING')) {
-      throw new ContinuousEvaluationError('UNRESOLVED_RESERVATION');
-    }
+    if (!strikes.every((strike): strike is FinalizedContinuousStrikeAssignment => strike.state !== 'PENDING')) throw new ContinuousEvaluationError('UNRESOLVED_RESERVATION');
+    const required = Math.max(...strikes.map(strike => strike.finality.unclampedRequiredFrontierMs));
     this.transaction!.groups.set(group.groupId, immutableContinuousValue({
-      groupId: group.groupId, performanceTimeMs: group.time, state: 'FINALIZED', strikes,
-      residualAssignments: [...residualAssignments], finality: this.finality(required),
+      groupId: group.groupId, performanceTimeMs: group.time, state: 'FINALIZED', strikes, finality: this.finality(required),
     }));
-    this.transaction!.waitingGroups.delete(group);
   }
 
   private commitUnattributedObservations(): void {
-    for (const observation of this.residual().sort(byObservationId)) {
+    for (const observation of this.unownedObservations().sort(byObservationId)) {
       const claimants = this.claimants(observation);
-      const residualGroups = this.residualGroups(observation);
       const required = this.unattributedFrontier(observation);
       if (Math.min(required, this.terminal) > this.analyzedThrough
-        || claimants.some(strike => !this.hasStrike(strike.strikeId))
-        || residualGroups.some(group => !this.hasGroup(group.groupId))) continue;
+        || claimants.some(strike => !this.hasStrike(strike.strikeId))) continue;
       this.claim({ kind: 'UNATTRIBUTED', observationId: observation.observationId });
       this.transaction!.unattributed.push(immutableContinuousValue({ observation, finality: this.finality(required) }));
     }
   }
 
   private unattributedFrontier(observation: ContinuousObservation): number {
-    const residualGroups = this.residualGroups(observation);
     let required = observation.performanceTimeMs;
     for (const strike of this.claimants(observation)) required = Math.max(required, this.frontier(strike));
-    for (const group of residualGroups) required = Math.max(required, this.groupFrontier(group));
-    assertContinuousBound(required, observation.performanceTimeMs, CONTINUOUS_ANALYSIS_BOUNDS_MS.residual);
     return required;
-  }
-
-  private residualGroups(observation: ContinuousObservation): readonly Group[] {
-    return assignmentTimeRange(this.groups, observation.performanceTimeMs - CONTINUOUS_ASSIGNMENT_WINDOW_MS,
-      observation.performanceTimeMs + CONTINUOUS_ASSIGNMENT_WINDOW_MS, group => group.time).filter(group => !group.pitches.has(observation.pitch) && withinContinuousWindow(group.time, observation.performanceTimeMs));
   }
 
   private closeCompletion(): void {
     const draft = this.transaction!;
     if (!draft.requested || !Number.isFinite(this.terminal)) return;
     if (this.committedStrikes.size + draft.strikes.size !== this.strikes.length
-      || this.committedGroups.size + draft.groups.size !== this.groups.length || this.residual().length) {
+      || this.committedGroups.size + draft.groups.size !== this.groups.length || this.unownedObservations().length) {
       throw new ContinuousEvaluationError('UNRESOLVED_RESERVATION');
     }
     draft.completion = immutableContinuousValue({ ...draft.requested,

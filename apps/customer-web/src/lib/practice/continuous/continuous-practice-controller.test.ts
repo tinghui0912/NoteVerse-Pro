@@ -524,7 +524,7 @@ describe('Continuous application owner', () => {
     const T = controller.snapshot().transport!.performanceTimeMs;
     if (paused) { controller.resume(); await f.feed(controller.snapshot().transport!.countInRemainingMs); } await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
     expect(controller.snapshot().completed?.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE' },
       evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
         sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });

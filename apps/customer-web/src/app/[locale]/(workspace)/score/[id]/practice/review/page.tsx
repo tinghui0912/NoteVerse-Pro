@@ -152,8 +152,8 @@ export default function PracticeReviewPage({
     if (!isScoreIdentityConfirmed || !result?.evaluation) {
       return {
         supportedNoteIds: [],
-        wrongNoteIds: [],
-        missedNoteIds: [],
+        unsupportedNoteIds: [],
+
       };
     }
     return noteAnnotationsFromCompletedEvaluation(result.evaluation);
@@ -170,8 +170,8 @@ export default function PracticeReviewPage({
       if (!isScoreIdentityConfirmed) {
         annotationController.apply(container, {
           supportedNoteIds: [],
-          wrongNoteIds: [],
-        missedNoteIds: [],
+          unsupportedNoteIds: [],
+
         }, {
           renderRevision: scoreRenderRevisionRef.current,
         });
@@ -179,8 +179,8 @@ export default function PracticeReviewPage({
       }
       annotationController.apply(container, {
         supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-        wrongNoteIds: scoreNoteAnnotations.wrongNoteIds,
-        missedNoteIds: scoreNoteAnnotations.missedNoteIds,
+        unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
+
       }, {
         renderRevision: scoreRenderRevisionRef.current,
       });
@@ -242,8 +242,8 @@ export default function PracticeReviewPage({
     if (!isScoreIdentityConfirmed) {
       annotationController.apply(container, {
         supportedNoteIds: [],
-        wrongNoteIds: [],
-        missedNoteIds: [],
+        unsupportedNoteIds: [],
+
       }, {
         renderRevision: scoreRenderRevisionRef.current,
       });
@@ -252,8 +252,8 @@ export default function PracticeReviewPage({
     }
     annotationController.apply(container, {
       supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-      wrongNoteIds: scoreNoteAnnotations.wrongNoteIds,
-        missedNoteIds: scoreNoteAnnotations.missedNoteIds,
+      unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
+
     }, {
       renderRevision: scoreRenderRevisionRef.current,
     });
@@ -442,14 +442,10 @@ export default function PracticeReviewPage({
           stroke: #15803d !important;
           opacity: 1 !important;
         }
-        .practice-summary-score-svg .${SCORE_DECORATIONS.wrong} {
+        .practice-summary-score-svg .${SCORE_DECORATIONS.unsupported} {
           fill: #dc2626 !important;
           stroke: #b91c1c !important;
           opacity: 1 !important;
-        }
-        .practice-summary-score-svg .${SCORE_DECORATIONS.missed} {
-          fill: #94a3b8 !important;
-          color: #94a3b8 !important;
         }
         .practice-summary-score-svg .${SCORE_DECORATIONS.cursor} {
           stroke-width: 1.5px;

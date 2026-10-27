@@ -245,7 +245,7 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
     .mockReturnValue({ index: 0, beat: 0, endBeat: 1, noteIds: ['note-a'] });
   const page = vi.spyOn(PracticeVerovioAdapter.prototype, 'getPageWithElement').mockReturnValue(1);
   const projection = vi.spyOn(evaluationAnnotations, 'noteAnnotationsFromLiveFeedback')
-    .mockReturnValue({ supportedNoteIds: ['note-a'], wrongNoteIds: [], missedNoteIds: [] });
+    .mockReturnValue({ supportedNoteIds: ['note-a'], unsupportedNoteIds: [] });
   const evaluation = canonicalContinuousResultFixture().evaluation;
   if (evaluation.status !== 'COMPLETE' || evaluation.inputSource !== 'MIDI') throw new Error('Expected complete MIDI fixture');
   const props: PracticeScoreViewerProps = { xmlContent: '<score-partwise />', isLoadingXml: false, lifecycle: 'ACTIVE',

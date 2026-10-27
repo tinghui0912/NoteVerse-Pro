@@ -16,7 +16,7 @@ type ObservationOutcome = {
   observationId: string; intendedStrikeId: string; assignedStrikeId: string | null;
   observedPitch: string; intendedPerformanceTimeMs: number; observationPerformanceTimeMs: number;
   assignedPerformanceTimeMs: number | null;
-  assignmentKind: 'STRIKE_MATCH' | 'GROUP_RESIDUAL' | 'UNATTRIBUTED';
+  assignmentKind: 'STRIKE_MATCH' | 'UNATTRIBUTED';
   intendedStrikeState: 'MATCHED' | 'UNMATCHED';
   timingOffsetMs: number | null; generatedOffsetMs: number;
   claimantCount: number; claimantBucket: '0' | '1' | '2+';
@@ -118,7 +118,7 @@ export function assertResearchReport(value: unknown): asserts value is TimingRes
         text(o.observationId); text(o.intendedStrikeId); if (o.assignedStrikeId !== null) text(o.assignedStrikeId);
         text(o.observedPitch); numericFields(o, 'intendedPerformanceTimeMs observationPerformanceTimeMs');
         if (o.assignedPerformanceTimeMs !== null) number(o.assignedPerformanceTimeMs);
-        enumValue(o.assignmentKind, ['STRIKE_MATCH', 'GROUP_RESIDUAL', 'UNATTRIBUTED']);
+        enumValue(o.assignmentKind, ['STRIKE_MATCH', 'UNATTRIBUTED']);
         enumValue(o.intendedStrikeState, ['MATCHED', 'UNMATCHED']);
         if (o.timingOffsetMs !== null) number(o.timingOffsetMs, true);
         number(o.generatedOffsetMs, true); count(o.claimantCount);

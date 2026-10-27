@@ -264,7 +264,7 @@ it('real assignment finalizer retains source-blind ownership from the model-agno
   finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilitySessionTimeMs: 10000000 });
   const finished = finalizer.snapshot();
   expect(finished.groups.map(g => g.strikes.map(s => s.state))).toEqual([['MATCHED'], ['UNMATCHED'], ['UNMATCHED'], ['MATCHED', 'UNMATCHED']]);
-  expect(finished.unattributedObservations).toHaveLength(1); expect(finished.observationAssignments).toHaveLength(4);
+  expect(finished.unattributedObservations).toHaveLength(2); expect(finished.observationAssignments).toHaveLength(4);
   await runtime.dispose();
 });
 

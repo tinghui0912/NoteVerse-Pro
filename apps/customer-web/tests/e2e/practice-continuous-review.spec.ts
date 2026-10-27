@@ -914,7 +914,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
       await expect(page.getByText(label, { exact: true })).toHaveCount(0);
     }
     await expect(page.locator('.practice-summary-note-supported')).toHaveCount(1);
-    await expect(page.locator('.practice-summary-note-missed')).toHaveCount(2);
+    await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(2);
     await expect(page.getByText('本次演奏未录制')).toBeVisible();
 
     // Zero backend session or take requests

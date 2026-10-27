@@ -3,7 +3,7 @@ import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/eval
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
-/** Same workload before/after optimization: chords, C4 repeats at 400ms, wrong/residual and extras. */
+/** Same workload before/after optimization: chords, C4 repeats at 400ms, non-target and unattributed observations. */
 function evaluationScaleWorkload(size: number) {
   const strikes: ContinuousExpectedStrike[] = Array.from({ length: size }, (_, i) => ({
     strikeId: `s${String(i).padStart(6, '0')}`, groupId: `g${Math.floor(i / 2)}`,
@@ -46,6 +46,5 @@ export function runEvaluationScale(size: number) {
     elapsedWallMs: performance.now() - started, completedStatus: completed.status,
     assignmentCounts: { strikes: assignment.groups.reduce((n, g) => n + g.strikes.length, 0),
       matched: assignment.observationAssignments.filter(r => r.kind === 'STRIKE_MATCH').length,
-      residual: assignment.observationAssignments.filter(r => r.kind === 'GROUP_RESIDUAL').length,
       unattributed: assignment.unattributedObservations.length }, assignment };
 }

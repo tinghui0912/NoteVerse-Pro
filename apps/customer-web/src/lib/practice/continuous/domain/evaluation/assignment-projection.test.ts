@@ -37,7 +37,6 @@ function matchedStrike(value: Mutable<CompletedContinuousAssignment>) {
 function changeObservation(value: Mutable<CompletedContinuousAssignment>, id: string, patch: Partial<ContinuousObservation>): void {
   const copies = [...value.observations, ...value.groups.flatMap(group => [
     ...group.strikes.flatMap(strike => strike.state === 'MATCHED' ? [strike.match.observation] : []),
-    ...group.residualAssignments.map(row => row.observation),
   ]), ...value.unattributedObservations.map(row => row.observation)];
   for (const observation of copies.filter(row => row.observationId === id)) Object.assign(observation, patch);
 }
@@ -53,23 +52,19 @@ describe('completed retained assignment current shapes and local semantics', () 
     create?: () => Mutable<CompletedContinuousAssignment> }[] = [
     { label: 'assignment', fields: ['sessionDomainId', 'observations', 'groups', 'unattributedObservations', 'observationAssignments', 'completion'], get: v => v },
     { label: 'completion', fields: ['reason', 'performanceTimeMs', 'availabilitySessionTimeMs'], get: v => v.completion },
-    { label: 'group', fields: ['groupId', 'performanceTimeMs', 'state', 'strikes', 'residualAssignments', 'finality'], get: v => v.groups[0] },
+    { label: 'group', fields: ['groupId', 'performanceTimeMs', 'state', 'strikes', 'finality'], get: v => v.groups[0] },
     { label: 'MATCHED strike', fields: [...baseStrikeFields, 'match'], get: v => matchedStrike(v) },
     { label: 'UNMATCHED strike', fields: baseStrikeFields, get: v => v.groups[0].strikes[1] },
     { label: 'NOT_REACHED strike', fields: baseStrikeFields, get: v => v.groups[0].strikes[0], create: notReachedAssignment },
     { label: 'match', fields: ['observation', 'timingOffsetMs'], get: v => matchedStrike(v).match },
-    { label: 'residual', fields: ['strikeId', 'observation', 'timingOffsetMs'], get: v => v.groups[0].residualAssignments[0] },
     { label: 'unattributed', fields: ['observation', 'finality'], get: v => v.unattributedObservations[0] },
     { label: 'ledger observation', fields: observationFields, get: v => v.observations[0] },
     { label: 'matched observation', fields: observationFields, get: v => matchedStrike(v).match.observation },
-    { label: 'residual observation', fields: observationFields, get: v => v.groups[0].residualAssignments[0].observation },
     { label: 'unattributed observation', fields: observationFields, get: v => v.unattributedObservations[0].observation },
     { label: 'ledger provenance', fields: ['sourceDomainId', 'sourceSampleRateHz', 'sourceEventSample'], get: v => v.observations[0].provenance! },
     { label: 'matched provenance', fields: ['sourceDomainId', 'sourceSampleRateHz', 'sourceEventSample'], get: v => matchedStrike(v).match.observation.provenance! },
-    { label: 'residual provenance', fields: ['sourceDomainId', 'sourceSampleRateHz', 'sourceEventSample'], get: v => v.groups[0].residualAssignments[0].observation.provenance! },
     { label: 'unattributed provenance', fields: ['sourceDomainId', 'sourceSampleRateHz', 'sourceEventSample'], get: v => v.unattributedObservations[0].observation.provenance! },
     { label: 'STRIKE_MATCH relation', fields: ['kind', 'observationId', 'strikeId'], get: v => v.observationAssignments.find(row => row.kind === 'STRIKE_MATCH')! },
-    { label: 'GROUP_RESIDUAL relation', fields: ['kind', 'observationId', 'groupId', 'strikeId'], get: v => v.observationAssignments.find(row => row.kind === 'GROUP_RESIDUAL')! },
     { label: 'UNATTRIBUTED relation', fields: ['kind', 'observationId'], get: v => v.observationAssignments.find(row => row.kind === 'UNATTRIBUTED')! },
     { label: 'strike finality', fields: finalityFields, get: v => v.groups[0].strikes[0].finality },
     { label: 'group finality', fields: finalityFields, get: v => v.groups[0].finality },
@@ -99,14 +94,6 @@ describe('completed retained assignment current shapes and local semantics', () 
     ['matched non-finite timing offset', v => { matchedStrike(v).match.timingOffsetMs = NaN; }],
     ['null match', v => { Object.assign(matchedStrike(v), { match: null }); }],
     ['null matched observation', v => { Object.assign(matchedStrike(v).match, { observation: null }); }],
-    ['residual expected group pitch with canonical ledger equality', v => changeObservation(v, 'E4', { pitch: 'D4' })],
-    ['residual matched-member pitch', v => changeObservation(v, 'E4', { pitch: 'C4' })],
-    ['residual outside group window with exact offset', v => {
-      changeObservation(v, 'E4', { performanceTimeMs: 1251 }); v.groups[0].residualAssignments[0].timingOffsetMs = 251;
-    }],
-    ['residual before group window with exact offset', v => {
-      changeObservation(v, 'E4', { performanceTimeMs: 749 }); v.groups[0].residualAssignments[0].timingOffsetMs = -251;
-    }],
     ['group time disagrees with children', v => { v.groups[0].performanceTimeMs++; }],
     ['one child disagrees with group canonical onset', v => { v.groups[0].strikes[1].expectedPerformanceTimeMs++; }],
     ['empty group', v => { v.groups[0].strikes = []; }],
@@ -119,7 +106,6 @@ describe('completed retained assignment current shapes and local semantics', () 
     ['UNMATCHED with forbidden match', v => { Object.assign(v.groups[0].strikes[1], { match: matchedStrike(v).match }); }],
     ['array-like ledger', v => { Object.assign(v, { observations: { length: 0 } }); }],
     ['array-like groups', v => { Object.assign(v, { groups: { length: 0 } }); }],
-    ['array-like residuals', v => { Object.assign(v.groups[0], { residualAssignments: { length: 0 } }); }],
     ['array-like strikes', v => { Object.assign(v.groups[0], { strikes: { length: 0 } }); }],
     ['array-like unattributed', v => { Object.assign(v, { unattributedObservations: { length: 0 } }); }],
     ['array-like flat relations', v => { Object.assign(v, { observationAssignments: { length: 0 } }); }],
@@ -129,7 +115,6 @@ describe('completed retained assignment current shapes and local semantics', () 
     ['null ledger row', v => { Object.assign(v.observations, { 0: null }); }],
     ['null group', v => { Object.assign(v.groups, { 0: null }); }],
     ['null strike', v => { Object.assign(v.groups[0].strikes, { 0: null }); }],
-    ['null residual', v => { Object.assign(v.groups[0].residualAssignments, { 0: null }); }],
     ['null unattributed', v => { Object.assign(v.unattributedObservations, { 0: null }); }],
     ['null flat relation', v => { Object.assign(v.observationAssignments, { 0: null }); }],
   ])('rejects local corruption: %s without mutation', (_name, corrupt) => {
@@ -147,7 +132,7 @@ describe('completed retained assignment current shapes and local semantics', () 
     ['observationId', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0]],
     ['pitch', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0]],
     ['sourceDomainId', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0].provenance!],
-    ...['STRIKE_MATCH', 'GROUP_RESIDUAL', 'UNATTRIBUTED'].flatMap(kind => (kind === 'UNATTRIBUTED' ? ['observationId']
+    ...['STRIKE_MATCH', 'UNATTRIBUTED'].flatMap(kind => (kind === 'UNATTRIBUTED' ? ['observationId']
       : kind === 'STRIKE_MATCH' ? ['observationId', 'strikeId'] : ['observationId', 'strikeId', 'groupId'])
       .map(field => [field, (v: Mutable<CompletedContinuousAssignment>) => v.observationAssignments.find(row => row.kind === kind)!] as const)),
   ] as const;
@@ -183,7 +168,7 @@ describe('completed retained assignment current shapes and local semantics', () 
     for (const source of ['MIDI', 'ACOUSTIC'] as const) {
       for (const withProvenance of [false, true]) {
         const value = JSON.parse(JSON.stringify(assignment(reason, { source, ...(withProvenance ? { provenance } : {}) }))) as CompletedContinuousAssignment;
-        expect(new Set(value.observationAssignments.map(row => row.kind))).toEqual(new Set(['STRIKE_MATCH', 'GROUP_RESIDUAL', 'UNATTRIBUTED']));
+        expect(new Set(value.observationAssignments.map(row => row.kind))).toEqual(new Set(['STRIKE_MATCH', 'UNATTRIBUTED']));
         expect(new Set(value.groups.flatMap(group => group.strikes.map(strike => strike.state)))).toEqual(new Set(['MATCHED', 'UNMATCHED']));
         expect(() => assertCompletedAssignment(value)).not.toThrow();
       }
@@ -200,13 +185,13 @@ describe('completed retained assignment current shapes and local semantics', () 
     expect(() => assertCompletedAssignment(value)).toThrow();
     expect(value).toEqual(before); expect(JSON.stringify(value)).toBe(serializedBefore);
   });
-  it.each([-250, 250])('accepts live-generated inclusive matched/residual boundary %i', offset => {
+  it.each([-250, 250])('accepts live-generated inclusive matched/non-target boundary %i', offset => {
     const f = new ContinuousAssignmentFinalizer('boundary', ['C4', 'D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [] })));
     f.publish({ publicationId: 'p', sessionDomainId: 'boundary', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3000,
       observations: ['C4', 'E4'].map((pitch, index) => ({ observationId: pitch, pitch, performanceTimeMs: 1000 + offset, confidence: index, source: 'MIDI' })) });
     f.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3000 });
     const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(result.assignment.observationAssignments.map(row => row.kind)).toEqual(['STRIKE_MATCH', 'GROUP_RESIDUAL']);
+    expect(result.assignment.observationAssignments.map(row => row.kind)).toEqual(['STRIKE_MATCH', 'UNATTRIBUTED']);
     expect(() => assertCompletedAssignment(JSON.parse(JSON.stringify(result.assignment)))).not.toThrow();
   });
   it('does not add pitch syntax, render multiplicity, completion-reason or optimizer policy', () => {
@@ -241,8 +226,8 @@ describe('completed assignment relation integrity', () => {
         })));
         f.complete({ reason, performanceTimeMs: 1000, availabilitySessionTimeMs: 2000 });
         f.publish({ publicationId: 'tail', sessionDomainId: 'terminal-anchor', analyzedThroughPerformanceMs: 1000,
-          availabilitySessionTimeMs: 3000, observations: ['C4', 'D4', 'E4'].map(pitch => ({
-            observationId: pitch, pitch, performanceTimeMs: 900, confidence: 1, source: 'MIDI',
+          availabilitySessionTimeMs: 3000, observations: ['C4', 'D4', 'C4'].map((pitch, index) => ({
+            observationId: `${pitch}:${index}`, pitch, performanceTimeMs: index === 0 ? 1000 : 900, confidence: 1, source: 'MIDI',
           })) });
         const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
         const value = structuredClone(result.assignment) as Mutable<CompletedContinuousAssignment>;
@@ -360,28 +345,13 @@ describe('completed assignment relation integrity', () => {
     expect(value).toEqual(before);
   });
   it.each<[string, (value: Mutable<CompletedContinuousAssignment>) => void]>([
-    ['unknown residual strike', value => { value.groups[0].residualAssignments[0].strikeId = 'absent'; }],
-    ['foreign group strike', value => { value.groups[0].residualAssignments[0].strikeId = 'G4'; }],
-    ['matched residual strike', value => { value.groups[0].residualAssignments[0].strikeId = 'C4'; }],
-    ['not-reached residual strike', value => { value.groups[0].strikes[1].state = 'NOT_REACHED'; }],
-    ['duplicate residual slot', value => {
-      const extra = value.unattributedObservations[0];
-      value.groups[0].residualAssignments.push({ strikeId: 'D4', observation: extra.observation, timingOffsetMs: 0 });
-      value.unattributedObservations = [];
-      value.observationAssignments = value.observationAssignments.map(row => row.observationId === extra.observation.observationId
-        ? { kind: 'GROUP_RESIDUAL', groupId: 'g', strikeId: 'D4', observationId: row.observationId } : row);
-    }],
-    ['wrong flat group', value => { const row = value.observationAssignments.find(row => row.kind === 'GROUP_RESIDUAL')!; if (row.kind === 'GROUP_RESIDUAL') row.groupId = 'absent'; }],
-    ['wrong flat strike', value => { const row = value.observationAssignments.find(row => row.kind === 'GROUP_RESIDUAL')!; if (row.kind === 'GROUP_RESIDUAL') row.strikeId = 'C4'; }],
+    ['wrong flat strike', value => { const row = value.observationAssignments.find(row => row.kind === 'STRIKE_MATCH')!; if (row.kind === 'STRIKE_MATCH') row.strikeId = 'absent'; }],
     ['unknown flat observation', value => { value.observationAssignments[0].observationId = 'absent'; }],
     ['duplicate observation relation', value => { value.observationAssignments[1] = value.observationAssignments[0]; }],
     ['missing observation relation', value => { value.observationAssignments.pop(); }],
     ['missing ledger observation', value => { value.observations.pop(); }],
     ['unassigned ledger observation', value => { value.observations.push({ ...value.observations[0], observationId: 'unassigned' }); }],
     ['duplicate ledger identity', value => { value.observations.push(value.observations[0]); }],
-    ['changed residual payload', value => { value.groups[0].residualAssignments[0].observation = { ...value.groups[0].residualAssignments[0].observation, pitch: 'B4' }; }],
-    ['inconsistent residual timing', value => { value.groups[0].residualAssignments[0].timingOffsetMs = 10; }],
-    ['non-finite residual timing', value => { value.groups[0].residualAssignments[0].timingOffsetMs = NaN; }],
     ['strike group disagreement', value => { value.groups[0].strikes[1].groupId = 'h'; }],
     ['duplicated strike identity', value => { value.groups[1].strikes[0].strikeId = 'D4'; }],
     ['duplicated group identity', value => { value.groups[1].groupId = 'g'; }],

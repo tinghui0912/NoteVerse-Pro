@@ -16,7 +16,7 @@ describe('replay separates assignment scenarios from source-specific feedback',(
       observations:notes.map(n=>({observationId:n.id,pitch:pitchName(n.pitch),performanceTimeMs:n.timeMs,confidence:1,source:inputSource==='MIDI'?'MIDI' as const:'ACOUSTIC' as const}))},
       {publicationId:'terminal',sessionDomainId:'test',analyzedThroughPerformanceMs:6000,availabilitySessionTimeMs:6200,observations:[]}];
     const before=JSON.stringify(pubs),results=replayContinuousScenarios(notes,pubs,inputSource);
-    expect(results.map(r=>r.family)).toEqual(['EXACT_MATCH','UNMATCHED_TARGET','GROUP_RESIDUAL','PARTIAL_MATCH','UNATTRIBUTED','NOT_REACHED']);
+    expect(results.map(r=>r.family)).toEqual(['EXACT_MATCH','UNMATCHED_TARGET','NON_TARGET_OBSERVATION','PARTIAL_MATCH','UNATTRIBUTED','NOT_REACHED']);
     expect(results.map(r=>r.predicted)).toEqual(results.map(r=>r.expectedFeedback));
     expect(results.every(r=>r.doubleOwnership===0&&r.assignment.completion!==null)).toBe(true);
     expect(JSON.stringify(pubs)).toBe(before);

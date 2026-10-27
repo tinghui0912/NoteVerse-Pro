@@ -1,7 +1,7 @@
 import { PracticeTempoTimeline, MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/kernel/tempo';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
-import { directObservationClaimants, directStrikeCohort, CONTINUOUS_ANALYSIS_BOUNDS_MS } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
+import { directObservationClaimants, directStrikeCohort, directStrikeFrontier } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { envelope, type SyntheticCase, type SyntheticReport, type SensitivityRow } from './research-report';
@@ -47,7 +47,7 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
       performanceTimeMs: strike.expectedPerformanceTimeMs + probe.offsetMs, confidence: 1, source: 'MIDI' as const };
   });
   const terminal = Math.max(...strikes.map(strike => strike.expectedPerformanceTimeMs),
-    ...observations.map(observation => observation.performanceTimeMs)) + CONTINUOUS_ANALYSIS_BOUNDS_MS.residual;
+    ...observations.map(observation => observation.performanceTimeMs), ...strikes.map(strike => directStrikeFrontier(strike, strikes)));
   const finalizer = new ContinuousAssignmentFinalizer('research', strikes);
   const publication: ContinuousEvidencePublication = {
     publicationId: 'batch', sessionDomainId: 'research', analyzedThroughPerformanceMs: terminal,
@@ -82,7 +82,6 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
       const relation = result.assignment.observationAssignments.find(row => row.observationId === observation.observationId)!;
       const assignedStrikeId = relation.kind === 'UNATTRIBUTED' ? null : relation.strikeId;
       const assigned = assignedStrikes.find(strike => strike.strikeId === assignedStrikeId);
-      const residual = result.assignment.groups.flatMap(group => group.residualAssignments).find(row => row.observation.observationId === observation.observationId);
       const claimantCount = directObservationClaimants(observation, strikes).length;
       const intended = assignedStrikes.find(strike => strike.strikeId === intendedStrikeId)!;
       if (intended.state === 'NOT_REACHED') throw new Error('RESEARCH_UNEXPECTED_NOT_REACHED');
@@ -90,8 +89,7 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
         observedPitch: observation.pitch, intendedPerformanceTimeMs: intended.expectedPerformanceTimeMs,
         observationPerformanceTimeMs: observation.performanceTimeMs, assignedPerformanceTimeMs: assigned?.expectedPerformanceTimeMs ?? null,
         intendedStrikeState: intended.state, generatedOffsetMs: input.probes[index].offsetMs,
-        timingOffsetMs: relation.kind === 'STRIKE_MATCH' && assigned?.state === 'MATCHED' ? assigned.match.timingOffsetMs
-          : relation.kind === 'GROUP_RESIDUAL' ? residual!.timingOffsetMs : null,
+        timingOffsetMs: relation.kind === 'STRIKE_MATCH' && assigned?.state === 'MATCHED' ? assigned.match.timingOffsetMs : null,
         claimantCount, claimantBucket: claimantCount === 0 ? '0' : claimantCount === 1 ? '1' : '2+',
         neighborMisassignment: relation.kind === 'STRIKE_MATCH' && assignedStrikeId !== intendedStrikeId,
         unattributed: relation.kind === 'UNATTRIBUTED',

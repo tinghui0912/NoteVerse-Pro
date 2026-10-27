@@ -328,7 +328,7 @@ describe('share-video video export helpers', () => {
       page.setAttribute(pageAttribute, page.getAttribute('data-practice-review-page')!);
       if (pageAttribute !== 'data-practice-review-page') page.removeAttribute('data-practice-review-page');
     }
-    const decorations = ['practice-summary-note-supported', 'practice-summary-note-wrong', 'practice-summary-note-missed'];
+    const decorations = ['practice-summary-note-supported', 'practice-summary-note-unsupported'];
     const note = container.querySelector('[data-id="note-a"]')!;
     note.classList.add(...decorations);
     const svg = container.querySelector('svg')!;
@@ -343,7 +343,6 @@ describe('share-video video export helpers', () => {
     }
     expect(note.classList.contains(decorations[0])).toBe(true);
     expect(note.classList.contains(decorations[1])).toBe(true);
-    expect(note.classList.contains(decorations[2])).toBe(true);
     expect(svg.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
   });
 

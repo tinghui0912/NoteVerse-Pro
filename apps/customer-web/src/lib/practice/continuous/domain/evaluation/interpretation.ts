@@ -5,45 +5,44 @@ import type { ContinuousInterpretation, ContinuousInterpretationPolicyId, MidiGr
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 
 export function interpretationPolicyForInputSource(inputSource: PracticeInputSource): ContinuousInterpretationPolicyId {
-  return inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V1' as const : 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1' as const;
+  return inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V2' as const : 'ACOUSTIC_TARGET_DETECTION_V2' as const;
 }
 const strikeIdentity = (strike: ContinuousStrikeAssignment) => ({
   strikeId: strike.strikeId, groupId: strike.groupId, pitch: strike.pitch,
   expectedPerformanceTimeMs: strike.expectedPerformanceTimeMs, renderNoteIds: strike.renderNoteIds,
 });
+/** One target classification shared by live and completed interpretation. */
+export function interpretContinuousTargetState(state: ContinuousStrikeAssignment['state'], inputSource: PracticeInputSource) {
+  return state === 'MATCHED' ? inputSource === 'MIDI' ? 'CORRECT' as const : 'SUPPORTED' as const
+    : state === 'UNMATCHED' ? inputSource === 'MIDI' ? 'MISSING' as const : 'NOT_DETECTED' as const : state;
+}
 function midiGroup(group: ContinuousGroupAssignment): MidiGroupFeedback {
   const strikes = group.strikes.map((strike): MidiStrikeFeedback => {
     const identity = strikeIdentity(strike);
-    if (strike.state === 'MATCHED') return { ...identity, state: 'CORRECT', timingOffsetMs: strike.match.timingOffsetMs };
-    if (strike.state !== 'UNMATCHED') return { ...identity, state: strike.state };
-    const residual = group.residualAssignments.find(row => row.strikeId === strike.strikeId);
-    return residual ? { ...identity, state: 'WRONG', observation: residual.observation, timingOffsetMs: residual.timingOffsetMs }
-      : { ...identity, state: 'MISSING' };
+    const state = interpretContinuousTargetState(strike.state, 'MIDI');
+    if (strike.state === 'MATCHED') return { ...identity, state: state as 'CORRECT', timingOffsetMs: strike.match.timingOffsetMs };
+    return { ...identity, state: state as 'PENDING' | 'MISSING' | 'NOT_REACHED' };
   });
   const verdict = group.state === 'PENDING' ? 'PENDING'
     : strikes.some(strike => strike.state === 'NOT_REACHED') ? 'NOT_REACHED'
       : strikes.every(strike => strike.state === 'CORRECT') ? 'CORRECT'
-        : strikes.some(strike => strike.state === 'WRONG') ? 'WRONG'
-          : strikes.some(strike => strike.state === 'CORRECT') ? 'INCOMPLETE_CHORD' : 'MISSING';
+        : strikes.some(strike => strike.state === 'CORRECT') ? 'INCOMPLETE_CHORD' : 'MISSING';
   return { groupId: group.groupId, verdict, strikes };
 }
 function acousticGroup(group: ContinuousGroupAssignment): AcousticGroupFeedback {
   const matched = group.strikes.filter(strike => strike.state === 'MATCHED').length;
   const verdict = group.state === 'PENDING' ? 'PENDING'
     : group.strikes.some(strike => strike.state === 'NOT_REACHED') ? 'NOT_REACHED'
-      : matched === group.strikes.length ? 'SUPPORTED' : matched ? 'PARTIALLY_SUPPORTED' : 'UNCONFIRMED';
+      : matched === group.strikes.length ? 'SUPPORTED' : matched ? 'PARTIALLY_SUPPORTED' : 'NOT_DETECTED';
   return { groupId: group.groupId, verdict, strikes: group.strikes.map(strike => ({ ...strikeIdentity(strike),
     timingOffsetMs: strike.state === 'MATCHED' ? strike.match.timingOffsetMs : null,
-    state: strike.state === 'MATCHED' ? 'SUPPORTED' : strike.state === 'UNMATCHED' ? 'UNCONFIRMED' : strike.state })) };
-}
-export function interpretContinuousGroup(group: ContinuousGroupAssignment, inputSource: PracticeInputSource): MidiGroupFeedback | AcousticGroupFeedback {
-  return inputSource === 'MIDI' ? midiGroup(group) : acousticGroup(group);
+    state: interpretContinuousTargetState(strike.state, 'MICROPHONE') as 'PENDING' | 'SUPPORTED' | 'NOT_DETECTED' | 'NOT_REACHED' })) };
 }
 /** A pure projection of decoder-qualified evidence; no second assignment, timing calculation or uncalibrated confidence threshold. */
 export function interpretContinuousAssignment(
   assignment: ContinuousAssignmentSnapshot | CompletedContinuousAssignment, inputSource: PracticeInputSource,
 ): ContinuousInterpretation {
-  if (inputSource === 'MIDI') return immutableContinuousValue({ inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1',
-    groups: assignment.groups.map(midiGroup), extraObservations: assignment.unattributedObservations.map(row => row.observation) });
-  return immutableContinuousValue({ inputSource, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', groups: assignment.groups.map(acousticGroup) });
+  if (inputSource === 'MIDI') return immutableContinuousValue({ inputSource, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2',
+    groups: assignment.groups.map(midiGroup) });
+  return immutableContinuousValue({ inputSource, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', groups: assignment.groups.map(acousticGroup) });
 }
