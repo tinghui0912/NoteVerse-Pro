@@ -106,6 +106,7 @@ const testArtifact = {
       expectedGroupIndex: 0,
       onsetBeat: 0.0,
       attackTargets: [{ attackId: 'attack-0', pitch: 'C4', eventIds: ['e-0'], notes: [{ stepNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', measureNumbers: ['1'], renderNoteId: 'note-c4', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['note-c4'] }],
+      renderNoteIds: ['note-c4'],
       continuation: [],
     },
     {
@@ -113,6 +114,7 @@ const testArtifact = {
       expectedGroupIndex: 1,
       onsetBeat: 1.0,
       attackTargets: [{ attackId: 'attack-1', pitch: 'D4', eventIds: ['e-1'], notes: [{ stepNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', measureNumbers: ['1'], renderNoteId: 'note-d4', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['note-d4'] }],
+      renderNoteIds: ['note-d4'],
       continuation: [],
     },
     {
@@ -120,6 +122,7 @@ const testArtifact = {
       expectedGroupIndex: 2,
       onsetBeat: 2.0,
       attackTargets: [{ attackId: 'attack-2', pitch: 'E4', eventIds: ['e-2'], notes: [{ stepNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', measureNumbers: ['1'], renderNoteId: 'note-e4', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['note-e4'] }],
+      renderNoteIds: ['note-e4'],
       continuation: [],
     },
   ],

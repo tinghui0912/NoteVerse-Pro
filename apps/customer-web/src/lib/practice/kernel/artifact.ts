@@ -80,6 +80,8 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
     if (JSON.stringify(groupPitches) !== JSON.stringify(strikePitches)) {
       throw new Error(`PracticeScoreArtifact group strike target mismatch at index ${index}.`);
     }
+    assertUniqueIdentities(group.expectedNotes.map(note => note.expectedNoteId), 'expected-note');
+    assertExactIdentityAggregate(group.expectedNotes.map(note => note.renderNoteId), group.renderNoteIds, 'group render-note');
     const expected = new Map(group.expectedNotes.map(note => [note.expectedNoteId, note]));
     if (expected.size !== group.expectedNotes.length) throw new Error('PracticeScoreArtifact duplicate expected-note identity.');
     const owned = new Set<string>();
@@ -97,6 +99,9 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
     }
     if (owned.size !== expected.size) throw new Error('PracticeScoreArtifact strike expected-note partition is incomplete.');
     for (const target of step.attackTargets) assertTargetNotation(target.pitch, target.notes, target.renderNoteIds);
+    const stepNotes = [...step.attackTargets.flatMap(target => target.notes), ...step.continuation];
+    assertUniqueIdentities(stepNotes.map(note => note.stepNoteId), 'step-note');
+    assertExactIdentityAggregate(stepNotes.map(note => note.renderNoteId), step.renderNoteIds, 'step render-note');
     if (roundBeat(group.canonicalEndBeat) < roundBeat(group.onsetBeat)) {
       throw new Error(`PracticeScoreArtifact group canonical end precedes onset at index ${index}.`);
     }
@@ -113,9 +118,21 @@ function assertTargetNotation(pitch: string, notes: { pitch: string; renderNoteI
   if (!Array.isArray(notes) || notes.length === 0 || notes.some(note => note.pitch !== pitch)) {
     throw new Error('PracticeScoreArtifact target notation pitches are corrupt.');
   }
-  if (!Array.isArray(renderNoteIds) || new Set(renderNoteIds).size !== renderNoteIds.length
-    || JSON.stringify([...renderNoteIds].sort()) !== JSON.stringify([...new Set(notes.map(note => note.renderNoteId))].sort())) {
-    throw new Error('PracticeScoreArtifact target render-note identities are corrupt.');
+  assertExactIdentityAggregate(notes.map(note => note.renderNoteId), renderNoteIds, 'target render-note');
+}
+
+function assertUniqueIdentities(values: string[], owner: string): void {
+  if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !value)
+    || new Set(values).size !== values.length) {
+    throw new Error(`PracticeScoreArtifact ${owner} identities are corrupt.`);
+  }
+}
+
+function assertExactIdentityAggregate(nested: string[], flat: string[], owner: string): void {
+  assertUniqueIdentities(nested, owner);
+  assertUniqueIdentities(flat, owner);
+  if (JSON.stringify([...nested].sort()) !== JSON.stringify([...flat].sort())) {
+    throw new Error(`PracticeScoreArtifact ${owner} identities are corrupt.`);
   }
 }
 

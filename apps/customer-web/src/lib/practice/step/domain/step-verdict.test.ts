@@ -17,10 +17,13 @@ function setup(inputSource: PracticeInputSource, expected: readonly string[] = [
       });
       return { ...g, pitches, strikeTargets, expectedNotes: strikeTargets.flatMap(t => t.expectedNotes), renderNoteIds: strikeTargets.flatMap(t => t.renderNoteIds) };
     }),
-    practiceAttackSteps: base.practiceAttackSteps.map(s => ({ ...s, attackTargets: pitches.map(pitch => {
+    practiceAttackSteps: base.practiceAttackSteps.map(s => {
+      const attackTargets = pitches.map(pitch => {
       const note = { ...s.attackTargets[0].notes[0], pitch, stepNoteId: `${s.stepId}:${pitch}`, renderNoteId: `${s.stepId}:render:${pitch}` };
       return { ...s.attackTargets[0], attackId: `${s.stepId}:attack:${pitch}`, pitch, notes: [note], renderNoteIds: [note.renderNoteId] };
-    }) })) };
+      });
+      return { ...s, attackTargets, renderNoteIds: [...attackTargets.flatMap(t => t.renderNoteIds), ...s.continuation.map(n => n.renderNoteId)] };
+    }) };
   const clock = new ManualClock(), domainId = 'exact-learning';
   const options: StepPracticeRuntimeOptions = { artifact, inputSource, clock, localSessionId: domainId,
     metadataClock: { nowEpochMs: () => 0 }, scope: { kind: 'FULL' } };

@@ -55,6 +55,9 @@ class PracticeTargetRead(StrictPracticeSourceModel):
         pitches = _physical_pitch_set(self.pitches)
         if _physical_pitch_set([t.pitch for t in self.attack_targets]) != pitches:
             raise ValueError("Practice target attack pitches disagree with physical pitches.")
+        notes = [n for target in self.attack_targets for n in target.notes] + self.continuation
+        _assert_unique_identities([n.step_note_id for n in notes], "step-note")
+        _assert_exact_identity_aggregate([n.render_note_id for n in notes], self.render_note_ids)
         return self
 
 
@@ -127,6 +130,8 @@ class PracticeScoreExpectedGroupRead(StrictPracticeSourceModel):
     def physical_targets(self) -> Self:
         if _physical_pitch_set([t.pitch for t in self.strikeTargets]) != _physical_pitch_set(self.pitches):
             raise ValueError("Practice group strike pitches disagree with physical pitches.")
+        _assert_unique_identities([n.expectedNoteId for n in self.expectedNotes], "expected-note")
+        _assert_exact_identity_aggregate([n.renderNoteId for n in self.expectedNotes], self.renderNoteIds)
         expected = {n.expectedNoteId: n for n in self.expectedNotes}
         if len(expected) != len(self.expectedNotes):
             raise ValueError("Practice group has duplicate expected-note identity.")
@@ -182,6 +187,9 @@ class PracticeScoreAttackStepRead(StrictPracticeSourceModel):
     @model_validator(mode="after")
     def physical_targets(self) -> Self:
         _physical_pitch_set([t.pitch for t in self.attackTargets])
+        notes = [n for target in self.attackTargets for n in target.notes] + self.continuation
+        _assert_unique_identities([n.stepNoteId for n in notes], "step-note")
+        _assert_exact_identity_aggregate([n.renderNoteId for n in notes], self.renderNoteIds)
         return self
 
 
@@ -231,5 +239,16 @@ def _physical_pitch_set(pitches: list[str]) -> set[str]:
 def _assert_target_notation(pitch: str, note_pitches: list[str], note_render_ids: list[str], render_ids: list[str]) -> None:
     if not note_pitches or any(note_pitch != pitch for note_pitch in note_pitches):
         raise ValueError("Practice target notation pitches are corrupt.")
-    if len(set(render_ids)) != len(render_ids) or set(render_ids) != set(note_render_ids):
+    _assert_exact_identity_aggregate(note_render_ids, render_ids)
+
+
+def _assert_unique_identities(identities: list[str], owner: str) -> None:
+    if any(not identity for identity in identities) or len(set(identities)) != len(identities):
+        raise ValueError(f"Practice {owner} identities must be nonempty and unique.")
+
+
+def _assert_exact_identity_aggregate(nested: list[str], flat: list[str]) -> None:
+    _assert_unique_identities(nested, "render-note")
+    _assert_unique_identities(flat, "render-note")
+    if sorted(nested) != sorted(flat):
         raise ValueError("Practice target render-note identities are corrupt.")

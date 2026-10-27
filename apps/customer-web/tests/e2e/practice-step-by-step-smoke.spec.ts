@@ -108,6 +108,7 @@ const smokeArtifact = {
       expectedGroupIndex: 0,
       onsetBeat: 0.0,
       attackTargets: [{ attackId: 'attack-0', pitch: 'C4', eventIds: ['e-0'], notes: [{ stepNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', measureNumbers: ['1'], renderNoteId: 'select-start-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
+      renderNoteIds: ['select-start-note'],
       continuation: [],
     },
     {
@@ -115,6 +116,7 @@ const smokeArtifact = {
       expectedGroupIndex: 1,
       onsetBeat: 1.0,
       attackTargets: [{ attackId: 'attack-1', pitch: 'D4', eventIds: ['e-1'], notes: [{ stepNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', measureNumbers: ['1'], renderNoteId: 'middle-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
+      renderNoteIds: ['middle-note'],
       continuation: [],
     },
     {
@@ -122,6 +124,7 @@ const smokeArtifact = {
       expectedGroupIndex: 2,
       onsetBeat: 2.0,
       attackTargets: [{ attackId: 'attack-2', pitch: 'E4', eventIds: ['e-2'], notes: [{ stepNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', measureNumbers: ['1'], renderNoteId: 'select-end-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
+      renderNoteIds: ['select-end-note'],
       continuation: [],
     },
   ],
