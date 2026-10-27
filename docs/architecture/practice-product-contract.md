@@ -433,7 +433,8 @@ Finality is enabled by performance analysis coverage; `requiredAnalysisFrontierM
 and `enablingAnalysisFrontierMs` remain performance coordinates, while
 `finalizationSessionTimeMs` records when the enabling knowledge became available.
 Retained finality must have required coverage no greater than enabling or unclamped
-coverage. Required coverage equals `Math.min(unclampedRequiredFrontierMs,
+coverage. Completed retained enabling coverage cannot exceed the completion
+Performance-Time terminal. Required coverage equals `Math.min(unclampedRequiredFrontierMs,
 completion.performanceTimeMs)`, and `terminalClamp` is true if and only if the
 unclamped requirement exceeds that completion Performance Time. Group finalization cannot precede
 its child strikes in either Session Time or enabling performance frontier. Completion

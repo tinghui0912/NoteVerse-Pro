@@ -105,6 +105,7 @@ function assertFinality(value: CompletedContinuousAssignment['groups'][number]['
     || ![value.requiredAnalysisFrontierMs, value.unclampedRequiredFrontierMs,
       value.enablingAnalysisFrontierMs, value.finalizationSessionTimeMs].every(time => Number.isFinite(time) && time >= 0)
     || value.requiredAnalysisFrontierMs > value.enablingAnalysisFrontierMs
+    || value.enablingAnalysisFrontierMs > completion.performanceTimeMs
     || value.requiredAnalysisFrontierMs > value.unclampedRequiredFrontierMs
     || value.requiredAnalysisFrontierMs !== expectedRequired
     || value.terminalClamp !== expectedClamp
