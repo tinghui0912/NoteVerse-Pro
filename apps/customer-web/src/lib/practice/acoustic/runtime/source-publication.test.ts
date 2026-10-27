@@ -39,6 +39,47 @@ it('stream failure is terminal without retaining a replay ledger', () => {
   for (const value of Object.values(sequence)) expect(value instanceof Map || value instanceof Set || Array.isArray(value)).toBe(false);
 });
 
+function regionPublication(region: number, job: number, originTarget: number, windowIndex = 0, endTarget?: number) {
+  const window = planWindow({ index: region, sourceStart: originTarget * 3, originTarget,
+    nextWindow: windowIndex, queuedEndTarget: originTarget, endTarget }, job)!;
+  return sourcePublication('source', 48000, 0, window,
+    { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: job + 1 }, job);
+}
+
+it('rejects first region 1 with otherwise valid job-zero/window-zero geometry and stays failed', () => {
+  const valid = regionPublication(0, 0, 19200), corrupt = regionPublication(1, 0, 19200);
+  expect(new SourcePublicationSequence('source', 48000).accept(valid)).toBeNull();
+  expect(corrupt).toEqual({ ...valid, window: { ...valid.window, regionIndex: 1 } });
+  const sequence = new SourcePublicationSequence('source', 48000), before = structuredClone(corrupt);
+  expect(() => sequence.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+  expect(corrupt).toEqual(before);
+  expect(() => sequence.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+});
+
+it('rejects region 0 to 2 with correct next job and increasing source geometry, without recovery', () => {
+  const first = regionPublication(0, 0, 19200), next = regionPublication(1, 1, 40000);
+  const control = new SourcePublicationSequence('source', 48000); control.accept(first);
+  expect(() => control.accept(next)).not.toThrow();
+  const corrupt = regionPublication(2, 1, 40000), before = structuredClone(corrupt);
+  expect(corrupt).toEqual({ ...next, window: { ...next.window, regionIndex: 2 } });
+  expect(corrupt.ownedThroughSourceSample).toBeGreaterThan(first.ownedThroughSourceSample);
+  const sequence = new SourcePublicationSequence('source', 48000); sequence.accept(first);
+  expect(() => sequence.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+  expect(corrupt).toEqual(before);
+  expect(() => sequence.accept(next)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+});
+
+it('accepts full then partial windows and contiguous region 1 with a physical source gap', () => {
+  const sequence = new SourcePublicationSequence('source', 48000);
+  const full = regionPublication(0, 0, 19200);
+  const partial = regionPublication(0, 1, 19200, 1, 32000);
+  const next = regionPublication(1, 2, 40000);
+  expect(partial.window.ownedStartTarget).toBe(full.window.ownedEndTarget);
+  expect(partial.window.ownedEndTarget).toBeLessThan(partial.window.ownedStartTarget + 9600);
+  expect(next.window.ownedStartTarget).toBeGreaterThan(partial.window.ownedEndTarget);
+  expect(() => { sequence.accept(full); sequence.accept(partial); sequence.accept(next); }).not.toThrow();
+});
+
 it('Continuous projection ignores the source frontier without changing its evaluation clock or observations', () => {
   const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 19200, ownedEndTarget: 28800, startSample: 2400, endSample: 31520 };
   const p = sourcePublication('source', 48000, 100000, window, { events: [{ pitch: 'C4', midiPitch: 60,

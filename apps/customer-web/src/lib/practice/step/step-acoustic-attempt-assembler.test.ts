@@ -100,6 +100,19 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     expect(() => s.assembler.accept(p)).toThrow('STEP_ACOUSTIC_GESTURE_COVERAGE_GAP');
     expect(s.completed).toHaveLength(0);
   });
+  it.each(['BLOCKED', 'READY'] as const)('rejects a skipped source region in %s without an active H50', phase => {
+    const s = setup(); if (phase === 'BLOCKED') s.assembler.suspend();
+    s.assembler.accept(publication(0));
+    expect(s.assembler.snapshot()).toMatchObject({ phase, activeObservationCount: 0 });
+    const window = planWindow({ index: 2, sourceStart: 120000, originTarget: 40000, nextWindow: 0, queuedEndTarget: 40000 }, 1)!;
+    const corrupt = sourcePublication('source', 48000, 0, window,
+      { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
+    expect(corrupt.ownedThroughSourceSample).toBeGreaterThan(end);
+    expect(() => s.assembler.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0 });
+    expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
+    expect(() => s.assembler.acceptInputAfter(200000)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
+  });
   it('cannot swallow callback reentrancy and revive ownership', () => {
     const a: StepAcousticAttemptAssembler<number> = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,
       localSessionId: 'session', sourceAnchorSample: 0, sessionAnchorTime: { domainId: 'session', ms: 0 }, sink: {

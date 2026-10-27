@@ -393,7 +393,7 @@ Expected score enters only the product-domain evaluator. One capture stream uses
 one model session; raw tensors remain inside the inference transaction.
 
 Each `SourceAnalysisRuntime` publishes one immutable, ordered, exactly-once source-window
-stream. Delivered job indices are contiguous from zero; inference is serialized and
+stream. Delivered job and region indices are contiguous from zero; inference is serialized and
 failure terminates that stream. Publication, copied window, observation array and
 observations are frozen. Owned source frontiers strictly advance across windows and
 regions; source gaps are legal. Observations belong to their newly owned half-open

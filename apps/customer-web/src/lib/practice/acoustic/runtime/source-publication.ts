@@ -50,13 +50,14 @@ export class SourcePublicationSequence {
         || w.endSample !== Math.round(w.ownedEndTarget + M.futureMs * 16)
         || w.startSample !== w.endSample - M.inputSamples || !index(w.startSample)
         || w.jobIndex !== (previous ? previous.job + 1 : 0)
-        || (!previous && w.windowIndex !== 0)
+        || (!previous && (w.regionIndex !== 0 || w.windowIndex !== 0))
         || (previous && (p.ownedThroughSourceSample <= previous.frontier
           || w.regionIndex < previous.region
           || (w.regionIndex === previous.region
             ? w.windowIndex !== previous.index + 1 || w.ownedStartTarget !== previous.nextOwnedStartTarget
               || previous.ownedEndTarget !== previous.nextOwnedStartTarget
-            : w.windowIndex !== 0 || w.ownedStartTarget < previous.ownedEndTarget)))) fail('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+            : w.regionIndex !== previous.region + 1 || w.windowIndex !== 0
+              || w.ownedStartTarget < previous.ownedEndTarget)))) fail('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
       // Recover the integer capture origin, then require the exact producer geometry;
       // rounding this hypothesis never repairs or changes the publication.
       const base = this.base ?? Math.round(p.ownedThroughSourceSample - w.ownedEndTarget * this.rate / 16000);
