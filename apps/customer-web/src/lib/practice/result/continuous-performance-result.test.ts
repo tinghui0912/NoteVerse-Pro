@@ -4,8 +4,84 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { assertContinuousPerformanceResult, createContinuousPerformanceResult } from './continuous-performance-result';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { CompletedContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 
 const clone = () => JSON.parse(JSON.stringify(canonicalContinuousResultFixture()));
+
+function resultWithRetainedEvidence() {
+  const base = canonicalContinuousResultFixture();
+  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: { kind: 'FULL' },
+    sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+  evaluator.publish({ publicationId: 'evidence', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000,
+    observations: [{ observationId: 'matched', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: 'MIDI',
+      provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourceEventSample: 0 } },
+    { observationId: 'residual', pitch: 'B4', performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
+    { observationId: 'unattributed', pitch: 'E5', performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
+  evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
+  return createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
+    inputSource: 'MIDI', scope: { kind: 'FULL' }, tempoPlan: base.tempoPlan, activeElapsedMs: 10000,
+    evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+}
+
+describe('parsed Result delegates retained local truth validation', () => {
+  it('validates a successful JSON roundtrip without freezing or changing caller-owned assignment data', () => {
+    const parsed = JSON.parse(JSON.stringify(resultWithRetainedEvidence())) as ReturnType<typeof resultWithRetainedEvidence>;
+    if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
+    const assignment = parsed.evaluation.assignment;
+    const callerObjects = [assignment, ...assignment.observations,
+      ...assignment.groups.flatMap(group => [group, ...group.strikes, ...group.strikes.map(strike => strike.renderNoteIds),
+        ...group.residualAssignments.map(row => row.observation)]),
+      ...assignment.unattributedObservations.map(row => row.observation)];
+    expect(callerObjects.every(row => !Object.isFrozen(row))).toBe(true);
+    const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
+    expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
+    expect(callerObjects.every(row => !Object.isFrozen(row))).toBe(true);
+    expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+  });
+  it.each(['matched pitch', 'matched timing offset', 'matched outside window', 'residual expected pitch', 'residual outside window',
+    'group onset', 'malformed observation', 'malformed provenance', 'unknown retained field'])('rejects %s at the assignment boundary without mutation', corruption => {
+    const parsed = JSON.parse(JSON.stringify(resultWithRetainedEvidence())) as ReturnType<typeof resultWithRetainedEvidence>;
+    expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
+    if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
+    const assignment = parsed.evaluation.assignment;
+    const matched = assignment.groups.flatMap(group => group.strikes).find(strike => strike.state === 'MATCHED')!;
+    if (matched.state !== 'MATCHED') throw new Error('matched fixture required');
+    const residualGroup = assignment.groups.find(group => group.residualAssignments.length)!;
+    const residual = residualGroup.residualAssignments[0];
+    const changeEvidence = (id: string, patch: Partial<CompletedContinuousAssignment['observations'][number]>) => {
+      const ledger = assignment.observations.find(row => row.observationId === id)!;
+      Object.assign(ledger, patch);
+      Object.assign(id === 'matched' ? matched.match.observation : residual.observation, patch);
+    };
+    let expectedError = 'Continuous assignment matched strike semantics are corrupt.';
+    if (corruption === 'matched pitch') changeEvidence('matched', { pitch: 'D4' });
+    if (corruption === 'matched timing offset') Object.assign(matched.match, { timingOffsetMs: 1 });
+    if (corruption === 'matched outside window') {
+      changeEvidence('matched', { performanceTimeMs: 251 }); Object.assign(matched.match, { timingOffsetMs: 251 });
+    }
+    if (corruption.startsWith('residual')) {
+      expectedError = 'Continuous assignment residual strike assignment is corrupt.';
+      if (corruption === 'residual expected pitch') changeEvidence('residual', { pitch: residualGroup.strikes[0].pitch });
+      else { changeEvidence('residual', { performanceTimeMs: 1751 }); Object.assign(residual, { timingOffsetMs: 251 }); }
+    }
+    if (corruption === 'group onset') {
+      Object.assign(assignment.groups[0], { performanceTimeMs: 1 }); expectedError = 'Continuous assignment strike identity is corrupt.';
+    }
+    if (corruption === 'malformed observation') {
+      changeEvidence('matched', { confidence: 1.1 }); expectedError = 'Continuous assignment observation is corrupt.';
+    }
+    if (corruption === 'malformed provenance') {
+      changeEvidence('matched', { provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 0, sourceEventSample: 0 } });
+      expectedError = 'Continuous assignment observation provenance is corrupt.';
+    }
+    if (corruption === 'unknown retained field') {
+      Object.assign(assignment, { extra: true }); expectedError = 'Continuous assignment assignment is corrupt.';
+    }
+    const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
+    expect(() => assertContinuousPerformanceResult(parsed)).toThrow(expectedError);
+    expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+  });
+});
 describe('immutable Continuous product result', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed Result and direct creation reject stopped evaluations while generic evaluation accepts them', inputSource => {
     const base = canonicalContinuousResultFixture(inputSource);

@@ -2,6 +2,7 @@ import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/dom
 import type { CompletedContinuousAssignment, CompletedContinuousAssignmentResult, FinalizedContinuousGroupAssignment, FinalizedContinuousStrikeAssignment, ContinuousGroupResidualAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
+import { withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 
 /** Completion projects the accumulated ledger without running assignment again. */
 export function completeContinuousAssignment(snapshot: ContinuousAssignmentSnapshot): CompletedContinuousAssignmentResult {
@@ -20,21 +21,28 @@ export function completeContinuousAssignment(snapshot: ContinuousAssignmentSnaps
 
 /** Validate retained assignment data at the completed-artifact boundary. */
 export function assertCompletedAssignment(assignment: CompletedContinuousAssignment): void {
-  if (!Array.isArray(assignment.groups) || !Array.isArray(assignment.observations)
+  if (!hasRetainedFields(assignment, ['sessionDomainId', 'observations', 'groups', 'unattributedObservations', 'observationAssignments', 'completion'])
+    || !isRetainedIdentity(assignment.sessionDomainId)
+    || !Array.isArray(assignment.groups) || !Array.isArray(assignment.observations)
     || !Array.isArray(assignment.unattributedObservations) || !Array.isArray(assignment.observationAssignments)
     || !assignment.completion) throw new Error('Continuous assignment assignment is corrupt.');
   const completion = assignment.completion;
-  if (Object.keys(completion).sort().join() !== ['reason', 'performanceTimeMs', 'availabilitySessionTimeMs'].sort().join()
+  if (!hasRetainedFields(completion, ['reason', 'performanceTimeMs', 'availabilitySessionTimeMs'])
     || !['SCOPE_COMPLETED', 'STOPPED_BY_USER'].includes(completion.reason)
     || !Number.isFinite(completion.performanceTimeMs) || completion.performanceTimeMs < 0
     || !Number.isFinite(completion.availabilitySessionTimeMs) || completion.availabilitySessionTimeMs < 0) {
     throw new Error('Continuous assignment completion coordinates are corrupt.');
   }
-  const ledger = new Map(assignment.observations.map(row => [row.observationId, row]));
-  if (ledger.size !== assignment.observations.length) throw new Error('Continuous assignment observation assignment is corrupt.');
+  const ledger = new Map<string, ContinuousObservation>();
+  for (const observation of assignment.observations) {
+    assertRetainedObservation(observation, completion.performanceTimeMs);
+    if (ledger.has(observation.observationId)) throw new Error('Continuous assignment observation assignment is corrupt.');
+    ledger.set(observation.observationId, observation);
+  }
   const declarations = new Map<string, CompletedContinuousAssignment['observationAssignments'][number]>();
   const groups = new Set<string>(), strikes = new Set<string>(), residualSlots = new Set<string>();
   const claim = (relation: CompletedContinuousAssignment['observationAssignments'][number], observation: ContinuousObservation) => {
+    assertRetainedObservation(observation, completion.performanceTimeMs);
     const retained = ledger.get(observation.observationId);
     if (!retained || !sameObservation(retained, observation) || declarations.has(observation.observationId)) {
       throw new Error('Continuous assignment observation assignment is corrupt.');
@@ -42,8 +50,10 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
     declarations.set(observation.observationId, relation);
   };
   for (const group of assignment.groups) {
-    if (group.state !== 'FINALIZED' || !group.finality || !Array.isArray(group.strikes)
-      || !Array.isArray(group.residualAssignments) || !group.groupId || groups.has(group.groupId)) {
+    if (!hasRetainedFields(group, ['groupId', 'performanceTimeMs', 'state', 'strikes', 'residualAssignments', 'finality'])
+      || group.state !== 'FINALIZED' || !group.finality || !Array.isArray(group.strikes) || !group.strikes.length
+      || !Array.isArray(group.residualAssignments) || !isRetainedIdentity(group.groupId) || groups.has(group.groupId)
+      || !Number.isFinite(group.performanceTimeMs) || group.performanceTimeMs < 0) {
       throw new Error('Continuous assignment group must be final and unique.');
     }
     groups.add(group.groupId);
@@ -51,11 +61,19 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
     const groupStrikes: readonly FinalizedContinuousStrikeAssignment[] = group.strikes;
     const residuals: readonly ContinuousGroupResidualAssignment[] = group.residualAssignments;
     for (const strike of groupStrikes) {
-      if (!Array.isArray(strike.renderNoteIds)) throw new Error('Continuous assignment strike renderNoteIds are required.');
-      if (!['MATCHED', 'UNMATCHED', 'NOT_REACHED'].includes(strike.state) || !strike.finality) {
+      if (strike && !Array.isArray(strike.renderNoteIds)) throw new Error('Continuous assignment strike renderNoteIds are required.');
+      const fields = ['strikeId', 'groupId', 'pitch', 'expectedPerformanceTimeMs', 'renderNoteIds', 'state', 'finality'];
+      if (!hasRetainedFields(strike, strike?.state === 'MATCHED' ? [...fields, 'match'] : fields)
+        || !['MATCHED', 'UNMATCHED', 'NOT_REACHED'].includes(strike.state) || !strike.finality) {
         throw new Error('Continuous assignment strike must be final.');
       }
-      if (!strike.strikeId || strikes.has(strike.strikeId) || strike.groupId !== group.groupId) {
+      for (const id of strike.renderNoteIds) {
+        if (!isRetainedIdentity(id)) throw new Error('Continuous assignment strike renderNoteIds are corrupt.');
+      }
+      if (!isRetainedIdentity(strike.strikeId) || !isRetainedIdentity(strike.groupId) || !isRetainedIdentity(strike.pitch)
+        || !Number.isFinite(strike.expectedPerformanceTimeMs) || strike.expectedPerformanceTimeMs < 0
+        || strike.expectedPerformanceTimeMs !== group.performanceTimeMs
+        || strikes.has(strike.strikeId) || strike.groupId !== group.groupId) {
         throw new Error('Continuous assignment strike identity is corrupt.');
       }
       strikes.add(strike.strikeId);
@@ -65,14 +83,27 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
         throw new Error('Continuous assignment group precedes child strike finality.');
       }
       if (strike.state === 'MATCHED') {
-        if (!strike.match?.observation.observationId || !Number.isFinite(strike.match.observation.confidence)
+        if (!hasRetainedFields(strike.match, ['observation', 'timingOffsetMs'])
           || !Number.isFinite(strike.match.timingOffsetMs)) throw new Error('Continuous assignment matched strike metadata is required.');
+        assertRetainedObservation(strike.match.observation, completion.performanceTimeMs);
+        if (strike.match.observation.pitch !== strike.pitch
+          || strike.match.timingOffsetMs !== strike.match.observation.performanceTimeMs - strike.expectedPerformanceTimeMs
+          || !withinContinuousWindow(strike.expectedPerformanceTimeMs, strike.match.observation.performanceTimeMs)) {
+          throw new Error('Continuous assignment matched strike semantics are corrupt.');
+        }
         claim({ kind: 'STRIKE_MATCH', observationId: strike.match.observation.observationId, strikeId: strike.strikeId }, strike.match.observation);
       }
     }
+    const groupPitches = new Set(groupStrikes.map(strike => strike.pitch));
     for (const residual of residuals) {
+      if (!hasRetainedFields(residual, ['strikeId', 'observation', 'timingOffsetMs']) || !isRetainedIdentity(residual.strikeId)) {
+        throw new Error('Continuous assignment residual strike assignment is corrupt.');
+      }
+      assertRetainedObservation(residual.observation, completion.performanceTimeMs);
       const strike = groupStrikes.find(strike => strike.strikeId === residual.strikeId);
       if (!strike || strike.state !== 'UNMATCHED' || residualSlots.has(residual.strikeId)
+        || groupPitches.has(residual.observation.pitch)
+        || !withinContinuousWindow(group.performanceTimeMs, residual.observation.performanceTimeMs)
         || !Number.isFinite(residual.timingOffsetMs)
         || residual.timingOffsetMs !== residual.observation.performanceTimeMs - strike.expectedPerformanceTimeMs) {
         throw new Error('Continuous assignment residual strike assignment is corrupt.');
@@ -82,11 +113,15 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
     }
   }
   for (const row of assignment.unattributedObservations) {
-    if (!row.finality) throw new Error('Continuous assignment unattributed observation must be final.');
+    if (!hasRetainedFields(row, ['observation', 'finality']) || !row.finality) {
+      throw new Error('Continuous assignment unattributed observation must be final.');
+    }
     assertFinality(row.finality, completion);
+    assertRetainedObservation(row.observation, completion.performanceTimeMs);
     claim({ kind: 'UNATTRIBUTED', observationId: row.observation.observationId }, row.observation);
   }
   const relations = assignment.observationAssignments;
+  for (const relation of relations) assertRetainedObservationAssignment(relation);
   const relatedIds = new Set(relations.map(row => row.observationId));
   if (relatedIds.size !== relations.length || relations.length !== ledger.size || declarations.size !== ledger.size
     || relations.some(row => !declarations.has(row.observationId)
@@ -96,11 +131,12 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
 }
 
 function assertFinality(value: CompletedContinuousAssignment['groups'][number]['finality'], completion: CompletedContinuousAssignment['completion']): void {
-  const expectedRequired = Math.min(value.unclampedRequiredFrontierMs, completion.performanceTimeMs);
-  const expectedClamp = value.unclampedRequiredFrontierMs > completion.performanceTimeMs;
   const fields = ['requiredAnalysisFrontierMs', 'unclampedRequiredFrontierMs', 'enablingPublicationId',
     'enablingAnalysisFrontierMs', 'finalizationSessionTimeMs', 'terminalClamp'];
-  if (Object.keys(value).sort().join() !== fields.sort().join() || !value.enablingPublicationId
+  if (!hasRetainedFields(value, fields)) throw new Error('Continuous assignment finality coordinates are corrupt.');
+  const expectedRequired = Math.min(value.unclampedRequiredFrontierMs, completion.performanceTimeMs);
+  const expectedClamp = value.unclampedRequiredFrontierMs > completion.performanceTimeMs;
+  if (!isRetainedIdentity(value.enablingPublicationId)
     || typeof value.terminalClamp !== 'boolean'
     || ![value.requiredAnalysisFrontierMs, value.unclampedRequiredFrontierMs,
       value.enablingAnalysisFrontierMs, value.finalizationSessionTimeMs].every(time => Number.isFinite(time) && time >= 0)
@@ -111,6 +147,49 @@ function assertFinality(value: CompletedContinuousAssignment['groups'][number]['
     || value.terminalClamp !== expectedClamp
     || value.finalizationSessionTimeMs > completion.availabilitySessionTimeMs) {
     throw new Error('Continuous assignment finality coordinates are corrupt.');
+  }
+}
+
+/** Private to the completed-assignment boundary; no normalization or schema fallback. */
+function hasRetainedFields(value: unknown, fields: readonly string[]): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === fields.length && fields.every(field => Object.prototype.hasOwnProperty.call(value, field));
+}
+
+function isRetainedIdentity(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function assertRetainedObservation(value: ContinuousObservation, terminalPerformanceMs: number): void {
+  const fields = ['observationId', 'pitch', 'performanceTimeMs', 'confidence', 'source'];
+  const hasProvenance = value && Object.prototype.hasOwnProperty.call(value, 'provenance');
+  if (hasProvenance) fields.push('provenance');
+  if (!hasRetainedFields(value, fields) || !isRetainedIdentity(value.observationId) || !isRetainedIdentity(value.pitch)
+    || !Number.isFinite(value.performanceTimeMs) || value.performanceTimeMs < 0 || value.performanceTimeMs > terminalPerformanceMs
+    || !Number.isFinite(value.confidence) || value.confidence < 0 || value.confidence > 1
+    || !['MIDI', 'ACOUSTIC'].includes(value.source)) {
+    throw new Error('Continuous assignment observation is corrupt.');
+  }
+  if (hasProvenance) {
+    const p = value.provenance;
+    if (!hasRetainedFields(p, ['sourceDomainId', 'sourceSampleRateHz', 'sourceEventSample'])
+      || !p || !isRetainedIdentity(p.sourceDomainId) || !Number.isFinite(p.sourceSampleRateHz) || p.sourceSampleRateHz <= 0
+      || !Number.isFinite(p.sourceEventSample) || p.sourceEventSample < 0) {
+      throw new Error('Continuous assignment observation provenance is corrupt.');
+    }
+  }
+}
+
+function assertRetainedObservationAssignment(value: CompletedContinuousAssignment['observationAssignments'][number]): void {
+  const kind = value?.kind;
+  const fields = kind === 'STRIKE_MATCH' ? ['kind', 'observationId', 'strikeId']
+    : kind === 'GROUP_RESIDUAL' ? ['kind', 'observationId', 'groupId', 'strikeId']
+      : kind === 'UNATTRIBUTED' ? ['kind', 'observationId'] : null;
+  if (!fields || !hasRetainedFields(value, fields) || !isRetainedIdentity(value.observationId)
+    || value.kind !== 'UNATTRIBUTED' && !isRetainedIdentity(value.strikeId)
+    || value.kind === 'GROUP_RESIDUAL' && !isRetainedIdentity(value.groupId)) {
+    throw new Error('Continuous assignment observation assignment is corrupt.');
   }
 }
 

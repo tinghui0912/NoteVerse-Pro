@@ -441,6 +441,13 @@ its child strikes in either Session Time or enabling performance frontier. Compl
 session availability cannot precede any retained strike, group or unattributed
 observation finalization. These causal checks compare coordinates only within their
 own domain and reject corrupt artifacts without repair.
+Completed assignment validation is current-schema only and checks exact retained
+shapes, observation/provenance values and one-observation ownership. Matched evidence
+must have the target pitch, exact timing offset and local assignment-window eligibility.
+Every child strike shares its parent group's canonical onset. Residual evidence must
+use a pitch outside that group's expected-pitch set, stay inside its window and retain
+the exact target-slot offset. This boundary never reruns an optimizer or reassigns
+evidence, and never repairs, migrates or normalizes caller data.
 Live completion records availability when terminal coverage actually closes the
 assignment, no earlier than either the completion request or accepted terminal evidence.
 

@@ -90,7 +90,8 @@ export function assertCompletedEvaluation(evaluation: CompletedContinuousEvaluat
   if (evaluation.assignment.observations.some(observation => observation.source !== (inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC'))) {
     throw new ContinuousEvaluationError('OBSERVATION_SOURCE_MISMATCH');
   }
-  if (JSON.stringify(evaluation.interpretation) !== JSON.stringify(interpretContinuousAssignment(evaluation.assignment, inputSource))) {
+  // Projection freezes its output; validation must not freeze caller-owned evidence or target metadata.
+  if (JSON.stringify(evaluation.interpretation) !== JSON.stringify(interpretContinuousAssignment(structuredClone(evaluation.assignment), inputSource))) {
     throw new Error('Continuous evaluation interpretation is not an assignment projection.');
   }
 }

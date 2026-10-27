@@ -78,3 +78,18 @@ it.each(['assignmentPolicyId', 'interpretationPolicyId'] as const)('%s is retain
     expect(() => assertCompletedEvaluation(corrupt, 'MICROPHONE')).toThrow();
   }
 });
+
+it.each(['invalid observation', 'inconsistent group onset'])('completed evaluation delegates %s to the assignment boundary without repair', corruption => {
+  const session = createSession();
+  session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100,
+    observations: [{ observationId: 'c', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: 'ACOUSTIC' }] });
+  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
+  const result = session.completedEvaluation(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
+  const parsed = JSON.parse(JSON.stringify(result)) as typeof result;
+  expect(() => assertCompletedEvaluation(parsed, 'MICROPHONE')).not.toThrow();
+  if (corruption === 'invalid observation') Object.assign(parsed.assignment.observations[0], { confidence: 2 });
+  else Object.assign(parsed.assignment.groups[0], { performanceTimeMs: parsed.assignment.groups[0].performanceTimeMs + 1 });
+  const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
+  expect(() => assertCompletedEvaluation(parsed, 'MICROPHONE')).toThrow(/Continuous assignment/);
+  expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+});
