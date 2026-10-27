@@ -93,25 +93,31 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
       expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0 });
       expect(() => s.assembler.acceptInputAfter(200000)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
     });
-  it('valid region/source gap cannot seal an active H50 across uncovered samples', () => {
+  it.each([1, 2])('active H50 cannot cross published region 0 to %i, including empty intervening regions', region => {
     const s = setup(); s.assembler.accept(publication(0, [event(end - 3)]));
-    const window = planWindow({ index: 1, sourceStart: 100000, originTarget: 40000, nextWindow: 0, queuedEndTarget: 40000 }, 1)!;
+    const window = planWindow({ index: region, sourceStart: 120000, originTarget: 40000, nextWindow: 0, queuedEndTarget: 40000 }, 1)!;
     const p = sourcePublication('source', 48000, 0, window, { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
     expect(() => s.assembler.accept(p)).toThrow('STEP_ACOUSTIC_GESTURE_COVERAGE_GAP');
     expect(s.completed).toHaveLength(0);
   });
-  it.each(['BLOCKED', 'READY'] as const)('rejects a skipped source region in %s without an active H50', phase => {
+  it.each(['BLOCKED', 'READY'] as const)('accepts a visible region jump in %s but retires old physical evidence', phase => {
     const s = setup(); if (phase === 'BLOCKED') s.assembler.suspend();
     s.assembler.accept(publication(0));
+    if (phase === 'READY') s.assembler.acceptInputAfter(150000);
     expect(s.assembler.snapshot()).toMatchObject({ phase, activeObservationCount: 0 });
     const window = planWindow({ index: 2, sourceStart: 120000, originTarget: 40000, nextWindow: 0, queuedEndTarget: 40000 }, 1)!;
-    const corrupt = sourcePublication('source', 48000, 0, window,
-      { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
-    expect(corrupt.ownedThroughSourceSample).toBeGreaterThan(end);
-    expect(() => s.assembler.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
-    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0 });
+    const p = sourcePublication('source', 48000, 0, window,
+      { events: [event(120000), event(140001)], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
+    expect(p.ownedThroughSourceSample).toBeGreaterThan(end);
+    expect(s.assembler.accept(p)).toBeNull();
+    expect(s.assembler.snapshot()).toMatchObject({ phase, processedThroughSourceSample: 148800, activeObservationCount: 0 });
     expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
-    expect(() => s.assembler.acceptInputAfter(200000)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
+    s.assembler.acceptInputAfter(150000);
+    const nextWindow = planWindow({ index: 2, sourceStart: 120000, originTarget: 40000, nextWindow: 1, queuedEndTarget: 49600 }, 2)!;
+    const next = sourcePublication('source', 48000, 0, nextWindow,
+      { events: [event(150000), event(150003)], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 3 }, 2);
+    expect(s.assembler.accept(next)?.anchorSourceSample).toBe(150003);
+    expect(s.completed).toHaveLength(1);
   });
   it('cannot swallow callback reentrancy and revive ownership', () => {
     const a: StepAcousticAttemptAssembler<number> = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,

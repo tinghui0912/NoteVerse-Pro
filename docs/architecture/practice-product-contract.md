@@ -393,13 +393,17 @@ Expected score enters only the product-domain evaluator. One capture stream uses
 one model session; raw tensors remain inside the inference transaction.
 
 Each `SourceAnalysisRuntime` publishes one immutable, ordered, exactly-once source-window
-stream. Delivered job and region indices are contiguous from zero; inference is serialized and
-failure terminates that stream. Publication, copied window, observation array and
+stream. Delivered job indices are contiguous from zero. Published region indices are
+monotonic; each newly visible region starts at window zero. Region numbers may skip
+when intervening analysis regions legitimately produced no publication, including
+before the first published region. Inference is serialized and failure terminates
+that stream. Publication, copied window, observation array and
 observations are frozen. Owned source frontiers strictly advance across windows and
 regions; source gaps are legal. Observations belong to their newly owned half-open
 window, including the previous exclusive frontier as the next interval's lower bound.
 The source-owned canonical identity binds domain, region, window, pitch and target
-sample. Publication-local duplicates, replay, sequence gaps, mutated/forged identities
+sample. Publication-local duplicates, replay, publication/job gaps, same-region window
+gaps, mutated/forged identities
 and old owned events fail closed. The shared source sequence validator retains only
 the previous window summary and capture origin, never publication or event history.
 

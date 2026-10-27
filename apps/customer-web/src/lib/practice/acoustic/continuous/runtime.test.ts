@@ -121,6 +121,29 @@ it('multiple pauses retain no closed segment history and do not create performan
   expect(runtime.snapshot().pendingSegments).toBe(0); await runtime.dispose();
 });
 
+it('real bridge BEGIN then immediate PAUSE creates an empty region; resumed evidence maps normally', async () => {
+  const { runtime, bridge, calls, publications, feedTo } = await setup();
+  try {
+    bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
+    bridge.schedule({ type: 'PAUSE', sourceSampleIndex: 96000, performanceTimeMs: 0 });
+    await runtime.drain();
+    expect(runtime.snapshot()).toMatchObject({ state: 'PAUSED', failureCode: null,
+      counts: { segmentsStarted: 1, segmentsDrained: 1, windowsPublished: 0 } });
+    expect(publications).toEqual([]); expect(calls).toEqual([]);
+    bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 115200, performanceTimeMs: 0 });
+    bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: 144000, performanceTimeMs: 600 });
+    feedTo(153600); await runtime.seal();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].window).toMatchObject({ jobIndex: 0, regionIndex: 1, windowIndex: 0 });
+    expect(publications.flatMap(p => p.observations)).toMatchObject([{ performanceTimeMs: 100,
+      provenance: { sourceDomainId: 'capture', sourceEventSample: 120000, sourceSampleRateHz: 48000 } }]);
+    expect(publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 600, observations: [] });
+    expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null,
+      counts: { segmentsStarted: 2, segmentsDrained: 2, windowsPublished: 1 } });
+    expect(bridge.snapshot().failed).toBe(false);
+  } finally { await runtime.dispose(); }
+});
+
 for (const duration of [50, 601, 1180]) it(`terminal partial ${duration}ms preserves real full inputs and gapless owned intervals`, async () => {
   const { runtime, bridge, calls, feedTo } = await setup();
   bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });

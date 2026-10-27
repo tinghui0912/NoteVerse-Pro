@@ -46,28 +46,38 @@ function regionPublication(region: number, job: number, originTarget: number, wi
     { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: job + 1 }, job);
 }
 
-it('rejects first region 1 with otherwise valid job-zero/window-zero geometry and stays failed', () => {
-  const valid = regionPublication(0, 0, 19200), corrupt = regionPublication(1, 0, 19200);
-  expect(new SourcePublicationSequence('source', 48000).accept(valid)).toBeNull();
-  expect(corrupt).toEqual({ ...valid, window: { ...valid.window, regionIndex: 1 } });
-  const sequence = new SourcePublicationSequence('source', 48000), before = structuredClone(corrupt);
-  expect(() => sequence.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
-  expect(corrupt).toEqual(before);
-  expect(() => sequence.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+it('accepts first published region 1 at job zero/window zero after an unobserved empty region', () => {
+  const p = regionPublication(1, 0, 19200), before = structuredClone(p);
+  expect(new SourcePublicationSequence('source', 48000).accept(p)).toBeNull();
+  expect(p).toEqual(before);
 });
 
-it('rejects region 0 to 2 with correct next job and increasing source geometry, without recovery', () => {
-  const first = regionPublication(0, 0, 19200), next = regionPublication(1, 1, 40000);
-  const control = new SourcePublicationSequence('source', 48000); control.accept(first);
-  expect(() => control.accept(next)).not.toThrow();
-  const corrupt = regionPublication(2, 1, 40000), before = structuredClone(corrupt);
-  expect(corrupt).toEqual({ ...next, window: { ...next.window, regionIndex: 2 } });
-  expect(corrupt.ownedThroughSourceSample).toBeGreaterThan(first.ownedThroughSourceSample);
+it('accepts published region 0 to 2 with continuous jobs and forward source geometry', () => {
+  const first = regionPublication(0, 0, 19200), next = regionPublication(2, 1, 40000);
+  expect(next.ownedThroughSourceSample).toBeGreaterThan(first.ownedThroughSourceSample);
   const sequence = new SourcePublicationSequence('source', 48000); sequence.accept(first);
-  expect(() => sequence.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
-  expect(corrupt).toEqual(before);
-  expect(() => sequence.accept(next)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+  expect(() => sequence.accept(next)).not.toThrow();
 });
+
+it.each(['job-gap', 'job-replay', 'region-regression', 'window-gap', 'window-replay', 'new-region-window', 'frontier-regression'] as const)(
+  '%s remains an observable terminal stream violation', kind => {
+    const sequence = new SourcePublicationSequence('source', 48000);
+    sequence.accept(regionPublication(0, 0, 19200));
+    sequence.accept(regionPublication(2, 1, 40000));
+    const valid = regionPublication(2, 2, 40000, 1);
+    let corrupt = valid;
+    if (kind === 'job-gap') corrupt = regionPublication(2, 3, 40000, 1);
+    if (kind === 'job-replay') corrupt = regionPublication(2, 1, 40000, 1);
+    if (kind === 'region-regression') corrupt = regionPublication(1, 2, 60000);
+    if (kind === 'window-gap') corrupt = regionPublication(2, 2, 40000, 2);
+    if (kind === 'window-replay') corrupt = regionPublication(2, 2, 40000);
+    if (kind === 'new-region-window') corrupt = regionPublication(3, 2, 60000, 1);
+    if (kind === 'frontier-regression') corrupt = { ...valid, ownedThroughSourceSample: 100000 };
+    const before = structuredClone(corrupt);
+    expect(() => sequence.accept(corrupt)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+    expect(corrupt).toEqual(before);
+    expect(() => sequence.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+  });
 
 it('accepts full then partial windows and contiguous region 1 with a physical source gap', () => {
   const sequence = new SourcePublicationSequence('source', 48000);

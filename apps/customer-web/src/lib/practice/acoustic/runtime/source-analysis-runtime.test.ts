@@ -82,3 +82,51 @@ it.each([false, true])('queued inference is delivered once in order, or terminat
     }
   } finally { release(); await runtime.dispose(); }
 });
+
+it.each([44100, 48000] as const)('%i: empty first analysis region produces no publication; next region starts job zero', async rate => {
+  const publications: SourceAcousticPublication[] = [];
+  const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'empty-first', sourceSampleRateHz: rate,
+    coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); }, worker: {
+      run: async ({ window }) => ({ events: [{ pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .8, frameScore: .8,
+        targetSample: Math.ceil(window.ownedStartTarget) }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }), dispose: async () => {} } });
+  let next = 0;
+  const feed = async (end: number) => { end = Math.round(end); while (next < end) { const stop = Math.min(end, next + 128);
+    runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: next, sourceEndSampleIndex: stop, samples: new Float32Array(stop - next) }); next = stop; await runtime.drain(); } };
+  try {
+    await feed(rate * 2); expect(runtime.prerollReady).toBe(true);
+    expect(runtime.beginAnalysisRegion(next)).toBe(0); runtime.endAnalysisRegion(next); await runtime.drain();
+    expect(runtime.snapshot()).toMatchObject({ state: 'IDLE', pendingRegions: 0,
+      counts: { regionsStarted: 1, regionsDrained: 1, windowsQueued: 0, windowsPublished: 0 } });
+    expect(publications).toEqual([]);
+    expect(runtime.beginAnalysisRegion(next)).toBe(1);
+    await feed(rate * 2.6); runtime.finishRegions(); await feed(rate * 2.8); await runtime.seal();
+    expect(publications).toHaveLength(1);
+    expect(publications[0].window).toMatchObject({ jobIndex: 0, regionIndex: 1, windowIndex: 0 });
+    expect(publications[0].observations[0].sourceEventSample).toBeGreaterThanOrEqual(rate * 2);
+    expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, counts: { windowsPublished: 1, regionsDrained: 2 } });
+  } finally { await runtime.dispose(); }
+});
+
+it('productive, empty, productive regions publish continuous jobs with visible region 0 to 2', async () => {
+  const publications: SourceAcousticPublication[] = [];
+  const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'empty-middle', sourceSampleRateHz: 48000,
+    coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'),
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); }, worker: {
+      run: async ({ window }) => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }), dispose: async () => {} } });
+  let next = 0;
+  const feed = async (end: number) => { while (next < end) { const stop = Math.min(end, next + 128);
+    runtime.append({ sourceSampleRateHz: 48000, sourceStartSampleIndex: next, sourceEndSampleIndex: stop, samples: new Float32Array(stop - next) }); next = stop; await runtime.drain(); } };
+  try {
+    await feed(96000); expect(runtime.beginAnalysisRegion(next)).toBe(0);
+    await feed(124800); runtime.endAnalysisRegion(next); await feed(144000);
+    expect(publications).toHaveLength(1);
+    expect(runtime.beginAnalysisRegion(next)).toBe(1); runtime.endAnalysisRegion(next); await runtime.drain();
+    expect(publications).toHaveLength(1);
+    expect(runtime.snapshot().counts.regionsDrained).toBe(2);
+    expect(runtime.beginAnalysisRegion(next)).toBe(2); await feed(172800); runtime.finishRegions(); await feed(182400); await runtime.seal();
+    expect(publications.map(p => [p.window.jobIndex, p.window.regionIndex, p.window.windowIndex])).toEqual([[0,0,0],[1,2,0]]);
+    expect(publications[1].window.ownedStartTarget).toBeGreaterThan(publications[0].window.ownedEndTarget);
+    expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, counts: { windowsPublished: 2, regionsDrained: 3 } });
+  } finally { await runtime.dispose(); }
+});
