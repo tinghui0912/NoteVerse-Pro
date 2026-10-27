@@ -17,9 +17,19 @@ function assignment(): Mutable<CompletedContinuousAssignment> {
   return structuredClone(result.assignment) as Mutable<CompletedContinuousAssignment>;
 }
 describe('completed assignment relation integrity', () => {
-  describe.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s terminal clamp anchoring', reason => {
+  describe.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s terminal clamp equivalence', reason => {
     for (const owner of ['strike', 'group', 'unattributed observation'] as const) {
-      it.each([800, 1100, 1000])(`${owner} required frontier %i must equal the 1000ms performance terminal`, required => {
+      it.each([
+        { label: 'unclamped below terminal', unclamped: 800, required: 800, terminalClamp: false, valid: true },
+        { label: 'unclamped at terminal', unclamped: 1000, required: 1000, terminalClamp: false, valid: true },
+        { label: 'clamped to terminal', unclamped: 1100, required: 1000, terminalClamp: true, valid: true },
+        { label: 'false clamp above terminal despite sufficient coverage', unclamped: 1100, required: 1100, terminalClamp: false, valid: false },
+        { label: 'true clamp below terminal', unclamped: 800, required: 1000, terminalClamp: true, valid: false },
+        { label: 'true clamp at terminal', unclamped: 1000, required: 1000, terminalClamp: true, valid: false },
+        { label: 'clamped required below terminal', unclamped: 1100, required: 900, terminalClamp: true, valid: false },
+        { label: 'clamped required 800 below terminal', unclamped: 1250, required: 800, terminalClamp: true, valid: false },
+        { label: 'clamped required above terminal', unclamped: 1250, required: 1100, terminalClamp: true, valid: false },
+      ])(`${owner}: $label`, ({ unclamped, required, terminalClamp, valid }) => {
         const f = new ContinuousAssignmentFinalizer('terminal-anchor', ['C4', 'D4'].map(pitch => ({
           strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch],
         })));
@@ -37,18 +47,20 @@ describe('completed assignment relation integrity', () => {
         expect(finality).toMatchObject({ terminalClamp: true, requiredAnalysisFrontierMs: 1000,
           unclampedRequiredFrontierMs: 1250, finalizationSessionTimeMs: 3000 });
         finality.requiredAnalysisFrontierMs = required;
-        // Keep enabling coverage valid so the upper-bound case specifically exercises terminal equality.
-        if (required > 1000) {
-          for (const group of value.groups) {
-            group.finality.enablingAnalysisFrontierMs = required;
-            for (const strike of group.strikes) strike.finality.enablingAnalysisFrontierMs = required;
-          }
-          for (const row of value.unattributedObservations) row.finality.enablingAnalysisFrontierMs = required;
+        finality.unclampedRequiredFrontierMs = unclamped;
+        finality.terminalClamp = terminalClamp;
+        // Sufficient enabling coverage isolates impossible clamp semantics from coverage failures.
+        for (const group of value.groups) {
+          group.finality.enablingAnalysisFrontierMs = 1250;
+          for (const strike of group.strikes) strike.finality.enablingAnalysisFrontierMs = 1250;
         }
+        for (const row of value.unattributedObservations) row.finality.enablingAnalysisFrontierMs = 1250;
         const before = structuredClone(value);
-        if (required === 1000) expect(() => assertCompletedAssignment(value)).not.toThrow();
+        const serializedBefore = JSON.stringify(value);
+        if (valid) expect(() => assertCompletedAssignment(value)).not.toThrow();
         else expect(() => assertCompletedAssignment(value)).toThrow('finality coordinates are corrupt');
         expect(value).toEqual(before);
+        expect(JSON.stringify(value)).toBe(serializedBefore);
       });
     }
   });

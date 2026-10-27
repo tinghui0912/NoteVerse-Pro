@@ -96,6 +96,8 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
 }
 
 function assertFinality(value: CompletedContinuousAssignment['groups'][number]['finality'], completion: CompletedContinuousAssignment['completion']): void {
+  const expectedRequired = Math.min(value.unclampedRequiredFrontierMs, completion.performanceTimeMs);
+  const expectedClamp = value.unclampedRequiredFrontierMs > completion.performanceTimeMs;
   const fields = ['requiredAnalysisFrontierMs', 'unclampedRequiredFrontierMs', 'enablingPublicationId',
     'enablingAnalysisFrontierMs', 'finalizationSessionTimeMs', 'terminalClamp'];
   if (Object.keys(value).sort().join() !== fields.sort().join() || !value.enablingPublicationId
@@ -104,9 +106,8 @@ function assertFinality(value: CompletedContinuousAssignment['groups'][number]['
       value.enablingAnalysisFrontierMs, value.finalizationSessionTimeMs].every(time => Number.isFinite(time) && time >= 0)
     || value.requiredAnalysisFrontierMs > value.enablingAnalysisFrontierMs
     || value.requiredAnalysisFrontierMs > value.unclampedRequiredFrontierMs
-    || (value.terminalClamp ? value.requiredAnalysisFrontierMs !== completion.performanceTimeMs
-      || value.requiredAnalysisFrontierMs >= value.unclampedRequiredFrontierMs
-      : value.requiredAnalysisFrontierMs !== value.unclampedRequiredFrontierMs)
+    || value.requiredAnalysisFrontierMs !== expectedRequired
+    || value.terminalClamp !== expectedClamp
     || value.finalizationSessionTimeMs > completion.availabilitySessionTimeMs) {
     throw new Error('Continuous assignment finality coordinates are corrupt.');
   }
