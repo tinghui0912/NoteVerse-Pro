@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
-import { sourcePublication } from './source-publication';
+import { SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
+import { planWindow } from './window-planner';
 import { projectContinuousEvidence } from '../continuous/publication';
 
 it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
@@ -10,9 +11,32 @@ it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only sour
   expect(p.ownedThroughSourceSample).toBe(100000 + 28800 * rate / 16000);
   expect(p.observations[0].sourceEventSample).toBe((100000 * 16000 + 20000 * rate) / 16000);
   expect(Object.isFrozen(p)).toBe(true);
+  expect(Object.isFrozen(p.window)).toBe(true);
+  expect(Object.isFrozen(p.observations)).toBe(true);
+  expect(Object.isFrozen(p.observations[0])).toBe(true);
   expect(sourcePublication('source', rate, 100000, window, result, 9999999).observations).toEqual(p.observations);
   expect(p).not.toHaveProperty('capturedThroughSourceSample');
   expect(p).not.toHaveProperty('performanceTimeMs');
+});
+
+it('freezes a copied window and owns canonical identity plus duplicate rejection', () => {
+  const window = { ...planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)! };
+  const event = { pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .8, frameScore: .8, targetSample: 19200 };
+  const result = { events: [event], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
+  const p = sourcePublication('source', 48000, 0, window, result, 0);
+  expect(p.observations[0].observationId).toBe('source:r0:w0:p60:f19200');
+  expect(sourceObservationId('source', window, 60, 19200)).toBe(p.observations[0].observationId);
+  window.windowIndex = 999; expect(p.window.windowIndex).toBe(0);
+  expect(() => sourcePublication('source', 48000, 0, p.window, { ...result, events: [event, event] }, 0)).toThrow('DUPLICATE_ACOUSTIC_OBSERVATION');
+});
+
+it('stream failure is terminal without retaining a replay ledger', () => {
+  const sequence = new SourcePublicationSequence('source', 48000);
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const p = sourcePublication('source', 48000, 0, window, { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 0);
+  expect(sequence.accept(p)).toBeNull(); expect(() => sequence.accept(p)).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+  expect(() => sequence.accept(p)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+  for (const value of Object.values(sequence)) expect(value instanceof Map || value instanceof Set || Array.isArray(value)).toBe(false);
 });
 
 it('Continuous projection ignores the source frontier without changing its evaluation clock or observations', () => {

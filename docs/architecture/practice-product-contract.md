@@ -319,6 +319,13 @@ boundaries independently of analysis progress. After a verdict, domain rearm and
 input arm run synchronously at that physical boundary. Skip blocks the idle
 assembler, changes the target and rearms at the same boundary.
 
+STEP retains only active H50 observations, one bounded source-publication chronology
+summary and the physical retirement/processed watermarks. It has no session-long
+observation identity/fingerprint ledger or historical identity limit. H50 remains
+anchor-inclusive and right-edge-exclusive, and cannot seal across a source-region gap.
+The persistent microphone, inference lease, capture graph and source runtime are
+not restarted per target.
+
 Physical input captured while an answer is busy is retired, never queued or deferred
 to the next target. The physical frontier may be ahead of the analysis frontier;
 domain rearm followed synchronously by microphone arm shares that capture watermark.
@@ -328,6 +335,12 @@ from crossing attempt boundaries. It does not assert that future acoustic observ
 after the watermark represent a fresh physical key attack. Sustain/resonance may
 require evidence-based onset/activity/release policy; no cooldown or silence gate
 is part of this contract.
+
+Newly owned analysis may arrive behind the physical retirement watermark and is
+discarded without queuing. An event behind an already owned analysis frontier is
+instead a source-contract violation and fails closed, even while input is BLOCKED.
+Exactly-once source delivery plus strict physical eligibility prevents one retired
+gesture from satisfying consecutive identical targets without retaining its IDs.
 
 
 The Device Lease owns the microphone root; the controller borrows it and owns the
@@ -378,6 +391,17 @@ clones and closes the context while the page retains its root devices.
 source-domain analysis regions and publishes immutable physical observations.
 Expected score enters only the product-domain evaluator. One capture stream uses
 one model session; raw tensors remain inside the inference transaction.
+
+Each `SourceAnalysisRuntime` publishes one immutable, ordered, exactly-once source-window
+stream. Delivered job indices are contiguous from zero; inference is serialized and
+failure terminates that stream. Publication, copied window, observation array and
+observations are frozen. Owned source frontiers strictly advance across windows and
+regions; source gaps are legal. Observations belong to their newly owned half-open
+window, including the previous exclusive frontier as the next interval's lower bound.
+The source-owned canonical identity binds domain, region, window, pitch and target
+sample. Publication-local duplicates, replay, sequence gaps, mutated/forged identities
+and old owned events fail closed. The shared source sequence validator retains only
+the previous window summary and capture origin, never publication or event history.
 
 The model is `practice-acoustic-robust-browser@v1`, delivered through
 `/model-assets/practice-acoustic-robust-browser-v1/access`. The acoustic README

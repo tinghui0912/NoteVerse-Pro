@@ -2,7 +2,7 @@ import { ACOUSTIC_MODEL as M, AcousticAnalysisError, assertAcousticIdentity, fai
 import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { AcousticPcmRing, planWindow, type AnalysisRegion, type AcousticWindow } from './window-planner';
 import type { AcousticInferencePort } from './inference-types';
-import { deliverSynchronously, sourcePublication, type SourcePublicationSink } from './source-publication';
+import { deliverSynchronously, SourcePublicationSequence, sourcePublication, type SourcePublicationSink } from './source-publication';
 import { ACOUSTIC_RESOURCES as R, retainCompact } from './resource-policy';
 
 export type SourcePcmBlock = Readonly<{ sourceSampleRateHz: number; sourceStartSampleIndex: number;
@@ -33,9 +33,11 @@ export class SourceAnalysisRuntime {
   private cleanup: (() => void) | null = null;
   private detachWorker: (() => void) | undefined;
   private lastClock = -Infinity;
+  private readonly publications: SourcePublicationSequence;
   private readonly counts = { windowsQueued: 0, windowsStarted: 0, windowsPublished: 0, observationsPublished: 0,
     peakOutstanding: 0, backpressureFailures: 0, regionsStarted: 0, regionsDrained: 0 };
   private constructor(private readonly options: SourceAnalysisOptions, private readonly adapter: QualifiedSourceAdapter) {
+    this.publications = new SourcePublicationSequence(options.sourceDomainId, adapter.rate);
     this.detachWorker = options.worker.onFailure?.(error => this.failAnalysis(error));
   }
   static async create(options: SourceAnalysisOptions): Promise<SourceAnalysisRuntime> {
@@ -157,6 +159,7 @@ export class SourceAnalysisRuntime {
         const started = this.clock(); this.counts.windowsStarted++;
         const result = await this.options.worker.run({ window, pcm }); if (this.closed()) return;
         const available = this.clock(), publication = sourcePublication(this.options.sourceDomainId, this.adapter.rate, this.base!, window, result, available);
+        this.publications.accept(publication);
         this.delivering = true;
         try { deliverSynchronously(this.options.onPublication, publication); } finally { this.delivering = false; }
         const delivered = this.clock(); this.counts.windowsPublished++; this.counts.observationsPublished += publication.observations.length;

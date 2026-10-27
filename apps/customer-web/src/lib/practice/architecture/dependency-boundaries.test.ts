@@ -70,6 +70,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
   if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
@@ -121,6 +122,15 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
+  it('keeps source publication identity and stream chronology independent of product domains', () => {
+    const file = path.join(practiceRoot, 'acoustic/runtime/source-publication.ts');
+    for (const target of ['step/step-acoustic-attempt-assembler', 'step/domain/runtime', 'continuous/domain/evaluation/assignment-finalizer', 'kernel/artifact']) {
+      expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
+    }
+    const assembler = path.join(practiceRoot, 'step/step-acoustic-attempt-assembler.ts');
+    expect(imports(assembler).some(edge => edge.bindings.includes('SourcePublicationSequence')
+      && edge.target === normalize(file))).toBe(true);
+  });
   it('keeps MIDI evidence score-blind, including type-only imports', () => {
     const file = path.join(practiceRoot, 'continuous/input/midi-evidence.ts');
     for (const target of ['kernel/artifact', 'kernel/scope', 'kernel/tempo', 'continuous/domain/evaluation/assignment-finalizer',

@@ -1,9 +1,8 @@
 import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
 import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
-import type { SourceAcousticObservation, SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
+import { SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
-const MAX_STEP_ACOUSTIC_IDENTITIES = 100_000;
 const MAX_GESTURE_OBSERVATIONS = 32768;
 
 export type StepAcousticAttemptSink<Identity> = Readonly<{
@@ -25,8 +24,6 @@ type Phase = 'BLOCKED' | 'READY' | 'CAPTURING' | 'FAILED';
 
 const order = (a: SourceAcousticObservation, b: SourceAcousticObservation) => a.sourceEventSample - b.sourceEventSample
   || (a.observationId < b.observationId ? -1 : a.observationId === b.observationId ? 0 : 1);
-const fingerprint = (o: SourceAcousticObservation) => JSON.stringify([o.observationId, o.pitch, o.midiPitch, o.confidence,
-  o.sourceDomainId, o.sourceSampleRateHz, o.sourceEventSample, o.targetSample]);
 const validSample = (sample: number) => Number.isFinite(sample) && sample >= 0 && sample <= Number.MAX_SAFE_INTEGER;
 
 /** Score-blind, frontier-sealed ownership only. Callers own availability and retirement, never this component. */
@@ -35,9 +32,8 @@ export class StepAcousticAttemptAssembler<Identity> {
   private active: Active<Identity> | null = null;
   private eligibleAfter: number | null = null;
   private frontier: number | null = null;
-  private lastWindow: Readonly<{ region: number; index: number }> | null = null;
   private processing = false;
-  private readonly seen = new Map<string, string>();
+  private readonly publications: SourcePublicationSequence;
   private readonly timebase: PracticeTimebase;
   private readonly sourceDomainId: string;
   private readonly sourceRate: 44100 | 48000;
@@ -50,6 +46,7 @@ export class StepAcousticAttemptAssembler<Identity> {
       throw new Error('STEP_ACOUSTIC_SOURCE_MAPPING_INVALID');
     }
     this.sourceDomainId = options.sourceDomainId; this.sourceRate = options.sourceSampleRateHz;
+    this.publications = new SourcePublicationSequence(this.sourceDomainId, this.sourceRate);
     this.sink = Object.freeze({ ...options.sink });
     this.timebase = new PracticeTimebase({ domainId: options.localSessionId, sampleRateHz: this.sourceRate,
       anchorSampleIndex: options.sourceAnchorSample, anchorSessionTimeMs: options.sessionAnchorTime.ms });
@@ -69,38 +66,15 @@ export class StepAcousticAttemptAssembler<Identity> {
   accept(publication: SourceAcousticPublication): SealedStepAcousticGesture | null {
     this.guard(); this.processing = true;
     try {
-      if (publication.sourceDomainId !== this.sourceDomainId || publication.sourceSampleRateHz !== this.sourceRate
-        || !validSample(publication.ownedThroughSourceSample) || publication.observations.length > MAX_GESTURE_OBSERVATIONS) {
-        this.fail('STEP_ACOUSTIC_PUBLICATION_INVALID');
-      }
-      const previousFrontier = this.frontier;
-      if (this.active && previousFrontier !== null && publication.ownedThroughSourceSample > previousFrontier && this.lastWindow
-        && (publication.window.regionIndex !== this.lastWindow.region || publication.window.windowIndex > this.lastWindow.index + 1)) {
+      const previous = this.publications.accept(publication);
+      // Stream continuity belongs to the source owner; H50 alone may not cross regions.
+      if (this.active && previous && publication.window.regionIndex !== previous.region) {
         this.fail('STEP_ACOUSTIC_GESTURE_COVERAGE_GAP');
       }
-      const observations = [...publication.observations].sort(order), fresh = new Set<string>();
-      // Identity metadata is retained even for ignored input, but its pitches can never be reassigned later.
-      for (const o of observations) {
-        if (Object.keys(o).length !== 8 || o.sourceDomainId !== this.sourceDomainId || o.sourceSampleRateHz !== this.sourceRate || !o.observationId
-          || o.observationId.length > 512 || !validSample(o.sourceEventSample) || !Number.isSafeInteger(o.targetSample)
-          || o.sourceEventSample >= publication.ownedThroughSourceSample || !Number.isInteger(o.midiPitch)
-          || o.midiPitch < 21 || o.midiPitch > 108 || !/^[A-G]#?-?\d$/.test(o.pitch)
-          || !Number.isFinite(o.confidence) || o.confidence < 0 || o.confidence > 1) this.fail('STEP_ACOUSTIC_OBSERVATION_INVALID');
-        const value = fingerprint(o), old = this.seen.get(o.observationId);
-        if (old !== undefined && old !== value) this.fail('STEP_ACOUSTIC_MUTATED_OBSERVATION');
-        if (old === undefined) {
-          if (this.seen.size === MAX_STEP_ACOUSTIC_IDENTITIES) this.fail('STEP_ACOUSTIC_IDENTITY_LIMIT');
-          if (this.phase !== 'BLOCKED' && this.eligibleAfter !== null && o.sourceEventSample > this.eligibleAfter
-            && previousFrontier !== null && o.sourceEventSample < previousFrontier) this.fail('STEP_ACOUSTIC_NONCHRONOLOGICAL_OBSERVATION');
-          this.seen.set(o.observationId, value); fresh.add(o.observationId);
-        }
-      }
-      this.frontier = Math.max(previousFrontier ?? 0, publication.ownedThroughSourceSample);
-      if (previousFrontier === null || publication.ownedThroughSourceSample > previousFrontier) {
-        this.lastWindow = Object.freeze({ region: publication.window.regionIndex, index: publication.window.windowIndex });
-      }
+      const observations = [...publication.observations].sort(order);
+      this.frontier = publication.ownedThroughSourceSample;
       if (this.phase === 'READY') {
-        const first = observations.find(o => fresh.has(o.observationId) && o.sourceEventSample > this.eligibleAfter!);
+        const first = observations.find(o => o.sourceEventSample > this.eligibleAfter!);
         if (first) {
           const identity = this.sink.open(this.timebase.sampleIndexToSessionTime(first.sourceEventSample));
           this.assertCallbackDidNotFail();
@@ -112,8 +86,7 @@ export class StepAcousticAttemptAssembler<Identity> {
       }
       if (!this.active) return null;
       const active = this.active;
-      for (const o of observations) if (o.sourceEventSample >= active.anchor && o.sourceEventSample < active.end
-        && (fresh.has(o.observationId) || active.observations.has(o.observationId))) {
+      for (const o of observations) if (o.sourceEventSample >= active.anchor && o.sourceEventSample < active.end) {
         active.observations.set(o.observationId, Object.freeze({ ...o }));
         if (active.observations.size > MAX_GESTURE_OBSERVATIONS) this.fail('STEP_ACOUSTIC_GESTURE_LIMIT');
       }
@@ -139,8 +112,7 @@ export class StepAcousticAttemptAssembler<Identity> {
   snapshot() {
     return Object.freeze({ phase: this.phase, inputEligibleAfterSourceSample: this.eligibleAfter,
       processedThroughSourceSample: this.frontier, gestureAnchorSourceSample: this.active?.anchor ?? null,
-      gestureEndSourceSample: this.active?.end ?? null, activeObservationCount: this.active?.observations.size ?? 0,
-      retainedObservationIdentityCount: this.seen.size });
+      gestureEndSourceSample: this.active?.end ?? null, activeObservationCount: this.active?.observations.size ?? 0 });
   }
   private guard(): void {
     if (this.processing || this.phase === 'FAILED') this.fail('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');

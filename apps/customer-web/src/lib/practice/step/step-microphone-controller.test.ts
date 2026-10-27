@@ -33,7 +33,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     resume: vi.fn(async () => {}), close: vi.fn(async () => { context.state = 'closed'; context.dispatchEvent(new Event('statechange')); }) });
   const metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
   let source!: SourceAnalysisRuntime, bridge!: CaptureConsumer, publish!: SourceAnalysisOptions['onPublication'];
-  let next = 0, sequence = 0, paused = false, pitches = ['C4'];
+  let next = 0, sequence = 0, paused = false, pitches = ['C4'], eventOffset = 8000;
   let workerFailure: ((e: Error) => void) | undefined;
   const releases: (() => void)[] = [], publications: SourceAcousticPublication[] = [];
   vi.spyOn(SourceAnalysisRuntime, 'create').mockImplementation(async options => {
@@ -45,7 +45,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     run: vi.fn(async (input: AcousticInferenceInput) => {
       if (paused) await new Promise<void>(resolve => releases.push(resolve));
       return { events: paused ? [] : pitches.map(pitch => ({ pitch, midiPitch: pitch === 'C5' ? 72 : pitch === 'D4' ? 62 : 60,
-        targetSample: Math.ceil(input.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
+        targetSample: Math.ceil(input.window.ownedStartTarget) + eventOffset, confidence: .8, onsetScore: .8, frameScore: .8 })),
         inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 };
     }),
     dispose: vi.fn(async () => { for (const release of releases.splice(0)) release(); }),
@@ -94,7 +94,8 @@ function rig(rate: 44100 | 48000 = 48000) {
   };
   return { finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
     untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
-    pause: () => { paused = true; }, pitches: (p: string[]) => { pitches = p; },
+    pause: () => { paused = true; }, offset: (value: number) => { eventOffset = value; },
+    resume: async () => { paused = false; for (const release of releases.splice(0)) release(); await source.drain(); }, pitches: (p: string[]) => { pitches = p; },
     workerFailure: () => workerFailure?.(new Error('WORKER_CRASH')), origin, rate };
 }
 
@@ -102,18 +103,16 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   it.each(['READY', 'CAPTURING', 'ANALYZING'] as const)('temporary mute in %s cancels unfinished evidence, preserves progress and recovers after fresh physical retirement', async phase => {
     const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
     const prior = r.controller.snapshot().sessionSnapshot!;
-    const old = r.publications.at(-1)!;
-    r.pause(); await r.feed(4);
     if (phase !== 'READY') {
-      const sample = r.input().snapshot().retiredThroughSourceSample + 1;
-      r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 1 }, ownedThroughSourceSample: sample + 1,
-        observations: [{ ...old.observations[0], observationId: 'unfinished', sourceEventSample: sample }] });
+      r.offset(9590);
+      for (let i = 0; i < 100 && r.controller.snapshot().stepInteractionPhase !== 'CAPTURING'; i++) await r.feed();
       if (phase === 'ANALYZING') {
         const runtime = (r.controller as unknown as { runtime: StepPracticeRuntime }).runtime;
         runtime.analyzeAttempt(runtime.snapshot().step.activeAttempt!);
       }
       expect(r.controller.snapshot().stepInteractionPhase).toBe(phase);
     }
+    r.pause(); await r.feed(20);
     r.track.muted = true; r.track.dispatchEvent(new Event('mute'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: 'STEP_MICROPHONE_INTERRUPTED', canAcceptAttempt: false,
       sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, activeAttempt: null, inputAvailable: false } } });
@@ -122,14 +121,11 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     r.track.muted = false; r.track.dispatchEvent(new Event('unmute'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true,
       sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, inputEligibleAfter: { sampleIndex: watermark } } } });
-    await r.feed(3);
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: watermark + 1,
-      observations: [watermark - 1, watermark].map((sample, i) => ({ ...old.observations[0], observationId: `retired-${i}`, sourceEventSample: sample })) });
+    r.offset(8000); await r.resume();
     expect(r.finalized).toHaveLength(1); expect(r.completion).not.toHaveBeenCalled();
-    const through = r.input().snapshot().capture!.capturedThroughSourceSample;
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 3 }, ownedThroughSourceSample: through,
-      observations: [{ ...old.observations[0], observationId: 'fresh-recovery', sourceEventSample: watermark + 1 }] });
-    expect(r.finalized).toHaveLength(2); expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
+    await r.untilFinalized(2);
+    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBeGreaterThan(watermark);
+    expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
     expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     await r.controller.dispose();
@@ -191,51 +187,33 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     await r.controller.dispose();
   });
 
-  it('skip retires physical capture while READY, rejects delayed IDs/old times, and cannot skip an active gesture', async () => {
-    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
-    r.pause(); await r.feed(2);
-    // The context clock may lead the last delivered physical block; skip uses the block, not now().
-    r.context.currentTime += 10;
+  it('skip retires physical capture while READY and cannot skip an active source-valid gesture', async () => {
+    const r = rig(rate); await r.controller.start(); r.pause(); await r.feed(30);
+    r.context.currentTime += .001; // the block frontier, not now(), owns retirement
     const boundary = r.input().snapshot().capture!.capturedThroughSourceSample;
     r.controller.skip();
-    expect(r.controller.snapshot().sessionSnapshot!.step).toMatchObject({ currentIndex: 2, attemptState: 'READY',
-      inputEligibleAfter: { sampleIndex: boundary } });
-    const old = r.publications[0];
-    r.publish(old);
-    r.publish({ ...old, ownedThroughSourceSample: boundary,
-      observations: old.observations.map(o => ({ ...o, observationId: 'delayed-pre-skip', sourceEventSample: boundary - 1 })) });
-    expect(r.finalized).toHaveLength(1);
-    await r.feed(3);
-    const end = r.input().snapshot().capture!.capturedThroughSourceSample;
-    const sample = boundary + 1;
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 1 }, ownedThroughSourceSample: sample + 1,
-      observations: [{ ...old.observations[0], observationId: 'new-after-skip', sourceEventSample: sample }] });
+    expect(r.controller.snapshot().sessionSnapshot!.step).toMatchObject({ currentIndex: 1, attemptState: 'READY', inputEligibleAfter: { sampleIndex: boundary } });
+    await r.resume(); expect(r.finalized).toHaveLength(0);
+    r.offset(9590);
+    for (let i = 0; i < 100 && r.controller.snapshot().stepInteractionPhase !== 'CAPTURING'; i++) await r.feed();
     expect(r.controller.snapshot().stepInteractionPhase).toBe('CAPTURING');
-    r.controller.skip(); expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: end, observations: [] });
-    expect(r.finalized.at(-1)!.attemptStartSessionTime.sampleIndex).toBe(sample);
-    expect(r.finalized).toHaveLength(2);
-    await r.controller.abandon(); expect(r.controller.snapshot().sessionSnapshot!.step.completed).toBe(true);
+    r.controller.skip(); expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(1);
+    r.offset(8000); await r.untilFinalized(1);
+    expect(r.finalized[0].attemptStartSessionTime.sampleIndex).toBeGreaterThan(boundary);
+    expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
     await r.controller.dispose();
   });
 
-  it('post-verdict retirement rejects previously captured observations, including delayed new IDs and equality', async () => {
+  it('newly owned observations before physical retirement are discarded despite fresh canonical identities', async () => {
     const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
-    const retired = r.input().snapshot().retiredThroughSourceSample, old = r.publications[0];
-    r.pause(); await r.feed(3);
-    const captured = r.input().snapshot().capture!.capturedThroughSourceSample;
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 1 }, ownedThroughSourceSample: captured,
-      observations: [...old.observations, ...[retired - 1, retired].map((s, i) => ({ ...old.observations[0],
-        observationId: `busy-${i}`, sourceEventSample: s }))] });
-    expect(r.finalized).toHaveLength(1);
-    expect(r.controller.snapshot().canAcceptAttempt).toBe(true);
-    await r.feed(3);
-    const through = r.input().snapshot().capture!.capturedThroughSourceSample, fresh = captured + 1;
-    r.publish({ ...old, window: { ...old.window, windowIndex: old.window.windowIndex + 2 }, ownedThroughSourceSample: through,
-      observations: [{ ...old.observations[0], observationId: 'fresh-target-2', sourceEventSample: fresh }] });
-    const step = r.controller.snapshot().sessionSnapshot!.step;
-    expect(r.finalized).toHaveLength(2); expect(step.currentIndex).toBe(2);
-    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBe(fresh);
+    const retired = r.input().snapshot().retiredThroughSourceSample;
+    r.offset(0);
+    for (let i = 0; i < 100 && r.publications.length < 2; i++) await r.feed();
+    expect(r.publications).toHaveLength(2);
+    expect(r.publications[1].observations[0].sourceEventSample).toBeLessThan(retired);
+    expect(r.finalized).toHaveLength(1); expect(r.controller.snapshot().canAcceptAttempt).toBe(true);
+    r.offset(8000); await r.untilFinalized(2);
+    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBeGreaterThan(retired);
     expect(r.finalized[1].attemptId).not.toBe(r.finalized[0].attemptId);
     await r.controller.dispose();
   });
@@ -269,20 +247,13 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(retired).toBeGreaterThanOrEqual(secondPhysicalEvent.sourceEventSample);
     expect(r.controller.snapshot()).toMatchObject({ canAcceptAttempt: true, pendingPostVerdict: null,
       sessionSnapshot: { step: { currentIndex: 1, targetGeneration: 2, activeAttempt: null, attemptState: 'READY' } } });
-    await r.feed(3);
-    const through = r.input().snapshot().capture!.capturedThroughSourceSample;
-    r.publish({ ...firstPublication, window: { ...firstPublication.window, windowIndex: firstPublication.window.windowIndex + 1 },
-      ownedThroughSourceSample: through, observations: [secondPhysicalEvent,
-        { ...secondPhysicalEvent, observationId: 'delayed-busy-event' },
-        { ...secondPhysicalEvent, observationId: 'retirement-equality', sourceEventSample: retired }] });
+    r.offset(0); await r.resume();
+    for (let i = 0; i < 100 && r.publications.length < 2; i++) await r.feed();
+    expect(r.publications[1].observations[0].sourceEventSample).toBeLessThan(retired);
     expect(r.finalized).toHaveLength(1);
     expect(r.controller.snapshot().sessionSnapshot!.step).toMatchObject({ currentIndex: 1, activeAttempt: null, attemptState: 'READY' });
-    await r.feed(3);
-    const fresh = through + 1, end = r.input().snapshot().capture!.capturedThroughSourceSample;
-    r.publish({ ...firstPublication, window: { ...firstPublication.window, windowIndex: firstPublication.window.windowIndex + 2 },
-      ownedThroughSourceSample: end, observations: [{ ...secondPhysicalEvent, observationId: 'fresh-answer', sourceEventSample: fresh }] });
-    expect(r.finalized).toHaveLength(2);
-    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBe(fresh);
+    r.offset(8000); await r.untilFinalized(2);
+    expect(r.finalized[1].attemptStartSessionTime.sampleIndex).toBeGreaterThan(retired);
     expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(2);
     await r.controller.dispose();
   });

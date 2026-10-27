@@ -99,6 +99,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   return { input, runtime, initial, origin, context, worker, platform, root, rootStop, cloneStop, records, failures, activate,
     feed, untilPublications, publications, signal, source, bridge, publish: (p: SourceAcousticPublication) => publish(p),
     pause: () => { paused = true; }, workerFailure: () => failureListener?.(new Error('FAKE_WORKER_FAILURE')),
+    resume: async () => { paused = false; for (const release of releases.splice(0)) release(); await source.drain(); },
     onComplete: (fn: () => void) => { extraComplete = fn; },
     chunk: (overrides: Partial<CaptureChunk> = {}): CaptureChunk => ({ type: 'pcm-chunk', sequence, sourceSampleRateHz: rate,
       sourceStartSampleIndex: next, sourceEndSampleIndex: next + 2048, audioContextStartFrame: origin + next,
@@ -128,7 +129,10 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(b.capturedThroughSourceSample).toBe(r.input.snapshot().capture!.capturedThroughSourceSample);
       r.runtime.rearm(b.sessionTime); r.input.arm(b); await r.untilPublications(2);
       expect(r.records).toHaveLength(2); expect(r.input.snapshot().analysis?.counts.regionsStarted).toBe(1);
-      expect(r.input.snapshot().assembler?.retainedObservationIdentityCount).toBe(2);
+      expect(r.input.snapshot().assembler?.activeObservationCount).toBe(0);
+      expect(r.input.snapshot().assembler).not.toHaveProperty('retainedObservationIdentityCount');
+      expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1);
+      expect(r.platform.acquireInference).toHaveBeenCalledTimes(1); expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
     } finally { await r.input.dispose(); }
     expect(r.worker.dispose).toHaveBeenCalledTimes(1); expect(r.cloneStop).toHaveBeenCalledTimes(1); expect(r.rootStop).not.toHaveBeenCalled();
     await r.input.dispose(); expect(r.worker.dispose).toHaveBeenCalledTimes(1);
@@ -150,28 +154,28 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
     } finally { await r.input.dispose(); }
   });
 
-  it('POST_VERDICT observations remain remembered/discarded; delayed IDs, old timestamps and equality never satisfy identical target 2', async () => {
+  it('POST_VERDICT and physically retired delayed analysis never satisfy identical target 2', async () => {
     const r = await rig(rate);
     try {
       r.activate(); await r.untilPublications(1); await r.untilPublications(2);
       expect(r.records).toHaveLength(1); expect(r.runtime.snapshot().step.currentIndex).toBe(0);
+      r.pause(); await r.feed(30); // physical capture advances while inference is outstanding
       const boundary = r.input.retirementBoundary(); r.runtime.rearm(boundary.sessionTime); r.input.arm(boundary);
-      const old = r.publications[0], blocked = r.publications[1];
-      for (const p of [old, blocked, { ...old, observations: old.observations.map(o => ({ ...o, observationId: 'new-id-old-time' })) }]) r.publish(p);
+      const previousCount = r.publications.length;
+      await r.resume();
+      expect(r.publications.length).toBeGreaterThan(previousCount);
+      expect(r.publications.slice(previousCount).flatMap(p => p.observations).every(o => o.sourceEventSample < boundary.capturedThroughSourceSample)).toBe(true);
       expect(r.records).toHaveLength(1); expect(r.runtime.snapshot().step.attemptState).toBe('READY');
-      r.pause(); await r.feed(3);
-      const end = r.input.snapshot().capture!.capturedThroughSourceSample;
-      const sample = boundary.capturedThroughSourceSample;
-      const observation = (s: number, id: string) => ({ ...old.observations[0], observationId: id, sourceEventSample: s, targetSample: Math.round(s * 16000 / rate) });
-      r.publish({ ...blocked, ownedThroughSourceSample: end, window: { ...blocked.window, windowIndex: blocked.window.windowIndex + 1 },
-        observations: [observation(sample, 'watermark-equality'), observation(sample + 1, 'one-source-unit-later')] });
+      for (let i = 0; i < 100 && r.records.length < 2; i++) await r.feed();
       expect(r.records).toHaveLength(2);
       const second = r.runtime.snapshot().step.pendingPostVerdict!;
-      expect(second.attemptStartSessionTime.sampleIndex).toBe(sample + 1);
-      expect(second.captureEndSessionTime.sampleIndex).toBe(sample + 1 + rate * .05);
+      expect(second.attemptStartSessionTime.sampleIndex).toBeGreaterThan(boundary.capturedThroughSourceSample);
+      expect(second.captureEndSessionTime.sampleIndex).toBe(second.attemptStartSessionTime.sampleIndex! + rate * .05);
       expect(second.verdict).toBe('MATCH'); expect(second.observedAttackPitches).toEqual(['C4']);
       expect(r.runtime.isCompleted).toBe(false); const final = r.input.retirementBoundary(); r.runtime.rearm(final.sessionTime);
       expect(r.runtime.isCompleted).toBe(true); expect(r.failures).toEqual([]);
+      expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1); expect(r.platform.acquireInference).toHaveBeenCalledTimes(1);
+      expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
     } finally { await r.input.dispose(); }
   });
 
