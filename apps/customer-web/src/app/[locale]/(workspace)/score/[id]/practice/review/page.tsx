@@ -424,7 +424,6 @@ export default function PracticeReviewPage({
   }
 
   const view = reviewViewModel(result);
-  const { metrics } = view;
   const tempoText = view.tempo.kind === 'SCORE' ? t('tempoScoreMode') : `${view.tempo.bpm} BPM`;
   const scopeText = `${t(view.scope.label)} (${t('takeScopeBeats', {
     start: view.scope.startBeat, end: view.scope.terminalBeat,
@@ -508,28 +507,8 @@ export default function PracticeReviewPage({
         </div>
       )}
 
-      <section aria-labelledby="target-feedback-heading" className="space-y-3">
-        <h2 id="target-feedback-heading" className="text-sm font-semibold">
-          {t(metrics.inputSource === 'MIDI' ? 'targetNoteOutcomes' : 'targetNoteEvidence')}
-        </h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {view.targetCards.map(card => <Card key={card.label} className="rounded-lg bg-card">
-            <CardHeader><CardTitle className="text-xs text-muted-foreground">{t(card.label)}</CardTitle></CardHeader>
-            <CardContent><div className={`text-xl font-bold${card.tone === 'supported' ? ' text-green-600' : card.tone === 'wrong' ? ' text-red-600' : card.tone === 'neutral' ? ' text-slate-600' : ''}`}>{card.value}</div></CardContent>
-          </Card>)}
-        </div>
-      </section>
-      {metrics.status === 'COMPLETE' && metrics.inputSource === 'MIDI' && <section aria-labelledby="additional-playing-heading" className="space-y-3 border-t pt-4">
-        <h2 id="additional-playing-heading" className="text-sm font-semibold">{t('additionalPlaying')}</h2>
-        <Card className="max-w-xs rounded-lg bg-card">
-          <CardHeader><CardTitle className="text-xs text-muted-foreground">{t('extraPitchCount')}</CardTitle></CardHeader>
-          <CardContent><div className="text-xl font-bold text-amber-600">{metrics.extraObservationCount}</div></CardContent>
-        </Card>
-      </section>}
-      {metrics.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
-        : metrics.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
-      {metrics.status === 'COMPLETE' && metrics.notReachedStrikeCount > 0 ? <p className="text-sm text-muted-foreground">{t('notReachedStrikesDesc')}</p> : null}
-
+      {result.evaluation.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
+        : result.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         {/* Synchronized Replay Player / Recording Status */}

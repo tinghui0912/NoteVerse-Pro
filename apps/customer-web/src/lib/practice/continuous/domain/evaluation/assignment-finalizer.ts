@@ -80,7 +80,7 @@ export class ContinuousAssignmentFinalizer {
       || this.strikeOrder.get(a.strikeId)! - this.strikeOrder.get(b.strikeId)!);
   }
 
-  publish(publication: ContinuousEvidencePublication): ContinuousAssignmentSnapshot {
+  publish(publication: ContinuousEvidencePublication): void {
     if (this.failure) throw this.failure;
     try {
       if (this.requestedCompletion && publication.analyzedThroughPerformanceMs > this.requestedCompletion.performanceTimeMs) {
@@ -91,11 +91,11 @@ export class ContinuousAssignmentFinalizer {
         if (this.requestedCompletion && publication.availabilitySessionTimeMs < this.requestedCompletion.availabilitySessionTimeMs) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
         this.planAndCommit(prepared.publication, prepared, this.requestedCompletion);
       }
-      return this.snapshot();
+      return;
     } catch (error) { return this.fail(error); }
   }
 
-  complete(completion: ContinuousCompletion): ContinuousAssignmentSnapshot {
+  complete(completion: ContinuousCompletion): void {
     if (this.failure) throw this.failure;
     if (!['SCOPE_COMPLETED', 'STOPPED_BY_USER'].includes(completion.reason)
       || !Number.isFinite(completion.performanceTimeMs) || completion.performanceTimeMs < 0 || completion.performanceTimeMs < this.evidence.analyzedThrough
@@ -105,7 +105,7 @@ export class ContinuousAssignmentFinalizer {
     }
     if (this.requestedCompletion) {
       if (JSON.stringify(this.requestedCompletion) !== JSON.stringify(completion)) throw new ContinuousEvaluationError('COMPLETION_MUTATED');
-      return this.snapshot();
+      return;
     }
     const requested = immutableContinuousValue({ ...completion });
     if (this.evidence.analyzedThrough >= completion.performanceTimeMs) {
@@ -115,7 +115,7 @@ export class ContinuousAssignmentFinalizer {
           availabilitySessionTimeMs: Math.max(this.evidence.availableSessionTimeMs, completion.availabilitySessionTimeMs), observations: [] }, null, requested);
       } catch (error) { return this.fail(error); }
     } else this.requestedCompletion = requested;
-    return this.snapshot();
+    return;
   }
 
   private fail(error: unknown): never {
@@ -143,14 +143,19 @@ export class ContinuousAssignmentFinalizer {
     this.requestedCompletion = requested; this.completion = draft.completion;
   }
 
+  /** Target state only: no evidence ledger, owners, reservations or unattributed history. */
+  targetGroups(): readonly ContinuousGroupAssignment[] {
+    return Object.freeze(this.groups.map(group => this.committedGroups.get(group.groupId) ?? Object.freeze({
+        groupId: group.groupId, performanceTimeMs: group.time, state: 'PENDING' as const,
+        strikes: Object.freeze(group.strikes.map(strike => this.strikeState(strike))), residualAssignments: Object.freeze([] as const), finality: null,
+      })));
+  }
+
   snapshot(): ContinuousAssignmentSnapshot {
     return Object.freeze({
       sessionDomainId: this.evidence.sessionDomainId,
       analyzedThroughPerformanceMs: Number.isFinite(this.evidence.analyzedThrough) ? this.evidence.analyzedThrough : null,
-      groups: Object.freeze(this.groups.map(group => this.committedGroups.get(group.groupId) ?? Object.freeze({
-        groupId: group.groupId, performanceTimeMs: group.time, state: 'PENDING' as const,
-        strikes: Object.freeze(group.strikes.map(strike => this.strikeState(strike))), residualAssignments: Object.freeze([] as const), finality: null,
-      }))),
+      groups: this.targetGroups(),
       observations: this.evidence.values(), unattributedObservations: Object.freeze([...this.unattributedObservations]),
       observationAssignments: Object.freeze([...this.owners.values()].sort((a, b) => compareContinuousId(a.observationId, b.observationId))),
       reservedObservationIds: Object.freeze(this.residual().filter(observation => this.claimants(observation).some(strike => !this.hasStrike(strike.strikeId)))

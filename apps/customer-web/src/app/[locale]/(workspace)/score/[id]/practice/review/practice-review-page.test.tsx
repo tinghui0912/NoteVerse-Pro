@@ -2,7 +2,7 @@ import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/com
 import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import englishPractice from '../../../../../../../../messages/en/practice.json';
 import chinesePractice from '../../../../../../../../messages/zh/practice.json';
@@ -39,18 +39,7 @@ const translationMocks = vi.hoisted(() => {
     reviewScoreUnavailable: '乐谱未加载',
     performanceOutcomes: '音符匹配结果',
     performanceDetails: '演奏详情',
-    targetStrikes: '目标音',
-    confirmedCorrectStrikes: '正确',
-    missingStrikes: '漏弹',
-    notReachedStrikes: '未完成',
-    notReachedStrikesDesc: '这些目标音位于本次已完成演奏范围之外。',
-    extraPitchCount: '额外音',
-    wrongStrikeCount: '错音',
-    targetNoteOutcomes: '目标音结果',
-    targetNoteEvidence: '目标音识别',
-    additionalPlaying: '额外演奏',
-    detectedTargetNotes: '已识别目标音',
-    unconfirmedTargetNotes: '未确认目标音',
+    evaluationUnavailableDesc: '本次演奏的识别分析不可用，仍可回放录制。',
     acousticEvidenceDesc: '麦克风结果表示声学识别证据；未归属的声学识别结果不会直接视为错音或多弹。',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
@@ -58,7 +47,7 @@ const translationMocks = vi.hoisted(() => {
     unobservedGroupCount: '未观察到音符组',
     totalGroupCount: '总目标音符组',
     scoreRevisionMismatchTitle: '乐谱版本不一致',
-    scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。',
+    scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留录制回放和演奏信息。',
     audioPlaybackFailed: '本次录音不可回放',
     saveRecording: '保存录制',
     recordingSaved: '已保存',
@@ -524,11 +513,9 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('麦克风 (Acoustic)')).toBeDefined();
     expect(screen.getByText('全曲演奏 (第 0 - 16 拍)')).toBeDefined();
 
-    // Strike-level summary
-    expect(screen.getByText('目标音')).toBeDefined();
-    expect(screen.getByText('已识别目标音')).toBeDefined();
-    expect(screen.getByText('未确认目标音')).toBeDefined();
-    expect(screen.queryByText('额外演奏')).toBeNull();
+    for (const label of ['目标音', '正确', '错音', '漏弹', '未完成', '已识别目标音', '未确认目标音', '额外音', '额外演奏']) {
+      expect(screen.queryByText(label, { exact: true })).toBeNull();
+    }
 
     // Player should be rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
@@ -542,7 +529,7 @@ describe('PracticeReviewPage', () => {
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice?practiceRevisionId=rev-1');
   });
 
-  it.each(['MIDI','MICROPHONE'] as const)('%s review uses its own feedback counts and annotation semantics', (inputSource) => {
+  it.each(['MIDI','MICROPHONE'] as const)('%s review has no aggregate cards and keeps completed annotation semantics', (inputSource) => {
     const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
 
     const completionWithChordsAndOutcomes: ContinuousPracticeCompletion = {
@@ -646,34 +633,11 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Four supported targets, two unsupported targets, two not reached; only MIDI uses error labels.
-    expect(screen.getByText('目标音')).toBeDefined();
-    expect(screen.getByText(inputSource === 'MIDI' ? '正确' : '已识别目标音')).toBeDefined();
-    expect(screen.getByText(inputSource === 'MIDI' ? '漏弹' : '未确认目标音')).toBeDefined();
-    expect(screen.getByText('未完成')).toBeDefined();
-    expect(screen.queryByText('额外演奏') !== null).toBe(inputSource === 'MIDI');
-    expect(screen.queryByText('错音') !== null).toBe(inputSource === 'MIDI');
-    const targetRegion = screen.getByRole('region', { name: inputSource === 'MIDI' ? '目标音结果' : '目标音识别' });
-    const targetCounts = inputSource === 'MIDI'
-      ? [['目标音', 8], ['正确', 4], ['错音', 1], ['漏弹', 1], ['未完成', 2]] as const
-      : [['目标音', 8], ['已识别目标音', 4], ['未确认目标音', 2], ['未完成', 2]] as const;
-    for (const [label, count] of targetCounts) {
-      const card = within(targetRegion).getByText(label, { exact: true }).parentElement!.parentElement!;
-      expect(within(card).getByText(String(count), { exact: true })).toBeDefined();
+    for (const label of ['目标音', '正确', '错音', '漏弹', '未完成', '已识别目标音', '未确认目标音', '额外音']) {
+      expect(screen.queryByText(label, { exact: true })).toBeNull();
     }
-    expect(within(targetRegion).queryByText('额外音')).toBeNull();
-    if (inputSource === 'MIDI') {
-      const additional = screen.getByRole('region', { name: '额外演奏' });
-      expect(within(additional).getByText('额外音')).toBeDefined();
-      expect(within(additional).getByText('0')).toBeDefined();
-      expect(within(additional).queryByText('目标音')).toBeNull();
-    } else {
-      expect(screen.queryByRole('region', { name: '额外演奏' })).toBeNull();
-    }
-    expect(screen.getByText('8')).toBeDefined();
-    expect(screen.getByText('4')).toBeDefined();
-    expect(screen.getAllByText('2')).toHaveLength(inputSource === 'MIDI' ? 1 : 2);
-    expect(screen.getByText('这些目标音位于本次已完成演奏范围之外。')).toBeDefined();
+    expect(screen.queryByRole('region', { name: /目标音结果|目标音识别|额外演奏/ })).toBeNull();
+    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
@@ -748,7 +712,7 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('乐谱版本不一致')).toBeDefined();
     expect(
       screen.getByText(
-        '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。'
+        '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留录制回放和演奏信息。'
       )
     ).toBeDefined();
 
@@ -758,14 +722,25 @@ describe('PracticeReviewPage', () => {
     expect(lastCall[1].supportedNoteIds).toEqual([]);
     expect(lastCall[1].wrongNoteIds).toEqual([]);
 
-    // Aggregates belong to the completed result, independently of current artifact identity/target count.
-    const targetRegion = screen.getByRole('region', { name: '目标音识别' });
-    const targetCard = within(targetRegion).getByText('目标音', { exact: true }).parentElement!.parentElement!;
-    expect(within(targetCard).getByText(String(validCompletion.result.metrics.targetStrikeCount), { exact: true })).toBeDefined();
-    expect(validCompletion.result.metrics.targetStrikeCount).toBe(1);
-    // Player and factual stats remain rendered
+    // Revision mismatch disables annotations, while replay metadata remains useful.
+    expect(screen.queryByRole('region', { name: '目标音识别' })).toBeNull();
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
     expect(screen.getByText('演奏时长')).toBeDefined();
+  });
+
+  it('keeps replay and a clear notice when completed evaluation is unavailable, without aggregate cards', () => {
+    const result = continuousResultFixture({ localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
+      inputSource: 'MICROPHONE', activeElapsedMs: 3000,
+      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2', interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
+      completedAt: '2026-09-20T12:00:00.000Z' });
+    continuousCompletionStore.setCompletion({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
+      mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
+    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
+    expect(screen.queryByRole('region', { name: /目标音结果|目标音识别|额外演奏/ })).toBeNull();
   });
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {

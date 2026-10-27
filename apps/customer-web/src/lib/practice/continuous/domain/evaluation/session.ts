@@ -1,3 +1,4 @@
+import { projectContinuousLiveFeedback, type ContinuousLiveFeedback } from './live-feedback';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from './finalization-policy';
 import { buildContinuousExpectedStrikesFromTimeline } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
@@ -36,20 +37,21 @@ export class ContinuousEvaluationSession {
       buildContinuousExpectedStrikesFromTimeline(options.artifact, options.timeline, scope));
   }
 
-  publish(publication: ContinuousEvidencePublication): ContinuousEvaluationSnapshot {
+  publish(publication: ContinuousEvidencePublication): void {
     if (this.failure) throw this.failure;
     if (Array.isArray(publication.observations) && publication.observations.some(observation => observation.source !== (this.inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC'))) {
       this.failure = new ContinuousEvaluationError('OBSERVATION_SOURCE_MISMATCH');
       throw this.failure;
     }
     this.finalizer.publish(publication);
-    return this.snapshot();
+    return;
   }
-  complete(completion: ContinuousCompletion): ContinuousEvaluationSnapshot {
+  complete(completion: ContinuousCompletion): void {
     if (this.failure) throw this.failure;
     this.finalizer.complete(completion);
-    return this.snapshot();
+    return;
   }
+  liveFeedback(): ContinuousLiveFeedback { return projectContinuousLiveFeedback(this.finalizer.targetGroups(), this.inputSource); }
   snapshot(): ContinuousEvaluationSnapshot { return projectEvaluation(this.finalizer.snapshot(), this.inputSource); }
   nextRequiredAnalysisFrontier(): number | null { return this.finalizer.nextRequiredAnalysisFrontier(); }
   completedEvaluation(): CompletedContinuousEvaluation {

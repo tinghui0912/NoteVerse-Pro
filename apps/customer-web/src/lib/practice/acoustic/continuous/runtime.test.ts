@@ -20,7 +20,6 @@ import { ContinuousAcousticProjection, type AcousticRuntimeOptions } from './con
 import { projectContinuousEvidence } from './publication';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
-import { createContinuousPerformanceMetrics } from '@/lib/practice/result/continuous-performance-metrics';
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
 function result(input: AcousticInferenceInput): AcousticInferenceResult {
@@ -262,7 +261,8 @@ it('real assignment finalizer retains source-blind ownership from the model-agno
   bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
   for (let n = 96000; n < 268800; n += 28800) { feedTo(n + 28800); await runtime.drain(); }
   runtime.requestTerminal(3600); feedTo(278400); await runtime.seal();
-  const finished = finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilitySessionTimeMs: 10000000 });
+  finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3600, availabilitySessionTimeMs: 10000000 });
+  const finished = finalizer.snapshot();
   expect(finished.groups.map(g => g.strikes.map(s => s.state))).toEqual([['MATCHED'], ['UNMATCHED'], ['UNMATCHED'], ['MATCHED', 'UNMATCHED']]);
   expect(finished.unattributedObservations).toHaveLength(1); expect(finished.observationAssignments).toHaveLength(4);
   await runtime.dispose();
@@ -348,15 +348,14 @@ it('analysis delay changes only knowledge finalization, never event timing, assi
     session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: available + 100 });
     const evaluation = session.completedEvaluation();
     if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    return { assignment: evaluation.assignment, metrics: createContinuousPerformanceMetrics(evaluation,
-      evaluation.assignment.groups.flatMap(g => g.strikes).length) };
+    return { assignment: evaluation.assignment, interpretation: evaluation.interpretation };
   };
   const early = evaluate(4000), late = evaluate(8000);
   const stripKnowledge = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (key, item) =>
     ['finalizationSessionTimeMs', 'availabilitySessionTimeMs'].includes(key) ? undefined : item));
   expect(late.assignment.observations).toEqual(early.assignment.observations);
   expect(stripKnowledge(late.assignment)).toEqual(stripKnowledge(early.assignment));
-  expect(late.metrics).toEqual(early.metrics);
+  expect(late.interpretation).toEqual(early.interpretation);
   const earlyStrike = early.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
   const lateStrike = late.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
   expect(earlyStrike.finality.finalizationSessionTimeMs).toBe(4100);

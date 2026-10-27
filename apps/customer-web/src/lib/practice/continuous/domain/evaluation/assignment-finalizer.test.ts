@@ -41,7 +41,7 @@ describe('bounded source-blind Continuous assignment', () => {
   it('completion has an independent nonnegative session coordinate and rejects availability regression', () => {
     const l = ledger(); l.publish(pub('coverage', 5000, [], 3000));
     expect(() => l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 2999 })).toThrow('INVALID_PUBLICATION');
-    expect(l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 }).completion)
+    l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 }); expect(l.snapshot().completion)
       .toEqual({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 });
   });
   it('terminal coverage arriving after a completion request cannot regress session availability', () => {
@@ -106,7 +106,7 @@ describe('bounded source-blind Continuous assignment', () => {
   });
   it('duplicate publication is idempotent even under observation permutation', () => {
     const l = ledger(); const p = pub('p', 1250, [observation('o'), observation('x', 1000, 'E4')]);
-    const before = l.publish(p); expect(l.publish({ ...p, observations: [...p.observations].reverse() })).toEqual(before);
+    l.publish(p); const before = l.snapshot(); l.publish({ ...p, observations: [...p.observations].reverse() }); expect(l.snapshot()).toEqual(before);
   });
   it('mutated publication fails closed', () => { const l = ledger(); l.publish(pub('p', 1250)); expect(() => l.publish(pub('p', 1260))).toThrow('PUBLICATION_MUTATED'); });
   it('duplicate observation in another publication fails closed', () => {
@@ -120,7 +120,7 @@ describe('bounded source-blind Continuous assignment', () => {
     const l = ledger(reservation()); l.publish(pub('p', 1500, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
     const completion = { reason: 'SCOPE_COMPLETED', performanceTimeMs: 1500, availabilitySessionTimeMs: 1600 } as const;
     l.complete(completion); expect(l.snapshot().reservedObservationIds).toEqual([]);
-    expect(l.completedAssignment().status).toBe('COMPLETE'); expect(l.complete(completion)).toEqual(l.snapshot());
+    expect(l.completedAssignment().status).toBe('COMPLETE'); const before = l.snapshot(); l.complete(completion); expect(l.snapshot()).toEqual(before);
     expect(() => l.publish(pub('new', 1600))).toThrow('PUBLICATION_AFTER_COMPLETION');
   });
   it('manual stop preserves NOT_REACHED vs locally closed UNMATCHED', () => {

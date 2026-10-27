@@ -1,15 +1,14 @@
-import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
 import { completedEvaluationFixture } from '@/lib/practice/__fixtures__/continuous-evaluation';
 import { noteAnnotationsFromCompletedEvaluation } from './evaluation-annotations';
-import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';
+import { projectContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 
 import {
   EvaluationAnnotationController,
-  noteAnnotationsFromContinuousEvaluation,
+  noteAnnotationsFromLiveFeedback,
 } from './evaluation-annotations';
 
 describe('EvaluationAnnotationController', () => {
@@ -147,7 +146,7 @@ describe('EvaluationAnnotationController', () => {
     ]);
     finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilitySessionTimeMs: 1600,
       observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
-    const annotations = noteAnnotationsFromContinuousEvaluation({ inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V1', assignment: finalizer.snapshot(), interpretation: interpretContinuousAssignment(finalizer.snapshot(), 'MIDI') as import('@/lib/practice/continuous/domain/evaluation/interpretation-types').MidiContinuousInterpretation });
+    const annotations = noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetGroups(), 'MIDI'));
 
     expect(annotations.supportedNoteIds).toEqual(['note-c']);
     expect(annotations.wrongNoteIds).toEqual([]);
@@ -188,3 +187,22 @@ it('keeps missed targets distinct through DOM annotation replacement and clearin
   controller.clear(container);
   expect([...note.classList]).toEqual([]);
 });
+
+ it('MIDI live WRONG leaves the target undecorated while completed Review WRONG is red', () => {
+  const finalizer = new ContinuousAssignmentFinalizer('live', ['C4','D4','G4'].map((pitch, index) => ({
+    strikeId: pitch, groupId: index === 2 ? 'missing' : 'chord', pitch, expectedPerformanceTimeMs: index === 2 ? 2000 : 1000, renderNoteIds: [pitch],
+  })));
+  finalizer.publish({ publicationId: 'p', sessionDomainId: 'live', analyzedThroughPerformanceMs: 4000, availabilitySessionTimeMs: 4100,
+    observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, source: 'MIDI', confidence: 1 })) });
+  const container = document.createElement('div'); container.innerHTML = '<span data-id="C4"></span><span data-id="D4"></span><span data-id="G4"></span>';
+  const controller = new EvaluationAnnotationController();
+  controller.apply(container, noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetGroups(), 'MIDI')));
+  expect(container.querySelector('[data-id="C4"]')).toHaveClass('practice-summary-note-supported');
+  expect(container.querySelector('[data-id="D4"]')!.classList).toHaveLength(0);
+  expect(container.querySelector('[data-id="G4"]')).toHaveClass('practice-summary-note-missed');
+  expect(container.querySelector('[data-id="E4"]')).toBeNull();
+  finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 });
+  const completed = finalizer.completedAssignment(); if (completed.status !== 'COMPLETE') throw Error('incomplete');
+  controller.apply(container, noteAnnotationsFromCompletedEvaluation(completedEvaluationFixture('MIDI', completed.assignment.groups)));
+  expect(container.querySelector('[data-id="D4"]')).toHaveClass('practice-summary-note-wrong');
+ });

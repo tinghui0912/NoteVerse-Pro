@@ -217,7 +217,7 @@ Practice Results/reports remain transient and are never persisted.
 
 Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/wrong/missed decorations while retaining score, range
-and playhead. Evaluation, interpretation, metrics and natural Result production
+and playhead. Evaluation, interpretation and natural Result production
 continue unchanged. ON/OFF does not restart a session or engine. Review always
 shows completed feedback; Share Video always uses its clean-score contract.
 
@@ -252,8 +252,8 @@ shared physical contract without redefining multiplicity.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,
 source-blind assignment/finality, and source-specific interpretation. The evaluation
-session composes these layers; `result/continuous-performance-metrics.ts` projects versioned learner-facing
-counts from interpretation. The two mode domains do not
+session composes these layers; live feedback is a narrow group projection and
+completed evaluation retains the full assignment and interpretation. The two mode domains do not
 depend on one another. Consumers import concrete owner modules directly.
 
 The performance clock owns transport coordinates and accepts an established
@@ -532,7 +532,7 @@ delay never shifts source events or their mapped performance positions.
 `ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1`. Both declare
 `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` with `calibrationApplied: false`.
 There is no offset, measured-zero claim, calibration profile/storage or learner UI.
-Transport, interpretation, metrics, Review and score annotations do not apply timing
+Transport, interpretation, Review and score annotations do not apply timing
 correction. Result evidence provenance retains the source-bound mapping/calibration
 identity without turning it into a learner metric.
 
@@ -698,20 +698,30 @@ without dummy assignments.
 
 ### Live feedback and Review
 
-Live feedback and score annotations consume interpretation. Review presents the
-metrics retained in the immutable completed result, without recomputing them from
-the currently opened score artifact.
-MIDI Review groups correct/wrong/missed/not-reached target counts together,
-with extra notes in a separate additional-playing section. Microphone Review reports supported/unconfirmed target counts and does
-not count residual detections as learner errors. Supported targets are green;
-MIDI WRONG targets are red and MISSING targets have a separate neutral missed
-annotation. Acoustic unconfirmed and not-reached targets remain neutral. Production
-consumers receive the evaluation session's bound interpretation; only evaluation
-composition imports the interpreter. There is no overall accuracy percentage or
-aggregate score in this contract.
+Continuous Review is replay-first, not a statistics dashboard. No learner-facing
+aggregate performance metrics artifact exists. Review keeps synchronized replay,
+score/playhead, completed annotations, useful metadata and recording/save/share
+and retry/back actions; it does not display outcome/extra counts or replacement
+percentages, grades or scores.
 
-Completed performances retain both the full raw assignment/evidence ledger and
-its deterministic interpretation for diagnostics, future calibration and analytics.
+Live Practice feedback is intentionally narrower than completed Review feedback.
+MIDI live feedback decorates CORRECT target notes green and MISSING target notes
+with the neutral missed decoration only. WRONG, PENDING and NOT_REACHED create no
+live correctness decoration. Acoustic live feedback decorates SUPPORTED only.
+Completed Review keeps MIDI CORRECT green, WRONG red and MISSING neutral/missed;
+acoustic UNCONFIRMED and not-reached targets remain neutral.
+
+The evaluation owner reuses pure group interpretation for both consumers. Its
+`ContinuousLiveFeedback` contains input source, assignment/interpretation policy
+identities and groups of render-note strike identities plus CORRECT/MISSING/
+SUPPORTED state. It contains no raw assignment, observations, ownership relations,
+reservations, extra observations or unattributed history. Presentation reads this
+explicit live path; evidence progression does not materialize a full snapshot as
+an implicit return value. Full snapshots remain available for completion and
+focused domain diagnostics/tests.
+
+Completed evaluation still retains exact accepted evidence, full assignment and
+its deterministic interpretation, including residual/WRONG/unattributed truth.
 There is no independent mutable feedback truth or second offline evaluation pass.
 Natural SCOPE_COMPLETED enters application FINALIZING until tail analysis and recording
 finish. Completion projects the same ledger and drains unfinished work without a
@@ -728,8 +738,8 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-2: local session and score/revision/artifact identities, resolved scope, tempo plan,
-input source, active performance duration, completed evaluation, metrics, evidence
+3: local session and score/revision/artifact identities, resolved scope, tempo plan,
+input source, active performance duration, completed evaluation, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
 no result artifact, metrics or performance report.
@@ -738,29 +748,17 @@ The completion transaction creates the result from the canonical artifact and
 resolved scope. COMPLETE evaluation retains assignment and interpretation; UNAVAILABLE
 retains its reason and both policy identities, without inventing empty analysis.
 Validation rejects mismatched session/source identities, corrupt assignment or
-interpretation, inconsistent metrics and unsupported provenance. It never repairs
+interpretation and unsupported provenance. It never repairs
 or upgrades an artifact. JSON round-trip preserves these semantic checks.
 Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-## Metrics
-
-`result/continuous-performance-metrics.ts` owns `CONTINUOUS_PRODUCT_METRICS_V1`.
-Metrics are a deterministic projection of the session-bound interpretation, not of
-raw assignment. The result factory derives them rather than accepting an independent
-caller-supplied aggregate. Stored metrics are validated against that projection.
-
-MIDI target counts partition as Correct + Wrong + Missing + Not Reached; extra
-notes are a separate played-event metric. Microphone counts partition as Supported
-+ Unconfirmed + Not Reached, without wrong/extra learner counts. UNAVAILABLE metrics
-retain the canonical scoped target count and reason, without fabricated zero outcomes.
-No overall accuracy, timing grade, weighted score or telemetry transport is defined.
-
-Review reads `completion.result.metrics`. A current score revision mismatch does
-not alter the completed metrics, input, scope, tempo or active duration. Annotations,
-SVG playhead placement and share-score rendering require confirmed artifact identity
-and fail closed independently of aggregate presentation.
+Result validation accepts schema 3 exact fields only. Schema 2 and an extra metrics
+field are rejected without migration, normalization, compatibility or repair.
+A score revision mismatch does not alter retained evaluation, input, scope, tempo
+or active duration. Score annotations, playhead and share-score rendering require
+confirmed artifact identity independently of recording replay.
 
 ## Evaluation / Evidence Provenance
 
@@ -879,7 +877,7 @@ tail work, finalizes evaluation/media, creates the result and completes resource
 cleanup before publishing the atomic completion and notifying completion listeners.
 The store validates both artifacts and publishes neither half independently.
 
-Analysis-unavailable can coexist with READY recording; complete evaluation/metrics
+Analysis-unavailable can coexist with READY recording; complete evaluation
 can coexist with UNAVAILABLE recording. Neither failure invents or discards the other
 artifact's truth. The handoff is transient application state, not durable persistence.
 
@@ -900,7 +898,7 @@ STOPPED_BY_USER is abandonment. End calls abandon(), cancels pending work and
 releases attempt input bindings, metronome, inference lease, capture/recording clones
 and AudioContext ownership. Page Device Lease roots and the warm Environment remain. It discards
 unfinished session state and recording chunks without draining the acoustic tail,
-finalizing a recording or creating result/metrics/completion handoff. No dialog or
+finalizing a recording or creating result/completion handoff. No dialog or
 report appears. The presentation returns to its pre-start ready state; preferences
 may remain, but the next explicit Start creates fresh session/resource ownership.
 This applies during count-in, running and pause. A formally latched SCOPE_COMPLETED
@@ -949,9 +947,9 @@ cursor dimensions, staff mapping, colors and scroll thresholds remain fixed.
 `review/` consumes the current transient completion. review-score-state.ts gates
 annotations, playhead and share-score rendering on exact score/revision/artifact
 identity and a valid cursor scope. Missing/mismatched score content does not change
-retained result metrics, tempo, input, duration or scope metadata. review-replay.ts
+retained evaluation, tempo, input, duration or scope metadata. review-replay.ts
 projects READY media and delegates synchronization to the recording timebase;
-review-view-model.ts reads result.metrics directly, without evaluating evidence.
+review-view-model.ts projects duration, tempo, scope and input-source metadata only.
 The route owns queries, subscriptions, save-recording mutation, navigation, leave
 confirmation and ShareVideoStudio state. Pure review modules do not access network
 or storage. Save Recording remains an explicit media-only action.

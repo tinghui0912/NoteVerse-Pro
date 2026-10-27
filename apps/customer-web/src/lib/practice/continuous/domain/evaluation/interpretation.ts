@@ -36,6 +36,9 @@ function acousticGroup(group: ContinuousGroupAssignment): AcousticGroupFeedback 
     timingOffsetMs: strike.state === 'MATCHED' ? strike.match.timingOffsetMs : null,
     state: strike.state === 'MATCHED' ? 'SUPPORTED' : strike.state === 'UNMATCHED' ? 'UNCONFIRMED' : strike.state })) };
 }
+export function interpretContinuousGroup(group: ContinuousGroupAssignment, inputSource: PracticeInputSource): MidiGroupFeedback | AcousticGroupFeedback {
+  return inputSource === 'MIDI' ? midiGroup(group) : acousticGroup(group);
+}
 /** A pure projection of decoder-qualified evidence; no second assignment, timing calculation or uncalibrated confidence threshold. */
 export function interpretContinuousAssignment(
   assignment: ContinuousAssignmentSnapshot | CompletedContinuousAssignment, inputSource: PracticeInputSource,

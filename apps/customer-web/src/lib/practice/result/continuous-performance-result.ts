@@ -5,16 +5,15 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { createContinuousPerformanceMetrics, assertContinuousPerformanceMetrics, type ContinuousPerformanceMetrics } from './continuous-performance-metrics';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
 
-export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 2;
+export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 3;
 export type ContinuousPerformanceResult = Readonly<{
   schemaVersion: typeof CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION;
   localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
   scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
   inputSource: PracticeInputSource; activeElapsedMs: number;
-  evaluation: CompletedContinuousEvaluation; metrics: ContinuousPerformanceMetrics;
+  evaluation: CompletedContinuousEvaluation;
   evidenceProvenance: ContinuousEvidenceProvenance; completedAt: string;
 }>;
 
@@ -38,7 +37,7 @@ export function createContinuousPerformanceResult(options: ResultCreation): Cont
     schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, localSessionId: options.localSessionId,
     scoreId: options.artifact.scoreId, revisionId: options.artifact.revisionId, artifactId: options.artifact.artifactId,
     scope, tempoPlan: options.tempoPlan, inputSource: options.inputSource, activeElapsedMs: options.activeElapsedMs,
-    evaluation: options.evaluation, metrics: createContinuousPerformanceMetrics(options.evaluation, expected.length),
+    evaluation: options.evaluation,
     evidenceProvenance: options.evidenceProvenance, completedAt: options.completedAt,
   };
   assertContinuousPerformanceResult(value);
@@ -50,7 +49,7 @@ export function assertContinuousPerformanceResult(value: unknown): asserts value
   assertJsonValue(value);
   const result = value as ContinuousPerformanceResult;
   const keys = ['schemaVersion', 'localSessionId', 'scoreId', 'revisionId', 'artifactId', 'scope', 'tempoPlan', 'inputSource',
-    'activeElapsedMs', 'evaluation', 'metrics', 'evidenceProvenance', 'completedAt'];
+    'activeElapsedMs', 'evaluation', 'evidenceProvenance', 'completedAt'];
   if (!result || Object.keys(result).sort().join() !== keys.sort().join() || result.schemaVersion !== CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION
     || !['MIDI', 'MICROPHONE'].includes(result.inputSource)
     || ![result.localSessionId, result.scoreId, result.revisionId, result.artifactId].every(id => typeof id === 'string' && id.length > 0)
@@ -74,7 +73,6 @@ export function assertContinuousPerformanceResult(value: unknown): asserts value
   if (result.evaluation.status === 'COMPLETE' && result.evaluation.assignment.sessionDomainId !== result.localSessionId) {
     throw new Error('Continuous result session identity is inconsistent.');
   }
-  assertContinuousPerformanceMetrics(result.metrics, result.evaluation);
   assertContinuousEvidenceProvenance(result.evidenceProvenance);
   if (result.evidenceProvenance.inputSource !== result.inputSource) throw new Error('Continuous evidence source identity is inconsistent.');
 }

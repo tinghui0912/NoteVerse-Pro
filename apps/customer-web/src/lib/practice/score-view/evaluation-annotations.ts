@@ -1,7 +1,7 @@
 import { findScoreElementByRenderId } from './dom';
 import { REPORT_NOTE_CLASSES } from './decorations';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
+import type { ContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
 
 type EvaluationNoteAnnotations = {
   supportedNoteIds: string[];
@@ -56,7 +56,7 @@ export class EvaluationAnnotationController {
   }
 }
 
-function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnapshot['interpretation']): EvaluationNoteAnnotations {
+function annotationsFromInterpretation(interpretation: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>['interpretation']): EvaluationNoteAnnotations {
   const supportedNoteIds: string[] = [], wrongNoteIds: string[] = [], missedNoteIds: string[] = [];
   for (const group of interpretation.groups) {
     if (group.verdict === 'PENDING') continue;
@@ -68,8 +68,10 @@ function annotationsFromInterpretation(interpretation: ContinuousEvaluationSnaps
   }
   return { supportedNoteIds, wrongNoteIds, missedNoteIds };
 }
-export function noteAnnotationsFromContinuousEvaluation(evaluation: ContinuousEvaluationSnapshot) {
-  return annotationsFromInterpretation(evaluation.interpretation);
+export function noteAnnotationsFromLiveFeedback(feedback: ContinuousLiveFeedback): EvaluationNoteAnnotations {
+  return { supportedNoteIds: feedback.groups.flatMap(group => group.strikes.filter(strike => strike.state === 'CORRECT' || strike.state === 'SUPPORTED').flatMap(strike => strike.renderNoteIds)),
+    missedNoteIds: feedback.groups.flatMap(group => group.strikes.filter(strike => strike.state === 'MISSING').flatMap(strike => strike.renderNoteIds)),
+    wrongNoteIds: [] };
 }
 export function noteAnnotationsFromCompletedEvaluation(evaluation: CompletedContinuousEvaluation): EvaluationNoteAnnotations {
   return evaluation.status === 'UNAVAILABLE' ? { supportedNoteIds: [], wrongNoteIds: [], missedNoteIds: [] }

@@ -8,13 +8,13 @@ describe('Review score rendering authority', () => {
   const result = canonicalContinuousResultFixture();
   const resolve = (source: PracticeScoreArtifact | null = artifact, xmlAvailable = true) =>
     resolveReviewScoreState({ result, artifact: source, xmlAvailable, scoreId: result.scoreId });
-  it('confirms the current score identity without projecting new metrics', () => {
+  it('confirms the current score identity without recomputing completed evaluation', () => {
     expect(resolve()).toMatchObject({ status: 'READY', scope: { kind: 'FULL' } });
-    const metrics = result.metrics; resolve(); expect(result.metrics).toBe(metrics);
+    const evaluation = result.evaluation; resolve(); expect(result.evaluation).toBe(evaluation);
   });
   it.each(['scoreId', 'revisionId', 'artifactId'] as const)('fails closed on %s mismatch while leaving the result intact', key => {
     expect(resolve({ ...artifact, [key]: 'different' })).toMatchObject({ status: 'IDENTITY_MISMATCH' });
-    expect(result.metrics.targetStrikeCount).toBeGreaterThan(0);
+    expect(result.evaluation.status).toBe('COMPLETE');
   });
   it('keeps unavailable source distinct from an invalid range', () => {
     expect(resolve(null)).toMatchObject({ status: 'SOURCE_UNAVAILABLE' });

@@ -1,3 +1,4 @@
+import { ContinuousAssignmentFinalizer } from './domain/evaluation/assignment-finalizer';
 import { PracticeDeviceLease } from '../device/practice-device-lease';
 import { borrowedDevices } from '../__fixtures__/device-roots';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
@@ -117,7 +118,7 @@ describe('Continuous application owner', () => {
       expect(controller.snapshot().evaluation).toEqual(before);
       controller.refresh();
       expect(cover).toHaveBeenCalledExactlyOnceWith(250, 500);
-      expect(controller.snapshot().evaluation?.assignment.groups[0].state).toBe('FINALIZED');
+      expect(controller.snapshot().evaluation?.groups[0].strikes[0].state).toBe('MISSING');
       for (let i = 0; i < 100; i++) { controller.snapshot(); controller.refresh(); }
       expect(cover).toHaveBeenCalledOnce();
       await controller.abandon();
@@ -324,9 +325,9 @@ describe('Continuous application owner', () => {
     const paused = controller.snapshot(); expect(paused.transport?.state).toBe('PAUSED');
     expect(paused.analysisError).toBeNull(); expect(f.worker.dispose).not.toHaveBeenCalled();
     await f.feed(200); expect(controller.snapshot().transport?.performanceTimeMs).toBe(paused.transport?.performanceTimeMs);
-    expect(controller.snapshot().evaluation?.assignment.groups).toEqual(paused.evaluation?.assignment.groups);
+    expect(controller.snapshot().evaluation?.groups).toEqual(paused.evaluation?.groups);
     // Outstanding evidence may finish only through the already captured running interval.
-    expect(controller.snapshot().evaluation?.assignment.analyzedThroughPerformanceMs).toBeLessThanOrEqual(paused.transport!.performanceTimeMs);
+    expect(controller.snapshot().evaluation).not.toHaveProperty('assignment');
     recorderClone.audio.muted = false; recorderClone.audio.dispatchEvent(new Event('unmute')); expect(controller.continueAfterRecovery()).toBe(true);
     await controller.abandon(); expect(controller.snapshot().completed).toBeNull(); await controller.dispose();
   });
@@ -524,7 +525,7 @@ describe('Continuous application owner', () => {
     if (paused) { controller.resume(); await f.feed(controller.snapshot().transport!.countInRemainingMs); } await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
     await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-    expect(controller.snapshot().completed?.result).toMatchObject({ metrics: { status: 'UNAVAILABLE' },
+    expect(controller.snapshot().completed?.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE' },
       evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
         sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });
     expect(controller.snapshot().completed?.recording.status).toBe('READY'); expect(f.root.audio.stop).not.toHaveBeenCalled(); await controller.dispose();
@@ -716,7 +717,8 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
     for (const phase of ['acquireInferenceLease', 'audioContextResume', 'firLoad', 'captureConnect', 'acousticPreroll', 'recorderAdmission']) {
       expect(phases).toContainEqual(expect.objectContaining({ phase, outcome: 'SUCCEEDED', durationMs: expect.any(Number) }));
     }
-    expect(owner.snapshot().evaluation?.assignment.observations).toEqual([]);
+    expect(owner.snapshot().evaluation?.groups).toEqual([]);
+    expect(owner.snapshot().evaluation).not.toHaveProperty('assignment');
     if (natural) { await f.feed(1500); expect(owner.snapshot().completed?.result).toBeDefined(); }
     await owner.abandon(); await owner.dispose();
     expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.context.close).toHaveBeenCalledOnce();
@@ -762,7 +764,21 @@ it('microphone resume-countdown PCM cannot advance evidence and repeated Pause c
   expect(owner.snapshot()).toMatchObject({ transport: { state: 'PAUSED', performanceTimeMs: T }, resourceIntervention: null, analysisError: null });
   await f.feed(100); owner.resume(); await f.feed(resume.countInTotalMs - 100);
   expect(owner.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: T });
-  expect(owner.snapshot().evaluation!.assignment.analyzedThroughPerformanceMs).toBeLessThanOrEqual(T);
+  expect(Reflect.get(owner, 'session').evaluationSnapshot.assignment.analyzedThroughPerformanceMs).toBeLessThanOrEqual(T);
   await f.feed(200); expect(owner.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T);
   expect(owner.snapshot().resourceIntervention).toBeNull(); await owner.abandon(); await owner.dispose();
+});
+
+it('controller refresh and repeated live snapshots never request the full assignment ledger', async () => {
+  const f = environment(), controller = f.create('MIDI');
+  const full = vi.spyOn(ContinuousAssignmentFinalizer.prototype, 'snapshot').mockImplementation(() => { throw Error('FULL_ASSIGNMENT_READ'); });
+  try {
+    await controller.start(); f.clock.set(600); controller.refresh();
+    for (let i = 0; i < 100; i++) {
+      const feedback = controller.snapshot().evaluation!;
+      expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId','groups','inputSource','interpretationPolicyId']);
+      expect(feedback).not.toHaveProperty('assignment'); expect(feedback).not.toHaveProperty('extraObservations');
+    }
+    expect(full).not.toHaveBeenCalled();
+  } finally { full.mockRestore(); await controller.abandon(); await controller.dispose(); }
 });

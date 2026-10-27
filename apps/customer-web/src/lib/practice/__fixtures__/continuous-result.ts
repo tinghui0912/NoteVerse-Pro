@@ -1,15 +1,12 @@
 import type { ContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
 import { CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION } from '@/lib/practice/result/continuous-performance-result';
-import { createContinuousPerformanceMetrics } from '@/lib/practice/result/continuous-performance-metrics';
 import { microphoneEvidenceProvenance, midiEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from '@/lib/practice/continuous/input/midi-evidence-identity';
 
-export function continuousResultFixture(fields: Omit<ContinuousPerformanceResult, 'schemaVersion' | 'metrics' | 'evidenceProvenance'>): ContinuousPerformanceResult {
+export function continuousResultFixture(fields: Omit<ContinuousPerformanceResult, 'schemaVersion' | 'evidenceProvenance'>): ContinuousPerformanceResult {
   const evaluation = fields.evaluation.status === 'COMPLETE' ? { ...fields.evaluation,
     assignment: { ...fields.evaluation.assignment, sessionDomainId: fields.localSessionId } } : fields.evaluation;
-  const targetStrikeCount = evaluation.status === 'COMPLETE' ? evaluation.interpretation.groups.flatMap(group => group.strikes as readonly { strikeId: string }[]).length : 0;
   return { ...fields, schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, evaluation,
-    metrics: createContinuousPerformanceMetrics(evaluation, targetStrikeCount),
     evidenceProvenance: fields.inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(48000) };
 }
 

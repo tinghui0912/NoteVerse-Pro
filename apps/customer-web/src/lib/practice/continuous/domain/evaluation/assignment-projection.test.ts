@@ -298,7 +298,7 @@ describe('completed assignment relation integrity', () => {
       requiredAnalysisFrontierMs: 2000, unclampedRequiredFrontierMs: 2150 });
     expect(result.assignment.completion).toEqual({ reason, performanceTimeMs: 2000, availabilitySessionTimeMs: 3000 });
     expect(request.availabilitySessionTimeMs).toBe(2000);
-    expect(f.complete(request).completion).toEqual(result.assignment.completion);
+    f.complete(request); expect(f.snapshot().completion).toEqual(result.assignment.completion);
     expect(() => assertCompletedAssignment(result.assignment)).not.toThrow();
   });
   it.each<[string, (value: Mutable<CompletedContinuousAssignment>) => void]>([

@@ -7,7 +7,7 @@ export type MidiStrikeFeedback = ContinuousExpectedStrike & (
   | Readonly<{ state: 'CORRECT'; timingOffsetMs: number }>
   | Readonly<{ state: 'WRONG'; observation: ContinuousObservation; timingOffsetMs: number }>
 );
-export type AcousticStrikeFeedback = FeedbackStrike<'PENDING' | 'SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED'>;
+type AcousticStrikeFeedback = FeedbackStrike<'PENDING' | 'SUPPORTED' | 'UNCONFIRMED' | 'NOT_REACHED'>;
 export type MidiGroupFeedback = Readonly<{
   groupId: string; verdict: 'PENDING' | 'CORRECT' | 'MISSING' | 'WRONG' | 'INCOMPLETE_CHORD' | 'NOT_REACHED';
   strikes: readonly MidiStrikeFeedback[];

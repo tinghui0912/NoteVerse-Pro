@@ -585,8 +585,7 @@ test('live feedback is off by default, toggles without restarting, and Review re
   await page.waitForURL(`**/score/${scoreId}/practice/review`);
   await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
   await expect(page.locator('.practice-summary-note-supported')).toHaveCount(1);
-  const card = page.getByText('正确', { exact: true }).locator('..').locator('..');
-  await expect(card.getByText('1', { exact: true })).toBeVisible();
+  await expect(page.getByText('正确', { exact: true })).toHaveCount(0);
 });
 
 test('Review Retry preserves committed section, custom tempo, metronome and preference intent with pinned revision', async ({ page }) => {
@@ -849,7 +848,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByRole('button', { name: '查看报告' })).not.toBeVisible();
   });
 
-  test('CONTINUOUS_PLAY + MIDI: Complete performance, navigate to review, factual cards rendered', async ({
+  test('CONTINUOUS_PLAY + MIDI: Complete performance, navigate to review, replay metadata and completed annotations rendered', async ({
     page,
   }) => {
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
@@ -904,31 +903,18 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await page.waitForURL(`**/score/${scoreId}/practice/review`);
     await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
 
-    const targetOutcomes = page.getByRole('region', { name: '目标音结果' });
-    const additionalPlaying = page.getByRole('region', { name: '额外演奏' });
-    await expect(targetOutcomes).toBeVisible();
-    await expect(additionalPlaying.getByText('额外音', { exact: true })).toBeVisible();
-    await expect(targetOutcomes.getByText('额外音', { exact: true })).toHaveCount(0);
-    await expect(additionalPlaying.getByText('目标音', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: /目标音结果|目标音识别|额外演奏/ })).toHaveCount(0);
 
     // Verify factual cards
     await expect(page.getByText('演奏时长')).toBeVisible();
     await expect(page.getByText('演奏速度')).toBeVisible();
     await expect(page.getByText('练习范围')).toBeVisible();
     await expect(page.getByText('输入方式')).toBeVisible();
-    for (const [label, value] of [
-      ['目标音', '3'],
-      ['正确', '1'],
-      ['漏弹', '2'],
-      ['错音', '0'],
-      ['额外音', '0'],
-      ['未完成', '0'],
-    ]) {
-      const title = page.getByText(label, { exact: true });
-      await expect(title).toBeVisible();
-      const card = title.locator('..').locator('..');
-      await expect(card.getByText(value, { exact: true })).toBeVisible();
+    for (const label of ['目标音', '正确', '漏弹', '错音', '额外音', '未完成']) {
+      await expect(page.getByText(label, { exact: true })).toHaveCount(0);
     }
+    await expect(page.locator('.practice-summary-note-supported')).toHaveCount(1);
+    await expect(page.locator('.practice-summary-note-missed')).toHaveCount(2);
     await expect(page.getByText('本次演奏未录制')).toBeVisible();
 
     // Zero backend session or take requests

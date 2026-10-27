@@ -88,8 +88,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     if (target?.startsWith('score-view/') || target?.startsWith('kernel/')) return true;
     if (source === 'score-view/verovio-adapter.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/score/verovio/index.ts'))) return true;
     return source === 'score-view/evaluation-annotations.ts' && edge.typeOnly
-      && target === 'continuous/domain/evaluation/evaluation-types.ts'
-      && edge.bindings.length > 0 && edge.bindings.every(name => ['ContinuousEvaluationSnapshot', 'CompletedContinuousEvaluation'].includes(name));
+      && edge.bindings.length > 0 && (target === 'continuous/domain/evaluation/evaluation-types.ts' && edge.bindings.every(name => name === 'CompletedContinuousEvaluation')
+        || target === 'continuous/domain/evaluation/live-feedback.ts' && edge.bindings.every(name => name === 'ContinuousLiveFeedback'));
   }
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'kernel/', 'score-view/'].some(owner => target.startsWith(owner))
     || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)));
@@ -254,7 +254,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const file of presentation) {
       for (const edge of imports(file)) {
         expect(!edge.target || !relative(edge.target).startsWith(evaluationRoot) ||
-          ['evaluation-types.ts', 'interpretation-types.ts'].includes(path.basename(edge.target)), file + ' -> ' + edge.specifier).toBe(true);
+          ['evaluation-types.ts', 'live-feedback.ts'].includes(path.basename(edge.target)), file + ' -> ' + edge.specifier).toBe(true);
       }
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const visit = (node: ts.Node) => {
@@ -265,10 +265,10 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('only evaluation composition imports the source-specific interpreter in production', () => {
+  it('only evaluation composition and its live group projection import the source-specific interpreter', () => {
     const interpreter = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/interpretation.ts'));
     const composition = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/session.ts'));
-    const allowed = (file: string, edge: Edge) => edge.target !== interpreter || normalize(file) === composition;
+    const allowed = (file: string, edge: Edge) => edge.target !== interpreter || [composition, normalize(path.join(practiceRoot, 'continuous/domain/evaluation/live-feedback.ts'))].includes(normalize(file));
     for (const [file, edges] of sourceGraph) {
       for (const edge of edges) expect(allowed(file, edge), file + ' -> ' + edge.specifier).toBe(true);
     }
@@ -310,8 +310,8 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('exposes concrete result/recording owners and keeps metrics projection out of presentation', () => {
-    for (const file of ['result/continuous-performance-result.ts', 'result/continuous-performance-metrics.ts',
+  it('exposes concrete result/recording owners without a metrics product module', () => {
+    for (const file of ['result/continuous-performance-result.ts',
       'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-recorder.ts',
       'recording/performance-replay.ts', 'continuous/completion.ts', 'continuous/completion-store.ts']) {
       expect(existsSync(path.join(practiceRoot, file)), file).toBe(true);
@@ -319,11 +319,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const file of ['completed-performance.ts', 'performance-recorder.ts', 'performance-replay.ts']) {
       expect(existsSync(path.join(practiceRoot, file)), file).toBe(false);
     }
-    const metricsOwner = normalize(path.join(practiceRoot, 'result/continuous-performance-metrics.ts'));
-    for (const [file, edges] of sourceGraph) {
-      if (!file.includes('/components/practice/') && !file.includes('/practice/review/')) continue;
-      for (const edge of edges) if (edge.target === metricsOwner) expect(edge.typeOnly, file + ' -> ' + edge.specifier).toBe(true);
-    }
+    expect(existsSync(path.join(practiceRoot, 'result/continuous-performance-metrics.ts'))).toBe(false);
   });
 
   it('keeps result creation natural-only and abandonment free of completion work', () => {
@@ -340,7 +336,7 @@ describe('Practice bounded domain dependencies', () => {
     const controller = path.join(practiceRoot, 'continuous/continuous-practice-controller.ts');
     const source = ts.createSourceFile(controller, readFileSync(controller, 'utf8'), ts.ScriptTarget.Latest, true);
     const forbidden = new Set(['completedEvaluation', 'createContinuousPerformanceResult', 'createNaturalContinuousCompletion',
-      'createContinuousPerformanceMetrics', 'finalize', 'setCompletion', 'onNaturalCompletion', 'finish']);
+      'finalize', 'setCompletion', 'onNaturalCompletion', 'finish']);
     let checked = false;
     const visit = (node: ts.Node) => {
       if (ts.isMethodDeclaration(node) && node.name.getText(source) === 'abandon') {
@@ -361,7 +357,7 @@ describe('Practice bounded domain dependencies', () => {
     expect(saveHook).toBeDefined();
     for (const edge of imports(saveHook!)) {
       expect(edge.target && relative(edge.target).startsWith('result/'), edge.specifier).toBeFalsy();
-      expect(edge.bindings.some(name => ['ContinuousPracticeCompletion', 'ContinuousPerformanceResult', 'CompletedContinuousEvaluation', 'ContinuousPerformanceMetrics'].includes(name))).toBe(false);
+      expect(edge.bindings.some(name => ['ContinuousPracticeCompletion', 'ContinuousPerformanceResult', 'CompletedContinuousEvaluation'].includes(name))).toBe(false);
     }
   });
 
@@ -494,7 +490,7 @@ describe('Practice bounded domain dependencies', () => {
 });
 
 it('timing calibration cannot enter transport, interpretation, metrics or presentation', () => {
-  const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts', 'result/continuous-performance-metrics.ts',
+  const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts',
     'continuous/domain/evaluation/interpretation.ts'].includes(relative(file))
     || /^(score-view|review|sharing)\//.test(relative(file))),
     ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review'))];
@@ -613,5 +609,38 @@ it('execution page never propagates arbitrary device or attempt errors into Envi
   visit(ast); expect(invalidations).toEqual(['USER_REQUESTED_REQUALIFICATION']);
   for (const file of files.filter(file => /^(device|step|continuous|recording)\//.test(relative(file)))) {
     expect(imports(file).some(edge => edge.target && relative(edge.target).startsWith('environment/')), relative(file)).toBe(false);
+  }
+});
+
+it('keeps live presentation on the narrow feedback contract, never the diagnostic assignment snapshot', () => {
+  const consumers = [...sourceGraph.keys()].filter(file => file.includes('/components/practice/') || file.includes('/hooks/practice/')
+    || file.includes('/app/[locale]/(workspace)/score/[id]/practice/') || relative(file) === 'continuous/continuous-practice-controller.ts'
+    || relative(file) === 'score-view/evaluation-annotations.ts');
+  for (const file of consumers) {
+    for (const edge of sourceGraph.get(file)!) {
+      expect(edge.bindings.some(name => ['ContinuousEvaluationSnapshot','ContinuousAssignmentSnapshot','ContinuousEvidenceStore','ContinuousAssignmentFinalizer'].includes(name)), file + ' -> ' + edge.specifier).toBe(false);
+    }
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isPropertyAccessExpression(node)) expect(node.name.text, file).not.toBe('evaluationSnapshot');
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  for (const file of ['continuous/domain/evaluation/assignment-finalizer.ts','continuous/domain/evaluation/session.ts']) {
+    const source = ts.createSourceFile(file, readFileSync(path.join(practiceRoot, file), 'utf8'), ts.ScriptTarget.Latest, true);
+    let checked = 0;
+    const visit = (node: ts.Node) => {
+      if (ts.isMethodDeclaration(node) && ['publish','complete'].includes(node.name.getText(source))) {
+        checked++;
+        const inspect = (child: ts.Node) => {
+          if (ts.isCallExpression(child) && ts.isPropertyAccessExpression(child.expression)) expect(child.expression.name.text, file).not.toBe('snapshot');
+          ts.forEachChild(child, inspect);
+        };
+        ts.forEachChild(node, inspect);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source); expect(checked).toBe(2);
   }
 });

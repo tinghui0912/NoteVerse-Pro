@@ -1,3 +1,4 @@
+import { projectContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
 // @vitest-environment jsdom
 
 import { act, render, screen, waitFor } from '@testing-library/react';
@@ -243,13 +244,13 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
   const timeline = vi.spyOn(PracticeVerovioAdapter.prototype, 'getCursorTimelineEntryForBeatRange')
     .mockReturnValue({ index: 0, beat: 0, endBeat: 1, noteIds: ['note-a'] });
   const page = vi.spyOn(PracticeVerovioAdapter.prototype, 'getPageWithElement').mockReturnValue(1);
-  const projection = vi.spyOn(evaluationAnnotations, 'noteAnnotationsFromContinuousEvaluation')
+  const projection = vi.spyOn(evaluationAnnotations, 'noteAnnotationsFromLiveFeedback')
     .mockReturnValue({ supportedNoteIds: ['note-a'], wrongNoteIds: [], missedNoteIds: [] });
   const evaluation = canonicalContinuousResultFixture().evaluation;
   if (evaluation.status !== 'COMPLETE' || evaluation.inputSource !== 'MIDI') throw new Error('Expected complete MIDI fixture');
   const props: PracticeScoreViewerProps = { xmlContent: '<score-partwise />', isLoadingXml: false, lifecycle: 'ACTIVE',
     sessionMode: 'CONTINUOUS_PLAY', showContinuousFeedback: true, performanceMusicalBeat: 0, performanceScope: { kind: 'FULL', startBeat: 0, terminalBeat: 4 },
-    performanceEvaluation: { ...evaluation, assignment: { ...evaluation.assignment, analyzedThroughPerformanceMs: 10000, reservedObservationIds: [] } } };
+    performanceEvaluation: projectContinuousLiveFeedback(evaluation.assignment.groups, evaluation.inputSource) };
   const view = render(<PracticeScoreViewer {...props} />);
   try {
     await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
