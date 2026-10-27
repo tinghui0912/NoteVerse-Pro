@@ -451,9 +451,30 @@ evidence, and never repairs, migrates or normalizes caller data.
 Live completion records availability when terminal coverage actually closes the
 assignment, no earlier than either the completion request or accepted terminal evidence.
 
-MIDI availability comes from `PerformanceClockSnapshot.nowMs`, never performance
-elapsed time. Its event time still comes from the native MIDI timestamp, independent
-of callback arrival. Source analysis uses `availabilityRuntimeMs` and injected
+MIDI event position comes from the native MIDI timestamp, mapped through Session Time
+to `performanceTimeMs`. Callback arrival does not change that event position.
+
+Normal MIDI coverage for analysis frontier F matures at Performance Time F + 250ms
+grace. `clock.sessionTimeAtReachedPerformance(deadline.duePerformanceTimeMs)` maps
+that reached deadline through the established RUNNING segments to its canonical
+Session Time, which becomes `availabilitySessionTimeMs`. This is the semantic
+coverage deadline's knowledge availability, never a later heartbeat execution time,
+refresh snapshot's `nowMs`, UI sampling time or `Date.now()`. The 250ms grace is a
+coverage maturity policy, not a publication or polling cadence.
+
+Performance Time freezes during PAUSED and RESUME count-in, so elapsed Session Time
+alone cannot mature a coverage deadline. When RUNNING later reaches that deadline,
+its mapped Session availability includes the preceding pause and resume-count-in
+time.
+
+After catching up reached deadlines, MIDI `SCOPE_COMPLETED` exact terminal coverage
+uses the canonical natural terminal capture Session Time, not a late heartbeat's
+sampling time. Generic `STOPPED_BY_USER` evaluation instead uses the actual stop
+boundary's Session Time for terminal availability. Normal grace-deadline availability,
+natural terminal availability and user-stop availability are distinct boundaries on
+the same Session-Time knowledge-availability axis.
+
+Source analysis uses `availabilityRuntimeMs` and injected
 `nowAvailabilityRuntimeMs`; the score-blind runtime knows no product clock. The
 `acoustic/continuous` projection declares this injected Continuous runtime clock to
 be the established Session Time and publishes `availabilitySessionTimeMs`. Analysis
