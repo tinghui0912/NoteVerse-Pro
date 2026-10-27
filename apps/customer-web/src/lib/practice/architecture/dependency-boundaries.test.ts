@@ -71,7 +71,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
   if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
-  if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
+  if (source === 'continuous/input/midi-evidence.ts') return ['continuous/input/midi-evidence-identity.ts', 'continuous/domain/evaluation/resource-policy.ts'].includes(target ?? '')
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
@@ -142,7 +142,7 @@ describe('Practice bounded domain dependencies', () => {
   it('keeps research harnesses and CLI runners out of every production source import', () => {
     for (const [file, edges] of sourceGraph) {
       for (const edge of edges) {
-        expect(/(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|analyze-practice-midi-corpus))/.test(
+        expect(/(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|benchmark-practice-evaluation-scale|analyze-practice-midi-corpus))/.test(
           `${edge.specifier} ${edge.target ?? ''}`), `${file}: ${edge.specifier}`).toBe(false);
       }
     }
@@ -229,7 +229,7 @@ describe('Practice bounded domain dependencies', () => {
 
   it('separates raw assignment mechanics from source interpretation and presentation', () => {
     const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'matching.ts', 'observation-store.ts',
-      'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
+      'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts', 'resource-policy.ts']);
     const evaluationRoot = 'continuous/domain/evaluation/';
     for (const file of files) {
       const name = relative(file);

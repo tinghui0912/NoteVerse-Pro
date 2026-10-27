@@ -46,3 +46,23 @@ it.each([349, 350, 351])('delivery at %i has a grace-defined outcome without nee
     expect(evidence.complete(delivery, delivery)?.observations[0].observationId).toBe('delivery:midi:0');
   }
 });
+
+
+it('keeps all 4,096 pending physical attacks; the next fails before push and the failure is terminal', () => {
+  const evidence = new ContinuousMidiEvidence('budget');
+  for (let i = 0; i < 4096; i++) evidence.observe('C4', 100, 1, 100);
+  expect(evidence.pendingObservationCount).toBe(4096);
+  let failure: unknown;
+  try { evidence.observe('C4', 100, 1, 100); } catch (error) { failure = error; }
+  expect(failure).toMatchObject({ code: 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' });
+  expect(evidence.pendingObservationCount).toBe(4096);
+  expect(() => evidence.cover(100, 350)).toThrow(failure as Error);
+  expect(() => evidence.nextDeadline(null)).toThrow(failure as Error);
+  expect(() => evidence.observe('D4', 200, 1, 200)).toThrow(failure as Error);
+  expect(evidence.pendingObservationCount).toBe(4096);
+  const healthy = new ContinuousMidiEvidence('healthy');
+  for (let i = 0; i < 4096; i++) healthy.observe('C4', 100, 1, 100);
+  const publication = healthy.cover(100, 350)!;
+  expect(publication.observations).toHaveLength(4096); expect(healthy.pendingObservationCount).toBe(0);
+  expect(new Set(publication.observations.map(o => o.observationId)).size).toBe(4096);
+});

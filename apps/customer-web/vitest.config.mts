@@ -16,6 +16,7 @@ export default defineConfig({
       'tests/unit/**/*.test.{ts,tsx}',
       'tests/architecture/**/*.test.{ts,tsx}',
       'tests/research/practice-timing/**/*.test.ts',
+      'tests/research/practice-evaluation-scale/**/*.test.ts',
       'src/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['./vitest.setup.ts'],

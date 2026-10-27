@@ -208,3 +208,35 @@ describe('deterministic residual slot relations', () => {
     expect(group(l, 'target').residualAssignments[0]).toMatchObject({ strikeId: 'target', observation: { observationId: 'early' }, timingOffsetMs: -123 });
   });
 });
+
+
+it('resource overflow discards the whole assignment transaction, including earlier would-be claims and terminal metadata', () => {
+  // The early D4 strike would claim first; the later dense C4 cohort exceeds the fixed finite-edge budget.
+  const expected = [strike('early', 100, 'D4'), ...Array.from({ length: 513 }, (_, i) => strike(`dense${i}`, 1000, 'C4'))];
+  const l = ledger(expected); l.publish(pub('initial', 0));
+  const before = l.snapshot(), resources = l.resourceSnapshot();
+  const observations = [observation('early-o', 100, 'D4'), ...Array.from({ length: 512 }, (_, i) => observation(`dense-o${i}`, 1000, 'C4'))];
+  let failure: unknown;
+  try { l.publish(pub('overflow', 1250, observations)); } catch (error) { failure = error; }
+  expect(failure).toMatchObject({ code: 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' });
+  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
+  expect(l.completedAssignment()).toMatchObject({ status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+  expect(() => l.publish(pub('later', 2000))).toThrow(failure as Error);
+  expect(() => l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2000, availabilitySessionTimeMs: 2100 })).toThrow(failure as Error);
+  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
+});
+it('publication capacity failure preserves already-retained ownership, availability and completion state', () => {
+  const l = ledger(); l.publish(pub('initial', 1250, [observation('owned')]));
+  const before = l.snapshot(), resources = l.resourceSnapshot();
+  expect(() => l.publish(pub('overflow', 3000, Array.from({ length: 16385 }, (_, i) => observation(`new${i}`, 2000)))))
+    .toThrow('CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED');
+  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
+});
+
+it('indexes narrow candidates but the policy predicate still owns floating-point window eligibility', () => {
+  const t = 2 ** 60; // ULP 256: t + 250 rounds to t + 256, which is outside the actual +/-250 predicate.
+  const l = ledger([strike('a', t)]);
+  l.publish(pub('p', t + 2048, [observation('outside', t + 256, 'D4')]));
+  expect(group(l).residualAssignments).toEqual([]);
+  expect(l.snapshot().unattributedObservations.map(o => o.observation.observationId)).toEqual(['outside']);
+});

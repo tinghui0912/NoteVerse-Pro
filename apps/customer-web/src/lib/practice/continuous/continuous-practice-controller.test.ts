@@ -766,3 +766,28 @@ it('microphone resume-countdown PCM cannot advance evidence and repeated Pause c
   await f.feed(200); expect(owner.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T);
   expect(owner.snapshot().resourceIntervention).toBeNull(); await owner.abandon(); await owner.dispose();
 });
+
+
+it.each(['MIDI', 'MICROPHONE'] as const)('%s evaluation resource failure never pauses transport/recording or creates a device intervention', async source => {
+  const f = environment(), owner = f.create(source, 0, 'AUDIO'); await owner.start();
+  if (source === 'MICROPHONE') await f.feed(100); else { f.clock.set(100); owner.refresh(); }
+  const session = Reflect.get(owner, 'session') as import('./domain/practice-session').ContinuousPracticeSession;
+  const before = owner.snapshot().evaluation;
+  if (source === 'MIDI') {
+    for (let i = 0; i < 4097; i++) f.midiOptions().onAttack!({ sessionTime: session.timebase.runtimeToSessionTime(f.clock.nowMs()), pitch: 'C4', confidence: 1 });
+  } else {
+    const frontier = session.snapshot().performanceTimeMs;
+    session.publishAnalysis({ publicationId: 'overflow', sessionDomainId: session.timebase.domainId, analyzedThroughPerformanceMs: frontier,
+      availabilitySessionTimeMs: session.snapshot().nowMs, observations: Array.from({ length: 16385 }, (_, i) => ({
+        observationId: `o${i}`, performanceTimeMs: frontier, pitch: 'C4', confidence: 1, source: 'ACOUSTIC' as const })) });
+  }
+  const failed = owner.snapshot();
+  expect(failed.analysisError).toBe('CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED'); expect(failed.analysis).toBe('FAILED');
+  expect(failed.session).toBe('ACTIVE'); expect(failed.transport?.state).toBe('RUNNING'); expect(failed.recording?.state).toBe('RECORDING');
+  expect(failed.inputError).toBeNull(); expect(failed.resourceIntervention).toBeNull(); expect(failed.evaluation).toEqual(before);
+  if (source === 'MICROPHONE') await f.feed(1600); else { f.clock.set(2000); owner.refresh(); await vi.advanceTimersByTimeAsync(10); }
+  const complete = owner.snapshot(); expect(complete.session).toBe('COMPLETE');
+  expect(complete.completed?.result.evaluation).toMatchObject({ status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+  expect(complete.completed?.recording.status).toBe('READY');
+  await owner.dispose();
+});

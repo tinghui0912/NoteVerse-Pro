@@ -1,3 +1,4 @@
+import { assertContinuousResourceCount, assertContinuousIdentityBudget, CONTINUOUS_EVALUATION_RESOURCES } from '../domain/evaluation/resource-policy';
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './midi-evidence-identity';
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
@@ -11,19 +12,28 @@ export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort
   private publicationSequence = 0;
   private frontier = -Infinity;
   private pending: ContinuousObservation[] = [];
+  private failure: Error | null = null;
 
   constructor(private readonly sessionDomainId: string) {}
+  get pendingObservationCount(): number { return this.pending.length; }
 
   observe(pitch: string, performanceTimeMs: number, confidence: number, deliveryPerformanceTimeMs: number): void {
+    if (this.failure) throw this.failure;
     // A deadline closes before a delivery at the same instant, even if no refresh ran.
     if (performanceTimeMs <= this.frontier || deliveryPerformanceTimeMs >= performanceTimeMs + DEFAULT_MIDI_COVERAGE_GRACE_MS) {
       throw new Error('MIDI_EVIDENCE_AFTER_COVERAGE');
     }
+    try {
+      assertContinuousResourceCount(this.pending.length + 1, CONTINUOUS_EVALUATION_RESOURCES.maxPendingMidiObservations);
+      assertContinuousIdentityBudget(`${this.sessionDomainId}:midi:${this.observationSequence}`);
+      assertContinuousIdentityBudget(pitch, true);
+    } catch (error) { this.failure = error as Error; throw error; }
     this.pending.push({ observationId: `${this.sessionDomainId}:midi:${this.observationSequence++}`,
       pitch, performanceTimeMs, confidence, source: 'MIDI' });
   }
 
   nextDeadline(requiredAnalysisFrontierMs: number | null) {
+    if (this.failure) throw this.failure;
     let analyzedThroughPerformanceMs = requiredAnalysisFrontierMs !== null && requiredAnalysisFrontierMs > this.frontier
       ? requiredAnalysisFrontierMs : Infinity;
     for (const observation of this.pending) {
@@ -38,6 +48,7 @@ export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort
   }
 
   cover(frontier: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null {
+    if (this.failure) throw this.failure;
     if (frontier <= this.frontier) return null;
     const observations = this.pending.filter(observation => observation.performanceTimeMs <= frontier);
     this.pending = this.pending.filter(observation => observation.performanceTimeMs > frontier);

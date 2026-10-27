@@ -618,6 +618,43 @@ The flat observation relation identifies the same group/strike slot. A slot can
 receive at most one residual observation; completed-artifact validation requires
 both relation views and the complete evidence ledger to agree.
 
+### Continuous evaluation resources
+
+Accepted observations, including provenance and extra/unattributed evidence, remain
+completed-result truth for the entire attempt. Retention is bounded by
+`continuous/domain/evaluation/resource-policy.ts`: 16,384 observations per
+publication; 65,536 retained observations and 65,536 publication receipts; 4,096
+pending MIDI observations; 262,144 finite edges per matching graph; identity length
+512 characters and pitch length 16. The exact ceiling is accepted; the next member
+fails closed. These are engineering budgets, not learner/timing policy identities.
+
+Receipts retain scalar/header identity and canonical observation IDs, referring to
+the immutable observation ledger for exact replay comparison instead of duplicating
+its payload. Permuted identical replay is idempotent and consumes no new budget;
+mutated replay remains invalid. Local time/pitch indexes query retained evidence and
+score targets. An explicit unowned working set shrinks as observations receive
+ownership; the original observations remain retained. Frontier readiness selects
+work, then canonical time/strike-ID order controls assignment. Sparse legal-edge
+matching preserves maximum cardinality, minimum cost and stable identity ties.
+
+Incoming evidence and assignment changes are planned together before any retained
+publication, observation, frontier, ownership or completion mutation. A resource
+ceiling violation discards that entire plan and terminally latches evaluation
+unavailability; it never truncates evidence or produces a partial score. Both MIDI
+and microphone then yield `CONTINUOUS_ANALYSIS_UNAVAILABLE`. Transport can continue,
+Pause/Resume and natural completion still work, and optional recording is independent.
+This does not create a device/recording intervention or invalidate the Environment.
+
+The research-only `npm run benchmark:practice-evaluation-scale` runs the real
+finalizer at 100/500/1,000/5,000 strikes with incremental publications, repeated
+pitches, chords, matches, residuals and unattributed evidence. JSON reports default
+to ignored `artifacts/practice-evaluation-scale/`; `-- --output "<path>"` selects a
+local output. Wall-clock measurements are engineering comparisons, never CI timing
+thresholds or learner metrics. There is no 5,000-strike product cap.
+
+STEP multi-hour soak is not part of this contract. Continuous recording chunk
+growth is not addressed by this round.
+
 ### Source-specific feedback
 
 The session fixes interpretation policy from its input source. Interpretation is

@@ -16,6 +16,7 @@
 /test-results
 /blob-report
 /artifacts/practice-timing/
+/artifacts/practice-evaluation-scale/
 
 # next.js
 /.next/
