@@ -1,6 +1,5 @@
 import { ContinuousEvaluationError } from './evaluation-error';
 import { immutableContinuousValue } from './immutable-value';
-import { CONTINUOUS_EVALUATION_RESOURCES as resources, assertContinuousResourceCount, assertContinuousIdentityBudget } from './resource-policy';
 import type { ContinuousEvidencePublication, ContinuousObservation } from './evidence-types';
 
 export const compareContinuousId = (a: string, b: string): number => a.localeCompare(b);
@@ -15,7 +14,7 @@ function canonical(value: unknown): string {
 type PublicationReceipt = Readonly<{ sessionDomainId: string; analyzedThroughPerformanceMs: number;
   availabilitySessionTimeMs: number; headerIdentity: string; observationIds: readonly string[] }>;
 export type PreparedContinuousEvidence = Readonly<{ publication: ContinuousEvidencePublication;
-  byTime: readonly ContinuousObservation[]; byPitch: ReadonlyMap<string, readonly ContinuousObservation[]> }>;
+  byTime: readonly ContinuousObservation[]; byPitch: ReadonlyMap<string, readonly ContinuousObservation[]>; receipt: PublicationReceipt }>;
 
 /** Evidence retention and local indexes, without score/assignment knowledge. */
 export class ContinuousEvidenceStore {
@@ -26,7 +25,6 @@ export class ContinuousEvidenceStore {
   private readonly byPitch = new Map<string, ContinuousObservation[]>();
   private frontier = -Infinity;
   private availability = -Infinity;
-  private failure: ContinuousEvaluationError | null = null;
 
   constructor(readonly sessionDomainId: string) {
     if (!sessionDomainId) throw new ContinuousEvaluationError('SESSION_DOMAIN_MISMATCH');
@@ -46,16 +44,8 @@ export class ContinuousEvidenceStore {
     this.retain(prepared);
     return prepared.publication;
   }
-  /** Validate and budget the entire incoming publication before any retained mutation. */
+  /** Validate and prepare the entire publication before any retained mutation. */
   prepare(input: ContinuousEvidencePublication, closed: boolean): PreparedContinuousEvidence | null {
-    if (this.failure) throw this.failure;
-    try { return this.preparePublication(input, closed); }
-    catch (error) {
-      if (error instanceof ContinuousEvaluationError && error.code === 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED') this.failure = error;
-      throw error;
-    }
-  }
-  private preparePublication(input: ContinuousEvidencePublication, closed: boolean): PreparedContinuousEvidence | null {
     if (!Array.isArray(input.observations)) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     const previous = this.publications.get(input.publicationId);
     if (previous) {
@@ -71,9 +61,6 @@ export class ContinuousEvidenceStore {
     }
     if (closed) throw new ContinuousEvaluationError('PUBLICATION_AFTER_COMPLETION');
     if (input.sessionDomainId !== this.sessionDomainId) throw new ContinuousEvaluationError('SESSION_DOMAIN_MISMATCH');
-    assertContinuousResourceCount(input.observations.length, resources.maxObservationsPerPublication);
-    assertContinuousIdentityBudget(input.sessionDomainId);
-    assertContinuousIdentityBudget(input.publicationId);
     const { analyzedThroughPerformanceMs: frontier, availabilitySessionTimeMs: availability } = input;
     if (!input.publicationId || !Number.isFinite(frontier) || frontier < 0 || frontier < this.frontier
       || !Number.isFinite(availability) || availability < 0 || availability < this.availability) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
@@ -83,35 +70,37 @@ export class ContinuousEvidenceStore {
         || observation.performanceTimeMs < 0 || observation.performanceTimeMs > frontier
         || !Number.isFinite(observation.confidence) || observation.confidence < 0 || observation.confidence > 1
         || !['MIDI', 'ACOUSTIC'].includes(observation.source)) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
-      assertContinuousIdentityBudget(observation.observationId); assertContinuousIdentityBudget(observation.pitch, true);
       if (incoming.has(observation.observationId) || this.observations.has(observation.observationId)) throw new ContinuousEvaluationError('DUPLICATE_OBSERVATION');
       if (observation.performanceTimeMs <= this.frontier) throw new ContinuousEvaluationError('LATE_EVIDENCE');
       if (observation.provenance) {
         if (!observation.provenance.sourceDomainId || !Number.isFinite(observation.provenance.sourceEventSample)
           || observation.provenance.sourceEventSample < 0 || !Number.isFinite(observation.provenance.sourceSampleRateHz)
           || observation.provenance.sourceSampleRateHz <= 0) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
-        assertContinuousIdentityBudget(observation.provenance.sourceDomainId);
       }
       incoming.add(observation.observationId);
     }
-    assertContinuousResourceCount(this.observations.size + input.observations.length, resources.maxRetainedObservations);
-    assertContinuousResourceCount(this.publications.size + 1, resources.maxRetainedPublications);
     const publication = immutableContinuousValue(structuredClone({ ...input, observations: [...input.observations]
       .sort((a, b) => compareContinuousId(a.observationId, b.observationId)) }));
     const byTime = [...publication.observations].sort((a, b) => a.performanceTimeMs - b.performanceTimeMs || compareContinuousId(a.observationId, b.observationId));
     const byPitch = new Map<string, ContinuousObservation[]>();
     for (const o of byTime) { const bucket = byPitch.get(o.pitch) ?? []; bucket.push(o); byPitch.set(o.pitch, bucket); }
-    return { publication, byTime, byPitch };
+    const receipt = Object.freeze({ sessionDomainId: publication.sessionDomainId,
+      analyzedThroughPerformanceMs: publication.analyzedThroughPerformanceMs, availabilitySessionTimeMs: publication.availabilitySessionTimeMs,
+      headerIdentity: canonical({ ...publication, observations: undefined }),
+      observationIds: Object.freeze(publication.observations.map(o => o.observationId)) });
+    return { publication, byTime, byPitch, receipt };
   }
-  /** Called only after the assignment transaction has also passed all resource checks. */
+  /** Called only after the entire assignment plan has succeeded. */
   retain(prepared: PreparedContinuousEvidence): void {
     const { publication, byTime, byPitch } = prepared;
     for (const o of publication.observations) { this.observations.set(o.observationId, o); this.retained.push(o); }
-    this.byTime.push(...byTime);
-    for (const [pitch, batch] of byPitch) { const bucket = this.byPitch.get(pitch) ?? []; bucket.push(...batch); this.byPitch.set(pitch, bucket); }
-    this.publications.set(publication.publicationId, Object.freeze({ sessionDomainId: publication.sessionDomainId,
-      analyzedThroughPerformanceMs: publication.analyzedThroughPerformanceMs, availabilitySessionTimeMs: publication.availabilitySessionTimeMs, headerIdentity: canonical({ ...publication, observations: undefined }),
-      observationIds: Object.freeze(publication.observations.map(o => o.observationId)) }));
+    for (const observation of byTime) this.byTime.push(observation);
+    for (const [pitch, batch] of byPitch) {
+      const bucket = this.byPitch.get(pitch) ?? [];
+      for (const observation of batch) bucket.push(observation);
+      this.byPitch.set(pitch, bucket);
+    }
+    this.publications.set(publication.publicationId, prepared.receipt);
     this.frontier = publication.analyzedThroughPerformanceMs; this.availability = publication.availabilitySessionTimeMs;
   }
 }

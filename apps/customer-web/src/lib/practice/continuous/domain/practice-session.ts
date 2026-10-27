@@ -1,4 +1,3 @@
-import { ContinuousEvaluationError } from './evaluation/evaluation-error';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
@@ -38,7 +37,6 @@ export class ContinuousPracticeSession {
   readonly clock: PerformanceClockRuntime;
   private readonly evaluator: ContinuousEvaluationSession;
   private readonly inputSource: PracticeInputSource;
-  private analysisFailure: Error | null = null;
   private syncedCompletionReason: LocalPracticeCompletionReason | null = null;
   private readonly clockEvidence: ContinuousClockDrivenEvidencePort | null;
   readonly localSessionId: string;
@@ -89,7 +87,6 @@ export class ContinuousPracticeSession {
       sessionDomainId: this.clock.timebase.domainId,
       inputSource: this.inputSource,
     });
-    this.analysisFailure = this.evaluator.resourceFailure;
   }
 
   start(): PerformanceClockSnapshot {
@@ -142,15 +139,11 @@ export class ContinuousPracticeSession {
     if (performanceTimeMs === null) {
       return false;
     }
-    if (this.analysisFailure) return false;
-    return this.evaluate(() => {
-      this.clockEvidence!.observe(attack.pitch, performanceTimeMs, attack.confidence, beforeSnapshot.performanceTimeMs);
-      return true;
-    }) ?? false;
+    this.clockEvidence!.observe(attack.pitch, performanceTimeMs, attack.confidence, beforeSnapshot.performanceTimeMs);
+    return true;
   }
 
   publishAnalysis(publication: ContinuousEvidencePublication): void {
-    if (this.analysisFailure) return;
     if (this.inputSource === 'MIDI') throw new Error('MIDI coverage is owned by the local clock adapter.');
     if (publication.sessionDomainId !== this.clock.timebase.domainId) {
       throw new ContinuousAnalysisPublicationDomainError();
@@ -170,7 +163,7 @@ export class ContinuousPracticeSession {
     if (publication.analyzedThroughPerformanceMs > maxAvailablePerformanceMs) {
       throw new Error('Continuous analysis frontier cannot advance beyond captured performance time.');
     }
-    this.evaluate(() => this.evaluator.publish(publication));
+    this.evaluator.publish(publication);
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
@@ -215,27 +208,16 @@ export class ContinuousPracticeSession {
     return this.evaluator.snapshot();
   }
 
-  get evaluationFailure(): Error | null { return this.analysisFailure; }
-
-  private evaluate<T>(work: () => T): T | undefined {
-    if (this.analysisFailure) return undefined;
-    try { return work(); }
-    catch (error) {
-      if (!(error instanceof ContinuousEvaluationError) || error.code !== 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED') throw error;
-      this.analysisFailure = error; this.evaluator.invalidate(error);
-      return undefined;
-    }
-  }
-
   private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
-    this.evaluate(() => this.advanceClockEvidence(snapshot));
+    this.advanceClockEvidence(snapshot);
     if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
       const availabilitySessionTimeMs = this.clockEvidence && snapshot.completionReason === 'SCOPE_COMPLETED'
         ? this.clock.completionCaptureTime().ms : snapshot.nowMs;
-      const reason = snapshot.completionReason;
-      this.evaluate(() => {
-        this.publishClockEvidence(this.clockEvidence?.complete(snapshot.performanceTimeMs, availabilitySessionTimeMs) ?? null);
-        this.evaluator.complete({ reason, performanceTimeMs: snapshot.performanceTimeMs, availabilitySessionTimeMs });
+      this.publishClockEvidence(this.clockEvidence?.complete(snapshot.performanceTimeMs, availabilitySessionTimeMs) ?? null);
+      this.evaluator.complete({
+        reason: snapshot.completionReason,
+        performanceTimeMs: snapshot.performanceTimeMs,
+        availabilitySessionTimeMs,
       });
       this.syncedCompletionReason = snapshot.completionReason;
       return snapshot;

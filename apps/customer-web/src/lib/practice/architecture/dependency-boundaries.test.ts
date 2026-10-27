@@ -71,7 +71,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
   if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
-  if (source === 'continuous/input/midi-evidence.ts') return ['continuous/input/midi-evidence-identity.ts', 'continuous/domain/evaluation/resource-policy.ts'].includes(target ?? '')
+  if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
@@ -134,8 +134,9 @@ describe('Practice bounded domain dependencies', () => {
   it('keeps MIDI evidence score-blind, including type-only imports', () => {
     const file = path.join(practiceRoot, 'continuous/input/midi-evidence.ts');
     for (const target of ['kernel/artifact', 'kernel/scope', 'kernel/tempo', 'continuous/domain/evaluation/assignment-finalizer',
-      'continuous/domain/evaluation/assignment-types', 'continuous/domain/evaluation/finalization-policy']) {
+      'continuous/domain/evaluation/assignment-types', 'continuous/domain/evaluation/finalization-policy', 'continuous/domain/evaluation/resource-policy']) {
       expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
+      expect(dependencyAllowed(file, imports(file, `import { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
     }
     for (const edge of imports(file)) expect(dependencyAllowed(file, edge), edge.specifier).toBe(true);
   });
@@ -229,7 +230,7 @@ describe('Practice bounded domain dependencies', () => {
 
   it('separates raw assignment mechanics from source interpretation and presentation', () => {
     const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'matching.ts', 'observation-store.ts',
-      'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts', 'resource-policy.ts']);
+      'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
     const evaluationRoot = 'continuous/domain/evaluation/';
     for (const file of files) {
       const name = relative(file);

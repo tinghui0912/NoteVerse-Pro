@@ -618,42 +618,41 @@ The flat observation relation identifies the same group/strike slot. A slot can
 receive at most one residual observation; completed-artifact validation requires
 both relation views and the complete evidence ledger to agree.
 
-### Continuous evaluation resources
+### Continuous evaluation scale
 
-Accepted observations, including provenance and extra/unattributed evidence, remain
-completed-result truth for the entire attempt. Retention is bounded by
-`continuous/domain/evaluation/resource-policy.ts`: 16,384 observations per
-publication; 65,536 retained observations and 65,536 publication receipts; 4,096
-pending MIDI observations; 262,144 finite edges per matching graph; identity length
-512 characters and pitch length 16. The exact ceiling is accepted; the next member
-fails closed. These are engineering budgets, not learner/timing policy identities.
+Continuous retains all accepted evidence required by the completed result, including
+provenance and extra/unattributed observations. Internal time/pitch indexes, explicit
+unowned working sets and sparse legal-edge matching restrict ordinary assignment
+work to semantically relevant local data without discarding accepted evidence.
+Receipts retain exact scalar/header identity and canonical observation IDs; replay
+compares the retained observations exactly, without retaining duplicate full payload
+strings or using collision-prone hashes. Permuted identical replay is idempotent;
+mutated replay remains invalid. Frontier readiness selects work, then canonical
+time/strike-ID order controls assignment. Matching preserves maximum cardinality,
+minimum total cost and stable identity ties.
 
-Receipts retain scalar/header identity and canonical observation IDs, referring to
-the immutable observation ledger for exact replay comparison instead of duplicating
-its payload. Permuted identical replay is idempotent and consumes no new budget;
-mutated replay remains invalid. Local time/pitch indexes query retained evidence and
-score targets. An explicit unowned working set shrinks as observations receive
-ownership; the original observations remain retained. Frontier readiness selects
-work, then canonical time/strike-ID order controls assignment. Sparse legal-edge
-matching preserves maximum cardinality, minimum cost and stable identity ties.
+Incoming evidence, receipts and assignment changes are prepared together before
+retaining or committing any publication, observation, frontier, ownership or
+completion mutation. Correctness failures discard the plan and remain errors;
+there is no capacity-specific degradation latch or input/start failure mapping.
 
-Incoming evidence and assignment changes are planned together before any retained
-publication, observation, frontier, ownership or completion mutation. A resource
-ceiling violation discards that entire plan and terminally latches evaluation
-unavailability; it never truncates evidence or produces a partial score. Both MIDI
-and microphone then yield `CONTINUOUS_ANALYSIS_UNAVAILABLE`. Transport can continue,
-Pause/Resume and natural completion still work, and optional recording is independent.
-This does not create a device/recording intervention or invalidate the Environment.
+No new Continuous evaluation capacity ceiling is frozen without qualification
+evidence. Future emergency limits must be justified by measured workload/device
+headroom and must never silently truncate evaluation truth. This round introduces
+no replacement count, length, memory heuristic or environment-configured ceiling.
+Existing acoustic resource constants are unchanged and require their own audit.
 
 The research-only `npm run benchmark:practice-evaluation-scale` runs the real
 finalizer at 100/500/1,000/5,000 strikes with incremental publications, repeated
-pitches, chords, matches, residuals and unattributed evidence. JSON reports default
+pitches, chords, matches, residuals and unattributed evidence. These workloads are
+engineering characterization, not product capacity limits. JSON reports default
 to ignored `artifacts/practice-evaluation-scale/`; `-- --output "<path>"` selects a
-local output. Wall-clock measurements are engineering comparisons, never CI timing
-thresholds or learner metrics. There is no 5,000-strike product cap.
+local output. Wall-clock is local engineering evidence, not a qualification
+threshold, CI timing assertion or learner metric. Pathological dense graphs can
+still require many legal edges; this does not justify inventing a ceiling here.
 
-STEP multi-hour soak is not part of this contract. Continuous recording chunk
-growth is not addressed by this round.
+STEP multi-hour soak is not part of this round. Continuous recording chunk growth
+is not part of this round.
 
 ### Source-specific feedback
 

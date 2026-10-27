@@ -34,11 +34,6 @@ export class ContinuousEvaluationSession {
     const scope = resolvePracticeScope(options.artifact, options.scope);
     this.finalizer = new ContinuousAssignmentFinalizer(options.sessionDomainId,
       buildContinuousExpectedStrikesFromTimeline(options.artifact, options.timeline, scope));
-    this.failure = this.finalizer.resourceFailure;
-  }
-
-  get resourceFailure(): Error | null {
-    return this.failure instanceof ContinuousEvaluationError && this.failure.code === 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' ? this.failure : null;
   }
 
   publish(publication: ContinuousEvidencePublication): ContinuousEvaluationSnapshot {
@@ -47,19 +42,16 @@ export class ContinuousEvaluationSession {
       this.failure = new ContinuousEvaluationError('OBSERVATION_SOURCE_MISMATCH');
       throw this.failure;
     }
-    try { this.finalizer.publish(publication); }
-    catch (error) { this.invalidate(error); throw error; }
+    this.finalizer.publish(publication);
     return this.snapshot();
   }
   complete(completion: ContinuousCompletion): ContinuousEvaluationSnapshot {
     if (this.failure) throw this.failure;
-    try { this.finalizer.complete(completion); }
-    catch (error) { this.invalidate(error); throw error; }
+    this.finalizer.complete(completion);
     return this.snapshot();
   }
   snapshot(): ContinuousEvaluationSnapshot { return projectEvaluation(this.finalizer.snapshot(), this.inputSource); }
-  nextRequiredAnalysisFrontier(): number | null { if (this.failure) throw this.failure; return this.finalizer.nextRequiredAnalysisFrontier(); }
-  invalidate(error: unknown): void { this.failure ??= error instanceof Error ? error : new Error(String(error)); }
+  nextRequiredAnalysisFrontier(): number | null { return this.finalizer.nextRequiredAnalysisFrontier(); }
   completedEvaluation(): CompletedContinuousEvaluation {
     if (this.failure) return unavailableContinuousEvaluation(this.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE');
     const result = this.finalizer.completedAssignment();

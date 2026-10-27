@@ -1,5 +1,4 @@
 import { ContinuousEvaluationError } from './evaluation-error';
-import { assertContinuousResourceCount, CONTINUOUS_EVALUATION_RESOURCES } from './resource-policy';
 
 export type ContinuousMatchingEdge = Readonly<{ left: number; right: number; cost: number }>;
 
@@ -9,7 +8,6 @@ type Edge = { to: number; capacity: number; cost: number; reverse: number; pair?
 export function matchContinuousEvidence(
   leftCount: number, rightCount: number, candidates: readonly ContinuousMatchingEdge[],
 ): readonly (readonly [number, number])[] {
-  assertContinuousResourceCount(candidates.length, CONTINUOUS_EVALUATION_RESOURCES.maxMatchingEdges);
   const ordered = [...candidates].sort((a, b) => a.left - b.left || a.right - b.right);
   if (!Number.isSafeInteger(leftCount) || leftCount < 0 || !Number.isSafeInteger(rightCount) || rightCount < 0
     || ordered.some((edge, i) => !Number.isSafeInteger(edge.left) || !Number.isSafeInteger(edge.right)

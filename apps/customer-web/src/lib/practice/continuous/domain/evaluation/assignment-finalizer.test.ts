@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
@@ -210,27 +210,42 @@ describe('deterministic residual slot relations', () => {
 });
 
 
-it('resource overflow discards the whole assignment transaction, including earlier would-be claims and terminal metadata', () => {
-  // The early D4 strike would claim first; the later dense C4 cohort exceeds the fixed finite-edge budget.
-  const expected = [strike('early', 100, 'D4'), ...Array.from({ length: 513 }, (_, i) => strike(`dense${i}`, 1000, 'C4'))];
-  const l = ledger(expected); l.publish(pub('initial', 0));
-  const before = l.snapshot(), resources = l.resourceSnapshot();
-  const observations = [observation('early-o', 100, 'D4'), ...Array.from({ length: 512 }, (_, i) => observation(`dense-o${i}`, 1000, 'C4'))];
+it.each(['publication', 'completion'] as const)('invalid sparse candidate discards the whole %s assignment plan', operation => {
+  const l = ledger([strike('early', 1000, 'D4'), strike('late', 1000, 'C4')]);
+  const observations = [observation('early-o', 1000, 'D4'), observation('late-o', 1000, 'C4')];
+  if (operation === 'publication') l.publish(pub('initial', 0));
+  else l.publish(pub('evidence', 1000, observations));
+  const before = l.snapshot(), retained = l.retentionSnapshot();
+  type CandidateBuilder = { candidateEdge(edges: { left: number; right: number; cost: number }[], left: number, right: number, cost: number): void };
+  const builder = l as unknown as CandidateBuilder, build = builder.candidateEdge.bind(l);
+  let candidates = 0;
+  // Inject a malformed later graph. The real matcher rejects it after an earlier claim was planned.
+  const spy = vi.spyOn(builder, 'candidateEdge').mockImplementation((edges, left, right, cost) => {
+    build(edges, ++candidates === 2 ? -1 : left, right, cost);
+  });
   let failure: unknown;
-  try { l.publish(pub('overflow', 1250, observations)); } catch (error) { failure = error; }
-  expect(failure).toMatchObject({ code: 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' });
-  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
-  expect(l.completedAssignment()).toMatchObject({ status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-  expect(() => l.publish(pub('later', 2000))).toThrow(failure as Error);
+  try {
+    if (operation === 'publication') l.publish(pub('incoming', 1250, observations));
+    else l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 1000, availabilitySessionTimeMs: 1100 });
+  } catch (error) { failure = error; }
+  finally { spy.mockRestore(); }
+  expect(candidates).toBe(2);
+  expect(failure).toMatchObject({ code: 'INVALID_PUBLICATION' });
+  expect(l.snapshot()).toEqual(before); expect(l.retentionSnapshot()).toEqual(retained);
+  let laterFailure: unknown;
+  try { l.publish(pub('later', 2000)); } catch (error) { laterFailure = error; }
+  expect(laterFailure).toBe(failure);
   expect(() => l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2000, availabilitySessionTimeMs: 2100 })).toThrow(failure as Error);
-  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
+  expect(l.snapshot()).toEqual(before); expect(l.retentionSnapshot()).toEqual(retained);
 });
-it('publication capacity failure preserves already-retained ownership, availability and completion state', () => {
+it('invalid publication preserves already-retained ownership, both axes and completion state', () => {
   const l = ledger(); l.publish(pub('initial', 1250, [observation('owned')]));
-  const before = l.snapshot(), resources = l.resourceSnapshot();
-  expect(() => l.publish(pub('overflow', 3000, Array.from({ length: 16385 }, (_, i) => observation(`new${i}`, 2000)))))
-    .toThrow('CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED');
-  expect(l.snapshot()).toEqual(before); expect(l.resourceSnapshot()).toEqual(resources);
+  const before = l.snapshot(), retained = l.retentionSnapshot();
+  const incoming = pub('invalid', 3000, [observation('new', 2000), { ...observation('bad', 2200), confidence: NaN }]);
+  const inputBefore = structuredClone(incoming);
+  expect(() => l.publish(incoming)).toThrow('INVALID_PUBLICATION');
+  expect(l.snapshot()).toEqual(before); expect(l.retentionSnapshot()).toEqual(retained);
+  expect(incoming).toEqual(inputBefore);
 });
 
 it('indexes narrow candidates but the policy predicate still owns floating-point window eligibility', () => {

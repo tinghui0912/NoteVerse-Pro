@@ -101,13 +101,12 @@ export class ContinuousPracticeController {
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot(): ContinuousControllerSnapshot {
     const runtimeState = this.microphone?.snapshot().runtime?.state;
-    const analysisError = this.analysisError ?? this.session?.evaluationFailure?.message ?? null;
-    const analysis = analysisError ? 'FAILED' : this.options.inputSource === 'MIDI' ? 'NOT_REQUIRED'
+    const analysis = this.options.inputSource === 'MIDI' ? 'NOT_REQUIRED' : this.analysisError ? 'FAILED'
       : this.state === 'PREPARING' ? runtimeState === 'PREROLL' ? 'PREROLL' : 'PREPARING'
       : this.state === 'COMPLETE' ? 'COMPLETE' : this.state === 'FINALIZING' ? 'DRAINING'
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
-      analysis, analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot(this.transport?.performanceTimeMs ?? 0) ?? null,
+      analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot(this.transport?.performanceTimeMs ?? 0) ?? null,
       resourceIntervention: this.intervention,
       evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });

@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import { matchContinuousEvidence, type ContinuousMatchingEdge } from './matching';
-import { CONTINUOUS_EVALUATION_RESOURCES } from './resource-policy';
 
 it('sparse solver exactly matches the approved all-pairs reference on deterministic generated graphs', () => {
   let seed = 192837;
@@ -21,12 +20,6 @@ it.each([
   const left = [0, 1], right = [0, 1];
   const edges = left.flatMap(i => right.filter(j => Number.isFinite(costs[i][j])).map(j => ({ left: i, right: j, cost: costs[i][j] })));
   expect(matchContinuousEvidence(2, 2, edges)).toEqual(referenceMatching(left, right, (i, j) => costs[i][j]));
-});
-it('fails before graph allocation when finite candidate edges exceed the ceiling', () => {
-  const edges = Array.from({ length: CONTINUOUS_EVALUATION_RESOURCES.maxMatchingEdges + 1 }, (_, i) => ({ left: 0, right: i, cost: 0 }));
-  const before = structuredClone(edges);
-  expect(() => matchContinuousEvidence(1, edges.length, edges)).toThrow('CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED');
-  expect(edges).toEqual(before);
 });
 it.each([{ left: -1, right: 0, cost: 0 }, { left: 0, right: 1, cost: 0 }, { left: 0, right: 0, cost: Infinity }])('rejects malformed sparse edge %j', edge => {
   expect(() => matchContinuousEvidence(1, 1, [edge])).toThrow();

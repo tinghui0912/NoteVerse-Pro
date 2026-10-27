@@ -8,7 +8,6 @@ import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib
 import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousGroupResidualAssignment, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 
-import { assertContinuousIdentityBudget, assertContinuousResourceCount, CONTINUOUS_EVALUATION_RESOURCES } from './resource-policy';
 
 type Group = { order: number; groupId: string; time: number; strikes: readonly ContinuousExpectedStrike[]; pitches: ReadonlySet<string> };
 const byStrikeId = (a: ContinuousExpectedStrike, b: ContinuousExpectedStrike) => compareContinuousId(a.strikeId, b.strikeId);
@@ -51,7 +50,6 @@ export class ContinuousAssignmentFinalizer {
 
   constructor(sessionDomainId: string, expectedStrikes: readonly ContinuousExpectedStrike[]) {
     this.evidence = new ContinuousEvidenceStore(sessionDomainId);
-    this.checkIdentityBudget(sessionDomainId);
     this.strikes = immutableContinuousValue(structuredClone([...expectedStrikes]).sort((a, b) =>
       a.expectedPerformanceTimeMs - b.expectedPerformanceTimeMs || byStrikeId(a, b)));
     const grouped = new Map<string, ContinuousExpectedStrike[]>();
@@ -60,9 +58,6 @@ export class ContinuousAssignmentFinalizer {
       if (!strike.strikeId || ids.has(strike.strikeId) || !strike.groupId || !strike.pitch
         || !Number.isFinite(strike.expectedPerformanceTimeMs) || strike.expectedPerformanceTimeMs < 0
         || !Array.isArray(strike.renderNoteIds)) throw new ContinuousEvaluationError('INVALID_EXPECTED_GROUP');
-      this.checkIdentityBudget(strike.strikeId); this.checkIdentityBudget(strike.groupId);
-      this.checkIdentityBudget(strike.pitch, true);
-      for (const id of strike.renderNoteIds) this.checkIdentityBudget(id);
       this.strikeOrder.set(strike.strikeId, order);
       const bucket = this.strikesByPitch.get(strike.pitch) ?? [];
       bucket.push(strike); this.strikesByPitch.set(strike.pitch, bucket);
@@ -83,18 +78,6 @@ export class ContinuousAssignmentFinalizer {
         strike.expectedPerformanceTimeMs + 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS)));
     this.frontierOrder = [...this.strikes].sort((a, b) => this.frontier(a) - this.frontier(b)
       || this.strikeOrder.get(a.strikeId)! - this.strikeOrder.get(b.strikeId)!);
-  }
-
-  /** Static score identities can exhaust analysis budgets, but never own transport admission. */
-  private checkIdentityBudget(identity: string, pitch = false): void {
-    try { assertContinuousIdentityBudget(identity, pitch); }
-    catch (error) {
-      if (!(error instanceof ContinuousEvaluationError) || error.code !== 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED') throw error;
-      this.failure ??= error;
-    }
-  }
-  get resourceFailure(): Error | null {
-    return this.failure instanceof ContinuousEvaluationError && this.failure.code === 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' ? this.failure : null;
   }
 
   publish(publication: ContinuousEvidencePublication): ContinuousAssignmentSnapshot {
@@ -140,14 +123,14 @@ export class ContinuousAssignmentFinalizer {
     throw this.failure;
   }
 
-  /** All incoming evidence/ownership/frontier work is staged. Resource failure discards the plan. */
+  /** All incoming evidence/ownership/frontier work is staged. Correctness failure discards the plan. */
   private planAndCommit(publication: ContinuousEvidencePublication, evidence: PreparedContinuousEvidence | null, requested: ContinuousCompletion | null): void {
     const draft: AssignmentTransaction = { evidence, publication, requested, strikes: new Map(), groups: new Map(), owners: new Map(),
       unattributed: [], waitingGroups: new Set(this.waitingGroups), strikeCursor: this.strikeCursor, completion: this.completion };
     this.transaction = draft;
     try { this.commit(); this.closeCompletion(); }
     finally { this.transaction = null; }
-    // No resource/assignment computation remains after this point.
+    // No assignment computation remains after this point.
     if (evidence) {
       this.evidence.retain(evidence);
       for (const o of evidence.publication.observations) this.unowned.set(o.observationId, o);
@@ -155,7 +138,7 @@ export class ContinuousAssignmentFinalizer {
     for (const [id, value] of draft.strikes) this.committedStrikes.set(id, value);
     for (const [id, value] of draft.groups) this.committedGroups.set(id, value);
     for (const [id, value] of draft.owners) { this.owners.set(id, value); this.unowned.delete(id); }
-    this.unattributedObservations.push(...draft.unattributed);
+    for (const observation of draft.unattributed) this.unattributedObservations.push(observation);
     this.waitingGroups = draft.waitingGroups; this.strikeCursor = draft.strikeCursor;
     this.requestedCompletion = requested; this.completion = draft.completion;
   }
@@ -176,10 +159,8 @@ export class ContinuousAssignmentFinalizer {
     });
   }
 
-  completedAssignment() {
-    return this.failure ? Object.freeze({ status: 'UNAVAILABLE' as const, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const }) : completeContinuousAssignment(this.snapshot());
-  }
-  resourceSnapshot() {
+  completedAssignment() { return completeContinuousAssignment(this.snapshot()); }
+  retentionSnapshot() {
     return Object.freeze({ observationCount: this.evidence.observationCount, publicationCount: this.evidence.publicationCount,
       unownedObservationCount: this.unowned.size, availabilitySessionTimeMs: this.evidence.availableSessionTimeMs });
   }
@@ -307,7 +288,6 @@ export class ContinuousAssignmentFinalizer {
   }
 
   private candidateEdge(edges: ContinuousMatchingEdge[], left: number, right: number, cost: number): void {
-    assertContinuousResourceCount(edges.length + 1, CONTINUOUS_EVALUATION_RESOURCES.maxMatchingEdges);
     edges.push({ left, right, cost });
   }
 

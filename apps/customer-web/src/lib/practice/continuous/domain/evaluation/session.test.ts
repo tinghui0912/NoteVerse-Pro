@@ -93,18 +93,3 @@ it.each(['invalid observation', 'inconsistent group onset'])('completed evaluati
   expect(() => assertCompletedEvaluation(parsed, 'MICROPHONE')).toThrow(/Continuous assignment/);
   expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
 });
-
-
-it.each(['MIDI', 'MICROPHONE'] as const)('resource exhaustion terminally invalidates %s evaluation without partial truth', inputSource => {
-  const session = new ContinuousEvaluationSession({ artifact, timeline: { beatToTimeMs: beat => beat * 1000 }, scope: { kind: 'FULL' }, sessionDomainId: 'test', inputSource });
-  const before = session.snapshot(); let failure: unknown;
-  try { session.publish({ publicationId: 'overflow', sessionDomainId: 'test', analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 350,
-    observations: Array.from({ length: 16385 }, (_, i) => ({ observationId: `o${i}`, pitch: 'C4', performanceTimeMs: 100, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' })) }); }
-  catch (error) { failure = error; }
-  expect(failure).toMatchObject({ code: 'CONTINUOUS_EVALUATION_RESOURCE_LIMIT_EXCEEDED' });
-  expect(session.snapshot()).toEqual(before);
-  expect(session.completedEvaluation()).toMatchObject({ status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-  expect(() => session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2000, availabilitySessionTimeMs: 3000 })).toThrow(failure as Error);
-  expect(() => session.nextRequiredAnalysisFrontier()).toThrow(failure as Error);
-  expect(session.snapshot()).toEqual(before);
-});
