@@ -15,6 +15,7 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.test.{ts,tsx}',
       'tests/architecture/**/*.test.{ts,tsx}',
+      'tests/research/practice-timing/**/*.test.ts',
       'src/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['./vitest.setup.ts'],

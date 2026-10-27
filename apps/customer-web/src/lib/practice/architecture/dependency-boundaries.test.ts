@@ -119,6 +119,14 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
+  it('keeps research harnesses and CLI runners out of every production source import', () => {
+    for (const [file, edges] of sourceGraph) {
+      for (const edge of edges) {
+        expect(/(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|analyze-practice-midi-corpus))/.test(
+          `${edge.specifier} ${edge.target ?? ''}`), `${file}: ${edge.specifier}`).toBe(false);
+      }
+    }
+  });
   it('has concrete owners and no common mode barrel', () => {
     expect(existsSync(path.join(practiceRoot, 'local-core'))).toBe(false);
     for (const [file, edges] of sourceGraph) {
