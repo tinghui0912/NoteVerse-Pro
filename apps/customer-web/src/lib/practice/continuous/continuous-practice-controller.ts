@@ -224,7 +224,7 @@ export class ContinuousPracticeController {
   abandon(): Promise<void> {
     if (this.completion) return this.completion;
     if (this.abandonment) return this.abandonment;
-    // Inspect the latched reason only. Advancing snapshot() here would turn an End
+    // Inspect the latched reason only. Advancing the domain here would turn an End
     // received before the terminal transition into a natural completion.
     if (this.session?.clock.terminationReason === 'SCOPE_COMPLETED') {
       this.refresh(); return this.completion ?? Promise.resolve();
@@ -248,10 +248,10 @@ export class ContinuousPracticeController {
     }
     return this.abandonment;
   }
-  /** Sampling is presentation-only; lifecycle decisions stay here, not in React. */
+  /** Application heartbeat explicitly catches up semantic deadlines, then samples presentation. */
   refresh(): void {
     if (this.state !== 'ACTIVE' || !this.session) return;
-    this.transport = this.session.snapshot();
+    this.transport = this.session.advanceToNow();
     if (this.transport.state === 'RUNNING') {
       if (!this.recordingBegan) this.startRecording();
       else if (this.resumeRecordingAt !== null) { const T = this.resumeRecordingAt; this.resumeRecordingAt = null; this.recorder?.resume(T); }

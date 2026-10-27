@@ -70,6 +70,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
+    || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
   if (source.startsWith('continuous/timing/')) return Boolean(target && (target.startsWith('continuous/timing/') || target.startsWith('kernel/')));
@@ -119,6 +121,14 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
+  it('keeps MIDI evidence score-blind, including type-only imports', () => {
+    const file = path.join(practiceRoot, 'continuous/input/midi-evidence.ts');
+    for (const target of ['kernel/artifact', 'kernel/scope', 'kernel/tempo', 'continuous/domain/evaluation/assignment-finalizer',
+      'continuous/domain/evaluation/assignment-types', 'continuous/domain/evaluation/finalization-policy']) {
+      expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
+    }
+    for (const edge of imports(file)) expect(dependencyAllowed(file, edge), edge.specifier).toBe(true);
+  });
   it('keeps research harnesses and CLI runners out of every production source import', () => {
     for (const [file, edges] of sourceGraph) {
       for (const edge of edges) {

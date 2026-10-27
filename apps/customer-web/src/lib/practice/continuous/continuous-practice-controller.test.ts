@@ -17,6 +17,7 @@ import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controll
 import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { PerformanceRecorder } from '../recording/performance-recorder';
 import { continuousCompletionStore } from './completion-store';
+import { ContinuousMidiEvidence } from './input/midi-evidence';
 
 function track(kind = 'audio') {
   const events = new EventTarget();
@@ -104,6 +105,25 @@ beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers
   }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
+  it('controller snapshots never publish MIDI evidence; explicit refresh catches semantic needs up once', async () => {
+    const cover = vi.spyOn(ContinuousMidiEvidence.prototype, 'cover');
+    const f = environment(), controller = f.create('MIDI');
+    try {
+      await controller.start();
+      const before = controller.snapshot().evaluation;
+      f.clock.set(600);
+      for (let i = 0; i < 100; i++) controller.snapshot();
+      expect(cover).not.toHaveBeenCalled();
+      expect(controller.snapshot().evaluation).toEqual(before);
+      controller.refresh();
+      expect(cover).toHaveBeenCalledExactlyOnceWith(250, 500);
+      expect(controller.snapshot().evaluation?.assignment.groups[0].state).toBe('FINALIZED');
+      for (let i = 0; i < 100; i++) { controller.snapshot(); controller.refresh(); }
+      expect(cover).toHaveBeenCalledOnce();
+      await controller.abandon();
+      expect(controller.snapshot().completed).toBeNull();
+    } finally { await controller.dispose(); cover.mockRestore(); }
+  });
   for (const mode of ['OFF', 'AUDIO', 'VIDEO'] as const) for (const event of ['mute', 'ended'] as const) {
     it(`root ${event} with ${mode} requires input, never recording-only degradation`, async () => {
       const f = environment(), camera = mode === 'VIDEO' ? stream(true).media : undefined;
@@ -630,7 +650,7 @@ it('the formally latched natural completion wins a later End and publishes exact
   const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 0, 'OFF', callback);
   const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
   await controller.start(); f.clock.set(1300);
-  Reflect.get(controller, 'session').clock.snapshot(); // Domain latch, before application refresh.
+  Reflect.get(controller, 'session').advanceToNow(); // Explicit domain latch, before application refresh.
   await controller.abandon(); await controller.abandon(); controller.refresh();
   expect(controller.snapshot().session).toBe('COMPLETE');
   expect(controller.snapshot().completed?.result).toBeDefined();

@@ -108,6 +108,7 @@ export class ContinuousPracticeSession {
   abandon(): PerformanceClockSnapshot { return this.clock.end('STOPPED_BY_USER'); }
 
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
+    this.clock.advanceToNow();
     const snapshot = this.clock.end(reason);
     return this.syncFromClockSnapshot(snapshot);
   }
@@ -117,8 +118,12 @@ export class ContinuousPracticeSession {
   }
 
   snapshot(): PerformanceClockSnapshot {
-    const snapshot = this.clock.snapshot();
-    return this.syncFromClockSnapshot(snapshot);
+    return this.clock.snapshot();
+  }
+
+  /** Materialize reached semantic coverage deadlines independently of caller cadence. */
+  advanceToNow(): PerformanceClockSnapshot {
+    return this.syncFromClockSnapshot(this.clock.advanceToNow());
   }
 
   observeMidiAttack(attack: ContinuousMidiAttack): boolean {
@@ -126,7 +131,7 @@ export class ContinuousPracticeSession {
       throw new Error('MIDI attacks require the MIDI evidence boundary.');
     }
     this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
-    const beforeSnapshot = this.clock.snapshot();
+    const beforeSnapshot = this.advanceToNow();
     if (beforeSnapshot.state === 'ENDED') {
       return false;
     }
@@ -134,8 +139,7 @@ export class ContinuousPracticeSession {
     if (performanceTimeMs === null) {
       return false;
     }
-    this.clockEvidence!.observe(attack.pitch, performanceTimeMs, attack.confidence);
-    this.advanceClockEvidence(this.clock.snapshot());
+    this.clockEvidence!.observe(attack.pitch, performanceTimeMs, attack.confidence, beforeSnapshot.performanceTimeMs);
     return true;
   }
 
@@ -151,7 +155,7 @@ export class ContinuousPracticeSession {
     ) {
       throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
     }
-    const snapshot = this.clock.snapshot();
+    const snapshot = this.clock.advanceToNow();
     if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN' && snapshot.countInKind === 'INITIAL') {
       throw new Error('Continuous analysis publication requires captured performance evidence time.');
     }
@@ -201,27 +205,37 @@ export class ContinuousPracticeSession {
   }
 
   get evaluationSnapshot(): ContinuousEvaluationSnapshot {
-    this.syncFromClockSnapshot(this.clock.snapshot());
     return this.evaluator.snapshot();
   }
 
   private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
+    this.advanceClockEvidence(snapshot);
     if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
-      this.publishClockEvidence(this.clockEvidence?.complete(snapshot) ?? null);
+      const availabilitySessionTimeMs = this.clockEvidence && snapshot.completionReason === 'SCOPE_COMPLETED'
+        ? this.clock.completionCaptureTime().ms : snapshot.nowMs;
+      this.publishClockEvidence(this.clockEvidence?.complete(snapshot.performanceTimeMs, availabilitySessionTimeMs) ?? null);
       this.evaluator.complete({
         reason: snapshot.completionReason,
         performanceTimeMs: snapshot.performanceTimeMs,
-        availabilitySessionTimeMs: snapshot.nowMs,
+        availabilitySessionTimeMs,
       });
       this.syncedCompletionReason = snapshot.completionReason;
       return snapshot;
     }
-    this.advanceClockEvidence(snapshot);
     return snapshot;
   }
 
   private advanceClockEvidence(snapshot: PerformanceClockSnapshot): void {
-    this.publishClockEvidence(this.clockEvidence?.advance(snapshot) ?? null);
+    if (!this.clockEvidence || snapshot.state === 'READY' || this.syncedCompletionReason !== null) return;
+    for (;;) {
+      const deadline = this.clockEvidence.nextDeadline(this.evaluator.nextRequiredAnalysisFrontier());
+      if (!deadline || deadline.duePerformanceTimeMs > snapshot.performanceTimeMs) return;
+      const available = this.clock.sessionTimeAtReachedPerformance(deadline.duePerformanceTimeMs);
+      if (!available) throw new Error('MIDI_COVERAGE_CLOCK_MAPPING_UNAVAILABLE');
+      const publication = this.clockEvidence.cover(deadline.analyzedThroughPerformanceMs, available.ms);
+      if (!publication) throw new Error('MIDI_COVERAGE_DEADLINE_DID_NOT_ADVANCE');
+      this.publishClockEvidence(publication);
+    }
   }
 
   private publishClockEvidence(publication: ContinuousEvidencePublication | null): void {

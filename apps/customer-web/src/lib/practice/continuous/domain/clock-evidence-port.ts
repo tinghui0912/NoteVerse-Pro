@@ -1,6 +1,5 @@
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { PerformanceClockSnapshot } from './performance-clock';
 
 export type ContinuousMidiAttack = Readonly<{
   captureTime: SessionTime;
@@ -8,9 +7,15 @@ export type ContinuousMidiAttack = Readonly<{
   confidence: number;
 }>;
 
-/** A clock-driven input publishes coverage before the session completes evaluation. */
+type ContinuousCoverageDeadline = Readonly<{
+  analyzedThroughPerformanceMs: number;
+  duePerformanceTimeMs: number;
+}>;
+
+/** Score-blind facts/grace owner; the session supplies only an evaluator frontier need. */
 export interface ContinuousClockDrivenEvidencePort {
-  observe(pitch: string, performanceTimeMs: number, confidence: number): void;
-  advance(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null;
-  complete(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null;
+  observe(pitch: string, performanceTimeMs: number, confidence: number, deliveryPerformanceTimeMs: number): void;
+  nextDeadline(requiredAnalysisFrontierMs: number | null): ContinuousCoverageDeadline | null;
+  cover(frontierPerformanceMs: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null;
+  complete(terminalPerformanceMs: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null;
 }

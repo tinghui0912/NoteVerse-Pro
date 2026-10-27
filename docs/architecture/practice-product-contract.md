@@ -491,6 +491,28 @@ MIDI publishes each physical NOTE_ON independently; its 250ms delivery grace is 
 coverage-publication policy. Microphone observations describe decoder-qualified
 acoustic evidence, not proof of physical key attacks.
 
+MIDI coverage progression is explicit: session/clock snapshots and evaluation reads
+never publish evidence or finalize assignment. The application heartbeat calls
+`advanceToNow()` before sampling presentation; its frequency is not evidence policy.
+The assignment finalizer exposes its next useful analysis frontier using the same
+strike, group and residual dependencies as live finalization. The score-blind MIDI
+owner combines that need with pending NOTE_ON maturity. Frontier F becomes eligible
+at Performance Time F + 250ms. Coincident needs produce one publication.
+
+Progression catches up all reached deadlines in canonical order, publishing each
+required frontier rather than the latest sampled performance position. Availability
+uses the clock's established RUNNING segments to map the deadline to Session Time,
+including initial count-in, pause and resume count-in gaps. Those gaps never mature
+a Performance-Time deadline. Silence therefore advances finality without per-read
+empty publications. Completion first catches up reached deadlines, then publishes
+exact terminal coverage without waiting for another grace interval.
+
+NOTE_ON eligibility uses native capture time and delivery Performance Time, before
+allocating observation identity. Delivery strictly before capture + 250ms remains
+eligible; at or after that maturity boundary it is late, whether or not a heartbeat
+has already materialized coverage. This ordering makes delivery acceptance,
+publication identity and finality availability independent of presentation cadence.
+
 Publications carry immutable publication/observation identity, session domain,
 source provenance, confidence, session availability and monotonic performance analyzed-through
 coverage. Availability is not attack time. Exact replay is idempotent; mutated

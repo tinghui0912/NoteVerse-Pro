@@ -65,12 +65,12 @@ describe('PerformanceClock segment numeric identity', () => {
     expect(runtime.performanceTimeAtCapture(resumed.nowMs)).toBeNull();
     clock.advance(resumed.countInTotalMs);
     const runningAnchor = resumed.nowMs + resumed.countInTotalMs;
-    expect(runtime.performanceTimeAtCapture(runningAnchor)).toBeNull(); // Snapshot latches the running boundary.
-    expect(runtime.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs + .25);
+    expect(runtime.performanceTimeAtCapture(runningAnchor)).toBeNull(); // Explicit progression latches the running boundary.
+    expect(runtime.advanceToNow().performanceTimeMs).toBe(paused.performanceTimeMs + .25);
     expect(runtime.performanceTimeAtCapture(runningAnchor)).toBe(paused.performanceTimeMs);
 
     clock.advance(123.5);
-    const later = runtime.snapshot();
+    const later = runtime.advanceToNow();
     expect(later.nowMs).toBe(resumeRuntimeMs - origin + resumed.countInTotalMs + .25 + 123.5);
     expect(later.performanceTimeMs).toBe(paused.performanceTimeMs + .25 + 123.5);
     expect(runtime.performanceTimeAtCapture(later.nowMs)).toBe(later.performanceTimeMs);
@@ -82,7 +82,7 @@ describe('PerformanceClock segment numeric identity', () => {
     const { runtime } = setup(0, 1, 1000000, clock);
     runtime.start();
     clock.set(499.875);
-    runtime.snapshot();
+    runtime.advanceToNow();
     const paused = runtime.pause();
     expect(paused.countInRemainingMs).toBe(.125);
     clock.set(6000.5);
@@ -98,7 +98,7 @@ describe('PerformanceClock segment numeric identity', () => {
     clock.advancePerReadMs = 0;
     expect(runtime.performanceTimeAtCapture(resumed.nowMs)).toBeNull();
     clock.advance(resumed.countInTotalMs);
-    const running = runtime.snapshot();
+    const running = runtime.advanceToNow();
     expect(running.state).toBe('RUNNING');
     expect(running.performanceTimeMs).toBe(.25);
     expect(runtime.performanceTimeAtCapture(resumed.nowMs + resumed.countInTotalMs)).toBe(0);
@@ -114,8 +114,8 @@ describe('PerformanceClock segment numeric identity', () => {
     const resumed = runtime.resume();
     expect(resumed.performanceTimeMs).toBe(paused.performanceTimeMs);
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBeNull();
-    expect(runtime.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);
-    clock.advance(resumed.countInTotalMs); runtime.snapshot();
+    expect(runtime.advanceToNow().performanceTimeMs).toBe(paused.performanceTimeMs);
+    clock.advance(resumed.countInTotalMs); runtime.advanceToNow();
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBe(paused.performanceTimeMs);
   });
 
@@ -132,13 +132,13 @@ describe('PerformanceClock segment numeric identity', () => {
         now += 1 + fraction() * 500; clock.set(now);
         const resumed = runtime.resume();
         expect(resumed.performanceTimeMs).toBe(paused.performanceTimeMs);
-        expect(runtime.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);
+        expect(runtime.advanceToNow().performanceTimeMs).toBe(paused.performanceTimeMs);
         const sessionAnchor = runtime.timebase.runtimeToSessionTime(now).ms;
         expect(runtime.performanceTimeAtCapture(sessionAnchor)).toBeNull();
         const runningAnchor = resumed.nowMs + resumed.countInTotalMs;
         now += resumed.countInTotalMs + 1; clock.set(now);
         const localDelta = runtime.timebase.runtimeToSessionTime(now).ms - runningAnchor;
-        expect(runtime.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs + localDelta);
+        expect(runtime.advanceToNow().performanceTimeMs).toBe(paused.performanceTimeMs + localDelta);
         expect(runtime.performanceTimeAtCapture(runningAnchor)).toBe(paused.performanceTimeMs);
       }
     });
@@ -160,7 +160,7 @@ describe('PerformanceClock segment numeric identity', () => {
   it('preserves capture mapping at a resumed segment anchor and a local delta', () => {
     const { clock, runtime } = setup(); runtime.start();
     clock.set(3610.7029478458053); const paused = runtime.pause();
-    clock.set(5622.131519274377); const countdown = runtime.resume(); clock.advance(countdown.countInTotalMs); runtime.snapshot();
+    clock.set(5622.131519274377); const countdown = runtime.resume(); clock.advance(countdown.countInTotalMs); runtime.advanceToNow();
     const anchor = clock.nowMs(); clock.set(anchor + 123.456789);
     expect(runtime.performanceTimeAtCapture(anchor)).toBe(paused.performanceTimeMs);
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBe(paused.performanceTimeMs + (clock.nowMs() - anchor));
@@ -172,11 +172,11 @@ describe('PerformanceClock segment numeric identity', () => {
     const { clock, runtime } = setup(1000000.123456789, 1);
     const start = runtime.start(); expect(start.state).toBe('COUNT_IN');
     clock.advance(500);
-    const running = runtime.snapshot(); expect(running.state).toBe('RUNNING'); expect(running.performanceTimeMs).toBe(0);
+    const running = runtime.advanceToNow(); expect(running.state).toBe('RUNNING'); expect(running.performanceTimeMs).toBe(0);
     const paused = runtime.pause(); clock.advance(211.7029478458053);
     expect(runtime.resume().performanceTimeMs).toBe(paused.performanceTimeMs);
     expect(runtime.performanceTimeAtCapture(runtime.timebase.runtimeToSessionTime(clock.nowMs()).ms)).toBeNull();
-    clock.advance(runtime.snapshot().countInRemainingMs); runtime.snapshot();
+    clock.advance(runtime.advanceToNow().countInRemainingMs); runtime.advanceToNow();
     expect(runtime.performanceTimeAtCapture(runtime.timebase.runtimeToSessionTime(clock.nowMs()).ms)).toBe(0);
   });
 
@@ -187,7 +187,7 @@ describe('PerformanceClock segment numeric identity', () => {
     const stopped = runtime.end('STOPPED_BY_USER');
     expect(stopped.performanceTimeMs).toBe(paused.performanceTimeMs);
     expect(stopped.completionReason).toBe('STOPPED_BY_USER');
-    clock.advance(999); expect(runtime.snapshot().performanceTimeMs).toBe(stopped.performanceTimeMs);
+    clock.advance(999); expect(runtime.advanceToNow().performanceTimeMs).toBe(stopped.performanceTimeMs);
   });
 
   it('natural completion inverse mapping uses the local active delta', () => {
@@ -196,7 +196,7 @@ describe('PerformanceClock segment numeric identity', () => {
     clock.set(5622.131519274377); const countdown = runtime.resume();
     const expectedTerminalSessionMs = clock.nowMs() + countdown.countInTotalMs + (runtime.scopeDurationMs() - paused.performanceTimeMs);
     clock.set(expectedTerminalSessionMs + 1);
-    const completed = runtime.snapshot();
+    const completed = runtime.advanceToNow();
     expect(completed.state).toBe('ENDED'); expect(completed.performanceTimeMs).toBe(6000);
     expect(completed.completionReason).toBe('SCOPE_COMPLETED');
     expect(runtime.completionCaptureTime().ms).toBe(expectedTerminalSessionMs);

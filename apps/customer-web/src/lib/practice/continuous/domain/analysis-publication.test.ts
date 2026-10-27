@@ -166,7 +166,7 @@ describe('Continuous analysis publication admission', () => {
     });
     range.start();
     rangeClock.advance(10_000);
-    expect(range.snapshot().completionReason).toBe('SCOPE_COMPLETED');
+    expect(range.advanceToNow().completionReason).toBe('SCOPE_COMPLETED');
 
     expect(() => range.publishAnalysis({
       publicationId: 'publication-36999', sessionDomainId: range.timebase.domainId,

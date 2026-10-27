@@ -1,7 +1,6 @@
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './midi-evidence-identity';
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;
 
@@ -15,21 +14,27 @@ export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort
 
   constructor(private readonly sessionDomainId: string) {}
 
-  observe(pitch: string, performanceTimeMs: number, confidence: number): void {
-    if (performanceTimeMs <= this.frontier) throw new Error('MIDI_EVIDENCE_AFTER_COVERAGE');
+  observe(pitch: string, performanceTimeMs: number, confidence: number, deliveryPerformanceTimeMs: number): void {
+    // A deadline closes before a delivery at the same instant, even if no refresh ran.
+    if (performanceTimeMs <= this.frontier || deliveryPerformanceTimeMs >= performanceTimeMs + DEFAULT_MIDI_COVERAGE_GRACE_MS) {
+      throw new Error('MIDI_EVIDENCE_AFTER_COVERAGE');
+    }
     this.pending.push({ observationId: `${this.sessionDomainId}:midi:${this.observationSequence++}`,
       pitch, performanceTimeMs, confidence, source: 'MIDI' });
   }
 
-  advance(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null {
-    if (snapshot.state === 'RUNNING' && snapshot.performanceTimeMs > DEFAULT_MIDI_COVERAGE_GRACE_MS) {
-      return this.cover(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS, snapshot.nowMs);
+  nextDeadline(requiredAnalysisFrontierMs: number | null) {
+    let analyzedThroughPerformanceMs = requiredAnalysisFrontierMs !== null && requiredAnalysisFrontierMs > this.frontier
+      ? requiredAnalysisFrontierMs : Infinity;
+    for (const observation of this.pending) {
+      if (observation.performanceTimeMs > this.frontier) analyzedThroughPerformanceMs = Math.min(analyzedThroughPerformanceMs, observation.performanceTimeMs);
     }
-    return null;
+    if (!Number.isFinite(analyzedThroughPerformanceMs)) return null;
+    return Object.freeze({ analyzedThroughPerformanceMs, duePerformanceTimeMs: analyzedThroughPerformanceMs + DEFAULT_MIDI_COVERAGE_GRACE_MS });
   }
 
-  complete(snapshot: PerformanceClockSnapshot): ContinuousEvidencePublication | null {
-    return this.cover(snapshot.performanceTimeMs, snapshot.nowMs);
+  complete(terminalPerformanceMs: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null {
+    return this.cover(terminalPerformanceMs, availabilitySessionTimeMs);
   }
 
   cover(frontier: number, availabilitySessionTimeMs: number): ContinuousEvidencePublication | null {

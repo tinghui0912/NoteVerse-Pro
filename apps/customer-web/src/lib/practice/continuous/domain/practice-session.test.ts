@@ -8,8 +8,187 @@ import { ManualClock, PracticeTimebase, type SessionTime } from '@/lib/practice/
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { ContinuousPracticeSessionOptions } from './practice-session';
+import type { ContinuousEvidencePublication } from './evaluation/evidence-types';
+import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
+import { midiEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+
+function deadlineSession(score = artifact, countInBeats = 0) {
+  const clock = new ManualClock(), evidence = new ContinuousMidiEvidence('deadline-session');
+  const publications: ContinuousEvidencePublication[] = [];
+  const cover = evidence.cover.bind(evidence);
+  vi.spyOn(evidence, 'cover').mockImplementation((...args) => {
+    const publication = cover(...args); if (publication) publications.push(publication); return publication;
+  });
+  const tempoPlan = resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 });
+  const session = new ContinuousPracticeSession({ artifact: score, scope: { kind: 'FULL' }, inputSource: 'MIDI', clock,
+    localSessionId: 'deadline-session', metadataClock: { nowEpochMs: () => 1000 }, countInBeats, tempoPlan,
+    createClockEvidence: () => evidence });
+  session.start();
+  return { clock, evidence, publications, session, tempoPlan };
+}
+
+describe('explicit semantic MIDI progression', () => {
+  it('session/evaluation/clock reads never publish, finalize or latch completion', () => {
+    const { clock, session, publications } = deadlineSession();
+    const before = session.evaluationSnapshot;
+    clock.set(20000);
+    for (let i = 0; i < 100; i++) {
+      session.snapshot(); session.clock.snapshot(); session.snapshotSession(); session.evaluationSnapshot;
+    }
+    expect(publications).toHaveLength(0);
+    expect(session.clock.terminationReason).toBeNull();
+    expect(session.evaluationSnapshot).toEqual(before);
+    expect(session.completedEvaluation().status).toBe('UNAVAILABLE');
+    session.advanceToNow();
+    expect(session.clock.terminationReason).toBe('SCOPE_COMPLETED');
+    expect(session.completedEvaluation().status).toBe('COMPLETE');
+  });
+  it('publishes an attack at its inclusive maturity exactly once, not when sampled', () => {
+    const { clock, session, publications } = deadlineSession();
+    clock.set(100); session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']));
+    clock.set(349); session.advanceToNow();
+    expect(publications).toHaveLength(0); expect(session.evaluationSnapshot.assignment.observations).toHaveLength(0);
+    clock.set(350); session.snapshot(); expect(publications).toHaveLength(0);
+    session.advanceToNow();
+    expect(publications).toHaveLength(1);
+    expect(publications[0]).toMatchObject({ analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 350 });
+    for (let i = 0; i < 100; i++) { session.advanceToNow(); session.snapshot(); session.evaluationSnapshot; }
+    expect(publications).toHaveLength(1);
+  });
+  it('finalizes silent targets before terminal and deduplicates same-frontier cohort needs', () => {
+    const { clock, session, publications } = deadlineSession();
+    clock.set(999); session.advanceToNow(); expect(publications).toHaveLength(0);
+    clock.set(1000); session.advanceToNow();
+    expect(publications).toHaveLength(1);
+    expect(publications[0]).toMatchObject({ analyzedThroughPerformanceMs: 750, availabilitySessionTimeMs: 1000 });
+    expect(session.evaluationSnapshot.assignment.groups.slice(0, 2).every(group => group.state === 'FINALIZED')).toBe(true);
+    expect(session.clock.terminationReason).toBeNull();
+  });
+  it('freezes an unmatured attack through Pause and Resume Count-In, then maps canonical session availability', () => {
+    const { clock, session, publications } = deadlineSession(artifact, 1);
+    clock.set(1500); session.observeMidiAttack(midiAttack(session.timebase.domainId, 1500, ['G4']));
+    clock.set(1600); expect(session.pause().performanceTimeMs).toBe(1100);
+    const before = session.evaluationSnapshot, count = publications.length;
+    clock.set(11600); session.advanceToNow(); expect(session.evaluationSnapshot).toEqual(before);
+    const resumed = session.resume();
+    clock.set(11600 + resumed.countInTotalMs - 1); session.advanceToNow();
+    expect(session.snapshot().performanceTimeMs).toBe(1100); expect(publications).toHaveLength(count);
+    clock.set(11600 + resumed.countInTotalMs + 149); session.advanceToNow();
+    expect(publications).toHaveLength(count);
+    clock.advance(1); session.advanceToNow();
+    expect(publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 1000,
+      availabilitySessionTimeMs: 11600 + resumed.countInTotalMs + 150,
+      observations: [{ performanceTimeMs: 1000 }] });
+  });
+  const cadences = { dense: Array.from({ length: 1511 }, (_, i) => i * 10),
+    sparse: Array.from({ length: 111 }, (_, i) => i * 137), irregular: [7, 499, 820, 11601, 13099, 14999] };
+  function performance(calls: readonly number[], reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER', firstDelivery = 620) {
+    const h = deadlineSession(artifact, 1), { clock, session, publications } = h;
+    const terminalCall = reason === 'SCOPE_COMPLETED' ? 15100 : 14500;
+    const attacks = [{ delivery: firstDelivery, capture: 600, pitch: 'C4' }, { delivery: 1500, capture: 1500, pitch: 'G4' },
+      { delivery: 13650, capture: 13650, pitch: 'B4' }, { delivery: 14000, capture: 14000, pitch: 'D5' }];
+    const times = new Set([...calls.filter(t => t <= terminalCall), ...attacks.map(a => a.delivery), 1600, 11600, terminalCall]);
+    let callCount = 0;
+    for (const t of [...times].sort((a, b) => a - b)) {
+      clock.set(t);
+      if (calls.includes(t)) { session.advanceToNow(); callCount++; }
+      for (const a of attacks.filter(a => a.delivery === t)) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, a.capture, [a.pitch]))).toBe(true);
+      if (t === 1600) session.pause();
+      if (t === 11600) session.resume();
+      if (t === terminalCall) {
+        if (reason === 'STOPPED_BY_USER') session.end(reason); else session.advanceToNow();
+      }
+    }
+    const evaluation = session.completedEvaluation(); if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
+    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ artifact, localSessionId: session.localSessionId,
+      inputSource: 'MIDI', scope: { kind: 'FULL' }, tempoPlan: h.tempoPlan,
+      activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation,
+      evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
+    return { publications, evaluation, result, callCount };
+  }
+  it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities, interpretation and Result', reason => {
+    const dense = performance(cadences.dense, reason);
+    for (const calls of [cadences.sparse, cadences.irregular]) {
+      const other = performance(calls, reason);
+      expect(other.publications).toEqual(dense.publications);
+      expect(other.evaluation).toEqual(dense.evaluation);
+      expect(other.result).toEqual(dense.result);
+      expect(other.callCount).toBeLessThan(dense.callCount);
+    }
+    expect(dense.publications).toHaveLength(reason === 'SCOPE_COMPLETED' ? 9 : 8);
+    expect(dense.evaluation.assignment.completion.availabilitySessionTimeMs).toBe(reason === 'SCOPE_COMPLETED' ? 15000 : 14500);
+  });
+  it('callback delay below grace changes neither native event coordinates nor canonical knowledge availability', () => {
+    const early = performance(cadences.dense, 'SCOPE_COMPLETED', 600);
+    const delayed = performance(cadences.irregular, 'SCOPE_COMPLETED', 800);
+    expect(delayed.publications).toEqual(early.publications);
+    expect(delayed.result).toEqual(early.result);
+  });
+  it('terminal catch-up drains every reached deadline before exact terminal coverage', () => {
+    const dense = performance(cadences.dense, 'SCOPE_COMPLETED');
+    const eventOnly = performance([], 'SCOPE_COMPLETED');
+    expect(eventOnly.publications).toEqual(dense.publications);
+    expect(eventOnly.result).toEqual(dense.result);
+    expect(eventOnly.publications.slice(-3).map(p => [p.analyzedThroughPerformanceMs, p.availabilitySessionTimeMs]))
+      .toEqual([[2000, 14250], [2500, 14750], [3000, 15000]]);
+  });
+  it('generic completion catches up an unsampled Resume Count-In before terminal coverage', () => {
+    const run = (dense: boolean) => {
+      const { clock, session, publications } = deadlineSession(artifact, 1);
+      clock.set(1600); session.pause(); clock.set(11600); session.resume();
+      if (dense) for (let t = 11600; t < 14500; t += 10) { clock.set(t); session.advanceToNow(); }
+      clock.set(14500); session.end('STOPPED_BY_USER');
+      return { publications, evaluation: session.completedEvaluation() };
+    };
+    const coarse = run(false);
+    expect(coarse).toEqual(run(true));
+    expect(coarse.evaluation.status).toBe('COMPLETE');
+    if (coarse.evaluation.status === 'COMPLETE') expect(coarse.evaluation.assignment.completion)
+      .toEqual({ reason: 'STOPPED_BY_USER', performanceTimeMs: 2500, availabilitySessionTimeMs: 14500 });
+  });
+  it.each([999, 1000, 1001])('delivery at %i is independent of a prior refresh closing that exact frontier', delivery => {
+    const run = (dense: boolean) => {
+      const { clock, session, publications } = deadlineSession();
+      if (dense) for (let t = 0; t <= delivery; t += 10) { clock.set(t); session.advanceToNow(); }
+      clock.set(delivery);
+      const attack = midiAttack(session.timebase.domainId, 750, ['C4']);
+      if (delivery === 999) expect(session.observeMidiAttack(attack)).toBe(true);
+      else expect(() => session.observeMidiAttack(attack)).toThrow('MIDI_EVIDENCE_AFTER_COVERAGE');
+      clock.set(1100); session.advanceToNow();
+      return { publications, evaluation: session.evaluationSnapshot };
+    };
+    expect(run(true)).toEqual(run(false));
+  });
+  it.each([349, 350, 351])('late/eligible delivery at %i is independent of whether prior refreshes ran', delivery => {
+    const outcomes = [false, true].map(dense => {
+      const { clock, session, publications } = deadlineSession();
+      if (dense) for (let t = 0; t <= delivery; t += 10) { clock.set(t); session.advanceToNow(); }
+      clock.set(delivery);
+      if (delivery < 350) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']))).toBe(true);
+      else expect(() => session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']))).toThrow('MIDI_EVIDENCE_AFTER_COVERAGE');
+      clock.set(400); session.advanceToNow();
+      return { publications, assignment: session.evaluationSnapshot.assignment };
+    });
+    expect(outcomes[0]).toEqual(outcomes[1]);
+  });
+  it('120 seconds of silence produces four target frontiers plus terminal, not 12,000 refresh publications', () => {
+    const score = { ...artifact, scoreEndBeat: 240 };
+    const run = (step: number) => {
+      const { clock, session, publications } = deadlineSession(score);
+      let calls = 0;
+      for (let t = step; t < 120000; t += step) { clock.set(t); session.advanceToNow(); calls++; }
+      clock.set(120100); session.advanceToNow(); calls++;
+      return { publications, evaluation: session.completedEvaluation(), calls };
+    };
+    const dense = run(10), sparse = run(137000);
+    expect(dense.calls).toBe(12000); expect(sparse.calls).toBe(1);
+    expect(dense.publications.map(p => p.analyzedThroughPerformanceMs)).toEqual([750, 1250, 1750, 2500, 120000]);
+    expect(sparse.publications).toEqual(dense.publications);
+    expect(sparse.evaluation).toEqual(dense.evaluation);
+  });
+});
 function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return structuredClone({ ...artifact, ...overrides });
 }
@@ -24,9 +203,8 @@ describe('Continuous session composition and record ownership', () => {
   it('MIDI events exclude a 5-second pause and Resume Count-In while availability and completion use session time', () => {
     const clock = new ManualClock(), evidence = new ContinuousMidiEvidence('timing');
     const publications: ReturnType<ContinuousMidiEvidence['cover']>[] = [];
-    const advance = evidence.advance.bind(evidence), complete = evidence.complete.bind(evidence);
-    vi.spyOn(evidence, 'advance').mockImplementation(snapshot => { const p = advance(snapshot); if (p) publications.push(p); return p; });
-    vi.spyOn(evidence, 'complete').mockImplementation(snapshot => { const p = complete(snapshot); if (p) publications.push(p); return p; });
+    const cover = evidence.cover.bind(evidence);
+    vi.spyOn(evidence, 'cover').mockImplementation((...args) => { const p = cover(...args); if (p) publications.push(p); return p; });
     const session = new ContinuousPracticeSession({ artifact, scope: { kind: 'FULL' }, clock, localSessionId: 'timing',
       inputSource: 'MIDI', countInBeats: 4, createClockEvidence: () => evidence });
     const start = session.start();
@@ -35,13 +213,14 @@ describe('Continuous session composition and record ownership', () => {
     clock.advance(5000); const resumed = session.resume();
     expect(resumed.countInKind).toBe('RESUME');
     clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(false);
-    expect(session.snapshot().performanceTimeMs).toBe(1000);
-    clock.advance(resumed.countInRemainingMs - 100); session.snapshot();
+    expect(session.advanceToNow().performanceTimeMs).toBe(1000);
+    clock.advance(resumed.countInRemainingMs - 100); session.advanceToNow();
     clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(true);
-    clock.advance(300); const snapshot = session.snapshot();
+    clock.advance(300); const snapshot = session.advanceToNow();
     const publication = publications.find(p => p?.observations.length)!;
     expect(publication?.observations[0].performanceTimeMs).toBe(1100);
-    expect(publication?.availabilitySessionTimeMs).toBe(snapshot.nowMs);
+    expect(publication?.availabilitySessionTimeMs).toBe(session.clock.sessionTimeAtReachedPerformance(1350)!.ms);
+    expect(publication?.availabilitySessionTimeMs).toBe(snapshot.nowMs - 50);
     expect(publication?.availabilitySessionTimeMs).toBeGreaterThan(snapshot.performanceTimeMs + 5000);
     const terminal = session.end('STOPPED_BY_USER');
     expect(session.evaluationSnapshot.assignment.completion).toMatchObject({ performanceTimeMs: terminal.performanceTimeMs,
@@ -108,7 +287,7 @@ describe('Continuous session composition and record ownership', () => {
     expect(session.snapshotSession()).toMatchObject({
       completionReason: null, performance: { state: 'RUNNING', activeElapsedMs: 20_000 },
     });
-    expect(session.snapshot().completionReason).toBe('SCOPE_COMPLETED');
+    expect(session.advanceToNow().completionReason).toBe('SCOPE_COMPLETED');
     expect(session.snapshotSession()).toMatchObject({
       lifecycleState: 'ENDED', completionReason: 'SCOPE_COMPLETED', performance: { state: 'ENDED' },
     });
@@ -128,19 +307,19 @@ describe('Continuous clock and evaluation composition', () => {
       localSessionId: 'continuous-clock-separate'
     });
 
-    expect(session.snapshot().state).toBe('READY');
+    expect(session.advanceToNow().state).toBe('READY');
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)).toHaveLength(
       artifact.expectedPracticeGroups.reduce((sum, group) => sum + group.strikeTargets.length, 0)
     );
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'PENDING')).toBe(true);
 
     session.start();
-    const before = session.snapshot();
+    const before = session.advanceToNow();
     expect(session.observeMidiAttack(midiAttack('continuous-clock-separate', 0, ['C4']))).toBe(true);
-    expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
+    expect(session.advanceToNow().performanceTimeMs).toBe(before.performanceTimeMs);
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     clock.advance(1_500);
-    session.snapshot();
+    session.advanceToNow();
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
   });
 
@@ -164,7 +343,7 @@ describe('Continuous clock and evaluation composition', () => {
       session.observeMidiAttack(midiAttack(session.timebase.domainId, time, [pitch]));
       expect(session.clock.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
     }
-    clock.advance(2500); session.snapshot();
+    clock.advance(2500); session.advanceToNow();
     const completed = session.completedEvaluation();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete MIDI truth');
     expect(completed.interpretation.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'CORRECT']);
@@ -222,9 +401,9 @@ describe('Continuous clock and evaluation composition', () => {
     expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 150, ['F#4']))).toBe(true);
     expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
     extraClock.advance(500);
-    session.snapshot();
+    session.advanceToNow();
     extraClock.advance(1500);
-    session.snapshot();
+    session.advanceToNow();
     expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
     expect(session.evaluationSnapshot.assignment.observationAssignments.filter(owner => owner.kind === 'GROUP_RESIDUAL')).toHaveLength(1);
   });
@@ -242,7 +421,7 @@ describe('Continuous clock and evaluation composition', () => {
     });
     natural.start();
     naturalClock.advance(20_000);
-    const snapshot = natural.snapshot();
+    const snapshot = natural.advanceToNow();
     expect(snapshot.state).toBe('ENDED');
     expect(snapshot.completionReason).toBe('SCOPE_COMPLETED');
     const naturalEvaluation = natural.completedEvaluation();
@@ -367,13 +546,13 @@ describe('Continuous clock and evaluation composition', () => {
       expect(session.start()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 0 });
       expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 0, ['C4']))).toBe(true);
       offlineClock.advance(500);
-      expect(session.snapshot()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 500 });
+      expect(session.advanceToNow()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 500 });
       session.pause();
       offlineClock.advance(1_000);
-      expect(session.snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 500 });
+      expect(session.advanceToNow()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 500 });
       const resumed = session.resume();
       offlineClock.advance(resumed.countInRemainingMs + 600);
-      expect(session.snapshot()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 1100 });
+      expect(session.advanceToNow()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 1100 });
       session.end('STOPPED_BY_USER');
 
       const evaluation = session.completedEvaluation();
@@ -430,20 +609,20 @@ describe('Continuous clock and evaluation composition', () => {
 
     // Start with count-in: state is COUNT_IN
     runtime.start();
-    expect(runtime.snapshot().state).toBe('COUNT_IN');
+    expect(runtime.advanceToNow().state).toBe('COUNT_IN');
     expect(runtime.observeMidiAttack(evidence)).toBe(false);
 
     // Advance past count-in into RUNNING
-    const countInTotalMs = runtime.snapshot().countInTotalMs;
+    const countInTotalMs = runtime.advanceToNow().countInTotalMs;
     clock.advance(countInTotalMs + 10);
-    expect(runtime.snapshot().state).toBe('RUNNING');
+    expect(runtime.advanceToNow().state).toBe('RUNNING');
     clock.advance(90);
     const runningEvidence = midiAttack(runtime.timebase.domainId, countInTotalMs + 100, ['C4']);
     expect(runtime.observeMidiAttack(runningEvidence)).toBe(true);
 
     // Pause: state is PAUSED
     runtime.pause();
-    expect(runtime.snapshot().state).toBe('PAUSED');
+    expect(runtime.advanceToNow().state).toBe('PAUSED');
     expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBe(false);
     runtime.resume();
     clock.advance(500);
@@ -451,7 +630,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
-    expect(runtime.snapshot().state).toBe('ENDED');
+    expect(runtime.advanceToNow().state).toBe('ENDED');
     expect(runtime.observeMidiAttack(lateRunningEvidence)).toBe(false);
     expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
   });
@@ -482,7 +661,7 @@ describe('Continuous clock and evaluation composition', () => {
     expect(evaluated).toBe(true);
     expect(performance.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     performanceClock.advance(1_000);
-    performance.snapshot();
+    performance.advanceToNow();
     expect(performance.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({
       state: 'MATCHED',
       match: { timingOffsetMs: 0 },
@@ -588,10 +767,11 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
         const evidence = new ContinuousMidiEvidence(domainId);
         return {
           observe: (...args) => evidence.observe(...args),
-          advance: snapshot => evidence.advance(snapshot),
-          complete: snapshot => {
+          nextDeadline: frontier => evidence.nextDeadline(frontier),
+          cover: (...args) => evidence.cover(...args),
+          complete: (...args) => {
             events.push('coverage');
-            return evidence.complete(snapshot);
+            return evidence.complete(...args);
           },
         };
       }
@@ -602,7 +782,7 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
       pitch: 'C4', confidence: 1, captureTime: session.timebase.atSessionMs(0),
     });
     session.end();
-    session.snapshot();
+    session.advanceToNow();
     session.evaluationSnapshot;
     expect(events).toEqual(['coverage', 'evaluation']);
     const evaluation = session.completedEvaluation();
@@ -630,6 +810,6 @@ it('advances MIDI analysis from performance clock time', () => {
 
   session.start();
   clock.advance(1_000);
-  expect(session.snapshot().state).toBe('RUNNING');
+  expect(session.advanceToNow().state).toBe('RUNNING');
   expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'UNMATCHED' });
 });

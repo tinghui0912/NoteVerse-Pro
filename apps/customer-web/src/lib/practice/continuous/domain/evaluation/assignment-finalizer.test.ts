@@ -18,6 +18,21 @@ const finish = (l: ContinuousAssignmentFinalizer, time = 4000, reason: 'SCOPE_CO
 const reservation = () => [strike('g'), strike('claim', 1400, 'D4'), strike('next', 1800, 'D4'), strike('other', 2200, 'D4')];
 
 describe('bounded source-blind Continuous assignment', () => {
+  it('reads the next useful frontier without publishing and reuses indirect residual dependencies', () => {
+    const l = ledger([strike('g', 1000, 'C4'), strike('a', 1250, 'D4'), strike('b', 1750, 'D4')]);
+    const before = l.snapshot();
+    expect(l.nextRequiredAnalysisFrontier()).toBe(1250);
+    expect(l.nextRequiredAnalysisFrontier()).toBe(1250);
+    expect(l.snapshot()).toEqual(before);
+    l.publish(pub('observation', 1000, [observation('d', 1000, 'D4')]));
+    expect(l.nextRequiredAnalysisFrontier()).toBe(1250);
+    l.publish(pub('first-need', 1250));
+    expect(group(l, 'g').state).toBe('PENDING');
+    expect(l.nextRequiredAnalysisFrontier()).toBe(2000);
+    l.publish(pub('dependency', 2000));
+    expect(l.snapshot().groups.every(group => group.state === 'FINALIZED')).toBe(true);
+    expect(l.nextRequiredAnalysisFrontier()).toBeNull();
+  });
   it('finality records session knowledge availability separately from required performance coverage', () => {
     const l = ledger(); l.publish(pub('delayed', 1250, [observation('o')], 4000));
     expect(group(l).strikes[0]).toMatchObject({ state: 'MATCHED', match: { timingOffsetMs: 0 },

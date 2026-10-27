@@ -138,8 +138,15 @@ export class PerformanceClockRuntime {
     return this.snapshotAt(this.nowSessionMs());
   }
 
+  /** Explicitly latch reached transport boundaries; reading a snapshot never does. */
+  advanceToNow(): PerformanceClockSnapshot {
+    const nowMs = this.nowSessionMs();
+    this.advanceState(nowMs);
+    return this.snapshotAt(nowMs);
+  }
+
   private snapshotAt(nowMs: number): PerformanceClockSnapshot {
-    const activeElapsedMs = this.advanceState(nowMs);
+    const activeElapsedMs = this.activeElapsedAt(nowMs);
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
     const countdown = this.resumeCountdown;
     const countInTotalMs = countdown?.durationMs ?? this.countInMs;
@@ -181,6 +188,22 @@ export class PerformanceClockRuntime {
       return null;
     }
     return this.performanceElapsedMs(activeElapsedMs);
+  }
+
+  /** Earliest established RUNNING instant at an already-reached Performance Time. */
+  sessionTimeAtReachedPerformance(performanceTimeMs: number): SessionTime | null {
+    if (!Number.isFinite(performanceTimeMs) || performanceTimeMs < 0 || performanceTimeMs > this.scopeDurationMs()) return null;
+    const nowMs = this.nowSessionMs();
+    for (const segment of this.clockSegments) {
+      if (segment.state !== 'RUNNING' || segment.frozen) continue;
+      const endMs = segment.clockEndMs ?? (segment === this.currentSegment ? nowMs : segment.clockStartMs);
+      const startPerformanceMs = this.performanceElapsedMs(segment.activeElapsedStartMs);
+      const endPerformanceMs = this.performanceElapsedMs(this.activeElapsedAtSessionTime(segment, endMs));
+      if (startPerformanceMs <= performanceTimeMs && performanceTimeMs <= endPerformanceMs) {
+        return this.timebase.atSessionMs(segment.clockStartMs + (performanceTimeMs - startPerformanceMs));
+      }
+    }
+    return null;
   }
 
   completionCaptureTime(): SessionTime {

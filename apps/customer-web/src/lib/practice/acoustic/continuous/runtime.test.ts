@@ -21,7 +21,6 @@ import { projectContinuousEvidence } from './publication';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import { createContinuousPerformanceMetrics } from '@/lib/practice/result/continuous-performance-metrics';
-import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
 function result(input: AcousticInferenceInput): AcousticInferenceResult {
@@ -266,7 +265,7 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
   await runtime.dispose();
   session.pause(); const paused = session.clock.snapshot(); clock.advance(5000);
   expect(session.clock.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);
-  const resumed = session.resume(); clock.advance(resumed.countInRemainingMs + 100); expect(session.clock.snapshot().performanceTimeMs).toBe(1300);
+  const resumed = session.resume(); clock.advance(resumed.countInRemainingMs + 100); expect(session.advanceToNow().performanceTimeMs).toBe(1300);
 });
 
 it('exact pause boundary belongs only to resumed segment, with immutable IDs independent of availability', () => {
@@ -305,8 +304,7 @@ it('MIDI and acoustic publish the same independent session-availability / perfor
   const acoustic = projectContinuousEvidence(sourcePublication('source', 48000, 0, window,
     { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 300),
   { index: 0, sourceStart: 0, originTarget: 0, performanceStartMs: 5000 }, 'session');
-  const midi = new ContinuousMidiEvidence('session').advance({ state: 'RUNNING',
-    performanceTimeMs: acoustic.analyzedThroughPerformanceMs + 250, nowMs: 300 } as PerformanceClockSnapshot)!;
+  const midi = new ContinuousMidiEvidence('session').cover(acoustic.analyzedThroughPerformanceMs, 300)!;
   expect(acoustic.analyzedThroughPerformanceMs).toBeGreaterThan(300);
   expect(midi.analyzedThroughPerformanceMs).toBe(acoustic.analyzedThroughPerformanceMs);
   expect(midi.availabilitySessionTimeMs).toBe(300); expect(acoustic.availabilitySessionTimeMs).toBe(300);

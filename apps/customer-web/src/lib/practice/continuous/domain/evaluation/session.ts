@@ -51,6 +51,7 @@ export class ContinuousEvaluationSession {
     return this.snapshot();
   }
   snapshot(): ContinuousEvaluationSnapshot { return projectEvaluation(this.finalizer.snapshot(), this.inputSource); }
+  nextRequiredAnalysisFrontier(): number | null { return this.finalizer.nextRequiredAnalysisFrontier(); }
   completedEvaluation(): CompletedContinuousEvaluation {
     if (this.failure) return unavailableContinuousEvaluation(this.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE');
     const result = this.finalizer.completedAssignment();

@@ -34,7 +34,7 @@ describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion compositio
     expect(s.completion).toThrow('Continuous completion requires a naturally completed scope.');
   });
   it('creates the independent result and recording only for a naturally latched scope', () => {
-    const s = setup(); s.clock.advance(s.session.clock.scopeDurationMs() + 1); s.session.snapshot();
+    const s = setup(); s.clock.advance(s.session.clock.scopeDurationMs() + 1); s.session.advanceToNow();
     expect(s.session.snapshotSession().completionReason).toBe('SCOPE_COMPLETED');
     const completion = s.completion();
     expect(completion.result.inputSource).toBe(inputSource);

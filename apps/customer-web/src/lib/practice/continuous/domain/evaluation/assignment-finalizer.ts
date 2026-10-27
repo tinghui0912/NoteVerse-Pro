@@ -112,6 +112,21 @@ export class ContinuousAssignmentFinalizer {
 
   completedAssignment() { return completeContinuousAssignment(this.snapshot()); }
 
+  /** Read-only semantic coverage need, using the same frontiers as commit(). */
+  nextRequiredAnalysisFrontier(): number | null {
+    if (this.failure) throw this.failure;
+    if (this.completion) return null;
+    const needs = this.strikes.filter(strike => !this.committedStrikes.has(strike.strikeId)).map(strike => this.frontier(strike));
+    for (const group of this.groups) {
+      if (!this.committedGroups.has(group.groupId) && group.strikes.every(strike => this.committedStrikes.has(strike.strikeId))) {
+        needs.push(this.groupFrontier(group));
+      }
+    }
+    for (const observation of this.residual()) needs.push(this.unattributedFrontier(observation));
+    const uncovered = needs.filter(frontier => frontier > this.evidence.analyzedThrough);
+    return uncovered.length ? Math.min(...uncovered) : null;
+  }
+
   private strikeState(strike: ContinuousExpectedStrike): ContinuousStrikeAssignment {
     return this.committedStrikes.get(strike.strikeId) ?? { ...strike, state: 'PENDING' };
   }
@@ -221,15 +236,22 @@ export class ContinuousAssignmentFinalizer {
       const claimants = this.claimants(observation);
       const residualGroups = this.groups.filter(group => !group.pitches.has(observation.pitch)
         && withinContinuousWindow(group.time, observation.performanceTimeMs));
-      const required = Math.max(observation.performanceTimeMs, ...claimants.map(strike => this.frontier(strike)),
-        ...residualGroups.map(group => this.groupFrontier(group)));
-      assertContinuousBound(required, observation.performanceTimeMs, CONTINUOUS_ANALYSIS_BOUNDS_MS.residual);
+      const required = this.unattributedFrontier(observation);
       if (Math.min(required, this.terminal) > this.evidence.analyzedThrough
         || claimants.some(strike => !this.committedStrikes.has(strike.strikeId))
         || residualGroups.some(group => !this.committedGroups.has(group.groupId))) continue;
       this.claim({ kind: 'UNATTRIBUTED', observationId: observation.observationId });
       this.unattributedObservations.push(immutableContinuousValue({ observation, finality: this.finality(required) }));
     }
+  }
+
+  private unattributedFrontier(observation: ContinuousObservation): number {
+    const residualGroups = this.groups.filter(group => !group.pitches.has(observation.pitch)
+      && withinContinuousWindow(group.time, observation.performanceTimeMs));
+    const required = Math.max(observation.performanceTimeMs, ...this.claimants(observation).map(strike => this.frontier(strike)),
+      ...residualGroups.map(group => this.groupFrontier(group)));
+    assertContinuousBound(required, observation.performanceTimeMs, CONTINUOUS_ANALYSIS_BOUNDS_MS.residual);
+    return required;
   }
 
   private closeCompletion(): void {
