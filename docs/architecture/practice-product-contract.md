@@ -434,7 +434,8 @@ and `enablingAnalysisFrontierMs` remain performance coordinates, while
 `finalizationSessionTimeMs` records when the enabling knowledge became available.
 Retained finality must have required coverage no greater than enabling or unclamped
 coverage. An unclamped finality has equal required/unclamped bounds; a clamped
-finality has a strictly smaller required bound. Group finalization cannot precede
+finality has a required bound equal to completion Performance Time and strictly
+smaller than its unclamped bound. Group finalization cannot precede
 its child strikes in either Session Time or enabling performance frontier. Completion
 session availability cannot precede any retained strike, group or unattributed
 observation finalization. These causal checks compare coordinates only within their
