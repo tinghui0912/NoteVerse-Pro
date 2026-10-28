@@ -870,3 +870,42 @@ it('Setup always invokes explicit fresh qualification, while ready remains admis
     ts.forEachChild(node,visit);
   };visit(environment);expect(fresh).toBe(true);
 });
+
+
+it('Environment observes acoustic retirement without taking the attempt lease or polling', () => {
+  const file = path.join(practiceRoot, 'environment/practice-environment.ts');
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+  const violations: string[] = [];
+  let waitFound = false, failureGuardFound = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node) && ['PracticeReleaseManager', 'GlobalResourceCoordinator', 'SetupRecoveryCoordinator'].includes(node.text)) violations.push(node.text);
+    if (ts.isMethodDeclaration(node) && node.name.getText(source) === 'awaitEngineRetirement') {
+      waitFound = true;
+      expect(node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.PrivateKeyword)).toBe(true);
+      const calls: string[] = [];
+      const inspect = (child: ts.Node) => {
+        if (ts.isIdentifier(child) && ['setTimeout', 'setInterval', 'requestAnimationFrame', 'sleep'].includes(child.text)) violations.push(child.text);
+        if (ts.isWhileStatement(child) || ts.isDoStatement(child) || ts.isForStatement(child)) violations.push('polling loop');
+        if (ts.isCallExpression(child) && ts.isPropertyAccessExpression(child.expression)) calls.push(child.expression.getText(source));
+        ts.forEachChild(child, inspect);
+      }; inspect(node);
+      expect(calls.filter(call => call.startsWith('engine.')).sort()).toEqual(['engine.snapshot', 'engine.subscribe']);
+      expect(calls).toContain('signal.addEventListener'); expect(calls).toContain('signal.removeEventListener');
+      expect(calls.some(call => /dispose|retire|terminate|acquire|endSession/.test(call))).toBe(false);
+    }
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'onFailure') {
+      const callback = node.arguments[0];
+      if (callback && ts.isArrowFunction(callback) && ts.isBlock(callback.body)) {
+        const guard = callback.body.statements[0];
+        if (guard && ts.isIfStatement(guard)) {
+          failureGuardFound = true;
+          expect(guard.expression.getText(source)).toBe("this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY'");
+          expect(guard.thenStatement.getText(source)).toContain('this.invalidate(error.message)');
+          expect(guard.elseStatement).toBeUndefined();
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }; visit(source);
+  expect({ waitFound, failureGuardFound, violations }).toEqual({ waitFound: true, failureGuardFound: true, violations: [] });
+});

@@ -1566,3 +1566,29 @@ test('READY microphone Setup always probes afresh through both navigation entrie
     await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(0);
   }
 });
+
+
+test('immediate Setup Prepare waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
+  await setupContinuousPracticeMocks(page);
+  let modelAccesses=0;
+  page.on('request',request=>{if(request.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access'))modelAccesses++;});
+  await openPreparedPractice(page,scoreId,revisionId); await configurePractice(page,'STEP','MICROPHONE','OFF');
+  await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
+  const before=await deviceAndEnvironmentCounts(page), accesses=modelAccesses;
+  await page.evaluate(()=>{(window as unknown as {__practiceAcousticEngineFixture:{holdRetirement:boolean}}).__practiceAcousticEngineFixture.holdRetirement=true;});
+  await page.getByRole('button',{name:'返回练习设置',exact:true}).click();
+  const setup=page.getByTestId('practice-setup'), prepare=setup.getByRole('button',{name:'准备练习',exact:true});
+  await prepare.click();
+  await expect.poll(()=>page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{pendingRetirements:number}}).__practiceAcousticEngineFixture.pendingRetirements)).toBe(1);
+  await expect.poll(async()=>(await deviceAndEnvironmentCounts(page)).media).toBe(before.media+1);
+  await expect(prepare).toBeDisabled(); await expect(prepare).toHaveAttribute('aria-busy','true');
+  await expect(setup.getByRole('alert')).toHaveCount(0); await expect(setup.getByText('ACOUSTIC_ENGINE_NOT_IDLE',{exact:true})).toHaveCount(0);
+  expect((await deviceAndEnvironmentCounts(page)).engine).toEqual(before.engine); expect(modelAccesses).toBe(accesses);
+  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{releaseRetirement():void}}).__practiceAcousticEngineFixture.releaseRetirement());
+  await expect(page).toHaveURL(new RegExp(`/practice\\?practiceRevisionId=${revisionId}$`));
+  await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
+  const after=await deviceAndEnvironmentCounts(page);
+  expect(after.media).toBe(before.media+2); expect(after.engine.loads).toBe(before.engine.loads);
+  expect(after.engine.sessions).toBe(before.engine.sessions+1); expect(modelAccesses).toBe(accesses);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});

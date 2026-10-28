@@ -87,3 +87,99 @@ for(const state of ['FAILED','DISPOSED'] as const) it(`${state} engine is replac
   expect(r.platform.modelUrl).toHaveBeenCalledTimes(2); expect(r.worker.load).toHaveBeenCalledTimes(2);
   expect(r.environment.matches(mic)).toBe(true); await r.environment.dispose();
 });
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void, reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+function watchRetirement(engine: AcousticEngine) {
+  const subscribe = engine.subscribe.bind(engine), detachments: ReturnType<typeof vi.fn>[] = [];
+  vi.spyOn(engine, 'subscribe').mockImplementation(listener => {
+    const detach = vi.fn(subscribe(listener)); detachments.push(detach); return detach;
+  });
+  return detachments;
+}
+it('LEASED handoff waits for the attempt to dispose its own lease, without stealing ownership', async () => {
+  const r = rig(); await r.environment.requalify(mic);
+  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
+  const ownerDispose = vi.fn(() => lease.dispose());
+  const engineDispose = vi.spyOn(engine, 'dispose'), detachments = watchRetirement(engine);
+  const endCalls = r.worker.endSession.mock.calls.length, states: string[] = [];
+  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
+  let settled = false; const qualification = r.environment.requalify(mic).then(() => { settled = true; });
+  await vi.waitFor(() => expect(detachments).toHaveLength(1));
+  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(engine.snapshot().state).toBe('LEASED');
+  expect(settled).toBe(false); expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null});
+  expect(ownerDispose).not.toHaveBeenCalled(); expect(engineDispose).not.toHaveBeenCalled();
+  expect(r.worker.endSession).toHaveBeenCalledTimes(endCalls); expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.worker.terminate).not.toHaveBeenCalled();
+  expect(r.worker.beginSession).toHaveBeenCalledTimes(2); // Initial smoke + the original attempt; no second lease.
+  await ownerDispose(); await qualification;
+  expect(ownerDispose).toHaveBeenCalledOnce(); expect(r.worker.endSession).toHaveBeenCalledTimes(endCalls + 1);
+  expect(engine.snapshot().state).toBe('READY_IDLE'); expect(r.environment.matches(mic)).toBe(true);
+  expect(states).not.toContain('BLOCKED'); expect(detachments[0]).toHaveBeenCalledOnce();
+  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.platform.modelUrl).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+  await r.environment.dispose();
+});
+it('RETIRING deferred endSession keeps qualification CHECKING and reuses the same warm engine', async () => {
+  const r = rig(); await r.environment.requalify(mic);
+  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
+  const end = deferred<void>(); r.worker.endSession.mockImplementationOnce(() => end.promise);
+  const retirement = lease.dispose(); await vi.waitFor(() => expect(engine.snapshot().state).toBe('RETIRING'));
+  const detachments = watchRetirement(engine), states: string[] = [];
+  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
+  let settled = false; const qualification = r.environment.requalify(mic).then(() => { settled = true; });
+  await vi.waitFor(() => expect(detachments).toHaveLength(1));
+  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(settled).toBe(false);
+  expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null}); expect(states).not.toContain('BLOCKED');
+  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.platform.modelUrl).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+  end.resolve(); await retirement; await qualification;
+  expect(engine.snapshot().state).toBe('READY_IDLE'); expect(r.environment.matches(mic)).toBe(true);
+  expect(detachments[0]).toHaveBeenCalledOnce(); expect(states).not.toContain('BLOCKED');
+  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+  await r.environment.dispose();
+});
+for (const replacementFails of [false, true]) it(`real failure during retirement is transaction-owned; replacement failure=${replacementFails}`, async () => {
+  const r = rig(); await r.environment.requalify(mic);
+  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
+  const end = deferred<void>(), load = deferred<object>();
+  r.worker.endSession.mockImplementationOnce(() => end.promise);
+  r.worker.terminate.mockImplementationOnce(() => { end.reject(new Error('ACOUSTIC_WORKER_CRASH')); });
+  if (replacementFails) r.worker.load.mockImplementationOnce(() => load.promise);
+  const retirement = lease.dispose().catch(() => {}), detachments = watchRetirement(engine);
+  const states: string[] = [];
+  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
+  const qualification = r.environment.requalify(mic);
+  await vi.waitFor(() => expect(detachments).toHaveLength(1));
+  r.crash();
+  if (replacementFails) {
+    await vi.waitFor(() => expect(r.worker.load).toHaveBeenCalledTimes(2));
+    expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null}); expect(states).not.toContain('BLOCKED');
+    load.reject(new Error('REPLACEMENT_LOAD_FAILED'));
+  }
+  await retirement; await qualification;
+  expect(detachments[0]).toHaveBeenCalledOnce();
+  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
+  expect(r.platform.modelUrl).toHaveBeenCalledTimes(2); expect(r.worker.load).toHaveBeenCalledTimes(2);
+  if (replacementFails) {
+    expect(r.environment.snapshot()).toMatchObject({status:'BLOCKED', reason:'REPLACEMENT_LOAD_FAILED'});
+    expect(states.filter(state => state === 'BLOCKED')).toHaveLength(1);
+  } else { expect(r.environment.matches(mic)).toBe(true); expect(states).not.toContain('BLOCKED'); }
+  await r.environment.dispose();
+});
+it('disposing the Environment aborts and detaches its wait without a later READY or dangling qualification', async () => {
+  const r = rig(); await r.environment.requalify(mic);
+  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
+  const end = deferred<void>(); r.worker.endSession.mockImplementationOnce(() => end.promise);
+  const retirement = lease.dispose(), detachments = watchRetirement(engine), states: string[] = [];
+  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
+  const qualification = r.environment.requalify(mic);
+  await vi.waitFor(() => expect(detachments).toHaveLength(1));
+  const disposed = r.environment.dispose();
+  await qualification; expect(detachments[0]).toHaveBeenCalledOnce();
+  expect(states).not.toContain('READY'); expect(states).not.toContain('BLOCKED');
+  end.resolve(); await retirement; await disposed;
+  expect(r.environment.snapshot().status).toBe('UNCONFIGURED'); expect(states).not.toContain('READY');
+  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  await expect(r.environment.requalify(mic)).rejects.toThrow('PRACTICE_ENVIRONMENT_DISPOSED');
+});

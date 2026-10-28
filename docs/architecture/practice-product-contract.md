@@ -107,6 +107,18 @@ not recreate the engine, request model access, download or load the model again.
 FAILED/DISPOSED engine is replaced and prepared through the same existing transaction.
 No second preparation lifecycle or idempotent compatibility wrapper exists.
 
+Fresh Setup qualification may overlap asynchronous retirement of the previous Practice
+attempt's acoustic inference lease. The previous attempt owns that retirement through
+its unmount/controller cleanup. After fresh external probes, Environment observes its
+warm engine and waits by state subscription while it is LEASED or RETIRING; it never
+forces the lease to retire. This normal ownership handoff keeps readiness CHECKING,
+not BLOCKED, without a polling timer or timeout. Once READY_IDLE, the same engine,
+worker and loaded model are reused. A genuinely FAILED/DISPOSED engine is replaced
+inside the explicit qualification transaction. CHECKING owns any resulting qualification
+failure; ambient engine failure invalidates only live READY evidence. Only an actually
+unsuccessful qualification ends in BLOCKED. Environment disposal aborts the wait and
+detaches its subscription, preventing a later READY publication.
+
 Permission-denied browser policy may make `getUserMedia()` reject immediately; the app
 cannot force a browser permission prompt. The learner allows access in browser site
 settings, returns to Practice Setup, and explicitly prepares again. Execution status has

@@ -4,7 +4,12 @@ import { expect, type Page } from '@playwright/test';
 export async function installAcousticEngineFixture(page: Page) {
   await page.addInitScript(() => {
     const nativeWorker = window.Worker;
-    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {} };
+    const heldRetirements: Array<() => void> = [];
+    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {},
+      holdRetirement: false, pendingRetirements: 0, releaseRetirement: () => {} };
+    stats.releaseRetirement = () => {
+      stats.holdRetirement = false; const pending = heldRetirements.splice(0); stats.pendingRetirements = 0; pending.forEach(release => release());
+    };
     (window as unknown as { __practiceAcousticEngineFixture: typeof stats }).__practiceAcousticEngineFixture = stats;
     class EngineWorker extends EventTarget {
       private closed = false;
@@ -25,7 +30,18 @@ export async function installAcousticEngineFixture(page: Page) {
             stats.inferences++; result = { events: stats.pitches.map(pitch => ({ pitch, midiPitch: pitch === 'D4' ? 62 : 60,
               targetSample: Math.ceil(message.input!.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
               inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++this.job };
-          } else if (message.type === 'END_SESSION' && message.sessionId === this.token) { this.token = null; this.job = 0; }
+          } else if (message.type === 'END_SESSION' && message.sessionId === this.token) {
+            if (stats.holdRetirement) {
+              stats.pendingRetirements++;
+              heldRetirements.push(() => {
+                if (this.closed) return;
+                this.token = null; this.job = 0;
+                this.dispatchEvent(new MessageEvent('message', { data: { id: message.id, result: undefined } }));
+              });
+              return;
+            }
+            this.token = null; this.job = 0;
+          }
           else if (message.type === 'DISPOSE') this.token = null;
           else error = 'INVALID_FIXTURE_ENGINE_PROTOCOL';
           this.dispatchEvent(new MessageEvent('message', { data: { id: message.id, result, error } }));

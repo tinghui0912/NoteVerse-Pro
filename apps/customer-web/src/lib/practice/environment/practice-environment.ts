@@ -46,11 +46,13 @@ export class PracticeEnvironment {
       try {
         await this.platform.probe(requirements, ready, abort.signal); check();
         if (requirements.includes('acousticEngine')) {
+          if (this.engine) { await this.awaitEngineRetirement(this.engine, abort.signal); check(); }
           if (!this.engine || ['FAILED', 'DISPOSED'].includes(this.engine.snapshot().state)) {
-            await this.engine?.dispose(); this.engine = this.platform.createEngine();
+            await this.engine?.dispose(); check();
+            this.engine = this.platform.createEngine();
             this.engine.subscribe(() => { if (!this.disposed) this.update({ ...this.readiness }); });
             this.engine.onFailure(error => {
-              if (this.readiness.components.acousticEngine) this.invalidate(error.message);
+              if (this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY') this.invalidate(error.message);
             });
           }
           if (this.engine.snapshot().state === 'EMPTY') {
@@ -70,6 +72,26 @@ export class PracticeEnvironment {
       } finally { this.pending = null; }
     })();
     return this.pending;
+  }
+  /** Observe the previous owner's handoff; only that owner can release its lease. */
+  private awaitEngineRetirement(engine: AcousticEngine, signal: AbortSignal): Promise<void> {
+    const retiring = () => { const state = engine.snapshot().state; return state === 'LEASED' || state === 'RETIRING'; };
+    if (signal.aborted) return Promise.reject(new Error('PRACTICE_PREPARATION_CANCELLED'));
+    if (!retiring()) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let unsubscribe = () => {};
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true; unsubscribe(); signal.removeEventListener('abort', aborted);
+        if (error) reject(error); else resolve();
+      };
+      const aborted = () => finish(new Error('PRACTICE_PREPARATION_CANCELLED'));
+      const changed = () => { if (!retiring()) finish(); };
+      unsubscribe = engine.subscribe(changed);
+      signal.addEventListener('abort', aborted, { once: true });
+      if (signal.aborted) aborted(); else changed();
+    });
   }
   acquireInference = async (signal: AbortSignal): Promise<AcousticInferencePort> => {
     if (this.disposed || this.readiness.status !== 'READY' || !this.readiness.components.acousticEngine
