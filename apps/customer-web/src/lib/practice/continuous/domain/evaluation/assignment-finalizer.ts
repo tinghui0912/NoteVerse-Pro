@@ -5,7 +5,7 @@ import { completeContinuousAssignment } from '@/lib/practice/continuous/domain/e
 import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousTargetStateGroup, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import type { ContinuousCompletion, ContinuousExpectedStrike, UnattributedContinuousObservation, ContinuousFinality, ContinuousGroupAssignment, ContinuousTargetState, ContinuousObservationAssignment, ContinuousStrikeAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 
 
@@ -142,11 +142,10 @@ export class ContinuousAssignmentFinalizer {
   }
 
   /** Presentation reads only source-blind target identity/state, never a match payload. */
-  targetStates(): readonly ContinuousTargetStateGroup[] {
-    return immutableContinuousValue(this.groups.map(group => ({ groupId: group.groupId,
-      strikes: group.strikes.map(strike => ({ strikeId: strike.strikeId, renderNoteIds: strike.renderNoteIds,
-        state: this.strikeState(strike).state })),
-    })));
+  targetStates(): readonly ContinuousTargetState[] {
+    return immutableContinuousValue(this.groups.flatMap(group => group.strikes.map(strike => ({
+      strikeId: strike.strikeId, renderNoteIds: strike.renderNoteIds, state: this.strikeState(strike).state,
+    }))));
   }
 
   snapshot(): ContinuousAssignmentSnapshot {

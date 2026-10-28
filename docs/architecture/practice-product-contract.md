@@ -217,7 +217,7 @@ Practice Results/reports remain transient and are never persisted.
 
 Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/unsupported decorations while retaining score, range
-and playhead. Evaluation, interpretation and natural Result production
+and playhead. Evaluation and natural Result production
 continue unchanged. ON/OFF does not restart a session or engine. Review always
 shows completed feedback; Share Video always uses its clean-score contract.
 
@@ -251,9 +251,9 @@ shared physical contract without redefining multiplicity.
 `step/domain/` owns pitch evidence, exact target comparison, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,
-source-blind assignment/finality, and source-specific interpretation. The evaluation
-session composes these layers; live feedback is a narrow group projection and
-completed evaluation retains the full assignment and interpretation. The two mode domains do not
+source-blind assignment/finality and narrow target feedback. The evaluation
+session composes these owners; live feedback contains settled target identities and
+assignment states, while completed evaluation retains the full assignment. The two mode domains do not
 depend on one another. Consumers import concrete owner modules directly.
 
 The performance clock owns transport coordinates and accepts an established
@@ -439,7 +439,7 @@ does not extend performance duration or evaluation coverage. At pause T coverage
 remains below T. Natural completion drains real tail context and outstanding
 analysis, then publishes empty exact-T coverage for the completed `[0,T)` domain.
 
-## Continuous Evidence, Assignment and Interpretation
+## Continuous Evidence, Assignment and Target Feedback
 
 ### Timing coordinates and calibration
 
@@ -533,7 +533,7 @@ delay never shifts source events or their mapped performance positions.
 `ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1`. Both declare
 `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` with `calibrationApplied: false`.
 There is no offset, measured-zero claim, calibration profile/storage or learner UI.
-Transport, interpretation, Review and score annotations do not apply timing
+Transport, target feedback, Review and score annotations do not apply timing
 correction. Result evidence provenance retains the source-bound mapping/calibration
 identity without turning it into a learner metric.
 
@@ -556,7 +556,7 @@ frontiers coherently to prevent late evidence and premature finalization. No non
 calibration is implemented by this contract.
 
 A performance retains three distinct layers: immutable evidence truth,
-source-blind assignment truth, and source-specific product interpretation.
+source-blind assignment truth and source-bound evidence provenance.
 MIDI publishes each physical NOTE_ON independently; its 250ms delivery grace is a
 coverage-publication policy. Microphone observations describe decoder-qualified
 acoustic evidence, not proof of physical key attacks.
@@ -657,35 +657,35 @@ still require many legal edges; this does not justify inventing a ceiling here.
 STEP multi-hour soak is not part of this round. Continuous recording chunk growth
 is not part of this round.
 
-### Source-specific feedback
+### Canonical target truth
 
-The session fixes interpretation policy from its source. Interpretation is an
-immutable target-support projection of assignment; it never assigns evidence again.
+Continuous has one source-blind target state vocabulary: PENDING, MATCHED,
+UNMATCHED and NOT_REACHED. There is no persisted interpretation tree or group
+performance verdict. Groups organize score targets and assignment/finality; they do
+not classify learner outcomes.
 
-MIDI uses `MIDI_PHYSICAL_NOTE_EVENTS_V2`: PENDING, CORRECT, MISSING, NOT_REACHED.
-Groups are PENDING, CORRECT, INCOMPLETE_CHORD, MISSING or NOT_REACHED. A group is
-CORRECT when all targets are supported, INCOMPLETE_CHORD when some are supported,
-and MISSING when none are supported. Non-target physical observations remain
-UNATTRIBUTED facts, not substituted target errors or a duplicate interpreted list.
+MATCHED means the current assignment policy found a unique accepted observation
+with the exact target pitch inside its legal time window. UNMATCHED means healthy
+completed assignment coverage found no matching accepted observation. Neither is
+an absolute claim about the physical world.
 
-Microphone uses `ACOUSTIC_TARGET_DETECTION_V2`: PENDING, SUPPORTED, NOT_DETECTED,
-NOT_REACHED. Groups are PENDING, SUPPORTED, PARTIALLY_SUPPORTED, NOT_DETECTED or
-NOT_REACHED. NOT_DETECTED means healthy completed acoustic analysis did not detect
-supporting same-pitch evidence; it does not prove a physical note was not played.
-Decoder-qualified evidence receives no second confidence threshold here.
-Unmatched acoustic observations stay in the raw assignment ledger and do not
-become learner-facing wrong/extra claims.
+For MIDI, accepted observations are physical NOTE_ON evidence. For microphone,
+accepted observations are decoder-qualified acoustic evidence: UNMATCHED means
+healthy completed acoustic analysis did not detect matching target evidence. It
+does not prove the learner physically failed to play the note. No second acoustic
+confidence threshold or source-specific learner state tree is applied. Source
+capabilities remain explicit in inputSource and evidence provenance.
 
-For a C4+D4 target, both sources share the same target visuals:
+For a C4+D4 target, both sources produce the same assignment states and colors:
 
-| Evidence | MIDI targets | Microphone targets | Target colors |
+| Accepted evidence | C4 target | D4 target | Target colors |
 | --- | --- | --- | --- |
-| silence | MISSING / MISSING | NOT_DETECTED / NOT_DETECTED | red / red |
-| C4 + E4 | CORRECT / MISSING | SUPPORTED / NOT_DETECTED | green / red |
-| C4 only | CORRECT / MISSING | SUPPORTED / NOT_DETECTED | green / red |
-| C4 + D4 | CORRECT / CORRECT | SUPPORTED / SUPPORTED | green / green |
+| silence | UNMATCHED | UNMATCHED | red / red |
+| C4 + E4 | MATCHED | UNMATCHED | green / red |
+| C4 only | MATCHED | UNMATCHED | green / red |
+| C4 + D4 | MATCHED | MATCHED | green / green |
 
-E4 in the second row is retained as UNATTRIBUTED; the third row contains no E4 fact.
+E4 in the second row remains UNATTRIBUTED; the third row contains no E4 fact.
 PENDING and NOT_REACHED are untouched. UNAVAILABLE means trustworthy analysis could
 not complete and never fabricates negative target colors. User abandonment still
 produces no learner Result. Analysis Failure Intervention remains a separate,
@@ -699,22 +699,24 @@ score/playhead, completed annotations, useful metadata and recording/save/share
 and retry/back actions; it does not display outcome/extra counts or replacement
 percentages, grades or scores.
 
-Live Practice and completed Review share one target annotation function. CORRECT /
-SUPPORTED map to supported green; MISSING / NOT_DETECTED map to unsupported red.
-PENDING, NOT_REACHED and unavailable analysis produce no fabricated correctness
-colors. Score decorations are supported/unsupported only.
+Live Practice and completed Review share one target-feedback contract and annotation
+mapper. MATCHED maps to supported green; UNMATCHED maps to unsupported red. PENDING,
+NOT_REACHED and unavailable analysis produce no fabricated correctness colors.
+Score decorations are supported/unsupported only.
 
-Live payload remains narrow: source/policy identities and group/strike render IDs
-with settled target semantic states. The finalizer's `targetStates()` read projects
-only groupId, strikeId, renderNoteIds and source-blind strike state; it contains no
-match observation, full assignment, provenance, ownership or finality payload.
-Live interpretation does not depend on the broad raw group type. Full snapshots
-remain available only for completion, artifact validation and focused diagnostics.
+Target feedback contains exactly assignmentPolicyId and a flat targets list; each
+entry contains strikeId, renderNoteIds and MATCHED or UNMATCHED. There is no groupId
+or inputSource because color consumers need neither. The finalizer's targetStates()
+read projects only strikeId, renderNoteIds and source-blind strike state, without
+copying evidence history. Completed Review projects its assignment into the same
+narrow feedback at the domain boundary. Score-view consumes no broad assignment,
+match observation, provenance, ownership, finality or unattributed payload. Full
+snapshots remain available only for completion, validation and focused diagnostics.
 
 Completed evaluation retains all accepted observations, exact matches, unattributed
-facts, ownership, target states, coordinates and provenance. Its interpretation has
-no duplicate list of non-target observations. No evidence is dropped or reconstructed,
-and there is no second offline assignment pass.
+facts, ownership, target states, coordinates and provenance. No evidence is dropped,
+reconstructed or duplicated into a second interpretation tree, and there is no
+second offline assignment pass.
 Natural SCOPE_COMPLETED enters application FINALIZING until tail analysis and recording
 finish. Completion projects the same ledger and drains unfinished work without a
 second evaluation pass. End during count-in discards the session without a result.
@@ -730,40 +732,39 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-4: local session and score/revision/artifact identities, resolved scope, tempo plan,
+5: local session and score/revision/artifact identities, resolved scope, tempo plan,
 input source, active performance duration, completed evaluation, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
 no result artifact, metrics or performance report.
 
 The completion transaction creates the result from the canonical artifact and
-resolved scope. COMPLETE evaluation retains assignment and interpretation; UNAVAILABLE
-retains its reason and both policy identities, without inventing empty analysis.
-Validation rejects mismatched session/source identities, corrupt assignment or
-interpretation and unsupported provenance. It never repairs
+resolved scope. COMPLETE evaluation has exactly status, inputSource, assignmentPolicyId and
+assignment. UNAVAILABLE has exactly status, inputSource, assignmentPolicyId and
+reason, without inventing empty analysis.
+Validation rejects mismatched session/source identities, corrupt assignment and
+unsupported provenance. It never repairs
 or upgrades an artifact. JSON round-trip preserves these semantic checks.
 Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-Result validation accepts schema 4 exact fields only. Schemas 2/3 and an extra metrics
-field are rejected without migration, normalization, compatibility or repair.
+Result validation accepts schema 5 exact fields only. Schemas 2/3/4, retired
+interpretation fields/policies, extra unknown fields and a metrics field are rejected without migration, normalization, compatibility or repair.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
 or active duration. Score annotations, playhead and share-score rendering require
 confirmed artifact identity independently of recording replay.
 
 ## Evaluation / Evidence Provenance
 
-Every live/completed evaluation declares `assignmentPolicyId` and
-`interpretationPolicyId`. `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3` covers
-same-pitch +/-250ms eligibility, maximum cardinality then minimum absolute timing
-error, stable ties, exact match/unattributed ownership, direct-cohort target
-frontiers, child-dependent group finality and terminal clamps. It removes target
-substitution and its propagated waiting machinery. All finalization availability
-continues to use Session Time; expected/event/frontier positions use Performance
-Time. Interpretation is `MIDI_PHYSICAL_NOTE_EVENTS_V2` or
-`ACOUSTIC_TARGET_DETECTION_V2`. Validation accepts these exact current identities
-and the deterministic target-support projection only, without repair or reassignment.
+Every live/completed evaluation declares assignmentPolicyId.
+`CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3` continues to cover same-pitch
++/-250ms eligibility, maximum cardinality then minimum absolute timing error,
+stable ties, exact match/unattributed ownership, direct-cohort target frontiers,
+child-dependent group finality and terminal clamps. Finalization availability uses
+Session Time; expected/event/frontier positions use Performance Time. There is no
+independent interpretation algorithm or interpretation policy identity. Validation
+checks exact assignment truth and source consistency without repair or reassignment.
 
 MIDI evidence declares
 `MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`: physical NOTE_ON facts,
@@ -856,7 +857,7 @@ and the appropriate audio clone. Each owner releases only its own resources.
 
 Saved Performance Take archives AUDIO/VIDEO media with source snapshot identity,
 scope, tempo and recording timebase. It does not persist Practice assignment,
-interpretation, metrics or implementation provenance. Review Save Recording is an
+derived target summaries, metrics or implementation provenance. Review Save Recording is an
 explicit user action that reads only a READY recording and archive metadata.
 Completion, Review mount and Review exit never create a PerformanceTake.
 

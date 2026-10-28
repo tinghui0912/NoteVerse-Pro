@@ -108,7 +108,7 @@ describe('explicit semantic MIDI progression', () => {
       evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
     return { publications, evaluation, result, callCount };
   }
-  it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities, interpretation and Result', reason => {
+  it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities and completed assignment', reason => {
     const dense = performance(cadences.dense, reason);
     for (const calls of [cadences.sparse, cadences.irregular]) {
       const other = performance(calls, reason);
@@ -323,7 +323,7 @@ describe('Continuous clock and evaluation composition', () => {
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
   });
 
-  it('MIDI produces target-support verdicts through the sole accumulated evaluator', () => {
+  it('MIDI produces canonical target assignment states through the sole accumulated evaluator', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       createClockEvidence: domainId => new ContinuousMidiEvidence(domainId),
@@ -333,7 +333,7 @@ describe('Continuous clock and evaluation composition', () => {
       tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
       inputSource: 'MIDI',
       countInBeats: 0,
-      localSessionId: 'five-verdicts'
+      localSessionId: 'target-states'
     });
     session.start();
     let now = 0;
@@ -346,7 +346,7 @@ describe('Continuous clock and evaluation composition', () => {
     clock.advance(2500); session.advanceToNow();
     const completed = session.completedEvaluation();
     if (completed.status !== 'COMPLETE') throw new Error('incomplete MIDI truth');
-    expect(completed.interpretation.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'MISSING', 'INCOMPLETE_CHORD', 'CORRECT']);
+    expect(completed.assignment.groups.map(group => group.strikes.map(strike => strike.state))).toEqual([['MATCHED'], ['UNMATCHED'], ['UNMATCHED'], ['MATCHED', 'UNMATCHED'], ['MATCHED']]);
     expect(completed.assignment.unattributedObservations).toHaveLength(2);
     expect(completed.assignment.observationAssignments.map(owner => owner.kind).sort()).toEqual(['STRIKE_MATCH', 'STRIKE_MATCH', 'STRIKE_MATCH', 'UNATTRIBUTED', 'UNATTRIBUTED']);
     expect(completed.assignment.groups).toEqual(session.evaluationSnapshot.assignment.groups);
@@ -583,7 +583,7 @@ describe('Continuous clock and evaluation composition', () => {
     session.end('STOPPED_BY_USER');
 
     expect(session.completedEvaluation()).toEqual({
-      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'INCOMPLETE_ANALYSIS',
+      status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'INCOMPLETE_ANALYSIS',
     });
   });
 

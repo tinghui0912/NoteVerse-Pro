@@ -284,7 +284,7 @@ it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure
     sourceStartSampleIndex: next, sourceEndSampleIndex: next + n, samples: new Float32Array(n) }); next += n; } }
   feed(96000); runtime.beginSegment(0); feed(153600); runtime.requestTerminal(1200); feed(163200); await runtime.seal();
   expect(session.clock.snapshot()).toEqual(before);
-  expect(session.evaluationSnapshot.interpretation.groups[0].verdict).toBe('SUPPORTED');
+  expect(session.evaluationSnapshot.assignment.groups[0].strikes.every(strike => strike.state === 'MATCHED')).toBe(true);
   await runtime.dispose();
   session.pause(); const paused = session.clock.snapshot(); clock.advance(5000);
   expect(session.clock.snapshot().performanceTimeMs).toBe(paused.performanceTimeMs);
@@ -348,14 +348,13 @@ it('analysis delay changes only knowledge finalization, never event timing, assi
     session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: available + 100 });
     const evaluation = session.completedEvaluation();
     if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    return { assignment: evaluation.assignment, interpretation: evaluation.interpretation };
+    return { assignment: evaluation.assignment };
   };
   const early = evaluate(4000), late = evaluate(8000);
   const stripKnowledge = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (key, item) =>
     ['finalizationSessionTimeMs', 'availabilitySessionTimeMs'].includes(key) ? undefined : item));
   expect(late.assignment.observations).toEqual(early.assignment.observations);
   expect(stripKnowledge(late.assignment)).toEqual(stripKnowledge(early.assignment));
-  expect(late.interpretation).toEqual(early.interpretation);
   const earlyStrike = early.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
   const lateStrike = late.assignment.groups.flatMap(g => g.strikes).find(s => s.state === 'MATCHED')!;
   expect(earlyStrike.finality.finalizationSessionTimeMs).toBe(4100);

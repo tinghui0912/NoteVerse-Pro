@@ -1,6 +1,6 @@
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
-import type { ContinuousLiveFeedback } from './evaluation/live-feedback';
+import type { ContinuousTargetFeedback } from './evaluation/target-feedback';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { PerformanceClockRuntime, PerformanceTimeline, type PerformanceClockRuntimeOptions, type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
@@ -205,7 +205,7 @@ export class ContinuousPracticeSession {
     return this.clock.terminationReason;
   }
 
-  get liveFeedback(): ContinuousLiveFeedback { return this.evaluator.liveFeedback(); }
+  get targetFeedback(): ContinuousTargetFeedback { return this.evaluator.targetFeedback(); }
 
   get evaluationSnapshot(): ContinuousEvaluationSnapshot {
     return this.evaluator.snapshot();

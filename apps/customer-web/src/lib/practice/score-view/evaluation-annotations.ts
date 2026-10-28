@@ -1,7 +1,6 @@
 import { findScoreElementByRenderId } from './dom';
 import { REPORT_NOTE_CLASSES } from './decorations';
-import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
-import type { ContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
+import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 
 type EvaluationNoteAnnotations = {
   supportedNoteIds: string[];
@@ -51,24 +50,12 @@ export class EvaluationAnnotationController {
   }
 }
 
-type TargetAnnotationsInput = readonly Readonly<{ strikes: readonly Readonly<{
-  renderNoteIds: readonly string[];
-  state: 'PENDING' | 'NOT_REACHED' | 'CORRECT' | 'MISSING' | 'SUPPORTED' | 'NOT_DETECTED';
-}>[] }>[];
-
-/** The same target colors in live Practice and completed Review. */
-function targetAnnotations(groups: TargetAnnotationsInput): EvaluationNoteAnnotations {
+/** One mapper for live Practice and completed Review, consuming settled assignment truth only. */
+export function noteAnnotationsFromTargetFeedback(feedback: ContinuousTargetFeedback): EvaluationNoteAnnotations {
   const supportedNoteIds: string[] = [], unsupportedNoteIds: string[] = [];
-  for (const group of groups) for (const strike of group.strikes) {
-    if (strike.state === 'CORRECT' || strike.state === 'SUPPORTED') supportedNoteIds.push(...strike.renderNoteIds);
-    else if (strike.state === 'MISSING' || strike.state === 'NOT_DETECTED') unsupportedNoteIds.push(...strike.renderNoteIds);
+  for (const target of feedback.targets) {
+    if (target.state === 'MATCHED') supportedNoteIds.push(...target.renderNoteIds);
+    else unsupportedNoteIds.push(...target.renderNoteIds);
   }
   return { supportedNoteIds, unsupportedNoteIds };
-}
-export function noteAnnotationsFromLiveFeedback(feedback: ContinuousLiveFeedback): EvaluationNoteAnnotations {
-  return targetAnnotations(feedback.groups);
-}
-export function noteAnnotationsFromCompletedEvaluation(evaluation: CompletedContinuousEvaluation): EvaluationNoteAnnotations {
-  return evaluation.status === 'UNAVAILABLE' ? { supportedNoteIds: [], unsupportedNoteIds: [] }
-    : targetAnnotations(evaluation.interpretation.groups);
 }

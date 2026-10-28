@@ -3,7 +3,6 @@ import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousFinality, FinalizedContinuousGroupAssignment, ContinuousObservationAssignment, CompletedContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';
 export const finality: ContinuousFinality = Object.freeze({ requiredAnalysisFrontierMs: 1250, unclampedRequiredFrontierMs: 1250,
   enablingPublicationId: 'fixture', enablingAnalysisFrontierMs: 10000, finalizationSessionTimeMs: 10000, terminalClamp: false });
 export function completedEvaluationFixture(inputSource: PracticeInputSource, groups: readonly FinalizedContinuousGroupAssignment[] = [], unattributed: readonly ContinuousObservation[] = []): CompletedContinuousEvaluation {
@@ -14,8 +13,5 @@ export function completedEvaluationFixture(inputSource: PracticeInputSource, gro
   const assignment: CompletedContinuousAssignment = { sessionDomainId: 'fixture', observations, groups,
     unattributedObservations: unattributed.map(observation => ({ observation, finality })), observationAssignments,
     completion: { reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 } };
-  const interpretation = interpretContinuousAssignment(assignment, inputSource);
-  return interpretation.inputSource === 'MIDI'
-    ? { status: 'COMPLETE', inputSource: 'MIDI', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2', assignment, interpretation }
-    : { status: 'COMPLETE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', assignment, interpretation };
+  return { status: 'COMPLETE', inputSource, assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, assignment };
 }

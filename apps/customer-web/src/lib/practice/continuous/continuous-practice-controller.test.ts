@@ -118,7 +118,7 @@ describe('Continuous application owner', () => {
       expect(controller.snapshot().evaluation).toEqual(before);
       controller.refresh();
       expect(cover).toHaveBeenCalledExactlyOnceWith(250, 500);
-      expect(controller.snapshot().evaluation?.groups[0].strikes[0].state).toBe('MISSING');
+      expect(controller.snapshot().evaluation?.targets[0].state).toBe('UNMATCHED');
       for (let i = 0; i < 100; i++) { controller.snapshot(); controller.refresh(); }
       expect(cover).toHaveBeenCalledOnce();
       await controller.abandon();
@@ -325,7 +325,7 @@ describe('Continuous application owner', () => {
     const paused = controller.snapshot(); expect(paused.transport?.state).toBe('PAUSED');
     expect(paused.analysisError).toBeNull(); expect(f.worker.dispose).not.toHaveBeenCalled();
     await f.feed(200); expect(controller.snapshot().transport?.performanceTimeMs).toBe(paused.transport?.performanceTimeMs);
-    expect(controller.snapshot().evaluation?.groups).toEqual(paused.evaluation?.groups);
+    expect(controller.snapshot().evaluation?.targets).toEqual(paused.evaluation?.targets);
     // Outstanding evidence may finish only through the already captured running interval.
     expect(controller.snapshot().evaluation).not.toHaveProperty('assignment');
     recorderClone.audio.muted = false; recorderClone.audio.dispatchEvent(new Event('unmute')); expect(controller.continueAfterRecovery()).toBe(true);
@@ -524,7 +524,7 @@ describe('Continuous application owner', () => {
     const T = controller.snapshot().transport!.performanceTimeMs;
     if (paused) { controller.resume(); await f.feed(controller.snapshot().transport!.countInRemainingMs); } await f.feed(300);
     expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
     expect(controller.snapshot().completed?.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE' },
       evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
         sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });
@@ -717,7 +717,7 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
     for (const phase of ['acquireInferenceLease', 'audioContextResume', 'firLoad', 'captureConnect', 'acousticPreroll', 'recorderAdmission']) {
       expect(phases).toContainEqual(expect.objectContaining({ phase, outcome: 'SUCCEEDED', durationMs: expect.any(Number) }));
     }
-    expect(owner.snapshot().evaluation?.groups).toEqual([]);
+    expect(owner.snapshot().evaluation?.targets).toEqual([]);
     expect(owner.snapshot().evaluation).not.toHaveProperty('assignment');
     if (natural) { await f.feed(1500); expect(owner.snapshot().completed?.result).toBeDefined(); }
     await owner.abandon(); await owner.dispose();
@@ -776,7 +776,7 @@ it('controller refresh and repeated live snapshots never request the full assign
     await controller.start(); f.clock.set(600); controller.refresh();
     for (let i = 0; i < 100; i++) {
       const feedback = controller.snapshot().evaluation!;
-      expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId','groups','inputSource','interpretationPolicyId']);
+      expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId','targets']);
       expect(feedback).not.toHaveProperty('assignment'); expect(feedback).not.toHaveProperty('extraObservations');
     }
     expect(full).not.toHaveBeenCalled();

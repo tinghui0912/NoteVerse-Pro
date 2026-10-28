@@ -91,7 +91,7 @@ describe('immutable Continuous product result', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(result));
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(5);
     expect(parsed.evidenceProvenance.timing.calibrationApplied).toBe(false);
     expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
     expect(parsed).toEqual(result);
@@ -102,6 +102,10 @@ describe('immutable Continuous product result', () => {
   });
   it.each([
     ['schema 1', (value: ReturnType<typeof clone>) => { value.schemaVersion = 1; }],
+    ['schema 4', (value: ReturnType<typeof clone>) => { value.schemaVersion = 4; }],
+    ['old interpretation tree', (value: ReturnType<typeof clone>) => { value.evaluation.interpretation = {}; }],
+    ['retired MIDI policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V2'; }],
+    ['retired acoustic policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'ACOUSTIC_TARGET_DETECTION_V2'; }],
     ['schema 3', (value: ReturnType<typeof clone>) => { value.schemaVersion = 3; }],
     ['old assignment policy', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2'; }],
     ['old MIDI policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V1'; }],
@@ -146,7 +150,7 @@ describe('immutable Continuous product result', () => {
     expect(parsed.evaluation.status).toBe('COMPLETE');
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
     expect(parsed.evaluation.assignment.observations).toEqual([observation]);
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(5);
     expect(parsed.evaluation.assignment.completion).toMatchObject({ performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
     expect(parsed.evaluation.assignment.groups[0].strikes[0].finality.finalizationSessionTimeMs).toBe(3000);
     expect(parsed.evidenceProvenance.timing).toMatchObject({ calibrationApplied: false,
@@ -157,8 +161,7 @@ describe('immutable Continuous product result', () => {
   it('unavailable evaluation retains identities and provenance without fabricated outcomes', () => {
     const result = canonicalContinuousResultFixture('MICROPHONE', 44100, false);
     expect(result).not.toHaveProperty('metrics');
-    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3',
-      interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2' });
+    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' });
     expect(result.evidenceProvenance).toMatchObject({ sourceSampleRateHz: 44100 });
     expect(() => assertContinuousPerformanceResult(JSON.parse(JSON.stringify(result)))).not.toThrow();
   });

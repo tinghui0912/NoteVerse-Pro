@@ -88,8 +88,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     if (target?.startsWith('score-view/') || target?.startsWith('kernel/')) return true;
     if (source === 'score-view/verovio-adapter.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/score/verovio/index.ts'))) return true;
     return source === 'score-view/evaluation-annotations.ts' && edge.typeOnly
-      && edge.bindings.length > 0 && (target === 'continuous/domain/evaluation/evaluation-types.ts' && edge.bindings.every(name => name === 'CompletedContinuousEvaluation')
-        || target === 'continuous/domain/evaluation/live-feedback.ts' && edge.bindings.every(name => name === 'ContinuousLiveFeedback'));
+      && target === 'continuous/domain/evaluation/target-feedback.ts' && edge.bindings.length > 0
+      && edge.bindings.every(name => name === 'ContinuousTargetFeedback');
   }
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'kernel/', 'score-view/'].some(owner => target.startsWith(owner))
     || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)));
@@ -228,7 +228,7 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('separates raw assignment mechanics from source interpretation and presentation', () => {
+  it('separates raw assignment mechanics from target feedback and presentation', () => {
     const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'matching.ts', 'observation-store.ts',
       'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
     const evaluationRoot = 'continuous/domain/evaluation/';
@@ -237,11 +237,6 @@ describe('Practice bounded domain dependencies', () => {
       if (name.startsWith(evaluationRoot) && rawModules.has(path.basename(file))) {
         for (const edge of graph.get(normalize(file))!) {
           expect(edge.target && relative(edge.target).startsWith(evaluationRoot) && rawModules.has(path.basename(edge.target)), name + ' -> ' + edge.specifier).toBe(true);
-        }
-      }
-      if (name === evaluationRoot + 'interpretation.ts') {
-        for (const edge of graph.get(normalize(file))!) {
-          expect(!edge.target || !['matching.ts', 'assignment-finalizer.ts', 'finalization-policy.ts', 'session.ts'].some(name => relative(edge.target!) === evaluationRoot + name), edge.specifier).toBe(true);
         }
       }
     }
@@ -254,7 +249,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const file of presentation) {
       for (const edge of imports(file)) {
         expect(!edge.target || !relative(edge.target).startsWith(evaluationRoot) ||
-          ['evaluation-types.ts', 'live-feedback.ts'].includes(path.basename(edge.target)), file + ' -> ' + edge.specifier).toBe(true);
+          ['evaluation-types.ts', 'target-feedback.ts'].includes(path.basename(edge.target)), file + ' -> ' + edge.specifier).toBe(true);
       }
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const visit = (node: ts.Node) => {
@@ -263,24 +258,6 @@ describe('Practice bounded domain dependencies', () => {
       };
       visit(source);
     }
-  });
-
-  it('only evaluation composition and its live group projection import the source-specific interpreter', () => {
-    const interpreter = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/interpretation.ts'));
-    const composition = normalize(path.join(practiceRoot, 'continuous/domain/evaluation/session.ts'));
-    const allowed = (file: string, edge: Edge) => edge.target !== interpreter || [composition, normalize(path.join(practiceRoot, 'continuous/domain/evaluation/live-feedback.ts'))].includes(normalize(file));
-    for (const [file, edges] of sourceGraph) {
-      for (const edge of edges) expect(allowed(file, edge), file + ' -> ' + edge.specifier).toBe(true);
-    }
-    for (const source of ['continuous/continuous-practice-controller.ts', 'score-view/evaluation-annotations.ts']) {
-      const file = path.join(practiceRoot, source);
-      for (const statement of [
-        "import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';",
-        "export { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';",
-        "const module = import('@/lib/practice/continuous/domain/evaluation/interpretation');",
-      ]) expect(allowed(file, imports(file, statement)[0]), statement).toBe(false);
-    }
-    expect(allowed(composition, imports(composition, "import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';")[0])).toBe(true);
   });
 
   it('keeps result, recording and STEP ownership separate, including hooks and boundary probes', () => {
@@ -294,7 +271,7 @@ describe('Practice bounded domain dependencies', () => {
     }
     for (const [owner, forbidden] of [
       ['result', ['recording/performance-recorder', 'step/domain/runtime']],
-      ['recording', ['result/continuous-performance-result', 'continuous/domain/evaluation/interpretation', 'step/domain/runtime']],
+      ['recording', ['result/continuous-performance-result', 'continuous/domain/evaluation/target-feedback', 'step/domain/runtime']],
       ['step', ['result/continuous-performance-result', 'recording/recording-artifact', 'continuous/completion-store']],
     ] as const) {
       const file = path.join(practiceRoot, owner, 'boundary-probe.ts');
@@ -489,9 +466,9 @@ describe('Practice bounded domain dependencies', () => {
   });
 });
 
-it('timing calibration cannot enter transport, interpretation, metrics or presentation', () => {
+it('timing calibration cannot enter transport, target feedback or presentation', () => {
   const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts',
-    'continuous/domain/evaluation/interpretation.ts'].includes(relative(file))
+    'continuous/domain/evaluation/target-feedback.ts'].includes(relative(file))
     || /^(score-view|review|sharing)\//.test(relative(file))),
     ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review'))];
   for (const start of forbidden) {
@@ -648,17 +625,37 @@ it('keeps live presentation on the narrow feedback contract, never the diagnosti
 it('production cannot reintroduce target substitutions, old policies or retired decoration states', () => {
   const retiredNames = new Set(['GROUP_RESIDUAL','ContinuousGroupResidualAssignment','residualAssignments',
     'commitGroupResidualAssignments','residualGroups','groupFrontier','waitingGroups','extraObservations',
-    'wrongNoteIds','missedNoteIds','targetGroups','CONTINUOUS_ANALYSIS_BOUNDS_MS']);
+    'wrongNoteIds','missedNoteIds','targetGroups','CONTINUOUS_ANALYSIS_BOUNDS_MS',
+    'ContinuousInterpretation','MidiContinuousInterpretation','AcousticContinuousInterpretation',
+    'MidiStrikeFeedback','AcousticStrikeFeedback','MidiGroupFeedback','AcousticGroupFeedback',
+    'interpretContinuousAssignment','interpretContinuousTargetState','interpretationPolicyForInputSource','interpretationPolicyId',
+    'noteAnnotationsFromLiveFeedback','noteAnnotationsFromCompletedEvaluation']);
   const retiredValues = new Set(['WRONG','UNCONFIRMED','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2',
-    'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1']);
+    'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1',
+    'MIDI_PHYSICAL_NOTE_EVENTS_V2','ACOUSTIC_TARGET_DETECTION_V2','INCOMPLETE_CHORD','PARTIALLY_SUPPORTED']);
+  const violations: string[] = [];
   for (const file of productionFiles(sourceRoot)) {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
     const visit = (node: ts.Node) => {
-      if (ts.isIdentifier(node)) expect(retiredNames.has(node.text), file + ': ' + node.text).toBe(false);
-      if (ts.isStringLiteralLike(node)) {
-        expect(retiredValues.has(node.text), file + ': ' + node.text).toBe(false);
-        expect(/practice-summary-note-(wrong|missed)/.test(node.text), file).toBe(false);
+      if (ts.isIdentifier(node) && retiredNames.has(node.text)) violations.push(file + ': ' + node.text);
+      if (ts.isStringLiteralLike(node) && (retiredValues.has(node.text) || /practice-summary-note-(wrong|missed)/.test(node.text))) {
+        violations.push(file + ': ' + node.text);
       }
+      ts.forEachChild(node, visit);
+    }; visit(source);
+  }
+  expect(violations).toEqual([]);
+});
+
+it('has no source-specific interpretation implementation or target/group classification vocabulary', () => {
+  for (const name of ['interpretation.ts', 'interpretation-types.ts', 'live-feedback.ts']) {
+    expect(existsSync(path.join(practiceRoot, 'continuous/domain/evaluation', name))).toBe(false);
+  }
+  for (const file of productionFiles(path.join(practiceRoot, 'continuous/domain/evaluation'))) {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isIdentifier(node)) expect(node.text, file).not.toBe('verdict');
+      if (ts.isStringLiteralLike(node)) expect(['CORRECT','MISSING','SUPPORTED','NOT_DETECTED'].includes(node.text), file).toBe(false);
       ts.forEachChild(node, visit);
     }; visit(source);
   }

@@ -13,7 +13,7 @@ import { StepPlayheadController } from '@/lib/practice/score-view/step-playhead-
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
   EvaluationAnnotationController,
-  noteAnnotationsFromLiveFeedback,
+  noteAnnotationsFromTargetFeedback,
 } from '@/lib/practice/score-view/evaluation-annotations';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { syncRangeOverlay, clearRangeOverlay, isRangeBackgroundMutation } from '@/lib/practice/score-view/range-overlay';
@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
 import type { PracticeMode } from '@/lib/practice/kernel/session';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
-import type { ContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
+import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 
 import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
 import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
@@ -37,7 +37,7 @@ type PracticeScoreViewerProps = {
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;
   performanceScope?: CursorScope | null;
-  performanceEvaluation?: ContinuousLiveFeedback | null;
+  performanceEvaluation?: ContinuousTargetFeedback | null;
   showContinuousFeedback?: boolean;
   selectedRangeRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
@@ -71,11 +71,8 @@ export function PracticeScoreViewer({
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const performanceAnnotationSignature = useMemo(
     () =>
-      (performanceEvaluation?.groups ?? [])
-        .map((group) => [
-          group.groupId,
-          group.strikes.map(strike => `${strike.strikeId}:${strike.state}:${strike.renderNoteIds.join(',')}`).join(';'),
-        ].join(':'))
+      (performanceEvaluation?.targets ?? [])
+        .map(target => `${target.strikeId}:${target.state}:${target.renderNoteIds.join(',')}`)
         .join('\u001f'),
     [performanceEvaluation]
   );
@@ -138,7 +135,7 @@ export function PracticeScoreViewer({
     annotationController.apply(
       container,
       performanceEvaluation
-        ? noteAnnotationsFromLiveFeedback(performanceEvaluation)
+        ? noteAnnotationsFromTargetFeedback(performanceEvaluation)
         : { supportedNoteIds: [], unsupportedNoteIds: [] },
       { renderRevision }
     );

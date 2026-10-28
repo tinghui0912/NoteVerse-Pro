@@ -57,8 +57,7 @@ export type CompletedContinuousAssignmentResult =
   | Readonly<{ status: 'COMPLETE'; assignment: CompletedContinuousAssignment }>
   | Readonly<{ status: 'UNAVAILABLE'; reason: 'INCOMPLETE_ANALYSIS' }>;
 
-/** Source-blind read-only target state: no match/evidence/finality payload. */
-export type ContinuousTargetStateGroup = Readonly<{
-  groupId: string;
-  strikes: readonly Readonly<{ strikeId: string; renderNoteIds: readonly string[]; state: ContinuousStrikeAssignment['state'] }>[];
+/** Source-blind read-only target identity/state: no group summary or evidence payload. */
+export type ContinuousTargetState = Readonly<{
+  strikeId: string; renderNoteIds: readonly string[]; state: ContinuousStrikeAssignment['state'];
 }>;

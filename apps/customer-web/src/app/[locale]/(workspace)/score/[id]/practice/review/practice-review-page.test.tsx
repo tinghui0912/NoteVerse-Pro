@@ -728,7 +728,7 @@ describe('PracticeReviewPage', () => {
       scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
-      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3', interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
+      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
     continuousCompletionStore.setCompletion({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });

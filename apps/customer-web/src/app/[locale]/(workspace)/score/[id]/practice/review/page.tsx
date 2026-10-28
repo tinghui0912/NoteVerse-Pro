@@ -1,5 +1,7 @@
 'use client';
 
+import { completedContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
+
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 
@@ -44,7 +46,7 @@ import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/com
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
   EvaluationAnnotationController,
-  noteAnnotationsFromCompletedEvaluation,
+  noteAnnotationsFromTargetFeedback,
 } from '@/lib/practice/score-view/evaluation-annotations';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
@@ -156,7 +158,7 @@ export default function PracticeReviewPage({
 
       };
     }
-    return noteAnnotationsFromCompletedEvaluation(result.evaluation);
+    return noteAnnotationsFromTargetFeedback(completedContinuousTargetFeedback(result.evaluation));
   }, [result, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(

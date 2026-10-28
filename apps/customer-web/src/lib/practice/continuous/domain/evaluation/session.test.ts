@@ -33,10 +33,10 @@ describe('artifact-bound Continuous evaluation session', () => {
   it('keeps incomplete analysis unavailable until coverage arrives', () => {
     const session = createSession();
     session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 100, availabilitySessionTimeMs: 100 });
-    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'INCOMPLETE_ANALYSIS' });
+    expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'INCOMPLETE_ANALYSIS' });
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 200, observations: [] });
     expect(session.completedEvaluation().status).toBe('COMPLETE');
-    expect(session.snapshot().interpretation.groups.some(group => group.verdict === 'NOT_REACHED')).toBe(true);
+    expect(session.snapshot().assignment.groups.some(group => group.strikes.some(strike => strike.state === 'NOT_REACHED'))).toBe(true);
   });
 });
 
@@ -50,29 +50,26 @@ describe('source-bound evaluation composition', () => {
     expect(session.snapshot()).toEqual(before);
     expect(() => session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 1100 })).toThrow('OBSERVATION_SOURCE_MISMATCH');
     expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource,
-      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, interpretationPolicyId: inputSource === 'MIDI' ? 'MIDI_PHYSICAL_NOTE_EVENTS_V2' : 'ACOUSTIC_TARGET_DETECTION_V2', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
+      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
   });
-  it('completed acoustic analysis without support is NOT_DETECTED, never UNAVAILABLE', () => {
+  it('healthy completed acoustic analysis without support is UNMATCHED, never UNAVAILABLE', () => {
     const session = createSession();
     session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100, observations: [] });
     session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
     const result = session.completedEvaluation();
     expect(result.status).toBe('COMPLETE');
     if (result.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(result.interpretationPolicyId).toBe('ACOUSTIC_TARGET_DETECTION_V2');
-    expect(result.interpretation.groups.every(group => group.verdict === 'NOT_DETECTED')).toBe(true);
     expect(result.assignment.groups.every(group => group.strikes.every(strike => strike.state === 'UNMATCHED'))).toBe(true);
   });
 });
 
-it.each(['assignmentPolicyId', 'interpretationPolicyId'] as const)('%s is retained on COMPLETE and UNAVAILABLE and rejects a different identity', key => {
+it.each(['assignmentPolicyId'] as const)('%s is retained on COMPLETE and UNAVAILABLE and rejects a different identity', key => {
   const session = createSession();
   const unavailable = session.completedEvaluation();
   session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100, observations: [] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
   for (const result of [unavailable, session.completedEvaluation()]) {
     expect(result.assignmentPolicyId).toBe(CONTINUOUS_ASSIGNMENT_POLICY_ID);
-    expect(result.interpretationPolicyId).toBe('ACOUSTIC_TARGET_DETECTION_V2');
     expect(() => assertCompletedEvaluation(result, 'MICROPHONE')).not.toThrow();
     const corrupt = JSON.parse(JSON.stringify(result)); corrupt[key] = 'wrong';
     expect(() => assertCompletedEvaluation(corrupt, 'MICROPHONE')).toThrow();
@@ -92,4 +89,48 @@ it.each(['invalid observation', 'inconsistent group onset'])('completed evaluati
   const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
   expect(() => assertCompletedEvaluation(parsed, 'MICROPHONE')).toThrow(/Continuous assignment/);
   expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+});
+
+it.each(['MIDI', 'MICROPHONE'] as const)('%s completed evaluation has only exact assignment/source fields without repair', inputSource => {
+  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: { kind: 'FULL' }, timeline: { beatToTimeMs: beat => beat * 1000 } });
+  const unavailable = session.completedEvaluation();
+  session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100, observations: [] });
+  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
+  for (const result of [unavailable, session.completedEvaluation()]) {
+    expect(Object.keys(result).sort()).toEqual(['assignmentPolicyId', 'inputSource', result.status === 'COMPLETE' ? 'assignment' : 'reason', 'status'].sort());
+    expect(() => assertCompletedEvaluation(result, inputSource)).not.toThrow();
+    for (const field of ['interpretation', 'interpretationPolicyId', 'unknown']) {
+      const parsed = JSON.parse(JSON.stringify(result)); parsed[field] = {};
+      const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
+      expect(() => assertCompletedEvaluation(parsed, inputSource)).toThrow('shape');
+      expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+      if (parsed.assignment) expect(Object.isFrozen(parsed.assignment.groups[0].strikes)).toBe(false);
+    }
+    const missing = JSON.parse(JSON.stringify(result)); delete missing.inputSource;
+    expect(() => assertCompletedEvaluation(missing, inputSource)).toThrow();
+    const invalid = JSON.parse(JSON.stringify(result)); invalid.status = 'OTHER';
+    expect(() => assertCompletedEvaluation(invalid, inputSource)).toThrow();
+    const wrongSource = JSON.parse(JSON.stringify(result)); wrongSource.inputSource = 'OTHER';
+    expect(() => assertCompletedEvaluation(wrongSource, inputSource)).toThrow();
+  }
+  const badReason = JSON.parse(JSON.stringify(unavailable)); badReason.reason = 'OTHER';
+  expect(() => assertCompletedEvaluation(badReason, inputSource)).toThrow('reason');
+});
+
+it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed evaluation independently rejects foreign observation sources without mutation', inputSource => {
+  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: { kind: 'FULL' }, timeline: { beatToTimeMs: beat => beat * 1000 } });
+  session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100,
+    observations: [{ observationId: 'c', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' }] });
+  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
+  const result = session.completedEvaluation(); if (result.status !== 'COMPLETE') throw Error('incomplete');
+  const parsed = JSON.parse(JSON.stringify(result));
+  const source = inputSource === 'MIDI' ? 'ACOUSTIC' : 'MIDI';
+  for (const observation of parsed.assignment.observations) observation.source = source;
+  for (const group of parsed.assignment.groups) for (const strike of group.strikes) {
+    if (strike.state === 'MATCHED') strike.match.observation.source = source;
+  }
+  const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
+  expect(() => assertCompletedEvaluation(parsed, inputSource)).toThrow('OBSERVATION_SOURCE_MISMATCH');
+  expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+  expect(Object.isFrozen(parsed.assignment.observations)).toBe(false);
 });

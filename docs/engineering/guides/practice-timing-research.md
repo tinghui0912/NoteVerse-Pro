@@ -31,7 +31,7 @@ is allowed; keep it outside version control. The separate research schema is
 version 1, with generated-at time, known benchmark kind, current production policy
 identity/window, case counts, outcomes and aggregate metrics. Validators reject
 unknown versions/kinds/fields, non-finite numbers and invalid counts without repair
-or migrations. This schema is unrelated to Practice Result schema 4.
+or migrations. This schema is unrelated to Practice Result schema 5.
 
 ### Deterministic experiments
 
@@ -210,6 +210,6 @@ does not establish 250ms as the optimal product value.
 
 The current assignment identity is `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3`.
 MIDI evidence remains `MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`;
-interpretation uses `MIDI_PHYSICAL_NOTE_EVENTS_V2` or `ACOUSTIC_TARGET_DETECTION_V2`.
-Result is schema 4. `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
+target states are source-blind MATCHED/UNMATCHED, without a second interpretation
+tree or group verdict. Result is schema 5. `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
 `calibrationApplied=false`, with no offset or calibration UI.

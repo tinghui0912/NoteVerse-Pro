@@ -7,7 +7,7 @@ import type { ContinuousPracticeCompletion } from './completion';
 import { createNaturalContinuousCompletion } from './natural-completion';
 import { midiEvidenceProvenance, microphoneEvidenceProvenance, type ContinuousEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 import { sourceRate } from '@/lib/practice/acoustic/model/model-contract';
-import type { ContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
+import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
@@ -46,7 +46,7 @@ export type ContinuousControllerSnapshot = Readonly<{
   analysis: 'NOT_REQUIRED' | 'PREPARING' | 'PREROLL' | 'RUNNING' | 'PAUSED' | 'DRAINING' | 'COMPLETE' | 'FAILED';
   analysisError: string | null; inputError: string | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
   resourceIntervention: PracticeResourceIntervention | null;
-  evaluation: ContinuousLiveFeedback | null; completed: ContinuousPracticeCompletion | null;
+  evaluation: ContinuousTargetFeedback | null; completed: ContinuousPracticeCompletion | null;
   sessionSnapshot: LocalPerformanceSessionSnapshot | null;
 }>;
 
@@ -108,7 +108,7 @@ export class ContinuousPracticeController {
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
       analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot(this.transport?.performanceTimeMs ?? 0) ?? null,
       resourceIntervention: this.intervention,
-      evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.liveFeedback ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
+      evaluation: this.fatalFailure || ['FAILED_BEFORE_START', 'ABANDONED', 'DISPOSED'].includes(this.state) ? null : this.session?.targetFeedback ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
   engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.session?.timebase.domainId ?? null, microphone: this.microphone?.snapshot() ?? null,

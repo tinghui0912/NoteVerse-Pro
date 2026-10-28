@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
-import { projectContinuousLiveFeedback } from '@/lib/practice/continuous/domain/evaluation/live-feedback';
-import { interpretContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/interpretation';
+import { projectContinuousTargetFeedback, completedContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
-import { EvaluationAnnotationController, noteAnnotationsFromLiveFeedback, noteAnnotationsFromCompletedEvaluation } from './evaluation-annotations';
+import { EvaluationAnnotationController, noteAnnotationsFromTargetFeedback } from './evaluation-annotations';
 
 const targets = ['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] }));
 const matrix = [
@@ -21,15 +20,16 @@ for (const inputSource of ['MIDI','MICROPHONE'] as const) describe(inputSource +
       source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const }));
     const before = structuredClone(observations), serialized = JSON.stringify(observations);
     finalizer.publish({ publicationId: 'p', sessionDomainId: 'target', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100, observations });
-    const live = noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(finalizer.targetStates(), inputSource));
+    const live = noteAnnotationsFromTargetFeedback(projectContinuousTargetFeedback(finalizer.targetStates()));
     finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
     const completed = finalizer.completedAssignment(); if (completed.status !== 'COMPLETE') throw Error('incomplete');
     assertCompletedAssignment(completed.assignment);
-    const interpretation = interpretContinuousAssignment(completed.assignment, inputSource);
-    const evaluation = interpretation.inputSource === 'MIDI'
-      ? { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const, inputSource: 'MIDI' as const, interpretationPolicyId: 'MIDI_PHYSICAL_NOTE_EVENTS_V2' as const, assignment: completed.assignment, interpretation }
-      : { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const, inputSource: 'MICROPHONE' as const, interpretationPolicyId: 'ACOUSTIC_TARGET_DETECTION_V2' as const, assignment: completed.assignment, interpretation };
-    const review = noteAnnotationsFromCompletedEvaluation(evaluation);
+    const evaluation = { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const,
+      inputSource, assignment: completed.assignment };
+    const reviewFeedback = completedContinuousTargetFeedback(evaluation);
+    expect(reviewFeedback).toEqual(projectContinuousTargetFeedback(finalizer.targetStates()));
+    expect(completed.assignment.groups[0].strikes.map(strike => strike.state)).toEqual(targets.map(target => row.pitches.includes(target.pitch) ? 'MATCHED' : 'UNMATCHED'));
+    const review = noteAnnotationsFromTargetFeedback(reviewFeedback);
     expect(live).toEqual({ supportedNoteIds: row.supported, unsupportedNoteIds: row.unsupported }); expect(review).toEqual(live);
     expect(completed.assignment.observations.map(observation => observation.pitch)).toEqual(row.pitches);
     expect(completed.assignment.unattributedObservations.map(entry => entry.observation.pitch)).toEqual(row.pitches.includes('E4') ? ['E4'] : []);
@@ -48,13 +48,12 @@ for (const inputSource of ['MIDI','MICROPHONE'] as const) describe(inputSource +
   });
   it('pending, not-reached and unavailable analysis never fabricate red targets', () => {
     const f = new ContinuousAssignmentFinalizer('pending', targets);
-    expect(noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(f.targetStates(), inputSource))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
+    expect(noteAnnotationsFromTargetFeedback(projectContinuousTargetFeedback(f.targetStates()))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
     f.publish({ publicationId: 'stop', sessionDomainId: 'pending', analyzedThroughPerformanceMs: 500, availabilitySessionTimeMs: 500, observations: [] });
     f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 500, availabilitySessionTimeMs: 500 });
-    const interpretation = interpretContinuousAssignment(f.snapshot(), inputSource);
-    expect(interpretation.groups[0].strikes.every(strike => strike.state === 'NOT_REACHED')).toBe(true);
-    expect(noteAnnotationsFromLiveFeedback(projectContinuousLiveFeedback(f.targetStates(), inputSource))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
-    expect(noteAnnotationsFromCompletedEvaluation(unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
+    expect(f.snapshot().groups[0].strikes.every(strike => strike.state === 'NOT_REACHED')).toBe(true);
+    expect(noteAnnotationsFromTargetFeedback(projectContinuousTargetFeedback(f.targetStates()))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
+    expect(noteAnnotationsFromTargetFeedback(completedContinuousTargetFeedback(unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')))).toEqual({ supportedNoteIds: [], unsupportedNoteIds: [] });
   });
 });
 
