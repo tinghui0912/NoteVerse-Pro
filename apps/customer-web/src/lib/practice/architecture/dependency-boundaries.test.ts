@@ -141,10 +141,15 @@ describe('Practice bounded domain dependencies', () => {
     for (const edge of imports(file)) expect(dependencyAllowed(file, edge), edge.specifier).toBe(true);
   });
   it('keeps research harnesses and CLI runners out of every production source import', () => {
-    for (const [file, edges] of sourceGraph) {
-      for (const edge of edges) {
-        expect(/(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|benchmark-practice-evaluation-scale|analyze-practice-midi-corpus))/.test(
-          `${edge.specifier} ${edge.target ?? ''}`), `${file}: ${edge.specifier}`).toBe(false);
+    const forbidden = (edge: Edge) => /(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|benchmark-practice-evaluation-scale|analyze-practice-midi-corpus))/.test(
+      `${edge.specifier} ${edge.target ?? ''}`);
+    for (const [file, edges] of sourceGraph) for (const edge of edges) expect(forbidden(edge), `${file}: ${edge.specifier}`).toBe(false);
+    const consumer = path.join(practiceRoot, 'continuous/domain/evaluation/session.ts');
+    for (const owner of ['candidate-policies', 'ordered-solvers', 'matcher-proof', 'timing-semantics-audit', 'run-timing-audit.mjs']) {
+      const specifier = `@/../tests/research/practice-timing/${owner}`;
+      for (const statement of [`import { Candidate } from '${specifier}';`, `export { Candidate } from '${specifier}';`, `const candidate = import('${specifier}');`]) {
+        const edges = imports(consumer, statement);
+        expect(edges).toHaveLength(1); expect(forbidden(edges[0]), statement).toBe(true);
       }
     }
   });

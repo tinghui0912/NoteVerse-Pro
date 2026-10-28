@@ -6,6 +6,10 @@ the window, matching, finality and tempo conversion; research imports those owne
 See the [Practice product contract](../../architecture/practice-product-contract.md)
 for the product's timing coordinates and unchanged policies.
 
+The separate [timing semantics audit](practice-timing-semantics.md) compares
+research-only eligibility/ownership/frontier hypotheses and records proof limits.
+It does not change this baseline or production policy.
+
 ## Run the synthetic characterization
 
 From `apps/customer-web`, with the existing Node dependencies installed:

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "audit:practice-timing": "node tests/research/practice-timing/run-timing-audit.mjs",
     "benchmark:practice-evaluation-scale": "node scripts/benchmark-practice-evaluation-scale.mjs",
     "benchmark:practice-timing": "node scripts/benchmark-practice-timing.mjs",
     "analyze:practice-midi-corpus": "node scripts/analyze-practice-midi-corpus.mjs",
