@@ -18,6 +18,7 @@ import { StepPracticeControls, ContinuousPracticeControls } from '@/components/p
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeFeedbackSettings } from '@/components/practice/practice-feedback-settings';
 import { StepAnalysisInterruptionDialog } from '@/components/practice/step-analysis-interruption-dialog';
+import { StepInfrastructureInterruptionDialog } from '@/components/practice/step-infrastructure-interruption-dialog';
 import { AnalysisInterruptionDialog } from '@/components/practice/analysis-interruption-dialog';
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
@@ -231,11 +232,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     localPractice.lifecycle === 'PAUSED';
   const idleDeviceIssue = !isActive ? device.snapshot?.issue : null;
   const handleReconnect = async () => {
-    if (!await device.renewFailed()) return;
-    if (isStepMode && !stepManuallyEnded) {
-      stepAutoArm.current = stepKey;
-      await localPractice.restart();
-    }
+    await device.renewFailed();
   };
   const handleConfigure = () => {
     workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION');
@@ -281,10 +278,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       if (stepAutoArm.current !== null) { stepAutoArm.current = null; void localPractice.abandon(); }
       return;
     }
-    if (!canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
+    if (stepManuallyEnded || !canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
     stepAutoArm.current = stepKey;
     void localPractice.restart();
-  }, [practiceMode, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
+  }, [practiceMode, stepManuallyEnded, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
 
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
@@ -301,7 +298,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       onTempoSelectionChange: setTempoSelection,
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
-      onStart: () => { setStepManuallyEnded(false); void localPractice.start(); },
+      onStart: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(false); void localPractice.start(); },
       onEnd: () => { void handleEnd(); },
       onOpenSettings: () => setIsSettingsOpen(true),
       recordingSeconds: localPractice.recordingIndicator,
@@ -436,6 +433,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
           </Sheet>}
 
           {localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleEnd} />}
+          {localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleEnd} />}
           {localPractice.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
             onContinueWithoutAnalysis={localPractice.continueWithoutAnalysis}
             onEnd={handleEnd} />}

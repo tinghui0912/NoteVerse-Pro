@@ -15,7 +15,7 @@ export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, stri
   STEP_MICROPHONE_PERMISSION_DENIED: 'Microphone permission was denied.',
   STEP_MICROPHONE_UNAVAILABLE: 'Microphone input is unavailable.',
   STEP_ACOUSTIC_PREPARATION_FAILED: 'Microphone analysis could not be prepared.',
-  STEP_MICROPHONE_INFRASTRUCTURE_FAILED: 'Microphone audio was interrupted. Start a new session.',
+  STEP_MICROPHONE_INFRASTRUCTURE_FAILED: 'Microphone audio is unavailable.',
   STEP_MICROPHONE_INTERRUPTED: 'Microphone input is temporarily interrupted.',
   STEP_ACOUSTIC_RUNTIME_FAILED: 'Microphone analysis failed. Start a new session.',
   STEP_ATTEMPT_FAILED: 'The attempt could not be completed.',
@@ -29,7 +29,8 @@ export function stepApplicationError(error: unknown, inputSource: 'MIDI' | 'MICR
     if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'NotAllowedError') {
       return 'STEP_MICROPHONE_PERMISSION_DENIED';
     }
-    if (/CONTEXT|CAPTURE|SOURCE_LOST|SAMPLE_RATE/.test(message)) return 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED';
+    if (/CONTEXT|CAPTURE|SOURCE_LOST|SAMPLE_RATE/.test(message)
+      || message === 'STEP_MICROPHONE_SOURCE_MAPPING_INVALID' || message === 'NONCHRONOLOGICAL_ACOUSTIC_SOURCE') return 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED';
     return phase === 'ACTIVE' ? 'STEP_ACOUSTIC_RUNTIME_FAILED' : 'STEP_ACOUSTIC_PREPARATION_FAILED';
   }
   if (error instanceof Error && error.name === 'NotAllowedError') return 'STEP_MIDI_PERMISSION_DENIED';

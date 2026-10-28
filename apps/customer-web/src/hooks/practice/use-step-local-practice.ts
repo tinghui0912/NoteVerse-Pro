@@ -86,7 +86,8 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const bindingPending = pendingBinding?.key === key && pendingBinding.artifact === options.artifact && pendingBinding.value;
   const inputState: LocalPracticeInputState = bindingPending ? 'STARTING' : inputError ? 'ERROR' : applicationState === 'PREPARING' ? 'STARTING' : applicationState === 'ACTIVE' ? 'RUNNING' : 'IDLE';
   // Generic UI boundary only: lifecycle denotes application presentation, never domain status.
-  return { analysisIntervention: snapshot?.analysisIntervention ?? null, mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
+  return { analysisIntervention: snapshot?.analysisIntervention ?? null, infrastructureIntervention: snapshot?.infrastructureIntervention ?? null,
+    mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
     runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,
     inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,

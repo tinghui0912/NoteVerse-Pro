@@ -31,6 +31,7 @@ type PracticeStatusMessageKey =
   | 'stepMicrophoneReady'
   | 'stepMicrophoneChecking'
   | 'stepInputInterrupted'
+  | 'stepInfrastructureUnavailable'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
   | 'micStartFailed'
@@ -90,6 +91,9 @@ export function resolvePracticeStatusView({
   if (inputState === 'ERROR') {
     if (sessionMode === 'STEP_BY_STEP' && inputError === 'STEP_MICROPHONE_INTERRUPTED') {
       return { messageKey: 'stepInputInterrupted', pending: false, countInPulse: null };
+    }
+    if (sessionMode === 'STEP_BY_STEP' && inputError === 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED') {
+      return { messageKey: 'stepInfrastructureUnavailable', isError: true, pending: false, countInPulse: null };
     }
     if (inputError && Object.hasOwn(continuousErrorMessageKeys, inputError)) {
       return { messageKey: continuousErrorMessageKeys[inputError as ContinuousErrorCode],

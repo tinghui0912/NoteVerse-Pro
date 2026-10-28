@@ -393,5 +393,8 @@
   "analysisStopped": "音符分析已停止",
   "analysisStoppedDescription": "练习已暂停。你可以在没有音符反馈的情况下继续，或结束本次练习。",
   "continueWithoutAnalysis": "在没有分析的情况下继续",
-  "stepAnalysisStoppedDescription": "音符分析已停止。逐音练习需要音符分析来判断每次回答，请结束本次练习，之后重新准备再开始。"
+  "stepAnalysisStoppedDescription": "音符分析已停止。逐音练习需要音符分析来判断每次回答，请结束本次练习，之后重新准备再开始。",
+  "stepInfrastructureStopped": "麦克风输入已停止",
+  "stepInfrastructureStoppedDescription": "麦克风输入已无法继续本次逐音练习。请结束本次练习，之后可重新连接设备或继续练习。",
+  "stepInfrastructureUnavailable": "麦克风音频不可用。"
 }

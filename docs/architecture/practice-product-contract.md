@@ -367,7 +367,18 @@ attempt AudioContext. The input owns its analysis clone, capture bridge, assembl
 source-analysis graph. Abandon/dispose await attempt resource release; restart constructs a fresh controller after
 cleanup. MIDI disconnection cancels unfinished input and retains the same target
 and MIDIAccess owner; reconnection establishes a fresh eligibility boundary.
-Microphone infrastructure failure retains its existing terminal classification.
+An admitted ACTIVE STEP microphone terminal infrastructure failure latches the
+application-only `StepInfrastructureIntervention = { kind: 'TERMINAL_INFRASTRUCTURE_FAILURE' }`.
+Root track loss, terminal AudioContext interruption/closure, capture failure and invalid
+source mapping/chronology stop input and immediately release unusable attempt resources.
+Controller/domain stay ACTIVE with unchanged session, current target and progress,
+input unavailable and completionReason null, behind an End-only blocking dialog.
+The separate analysis and infrastructure interventions are mutually exclusive: the
+first terminal owner is latched before cleanup and cannot be replaced by later callbacks.
+Cleanup failure also retains this owner and target truth; it never ends the session.
+Only explicit End or page teardown ends the retained session as `STOPPED_BY_USER`.
+No fault becomes a learner verdict, Skip or natural completion. PREPARING infrastructure
+failures retain admission/error semantics without an intervention or admitted session.
 An admitted ACTIVE STEP microphone terminal analysis failure instead latches the
 application-only `StepAnalysisIntervention = { kind: 'TERMINAL_ANALYSIS_FAILURE' }`.
 Fault detection is not session end: controller and domain remain ACTIVE with the same
@@ -871,10 +882,17 @@ recover. Continuous capture explicitly retains its existing graph across tempora
 context suspension; closure or invalid chronology still invalidates it. STEP temporary
 root mute cancels unfinished input, preserves target/progress and automatically returns
 to waiting on same-root recovery. Its recovery commits a fresh physical capture
-watermark before rearming, excluding delayed or partial evidence. STEP hard root loss
-ends the old Attempt; explicit Device Lease reconnect creates a fresh auto-armed STEP
-session from the configured scope. Context/capture/analysis failure remains owned by
-the Attempt or engine, without generic Environment invalidation. Continuous required-input root ended, context closure and invalid capture offer End only. Required
+watermark before rearming, excluding delayed or partial evidence. STEP terminal
+root/context/capture failure instead retains the active session and target behind its
+End-only infrastructure intervention. Unusable resources are released immediately;
+only End or page teardown ends domain/application truth. The controller never stops
+or reacquires the borrowed root. After End, idle Device Lease Reconnect/Retry can
+renew lost roots but does not start a STEP session. The learner explicitly chooses
+Continue/Start for a fresh session at the configured scope start, with a new session
+identity, context and inference lease. Initial page-entry auto-arm remains distinct.
+Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
+failure remains owned by the Attempt or engine, without generic Environment invalidation.
+Continuous required-input root ended, context closure and invalid capture offer End only. Required
 input loss never offers recording-only degradation. Shared-source callbacks converge
 on one intervention, with input-required impact taking priority and one canonical pause.
 MIDI disconnection retains its existing pause/reconnect contract and cannot accept

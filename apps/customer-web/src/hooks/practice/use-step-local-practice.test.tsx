@@ -129,25 +129,26 @@ it('STEP completion uses the latest callback after rerender without recreating i
   unmount();
 });
 
-it.each(['End','unmount'] as const)('STEP intervention keeps target/input truth and the hook %s path retires ownership',async ending=>{
+for (const kind of ['analysis', 'infrastructure'] as const) it.each(['End','unmount'] as const)(`STEP ${kind} intervention keeps target/input truth and the hook %s path retires ownership`,async ending=>{
   const {StepPracticeRuntime,groupForCurrentStep}=await import('@/lib/practice/step/domain/runtime');
   const runtime=new StepPracticeRuntime({artifact,scope:{kind:'FULL'},inputSource:'MICROPHONE',clock:new ManualClock(100),localSessionId:'hook-interrupted'});
   runtime.setInputUnavailable();
   const baseOwner=new StepPracticeController({devices:borrowedDevices(),artifact,scope:{kind:'FULL'},inputSource:'MICROPHONE'});
-  let snapshot={...baseOwner.snapshot(),state:'ACTIVE' as 'ACTIVE'|'DISPOSED',analysisIntervention:{kind:'TERMINAL_ANALYSIS_FAILURE'} as {readonly kind:'TERMINAL_ANALYSIS_FAILURE'}|null,
+  let snapshot={...baseOwner.snapshot(),state:'ACTIVE' as 'ACTIVE'|'DISPOSED',analysisIntervention:kind==='analysis'?{kind:'TERMINAL_ANALYSIS_FAILURE' as const}:null,
+    infrastructureIntervention:kind==='infrastructure'?{kind:'TERMINAL_INFRASTRUCTURE_FAILURE' as const}:null,
     sessionSnapshot:runtime.snapshot(),activeStepGroup:groupForCurrentStep(runtime)};
   const listeners=new Set<()=>void>();
   vi.spyOn(StepPracticeController.prototype,'subscribe').mockImplementation(listener=>{listeners.add(listener);return()=>listeners.delete(listener);});
   const snapshots=vi.spyOn(StepPracticeController.prototype,'snapshot').mockImplementation(()=>snapshot);
   const start=vi.spyOn(StepPracticeController.prototype,'start').mockImplementation(async()=>{listeners.forEach(f=>f());});
   let disposed=false;const domainEnd=vi.spyOn(runtime,'end');
-  const dispose=vi.spyOn(StepPracticeController.prototype,'dispose').mockImplementation(async()=>{if(disposed)return;disposed=true;runtime.end();snapshot={...snapshot,state:'DISPOSED',analysisIntervention:null,sessionSnapshot:runtime.snapshot()};listeners.forEach(f=>f());});
+  const dispose=vi.spyOn(StepPracticeController.prototype,'dispose').mockImplementation(async()=>{if(disposed)return;disposed=true;runtime.end();snapshot={...snapshot,state:'DISPOSED',analysisIntervention:null,infrastructureIntervention:null,sessionSnapshot:runtime.snapshot()};listeners.forEach(f=>f());});
   vi.spyOn(StepPracticeController.prototype,'abandon').mockImplementation(async function(this:StepPracticeController){await this.dispose();});
   const completion=vi.fn();const {result,unmount}=renderHook(()=>useLocalPractice({artifact,scope:{kind:'FULL'},mode:'STEP_BY_STEP',inputSource:'MICROPHONE',getDevices:()=>borrowedDevices(),onNaturalCompletion:completion}));
   await act(async()=>{await result.current.start();});
-  const stale=[...listeners][0];expect(result.current).toMatchObject({lifecycle:'ACTIVE',runtimeStatus:'ACTIVE',inputState:'RUNNING',inputError:null,analysisIntervention:{kind:'TERMINAL_ANALYSIS_FAILURE'},canAcceptAttempt:false});
+  const stale=[...listeners][0];expect(result.current).toMatchObject({lifecycle:'ACTIVE',runtimeStatus:'ACTIVE',inputState:'RUNNING',inputError:null,analysisIntervention:kind==='analysis'?{kind:'TERMINAL_ANALYSIS_FAILURE'}:null,infrastructureIntervention:kind==='infrastructure'?{kind:'TERMINAL_INFRASTRUCTURE_FAILURE'}:null,canAcceptAttempt:false});
   expect(result.current.activeStepGroup).not.toBeNull();expect(result.current).not.toHaveProperty('continueWithoutAnalysis');expect(result.current).not.toHaveProperty('controller');
-  if(ending==='End'){await act(async()=>{await result.current.abandon();});expect(result.current.analysisIntervention).toBeNull();expect(result.current.lifecycle).toBe('IDLE');}
+  if(ending==='End'){await act(async()=>{await result.current.abandon();});expect(result.current.analysisIntervention).toBeNull();expect(result.current.mode==='STEP_BY_STEP'&&result.current.infrastructureIntervention).toBeNull();expect(result.current.lifecycle).toBe('IDLE');}
   unmount();await act(async()=>{await Promise.resolve();});const reads=snapshots.mock.calls.length;stale();expect(snapshots).toHaveBeenCalledTimes(reads);
   expect(dispose).toHaveBeenCalledTimes(ending==='End'?2:1);expect(domainEnd).toHaveBeenCalledOnce();expect(start).toHaveBeenCalledOnce();expect(runtime.state).toBe('ENDED');expect(completion).not.toHaveBeenCalled();
 });

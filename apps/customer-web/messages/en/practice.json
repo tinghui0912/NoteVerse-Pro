@@ -393,5 +393,8 @@
   "analysisStopped": "Note analysis stopped",
   "analysisStoppedDescription": "Practice is paused. You can continue without note feedback or end this attempt.",
   "continueWithoutAnalysis": "Continue without analysis",
-  "stepAnalysisStoppedDescription": "Note analysis stopped. Step-by-step practice needs note analysis to check each answer. End this attempt to continue later."
+  "stepAnalysisStoppedDescription": "Note analysis stopped. Step-by-step practice needs note analysis to check each answer. End this attempt to continue later.",
+  "stepInfrastructureStopped": "Microphone input stopped",
+  "stepInfrastructureStoppedDescription": "Microphone input can no longer continue this step-by-step attempt. End this attempt to reconnect or continue later.",
+  "stepInfrastructureUnavailable": "Microphone audio is unavailable."
 }

@@ -35,6 +35,16 @@ const IntlProvider = NextIntlClientProvider as ComponentType<{
   children?: ReactNode;
 }>;
 
+it.each([['en', practiceMessages], ['zh', zhPracticeMessages]] as const)('%s STEP preparation infrastructure copy is neutral', (locale, messages) => {
+  const view = render(createElement(IntlProvider, { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
+    lifecycle: 'IDLE', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR', inputSource: 'MICROPHONE',
+    inputError: 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED',
+  })));
+  expect(view.container).toHaveTextContent(messages.stepInfrastructureUnavailable);
+  expect(view.container).not.toHaveTextContent(/Start a new session|重新开始/);
+  view.unmount();
+});
+
 function makePerformanceClock(
   overrides: Partial<PerformanceClockSnapshot> = {}
 ): PerformanceClockSnapshot {

@@ -15,6 +15,7 @@ import { stepApplicationError, type StepApplicationErrorCode } from './step-erro
 import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepAnalysisIntervention } from './step-analysis-intervention';
+import type { StepInfrastructureIntervention } from './step-infrastructure-intervention';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
@@ -52,6 +53,7 @@ export class StepPracticeController {
   private retirement: StepRetirementPolicy | null = null;
   private error: StepApplicationErrorCode | null = null;
   private analysisIntervention: StepAnalysisIntervention | null = null;
+  private infrastructureIntervention: StepInfrastructureIntervention | null = null;
   private readonly listeners = new Set<() => void>();
   private generation = 0;
   private suppressInputState = false;
@@ -66,6 +68,7 @@ export class StepPracticeController {
   snapshot() {
     const session = this.runtime?.snapshot() ?? this.finalSnapshot;
     return Object.freeze({ state: this.state, error: this.error, analysisIntervention: this.analysisIntervention,
+      infrastructureIntervention: this.infrastructureIntervention,
       stepInteractionPhase: session?.step.attemptState ?? null,
       canAcceptAttempt: this.state === 'ACTIVE' && this.error === null && (this.runtime?.canAcceptAttempt ?? false),
       pendingPostVerdict: session?.step.pendingPostVerdict ?? null,
@@ -166,14 +169,14 @@ export class StepPracticeController {
   private attemptSink(runtime: StepPracticeRuntime): StepAcousticAttemptSink<StepAttemptIdentity> {
     return {
       open: time => {
-        if (this.analysisIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime) return null;
+        if (this.analysisIntervention || this.infrastructureIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime) return null;
         const identity = runtime.openAttempt(time);
         if (identity) this.emit();
         return this.state === 'ACTIVE' && runtime.snapshot().step.activeAttempt?.attemptId === identity?.attemptId ? identity : null;
       },
       complete: (identity, evidence) => {
         try {
-          if (this.analysisIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime || !runtime.analyzeAttempt(identity)) return;
+          if (this.analysisIntervention || this.infrastructureIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime || !runtime.analyzeAttempt(identity)) return;
           this.emit();
           const result = runtime.completeAttempt(identity, evidence);
           if (result.kind === 'REJECTED') return;
@@ -203,6 +206,7 @@ export class StepPracticeController {
     if (this.state === 'DISPOSED') return this.cleanupTask ?? Promise.resolve();
     this.generation++; this.input?.cancel(); this.runtime?.end();
     this.analysisIntervention = null;
+    this.infrastructureIntervention = null;
     this.state = 'DISPOSED'; const cleanup = this.cleanup(); this.emit(); this.listeners.clear();
     this.disposal = Promise.all([this.preparation, cleanup, this.completionTask]).then(() => {});
     return this.disposal;
@@ -255,7 +259,7 @@ export class StepPracticeController {
     }
   }
   private microphoneHealthChanged(): void {
-    if (this.analysisIntervention || this.state !== 'ACTIVE') return;
+    if (this.analysisIntervention || this.infrastructureIntervention || this.state !== 'ACTIVE') return;
     const tracks = this.stream?.getAudioTracks();
     if (!tracks?.length || tracks.some(track => track.readyState !== 'live')) {
       this.failAttempt(new Error('MICROPHONE_SOURCE_LOST')); return;
@@ -275,12 +279,14 @@ export class StepPracticeController {
     } catch (error) { this.failAttempt(error); }
   }
   private failAttempt(error: unknown): void {
-    if (this.analysisIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
+    if (this.analysisIntervention || this.infrastructureIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
     const code = this.options.inputSource === 'MICROPHONE'
       ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING') : 'STEP_ATTEMPT_FAILED';
-    if (this.state === 'ACTIVE' && this.runtime && code === 'STEP_ACOUSTIC_RUNTIME_FAILED') {
+    if (this.state === 'ACTIVE' && this.runtime && this.options.inputSource === 'MICROPHONE'
+      && (code === 'STEP_ACOUSTIC_RUNTIME_FAILED' || code === 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED')) {
       // Latch before domain/cleanup callbacks can reenter. Resource release is not session end.
-      this.analysisIntervention = Object.freeze({ kind: 'TERMINAL_ANALYSIS_FAILURE' });
+      if (code === 'STEP_ACOUSTIC_RUNTIME_FAILED') this.analysisIntervention = Object.freeze({ kind: 'TERMINAL_ANALYSIS_FAILURE' });
+      else this.infrastructureIntervention = Object.freeze({ kind: 'TERMINAL_INFRASTRUCTURE_FAILURE' });
       this.runtime.setInputUnavailable();
       this.error = null;
       void this.cleanup(); this.emit(); return;

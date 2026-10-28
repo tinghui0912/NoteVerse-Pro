@@ -1363,23 +1363,63 @@ test('STEP microphone temporary mute preserves the target and automatically re-a
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
 });
 
-test('STEP microphone hard loss stays on Practice and explicit reconnect opens only a fresh microphone and STEP session', async ({ page }) => {
-  let modelAccess = 0; page.on('request', request => { if (request.url().endsWith('/model-assets/practice-acoustic-robust-browser-v1/access')) modelAccess++; });
+async function observeStepContexts(page: Page) {
+  await page.addInitScript(() => {
+    const NativeContext = window.AudioContext, contexts: AudioContext[] = [];
+    (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts = contexts;
+    window.AudioContext = class extends NativeContext {
+      constructor(options?: AudioContextOptions) { super(options); contexts.push(this); }
+      createMediaStreamDestination() {
+        // Synthetic microphone roots own source-generator contexts, outside the attempt.
+        const index = contexts.indexOf(this); if (index >= 0) contexts.splice(index, 1);
+        return super.createMediaStreamDestination();
+      }
+    };
+  });
+}
+async function stepContextStates(page: Page) {
+  return page.evaluate(() => (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.map(c => c.state));
+}
+
+for (const fault of ['root', 'context'] as const) test(`STEP ${fault} failure retains position; End then recovery waits for explicit Continue`, async ({ page }) => {
+  await observeStepContexts(page);
   await setupContinuousPracticeMocks(page); await openPreparedPractice(page, scoreId, revisionId);
   await configurePractice(page, 'STEP', 'MICROPHONE', 'OFF');
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
-  const counts = await deviceAndEnvironmentCounts(page), preparedAccess = modelAccess;
-  await changeInputRoot(page, 'ended');
-  await expect(page.getByTestId('practice-device-issue')).toContainText('麦克风已断开');
-  await expect(page.getByTestId('practice-setup')).toHaveCount(0); await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: '重新连接', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
-  await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(1);
+  const cursor = page.locator('[data-practice-playhead-cursor]'); await expect(cursor).toHaveCount(1);
+  const initialTarget = await cursor.getAttribute('x');
+  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] } }).__practiceAcousticEngineFixture.pitches = ['C4']; });
+  await expect(cursor).not.toHaveAttribute('x', initialTarget!);
+  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] } }).__practiceAcousticEngineFixture.pitches = []; });
+  const target = await cursor.getAttribute('x'), counts = await deviceAndEnvironmentCounts(page), contexts = await stepContextStates(page);
+  if (fault === 'root') await changeInputRoot(page, 'ended');
+  else await page.evaluate(async () => { await (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.findLast(c => c.state === 'running')!.suspend(); });
+  const dialog = page.getByRole('alertdialog', { name: '麦克风输入已停止' }); await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button')).toHaveCount(1); await expect(cursor).toHaveAttribute('x', target!);
+  await expect(page.getByTestId('practice-device-issue')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '重新连接', includeHidden: true })).toHaveCount(0);
+  await page.keyboard.press('Escape'); await expect(dialog).toBeVisible();
+  expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(counts.engine.sessions);
+  await expect.poll(async () => (await stepContextStates(page)).every(state => state === 'closed')).toBe(true);
+  await dialog.getByRole('button', { name: '结束', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  const resume = page.getByRole('button', { name: '继续练习', exact: true });
+  if (fault === 'root') {
+    const issue = page.getByTestId('practice-device-issue'); await expect(issue).toContainText('麦克风已断开');
+    await expect(resume).toBeDisabled();
+    await issue.getByRole('button', { name: '重新连接', exact: true }).click();
+  } else await expect(page.getByTestId('practice-device-issue')).toHaveCount(0);
+  await expect(resume).toBeEnabled();
   const recovered = await deviceAndEnvironmentCounts(page);
-  expect(recovered.media).toBe(counts.media + 1); expect(recovered.midi).toBe(counts.midi);
-  expect(recovered.engine.loads).toBe(counts.engine.loads); expect(recovered.engine.sessions).toBe(counts.engine.sessions + 1);
-  expect(modelAccess).toBe(preparedAccess);
-  await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
+  expect(recovered.media).toBe(counts.media + (fault === 'root' ? 1 : 0));
+  expect(recovered.midi).toBe(counts.midi); expect(recovered.engine).toEqual(counts.engine);
+  expect(await stepContextStates(page)).toHaveLength(contexts.length);
+  await expect(cursor).toHaveCount(0); // Recovery did not create a new attempt.
+  await resume.click(); await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
+  await expect(cursor).toHaveAttribute('x', initialTarget!); // Configured scope start, no progress migration.
+  expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(counts.engine.sessions + 1);
+  expect(await stepContextStates(page)).toHaveLength(contexts.length + 1);
+  await page.getByRole('button', { name: '结束', exact: true }).click(); await expect(resume).toBeEnabled();
+  await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
 });
 
 test('Continuous idle root interruption explains disabled Start and reconnect renews only the lost recording root', async ({ page }) => {
