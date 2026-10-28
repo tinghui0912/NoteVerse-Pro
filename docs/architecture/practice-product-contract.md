@@ -519,6 +519,15 @@ records its byte size, SHA256, decoder and resource bounds. Source adapters acce
 Input regions include overlapping context, while acoustic owned regions authorize
 observation publication. Window width does not define assignment finalization.
 
+Canonical hashing of the acoustic identity JSON proves that its declaration is stable;
+it does not prove that declared path/bytes/SHA fingerprints still describe current
+repository files. A Node-side recursive attestation test checks those source and FIR
+assets separately: text uses UTF-8 with CRLF normalized to LF only, while binary
+coefficients use exact raw bytes. Browser identity validation does not read or fetch
+repository source. Repairing stale implementation attestations mechanically updates
+the core hash and source-adapter composite hashes; it does not change recognition
+behavior, the model asset, identityName, or the schema-6 Result shape.
+
 `practice/acoustic/continuous` projects source observations into performance time
 and publishes `ContinuousEvidencePublication` through the session. Paused context
 does not extend performance duration or evaluation coverage. At pause T coverage

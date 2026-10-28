@@ -2,15 +2,15 @@
   "acousticPublication": {
     "executorSource": {
       "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
-      "bytes": 11961,
-      "sha256": "0c02d45320333607cbe21095f7675cb64762bea77b52bcc47c973280862737e7"
+      "bytes": 12221,
+      "sha256": "43e7e892cfee4c756fc548867ab25419c78f2da916e19be349367ef84428d791"
     },
     "scope": "Score-blind browser-local source analysis shared by STEP and Continuous.",
     "semantics": "Sequential source windows produce immutable all-pitch observations with source sample identity, half-open ownership and analyzed-through coverage. Source event time and publication availability use separate clocks. No score, target or verdict enters source analysis.",
     "publicationSource": {
       "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
-      "bytes": 3251,
-      "sha256": "49ea38c9a08bc81802f12d96dd2a531016f1c5f3da92ec649cf5b5f4bb02dbe9"
+      "bytes": 7762,
+      "sha256": "8a07245f0df928b3c199cce3fa8765bf73afefeefd9d1f1b33b737dc2fa3f272"
     }
   },
   "decoder": {
