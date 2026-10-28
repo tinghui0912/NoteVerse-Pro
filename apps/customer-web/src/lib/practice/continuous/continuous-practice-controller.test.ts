@@ -776,7 +776,7 @@ it('controller refresh and repeated live snapshots never request the full assign
     await controller.start(); f.clock.set(600); controller.refresh();
     for (let i = 0; i < 100; i++) {
       const feedback = controller.snapshot().evaluation!;
-      expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId','targets']);
+      expect(Object.keys(feedback).sort()).toEqual(['targets']);
       expect(feedback).not.toHaveProperty('assignment'); expect(feedback).not.toHaveProperty('extraObservations');
     }
     expect(full).not.toHaveBeenCalled();

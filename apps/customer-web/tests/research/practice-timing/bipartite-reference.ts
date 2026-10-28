@@ -1,18 +1,18 @@
-import { ContinuousEvaluationError } from './evaluation-error';
+/** Research-only V3 generic reference for arbitrary/variable-radius graphs. Never imported by production. */
 
-export type ContinuousMatchingEdge = Readonly<{ left: number; right: number; cost: number }>;
+export type ResearchMatchingEdge = Readonly<{ left: number; right: number; cost: number }>;
 
 type Edge = { to: number; capacity: number; cost: number; reverse: number; pair?: readonly [number, number] };
 
 /** Ordered inputs define stable ties. Successive shortest augmentations prioritize cardinality before cost. */
-export function matchContinuousEvidence(
-  leftCount: number, rightCount: number, candidates: readonly ContinuousMatchingEdge[],
+export function matchResearchBipartiteEvidence(
+  leftCount: number, rightCount: number, candidates: readonly ResearchMatchingEdge[],
 ): readonly (readonly [number, number])[] {
   const ordered = [...candidates].sort((a, b) => a.left - b.left || a.right - b.right);
   if (!Number.isSafeInteger(leftCount) || leftCount < 0 || !Number.isSafeInteger(rightCount) || rightCount < 0
     || ordered.some((edge, i) => !Number.isSafeInteger(edge.left) || !Number.isSafeInteger(edge.right)
       || edge.left < 0 || edge.left >= leftCount || edge.right < 0 || edge.right >= rightCount || !Number.isFinite(edge.cost)
-      || i > 0 && edge.left === ordered[i - 1].left && edge.right === ordered[i - 1].right)) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
+      || i > 0 && edge.left === ordered[i - 1].left && edge.right === ordered[i - 1].right)) throw new Error('RESEARCH_MATCHING_INVALID');
   const size = leftCount + rightCount + 2;
   const source = size - 2, sink = size - 1;
   const graph: Edge[][] = Array.from({ length: size }, () => []);

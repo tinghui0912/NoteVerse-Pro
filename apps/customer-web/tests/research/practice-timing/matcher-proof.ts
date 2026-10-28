@@ -1,3 +1,4 @@
+import { matchOrderedSamePitchEvidence } from '@/lib/practice/continuous/domain/evaluation/same-pitch-matching';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS as W } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { sequences, exhaustiveSolution, genericSolution, orderedSolution, nearestTargetGreedy, crossing } from './ordered-solvers';
 import { candidatePolicies, legal } from './candidate-policies';
@@ -8,11 +9,17 @@ const samePairs=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export function matcherProof() {
   const values=Array.from({length:6},(_,i)=>i*W/2);
   const targets=sequences(values,3,false),events=sequences(values,3,true);
+  const currentPairs=(ts:readonly number[],os:readonly number[])=>matchOrderedSamePitchEvidence(
+    ts.map((time,i)=>({strikeId:`t${i}`,pitch:'C4',expectedPerformanceTimeMs:time,scoreOrder:i})),
+    os.map((time,i)=>({observationId:`o${i}`,pitch:'C4',performanceTimeMs:time})))
+      .map(m=>[Number(m.strikeId.slice(1)),Number(m.observationId.slice(1))]);
+  let currentOrderedPairDifferences=0;
   let graphs=0,nonCrossingFailures=0,objectiveMismatches=0,exactOwnershipDifferences=0,targetSetDifferences=0,crossingGenericOptima=0;
   let firstOwnershipDifference:unknown=null;
   for(const ts of targets)for(const os of events) {
     const costs=ts.map(t=>os.map(o=>Math.abs(t-o)<=W?Math.abs(t-o):Infinity));
     const all=exhaustiveSolution(costs,os.length), generic=genericSolution(costs,os.length),ordered=orderedSolution(costs,os.length);
+    if(!samePairs(currentPairs(ts,os),ordered.pairs))currentOrderedPairDifferences++;
     graphs++;
     if(!objectiveEqual(all.best,all.nonCrossing))nonCrossingFailures++;
     if(!objectiveEqual(all.best,generic)||!objectiveEqual(all.best,ordered))objectiveMismatches++;
@@ -23,13 +30,14 @@ export function matcherProof() {
       firstOwnershipDifference??={targets:ts,observations:os,generic,ordered};
     }
   }
-  let state=20261028,generatedGraphs=0,generatedObjectiveMismatches=0,generatedOwnershipDifferences=0;
+  let state=20261028,generatedGraphs=0,generatedObjectiveMismatches=0,generatedOwnershipDifferences=0,generatedCurrentPairDifferences=0;
   const rand=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state;};
   for(let run=0;run<2000;run++) {
     const ts=[...new Set(Array.from({length:rand()%5},()=>rand()%20*W/4))].sort((a,b)=>a-b);
     const os=Array.from({length:rand()%5},()=>rand()%20*W/4).sort((a,b)=>a-b);
     const costs=ts.map(t=>os.map(o=>Math.abs(t-o)<=W?Math.abs(t-o):Infinity));
     const g=genericSolution(costs,os.length),d=orderedSolution(costs,os.length);
+    if(!samePairs(currentPairs(ts,os),d.pairs))generatedCurrentPairDifferences++;
     generatedGraphs++; if(!objectiveEqual(g,d))generatedObjectiveMismatches++;
     if(!samePairs(g.pairs,d.pairs))generatedOwnershipDifferences++;
   }
@@ -55,8 +63,8 @@ export function matcherProof() {
     if(!objectiveEqual(all.best,all.nonCrossing))uniqueNonCrossingFailures++;
   }
   const greedyCosts=[[200,100],[Infinity,150]];
-  return {fixed:{graphs,nonCrossingFailures,objectiveMismatches,exactOwnershipDifferences,targetSetDifferences,crossingGenericOptima,firstOwnershipDifference},
-    generated:{graphs:generatedGraphs,objectiveMismatches:generatedObjectiveMismatches,exactOwnershipDifferences:generatedOwnershipDifferences},
+  return {genericReferenceIdentity:'RESEARCH_V3_GENERIC_REFERENCE',fixed:{currentOrderedPairDifferences,graphs,nonCrossingFailures,objectiveMismatches,exactOwnershipDifferences,targetSetDifferences,crossingGenericOptima,firstOwnershipDifference},
+    generated:{currentOrderedPairDifferences:generatedCurrentPairDifferences,graphs:generatedGraphs,objectiveMismatches:generatedObjectiveMismatches,exactOwnershipDifferences:generatedOwnershipDifferences},
     variable:{graphs:variableGraphs,nonCrossingFailures:variableNonCrossingFailures,minimumVertexCounterexample:counterexample},
     unique:{graphs:uniqueGraphs,overlapFailures:uniqueOverlapFailures,nonCrossingFailures:uniqueNonCrossingFailures},
     greedy:{costs:[[200,100],[null,150]],nearestPerTarget:nearestTargetGreedy(greedyCosts),optimum:genericSolution(greedyCosts,2)}};

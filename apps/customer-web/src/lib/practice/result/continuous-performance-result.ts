@@ -7,7 +7,7 @@ import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
 
-export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 5;
+export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 6;
 export type ContinuousPerformanceResult = Readonly<{
   schemaVersion: typeof CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION;
   localSessionId: string; scoreId: string; revisionId: string; artifactId: string;

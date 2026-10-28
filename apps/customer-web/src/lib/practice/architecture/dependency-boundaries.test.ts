@@ -234,7 +234,7 @@ describe('Practice bounded domain dependencies', () => {
   });
 
   it('separates raw assignment mechanics from target feedback and presentation', () => {
-    const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'matching.ts', 'observation-store.ts',
+    const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'same-pitch-matching.ts', 'observation-store.ts',
       'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
     const evaluationRoot = 'continuous/domain/evaluation/';
     for (const file of files) {
@@ -634,8 +634,9 @@ it('production cannot reintroduce target substitutions, old policies or retired 
     'ContinuousInterpretation','MidiContinuousInterpretation','AcousticContinuousInterpretation',
     'MidiStrikeFeedback','AcousticStrikeFeedback','MidiGroupFeedback','AcousticGroupFeedback',
     'interpretContinuousAssignment','interpretContinuousTargetState','interpretationPolicyForInputSource','interpretationPolicyId',
-    'noteAnnotationsFromLiveFeedback','noteAnnotationsFromCompletedEvaluation']);
-  const retiredValues = new Set(['WRONG','UNCONFIRMED','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2',
+    'noteAnnotationsFromLiveFeedback','noteAnnotationsFromCompletedEvaluation',
+    'matchContinuousEvidence','ContinuousMatchingEdge','candidateEdge']);
+  const retiredValues = new Set(['WRONG','UNCONFIRMED','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3',
     'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1',
     'MIDI_PHYSICAL_NOTE_EVENTS_V2','ACOUSTIC_TARGET_DETECTION_V2','INCOMPLETE_CHORD','PARTIALLY_SUPPORTED']);
   const violations: string[] = [];
@@ -663,5 +664,22 @@ it('has no source-specific interpretation implementation or target/group classif
       if (ts.isStringLiteralLike(node)) expect(['CORRECT','MISSING','SUPPORTED','NOT_DETECTED'].includes(node.text), file).toBe(false);
       ts.forEachChild(node, visit);
     }; visit(source);
+  }
+});
+
+it('has only domain-specific ordered same-pitch matching in production and keeps score-view policy-blind',()=>{
+  expect(existsSync(path.join(practiceRoot,'continuous/domain/evaluation/matching.ts'))).toBe(false);
+  const matcher=path.join(practiceRoot,'continuous/domain/evaluation/same-pitch-matching.ts');
+  const source=ts.createSourceFile(matcher,readFileSync(matcher,'utf8'),ts.ScriptTarget.Latest,true);
+  const visit=(node:ts.Node)=>{
+    if(ts.isIdentifier(node))expect(['leftCount','rightCount','Edge','capacity','reverse'].includes(node.text),node.text).toBe(false);
+    ts.forEachChild(node,visit);
+  };visit(source);
+  for(const file of [...productionFiles(path.join(practiceRoot,'score-view')),path.join(sourceRoot,'components/practice/practice-score-viewer.tsx')]) {
+    const ast=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);
+    const inspect=(node:ts.Node)=>{
+      if(ts.isIdentifier(node))expect(['assignmentPolicyId','CONTINUOUS_ASSIGNMENT_POLICY_ID'].includes(node.text),file).toBe(false);
+      ts.forEachChild(node,inspect);
+    };inspect(ast);
   }
 });

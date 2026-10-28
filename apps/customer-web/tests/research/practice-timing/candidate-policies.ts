@@ -120,7 +120,7 @@ export function candidateDefinition(p:Candidate) {
         :p.family==='BEAT_RELATIVE'?`absolute offset <= ${p.fraction} * target-local beat duration`
           :`${p.fraction} * nearest ${p.family==='GROUP_IOI_HALF_MIDPOINT'?'canonical group':'same-pitch'} IOI; absent IOI uses scope bounds`,
     ownership:p.unique?'same-pitch midpoint cells: lower inclusive, upper exclusive; equality belongs to later onset; final scope endpoint inclusive'
-      :'overlapping exact-pitch graph: maximum cardinality, minimum absolute error, stable identity ordering; CURRENT uses production direct-cohort commits, beat candidates solve an offline full graph',
+      :'overlapping exact-pitch graph: maximum cardinality, minimum absolute error, CURRENT uses chronological non-crossing V4 direct-cohort commits; beat candidates use the research V3 generic reference on an offline full graph',
     decisionFrontier:p.family==='CURRENT_FIXED_MS'?'production directStrikeFrontier, terminal-clamped'
       :p.unique?'right edge of eligibility intersected with ownership/scope cell'
         :'maximum right edge of entire connected same-pitch interval component, terminal-clamped (conservative offline reference)',
@@ -128,7 +128,7 @@ export function candidateDefinition(p:Candidate) {
     positiveWidthEligibilityOverlapPossible:!p.family.endsWith('IOI_HALF_MIDPOINT'),
     ownershipOverlapPossible:!p.unique,uniqueOwnership:p.unique,
     genericMatcherRequired:p.unique?'no':p.family==='CURRENT_FIXED_MS'
-      ?'no for cardinality/cost objectives; tested ordered DP does not reproduce exact production ties'
+      ?'no; V4 production uses ordered scalar DP with chronological non-crossing ties'
       :'constant-radius objectives admit ordered DP; variable radii can require crossing; necessity of this generic implementation is unknown',
     acceptsArbitrarilyDistant:p.family==='MIDPOINT_ONLY'||p.family==='BEAT_RELATIVE'||p.family==='GROUP_IOI_HALF_MIDPOINT'||p.family==='SAME_PITCH_IOI_HALF_MIDPOINT',
     localityDomain:p.family==='BEAT_RELATIVE'?'finite absolute radius on the tested 40..240 BPM grid; unbounded if local beat duration is unbounded':'fixed W is absolute; IOI/scope geometry has no independent absolute cap',

@@ -52,7 +52,7 @@ describe('production timing policy characterization', () => {
       assignedStrikeId: strikes[1 - index].strikeId });
     expect(c.overlappingSamePitchGapCount).toBe(1);
   });
-  it('marks an exact equal-distance tie and preserves stable strike identity despite input order', () => {
+  it('marks an exact equal-distance tie and preserves chronological target tie despite input order', () => {
     const c = tieCase();
     expect(c.tag).toBe('TIE_CASE');
     expect(c.observations[0]).toMatchObject({ assignedStrikeId: 'g0:C4', claimantCount: 2, timingOffsetMs: CONTINUOUS_ASSIGNMENT_WINDOW_MS });

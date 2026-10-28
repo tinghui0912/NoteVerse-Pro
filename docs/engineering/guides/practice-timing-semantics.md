@@ -1,5 +1,16 @@
 # Continuous Timing Semantics Audit
 
+> Historical V3 record: this audit was performed against
+> `2fcfb9582b7df89e1bd57af3a42beef0cb4f2354` and published in `7e3833a1`.
+> Subsequent V4 production changes only the cohort solver and equal-objective
+> ownership ties to chronological non-crossing order. The common-radius structural
+> proof remains applicable. All V3 counts, identity-tie examples and numeric tables
+> below remain historical evidence and have not been rewritten as V4 results.
+> The current research CLI imports the current production identity and reports V4;
+> its arbitrary-graph generic solver is a research-only V3 reference. See the
+> [current research guide](practice-timing-research.md#ordered-v4-production-regression)
+> for the subsequent production regression.
+
 Research/proof round against the independently approved
 `2fcfb9582b7df89e1bd57af3a42beef0cb4f2354` baseline. This document neither selects a
 production policy nor authorizes timing/matcher changes. Production source remains

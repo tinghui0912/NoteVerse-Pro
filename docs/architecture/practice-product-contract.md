@@ -593,12 +593,32 @@ observations.
 
 ### Source-blind assignment
 
-Same-pitch assignment uses an inclusive +/-250ms window, maximizes cardinality,
-then minimizes absolute timing error with stable identity ties. This round retains
-that current algorithm; it does not establish 250ms as the best product value.
-Note duration / notation end is not an attack acceptance deadline. A subsequent
-independent timing/assignment audit will examine score-derived ownership,
-same-pitch matching and target decision frontiers; it is not implemented here.
+Same-pitch assignment uses the unchanged inclusive +/-250ms eligibility window.
+`CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4` defines three objectives:
+maximize cardinality, minimize total absolute timing error, then choose the
+lexicographically earliest chronological non-crossing pair sequence.
+
+Targets sort by expected Performance Time, then existing canonical score order only
+when time is identical, with strike identity as the final corruption-safe fallback.
+Events sort by Performance Time, then observation identity only for identical times.
+Different-onset target colors never depend on opaque target identity. At 1000/1300ms
+with one event at 1150ms, the earlier unresolved target wins, regardless of IDs.
+This FIFO convention is deterministic product policy, not learner-accuracy evidence.
+
+The domain-specific same-pitch solver uses scalar suffix cardinality/cost tables
+and chronological reconstruction, with O(targets * events) space/time per cohort.
+No DP cell retains a growing pair list; costs use structured comparison, without
+epsilon or artificial numeric weighting. The generic residual-graph/Bellman-Ford
+matcher is absent from production. Overlapping eligibility remains: targets
+1000/1250ms with events 1100/1110ms both match, as do events 800/1100ms. Nearest
+per-target greedy and midpoint clipping do not preserve these objectives.
+
+W=250ms remains an unqualified algorithm-policy parameter. The common-radius
+non-crossing proof works for any radius, not specifically 250ms. Round 16 selected
+no replacement tolerance; V4 changes only cohort solver/equal-objective ownership.
+It is not timing-tolerance validation and does not claim improved learner accuracy.
+Note duration / notation end is not an attack acceptance deadline. Beat/IOI-relative
+acceptance, midpoint ownership and device/learner qualification are not adopted.
 
 Canonical chord strikes share one onset. Direct same-pitch cohorts are literal
 interval neighbors within 2W, not recursively expanded graph components. A strike
@@ -625,14 +645,15 @@ Natural completion has no pending targets or unresolved same-pitch reservations.
 
 Continuous retains all accepted evidence required by the completed result, including
 provenance and extra/unattributed observations. Internal time/pitch indexes, explicit
-unowned working sets and sparse legal-edge matching restrict ordinary assignment
+unowned working sets and local ordered same-pitch matching restrict ordinary assignment
 work to semantically relevant local data without discarding accepted evidence.
 Receipts retain exact scalar/header identity and canonical observation IDs; replay
 compares the retained observations exactly, without retaining duplicate full payload
 strings or using collision-prone hashes. Permuted identical replay is idempotent;
 mutated replay remains invalid. Frontier readiness selects work, then canonical
-time/strike-ID order controls assignment. Matching preserves maximum cardinality,
-minimum total cost and stable identity ties.
+score chronology controls assignment, with identity only as an identical-time
+fallback. Cohort matching preserves maximum cardinality, minimum total error and
+canonical chronological non-crossing ties.
 
 Incoming evidence, receipts and assignment changes are prepared together before
 retaining or committing any publication, observation, frontier, ownership or
@@ -704,9 +725,10 @@ mapper. MATCHED maps to supported green; UNMATCHED maps to unsupported red. PEND
 NOT_REACHED and unavailable analysis produce no fabricated correctness colors.
 Score decorations are supported/unsupported only.
 
-Target feedback contains exactly assignmentPolicyId and a flat targets list; each
+Target feedback contains exactly a flat targets list; each
 entry contains strikeId, renderNoteIds and MATCHED or UNMATCHED. There is no groupId
-or inputSource because color consumers need neither. The finalizer's targetStates()
+or inputSource because color consumers need neither. Assignment policy identity is
+retained by completed evaluation/Result, never by the presentation DTO. The finalizer's targetStates()
 read projects only strikeId, renderNoteIds and source-blind strike state, without
 copying evidence history. Completed Review projects its assignment into the same
 narrow feedback at the domain boundary. Score-view consumes no broad assignment,
@@ -732,7 +754,7 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-5: local session and score/revision/artifact identities, resolved scope, tempo plan,
+6: local session and score/revision/artifact identities, resolved scope, tempo plan,
 input source, active performance duration, completed evaluation, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
@@ -749,7 +771,7 @@ Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-Result validation accepts schema 5 exact fields only. Schemas 2/3/4, retired
+Result validation accepts schema 6 exact fields only. Schemas 2/3/4/5, V3 assignment policy, retired
 interpretation fields/policies, extra unknown fields and a metrics field are rejected without migration, normalization, compatibility or repair.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
 or active duration. Score annotations, playhead and share-score rendering require
@@ -757,10 +779,10 @@ confirmed artifact identity independently of recording replay.
 
 ## Evaluation / Evidence Provenance
 
-Every live/completed evaluation declares assignmentPolicyId.
-`CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3` continues to cover same-pitch
+Completed evaluation and diagnostic full snapshots retain assignmentPolicyId.
+`CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4` covers same-pitch
 +/-250ms eligibility, maximum cardinality then minimum absolute timing error,
-stable ties, exact match/unattributed ownership, direct-cohort target frontiers,
+chronological non-crossing ties, exact match/unattributed ownership, direct-cohort target frontiers,
 child-dependent group finality and terminal clamps. Finalization availability uses
 Session Time; expected/event/frontier positions use Performance Time. There is no
 independent interpretation algorithm or interpretation policy identity. Validation

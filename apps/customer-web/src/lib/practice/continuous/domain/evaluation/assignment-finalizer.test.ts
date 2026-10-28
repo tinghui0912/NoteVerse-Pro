@@ -222,18 +222,19 @@ describe('deterministic exact-pitch observation ownership', () => {
   });
 });
 
-it.each(['publication', 'completion'] as const)('invalid sparse candidate discards the whole %s assignment plan', operation => {
+it.each(['publication', 'completion'] as const)('invalid same-pitch input discards the whole %s assignment plan', operation => {
   const l = ledger([strike('early', 1000, 'D4'), strike('late', 1000, 'C4')]);
   const observations = [observation('early-o', 1000, 'D4'), observation('late-o', 1000, 'C4')];
   if (operation === 'publication') l.publish(pub('initial', 0));
   else l.publish(pub('evidence', 1000, observations));
   const before = l.snapshot(), retained = l.retentionSnapshot();
-  type CandidateBuilder = { candidateEdge(edges: { left: number; right: number; cost: number }[], left: number, right: number, cost: number): void };
-  const builder = l as unknown as CandidateBuilder, build = builder.candidateEdge.bind(l);
-  let candidates = 0;
-  // Inject a malformed later graph. The real matcher rejects it after an earlier claim was planned.
-  const spy = vi.spyOn(builder, 'candidateEdge').mockImplementation((edges, left, right, cost) => {
-    build(edges, ++candidates === 2 ? -1 : left, right, cost);
+  type EvidenceQuery = { observationRange(start:number,end:number,pitch?:string): ContinuousObservation[] };
+  const query = l as unknown as EvidenceQuery, read = query.observationRange.bind(l);
+  let queries = 0;
+  // Corrupt the second cohort's owned query result after an earlier claim was staged.
+  const spy = vi.spyOn(query, 'observationRange').mockImplementation((start,end,pitch) => {
+    const rows=read(start,end,pitch);queries++;
+    return pitch==='C4' ? rows.map(o=>({...o,pitch:'foreign-pitch'})) : rows;
   });
   let failure: unknown;
   try {
@@ -241,7 +242,7 @@ it.each(['publication', 'completion'] as const)('invalid sparse candidate discar
     else l.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 1000, availabilitySessionTimeMs: 1100 });
   } catch (error) { failure = error; }
   finally { spy.mockRestore(); }
-  expect(candidates).toBe(2);
+  expect(queries).toBe(2);
   expect(failure).toMatchObject({ code: 'INVALID_PUBLICATION' });
   expect(l.snapshot()).toEqual(before); expect(l.retentionSnapshot()).toEqual(retained);
   let laterFailure: unknown;
@@ -266,4 +267,36 @@ it('indexes narrow candidates but the policy predicate still owns floating-point
   l.publish(pub('p', t + 2048, [observation('outside', t + 256, 'C4')]));
   expect(group(l).strikes[0].state).toBe('UNMATCHED');
   expect(l.snapshot().unattributedObservations.map(o => o.observation.observationId)).toEqual(['outside']);
+});
+
+it.each([['a','z'],['z','a']])('production midpoint colors follow onset chronology for strike IDs %s/%s',(a,b)=>{
+  const expected=[strike(a,1000),strike(b,1300)];
+  const run=(reverse:boolean,observationId:string)=>{
+    const l=ledger(reverse?[...expected].reverse():expected);l.publish(pub('p',2000,[observation(observationId,1150)]));finish(l);
+    const result=l.completedAssignment();if(result.status!=='COMPLETE')throw Error('incomplete');
+    return result.assignment.groups.map(g=>g.strikes.map(s=>({time:s.expectedPerformanceTimeMs,state:s.state})));
+  };
+  for(const reverse of [true,false])for(const id of ['a-event','z-event'])expect(run(reverse,id)).toEqual([
+    [{time:1000,state:'MATCHED'}],[{time:1300,state:'UNMATCHED'}],
+  ]);
+});
+it.each([[1100,1110],[800,1100]].map(times=>({times})))('production retains two target matches for event geometry $times',({times})=>{
+  const l=ledger([strike('z',1000),strike('a',1250)]);
+  const observations=times.map((time,i)=>observation(`event-${i}`,time));
+  l.publish(pub('p',2000,[...observations].reverse()));finish(l);
+  expect(l.snapshot().groups.every(g=>g.strikes.every(s=>s.state==='MATCHED'))).toBe(true);
+  expect(l.snapshot().observationAssignments.every(r=>r.kind==='STRIKE_MATCH')).toBe(true);
+  expect(l.snapshot().unattributedObservations).toEqual([]);
+});
+
+it('production equal-time evidence identity fallback never changes matched targets or timing cost',()=>{
+  const run=(ids:readonly string[])=>{
+    const l=ledger([strike('z',1000),strike('a',1300)]);
+    l.publish(pub('p',2000,ids.map(id=>observation(id,1150))));finish(l);
+    const result=l.completedAssignment();if(result.status!=='COMPLETE')throw Error('incomplete');
+    return {states:result.assignment.groups.map(g=>g.strikes[0].state),
+      cost:result.assignment.groups.reduce((sum,g)=>sum+g.strikes.reduce((n,s)=>n+(s.state==='MATCHED'?Math.abs(s.match.timingOffsetMs):0),0),0)};
+  };
+  expect(run(['a-observation','z-observation'])).toEqual({states:['MATCHED','MATCHED'],cost:300});
+  expect(run(['z-observation','a-observation'])).toEqual(run(['earlier-id','later-id']));
 });

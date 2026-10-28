@@ -24,7 +24,7 @@ for (const inputSource of ['MIDI','MICROPHONE'] as const) describe(inputSource +
     finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
     const completed = finalizer.completedAssignment(); if (completed.status !== 'COMPLETE') throw Error('incomplete');
     assertCompletedAssignment(completed.assignment);
-    const evaluation = { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3' as const,
+    const evaluation = { status: 'COMPLETE' as const, assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4' as const,
       inputSource, assignment: completed.assignment };
     const reviewFeedback = completedContinuousTargetFeedback(evaluation);
     expect(reviewFeedback).toEqual(projectContinuousTargetFeedback(finalizer.targetStates()));

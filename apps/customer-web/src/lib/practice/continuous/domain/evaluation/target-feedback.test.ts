@@ -16,8 +16,8 @@ it('MIDI and microphone produce identical immutable settled target feedback with
       observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1,
         source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const })) });
     const before = finalizer.snapshot(), feedback = projectContinuousTargetFeedback(finalizer.targetStates());
-    expect(Object.keys(feedback).sort()).toEqual(['assignmentPolicyId', 'targets']);
-    expect(feedback).toEqual({ assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, targets: [
+    expect(Object.keys(feedback).sort()).toEqual(['targets']);
+    expect(feedback).toEqual({ targets: [
       { strikeId: 'C4', renderNoteIds: ['C4'], state: 'MATCHED' },
       { strikeId: 'D4', renderNoteIds: ['D4'], state: 'UNMATCHED' },
     ] });

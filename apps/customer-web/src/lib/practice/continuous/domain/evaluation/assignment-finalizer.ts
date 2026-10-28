@@ -1,4 +1,4 @@
-import { matchContinuousEvidence, type ContinuousMatchingEdge } from '@/lib/practice/continuous/domain/evaluation/matching';
+import { matchOrderedSamePitchEvidence } from '@/lib/practice/continuous/domain/evaluation/same-pitch-matching';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS, directObservationClaimants, directStrikeCohort, directStrikeFrontier, withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { compareContinuousId, ContinuousEvidenceStore, observationsInRange, type PreparedContinuousEvidence } from '@/lib/practice/continuous/domain/evaluation/observation-store';
 import { completeContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
@@ -244,23 +244,18 @@ export class ContinuousAssignmentFinalizer {
     for (const anchor of eligible) {
       const cohort = directStrikeCohort(anchor, this.strikeRange(anchor.pitch,
         anchor.expectedPerformanceTimeMs - 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS, anchor.expectedPerformanceTimeMs + 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS))
-        .filter(strike => !this.hasStrike(strike.strikeId)).sort(byStrikeId);
+        .filter(strike => !this.hasStrike(strike.strikeId));
       const observations = this.observationRange(cohort.reduce((min, s) => Math.min(min, s.expectedPerformanceTimeMs), Infinity) - CONTINUOUS_ASSIGNMENT_WINDOW_MS,
         cohort.reduce((max, s) => Math.max(max, s.expectedPerformanceTimeMs), -Infinity) + CONTINUOUS_ASSIGNMENT_WINDOW_MS, anchor.pitch)
-        .filter(o => this.isUnowned(o.observationId) && cohort.some(s => withinContinuousWindow(s.expectedPerformanceTimeMs, o.performanceTimeMs))).sort(byObservationId);
-      const right = new Map(observations.map((o, j) => [o.observationId, j]));
-      const edges: ContinuousMatchingEdge[] = [];
-      cohort.forEach((strike, i) => {
-        for (const o of this.observationRange(strike.expectedPerformanceTimeMs - CONTINUOUS_ASSIGNMENT_WINDOW_MS,
-          strike.expectedPerformanceTimeMs + CONTINUOUS_ASSIGNMENT_WINDOW_MS, strike.pitch)) {
-          const j = right.get(o.observationId); if (j !== undefined && withinContinuousWindow(strike.expectedPerformanceTimeMs, o.performanceTimeMs)) this.candidateEdge(edges, i, j, Math.abs(strike.expectedPerformanceTimeMs - o.performanceTimeMs));
-        }
-      });
-      const pairs = matchContinuousEvidence(cohort.length, observations.length, edges);
-      const pair = pairs.find(([i]) => cohort[i].strikeId === anchor.strikeId);
+        .filter(o => this.isUnowned(o.observationId) && cohort.some(s => withinContinuousWindow(s.expectedPerformanceTimeMs, o.performanceTimeMs)));
+      const matches = matchOrderedSamePitchEvidence(cohort.map(strike => ({
+        strikeId: strike.strikeId, pitch: strike.pitch, expectedPerformanceTimeMs: strike.expectedPerformanceTimeMs,
+        scoreOrder: this.strikeOrder.get(strike.strikeId)!,
+      })), observations);
+      const pair = matches.find(match => match.strikeId === anchor.strikeId);
       const finality = this.finality(this.frontier(anchor));
       if (pair) {
-        const observation = observations[pair[1]];
+        const observation = observations.find(observation => observation.observationId === pair.observationId)!;
         this.claim({ kind: 'STRIKE_MATCH', observationId: observation.observationId, strikeId: anchor.strikeId });
         draft.strikes.set(anchor.strikeId, immutableContinuousValue({ ...anchor, state: 'MATCHED',
           match: { observation, timingOffsetMs: observation.performanceTimeMs - anchor.expectedPerformanceTimeMs }, finality }));
@@ -270,10 +265,6 @@ export class ContinuousAssignmentFinalizer {
         draft.strikes.set(anchor.strikeId, immutableContinuousValue({ ...anchor, state: notReached ? 'NOT_REACHED' : 'UNMATCHED', finality }));
       }
     }
-  }
-
-  private candidateEdge(edges: ContinuousMatchingEdge[], left: number, right: number, cost: number): void {
-    edges.push({ left, right, cost });
   }
 
   private finishGroup(group: Group): void {

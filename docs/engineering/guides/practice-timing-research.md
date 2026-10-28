@@ -35,7 +35,7 @@ is allowed; keep it outside version control. The separate research schema is
 version 1, with generated-at time, known benchmark kind, current production policy
 identity/window, case counts, outcomes and aggregate metrics. Validators reject
 unknown versions/kinds/fields, non-finite numbers and invalid counts without repair
-or migrations. This schema is unrelated to Practice Result schema 5.
+or migrations. This schema is unrelated to Practice Result schema 6.
 
 ### Deterministic experiments
 
@@ -51,7 +51,7 @@ or migrations. This schema is unrelated to Practice Result schema 5.
 - `SINGLE_PROBE`: repeated-note targets A and B each generate a lone observation
   across the same sweep. This exposes claimant competition without other evidence
   forcing maximum-cardinality matching back toward intended identity.
-- One exact midpoint `TIE_CASE` freezes stable identity selection. Tests also
+- One exact midpoint `TIE_CASE` freezes earlier-onset chronological selection. Tests also
   reverse expected input order and cover cardinality-before-cost, minimum absolute
   timing error, and retention of unmatched observations as unattributed at every BPM.
 - An 80→160 score-tempo transition characterizes a fixed +250ms on both sides.
@@ -200,7 +200,7 @@ then. This tool does not download or batch-process a large audio corpus.
 
 ## Production isolation
 
-Research lives in `apps/customer-web/tests/research/practice-timing/` and two explicit
+Research lives in `apps/customer-web/tests/research/practice-timing/` and explicit
 Node commands. The production-source AST guard forbids importing these modules or
 their CLI runners from app/components/hooks/practice code. Research may consume
 production; the reverse dependency is prohibited. No report enters Result, learner
@@ -212,8 +212,54 @@ a group's unclamped decision frontier is the maximum of its child strike frontie
 These are derived relationships, not independent group timing bounds. This research
 does not establish 250ms as the optimal product value.
 
-The current assignment identity is `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3`.
+The current assignment identity is `CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4`.
 MIDI evidence remains `MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`;
 target states are source-blind MATCHED/UNMATCHED, without a second interpretation
-tree or group verdict. Result is schema 5. `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
+tree or group verdict. Result is schema 6. `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
 `calibrationApplied=false`, with no offset or calibration UI.
+
+## Ordered V4 production regression
+
+The [Round 16 audit](practice-timing-semantics.md) remains a historical V3 record;
+its tables are not silently relabeled. Current CLI reports use
+`CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4` and schema-6 Result remains
+separate from all research artifact schemas.
+
+V4 replaces only cohort matching/ties: maximum cardinality, then minimum absolute
+error, then earliest chronological non-crossing pair sequence. One exact midpoint
+event now supports the earlier unresolved target independent of target IDs. W is
+still the unqualified 250ms policy parameter; no tolerance, midpoint eligibility,
+beat-relative rule, finality scheduler or analysis-availability policy changed.
+
+The unchanged 10,003-case generation was replayed against V3 and V4. Input geometry,
+matched cardinality and total absolute timing error were identical in every case;
+164 cases changed observation ownership and none changed the matched target set.
+Total error equality was also checked by exact sums of the binary timing offsets.
+The separate midpoint ID-renaming control intentionally changes which target is
+green where V3's lexicographic identity disagreed with score chronology.
+
+The generic matcher retained for variable-radius research is explicitly named
+`bipartite-reference.ts`, with reference identity `RESEARCH_V3_GENERIC_REFERENCE`.
+It is not production and does not claim current V4 tie semantics. Common-radius
+exhaustive/generated research compares current production with ordered reference,
+while the independent production unit oracle imports no research module.
+
+Current candidate comparison counts can change with the baseline ties. In the
+same 10,003 cases, candidate-vs-current assignment-difference case counts are:
+
+| Candidate | Historical V3 baseline | Current V4 baseline |
+| --- | --- | --- |
+| CURRENT_FIXED_MS | 0 | 0 |
+| MIDPOINT_ONLY | 2464 | 2464 |
+| CURRENT_WINDOW_MIDPOINT | 1489 | 1489 |
+| BEAT_RELATIVE_0.0625 | 6918 | 6918 |
+| BEAT_RELATIVE_0.125 | 5252 | 5252 |
+| BEAT_RELATIVE_0.25 | 3169 | 3153 |
+| BEAT_RELATIVE_0.5 | 1975 | 1851 |
+| BEAT_RELATIVE_1 | 1643 | 1743 |
+| GROUP_IOI_HALF_MIDPOINT | 2819 | 2819 |
+| SAME_PITCH_IOI_HALF_MIDPOINT | 2647 | 2647 |
+
+These are policy differences, not accuracy scores or threshold qualification.
+Long-gap rejection concerns, midpoint cardinality loss, and variable-radius
+crossing counterexamples remain valid. No candidate policy is adopted by V4.

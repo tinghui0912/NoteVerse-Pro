@@ -1,4 +1,4 @@
-import { matchContinuousEvidence, type ContinuousMatchingEdge } from '@/lib/practice/continuous/domain/evaluation/matching';
+import { matchResearchBipartiteEvidence, type ResearchMatchingEdge } from './bipartite-reference';
 
 export type Pair = readonly [number, number];
 export type Solution = { pairs: Pair[]; cardinality: number; cost: number };
@@ -16,8 +16,8 @@ function better(a: Solution, b: Solution): Solution {
   return a;
 }
 export function genericSolution(costs: readonly (readonly number[])[], rightCount: number): Solution {
-  const edges: ContinuousMatchingEdge[] = costs.flatMap((row,i) => row.flatMap((cost,j) => Number.isFinite(cost) ? [{left:i,right:j,cost}] : []));
-  return solution(matchContinuousEvidence(costs.length,rightCount,edges),costs);
+  const edges: ResearchMatchingEdge[] = costs.flatMap((row,i) => row.flatMap((cost,j) => Number.isFinite(cost) ? [{left:i,right:j,cost}] : []));
+  return solution(matchResearchBipartiteEvidence(costs.length,rightCount,edges),costs);
 }
 /** Ordered DP is deliberately research-only; not a replacement for identity-based augmenting-path ties. */
 export function orderedSolution(costs: readonly (readonly number[])[], rightCount: number): Solution {

@@ -23,10 +23,10 @@ it('midpoint equality is right-owned, with infinitesimal probes on both sides',(
     expect(characterizeCandidate(s,clipped).events[0].ownershipClaimants).toBe(1);
   }
 });
-it('production identity-based midpoint ties can change which target is green',()=>{
+it('V4 production midpoint ties select the earlier target regardless of identity',()=>{
   const left=adversarialScenarios().find(s=>s.id==='id-tie-left-low')!,right=adversarialScenarios().find(s=>s.id==='id-tie-right-low')!;
   expect(characterizeCandidate(left,current).targets.map(t=>t.state)).toEqual(['MATCHED','UNMATCHED']);
-  expect(characterizeCandidate(right,current).targets.map(t=>t.state)).toEqual(['UNMATCHED','MATCHED']);
+  expect(characterizeCandidate(right,current).targets.map(t=>t.state)).toEqual(['MATCHED','UNMATCHED']);
   expect(characterizeCandidate(left,clipped).targets.map(t=>t.state)).toEqual(['UNMATCHED','MATCHED']);
   expect(characterizeCandidate(right,clipped).targets.map(t=>t.state)).toEqual(['UNMATCHED','MATCHED']);
 });

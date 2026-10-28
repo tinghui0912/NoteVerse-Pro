@@ -1,7 +1,7 @@
 import { type ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import { type ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
-export const CONTINUOUS_ASSIGNMENT_POLICY_ID = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3';
+export const CONTINUOUS_ASSIGNMENT_POLICY_ID = 'CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4';
 
 export const CONTINUOUS_ASSIGNMENT_WINDOW_MS = 250;
 export const withinContinuousWindow = (a: number, b: number): boolean => Math.abs(a - b) <= CONTINUOUS_ASSIGNMENT_WINDOW_MS;

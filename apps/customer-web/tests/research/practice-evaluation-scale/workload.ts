@@ -4,7 +4,7 @@ import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/
 import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 /** Same workload before/after optimization: chords, C4 repeats at 400ms, non-target and unattributed observations. */
-function evaluationScaleWorkload(size: number) {
+export function evaluationScaleWorkload(size: number) {
   const strikes: ContinuousExpectedStrike[] = Array.from({ length: size }, (_, i) => ({
     strikeId: `s${String(i).padStart(6, '0')}`, groupId: `g${Math.floor(i / 2)}`,
     pitch: i % 2 === 0 ? 'C4' : i % 4 === 1 ? 'E4' : 'G4', renderNoteIds: [`n${i}`],

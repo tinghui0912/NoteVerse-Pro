@@ -7,7 +7,9 @@ it('exhaustively supports a non-crossing optimum for common-radius one-dimension
   expect(proof.fixed.graphs).toBe(3528);expect(proof.fixed.nonCrossingFailures).toBe(0);expect(proof.fixed.objectiveMismatches).toBe(0);
   expect(proof.generated.graphs).toBe(2000);expect(proof.generated.objectiveMismatches).toBe(0);
 });
-it('compares exact ownership instead of claiming that ordered ties emulate production',()=>{
+it('keeps historical generic tie differences while current V4 exactly matches ordered ownership',()=>{
+  expect(proof.fixed.currentOrderedPairDifferences).toBe(0);expect(proof.generated.currentOrderedPairDifferences).toBe(0);
+  expect(proof.genericReferenceIdentity).toBe('RESEARCH_V3_GENERIC_REFERENCE');
   expect(proof.fixed.exactOwnershipDifferences).toBeGreaterThan(0);expect(proof.generated.exactOwnershipDifferences).toBeGreaterThan(0);
   expect(proof.fixed.firstOwnershipDifference).toMatchObject({targets:[0,125],observations:[125,125],
     generic:{pairs:[[0,1],[1,0]],cardinality:2,cost:125},ordered:{pairs:[[0,0],[1,1]],cardinality:2,cost:125}});
