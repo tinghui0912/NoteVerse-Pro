@@ -709,8 +709,9 @@ For a C4+D4 target, both sources produce the same assignment states and colors:
 E4 in the second row remains UNATTRIBUTED; the third row contains no E4 fact.
 PENDING and NOT_REACHED are untouched. UNAVAILABLE means trustworthy analysis could
 not complete and never fabricates negative target colors. User abandonment still
-produces no learner Result. Analysis Failure Intervention remains a separate,
-deferred runtime round; this round does not change that lifecycle.
+produces no learner Result. UNAVAILABLE also covers an admitted Continuous microphone
+attempt whose analysis became unavailable under the explicit Analysis Failure
+Intervention contract below.
 
 ### Live feedback and Review
 

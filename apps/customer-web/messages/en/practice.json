@@ -49,7 +49,7 @@
   "micModelUnavailable": "The verified analysis model could not be loaded. Start a new session to retry.",
   "micWebGpuUnavailable": "WebGPU is required for microphone practice",
   "micSourceRateUnavailable": "This audio source rate is not supported.",
-  "micAnalysisFailed": "Audio analysis stopped. Transport and recording may continue, but evaluation is unavailable.",
+  "micAnalysisFailed": "Audio analysis stopped. Note evaluation is unavailable for this attempt.",
   "micRecorderUnavailable": "Recording could not finish. This session was not saved as a completed performance.",
   "recordingPreparationFailed": "Recording could not start. Prepare again or change your recording settings.",
   "micCleanupFailed": "Session resources could not be released normally. Start a new session.",
