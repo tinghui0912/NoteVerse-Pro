@@ -384,10 +384,16 @@ from restarting. Cleanup immediately releases failed capture/source runtime/infe
 listeners, attempt AudioContext and metronome, but retains runtime truth until End.
 Borrowed microphone roots and the outer Device Lease are not stopped or released by
 this attempt cleanup. Cleanup and subsequent End/unmount share idempotent releases;
-stale callbacks cannot revive the owner. Cleanup failure supersedes the analysis-only
-intervention with an explicit fatal cleanup error. PREPARING failures, temporary mute
+stale callbacks cannot revive the owner. Analysis resource cleanup failure retains the
+analysis intervention and ACTIVE session/target truth, with input unavailable and an
+application cleanup error. System cleanup failure never produces `STOPPED_BY_USER`;
+only explicit End or page teardown ends that retained failed STEP session.
+PREPARING failures, temporary mute
 recovery and physical source/AudioContext/capture infrastructure classification remain
-unchanged. Normal completion wins late failure. STEP domain/version/attempt schema
+unchanged. Final STEP scope completion never arms another physical/acoustic attempt:
+domain rearm commits the final verdict, then the controller completes naturally before
+any input arm. Non-final MATCH arms the next target; MISMATCH rearms the current target.
+Normal completion wins late failure. STEP domain/version/attempt schema
 contains no application intervention field.
 
 ## CONTINUOUS_PLAY
@@ -769,7 +775,7 @@ pauses canonical performance, metronome and active recording for explicit learne
 choice. Only accepted Continue without analysis resumes an intervention-owned pause;
 pre-existing user pause stays paused. Preparation failure never starts transport. Temporary required-input interruption pauses Continuous through its
 canonical resource intervention; hard required-input loss offers End only. Listeners are
-detached before intentional cleanup. Cleanup failure is terminal failure; each
+detached before intentional cleanup. Cleanup failures remain explicit application errors; each
 owned release is attempted once. Product errors are localized; bounded diagnostics
 retain causal metadata separately from observations and user recordings.
 

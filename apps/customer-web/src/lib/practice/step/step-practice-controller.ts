@@ -234,9 +234,10 @@ export class StepPracticeController {
     if (!watermark) return;
     const matched = step.pendingPostVerdict?.verdict === 'MATCH';
     this.runtime.rearm(watermark);
+    if (this.runtime.isCompleted) { void this.completeNaturally(); return; }
     if (boundary) this.microphone!.arm(boundary);
-    if (this.runtime.isCompleted) void this.completeNaturally();
-    else { if (matched) this.updateTarget(); this.emit(); }
+    if (matched) this.updateTarget();
+    this.emit();
   }
   private inputState(state: BrowserMidiState): void {
     if (this.suppressInputState || this.state === 'DISPOSED' || this.state === 'ENDED') return;
@@ -275,8 +276,6 @@ export class StepPracticeController {
   }
   private failAttempt(error: unknown): void {
     if (this.analysisIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
-    // A committed final verdict wins even if the final input rearm fails synchronously.
-    if (this.runtime?.isCompleted) { void this.completeNaturally(); return; }
     const code = this.options.inputSource === 'MICROPHONE'
       ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING') : 'STEP_ATTEMPT_FAILED';
     if (this.state === 'ACTIVE' && this.runtime && code === 'STEP_ACOUSTIC_RUNTIME_FAILED') {
@@ -308,9 +307,6 @@ export class StepPracticeController {
       try { await disposal; } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
       try { if (context && context.state !== 'closed') await context.close(); }
       catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-      if (this.analysisIntervention && this.error === 'STEP_RESOURCE_CLEANUP_FAILED') {
-        this.analysisIntervention = null; this.runtime?.end(); this.state = 'ENDED';
-      }
       this.emit();
     })();
     this.suppressInputState = false;

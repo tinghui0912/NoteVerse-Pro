@@ -300,10 +300,19 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     await r.controller.dispose();
   });
 
-  it('final MATCH completes once after explicit rearm and awaited resource cleanup', async () => {
-    const r = rig(rate); await r.controller.start(); await r.untilFinalized(1); await r.untilFinalized(2);
+  it('final committed MATCH completes once without arming another acoustic target', async () => {
+    const r = rig(rate); await r.controller.start();
+    const runtime = (r.controller as unknown as { runtime: StepPracticeRuntime }).runtime;
+    const arm = vi.spyOn(r.input(), 'arm');
+    await r.untilFinalized(1);
+    expect(arm).toHaveBeenCalledTimes(1); // Non-final MATCH still arms the next target.
+    await r.untilFinalized(2);
+    expect(arm).toHaveBeenCalledTimes(2);
     // This test driver must not drain an already disposed source after the terminal publication.
     await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
+    expect(runtime.isCompleted).toBe(true);
+    expect(runtime.snapshot().completionReason).toBe('SCOPE_COMPLETED');
+    expect(arm).toHaveBeenCalledTimes(2); // There is no fourth target to arm.
     await r.controller.abandon(); await r.controller.abandon();
     expect(r.controller.snapshot().lastSnapshot).toMatchObject({ runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED',
       step: { currentIndex: 3, completed: true } });
@@ -311,6 +320,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.controller.snapshot().analysisIntervention).toBeNull();
     expect(r.completion).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
     expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
+    expect(r.metronome.destroy).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.completion).toHaveBeenCalledOnce();
   });
 
@@ -447,29 +457,65 @@ it('STEP abandonment cancels outstanding acoustic work and rejects late owner pu
   expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
 });
 
-it('analysis release failure replaces the intervention with explicit fatal cleanup error, never completion',async()=>{
-  const r=rig();await r.controller.start();r.worker.dispose.mockRejectedValueOnce(new Error('RELEASE_FAILED'));
-  r.workerFailure();await r.controller.start();
-  expect(r.controller.snapshot()).toMatchObject({state:'ENDED',error:'STEP_RESOURCE_CLEANUP_FAILED',analysisIntervention:null,canAcceptAttempt:false});
-  expect(r.controller.snapshot().sessionSnapshot?.completionReason).toBe('STOPPED_BY_USER');
-  expect(r.context.close).toHaveBeenCalledOnce();expect(r.metronome.destroy).toHaveBeenCalledOnce();expect(r.track.stop).not.toHaveBeenCalled();
-  await r.controller.dispose();expect(r.worker.dispose).toHaveBeenCalledOnce();expect(r.completion).not.toHaveBeenCalled();
-});
+for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const) {
+  it.each(['End', 'unmount'] as const)(`${phase} analysis cleanup rejection retains the active session until %s`, async end => {
+    const r = rig(); await r.controller.start(); await r.untilFinalized(1);
+    const prior = r.controller.snapshot().sessionSnapshot!;
+    const domainEnd = vi.spyOn(StepPracticeRuntime.prototype, 'end');
+    const staleFailure = r.staleFailure()!;
+    let pending: StepAttemptRecord | null = null;
+    r.worker.dispose.mockRejectedValueOnce(new Error('RELEASE_FAILED'));
+    if (phase === 'ANALYZING' || phase === 'POST_VERDICT') r.controller.subscribe(() => {
+      if (r.controller.snapshot().stepInteractionPhase === phase && !r.controller.snapshot().analysisIntervention) {
+        pending = r.controller.snapshot().pendingPostVerdict;
+        staleFailure(new Error('WORKER_CRASH'));
+      }
+    });
+    if (phase !== 'READY') {
+      r.offset(9590);
+      for (let i = 0; i < 100 && !r.controller.snapshot().analysisIntervention; i++) {
+        try { await r.feed(); } catch (error) { if (!r.controller.snapshot().analysisIntervention) throw error; }
+        if (phase === 'CAPTURING' && r.controller.snapshot().stepInteractionPhase === 'CAPTURING') break;
+      }
+    }
+    if (phase === 'READY' || phase === 'CAPTURING') staleFailure(new Error('WORKER_CRASH'));
+    const intervention = r.controller.snapshot().analysisIntervention;
+    await r.controller.start(); // Await the existing cleanup, without creating a new owner.
+    expect(r.controller.snapshot()).toMatchObject({
+      state: 'ACTIVE', error: 'STEP_RESOURCE_CLEANUP_FAILED', canAcceptAttempt: false,
+      analysisIntervention: { kind: 'TERMINAL_ANALYSIS_FAILURE' },
+      sessionSnapshot: { runtimeStatus: 'ACTIVE', completionReason: null, step: {
+        currentIndex: prior.step.currentIndex, targetGeneration: prior.step.targetGeneration,
+        inputAvailable: false, activeAttempt: null,
+      } },
+    });
+    expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.expectedPracticeGroups[prior.step.currentIndex]);
+    expect(r.controller.snapshot().pendingPostVerdict).toEqual(pending);
+    expect(domainEnd).not.toHaveBeenCalled(); expect(r.completion).not.toHaveBeenCalled();
+    const retained = r.controller.snapshot().sessionSnapshot;
+    staleFailure(new Error('REPEATED_FAILURE')); r.controller.skip(); r.publish(r.publications[0]);
+    expect(r.controller.snapshot().analysisIntervention).toBe(intervention);
+    expect(r.controller.snapshot().sessionSnapshot).toMatchObject({ ...retained, updatedAtMs: expect.any(Number) });
+    expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
+    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled();
+
+    await (end === 'End' ? r.controller.abandon() : r.controller.dispose());
+    expect(r.controller.snapshot()).toMatchObject({
+      state: 'DISPOSED', error: 'STEP_RESOURCE_CLEANUP_FAILED', analysisIntervention: null,
+      sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' },
+    });
+    expect(domainEnd).toHaveBeenCalledOnce();
+    staleFailure(new Error('AFTER_TEARDOWN')); await r.controller.dispose();
+    expect(domainEnd).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
+    expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
+    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled();
+  });
+}
 it('natural completion wins late worker/capture failure and cannot open an intervention',async()=>{
   const r=rig();await r.controller.start();const stale=r.staleFailure()!;
   await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');await r.controller.abandon();stale(new Error('AFTER_COMPLETION'));r.publish(r.publications[0]);
   expect(r.controller.snapshot()).toMatchObject({state:'ENDED',analysisIntervention:null,lastSnapshot:{completionReason:'SCOPE_COMPLETED'}});
   expect(r.completion).toHaveBeenCalledOnce();await r.controller.dispose();
-});
-
-it('a synchronous arm failure after the final committed verdict still settles natural completion',async()=>{
-  const r=rig();await r.controller.start();const input=r.input(),arm=input.arm.bind(input);
-  vi.spyOn(input,'arm').mockImplementation(boundary=>{
-    if(r.controller.snapshot().sessionSnapshot!.step.completed)throw new Error('FINAL_ARM_FAILED');
-    arm(boundary);
-  });
-  await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
-  await r.controller.abandon();
-  expect(r.controller.snapshot()).toMatchObject({state:'ENDED',analysisIntervention:null,lastSnapshot:{completionReason:'SCOPE_COMPLETED'}});
-  expect(r.completion).toHaveBeenCalledOnce();expect(r.worker.dispose).toHaveBeenCalledOnce();await r.controller.dispose();
 });
