@@ -17,6 +17,7 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { StepPracticeControls, ContinuousPracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeFeedbackSettings } from '@/components/practice/practice-feedback-settings';
+import { AnalysisInterruptionDialog } from '@/components/practice/analysis-interruption-dialog';
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeDeviceIssue } from '@/components/practice/practice-device-issue';
@@ -165,6 +166,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       setIsCompletionDialogOpen(true);
     },
   });
+  const analysisIntervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.analysisIntervention : null;
   const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.resourceIntervention : null;
 
   const handleMetronomeEnabledChange = useCallback(
@@ -432,7 +434,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             </SheetContent>
           </Sheet>}
 
-          {localPractice.mode === 'CONTINUOUS_PLAY' && intervention && <ResourceInterruptionDialog
+          {localPractice.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
+            onContinueWithoutAnalysis={localPractice.continueWithoutAnalysis}
+            onRestart={localPractice.restart} onEnd={() => { void localPractice.abandon(); }} />}
+          {localPractice.mode === 'CONTINUOUS_PLAY' && !analysisIntervention && intervention && <ResourceInterruptionDialog
             intervention={intervention} onContinueWithout={localPractice.continueWithoutRecording}
             onContinue={() => { localPractice.continueAfterRecovery(); }}
             onEnd={() => { void localPractice.abandon(); }}

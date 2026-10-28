@@ -683,3 +683,49 @@ it('has only domain-specific ordered same-pitch matching in production and keeps
     };inspect(ast);
   }
 });
+
+it('keeps terminal Continuous analysis choice separate from resource faults, STEP and persisted truth', () => {
+  const violations: string[] = [];
+  const analysis = path.join(practiceRoot, 'continuous/analysis-intervention.ts');
+  expect(imports(analysis)).toEqual([]);
+  for (const [file, edges] of sourceGraph) {
+    const rel = relative(file);
+    if (rel.startsWith('step/') || rel.startsWith('result/') || rel === 'continuous/resource-intervention.ts') {
+      if (edges.some(edge => edge.bindings.includes('ContinuousAnalysisIntervention'))) violations.push(file + ': intervention dependency');
+    }
+    if (file.includes('/components/practice/') || file.includes('/app/[locale]/(workspace)/score/[id]/practice/')) {
+      if (edges.some(edge => /acoustic\/(runtime|model|continuous)|continuous-microphone-input|continuous-practice-controller/.test(edge.specifier))) violations.push(file + ': runtime presentation dependency');
+    }
+  }
+  for (const file of files) {
+    const rel = relative(file), source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isIdentifier(node) && (node.text === 'PracticeInterventionStore' || rel.startsWith('result/') && node.text === 'analysisIntervention')) violations.push(file + ': ' + node.text);
+      if (rel === 'continuous/continuous-practice-controller.ts' && ts.isMethodDeclaration(node) && node.name.getText(source) === 'continueWithoutAnalysis') {
+        const inspect = (child: ts.Node) => {
+          if (ts.isCallExpression(child) && ts.isPropertyAccessExpression(child.expression)
+            && ['acquire', 'connect', 'acquireInference', 'createAudioContext', 'createRecorder', 'start'].includes(child.expression.name.text)) violations.push('silent analysis restart: ' + child.expression.name.text);
+          ts.forEachChild(child, inspect);
+        }; ts.forEachChild(node, inspect);
+      }
+      ts.forEachChild(node, visit);
+    }; visit(source);
+  }
+  expect(violations).toEqual([]);
+  const resource = readFileSync(path.join(practiceRoot, 'continuous/resource-intervention.ts'), 'utf8');
+  expect(resource).not.toContain('ANALYSIS_FAILED');
+  const page = ts.createSourceFile('page.tsx', readFileSync(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let resourceGuard = false, analysisShell = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isBinaryExpression(node) && node.getText(page).includes('<ResourceInterruptionDialog')) {
+      resourceGuard ||= node.getText(page).includes('!analysisIntervention && intervention');
+    }
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'AnalysisInterruptionDialog') {
+      analysisShell = true; expect(node.getText(page)).not.toContain('analysisError');
+      expect(node.getText(page)).toContain('localPractice.continueWithoutAnalysis');
+      expect(node.getText(page)).toContain('localPractice.restart');
+      expect(node.getText(page)).toContain('localPractice.abandon');
+    }
+    ts.forEachChild(node, visit);
+  };visit(page); expect(resourceGuard).toBe(true); expect(analysisShell).toBe(true);
+});

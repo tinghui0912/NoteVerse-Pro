@@ -7,9 +7,9 @@ import { resolvePracticeStatusView } from '../../../components/practice/practice
 describe('Continuous presentation and safe product errors', () => {
   it('accounts for every session and analysis state without transport authority', () => {
     for (const session of ['IDLE', 'PREPARING', 'ACTIVE', 'FINALIZING', 'COMPLETE', 'FAILED_BEFORE_START', 'FAILED', 'DISPOSED'] as const) {
-      for (const analysis of ['PREPARING', 'PREROLL', 'RUNNING', 'PAUSED', 'DRAINING', 'COMPLETE', 'FAILED'] as const) {
+      for (const analysis of ['PREPARING', 'PREROLL', 'RUNNING', 'PAUSED', 'DRAINING', 'COMPLETE', 'INTERRUPTED', 'DISABLED', 'FAILED'] as const) {
         const snapshot: ContinuousControllerSnapshot = { session, analysis, transport: null, recording: null,
-          inputError: session.startsWith('FAILED') ? 'MICROPHONE_SOURCE_LOST' : null, resourceIntervention: null, analysisError: null,
+          inputError: session.startsWith('FAILED') ? 'MICROPHONE_SOURCE_LOST' : null, analysisIntervention: null, resourceIntervention: null, analysisError: null,
           evaluation: null, completed: null, sessionSnapshot: null };
         const before = JSON.stringify(snapshot), view = continuousControllerView(snapshot);
         expect(view.inputState).toBe(session.startsWith('FAILED') ? 'ERROR' : session === 'PREPARING' ? 'STARTING' : 'IDLE');

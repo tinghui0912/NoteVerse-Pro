@@ -26,7 +26,7 @@ function deferred() {
 
 function ownerMocks() {
   let snapshot: ContinuousControllerSnapshot = {
-    session: 'PREPARING', transport: null, analysis: 'NOT_REQUIRED', resourceIntervention: null, analysisError: null,
+    session: 'PREPARING', transport: null, analysis: 'NOT_REQUIRED', analysisIntervention: null, resourceIntervention: null, analysisError: null,
     inputError: null, recording: null, evaluation: null, completed: null, sessionSnapshot: null,
   };
   const listeners = new Set<() => void>(), events: string[] = [];
@@ -118,6 +118,7 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   await act(async () => { starting = result.current.start(); });
   expect(clear).toHaveBeenCalledOnce(); clear.mockClear();
   const first = owner.start.mock.contexts[0];
+  act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', analysis: 'INTERRUPTED', analysisError: 'ANALYSIS_FAILED', analysisIntervention: { pauseOrigin: 'INTERVENTION' } }));
   const stalePublish = owner.subscribe.mock.calls[0][0];
   await act(async () => { restarting = result.current.restart(); });
   expect(owner.dispose).toHaveBeenCalledOnce(); expect(owner.start).toHaveBeenCalledOnce();
@@ -204,4 +205,18 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
   expect(result.current).toMatchObject(clean);
   expect(owner.events).toEqual(['unsubscribe', 'dispose']);
   unmount(); await barrier.waitForRelease();
+});
+
+it('exposes only analysis choice commands and keeps accepted degradation out of generic input errors', async () => {
+  const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
+  const choice = vi.spyOn(ContinuousPracticeController.prototype, 'continueWithoutAnalysis').mockResolvedValue();
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, inputSource: 'MICROPHONE' }, tempoPlan, barrier, () => {}));
+  await act(async () => { await result.current.start(); });
+  act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', analysis: 'INTERRUPTED', analysisError: 'ANALYSIS_FAILED',
+    analysisIntervention: { pauseOrigin: 'USER' } }));
+  expect(result.current.analysisIntervention).toEqual({ pauseOrigin: 'USER' }); expect(result.current.error).toBeNull();
+  await act(async () => { await result.current.continueWithoutAnalysis(); }); expect(choice).toHaveBeenCalledOnce();
+  act(() => owner.publish({ ...owner.snapshot(), analysis: 'DISABLED', analysisIntervention: null }));
+  expect(result.current.analysisIntervention).toBeNull(); expect(result.current.inputState).not.toBe('ERROR');
+  expect(result.current).not.toHaveProperty('controller'); unmount(); await barrier.waitForRelease();
 });

@@ -1,3 +1,7 @@
+import { ContinuousPracticeSession } from './domain/practice-session';
+import { ContinuousMicrophoneInput } from './continuous-microphone-input';
+import { continuousControllerView } from './continuous-presentation';
+import { completedContinuousTargetFeedback } from './domain/evaluation/target-feedback';
 import { ContinuousAssignmentFinalizer } from './domain/evaluation/assignment-finalizer';
 import { PracticeDeviceLease } from '../device/practice-device-lease';
 import { borrowedDevices } from '../__fixtures__/device-roots';
@@ -87,8 +91,8 @@ function environment(rate = 48000, root = stream()) {
     }
     await vi.advanceTimersByTimeAsync(10);
   }
-  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream) {
-    const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact, scoreEndBeat: 2.4,
+  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndBeat = 2.4) {
+    const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact, scoreEndBeat,
       expectedPracticeGroups: fixture.expectedPracticeGroups.slice(0, 1), practiceAttackSteps: fixture.practiceAttackSteps.slice(0, 1) };
     controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource, countInBeats,
       tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
@@ -516,19 +520,132 @@ describe('Continuous application owner', () => {
     expect(continuousCompletionStore.getCompletion()).toBeNull();
     await controller.dispose();
   });
-  for (const paused of [false, true]) it(`analysis failure ${paused ? 'PAUSED' : 'RUNNING'} does not stop clock/root/recording`, async () => {
-    const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(300);
-    if (paused) controller.pause(); f.failure();
-    expect(controller.snapshot().analysis).toBe('FAILED'); expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.context.close).not.toHaveBeenCalled();
-    expect(f.root.copies[0].audio.stop).toHaveBeenCalledTimes(1); expect(f.root.copies[1].audio.stop).not.toHaveBeenCalled();
+  for (const paused of [false, true]) it(`terminal analysis failure pauses exactly once and respects ${paused ? 'USER' : 'INTERVENTION'} origin`, async () => {
+    const f = environment(), complete = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', complete, undefined, 8);
+    await controller.start(); await f.feed(2200);
+    expect(controller.snapshot().evaluation?.targets.length).toBeGreaterThan(0);
+    const releaseAnalysis = vi.spyOn(ContinuousMicrophoneInput.prototype, 'dispose');
+    const recorder = vi.spyOn(PerformanceRecorder.prototype, 'pause');
+    const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause');
+    if (paused) controller.pause();
+    const boundary = vi.spyOn(ContinuousMicrophoneInput.prototype, 'boundary'); boundary.mockClear();
+    const assertBoundary = vi.spyOn(ContinuousMicrophoneInput.prototype, 'assertBoundary'); assertBoundary.mockClear();
+    const identity = controller.engineeringSnapshot().sessionId;
+    const publication = vi.spyOn(ContinuousPracticeSession.prototype, 'publishAnalysis');
+    f.failure(); const publicationCount = publication.mock.calls.length;
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', analysis: 'INTERRUPTED', evaluation: null,
+      transport: { state: 'PAUSED' }, analysisIntervention: { pauseOrigin: paused ? 'USER' : 'INTERVENTION' } });
+    expect(f.meter.pause).toHaveBeenCalledOnce(); expect(recorder).toHaveBeenCalledOnce(); expect(canonicalPause).toHaveBeenCalledOnce();
+    expect(boundary).not.toHaveBeenCalled(); expect(assertBoundary).not.toHaveBeenCalled();
     const T = controller.snapshot().transport!.performanceTimeMs;
-    if (paused) { controller.resume(); await f.feed(controller.snapshot().transport!.countInRemainingMs); } await f.feed(300);
-    expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T); expect(controller.snapshot().recording?.state).toBe('RECORDING');
-    await f.feed(1600); await controller.abandon(); expect(controller.snapshot().completed?.result.evaluation).toEqual({ status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' });
-    expect(controller.snapshot().completed?.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE' },
-      evidenceProvenance: { inputSource: 'MICROPHONE', sourceSampleRateHz: f.context.sampleRate,
-        sourceAdapterIdentitySha256: sourceIdentity(48000).identitySha256 } });
-    expect(controller.snapshot().completed?.recording.status).toBe('READY'); expect(f.root.audio.stop).not.toHaveBeenCalled(); await controller.dispose();
+    await f.feed(500); expect(controller.snapshot().transport!.performanceTimeMs).toBe(T);
+    expect(publication).toHaveBeenCalledTimes(publicationCount);
+    await controller.continueWithoutAnalysis(); await controller.continueWithoutAnalysis();
+    expect(controller.snapshot()).toMatchObject({ analysis: 'DISABLED', analysisIntervention: null, evaluation: null });
+    expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).not.toHaveBeenCalled();
+    expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
+    expect(f.root.copies[1].audio.stop).not.toHaveBeenCalled(); expect(controller.engineeringSnapshot().sessionId).toBe(identity);
+    expect(continuousControllerView(controller.snapshot()).inputError).toBeNull();
+    expect(continuousControllerView(controller.snapshot()).inputState).not.toBe('ERROR');
+    if (paused) { expect(controller.snapshot().transport!.state).toBe('PAUSED'); controller.resume(); }
+    expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME' });
+    await f.feed(controller.snapshot().transport!.countInRemainingMs + 5000); await controller.abandon();
+    expect(controller.snapshot().session).toBe('COMPLETE');
+    const completion = controller.snapshot().completed!;
+    expect(completion.result).toMatchObject({ schemaVersion: 6, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
+      assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
+    expect(completedContinuousTargetFeedback(completion.result.evaluation)).toEqual({ targets: [] });
+    expect(completion.recording.status).toBe('READY'); expect(complete).toHaveBeenCalledOnce();
+    expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(releaseAnalysis).toHaveBeenCalledOnce(); await controller.dispose();
+    expect(f.context.close).toHaveBeenCalledOnce(); boundary.mockRestore(); assertBoundary.mockRestore(); recorder.mockRestore(); canonicalPause.mockRestore(); publication.mockRestore(); releaseAnalysis.mockRestore();
+  });
+  for (const kind of ['INITIAL', 'RESUME'] as const) it(`analysis failure freezes ${kind} count-in without phantom recording segments`, async () => {
+    const f = environment(), controller = f.create('MICROPHONE', kind === 'INITIAL' ? 4 : 0, 'AUDIO'); await controller.start();
+    const pause = vi.spyOn(PerformanceRecorder.prototype, 'pause'), resume = vi.spyOn(PerformanceRecorder.prototype, 'resume');
+    if (kind === 'RESUME') { await f.feed(100); controller.pause(); controller.resume(); pause.mockClear(); resume.mockClear(); }
+    const before = controller.snapshot().transport!; expect(before.state).toBe('COUNT_IN'); f.failure();
+    expect(controller.snapshot().transport).toMatchObject({ state: 'PAUSED', performanceTimeMs: before.performanceTimeMs });
+    await f.feed(100); await controller.continueWithoutAnalysis();
+    expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: before.performanceTimeMs });
+    if (kind === 'INITIAL') {
+      expect(pause).not.toHaveBeenCalled(); expect(resume).not.toHaveBeenCalled();
+      await f.feed(controller.snapshot().transport!.countInRemainingMs + 100);
+      expect(controller.snapshot().recording?.state).toBe('RECORDING'); expect(resume).not.toHaveBeenCalled();
+    }
+    await controller.abandon(); await controller.dispose(); pause.mockRestore(); resume.mockRestore();
+  });
+  for (const first of ['analysis', 'recording'] as const) it(`composes ${first}-first incidents without bypassing recording choice`, async () => {
+    const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
+    const recording = () => { const clone = f.root.copies[1]; clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute')); };
+    if (first === 'analysis') { f.failure(); recording(); } else { recording(); f.failure(); }
+    expect(controller.snapshot().analysisIntervention).toMatchObject({ pauseOrigin: 'INTERVENTION' });
+    expect(controller.snapshot().resourceIntervention).toMatchObject({ impact: 'RECORDING_ONLY', pauseOrigin: 'INTERVENTION' });
+    expect(f.meter.pause).toHaveBeenCalledOnce(); controller.continueWithoutRecording();
+    expect(controller.snapshot().resourceIntervention).not.toBeNull();
+    await controller.continueWithoutAnalysis(); expect(controller.snapshot().transport!.state).toBe('PAUSED');
+    expect(controller.snapshot().resourceIntervention).not.toBeNull(); controller.continueWithoutRecording();
+    expect(controller.snapshot().transport!.state).toBe('COUNT_IN'); await controller.abandon(); await controller.dispose();
+  });
+  it('disabled analysis releases source health but preserves canonical AudioContext protection', async () => {
+    const f = environment(), controller = f.create(); await controller.start(); await f.feed(100); f.failure();
+    await controller.continueWithoutAnalysis(); f.root.audio.stop();
+    expect(controller.snapshot().resourceIntervention).toBeNull(); expect(controller.snapshot().transport!.state).toBe('COUNT_IN');
+    f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+    expect(controller.snapshot()).toMatchObject({ transport: { state: 'PAUSED' }, resourceIntervention: { reason: 'AUDIO_CONTEXT_INTERRUPTED' } });
+    f.context.state = 'running'; f.context.dispatchEvent(new Event('statechange')); expect(controller.continueAfterRecovery()).toBe(true);
+    await controller.abandon(); await controller.dispose();
+  });
+  it('natural FINALIZING tail failure completes unavailable without a learner intervention', async () => {
+    const f = environment(), done = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', done); await controller.start();
+    f.context.currentTime += 1.3; controller.refresh(); expect(controller.snapshot().session).toBe('FINALIZING');
+    f.failure(); expect(controller.snapshot().analysisIntervention).toBeNull(); await vi.advanceTimersByTimeAsync(20);
+    await controller.abandon(); expect(controller.snapshot().session).toBe('COMPLETE');
+    expect(controller.snapshot().completed?.result.evaluation.status).toBe('UNAVAILABLE');
+    expect(controller.snapshot().completed?.recording.status).toBe('READY'); expect(done).toHaveBeenCalledOnce(); await controller.dispose();
+  });
+  it('End discards an interrupted attempt and stale worker callbacks cannot revive it', async () => {
+    const f = environment(), done = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', done); await controller.start(); f.failure();
+    await controller.abandon(); await controller.continueWithoutAnalysis(); f.failure(); await f.feed(1500);
+    expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', completed: null, analysisIntervention: null });
+    expect(done).not.toHaveBeenCalled(); expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce(); await controller.dispose();
+  });
+  for (const reason of ['ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED', 'ACOUSTIC_WORKER_CRASH', 'ANALYSIS_RUNTIME_FAILED']) {
+    it(`terminal runtime ${reason} uses analysis intervention, not device failure`, async () => {
+      const f = environment(), controller = f.create(); await controller.start();
+      f.bridge().runtime.failAnalysis(new Error(reason));
+      expect(controller.snapshot()).toMatchObject({ analysis: 'INTERRUPTED', inputError: null, evaluation: null,
+        resourceIntervention: null, analysisIntervention: { pauseOrigin: 'INTERVENTION' }, transport: { state: 'PAUSED' } });
+      await controller.continueWithoutAnalysis(); await controller.abandon(); await controller.dispose();
+      expect(f.worker.dispose).toHaveBeenCalledOnce();
+    });
+  }
+  it('Restart releases the interrupted attempt once and starts a fresh identity, inference lease and recording', async () => {
+    const old = environment(), controller = old.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await old.feed(100);
+    const identity = controller.engineeringSnapshot().sessionId; old.failure(); await controller.dispose();
+    const fresh = environment(), next = fresh.create('MICROPHONE', 0, 'AUDIO'); await next.start(); old.failure();
+    expect(next.engineeringSnapshot().sessionId).not.toBe(identity); expect(next.snapshot()).toMatchObject({ session: 'ACTIVE', analysisIntervention: null });
+    expect(old.worker.dispose).toHaveBeenCalledOnce(); expect(old.context.close).toHaveBeenCalledOnce();
+    expect(fresh.platform.acquireInference).toHaveBeenCalledOnce(); expect(fresh.worker).not.toBe(old.worker);
+    expect(fresh.worker.dispose).not.toHaveBeenCalled(); expect(next.snapshot().recording?.state).toBe('RECORDING');
+    await next.abandon(); await next.dispose();
+  });
+  it('defers an in-transaction worker failure pause until the canonical clock transaction closes', async () => {
+    const f = environment(), controller = f.create(); await controller.start(); await f.feed(100); controller.pause();
+    const meterResume = f.meter.resume.mockImplementationOnce(() => f.failure());
+    expect(() => controller.resume()).not.toThrow();
+    expect(controller.snapshot()).toMatchObject({ transport: { state: 'PAUSED' }, analysis: 'INTERRUPTED' });
+    await controller.continueWithoutAnalysis(); expect(controller.snapshot().transport?.state).toBe('COUNT_IN');
+    await controller.abandon(); await controller.dispose(); meterResume.mockReset();
+  });
+  it('holds learner choice until asynchronous inference release settles and rejects stale Continue after End', async () => {
+    const f = environment(); let release!: () => void;
+    f.worker.dispose = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
+    const controller = f.create(); await controller.start(); f.failure();
+    const continueChoice = controller.continueWithoutAnalysis();
+    expect(controller.snapshot()).toMatchObject({ analysis: 'INTERRUPTED', transport: { state: 'PAUSED' } });
+    const ended = controller.abandon(); release(); await continueChoice; await ended;
+    expect(controller.snapshot().session).toBe('ABANDONED'); expect(f.meter.resume).not.toHaveBeenCalled();
+    expect(f.worker.dispose).toHaveBeenCalledOnce(); await controller.dispose();
   });
   it('recording ON normal completion shares one acquisition and exact pause mapping', async () => {
     const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start();
@@ -562,6 +679,7 @@ describe('Continuous application owner', () => {
     const f = environment(); f.context.resume.mockImplementation(async () => { f.failure(); });
     const controller = f.create(); await controller.start();
     expect(controller.snapshot().session).toBe('FAILED_BEFORE_START'); expect(controller.snapshot().transport).toBeNull();
+    expect(controller.snapshot().analysisIntervention).toBeNull();
     expect(f.root.audio.stop).not.toHaveBeenCalled(); await controller.dispose();
   });
   it('unsupported source rate fails before start and releases owned preparation resources', async () => {

@@ -743,9 +743,10 @@ Natural SCOPE_COMPLETED enters application FINALIZING until tail analysis and re
 finish. Completion projects the same ledger and drains unfinished work without a
 second evaluation pass. End during count-in discards the session without a result.
 
-Analysis failure with healthy infrastructure stops analysis resources while clock,
-playhead, metronome and recording continue. Preparation failure never starts
-transport. Temporary required-input interruption pauses Continuous through its
+Terminal analysis failure with healthy infrastructure stops analysis resources and
+pauses canonical performance, metronome and active recording for explicit learner
+choice. Only accepted Continue without analysis resumes an intervention-owned pause;
+pre-existing user pause stays paused. Preparation failure never starts transport. Temporary required-input interruption pauses Continuous through its
 canonical resource intervention; hard loss requires Restart or End. Listeners are
 detached before intentional cleanup. Cleanup failure is terminal failure; each
 owned release is attempted once. Product errors are localized; bounded diagnostics
@@ -851,6 +852,46 @@ input loss never offers recording-only degradation. Shared-source callbacks conv
 on one intervention, with input-required impact taking priority and one canonical pause.
 MIDI disconnection retains its existing pause/reconnect contract and cannot accept
 recording-only degradation while input is unavailable.
+
+Continuous microphone terminal **analysis** failure after admission has an independent
+`ContinuousAnalysisIntervention`; it is not a resource/input/recording fault. Worker
+crash, terminal analysis runtime failure and analysis backpressure immediately remove
+live target feedback, pause canonical performance/count-in, metronome and active
+recording once, and release acoustic capture/runtime/inference. The failed acoustic
+pipeline is never asked to acknowledge a PAUSE boundary. Already user-paused attempts
+remain paused without duplicate media/metronome actions. Preparation/model/device
+admission failures remain start failures; physical source loss, invalid capture
+infrastructure, AudioContext interruption and recording faults retain resource ownership.
+Analysis failure is neither a timing mismatch nor a learner mistake.
+
+The blocking analysis dialog exposes only explicit **Continue without analysis**,
+**Restart**, and **End**. Continue waits for analysis release, permanently disables
+analysis for the attempt, leaves live target feedback null and preserves the same
+session, performance clock and healthy recording. It resumes through normal Resume
+Count-In only when the intervention caused the pause; an existing user pause needs
+an explicit later Resume. Accepted degradation is a quiet valid performance, not an
+input/start ERROR. No worker retry or publication can revive analysis. Completed
+natural evaluation is the existing exact UNAVAILABLE shape with reason
+`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema remains
+6 and V4 assignment provenance remains unchanged. Healthy media finalizes normally;
+Review retains replay/save/share and its unavailable notice without target colors.
+
+Acoustic analysis release neither closes the controller AudioContext nor stops the
+borrowed root stream, metronome or recorder. Source-track health observation is
+irreversibly released with analysis; AudioContext health observation stays active
+because that context still owns canonical performance time. Recording track health
+continues to belong to the recorder. Restart discards the old attempt through normal
+cleanup, then creates fresh session/inference/media/transport ownership. End discards
+without a Result or completion callback. Final cleanup still releases remaining
+attempt resources exactly once.
+
+Analysis and resource incidents are retained separately. The analysis dialog has
+presentation priority; after its explicit Continue, any unresolved resource incident
+keeps performance paused and becomes the visible resource dialog. Clearing either
+incident cannot bypass the other or cause a second canonical pause. A terminal
+analysis failure during an already natural FINALIZING tail creates no intervention:
+finish healthy recording and natural completion with unavailable evaluation. STEP
+analysis intervention is outside this contract change.
 
 Continue without recording accepts loss for this attempt, preserves the original fault
 reason and persistent recording preference, then resumes only an intervention-owned

@@ -390,5 +390,8 @@
   "inputPaused": "Input interrupted. Practice paused.",
   "startingAttempt": "Starting…",
   "practiceElapsedTime": "Practice time",
-  "continueLearning": "Continue practice"
+  "continueLearning": "Continue practice",
+  "analysisStopped": "Note analysis stopped",
+  "analysisStoppedDescription": "Practice is paused. You can continue without note feedback, restart, or end this attempt.",
+  "continueWithoutAnalysis": "Continue without analysis"
 }
