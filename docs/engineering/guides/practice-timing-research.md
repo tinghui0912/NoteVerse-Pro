@@ -31,7 +31,7 @@ is allowed; keep it outside version control. The separate research schema is
 version 1, with generated-at time, known benchmark kind, current production policy
 identity/window, case counts, outcomes and aggregate metrics. Validators reject
 unknown versions/kinds/fields, non-finite numbers and invalid counts without repair
-or migrations. This schema is unrelated to Practice Result schema 2.
+or migrations. This schema is unrelated to Practice Result schema 4.
 
 ### Deterministic experiments
 
@@ -49,7 +49,7 @@ or migrations. This schema is unrelated to Practice Result schema 2.
   forcing maximum-cardinality matching back toward intended identity.
 - One exact midpoint `TIE_CASE` freezes stable identity selection. Tests also
   reverse expected input order and cover cardinality-before-cost, minimum absolute
-  timing error, and residual-slot behavior at every BPM.
+  timing error, and retention of unmatched observations as unattributed at every BPM.
 - An 80→160 score-tempo transition characterizes a fixed +250ms on both sides.
 
 There are **10,003 cases**: 8,000 full-matrix cases, 2,000 single probes, one tie
@@ -63,7 +63,8 @@ Each observation row records intended and assigned strike identities, raw assign
 kind, observed pitch and performance coordinates, intended target matched/unmatched state, production timing offset, generated
 offset, legal same-pitch claimant count (0/1/2+), neighbor misassignment and
 unattributed state. Intended identity is research-only; it never enters production
-evidence. A residual relation is bookkeeping rather than a direct same-pitch match.
+evidence. Assignment relations are exact same-pitch `STRIKE_MATCH` or `UNATTRIBUTED`;
+non-target pitches are never assigned to target slots.
 Same-pitch consecutive expected gaps and cohort membership come from the production
 cohort function. No transitive cohort closure is invented.
 
@@ -201,7 +202,14 @@ their CLI runners from app/components/hooks/practice code. Research may consume
 production; the reverse dependency is prohibited. No report enters Result, learner
 metrics, Review, analytics, Share Video, PerformanceTake or backend.
 
-STEP 35ms/H50 50ms, Continuous ±250ms, MIDI coverage grace 250ms and analysis bounds
-750/1250/1500ms are unchanged. Assignment/MIDI policy IDs remain V2, Result remains
-schema 2, and `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
+STEP 35ms/H50 50ms, Continuous ±250ms and MIDI coverage grace 250ms are unchanged.
+Strike decision frontiers come from the current direct same-pitch cohort policy;
+a group's unclamped decision frontier is the maximum of its child strike frontiers.
+These are derived relationships, not independent group timing bounds. This research
+does not establish 250ms as the optimal product value.
+
+The current assignment identity is `CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3`.
+MIDI evidence remains `MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`;
+interpretation uses `MIDI_PHYSICAL_NOTE_EVENTS_V2` or `ACOUSTIC_TARGET_DETECTION_V2`.
+Result is schema 4. `CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` still means
 `calibrationApplied=false`, with no offset or calibration UI.
