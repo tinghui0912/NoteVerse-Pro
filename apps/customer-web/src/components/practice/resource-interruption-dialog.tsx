@@ -5,9 +5,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Button } from '@/components/ui/button';
 import type { PracticeResourceIntervention } from '@/lib/practice/continuous/resource-intervention';
 
-export function ResourceInterruptionDialog({ intervention, onContinueWithout, onContinue, onRestart, onEnd }: {
+export function ResourceInterruptionDialog({ intervention, onContinueWithout, onContinue, onEnd }: {
   intervention: PracticeResourceIntervention; onContinueWithout(): void; onContinue(): void;
-  onRestart(): Promise<void>; onEnd(): void;
+  onEnd(): Promise<void>;
 }) {
   const t = useTranslations('practice'), [busy, setBusy] = useState(false);
   const inputRequired = intervention.impact !== 'RECORDING_ONLY';
@@ -23,8 +23,7 @@ export function ResourceInterruptionDialog({ intervention, onContinueWithout, on
       <AlertDialogFooter className="flex-wrap gap-2">
         {recovered && !hard && <Button disabled={busy} onClick={onContinue}>{t('resume')}</Button>}
         {!inputRequired && !recovered && <Button disabled={busy} variant="outline" onClick={onContinueWithout}>{t('recordingContinueWithout')}</Button>}
-        <Button disabled={busy} variant="outline" onClick={() => { setBusy(true); void onRestart().finally(() => setBusy(false)); }}>{t('recordingRestart')}</Button>
-        <Button disabled={busy} variant="destructive" onClick={onEnd}>{t('finish')}</Button>
+        <Button disabled={busy} variant="destructive" onClick={() => { setBusy(true); void onEnd().finally(() => setBusy(false)); }}>{t('finish')}</Button>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>;

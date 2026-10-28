@@ -16,9 +16,8 @@
   "recordingInterrupted": "录制暂时中断",
   "recordingCannotContinue": "录制无法继续",
   "recordingInterruptedDescription": "练习已暂停，请选择如何继续。",
-  "recordingRestartRequiredDescription": "当前录制无法安全恢复。你可以继续本次练习但不再录制，或重新开始以获得完整录制。",
+  "recordingRestartRequiredDescription": "当前录制无法安全恢复。你可以不再录制继续，或结束本次练习。",
   "recordingContinueWithout": "不录制并继续",
-  "recordingRestart": "重新开始",
   "recordingPaused": "录制已中断，练习已暂停",
   "setupTitle": "准备练习",
   "setupDescription": "选择练习方式，然后检查设备。",
@@ -386,12 +385,13 @@
   "inputRecovered": "输入设备已恢复",
   "inputCannotContinue": "输入设备已断开",
   "inputInterruptionDescription": "练习已暂停，原输入设备恢复后可继续。",
-  "inputRestartRequiredDescription": "输入设备已断开，当前练习无法继续。请重新开始或结束练习。",
+  "inputRestartRequiredDescription": "所需输入不可用，本次练习无法安全继续。请结束本次练习。",
   "inputPaused": "输入已中断，练习已暂停",
   "startingAttempt": "启动中…",
   "practiceElapsedTime": "练习用时",
   "continueLearning": "继续练习",
   "analysisStopped": "音符分析已停止",
-  "analysisStoppedDescription": "练习已暂停。你可以在没有音符反馈的情况下继续，也可以重新开始或结束本次练习。",
-  "continueWithoutAnalysis": "在没有分析的情况下继续"
+  "analysisStoppedDescription": "练习已暂停。你可以在没有音符反馈的情况下继续，或结束本次练习。",
+  "continueWithoutAnalysis": "在没有分析的情况下继续",
+  "stepAnalysisStoppedDescription": "音符分析已停止。逐音练习需要音符分析来判断每次回答，请结束本次练习，之后重新准备再开始。"
 }

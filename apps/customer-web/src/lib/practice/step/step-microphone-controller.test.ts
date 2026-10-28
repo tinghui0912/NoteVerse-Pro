@@ -97,7 +97,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
     pause: () => { paused = true; }, offset: (value: number) => { eventOffset = value; },
     resume: async () => { paused = false; for (const release of releases.splice(0)) release(); await source.drain(); }, pitches: (p: string[]) => { pitches = p; },
-    workerFailure: () => workerFailure?.(new Error('WORKER_CRASH')), origin, rate };
+    staleFailure: () => workerFailure, workerFailure: () => workerFailure?.(new Error('WORKER_CRASH')), origin, rate };
 }
 
 describe.each([44100, 48000] as const)('STEP microphone controller / %i / deterministic ports', rate => {
@@ -131,6 +131,47 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     await r.controller.dispose();
   });
+  for (const phase of ['READY','CAPTURING','ANALYZING','POST_VERDICT'] as const) for (const end of ['End','unmount'] as const) {
+    it(`${phase} analysis failure retains real progress until ${end}, never a verdict or implicit end`,async()=>{
+      const r=rig(rate);await r.controller.start();await r.untilFinalized(1);
+      const prior=r.controller.snapshot().sessionSnapshot!, staleFailure=r.staleFailure()!;
+      const unavailable=vi.spyOn(StepPracticeRuntime.prototype,'setInputUnavailable');
+      const domainEnd=vi.spyOn(StepPracticeRuntime.prototype,'end');
+      let pending: StepAttemptRecord | null=null;
+      if(phase==='ANALYZING'||phase==='POST_VERDICT') r.controller.subscribe(()=>{
+        if(r.controller.snapshot().stepInteractionPhase===phase&&!r.controller.snapshot().analysisIntervention){
+          pending=r.controller.snapshot().pendingPostVerdict;staleFailure(new Error('WORKER_CRASH'));
+        }
+      });
+      if(phase!=='READY'){
+        r.offset(9590);
+        for(let i=0;i<100&&!r.controller.snapshot().analysisIntervention;i++){
+          try{await r.feed();}catch(error){if(!r.controller.snapshot().analysisIntervention)throw error;}
+          if(phase==='CAPTURING'&&r.controller.snapshot().stepInteractionPhase==='CAPTURING')break;
+        }
+      }
+      if(phase==='READY'||phase==='CAPTURING')staleFailure(new Error('WORKER_CRASH'));
+      const intervention=r.controller.snapshot().analysisIntervention;
+      expect(intervention).toEqual({kind:'TERMINAL_ANALYSIS_FAILURE'});staleFailure(new Error('REPEATED_FAILURE'));
+      await r.controller.start(); // An existing owner cannot be auto-started or silently reacquired.
+      expect(r.controller.snapshot().analysisIntervention).toBe(intervention);
+      expect(r.controller.snapshot()).toMatchObject({state:'ACTIVE',error:null,canAcceptAttempt:false,
+        sessionSnapshot:{runtimeStatus:'ACTIVE',completionReason:null,step:{currentIndex:prior.step.currentIndex,targetGeneration:prior.step.targetGeneration,inputAvailable:false,activeAttempt:null}}});
+      expect(r.controller.snapshot().activeStepGroup).not.toBeNull();expect(unavailable).toHaveBeenCalledOnce();expect(domainEnd).not.toHaveBeenCalled();
+      if(phase==='POST_VERDICT')expect(r.controller.snapshot().pendingPostVerdict).toEqual(pending);
+      else expect(r.controller.snapshot().pendingPostVerdict).toBeNull();
+      const frozen=r.controller.snapshot().sessionSnapshot!.step;
+      r.controller.skip();r.publish(r.publications[0]);staleFailure(new Error('LATE_FAILURE'));
+      expect(r.controller.snapshot().sessionSnapshot!.step).toEqual(frozen);
+      expect(r.finalized).toHaveLength(phase==='POST_VERDICT'?2:1);expect(r.completion).not.toHaveBeenCalled();
+      expect(r.worker.dispose).toHaveBeenCalledOnce();expect(r.cloneStop).toHaveBeenCalledOnce();expect(r.context.close).toHaveBeenCalledOnce();expect(r.metronome.destroy).toHaveBeenCalledOnce();expect(r.track.stop).not.toHaveBeenCalled();
+      expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
+      await(end==='End'?r.controller.abandon():r.controller.dispose());
+      expect(domainEnd).toHaveBeenCalledOnce();expect(r.controller.snapshot()).toMatchObject({state:'DISPOSED',analysisIntervention:null,sessionSnapshot:{runtimeStatus:'ENDED',completionReason:'STOPPED_BY_USER'}});
+      staleFailure(new Error('AFTER_DISPOSAL'));r.publish(r.publications[0]);await r.controller.dispose();
+      expect(r.controller.snapshot().analysisIntervention).toBeNull();expect(r.completion).not.toHaveBeenCalled();expect(r.worker.dispose).toHaveBeenCalledOnce();domainEnd.mockRestore();unavailable.mockRestore();
+    });
+  }
   it('initial availability commits physical retirement then arms, with one persistent graph and shared clock/context', async () => {
     const r = rig(rate), order: string[] = [];
     const accept = StepPracticeRuntime.prototype.acceptInputAfter;
@@ -267,6 +308,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.controller.snapshot().lastSnapshot).toMatchObject({ runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED',
       step: { currentIndex: 3, completed: true } });
     expect(r.finalized.map(a => a.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH']);
+    expect(r.controller.snapshot().analysisIntervention).toBeNull();
     expect(r.completion).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
     expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.completion).toHaveBeenCalledOnce();
@@ -276,7 +318,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const r = rig(rate); await r.controller.start();
     const arm = vi.spyOn(r.input(), 'arm').mockImplementationOnce(() => { throw new Error('ARM_FAILED'); });
     await expect(r.untilFinalized(1)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED'); await r.controller.abandon();
-    expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', error: 'STEP_ACOUSTIC_RUNTIME_FAILED', canAcceptAttempt: false });
+    expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', error: null, canAcceptAttempt: false });
     expect(r.controller.snapshot().sessionSnapshot!.step.currentIndex).toBe(1);
     expect(arm).toHaveBeenCalledOnce(); expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
@@ -289,8 +331,9 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     if (kind === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); }
     if (kind === 'worker') r.workerFailure();
     if (kind === 'analysis') r.source().failAnalysis(new Error('ANALYSIS_FAILURE'));
-    expect(r.controller.snapshot()).toMatchObject({ state: 'ENDED', canAcceptAttempt: false });
-    expect(r.controller.snapshot().error).not.toMatch(/MIDI/);
+    expect(r.controller.snapshot()).toMatchObject({ state: kind === 'worker' || kind === 'analysis' ? 'ACTIVE' : 'ENDED', canAcceptAttempt: false });
+    if (kind === 'worker' || kind === 'analysis') expect(r.controller.snapshot().analysisIntervention).toEqual({ kind: 'TERMINAL_ANALYSIS_FAILURE' });
+    else expect(r.controller.snapshot().error).not.toMatch(/MIDI/);
     expect(r.finalized).toEqual(finalizedBeforeFailure);
     await r.controller.abandon(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
@@ -304,6 +347,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
 it('failed lease acquisition opens no microphone, context or capture', async () => {
   const r = rig(); vi.mocked(r.platform.microphone!.acquireInference).mockRejectedValueOnce(new Error('ACOUSTIC_LEASE_FAILURE'));
   await r.controller.start(); await r.controller.dispose();
+  expect(r.controller.snapshot().analysisIntervention).toBeNull();
   expect(r.controller.snapshot().error).toBe('STEP_ACOUSTIC_PREPARATION_FAILED');
   expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled();
   expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled();
@@ -401,4 +445,31 @@ it('STEP abandonment cancels outstanding acoustic work and rejects late owner pu
     sessionSnapshot: { localSessionId: discarded.sessionSnapshot!.localSessionId, step: discarded.sessionSnapshot!.step } });
   expect(r.completion).not.toHaveBeenCalled(); expect(r.worker.dispose).toHaveBeenCalledOnce();
   expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
+});
+
+it('analysis release failure replaces the intervention with explicit fatal cleanup error, never completion',async()=>{
+  const r=rig();await r.controller.start();r.worker.dispose.mockRejectedValueOnce(new Error('RELEASE_FAILED'));
+  r.workerFailure();await r.controller.start();
+  expect(r.controller.snapshot()).toMatchObject({state:'ENDED',error:'STEP_RESOURCE_CLEANUP_FAILED',analysisIntervention:null,canAcceptAttempt:false});
+  expect(r.controller.snapshot().sessionSnapshot?.completionReason).toBe('STOPPED_BY_USER');
+  expect(r.context.close).toHaveBeenCalledOnce();expect(r.metronome.destroy).toHaveBeenCalledOnce();expect(r.track.stop).not.toHaveBeenCalled();
+  await r.controller.dispose();expect(r.worker.dispose).toHaveBeenCalledOnce();expect(r.completion).not.toHaveBeenCalled();
+});
+it('natural completion wins late worker/capture failure and cannot open an intervention',async()=>{
+  const r=rig();await r.controller.start();const stale=r.staleFailure()!;
+  await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');await r.controller.abandon();stale(new Error('AFTER_COMPLETION'));r.publish(r.publications[0]);
+  expect(r.controller.snapshot()).toMatchObject({state:'ENDED',analysisIntervention:null,lastSnapshot:{completionReason:'SCOPE_COMPLETED'}});
+  expect(r.completion).toHaveBeenCalledOnce();await r.controller.dispose();
+});
+
+it('a synchronous arm failure after the final committed verdict still settles natural completion',async()=>{
+  const r=rig();await r.controller.start();const input=r.input(),arm=input.arm.bind(input);
+  vi.spyOn(input,'arm').mockImplementation(boundary=>{
+    if(r.controller.snapshot().sessionSnapshot!.step.completed)throw new Error('FINAL_ARM_FAILED');
+    arm(boundary);
+  });
+  await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');
+  await r.controller.abandon();
+  expect(r.controller.snapshot()).toMatchObject({state:'ENDED',analysisIntervention:null,lastSnapshot:{completionReason:'SCOPE_COMPLETED'}});
+  expect(r.completion).toHaveBeenCalledOnce();expect(r.worker.dispose).toHaveBeenCalledOnce();await r.controller.dispose();
 });

@@ -4,7 +4,7 @@ import { expect, type Page } from '@playwright/test';
 export async function installAcousticEngineFixture(page: Page) {
   await page.addInitScript(() => {
     const nativeWorker = window.Worker;
-    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[] };
+    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {} };
     (window as unknown as { __practiceAcousticEngineFixture: typeof stats }).__practiceAcousticEngineFixture = stats;
     class EngineWorker extends EventTarget {
       private closed = false;
@@ -13,6 +13,7 @@ export async function installAcousticEngineFixture(page: Page) {
       constructor(url: string | URL, options?: WorkerOptions) {
         super();
         if (!String(url).includes('acoustic-worker')) return new nativeWorker(url, options) as unknown as EngineWorker;
+        stats.fail = () => this.dispatchEvent(new ErrorEvent('error', { message: 'ACOUSTIC_WORKER_CRASH' }));
       }
       postMessage(message: { id: number; type: string; sessionId?: string; input?: { window: { jobIndex: number; ownedStartTarget: number } } }) {
         queueMicrotask(() => {

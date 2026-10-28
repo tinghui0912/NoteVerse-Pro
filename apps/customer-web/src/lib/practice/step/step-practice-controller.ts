@@ -14,6 +14,7 @@ import { StepMidiAttemptInput } from './step-midi-attempt-input';
 import { stepApplicationError, type StepApplicationErrorCode } from './step-errors';
 import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
 import { StepMicrophoneInput } from './step-microphone-input';
+import type { StepAnalysisIntervention } from './step-analysis-intervention';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import type { StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
@@ -50,6 +51,7 @@ export class StepPracticeController {
   private state: StepControllerState = 'IDLE';
   private retirement: StepRetirementPolicy | null = null;
   private error: StepApplicationErrorCode | null = null;
+  private analysisIntervention: StepAnalysisIntervention | null = null;
   private readonly listeners = new Set<() => void>();
   private generation = 0;
   private suppressInputState = false;
@@ -63,7 +65,7 @@ export class StepPracticeController {
   engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
   snapshot() {
     const session = this.runtime?.snapshot() ?? this.finalSnapshot;
-    return Object.freeze({ state: this.state, error: this.error,
+    return Object.freeze({ state: this.state, error: this.error, analysisIntervention: this.analysisIntervention,
       stepInteractionPhase: session?.step.attemptState ?? null,
       canAcceptAttempt: this.state === 'ACTIVE' && this.error === null && (this.runtime?.canAcceptAttempt ?? false),
       pendingPostVerdict: session?.step.pendingPostVerdict ?? null,
@@ -164,14 +166,14 @@ export class StepPracticeController {
   private attemptSink(runtime: StepPracticeRuntime): StepAcousticAttemptSink<StepAttemptIdentity> {
     return {
       open: time => {
-        if (this.state !== 'ACTIVE' || this.runtime !== runtime) return null;
+        if (this.analysisIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime) return null;
         const identity = runtime.openAttempt(time);
         if (identity) this.emit();
         return this.state === 'ACTIVE' && runtime.snapshot().step.activeAttempt?.attemptId === identity?.attemptId ? identity : null;
       },
       complete: (identity, evidence) => {
         try {
-          if (this.state !== 'ACTIVE' || this.runtime !== runtime || !runtime.analyzeAttempt(identity)) return;
+          if (this.analysisIntervention || this.state !== 'ACTIVE' || this.runtime !== runtime || !runtime.analyzeAttempt(identity)) return;
           this.emit();
           const result = runtime.completeAttempt(identity, evidence);
           if (result.kind === 'REJECTED') return;
@@ -200,6 +202,7 @@ export class StepPracticeController {
     if (this.disposal) return this.disposal;
     if (this.state === 'DISPOSED') return this.cleanupTask ?? Promise.resolve();
     this.generation++; this.input?.cancel(); this.runtime?.end();
+    this.analysisIntervention = null;
     this.state = 'DISPOSED'; const cleanup = this.cleanup(); this.emit(); this.listeners.clear();
     this.disposal = Promise.all([this.preparation, cleanup, this.completionTask]).then(() => {});
     return this.disposal;
@@ -251,7 +254,7 @@ export class StepPracticeController {
     }
   }
   private microphoneHealthChanged(): void {
-    if (this.state !== 'ACTIVE') return;
+    if (this.analysisIntervention || this.state !== 'ACTIVE') return;
     const tracks = this.stream?.getAudioTracks();
     if (!tracks?.length || tracks.some(track => track.readyState !== 'live')) {
       this.failAttempt(new Error('MICROPHONE_SOURCE_LOST')); return;
@@ -271,12 +274,20 @@ export class StepPracticeController {
     } catch (error) { this.failAttempt(error); }
   }
   private failAttempt(error: unknown): void {
-    if (this.state === 'ENDED' || this.state === 'DISPOSED') return;
-    this.input?.cancel(); this.runtime?.end();
-    this.error = this.options.inputSource === 'MICROPHONE' ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING')
-      : 'STEP_ATTEMPT_FAILED';
-    this.generation++; this.state = 'ENDED'; void this.cleanup();
-    this.emit();
+    if (this.analysisIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
+    // A committed final verdict wins even if the final input rearm fails synchronously.
+    if (this.runtime?.isCompleted) { void this.completeNaturally(); return; }
+    const code = this.options.inputSource === 'MICROPHONE'
+      ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING') : 'STEP_ATTEMPT_FAILED';
+    if (this.state === 'ACTIVE' && this.runtime && code === 'STEP_ACOUSTIC_RUNTIME_FAILED') {
+      // Latch before domain/cleanup callbacks can reenter. Resource release is not session end.
+      this.analysisIntervention = Object.freeze({ kind: 'TERMINAL_ANALYSIS_FAILURE' });
+      this.runtime.setInputUnavailable();
+      this.error = null;
+      void this.cleanup(); this.emit(); return;
+    }
+    this.input?.cancel(); this.runtime?.end(); this.error = code;
+    this.generation++; this.state = 'ENDED'; void this.cleanup(); this.emit();
   }
   private cleanup(): Promise<void> {
     if (this.cleanupTask) return this.cleanupTask;
@@ -289,11 +300,17 @@ export class StepPracticeController {
     this.input?.cancel(); this.input = null;
     try { midi?.dispose(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
     try { metronome?.destroy(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-    const disposal = microphone?.dispose() ?? this.unboundInference?.dispose(); this.unboundInference = null; this.abort.abort();
+    let disposal: Promise<void> | undefined;
+    try { disposal = microphone?.dispose() ?? this.unboundInference?.dispose(); }
+    catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
+    this.unboundInference = null; this.abort.abort();
     this.cleanupTask = (async () => {
       try { await disposal; } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
       try { if (context && context.state !== 'closed') await context.close(); }
       catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
+      if (this.analysisIntervention && this.error === 'STEP_RESOURCE_CLEANUP_FAILED') {
+        this.analysisIntervention = null; this.runtime?.end(); this.state = 'ENDED';
+      }
       this.emit();
     })();
     this.suppressInputState = false;

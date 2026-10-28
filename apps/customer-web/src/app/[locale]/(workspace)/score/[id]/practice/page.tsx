@@ -17,6 +17,7 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { StepPracticeControls, ContinuousPracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeFeedbackSettings } from '@/components/practice/practice-feedback-settings';
+import { StepAnalysisInterruptionDialog } from '@/components/practice/step-analysis-interruption-dialog';
 import { AnalysisInterruptionDialog } from '@/components/practice/analysis-interruption-dialog';
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
@@ -95,7 +96,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [stepManuallyEnded, setStepManuallyEnded] = useState(false);
-  const [isRestarting, setIsRestarting] = useState(false);
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -243,10 +243,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   };
 
   useEffect(() => {
-    if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isRestarting && !isCompletionDialogOpen) {
+    if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isCompletionDialogOpen) {
       router.replace(practiceLocation(id, 'setup', selectedRevisionId));
     }
-  }, [workspace.ready, workspace.readiness.status, isActive, isRestarting, isCompletionDialogOpen, router, id, selectedRevisionId]);
+  }, [workspace.ready, workspace.readiness.status, isActive, isCompletionDialogOpen, router, id, selectedRevisionId]);
   const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
   const selectedInputCapability = useMemo(
     () => getSelectedInputCapability(inputSource, inputCapabilities, practiceMode),
@@ -274,6 +274,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const stepBusy = localPractice.mode === 'STEP_BY_STEP' && ['CAPTURING', 'ANALYZING'].includes(localPractice.stepInteractionPhase ?? '');
   const stepKey = JSON.stringify([selectedRevisionId, practiceScope, tempoSelection]);
+  const handleEnd = async () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); await localPractice.abandon(); };
   useEffect(() => {
     if (practiceMode !== 'STEP_BY_STEP') return;
     if (range.isSelecting) {
@@ -301,7 +302,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
       onStart: () => { setStepManuallyEnded(false); void localPractice.start(); },
-      onEnd: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); void localPractice.abandon(); },
+      onEnd: () => { void handleEnd(); },
       onOpenSettings: () => setIsSettingsOpen(true),
       recordingSeconds: localPractice.recordingIndicator,
       onToggleRangeSelection: range.toggleSelection,
@@ -434,18 +435,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             </SheetContent>
           </Sheet>}
 
+          {localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleEnd} />}
           {localPractice.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
             onContinueWithoutAnalysis={localPractice.continueWithoutAnalysis}
-            onRestart={localPractice.restart} onEnd={() => { void localPractice.abandon(); }} />}
+            onEnd={handleEnd} />}
           {localPractice.mode === 'CONTINUOUS_PLAY' && !analysisIntervention && intervention && <ResourceInterruptionDialog
             intervention={intervention} onContinueWithout={localPractice.continueWithoutRecording}
             onContinue={() => { localPractice.continueAfterRecovery(); }}
-            onEnd={() => { void localPractice.abandon(); }}
-            onRestart={async () => {
-              setIsRestarting(true);
-              try { await localPractice.abandon(); if (!await device.renewFailed()) return; await localPractice.start(); }
-              finally { setIsRestarting(false); }
-            }} />}
+            onEnd={handleEnd} />}
           <PracticeCompletionDialog
             open={isCompletionDialogOpen}
             outcome={completionOutcome}

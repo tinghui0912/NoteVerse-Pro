@@ -1191,7 +1191,7 @@ test('runtime AUDIO interruption pauses until explicit no-recording continuation
   await expect(page.getByText('本次录音不可用', { exact: true }).first()).toBeVisible();
 });
 
-test('hard VIDEO interruption requires fresh admission on Restart and discards the old attempt', async ({ page }) => {
+test('hard VIDEO interruption offers no Restart and End discards the live paused attempt', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await observeNativeRecorders(page); await openCameraSetup(page, 'MIDI', 'READY');
   await recordingOption(page, 'VIDEO').click(); await preparePracticeSetup(page); await expectCameraReady(page, 0);
@@ -1201,13 +1201,10 @@ test('hard VIDEO interruption requires fresh admission on Restart and discards t
   const dialog = page.getByRole('alertdialog'); await expect(dialog).toBeVisible();
   await expect(page.locator('video[aria-label="摄像头预览"]')).toBeVisible();
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
-  await dialog.getByRole('button', { name: '重新开始', exact: true }).click();
-  await expect(dialog).toHaveCount(0); await expect(page.getByRole('status')).toContainText('预备拍');
-  await page.clock.runFor(2100); await expect(page.getByTestId('recording-indicator')).toBeVisible();
-    await expect(page.getByRole('status')).toHaveCount(0);
-  expect(await page.evaluate(() => (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.length)).toBe(count + 1);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('VIDEO');
-  await page.getByRole('button', { name: '结束', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: '重新开始', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button')).toHaveCount(2);
+  await dialog.getByRole('button', { name: '结束', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.length)).toBe(count);
   await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
   await expect(page.getByRole('dialog')).toHaveCount(0); await expect(page.getByRole('button', { name: '查看报告' })).toHaveCount(0);
 });
@@ -1424,4 +1421,27 @@ test('permission-denied page binding offers explicit retry and only the user can
   await changeInputRoot(page, 'ended'); await expect(issue).toBeVisible();
   await issue.getByRole('button', { name: '更改练习配置', exact: true }).click();
   await expect(page.getByTestId('practice-setup')).toBeVisible(); await expect(recordingOption(page, 'AUDIO')).toHaveAttribute('aria-pressed', 'true');
+});
+
+for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis intervention retains position until ${choice}, without auto-start`,async({page})=>{
+  await setupContinuousPracticeMocks(page);await openPreparedPractice(page,scoreId,revisionId);
+  await configurePractice(page,'STEP','MICROPHONE','OFF');
+  await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
+  const cursor=page.locator('[data-practice-playhead-cursor]');await expect(cursor).toHaveCount(1);
+  const x=await cursor.getAttribute('x'),before=await deviceAndEnvironmentCounts(page);
+  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{fail():void}}).__practiceAcousticEngineFixture.fail());
+  const dialog=page.getByRole('alertdialog',{name:'音符分析已停止'});await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button')).toHaveCount(1);await expect(cursor).toHaveAttribute('x',x!);
+  await page.keyboard.press('Escape');await expect(dialog).toBeVisible();
+  expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(before.engine.sessions);
+  await expect(page.getByRole('button',{name:'查看报告',exact:true})).toHaveCount(0);
+  if(choice==='End'){
+    await dialog.getByRole('button',{name:'结束',exact:true}).click();await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/\/practice\/setup/);
+  }else{
+    // Exercise actual client navigation without trying to interact through the blocking overlay.
+    await page.getByRole('link',{name:'NoteVerse Pro',includeHidden:true}).evaluate((link:HTMLAnchorElement)=>link.click());
+    await expect(page).toHaveURL(/\/zh\/library/);await expect(dialog).toHaveCount(0);
+  }
+  expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(before.engine.sessions);
 });

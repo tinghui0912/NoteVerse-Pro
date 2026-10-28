@@ -723,9 +723,49 @@ it('keeps terminal Continuous analysis choice separate from resource faults, STE
     if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'AnalysisInterruptionDialog') {
       analysisShell = true; expect(node.getText(page)).not.toContain('analysisError');
       expect(node.getText(page)).toContain('localPractice.continueWithoutAnalysis');
-      expect(node.getText(page)).toContain('localPractice.restart');
-      expect(node.getText(page)).toContain('localPractice.abandon');
+      expect(node.getText(page)).not.toContain('onRestart');
+      expect(node.getText(page)).toContain('onEnd={handleEnd}');
     }
     ts.forEachChild(node, visit);
   };visit(page); expect(resourceGuard).toBe(true); expect(analysisShell).toBe(true);
+});
+
+it('keeps STEP analysis intervention application-owned and failure actions honest',()=>{
+  const failures:string[]=[];
+  for(const [file,edges] of sourceGraph){
+    const rel=relative(file);
+    if(rel.startsWith('continuous/')&&edges.some(edge=>edge.bindings.includes('StepAnalysisIntervention')))failures.push(file+': STEP intervention');
+    if(rel.startsWith('step/domain/')&&edges.some(edge=>edge.bindings.includes('StepAnalysisIntervention')))failures.push(file+': application into domain');
+  }
+  for(const rel of ['step/domain/session.ts','result/continuous-performance-result.ts']){
+    const source=ts.createSourceFile(rel,readFileSync(path.join(practiceRoot,rel),'utf8'),ts.ScriptTarget.Latest,true);
+    const visit=(node:ts.Node)=>{if(ts.isIdentifier(node)&&['analysisIntervention','StepAnalysisIntervention'].includes(node.text))failures.push(rel+': persisted intervention');ts.forEachChild(node,visit);};visit(source);
+  }
+  const hookPath=path.join(sourceRoot,'hooks/practice/use-step-local-practice.ts');
+  const hook=ts.createSourceFile(hookPath,readFileSync(hookPath,'utf8'),ts.ScriptTarget.Latest,true);
+  let exposed=false;
+  const inspect=(node:ts.Node)=>{
+    if(ts.isReturnStatement(node)&&node.expression&&ts.isObjectLiteralExpression(node.expression)&&node.expression.getText(hook).includes("mode: 'STEP_BY_STEP'")){
+      exposed=true;const names=node.expression.properties.map(p=>p.name?.getText(hook));
+      expect(names).toContain('analysisIntervention');expect(names.filter(n=>n&&['continueWithoutAnalysis','controller','runtime','microphone','owner'].includes(n))).toEqual([]);
+    }ts.forEachChild(node,inspect);
+  };inspect(hook);expect(exposed).toBe(true);
+  for(const name of ['analysis-interruption-dialog.tsx','resource-interruption-dialog.tsx','step-analysis-interruption-dialog.tsx']){
+    const file=path.join(sourceRoot,'components/practice',name),source=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+    const visit=(node:ts.Node)=>{if(ts.isIdentifier(node)&&node.text==='onRestart')failures.push(name+': Restart action');ts.forEachChild(node,visit);};visit(source);
+  }
+  const pagePath=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  const page=ts.createSourceFile(pagePath,readFileSync(pagePath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  let stepDialog=false,end=false,completionRetry=false;
+  const visit=(node:ts.Node)=>{
+    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='handleEnd'){
+      end=true;const text=node.getText(page);expect(text).toContain('stepAutoArm.current = stepKey');expect(text).toContain('setStepManuallyEnded(true)');expect(text).toContain('await localPractice.abandon()');
+    }
+    if(ts.isJsxSelfClosingElement(node)){
+      const tag=node.tagName.getText(page),text=node.getText(page);
+      if(tag==='StepAnalysisInterruptionDialog'){stepDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention");expect(text).toContain('onEnd={handleEnd}');}
+      if(['AnalysisInterruptionDialog','ResourceInterruptionDialog'].includes(tag))expect(text).not.toContain('onRestart');
+      if(tag==='PracticeCompletionDialog'){completionRetry=true;expect(text).toContain('onRestart={handleRestart}');}
+    }ts.forEachChild(node,visit);
+  };visit(page);expect(stepDialog&&end&&completionRetry).toBe(true);expect(failures).toEqual([]);
 });

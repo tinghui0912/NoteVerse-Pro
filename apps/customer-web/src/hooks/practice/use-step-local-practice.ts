@@ -54,7 +54,9 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
         onNaturalCompletion: result => {
           if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);
         } });
-      owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
+      owner.current = controller; unsubscribe.current = controller.subscribe(() => {
+        if (operation === generation.current && owner.current === controller) setSnapshot(controller.snapshot());
+      });
       setPreparationError(null); await controller.start();
     } catch (failure) { if (operation === generation.current) setPreparationError((failure as Error).message); } finally {
       if (operation === generation.current) { starting.current = false; setPendingBinding({ key, artifact: options.artifact, value: false }); }
@@ -84,7 +86,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const bindingPending = pendingBinding?.key === key && pendingBinding.artifact === options.artifact && pendingBinding.value;
   const inputState: LocalPracticeInputState = bindingPending ? 'STARTING' : inputError ? 'ERROR' : applicationState === 'PREPARING' ? 'STARTING' : applicationState === 'ACTIVE' ? 'RUNNING' : 'IDLE';
   // Generic UI boundary only: lifecycle denotes application presentation, never domain status.
-  return { mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
+  return { analysisIntervention: snapshot?.analysisIntervention ?? null, mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
     runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,
     inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,

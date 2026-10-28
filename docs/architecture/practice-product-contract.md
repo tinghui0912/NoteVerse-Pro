@@ -95,7 +95,7 @@ mark qualification stale; an exception alone never does so.
 | Continuous / MIDI / VIDEO | MIDIAccess, recording microphone, camera video |
 
 Setup probes are temporary and released; they are not handed into Practice.
-Same-page Start, End, natural completion, Try Again and recorder-clone Restart
+Same-page Start, End, natural completion and Try Again
 retain the same Device Lease. Attempts borrow roots, bind fresh MIDI listeners,
 and never acquire or stop roots. Recorder audio always clones the selected audio
 root; video combines that clone with a camera-root clone. Preview only displays
@@ -367,8 +367,28 @@ attempt AudioContext. The input owns its analysis clone, capture bridge, assembl
 source-analysis graph. Abandon/dispose await attempt resource release; restart constructs a fresh controller after
 cleanup. MIDI disconnection cancels unfinished input and retains the same target
 and MIDIAccess owner; reconnection establishes a fresh eligibility boundary.
-Microphone infrastructure or analysis failure is terminal. Unfinished attempts are
-cancelled without fabricated verdicts.
+Microphone infrastructure failure retains its existing terminal classification.
+An admitted ACTIVE STEP microphone terminal analysis failure instead latches the
+application-only `StepAnalysisIntervention = { kind: 'TERMINAL_ANALYSIS_FAILURE' }`.
+Fault detection is not session end: controller and domain remain ACTIVE with the same
+session/target/progress. `runtime.setInputUnavailable()` prevents input and Skip,
+cancels unfinished CAPTURING/ANALYZING attempts without a verdict and preserves any
+finalized POST_VERDICT record, currentIndex and targetGeneration. No rearm, advance,
+retirement boundary, automatic retry or inference reacquisition follows failure.
+
+The blocking STEP analysis dialog has exactly one action, End. Escape/outside click
+cannot dismiss it. Only explicit End (the normal abandon path) or page unmount ends
+the retained runtime/application owner; neither creates natural completion or Result.
+Page End latches manual-end/auto-arm identity before abandonment, preventing an effect
+from restarting. Cleanup immediately releases failed capture/source runtime/inference,
+listeners, attempt AudioContext and metronome, but retains runtime truth until End.
+Borrowed microphone roots and the outer Device Lease are not stopped or released by
+this attempt cleanup. Cleanup and subsequent End/unmount share idempotent releases;
+stale callbacks cannot revive the owner. Cleanup failure supersedes the analysis-only
+intervention with an explicit fatal cleanup error. PREPARING failures, temporary mute
+recovery and physical source/AudioContext/capture infrastructure classification remain
+unchanged. Normal completion wins late failure. STEP domain/version/attempt schema
+contains no application intervention field.
 
 ## CONTINUOUS_PLAY
 
@@ -748,7 +768,7 @@ Terminal analysis failure with healthy infrastructure stops analysis resources a
 pauses canonical performance, metronome and active recording for explicit learner
 choice. Only accepted Continue without analysis resumes an intervention-owned pause;
 pre-existing user pause stays paused. Preparation failure never starts transport. Temporary required-input interruption pauses Continuous through its
-canonical resource intervention; hard loss requires Restart or End. Listeners are
+canonical resource intervention; hard required-input loss offers End only. Listeners are
 detached before intentional cleanup. Cleanup failure is terminal failure; each
 owned release is attempted once. Product errors are localized; bounded diagnostics
 retain causal metadata separately from observations and user recordings.
@@ -833,13 +853,13 @@ remains live, becomes unmuted, and the same MediaRecorder remains usable. Origin
 track unmute/ended and recorder events update health passively. There is no manual
 Check Device action. Recovery only exposes Continue; it never resumes automatically.
 Ended tracks, recorder errors, pause/resume/start failures and unusable pipelines
-require restart or explicit continuation without recording. No new recorder or stream
+allow explicit continuation without recording only when performance is safe; otherwise End is required. No new recorder or stream
 is spliced into the current artifact.
 
 Resource impact is explicit: RECORDING_ONLY, INPUT_REQUIRED or INPUT_AND_RECORDING.
 A recorder-owned clone fault with healthy input, or recording loss with healthy MIDI,
 can offer Continue without recording while interruption is unresolved. Recovered
-recording offers only Continue, Restart or End, preserving the now-recoverable intent. Root microphone mute and temporary AudioContext
+recording offers only Resume or End, preserving the now-recoverable intent. Root microphone mute and temporary AudioContext
 interruption pause canonical transport and wait for the same input/capture pipeline to
 recover. Continuous capture explicitly retains its existing graph across temporary
 context suspension; closure or invalid chronology still invalidates it. STEP temporary
@@ -848,7 +868,7 @@ to waiting on same-root recovery. Its recovery commits a fresh physical capture
 watermark before rearming, excluding delayed or partial evidence. STEP hard root loss
 ends the old Attempt; explicit Device Lease reconnect creates a fresh auto-armed STEP
 session from the configured scope. Context/capture/analysis failure remains owned by
-the Attempt or engine, without generic Environment invalidation. Root ended, context closure and invalid capture require Restart or End. Required
+the Attempt or engine, without generic Environment invalidation. Continuous required-input root ended, context closure and invalid capture offer End only. Required
 input loss never offers recording-only degradation. Shared-source callbacks converge
 on one intervention, with input-required impact taking priority and one canonical pause.
 MIDI disconnection retains its existing pause/reconnect contract and cannot accept
@@ -865,8 +885,8 @@ admission failures remain start failures; physical source loss, invalid capture
 infrastructure, AudioContext interruption and recording faults retain resource ownership.
 Analysis failure is neither a timing mismatch nor a learner mistake.
 
-The blocking analysis dialog exposes only explicit **Continue without analysis**,
-**Restart**, and **End**. Continue waits for analysis release, permanently disables
+The blocking Continuous analysis dialog exposes only explicit **Continue without
+analysis** and **End**. Continue waits for analysis release, permanently disables
 analysis for the attempt, leaves live target feedback null and preserves the same
 session, performance clock and healthy recording. It resumes through normal Resume
 Count-In only when the intervention caused the pause; an existing user pause needs
@@ -881,8 +901,9 @@ Acoustic analysis release neither closes the controller AudioContext nor stops t
 borrowed root stream, metronome or recorder. Source-track health observation is
 irreversibly released with analysis; AudioContext health observation stays active
 because that context still owns canonical performance time. Recording track health
-continues to belong to the recorder. Restart discards the old attempt through normal
-cleanup, then creates fresh session/inference/media/transport ownership. End discards
+continues to belong to the recorder. No failure dialog offers Restart or an alias.
+Normal completion Try Again and idle/preparation Reconnect/Retry keep their distinct
+ownership and remain available. End discards
 without a Result or completion callback. Final cleanup still releases remaining
 attempt resources exactly once.
 
@@ -891,15 +912,18 @@ presentation priority; after its explicit Continue, any unresolved resource inci
 keeps performance paused and becomes the visible resource dialog. Clearing either
 incident cannot bypass the other or cause a second canonical pause. A terminal
 analysis failure during an already natural FINALIZING tail creates no intervention:
-finish healthy recording and natural completion with unavailable evaluation. STEP
-analysis intervention is outside this contract change.
+finish healthy recording and natural completion with unavailable evaluation.
 
 Continue without recording accepts loss for this attempt, preserves the original fault
 reason and persistent recording preference, then resumes only an intervention-owned
 pause. A pre-existing user pause stays paused. Explicit Continue after passive recovery
-enters Resume Count-In with the original healthy pipeline and frozen paused performance time. Restart
-abandons the old attempt and media, then automatically binds and starts a fresh attempt.
-End abandons without any result. A latched natural completion wins late callbacks.
+enters Resume Count-In with the original healthy pipeline and frozen paused performance
+time. Required-input WAITING/hard faults offer only End; same-pipeline recovered faults
+offer Resume/End; recording-only unresolved faults offer Continue without recording/End.
+Failure cleanup is not session end: the live owner and position remain behind the
+blocking dialog until explicit End or existing page-unmount disposal. Navigation
+needs no extra beforeunload state machine, never creates a Result, and fences stale
+callbacks. End abandons without any result. A latched natural completion wins late callbacks.
 
 UNAVAILABLE represents explicitly accepted runtime recording loss, or media that could
 not finish reliably after natural completion was already latched. Finalization failure

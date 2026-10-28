@@ -619,6 +619,18 @@ describe('Continuous application owner', () => {
       expect(f.worker.dispose).toHaveBeenCalledOnce();
     });
   }
+  for (const incident of ['analysis','recording'] as const) it(`page teardown during ${incident} intervention discards without completion or stale revival`,async()=>{
+    const f=environment(),done=vi.fn();let staleFailure:((error:Error)=>void)|undefined;
+    const attach=f.worker.onFailure!;f.worker.onFailure=listener=>{staleFailure=listener;return attach(listener);};
+    const controller=f.create('MICROPHONE',0,'AUDIO',done);await controller.start();await f.feed(100);
+    if(incident==='analysis')f.failure();else{const clone=f.root.copies[1];clone.audio.muted=true;clone.audio.dispatchEvent(new Event('mute'));}
+    expect(controller.snapshot().session).toBe('ACTIVE');expect(controller.snapshot().transport?.state).toBe('PAUSED');
+    expect(incident==='analysis'?controller.snapshot().analysisIntervention:controller.snapshot().resourceIntervention).not.toBeNull();
+    await controller.dispose();staleFailure?.(new Error('AFTER_UNMOUNT'));await f.feed(1500);await controller.dispose();
+    expect(controller.snapshot()).toMatchObject({session:'DISPOSED',completed:null,analysisIntervention:null,resourceIntervention:null});
+    expect(done).not.toHaveBeenCalled();expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(f.worker.dispose).toHaveBeenCalledOnce();expect(f.context.close).toHaveBeenCalledOnce();expect(f.root.audio.stop).not.toHaveBeenCalled();
+  });
   it('Restart releases the interrupted attempt once and starts a fresh identity, inference lease and recording', async () => {
     const old = environment(), controller = old.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await old.feed(100);
     const identity = controller.engineeringSnapshot().sessionId; old.failure(); await controller.dispose();

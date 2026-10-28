@@ -16,9 +16,8 @@
   "recordingInterrupted": "Recording temporarily interrupted",
   "recordingCannotContinue": "Recording cannot continue",
   "recordingInterruptedDescription": "Practice is paused. Choose how to continue.",
-  "recordingRestartRequiredDescription": "This recording cannot safely resume. Continue this attempt without recording, or restart for a complete recording.",
+  "recordingRestartRequiredDescription": "This recording cannot safely resume. Continue without recording, or end this attempt.",
   "recordingContinueWithout": "Continue without recording",
-  "recordingRestart": "Restart",
   "recordingPaused": "Recording interrupted. Practice is paused.",
   "setupTitle": "Prepare your practice",
   "setupDescription": "Choose how you want to practice, then check your devices.",
@@ -386,12 +385,13 @@
   "inputRecovered": "Input device recovered",
   "inputCannotContinue": "Input disconnected",
   "inputInterruptionDescription": "Practice is paused. Continue when the original input is available again.",
-  "inputRestartRequiredDescription": "The input device is disconnected. This attempt cannot continue. Restart or end practice.",
+  "inputRestartRequiredDescription": "The required input is unavailable. This attempt cannot safely continue. End this attempt.",
   "inputPaused": "Input interrupted. Practice paused.",
   "startingAttempt": "Starting…",
   "practiceElapsedTime": "Practice time",
   "continueLearning": "Continue practice",
   "analysisStopped": "Note analysis stopped",
-  "analysisStoppedDescription": "Practice is paused. You can continue without note feedback, restart, or end this attempt.",
-  "continueWithoutAnalysis": "Continue without analysis"
+  "analysisStoppedDescription": "Practice is paused. You can continue without note feedback or end this attempt.",
+  "continueWithoutAnalysis": "Continue without analysis",
+  "stepAnalysisStoppedDescription": "Note analysis stopped. Step-by-step practice needs note analysis to check each answer. End this attempt to continue later."
 }
