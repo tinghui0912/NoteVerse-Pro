@@ -31,14 +31,14 @@ describe('page-scoped Practice Device Lease', () => {
     expect(practiceDeviceRequirements(configuration)).toEqual(expected); await f.owner.open();
     expect(f.owner.snapshot().state).toBe('READY');
     const original = f.owner.snapshot().roots;
-    await f.owner.open(); await f.owner.renewFailed();
+    await f.owner.open();
     expect(f.owner.snapshot().roots).toEqual(original);
     expect(f.platform.acquireStream).toHaveBeenCalledTimes(expected.filter(r => r !== 'midi').length);
     expect(f.platform.acquireMidi).toHaveBeenCalledTimes(inputSource === 'MIDI' ? 1 : 0);
     f.owner.close(); f.owner.close();
     for (const root of f.acquired) expect(root.track.stop).toHaveBeenCalledOnce();
   });
-  it('observes mute/unmute passively and renews only a lost root on explicit Reconnect', async () => {
+  it('observes same-root recovery but never rebinds a hard-lost root', async () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' });
     await f.owner.open(); const [input, camera] = f.acquired, changes = vi.fn(); f.owner.subscribe(changes);
     input.track.muted = true; input.track.dispatchEvent(new Event('mute'));
@@ -49,7 +49,8 @@ describe('page-scoped Practice Device Lease', () => {
     camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended'));
     expect(f.owner.snapshot().issue).toEqual({ resource: 'camera', phase: 'RUNTIME', condition: 'LOST' });
     expect(f.owner.snapshot().health.camera).toBe('LOST'); expect(f.platform.acquireStream).toHaveBeenCalledTimes(2);
-    await f.owner.renewFailed(); expect(f.platform.acquireStream).toHaveBeenCalledTimes(3);
+    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    expect(f.platform.acquireStream).toHaveBeenCalledTimes(2);
     expect(f.owner.snapshot().roots.inputMicrophone).toBe(input.stream); expect(input.track.stop).not.toHaveBeenCalled();
     f.owner.close(); const calls = changes.mock.calls.length; input.track.dispatchEvent(new Event('mute')); expect(changes).toHaveBeenCalledTimes(calls);
   });
@@ -58,7 +59,8 @@ describe('page-scoped Practice Device Lease', () => {
     const f = rig(configuration), other = vi.fn(); f.midi.access.addEventListener('statechange', other);
     await f.owner.open(); f.midi.connect(false); expect(f.owner.snapshot().health.midi).toBe('LOST');
     expect(f.owner.snapshot().issue).toEqual({ resource: 'midi', phase: 'RUNTIME', condition: 'LOST' });
-    f.midi.connect(true); expect(f.owner.snapshot().state).toBe('READY'); f.owner.close();
+    f.midi.connect(true); expect(f.owner.snapshot().state).toBe('READY');
+    expect(f.platform.acquireMidi).toHaveBeenCalledOnce(); f.owner.close();
     f.midi.connect(false); expect(other).toHaveBeenCalledTimes(3); expect(f.owner.snapshot().roots.midi).toBeNull();
     f.midi.connect(true); const next = new PracticeDeviceLease(configuration, f.platform); await next.open();
     expect(f.platform.acquireMidi).toHaveBeenCalledTimes(2); next.close();
@@ -88,7 +90,8 @@ describe('page-scoped Practice Device Lease', () => {
       issue: { resource: 'camera', phase: 'OPEN', condition: 'PERMISSION_DENIED' } });
     const changes = vi.fn(); f.owner.subscribe(changes);
     f.acquired[0].track.dispatchEvent(new Event('unmute')); expect(changes).not.toHaveBeenCalled();
-    await f.owner.renewFailed(); expect(f.owner.snapshot().state).toBe('READY'); f.owner.close();
+    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    expect(f.platform.acquireStream).toHaveBeenCalledTimes(2); f.owner.close();
   });
   it('detaches and clears acquired MIDI when a later recording microphone open fails', async () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });

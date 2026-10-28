@@ -12,18 +12,19 @@ function stream(kind: 'audio' | 'video') {
   return { track, media: { getTracks: () => [track], getAudioTracks: () => kind === 'audio' ? [track] : [],
     getVideoTracks: () => kind === 'video' ? [track] : [] } as unknown as MediaStream };
 }
-it('page binding stays stable through rerenders, renews only the failed root, and stops all roots on unmount', async () => {
-  const input = stream('audio'), camera = stream('video'), replacement = stream('video');
-  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockResolvedValueOnce(input.media).mockResolvedValueOnce(camera.media).mockResolvedValueOnce(replacement.media);
+it('page binds once across rerenders and hard loss; only unmount releases retained roots', async () => {
+  const input = stream('audio'), camera = stream('video');
+  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockResolvedValueOnce(input.media).mockResolvedValueOnce(camera.media);
   const { result, rerender, unmount } = renderHook(() => usePracticeDeviceLease(configuration, true), { wrapper: StrictMode });
   await waitFor(() => expect(result.current.snapshot?.state).toBe('READY'));
   const roots = result.current.borrow(); rerender(); expect(result.current.borrow()).toEqual(roots); expect(acquire).toHaveBeenCalledTimes(2);
   act(() => { camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended')); });
   expect(result.current.borrow()).toBeNull();
-  await act(async () => { expect(await result.current.renewFailed()).toBe(true); });
-  expect(result.current.borrow()).toMatchObject({ camera: replacement.media, inputMicrophone: input.media });
-  expect(input.track.stop).not.toHaveBeenCalled(); expect(acquire).toHaveBeenCalledTimes(3);
-  unmount(); expect(input.track.stop).toHaveBeenCalledOnce(); expect(camera.track.stop).toHaveBeenCalledOnce(); expect(replacement.track.stop).toHaveBeenCalledOnce();
+  rerender();
+  expect(result.current.snapshot?.state).toBe('FAULTED'); expect(result.current.borrow()).toBeNull();
+  expect(input.track.stop).not.toHaveBeenCalled(); expect(acquire).toHaveBeenCalledTimes(2);
+  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'observe', 'snapshot']);
+  unmount(); expect(input.track.stop).toHaveBeenCalledOnce(); expect(camera.track.stop).toHaveBeenCalledOnce();
 });
 it('a late camera acquisition after page departure is stopped without restoring the preview', async () => {
   const input = stream('audio'), camera = stream('video'); let release!: (media: MediaStream) => void;
@@ -34,14 +35,12 @@ it('a late camera acquisition after page departure is stopped without restoring 
   await act(async () => { release(camera.media); }); expect(camera.track.stop).toHaveBeenCalledOnce();
 });
 
-it('renewal failure publishes the lease error without admitting an attempt or rejecting the user action', async () => {
-  const root = stream('audio'), camera = stream('video');
-  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockResolvedValueOnce(root.media).mockResolvedValueOnce(camera.media);
-  const { result, unmount } = renderHook(() => usePracticeDeviceLease(configuration, true));
-  await waitFor(() => expect(result.current.snapshot?.state).toBe('READY'));
-  act(() => { camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended')); });
-  acquire.mockRejectedValueOnce(new DOMException('private detail', 'NotAllowedError'));
-  await act(async () => { expect(await result.current.renewFailed()).toBe(false); });
-  expect(result.current.snapshot).toMatchObject({ state: 'FAULTED', issue: { resource: 'camera', phase: 'OPEN', condition: 'PERMISSION_DENIED' } });
-  expect(result.current.borrow()).toBeNull(); expect(root.track.stop).not.toHaveBeenCalled(); unmount();
+it('failed initial binding remains on the execution page without a reacquisition command', async () => {
+  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockRejectedValue(new DOMException('private detail', 'NotAllowedError'));
+  const { result, rerender, unmount } = renderHook(() => usePracticeDeviceLease(configuration, true));
+  await waitFor(() => expect(result.current.snapshot?.state).toBe('FAULTED'));
+  rerender();
+  expect(result.current.snapshot?.issue).toMatchObject({ phase: 'OPEN', condition: 'PERMISSION_DENIED' });
+  expect(result.current.borrow()).toBeNull(); expect(acquire).toHaveBeenCalledOnce();
+  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'observe', 'snapshot']); unmount();
 });

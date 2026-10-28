@@ -24,22 +24,19 @@ export class PracticeDeviceLease {
     return Object.freeze({ state: this.state, issue: this.issue, roots: Object.freeze({ ...this.roots }), health: Object.freeze(health) });
   }
   engineeringSnapshot() { return this.timings.snapshot(); }
-  open(): Promise<void> { return this.bind(false); }
-  /** Explicit reconnect renews lost roots only; temporary mute waits on the same roots. */
-  renewFailed(): Promise<void> { return this.bind(true); }
-  private bind(renew: boolean): Promise<void> {
+  /** One binding transaction per mounted execution page; faults never reacquire roots. */
+  open(): Promise<void> {
     if (this.pending) return this.pending;
     if (this.state === 'CLOSED') return Promise.reject(new Error('PRACTICE_DEVICE_LEASE_CLOSED'));
-    this.state = 'OPENING'; this.issue = null; this.notify();
+    if (this.state !== 'NEW') return this.state === 'READY' ? Promise.resolve() : Promise.reject(new Error('PRACTICE_DEVICE_UNAVAILABLE'));
+    this.state = 'OPENING'; this.notify();
     this.pending = this.timings.measure('deviceLeaseOpen', async () => {
       const acquired: PracticeDeviceResource[] = [];
       let opening = this.required[0];
       try {
         for (const resource of this.required) {
           if (this.state === 'CLOSED') return;
-          if (this.roots[resource] && (!renew || this.health(resource) !== 'LOST')) continue;
           opening = resource;
-          this.release(resource);
           if (resource === 'midi') {
             const access = await this.platform.acquireMidi();
             if (this.isClosed()) return;
@@ -99,7 +96,7 @@ export class PracticeDeviceLease {
   }
   private changed(): void {
     if (this.isClosed()) return;
-    // Keep a failed-open identity until that resource is explicitly acquired again.
+    // Keep failed binding facts for this mounted lease; only a new page can bind again.
     const failedOpen = this.issue?.phase === 'OPEN' && !this.roots[this.issue.resource] ? this.issue : null;
     const resource = this.required.find(resource => this.health(resource) !== 'HEALTHY');
     this.issue = failedOpen ?? (resource ? Object.freeze({ resource, phase: 'RUNTIME',

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
@@ -98,6 +99,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [stepManuallyEnded, setStepManuallyEnded] = useState(false);
+  const [stepRequiresSetup, setStepRequiresSetup] = useState(false);
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -200,9 +202,15 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     !isResourceLoading &&
     !loadError;
 
+  const goToPracticeSetup = () => {
+    workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION');
+    setIsSettingsOpen(false);
+    router.push(practiceLocation(id, 'setup', selectedRevisionId));
+  };
   const handleRestart = async () => {
     setIsCompletionDialogOpen(false);
-    setStepManuallyEnded(false); if (!await device.renewFailed()) return;
+    if (!workspace.ready || !devicesReady) { goToPracticeSetup(); return; }
+    setStepManuallyEnded(false); setStepRequiresSetup(false);
     await localPractice.restart();
   };
 
@@ -232,13 +240,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     localPractice.inputState === 'STARTING' ||
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
-  const canReconnectDevices = !isActive && !localPractice.isFinalizingPerformance && device.snapshot?.state === 'FAULTED';
-  const handleReconnect = async () => {
-    if (!canReconnectDevices) return;
-    if (isStepMode) { stepAutoArm.current = stepKey; setStepManuallyEnded(true); }
-    await device.renewFailed();
-  };
-
   useEffect(() => {
     if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isCompletionDialogOpen) {
       router.replace(practiceLocation(id, 'setup', selectedRevisionId));
@@ -271,17 +272,21 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const stepBusy = localPractice.mode === 'STEP_BY_STEP' && ['CAPTURING', 'ANALYZING'].includes(localPractice.stepInteractionPhase ?? '');
   const stepKey = JSON.stringify([selectedRevisionId, practiceScope, tempoSelection]);
-  const handleEnd = async () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); await localPractice.abandon(); };
+  const handleEnd = async () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); setStepRequiresSetup(false); await localPractice.abandon(); };
+  const handleStepTerminalEnd = async () => {
+    stepAutoArm.current = stepKey; setStepManuallyEnded(true); setStepRequiresSetup(true);
+    await localPractice.abandon();
+  };
   useEffect(() => {
     if (practiceMode !== 'STEP_BY_STEP') return;
     if (range.isSelecting) {
       if (stepAutoArm.current !== null) { stepAutoArm.current = null; void localPractice.abandon(); }
       return;
     }
-    if (stepManuallyEnded || !canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
+    if (stepRequiresSetup || stepManuallyEnded || !canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
     stepAutoArm.current = stepKey;
     void localPractice.restart();
-  }, [practiceMode, stepManuallyEnded, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
+  }, [practiceMode, stepRequiresSetup, stepManuallyEnded, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
 
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
@@ -298,14 +303,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       onTempoSelectionChange: setTempoSelection,
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
-      onStart: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(false); void localPractice.start(); },
+      onStart: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(false); setStepRequiresSetup(false); void localPractice.start(); },
       onEnd: () => { void handleEnd(); },
       onOpenSettings: () => setIsSettingsOpen(true),
       recordingSeconds: localPractice.recordingIndicator,
       onToggleRangeSelection: range.toggleSelection,
   };
   const practiceControls = localPractice.mode === 'STEP_BY_STEP'
-    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} showContinue={stepManuallyEnded && localPractice.lifecycle === 'IDLE' && !localPractice.inputError} />
+    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} showContinue={stepManuallyEnded && !stepRequiresSetup && localPractice.lifecycle === 'IDLE' && !localPractice.inputError && canPreparePractice} />
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
         onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
 
@@ -315,8 +320,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       deviceIssue={device.snapshot?.issue ?? null}
       deviceControls={requiredDevices.map(resource => <PracticeDeviceStatusPopover key={resource} resource={resource}
         health={device.snapshot?.health[resource] ?? null}
-        issue={device.snapshot?.issue?.resource === resource ? device.snapshot.issue : null}
-        canReconnect={canReconnectDevices} onReconnect={handleReconnect} />)}
+        issue={device.snapshot?.issue?.resource === resource ? device.snapshot.issue : null} />)}
       lifecycle={localPractice.lifecycle}
       inputState={localPractice.inputState}
       inputError={localPractice.inputError}
@@ -333,7 +337,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const renderFrame = (children: React.ReactNode) => (
     <ScoreSurface>
-      <div className="w-full">{children}</div>
+      <div className="w-full">
+        <nav className="flex h-11 items-center px-4 sm:px-6" aria-label={t('practiceSetup')}>
+          <button type="button" className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900" onClick={goToPracticeSetup}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />{t('practiceSetup')}
+          </button>
+        </nav>
+        {children}
+      </div>
     </ScoreSurface>
   );
 
@@ -431,12 +442,12 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
               {!isStepMode && <PracticeFeedbackSettings enabled={profile.continuous.liveFeedbackEnabled}
                 onChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })} />}
               <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isStepMode ? stepBusy : isActive}
-                onClick={() => { setIsSettingsOpen(false); router.push(practiceLocation(id, 'setup', selectedRevisionId)); }}>{t('setupChangeConfiguration')}</button>
+                onClick={goToPracticeSetup}>{t('setupChangeConfiguration')}</button>
             </SheetContent>
           </Sheet>}
 
-          {localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleEnd} />}
-          {localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleEnd} />}
+          {localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleStepTerminalEnd} />}
+          {localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleStepTerminalEnd} />}
           {localPractice.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
             onContinueWithoutAnalysis={localPractice.continueWithoutAnalysis}
             onEnd={handleEnd} />}

@@ -5,12 +5,11 @@
   "deviceResource_camera": "摄像头",
   "deviceResource_midi": "MIDI 键盘",
   "deviceInterrupted": "{resource}暂时不可用，恢复后即可继续练习。",
-  "devicePermissionDenied": "无法访问{resource}。请先在浏览器的网站权限中允许访问，然后点击“重新连接”。",
+  "devicePermissionDenied": "无法访问{resource}。请在浏览器的网站权限中允许访问，然后返回练习设置重新校验。",
   "deviceDisconnected": "{resource}已断开。",
-  "deviceNotFound": "未找到{resource}。连接设备后，点击“重新连接”。",
-  "deviceBusy": "{resource}正被其他应用使用。关闭占用它的应用后，点击“重新连接”。",
-  "deviceUnavailable": "{resource}当前不可用。确认设备可用后，点击“重新连接”。",
-  "deviceReconnect": "重新连接",
+  "deviceNotFound": "未找到{resource}。连接设备后，请返回练习设置重新校验。",
+  "deviceBusy": "{resource}正被其他应用使用。关闭占用它的应用后，请返回练习设置重新校验。",
+  "deviceUnavailable": "{resource}当前不可用。请返回练习设置重新校验。",
   "setupChangeConfiguration": "更改练习配置",
   "recordingInterrupted": "录制暂时中断",
   "recordingCannotContinue": "录制无法继续",
@@ -398,5 +397,6 @@
   "stepInfrastructureUnavailable": "麦克风音频不可用。",
   "deviceStatusReady": "{resource}正常",
   "deviceStatusUnavailable": "{resource}不可用",
-  "deviceConnected": "已连接，可以使用。"
+  "deviceConnected": "已连接，可以使用。",
+  "practiceSetup": "返回练习设置"
 }

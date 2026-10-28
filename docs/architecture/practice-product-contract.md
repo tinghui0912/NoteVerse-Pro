@@ -77,28 +77,35 @@ to PERMISSION_DENIED, missing hardware to NOT_FOUND, browser NotReadableError to
 BUSY, mute to INTERRUPTED, ended/disconnected input to LOST, and other acquisition
 failure to UNAVAILABLE. Browser exception text is not public product state.
 Open is transactional: failure releases every root/listener acquired by that open.
-Renewal retains pre-existing healthy roots and replaces only missing/lost resources.
+The execution Device Lease binds roots once for the mounted Practice page. Hard
+lost roots and failed binding are observed and surfaced, never reacquired there.
+Repeated open calls cannot retry a failed transaction or replace a lost root.
 
-Device Lease faults update the message inside `PracticeStatus`; they never replace
-it with a separate status/action component. The status shell keeps its geometry,
-background and border. Required resources come from `practiceDeviceRequirements`.
-Microphone icons use the same glyph throughout: healthy is green, unavailable or
-interrupted is red, with localized accessible text so color is not the only signal.
-Camera and MIDI use the same compact status/popover pattern when required.
+Device Lease faults update the message inside the same `PracticeStatus` shell,
+without replacing its geometry, background or border. Required resources come from
+`practiceDeviceRequirements`. Microphone icons keep the same glyph: healthy is green,
+unavailable/interrupted is red, with localized accessible labels. Required camera and
+MIDI resources use the same compact pattern. Popovers are informational only: resource,
+health and issue facts, without commands or access to device/platform/session owners.
 
-Device recovery lives only in a compact popover. Healthy resources have no recovery
-action. Temporary interruption waits for event-driven recovery on the same root,
-without reacquisition. Loss or failed acquisition offers one learner action:
-Reconnect. Each explicit click renews missing/lost required roots, with disabled
-pending feedback; it never starts, restarts or resumes an attempt, navigates to
-Setup, or repeats Environment qualification. Active/finalizing attempts and blocking
-interventions cannot replace their borrowed roots through this popover.
+Explicit device/permission requalification belongs exclusively to Practice Setup:
+`workspace.prepare()` runs the current configuration's Environment probes. A stable,
+quiet Practice setup navigation is always available on the execution page. Both that
+navigation and Settings → Setup first invalidate the Environment with
+`USER_REQUESTED_REQUALIFICATION`, preserving the exact practiceRevisionId. Setup then
+requires Prepare; previous READY evidence cannot bypass fresh probes. Navigation itself
+does not acquire resources. Active attempts end through normal page unmount/disposal.
 
-Permission-denied browser policy may cause `getUserMedia()` to reject immediately;
-the application cannot force a native permission prompt. The learner must allow
-access in browser site settings, then use the same Reconnect action. There is no
-separate Retry action. Settings retains deliberate Change practice configuration
-navigation, separate from device recovery. Device faults do not invalidate Environment.
+Permission-denied browser policy may make `getUserMedia()` reject immediately; the app
+cannot force a browser permission prompt. The learner allows access in browser site
+settings, returns to Practice Setup, and explicitly prepares again. Execution status has
+no Reconnect, Retry or fault-specific configuration action.
+
+Natural same-resource recovery remains distinct. Microphone mute/unmute observes the
+same root and preserves existing recovery semantics. Existing MIDIAccess statechange may
+observe a connected input again without requesting new access. Neither requires Setup.
+A hard access/permission reacquisition does. Settings navigation remains deliberate;
+ordinary device faults do not invalidate Environment or navigate automatically.
 
 | Configuration | Device Lease roots |
 | --- | --- |
@@ -115,8 +122,10 @@ Same-page Start, End, natural completion and Try Again
 retain the same Device Lease. Attempts borrow roots, bind fresh MIDI listeners,
 and never acquire or stop roots. Recorder audio always clones the selected audio
 root; video combines that clone with a camera-root clone. Preview only displays
-the Device Lease camera stream. An explicit Reconnect renews only lost roots;
-there is no automatic device replacement or multi-segment recording.
+the Device Lease camera stream. Normal healthy completion Try Again creates a fresh
+attempt on these roots, without device recovery. If devices or Environment are no longer
+ready, Try Again returns to Setup requalification instead. There is no in-place root
+replacement or multi-segment recording.
 
 Leaving the exact Practice page for Setup, Review, Score or another route immediately
 stops its root microphone/camera tracks and detaches MIDI/device listeners. Same-page
@@ -902,10 +911,11 @@ watermark before rearming, excluding delayed or partial evidence. STEP terminal
 root/context/capture failure instead retains the active session and target behind its
 End-only infrastructure intervention. Unusable resources are released immediately;
 only End or page teardown ends domain/application truth. The controller never stops
-or reacquires the borrowed root. After End, idle Device Lease Reconnect can
-renew lost roots but does not start a STEP session. The learner explicitly chooses
-Continue/Start for a fresh session at the configured scope start, with a new session
-identity, context and inference lease. Initial page-entry auto-arm remains distinct.
+or reacquires the borrowed root. STEP terminal infrastructure or analysis End latches
+a page-local requirement for Setup: no in-place Continue Practice remains, even if the
+outer root is still healthy. Returning to Setup invalidates readiness; explicit Prepare
+performs fresh qualification before a fresh Practice entry/session. Ordinary healthy
+learner End still offers Continue Practice. Initial page-entry auto-arm remains distinct.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.
 Continuous required-input root ended, context closure and invalid capture offer End only. Required
@@ -942,8 +952,8 @@ borrowed root stream, metronome or recorder. Source-track health observation is
 irreversibly released with analysis; AudioContext health observation stays active
 because that context still owns canonical performance time. Recording track health
 continues to belong to the recorder. No failure dialog offers Restart or an alias.
-Normal completion Try Again and idle/preparation Reconnect keep their distinct
-ownership and remain available. End discards
+Normal healthy completion Try Again and same-resource automatic recovery keep their
+distinct ownership. Explicit requalification belongs to Setup alone. End discards
 without a Result or completion callback. Final cleanup still releases remaining
 attempt resources exactly once.
 

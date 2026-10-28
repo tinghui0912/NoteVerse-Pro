@@ -588,7 +588,7 @@ it('execution page never propagates arbitrary device or attempt errors into Envi
     }
     ts.forEachChild(node, visit);
   };
-  visit(ast); expect(invalidations).toEqual([]);
+  visit(ast); expect(invalidations).toEqual(['USER_REQUESTED_REQUALIFICATION']);
   for (const file of files.filter(file => /^(device|step|continuous|recording)\//.test(relative(file)))) {
     expect(imports(file).some(edge => edge.target && relative(edge.target).startsWith('environment/')), relative(file)).toBe(false);
   }
@@ -640,15 +640,15 @@ it('production cannot reintroduce target substitutions, old policies or retired 
     'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1',
     'MIDI_PHYSICAL_NOTE_EVENTS_V2','ACOUSTIC_TARGET_DETECTION_V2','INCOMPLETE_CHORD','PARTIALLY_SUPPORTED']);
   const violations: string[] = [];
+  // This guard forbids token identities/values; no structural AST is needed.
   for (const file of productionFiles(sourceRoot)) {
-    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-    const visit = (node: ts.Node) => {
-      if (ts.isIdentifier(node) && retiredNames.has(node.text)) violations.push(file + ': ' + node.text);
-      if (ts.isStringLiteralLike(node) && (retiredValues.has(node.text) || /practice-summary-note-(wrong|missed)/.test(node.text))) {
-        violations.push(file + ': ' + node.text);
-      }
-      ts.forEachChild(node, visit);
-    }; visit(source);
+    const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, readFileSync(file, 'utf8'));
+    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+      const value = scanner.getTokenValue();
+      if (token === ts.SyntaxKind.Identifier && retiredNames.has(value)) violations.push(file + ': ' + value);
+      if ((token === ts.SyntaxKind.StringLiteral || token === ts.SyntaxKind.NoSubstitutionTemplateLiteral)
+        && (retiredValues.has(value) || /practice-summary-note-(wrong|missed)/.test(value))) violations.push(file + ': ' + value);
+    }
   }
   expect(violations).toEqual([]);
 });
@@ -758,10 +758,10 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
   }
   const pagePath=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const page=ts.createSourceFile(pagePath,readFileSync(pagePath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-  let stepDialog=false,infrastructureDialog=false,end=false,reconnect=false,initialAutoArm=false,completionRetry=false;
+  let stepDialog=false,infrastructureDialog=false,end=false,setupNavigation=false,initialAutoArm=false,completionRetry=false;
   const visit=(node:ts.Node)=>{
-    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='handleReconnect'){
-      reconnect=true;expect(node.getText(page)).toContain('device.renewFailed()');expect(node.getText(page)).not.toMatch(/localPractice\.(start|restart)\(/);
+    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='goToPracticeSetup'){
+      setupNavigation=true;expect(node.getText(page)).toContain("workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION')");expect(node.getText(page)).not.toMatch(/localPractice\.(start|restart)\(/);
     }
     if(ts.isCallExpression(node)&&node.expression.getText(page)==='useEffect'&&node.getText(page).includes('stepAutoArm.current = stepKey')){
       initialAutoArm=true;expect(node.getText(page)).toContain('stepManuallyEnded ||');expect(node.getText(page)).toContain('localPractice.restart()');
@@ -771,64 +771,81 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
     }
     if(ts.isJsxSelfClosingElement(node)){
       const tag=node.tagName.getText(page),text=node.getText(page);
-      if(tag==='StepInfrastructureInterruptionDialog'){infrastructureDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention");expect(text).toContain('onEnd={handleEnd}');}
-      if(tag==='StepAnalysisInterruptionDialog'){stepDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention");expect(text).toContain('onEnd={handleEnd}');}
+      if(tag==='StepInfrastructureInterruptionDialog'){infrastructureDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention");expect(text).toContain('onEnd={handleStepTerminalEnd}');}
+      if(tag==='StepAnalysisInterruptionDialog'){stepDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention");expect(text).toContain('onEnd={handleStepTerminalEnd}');}
       if(['AnalysisInterruptionDialog','ResourceInterruptionDialog'].includes(tag))expect(text).not.toContain('onRestart');
       if(tag==='PracticeCompletionDialog'){completionRetry=true;expect(text).toContain('onRestart={handleRestart}');}
     }ts.forEachChild(node,visit);
-  };visit(page);expect(stepDialog&&infrastructureDialog&&end&&reconnect&&initialAutoArm&&completionRetry).toBe(true);expect(failures).toEqual([]);
+  };visit(page);expect(stepDialog&&infrastructureDialog&&end&&setupNavigation&&initialAutoArm&&completionRetry).toBe(true);expect(failures).toEqual([]);
 });
 
 
-it('keeps PracticeStatus stable and device reacquisition separate from attempts and settings', () => {
+it('keeps execution device status informational and requalification exclusively behind Setup', () => {
   const components = path.join(sourceRoot, 'components/practice');
   expect(existsSync(path.join(components, 'practice-device-issue.tsx'))).toBe(false);
+  const retired = ['renewFailed', 'deviceReconnect', 'deviceRetry', 'DeviceRecoveryManager', 'PracticeRecoveryStore'];
+  const violations: string[] = [];
+  for (const file of sourceGraph.keys()) {
+    const execution = file.startsWith(normalize(practiceRoot) + '/') || ['/components/practice/', '/hooks/practice/', '/practice/page.tsx'].some(owner => file.includes(owner));
+    if (!execution) continue;
+    const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, readFileSync(file, 'utf8'));
+    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+      if (token !== ts.SyntaxKind.Identifier && token !== ts.SyntaxKind.StringLiteral) continue;
+      const value = scanner.getTokenValue();
+      if (retired.includes(value)) violations.push(`${file}: ${value}`);
+      if (value === 'stepRequiresSetup' && !file.endsWith('/practice/page.tsx')) violations.push(`${file}: page disposition escaped`);
+    }
+  }
+  expect(violations).toEqual([]);
   const pagePath = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
-  expect(imports(pagePath).some(edge => edge.specifier.endsWith('/practice-device-issue'))).toBe(false);
   const page = ts.createSourceFile(pagePath, readFileSync(pagePath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let statusCount = 0, popoverCount = 0, reconnect = false, settingsLink = false, requirements = false;
+  let statusCount = 0, popoverCount = 0, navigation = false, topNavigation = false, settingsLink = false, requirements = false, terminalEnd = false, continueGuard = false, completionGuard = false;
   const visit = (node: ts.Node) => {
-    if (ts.isIdentifier(node)) expect(['PracticeDeviceIssue', 'idleDeviceIssue', 'deviceRetry']).not.toContain(node.text);
+    if (ts.isIdentifier(node)) expect(['PracticeDeviceIssue', 'idleDeviceIssue', 'handleReconnect', 'getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeDeviceLease']).not.toContain(node.text);
     if (ts.isCallExpression(node) && node.expression.getText(page) === 'practiceDeviceRequirements') requirements = true;
-    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleReconnect') {
-      reconnect = true;
-      const calls: string[] = [];
-      const inspect = (child: ts.Node) => { if (ts.isCallExpression(child)) calls.push(child.expression.getText(page)); ts.forEachChild(child, inspect); };
-      inspect(node);
-      expect(calls.filter(call => call.startsWith('device.'))).toEqual(['device.renewFailed']);
-      expect(calls.some(call => /localPractice\.|router\.|environment\./.test(call))).toBe(false);
-      expect(node.getText(page)).toContain('if (!canReconnectDevices) return');
-      expect(node.getText(page)).toContain('setStepManuallyEnded(true)');
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'goToPracticeSetup') {
+      navigation = true;
+      const text = node.getText(page);
+      expect(text).toContain("workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION')");
+      expect(text).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");
+      expect(text.indexOf('invalidate')).toBeLessThan(text.indexOf('router.push'));
+      expect(text).not.toMatch(/device\.|localPractice\./);
     }
-    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'canReconnectDevices') {
-      expect(node.getText(page)).toContain('!isActive');
-      expect(node.getText(page)).toContain('!localPractice.isFinalizingPerformance');
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleStepTerminalEnd') {
+      terminalEnd = true; expect(node.getText(page)).toContain('setStepRequiresSetup(true)'); expect(node.getText(page)).toContain('await localPractice.abandon()');
     }
-    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'PracticeStatus') {
-      statusCount++;
-      expect(ts.isConditionalExpression(node.parent)).toBe(false);
-      expect(node.getText(page)).toContain('deviceIssue=');
-      expect(node.getText(page)).toContain('deviceControls=');
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleRestart') {
+      completionGuard = true; const text = node.getText(page);
+      expect(text).toContain('!workspace.ready || !devicesReady'); expect(text).toContain('goToPracticeSetup(); return;');
+      expect(text).toContain('await localPractice.restart()'); expect(text).not.toContain('device.');
     }
-    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'PracticeDeviceStatusPopover') popoverCount++;
-    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(page) === 'button' && node.getText(page).includes("t('setupChangeConfiguration')")) {
-      settingsLink = true;
-      expect(node.getText(page)).toContain('setIsSettingsOpen(false)');
+    if (ts.isJsxSelfClosingElement(node)) {
+      const tag = node.tagName.getText(page), text = node.getText(page);
+      if (tag === 'PracticeStatus') { statusCount++; expect(ts.isConditionalExpression(node.parent)).toBe(false); expect(text).toContain('deviceControls='); }
+      if (tag === 'PracticeDeviceStatusPopover') { popoverCount++; expect(text).not.toMatch(/onReconnect|canReconnect/); }
+      if (tag === 'StepPracticeControls') { continueGuard = true; expect(text).toContain("stepManuallyEnded && !stepRequiresSetup && localPractice.lifecycle === 'IDLE' && !localPractice.inputError && canPreparePractice"); }
+    }
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(page) === 'button') {
+      const text = node.getText(page);
+      if (text.includes("t('practiceSetup')")) { topNavigation = true; expect(text).toContain('onClick={goToPracticeSetup}'); }
+      if (text.includes("t('setupChangeConfiguration')")) { settingsLink = true; expect(text).toContain('onClick={goToPracticeSetup}'); }
     }
     ts.forEachChild(node, visit);
-  };
-  visit(page);
-  expect({ statusCount, popoverCount, reconnect, settingsLink, requirements }).toEqual({ statusCount: 1, popoverCount: 1, reconnect: true, settingsLink: true, requirements: true });
+  }; visit(page);
+  expect({ statusCount, popoverCount, navigation, topNavigation, settingsLink, requirements, terminalEnd, continueGuard, completionGuard }).toEqual({ statusCount: 1, popoverCount: 1, navigation: true, topNavigation: true, settingsLink: true, requirements: true, terminalEnd: true, continueGuard: true, completionGuard: true });
   const popoverPath = path.join(components, 'practice-device-status-popover.tsx');
+  expect(imports(popoverPath).every(edge => edge.typeOnly || !edge.specifier.includes('/lib/practice/'))).toBe(true);
   const popover = ts.createSourceFile(popoverPath, readFileSync(popoverPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const inspect = (node: ts.Node) => {
-    if (ts.isStringLiteral(node)) expect(['deviceRetry', 'setupChangeConfiguration']).not.toContain(node.text);
-    if (ts.isIdentifier(node)) expect(['MediaStream', 'PracticeDeviceLease', 'getUserMedia', 'renewFailed']).not.toContain(node.text);
+    if (ts.isFunctionDeclaration(node) && node.name?.text === 'PracticeDeviceStatusPopover') {
+      const type = node.parameters[0].type;
+      expect(type && ts.isTypeLiteralNode(type) ? type.members.map(member => member.name?.getText(popover)).sort() : []).toEqual(['health', 'issue', 'resource']);
+    }
+    if (ts.isIdentifier(node)) expect(['MediaStream', 'MIDIAccess', 'PracticeDeviceLease', 'getUserMedia', 'requestMIDIAccess', 'onReconnect', 'canReconnect', 'useState', 'useRef', 'environment', 'router']).not.toContain(node.text);
     ts.forEachChild(node, inspect);
-  };
-  inspect(popover);
+  }; inspect(popover);
   for (const locale of ['en', 'zh']) {
     const messages = JSON.parse(readFileSync(path.resolve('messages', locale, 'practice.json'), 'utf8'));
-    expect(messages).not.toHaveProperty('deviceRetry');
+    expect(messages).not.toHaveProperty('deviceRetry'); expect(messages).not.toHaveProperty('deviceReconnect');
   }
 });

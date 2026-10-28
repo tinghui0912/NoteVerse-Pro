@@ -16,14 +16,8 @@ export function usePracticeDeviceLease(configuration: PracticeDeviceConfiguratio
     queueMicrotask(() => { if (lease.current === owner) void owner.open().catch(() => {}); });
     return () => { lease.current = null; unsubscribe(); owner.close(); };
   }, [enabled, mode, inputSource, recordingMode]);
-  const renewFailed = useCallback(async () => {
-    const owner = lease.current;
-    if (!owner) return false;
-    try { await owner.renewFailed(); return lease.current === owner && owner.snapshot().state === 'READY'; }
-    catch { return false; } // Recovery stays with the page-scoped lease, independently of qualification.
-  }, []);
   const observe = useCallback((listener: () => void) => lease.current?.subscribe(listener) ?? (() => {}), []);
   const borrow = useCallback(() => { const current = lease.current?.snapshot();
     return current?.state === 'READY' && Object.values(current.health).every(health => health === 'HEALTHY') ? current.roots : null; }, []);
-  return { snapshot, renewFailed, observe, borrow };
+  return { snapshot, observe, borrow };
 }

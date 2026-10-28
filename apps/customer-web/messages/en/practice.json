@@ -5,12 +5,11 @@
   "deviceResource_camera": "Camera",
   "deviceResource_midi": "MIDI keyboard",
   "deviceInterrupted": "{resource} is temporarily unavailable. Practice can continue when it recovers.",
-  "devicePermissionDenied": "Access to {resource} is blocked. Allow access in your browser's site settings, then select Reconnect.",
+  "devicePermissionDenied": "Access to {resource} is blocked. Allow access in your browser's site settings, then return to Practice setup to check again.",
   "deviceDisconnected": "{resource} disconnected.",
-  "deviceNotFound": "{resource} was not found. Connect the device, then select Reconnect.",
-  "deviceBusy": "{resource} is busy. Close other apps using it, then select Reconnect.",
-  "deviceUnavailable": "{resource} is unavailable. Check the device, then select Reconnect.",
-  "deviceReconnect": "Reconnect",
+  "deviceNotFound": "{resource} was not found. Connect the device, then return to Practice setup to check again.",
+  "deviceBusy": "{resource} is busy. Close other apps using it, then return to Practice setup to check again.",
+  "deviceUnavailable": "{resource} is unavailable. Return to Practice setup to check again.",
   "setupChangeConfiguration": "Change practice configuration",
   "recordingInterrupted": "Recording temporarily interrupted",
   "recordingCannotContinue": "Recording cannot continue",
@@ -398,5 +397,6 @@
   "stepInfrastructureUnavailable": "Microphone audio is unavailable.",
   "deviceStatusReady": "{resource} ready",
   "deviceStatusUnavailable": "{resource} unavailable",
-  "deviceConnected": "Connected and ready."
+  "deviceConnected": "Connected and ready.",
+  "practiceSetup": "Practice setup"
 }
