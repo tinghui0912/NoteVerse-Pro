@@ -5,13 +5,12 @@
   "deviceResource_camera": "Camera",
   "deviceResource_midi": "MIDI keyboard",
   "deviceInterrupted": "{resource} is temporarily unavailable. Practice can continue when it recovers.",
-  "devicePermissionDenied": "Cannot access {resource}. Check browser permissions and retry.",
+  "devicePermissionDenied": "Access to {resource} is blocked. Allow access in your browser's site settings, then select Reconnect.",
   "deviceDisconnected": "{resource} disconnected.",
-  "deviceNotFound": "{resource} was not found.",
-  "deviceBusy": "{resource} is busy. Close other apps using it and retry.",
-  "deviceUnavailable": "{resource} is unavailable.",
+  "deviceNotFound": "{resource} was not found. Connect the device, then select Reconnect.",
+  "deviceBusy": "{resource} is busy. Close other apps using it, then select Reconnect.",
+  "deviceUnavailable": "{resource} is unavailable. Check the device, then select Reconnect.",
   "deviceReconnect": "Reconnect",
-  "deviceRetry": "Retry",
   "setupChangeConfiguration": "Change practice configuration",
   "recordingInterrupted": "Recording temporarily interrupted",
   "recordingCannotContinue": "Recording cannot continue",
@@ -396,5 +395,8 @@
   "stepAnalysisStoppedDescription": "Note analysis stopped. Step-by-step practice needs note analysis to check each answer. End this attempt to continue later.",
   "stepInfrastructureStopped": "Microphone input stopped",
   "stepInfrastructureStoppedDescription": "Microphone input can no longer continue this step-by-step attempt. End this attempt to reconnect or continue later.",
-  "stepInfrastructureUnavailable": "Microphone audio is unavailable."
+  "stepInfrastructureUnavailable": "Microphone audio is unavailable.",
+  "deviceStatusReady": "{resource} ready",
+  "deviceStatusUnavailable": "{resource} unavailable",
+  "deviceConnected": "Connected and ready."
 }

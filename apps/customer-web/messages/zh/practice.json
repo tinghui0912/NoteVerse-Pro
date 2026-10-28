@@ -5,13 +5,12 @@
   "deviceResource_camera": "摄像头",
   "deviceResource_midi": "MIDI 键盘",
   "deviceInterrupted": "{resource}暂时不可用，恢复后即可继续练习。",
-  "devicePermissionDenied": "无法访问{resource}，请检查浏览器权限后重试。",
+  "devicePermissionDenied": "无法访问{resource}。请先在浏览器的网站权限中允许访问，然后点击“重新连接”。",
   "deviceDisconnected": "{resource}已断开。",
-  "deviceNotFound": "未找到{resource}。",
-  "deviceBusy": "{resource}正被占用，请关闭使用它的其他应用后重试。",
-  "deviceUnavailable": "{resource}不可用。",
+  "deviceNotFound": "未找到{resource}。连接设备后，点击“重新连接”。",
+  "deviceBusy": "{resource}正被其他应用使用。关闭占用它的应用后，点击“重新连接”。",
+  "deviceUnavailable": "{resource}当前不可用。确认设备可用后，点击“重新连接”。",
   "deviceReconnect": "重新连接",
-  "deviceRetry": "重试",
   "setupChangeConfiguration": "更改练习配置",
   "recordingInterrupted": "录制暂时中断",
   "recordingCannotContinue": "录制无法继续",
@@ -396,5 +395,8 @@
   "stepAnalysisStoppedDescription": "音符分析已停止。逐音练习需要音符分析来判断每次回答，请结束本次练习，之后重新准备再开始。",
   "stepInfrastructureStopped": "麦克风输入已停止",
   "stepInfrastructureStoppedDescription": "麦克风输入已无法继续本次逐音练习。请结束本次练习，之后可重新连接设备或继续练习。",
-  "stepInfrastructureUnavailable": "麦克风音频不可用。"
+  "stepInfrastructureUnavailable": "麦克风音频不可用。",
+  "deviceStatusReady": "{resource}正常",
+  "deviceStatusUnavailable": "{resource}不可用",
+  "deviceConnected": "已连接，可以使用。"
 }

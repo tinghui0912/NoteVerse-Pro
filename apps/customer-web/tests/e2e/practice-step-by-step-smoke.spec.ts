@@ -453,7 +453,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Wait until running
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByTestId('practice-status')).toHaveText('');
 
     // Pause
     const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
@@ -466,7 +466,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(resumeButton).toBeEnabled();
     await resumeButton.click();
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByTestId('practice-status')).toHaveText('');
 
     // End without a completion artifact
     const endButton = page.getByRole('button', { name: '结束', exact: true });
@@ -586,7 +586,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Eventually completes count-in and enters running
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByTestId('practice-status')).toHaveText('');
 
     // Abandon the active session
     const endButton = page.getByRole('button', { name: '结束', exact: true });
@@ -955,7 +955,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(startButton).toBeEnabled();
     await startButton.click();
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByTestId('practice-status')).toHaveText('');
 
     await page.context().setOffline(true);
     try {
@@ -974,7 +974,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
       await expect(resumeButton).toBeEnabled();
       await resumeButton.click();
       await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByTestId('practice-status')).toHaveText('');
 
       const endButton = page.getByRole('button', { name: '结束', exact: true });
       await expect(endButton).toBeEnabled();

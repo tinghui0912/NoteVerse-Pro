@@ -588,7 +588,7 @@ it('execution page never propagates arbitrary device or attempt errors into Envi
     }
     ts.forEachChild(node, visit);
   };
-  visit(ast); expect(invalidations).toEqual(['USER_REQUESTED_REQUALIFICATION']);
+  visit(ast); expect(invalidations).toEqual([]);
   for (const file of files.filter(file => /^(device|step|continuous|recording)\//.test(relative(file)))) {
     expect(imports(file).some(edge => edge.target && relative(edge.target).startsWith('environment/')), relative(file)).toBe(false);
   }
@@ -777,4 +777,58 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
       if(tag==='PracticeCompletionDialog'){completionRetry=true;expect(text).toContain('onRestart={handleRestart}');}
     }ts.forEachChild(node,visit);
   };visit(page);expect(stepDialog&&infrastructureDialog&&end&&reconnect&&initialAutoArm&&completionRetry).toBe(true);expect(failures).toEqual([]);
+});
+
+
+it('keeps PracticeStatus stable and device reacquisition separate from attempts and settings', () => {
+  const components = path.join(sourceRoot, 'components/practice');
+  expect(existsSync(path.join(components, 'practice-device-issue.tsx'))).toBe(false);
+  const pagePath = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  expect(imports(pagePath).some(edge => edge.specifier.endsWith('/practice-device-issue'))).toBe(false);
+  const page = ts.createSourceFile(pagePath, readFileSync(pagePath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let statusCount = 0, popoverCount = 0, reconnect = false, settingsLink = false, requirements = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node)) expect(['PracticeDeviceIssue', 'idleDeviceIssue', 'deviceRetry']).not.toContain(node.text);
+    if (ts.isCallExpression(node) && node.expression.getText(page) === 'practiceDeviceRequirements') requirements = true;
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleReconnect') {
+      reconnect = true;
+      const calls: string[] = [];
+      const inspect = (child: ts.Node) => { if (ts.isCallExpression(child)) calls.push(child.expression.getText(page)); ts.forEachChild(child, inspect); };
+      inspect(node);
+      expect(calls.filter(call => call.startsWith('device.'))).toEqual(['device.renewFailed']);
+      expect(calls.some(call => /localPractice\.|router\.|environment\./.test(call))).toBe(false);
+      expect(node.getText(page)).toContain('if (!canReconnectDevices) return');
+      expect(node.getText(page)).toContain('setStepManuallyEnded(true)');
+    }
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'canReconnectDevices') {
+      expect(node.getText(page)).toContain('!isActive');
+      expect(node.getText(page)).toContain('!localPractice.isFinalizingPerformance');
+    }
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'PracticeStatus') {
+      statusCount++;
+      expect(ts.isConditionalExpression(node.parent)).toBe(false);
+      expect(node.getText(page)).toContain('deviceIssue=');
+      expect(node.getText(page)).toContain('deviceControls=');
+    }
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'PracticeDeviceStatusPopover') popoverCount++;
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(page) === 'button' && node.getText(page).includes("t('setupChangeConfiguration')")) {
+      settingsLink = true;
+      expect(node.getText(page)).toContain('setIsSettingsOpen(false)');
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(page);
+  expect({ statusCount, popoverCount, reconnect, settingsLink, requirements }).toEqual({ statusCount: 1, popoverCount: 1, reconnect: true, settingsLink: true, requirements: true });
+  const popoverPath = path.join(components, 'practice-device-status-popover.tsx');
+  const popover = ts.createSourceFile(popoverPath, readFileSync(popoverPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const inspect = (node: ts.Node) => {
+    if (ts.isStringLiteral(node)) expect(['deviceRetry', 'setupChangeConfiguration']).not.toContain(node.text);
+    if (ts.isIdentifier(node)) expect(['MediaStream', 'PracticeDeviceLease', 'getUserMedia', 'renewFailed']).not.toContain(node.text);
+    ts.forEachChild(node, inspect);
+  };
+  inspect(popover);
+  for (const locale of ['en', 'zh']) {
+    const messages = JSON.parse(readFileSync(path.resolve('messages', locale, 'practice.json'), 'utf8'));
+    expect(messages).not.toHaveProperty('deviceRetry');
+  }
 });

@@ -38,7 +38,7 @@ describe('page-scoped Practice Device Lease', () => {
     f.owner.close(); f.owner.close();
     for (const root of f.acquired) expect(root.track.stop).toHaveBeenCalledOnce();
   });
-  it('observes mute/unmute passively and renews only a lost root on explicit Restart', async () => {
+  it('observes mute/unmute passively and renews only a lost root on explicit Reconnect', async () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' });
     await f.owner.open(); const [input, camera] = f.acquired, changes = vi.fn(); f.owner.subscribe(changes);
     input.track.muted = true; input.track.dispatchEvent(new Event('mute'));

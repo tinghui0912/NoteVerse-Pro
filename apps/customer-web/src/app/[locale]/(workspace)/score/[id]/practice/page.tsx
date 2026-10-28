@@ -22,7 +22,8 @@ import { StepInfrastructureInterruptionDialog } from '@/components/practice/step
 import { AnalysisInterruptionDialog } from '@/components/practice/analysis-interruption-dialog';
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
-import { PracticeDeviceIssue } from '@/components/practice/practice-device-issue';
+import { PracticeDeviceStatusPopover } from '@/components/practice/practice-device-status-popover';
+import { practiceDeviceRequirements } from '@/lib/practice/device/device-contract';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
@@ -147,6 +148,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
   const device = usePracticeDeviceLease({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' }, true);
+  const requiredDevices = practiceDeviceRequirements({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' });
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
   const stepAutoArm = useRef<string | null>(null);
@@ -230,13 +232,11 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     localPractice.inputState === 'STARTING' ||
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
-  const idleDeviceIssue = !isActive ? device.snapshot?.issue : null;
+  const canReconnectDevices = !isActive && !localPractice.isFinalizingPerformance && device.snapshot?.state === 'FAULTED';
   const handleReconnect = async () => {
+    if (!canReconnectDevices) return;
+    if (isStepMode) { stepAutoArm.current = stepKey; setStepManuallyEnded(true); }
     await device.renewFailed();
-  };
-  const handleConfigure = () => {
-    workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION');
-    router.push(practiceLocation(id, 'setup', selectedRevisionId));
   };
 
   useEffect(() => {
@@ -309,11 +309,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
         onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
 
-  const practiceSessionStatus = idleDeviceIssue ? (
-    <PracticeDeviceIssue issue={idleDeviceIssue} onReconnect={() => void handleReconnect()} onConfigure={handleConfigure} />
-  ) : (
+  const practiceSessionStatus = (
     <PracticeStatus
       className="border-0 bg-transparent px-0 py-0 shadow-none"
+      deviceIssue={device.snapshot?.issue ?? null}
+      deviceControls={requiredDevices.map(resource => <PracticeDeviceStatusPopover key={resource} resource={resource}
+        health={device.snapshot?.health[resource] ?? null}
+        issue={device.snapshot?.issue?.resource === resource ? device.snapshot.issue : null}
+        canReconnect={canReconnectDevices} onReconnect={handleReconnect} />)}
       lifecycle={localPractice.lifecycle}
       inputState={localPractice.inputState}
       inputError={localPractice.inputError}

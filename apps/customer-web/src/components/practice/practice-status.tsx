@@ -3,7 +3,9 @@ import type { PracticeResourceImpact } from '@/lib/practice/continuous/resource-
 
 import { AlertCircle, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import type { PracticeDeviceIssue } from '@/lib/practice/device/device-contract';
+import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
@@ -50,6 +52,8 @@ export type PracticeStatusView = {
 
 export type PracticeStatusProps = {
   className?: string;
+  deviceIssue?: PracticeDeviceIssue | null;
+  deviceControls?: ReactNode;
   lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   stepInteractionPhase?: StepAttemptState | null;
   pendingPostVerdict?: StepAttemptRecord | null;
@@ -193,6 +197,8 @@ export function resolvePracticeStatusView({
 
 export function PracticeStatus({
   className,
+  deviceIssue = null,
+  deviceControls,
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
@@ -259,20 +265,25 @@ export function PracticeStatus({
     messageText = t(resolvedView.messageKey);
   }
 
-  if (!messageText) return null;
+  if (deviceIssue) messageText = t(practiceDeviceIssueMessageKeys[deviceIssue.condition], { resource: t(`deviceResource_${deviceIssue.resource}`) });
+  const isError = !deviceIssue && resolvedView.isError;
+  const pending = !deviceIssue && resolvedView.pending;
+  if (!messageText && !deviceControls) return null;
   return (
     <div
+      data-testid="practice-status"
       role="status"
       aria-live="polite"
       className={cn(
-        'flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm',
-        resolvedView.isError ? 'border-rose-300 bg-rose-50/70 text-rose-900' : '',
+        'flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm',
+        isError ? 'border-rose-300 bg-rose-50/70 text-rose-900' : '',
         className
       )}
     >
-      {resolvedView.pending ? (
+      {messageText && <div className="flex min-w-0 items-center gap-2">
+      {pending ? (
         <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-orange-500" aria-hidden="true" />
-      ) : resolvedView.isError ? (
+      ) : isError ? (
         <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
       ) : (
         <span
@@ -290,14 +301,15 @@ export function PracticeStatus({
       <span
         className={cn(
           'min-w-0 font-medium',
-          sessionMode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE'
+          !deviceIssue && sessionMode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE'
             ? 'whitespace-normal' : 'max-w-xs truncate sm:max-w-md',
-          resolvedView.isError ? 'text-rose-800' : 'text-slate-700'
+          isError ? 'text-rose-800' : 'text-slate-700'
         )}
       >
         {messageText}
       </span>
-
+      </div>}
+      {deviceControls && <div className="ml-auto flex shrink-0 items-center gap-1">{deviceControls}</div>}
     </div>
   );
 }

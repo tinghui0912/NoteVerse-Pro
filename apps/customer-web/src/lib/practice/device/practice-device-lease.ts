@@ -25,7 +25,7 @@ export class PracticeDeviceLease {
   }
   engineeringSnapshot() { return this.timings.snapshot(); }
   open(): Promise<void> { return this.bind(false); }
-  /** Explicit reconnect/retry renews lost roots only; temporary mute waits on the same roots. */
+  /** Explicit reconnect renews lost roots only; temporary mute waits on the same roots. */
   renewFailed(): Promise<void> { return this.bind(true); }
   private bind(renew: boolean): Promise<void> {
     if (this.pending) return this.pending;
