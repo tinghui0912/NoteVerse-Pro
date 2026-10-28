@@ -69,7 +69,7 @@ export async function configurePractice(page: Page, mode: 'STEP' | 'CONTINUOUS' 
 }
 
 export async function preparePracticeSetup(page: Page): Promise<'READY' | 'BLOCKED'> {
-  await page.getByTestId('practice-setup').getByRole('button', { name: /^(准备练习|进入练习)$/ }).click();
+  await page.getByTestId('practice-setup').getByRole('button', { name: '准备练习' }).click();
   await expect.poll(async () => !page.url().includes('/setup') || await page.getByTestId('practice-setup').getByRole('alert').count() > 0).toBe(true);
   if (page.url().includes('/setup')) return 'BLOCKED';
   await expect(page.getByRole('button', { name: '结束', exact: true })).toBeVisible();

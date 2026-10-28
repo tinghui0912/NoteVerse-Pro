@@ -833,8 +833,8 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
     dispose: vi.fn(async () => {}), terminate: vi.fn(), onFailure: () => () => {} };
   const engine = new AcousticEngine(() => worker), platform = { modelUrl: vi.fn(async () => '/verified-model'),
     createEngine: vi.fn(() => engine), probe: vi.fn(async (requirements: readonly string[], ready: (key: never) => void) => requirements.filter(key => key !== 'acousticEngine').forEach(key => ready(key as never))) };
-  const workspace = new PracticeEnvironment(platform), prepare = vi.spyOn(workspace, 'prepare');
-  await workspace.prepare(['acousticEngine', 'browserAudio', 'microphone', 'audioRecording']);
+  const workspace = new PracticeEnvironment(platform), prepare = vi.spyOn(workspace, 'requalify');
+  await workspace.requalify(['acousticEngine', 'browserAudio', 'microphone', 'audioRecording']);
   const sharedRoot = stream(), acquire = vi.fn(async () => sharedRoot.media);
   const devices = new PracticeDeviceLease({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'AUDIO' }, { acquireStream: acquire, acquireMidi: vi.fn() });
   await devices.open();

@@ -1430,6 +1430,7 @@ for (const fault of ['root', 'context'] as const) test(`STEP ${fault} failure re
   await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: '进入练习', exact: true })).toHaveCount(0);
   expect(await deviceAndEnvironmentCounts(page)).toEqual(counts); // Navigation never qualifies or binds.
+  await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveCount(0);
   expect(await preparePracticeSetup(page)).toBe('READY');
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   await expect(cursor).toHaveAttribute('x', initialTarget!);
@@ -1484,6 +1485,7 @@ test('permission-denied page binding has no recovery command; only Setup Prepare
   await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
   await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled(); expect(await calls()).toBe(initialCalls);
+  await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveCount(0);
   expect(await preparePracticeSetup(page)).toBe('BLOCKED'); expect(await calls()).toBe(initialCalls + 1);
   await page.evaluate(() => { (window as unknown as { __setupPermission: { allowed: boolean } }).__setupPermission.allowed = true; });
   expect(await calls()).toBe(initialCalls + 1); // Changing permission alone never acquires.
@@ -1507,6 +1509,7 @@ test('existing MIDIAccess recovers naturally; denied fresh access is requalified
   await expect(page.getByRole('dialog',{name:'MIDI 键盘',exact:true}).getByRole('button')).toHaveCount(0); await page.keyboard.press('Escape');
   await page.evaluate(() => { (window as unknown as {__practiceMidi:{denied:boolean}}).__practiceMidi.denied = true; });
   await page.getByRole('button',{name:'返回练习设置',exact:true}).click();
+  await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveCount(0);
   expect(await preparePracticeSetup(page)).toBe('BLOCKED');
   expect((await deviceAndEnvironmentCounts(page)).midi).toBe(counts.midi + 1);
   await connect(true); await page.evaluate(() => { (window as unknown as {__practiceMidi:{denied:boolean}}).__practiceMidi.denied = false; });
@@ -1538,4 +1541,28 @@ for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis i
     expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true);
   }
   expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(before.engine.sessions);
+});
+
+
+test('READY microphone Setup always probes afresh through both navigation entries without reloading its warm engine', async ({page}) => {
+  await setupContinuousPracticeMocks(page); await openPreparedPractice(page,scoreId,revisionId);
+  await configurePractice(page,'CONTINUOUS','MICROPHONE','OFF');
+  for(const entry of ['top','settings'] as const) {
+    const before=await deviceAndEnvironmentCounts(page);
+    await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
+    if(entry==='top') await page.getByRole('button',{name:'返回练习设置',exact:true}).click();
+    else await openPracticeSetup(page);
+    await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
+    const setup=page.getByTestId('practice-setup');
+    await expect(setup.getByRole('button',{name:'准备练习',exact:true})).toBeEnabled();
+    await expect(setup.getByRole('button',{name:'进入练习',exact:true})).toHaveCount(0);
+    await expect(setup.getByRole('alert')).toHaveCount(0);
+    expect(await deviceAndEnvironmentCounts(page)).toEqual(before);
+    expect(await preparePracticeSetup(page)).toBe('READY');
+    const after=await deviceAndEnvironmentCounts(page);
+    expect(after.media).toBe(before.media+2); // A new microphone/browserAudio probe, then execution-page binding.
+    expect(after.engine).toEqual(before.engine); // No new model load or inference session during qualification.
+    await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
+    await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(0);
+  }
 });

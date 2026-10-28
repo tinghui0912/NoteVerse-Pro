@@ -203,7 +203,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     !loadError;
 
   const goToPracticeSetup = () => {
-    workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION');
     setIsSettingsOpen(false);
     router.push(practiceLocation(id, 'setup', selectedRevisionId));
   };

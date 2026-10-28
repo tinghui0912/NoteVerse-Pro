@@ -44,7 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks(); fake.local.mode = 'STEP_BY_STEP'; fake.local.lifecycle = 'ACTIVE';
   fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null;
   fake.workspace.ready = true; fake.workspace.readiness.status = 'READY'; fake.workspace.profile.mode = 'STEP_BY_STEP'; fake.device.snapshot.state = 'READY';
-  fake.workspace.environment.invalidate.mockImplementation(() => { fake.workspace.ready = false; });
+  fake.workspace.environment.invalidate.mockReset();
   fake.local.abandon.mockImplementation(async () => { fake.local.lifecycle = 'IDLE'; fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; });
 });
 afterEach(cleanup);
@@ -53,18 +53,17 @@ async function openPage() {
   await screen.findByRole('button', { name: practice.practiceSetup, hidden: true });
   fake.local.restart.mockClear();
 }
-it('top Setup navigation always invalidates before exact pinned-revision navigation, without acquiring or restarting', async () => {
+it('top Setup navigation preserves READY evidence and exact pinned revision without environment/device side effects', async () => {
   await openPage();
   fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
-  expect(fake.workspace.environment.invalidate).toHaveBeenCalledWith('USER_REQUESTED_REQUALIFICATION');
+  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-  expect(fake.workspace.environment.invalidate.mock.invocationCallOrder[0]).toBeLessThan(fake.router.push.mock.invocationCallOrder[0]);
-  expect(fake.workspace.ready).toBe(false); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
+  expect(fake.workspace.ready).toBe(true); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
 });
-it('Settings uses the same requalification navigation', async () => {
+it('Settings shares the pure Setup navigation', async () => {
   await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.settingsButton }));
   fireEvent.click(screen.getByRole('button', { name: practice.setupChangeConfiguration }));
-  expect(fake.workspace.environment.invalidate).toHaveBeenCalledWith('USER_REQUESTED_REQUALIFICATION');
+  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
 });
 for (const incident of ['analysisIntervention', 'infrastructureIntervention'] as const) it(`terminal ${incident} End never exposes Continue even with healthy roots`, async () => {
@@ -90,5 +89,6 @@ for (const ready of [true, false]) it(`completion Try Again with devices ready=$
   await act(async () => { fake.natural({completionReason:'SCOPE_COMPLETED'}); });
   fireEvent.click(screen.getByRole('button', {name:practice.retryPractice}));
   await waitFor(() => ready ? expect(fake.local.restart).toHaveBeenCalledOnce() : expect(fake.router.push).toHaveBeenCalled());
-  if (!ready) expect(fake.workspace.environment.invalidate).toHaveBeenCalledWith('USER_REQUESTED_REQUALIFICATION');
+  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
+  expect(fake.workspace.ready).toBe(true);
 });

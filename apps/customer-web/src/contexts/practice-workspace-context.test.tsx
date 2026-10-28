@@ -17,7 +17,7 @@ it('restores only explicit preferences after remount, never a passed-readiness f
   await waitFor(() => expect(current.hydrated).toBe(true));
   expect(current.resolution.status).toBe('INCOMPLETE'); expect(current.ready).toBe(false);
   act(() => current.updateProfile({ schemaVersion: 1, mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } }));
-  await act(async () => { await current.prepare(); }); expect(current.ready).toBe(true);
+  await act(async () => { await current.requalify(); }); expect(current.ready).toBe(true);
   expect(Object.keys(JSON.parse(localStorage.getItem(PRACTICE_PREFERENCES_KEY)!)).sort()).toEqual(['continuous', 'inputSource', 'mode', 'schemaVersion']);
   view.unmount(); await waitFor(() => expect(dispose).toHaveBeenCalledOnce());
   const next = environment();
@@ -37,7 +37,7 @@ it('keeps workspace options and its stable environment across child routes and l
     current.setTempoSelection({ mode: 'CUSTOM_FIXED_BPM', bpm: 90 }); current.setMetronomeEnabled(true);
     current.setScope({ kind: 'RANGE', startGroupId: 'start', endGroupId: 'end' });
   });
-  await act(async () => { await current.prepare(); });
+  await act(async () => { await current.requalify(); });
   for (const route of ['practice', 'review', 'practice']) {
     view.rerender(<PracticeWorkspaceProvider createEnvironment={createEnvironment}><Capture route={route} /></PracticeWorkspaceProvider>);
     expect(current.ready).toBe(true); expect(current.tempoSelection).toEqual({ mode: 'CUSTOM_FIXED_BPM', bpm: 90 });
@@ -46,4 +46,20 @@ it('keeps workspace options and its stable environment across child routes and l
   const fingerprint = current.readiness.fingerprint;
   act(() => current.updateProfile({ ...current.profile, continuous: { ...current.profile.continuous, liveFeedbackEnabled: false } }));
   expect(current.readiness.fingerprint).toBe(fingerprint); expect(current.ready).toBe(true); expect(createEnvironment).toHaveBeenCalledOnce();
+});
+
+it('ready is admission evidence across routes; only explicit requalify reruns probes', async()=>{
+  let current!: ReturnType<typeof usePracticeWorkspace>;
+  function Capture({route}:{route:string}) {current=usePracticeWorkspace();return <span>{route}</span>;}
+  const probe=vi.fn(async (requirements:readonly import('@/lib/practice/readiness/requirements').PracticeRequirement[],ready:(key:import('@/lib/practice/readiness/requirements').PracticeRequirement)=>void)=>requirements.forEach(ready));
+  const instance=new PracticeEnvironment({modelUrl:vi.fn(),createEngine:vi.fn(),probe});
+  const view=render(<PracticeWorkspaceProvider createEnvironment={()=>instance}><Capture route="setup" /></PracticeWorkspaceProvider>);
+  await waitFor(()=>expect(current.hydrated).toBe(true));
+  act(()=>current.updateProfile({schemaVersion:1,mode:'STEP_BY_STEP',inputSource:'MIDI',continuous:{recordingMode:'OFF',liveFeedbackEnabled:false}}));
+  await act(async()=>{await current.requalify();}); expect(current.ready).toBe(true); expect(probe).toHaveBeenCalledOnce();
+  view.rerender(<PracticeWorkspaceProvider createEnvironment={()=>instance}><Capture route="practice" /></PracticeWorkspaceProvider>);
+  view.rerender(<PracticeWorkspaceProvider createEnvironment={()=>instance}><Capture route="setup" /></PracticeWorkspaceProvider>);
+  expect(current.ready).toBe(true); expect(current.readiness.reason).toBeNull(); expect(probe).toHaveBeenCalledOnce();
+  await act(async()=>{await current.requalify();}); expect(probe).toHaveBeenCalledTimes(2); expect(current.ready).toBe(true);
+  expect(current).not.toHaveProperty('prepare');
 });

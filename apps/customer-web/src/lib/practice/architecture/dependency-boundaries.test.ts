@@ -588,7 +588,7 @@ it('execution page never propagates arbitrary device or attempt errors into Envi
     }
     ts.forEachChild(node, visit);
   };
-  visit(ast); expect(invalidations).toEqual(['USER_REQUESTED_REQUALIFICATION']);
+  visit(ast); expect(invalidations).toEqual([]);
   for (const file of files.filter(file => /^(device|step|continuous|recording)\//.test(relative(file)))) {
     expect(imports(file).some(edge => edge.target && relative(edge.target).startsWith('environment/')), relative(file)).toBe(false);
   }
@@ -761,7 +761,7 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
   let stepDialog=false,infrastructureDialog=false,end=false,setupNavigation=false,initialAutoArm=false,completionRetry=false;
   const visit=(node:ts.Node)=>{
     if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='goToPracticeSetup'){
-      setupNavigation=true;expect(node.getText(page)).toContain("workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION')");expect(node.getText(page)).not.toMatch(/localPractice\.(start|restart)\(/);
+      setupNavigation=true;expect(node.getText(page)).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");expect(node.getText(page)).not.toMatch(/workspace\.|device\.|localPractice\./);
     }
     if(ts.isCallExpression(node)&&node.expression.getText(page)==='useEffect'&&node.getText(page).includes('stepAutoArm.current = stepKey')){
       initialAutoArm=true;expect(node.getText(page)).toContain('stepManuallyEnded ||');expect(node.getText(page)).toContain('localPractice.restart()');
@@ -783,7 +783,7 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
 it('keeps execution device status informational and requalification exclusively behind Setup', () => {
   const components = path.join(sourceRoot, 'components/practice');
   expect(existsSync(path.join(components, 'practice-device-issue.tsx'))).toBe(false);
-  const retired = ['renewFailed', 'deviceReconnect', 'deviceRetry', 'DeviceRecoveryManager', 'PracticeRecoveryStore'];
+  const retired = ['renewFailed', 'deviceReconnect', 'deviceRetry', 'DeviceRecoveryManager', 'PracticeRecoveryStore', 'USER_REQUESTED_REQUALIFICATION', 'setupContinue'];
   const violations: string[] = [];
   for (const file of sourceGraph.keys()) {
     const execution = file.startsWith(normalize(practiceRoot) + '/') || ['/components/practice/', '/hooks/practice/', '/practice/page.tsx'].some(owner => file.includes(owner));
@@ -806,10 +806,8 @@ it('keeps execution device status informational and requalification exclusively 
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'goToPracticeSetup') {
       navigation = true;
       const text = node.getText(page);
-      expect(text).toContain("workspace.environment.invalidate('USER_REQUESTED_REQUALIFICATION')");
       expect(text).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");
-      expect(text.indexOf('invalidate')).toBeLessThan(text.indexOf('router.push'));
-      expect(text).not.toMatch(/device\.|localPractice\./);
+      expect(text).not.toMatch(/workspace\.|device\.|localPractice\./);
     }
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleStepTerminalEnd') {
       terminalEnd = true; expect(node.getText(page)).toContain('setStepRequiresSetup(true)'); expect(node.getText(page)).toContain('await localPractice.abandon()');
@@ -846,6 +844,29 @@ it('keeps execution device status informational and requalification exclusively 
   }; inspect(popover);
   for (const locale of ['en', 'zh']) {
     const messages = JSON.parse(readFileSync(path.resolve('messages', locale, 'practice.json'), 'utf8'));
-    expect(messages).not.toHaveProperty('deviceRetry'); expect(messages).not.toHaveProperty('deviceReconnect');
+    expect(messages).not.toHaveProperty('deviceRetry'); expect(messages).not.toHaveProperty('deviceReconnect'); expect(messages).not.toHaveProperty('setupContinue');
   }
+});
+
+it('Setup always invokes explicit fresh qualification, while ready remains admission evidence', () => {
+  const file = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx');
+  const source = ts.createSourceFile(file, readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const calls: string[]=[];
+  const inspect = (node: ts.Node) => {
+    if (ts.isPropertyAccessExpression(node)) expect(node.getText(source)).not.toBe('workspace.ready');
+    if (ts.isCallExpression(node)) calls.push(node.expression.getText(source));
+    ts.forEachChild(node, inspect);
+  }; inspect(source);
+  expect(calls.filter(call=>call==='workspace.requalify')).toHaveLength(1);
+  expect(calls).not.toContain('workspace.prepare');
+  const environmentFile=path.join(practiceRoot,'environment/practice-environment.ts');
+  const environment=ts.createSourceFile(environmentFile,readFileSync(environmentFile,'utf8'),ts.ScriptTarget.Latest,true);
+  let fresh=false;
+  const visit=(node:ts.Node)=>{
+    if(ts.isMethodDeclaration(node)) {
+      expect(node.name.getText(environment)).not.toBe('prepare');
+      if(node.name.getText(environment)==='requalify') {fresh=true;expect(node.getText(environment)).not.toContain('this.matches(');expect(node.getText(environment)).toContain('this.platform.probe(');}
+    }
+    ts.forEachChild(node,visit);
+  };visit(environment);expect(fresh).toBe(true);
 });

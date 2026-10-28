@@ -39,8 +39,8 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const requirements = useMemo(() => configuration ? resolvePracticeRequirements(configuration) : null, [configuration]);
   const readiness = useSyncExternalStore(environment.subscribe, environment.snapshot, () => unconfiguredReadiness);
   const ready = hydrated && requirements !== null && environment.matches(requirements);
-  const prepare = useCallback(async () => { if (requirements) await environment.prepare(requirements); }, [environment, requirements]);
-  return { profile, updateProfile, hydrated, configuration, resolution, requirements, readiness, ready, prepare, environment,
+  const requalify = useCallback(async () => { if (requirements) await environment.requalify(requirements); }, [environment, requirements]);
+  return { profile, updateProfile, hydrated, configuration, resolution, requirements, readiness, ready, requalify, environment,
     scope, setScope, tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled };
 }
 const Workspace = createContext<ReturnType<typeof useWorkspaceState> | null>(null);

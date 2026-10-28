@@ -30,7 +30,6 @@
   "setupBlocked": "需要处理",
   "setupChecking": "正在准备...",
   "setupPrepare": "准备练习",
-  "setupContinue": "进入练习",
   "setupFailure": "准备未能完成，请检查浏览器权限与设备连接后重试。",
   "setupTechnicalDetails": "技术详情",
   "setupComponent_browserAudio": "浏览器兼容性",

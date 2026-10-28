@@ -46,8 +46,9 @@ export default function PracticeSetupPage() {
     </section>
     <button type="button" className="rounded bg-orange-600 px-5 py-3 text-white disabled:opacity-50"
       disabled={!workspace.configuration || checking || !workspace.hydrated}
-      onClick={() => { if (workspace.ready) enter(); else void workspace.prepare().then(() => {
+      aria-busy={checking}
+      onClick={() => { void workspace.requalify().then(() => {
         if (workspace.requirements && workspace.environment.matches(workspace.requirements)) enter();
-      }); }}>{t(workspace.ready ? 'setupContinue' : checking ? 'setupChecking' : 'setupPrepare')}</button>
+      }); }}>{t('setupPrepare')}</button>
   </main>;
 }

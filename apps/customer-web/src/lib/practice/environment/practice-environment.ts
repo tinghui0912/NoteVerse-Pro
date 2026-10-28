@@ -31,9 +31,9 @@ export class PracticeEnvironment {
     return this.readiness.status === 'READY' && this.readiness.fingerprint === requirementFingerprint(requirements)
       && (!requirements.includes('acousticEngine') || this.engine?.snapshot().state === 'READY_IDLE');
   }
-  prepare(requirements: readonly PracticeRequirement[]): Promise<void> {
+  /** Explicit qualification always rechecks external requirements; a healthy warm engine is reused. */
+  requalify(requirements: readonly PracticeRequirement[]): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_DISPOSED'));
-    if (this.matches(requirements)) return Promise.resolve();
     if (this.pending) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_BUSY'));
     const epoch = ++this.epoch, abort = new AbortController(); this.abort = abort;
     const fingerprint = requirementFingerprint(requirements);

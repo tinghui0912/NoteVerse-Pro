@@ -66,8 +66,7 @@ all root-track disposal. Required device health is represented by compact status
 icons within the stable `PracticeStatus` surface, without extra healthy-state prose.
 
 Fault ownership follows the same three lifetimes. Environment invalidates only its
-own qualification/model/runtime truth (including AcousticEngine failure), or an
-explicit user request to requalify. Device and Attempt errors do not invalidate
+own qualification/model/runtime truth (including AcousticEngine failure). Device and Attempt errors do not invalidate
 Environment or automatically navigate to Setup; warm model/Worker/ONNX remain ready.
 An Attempt owns its failure/retry and Device Lease owns root recovery.
 
@@ -89,12 +88,24 @@ MIDI resources use the same compact pattern. Popovers are informational only: re
 health and issue facts, without commands or access to device/platform/session owners.
 
 Explicit device/permission requalification belongs exclusively to Practice Setup:
-`workspace.prepare()` runs the current configuration's Environment probes. A stable,
-quiet Practice setup navigation is always available on the execution page. Both that
-navigation and Settings → Setup first invalidate the Environment with
-`USER_REQUESTED_REQUALIFICATION`, preserving the exact practiceRevisionId. Setup then
-requires Prepare; previous READY evidence cannot bypass fresh probes. Navigation itself
-does not acquire resources. Active attempts end through normal page unmount/disposal.
+The single Prepare practice action calls `workspace.requalify()`, which invokes
+`PracticeEnvironment.requalify(requirements)`. Every click runs fresh browser/device
+requirement probes even when previous evidence is READY. There is no READY shortcut or
+Continue-to-practice action on Setup. `workspace.ready` is live Practice admission
+evidence, not a command to skip Setup qualification.
+
+A stable, quiet Practice setup navigation is always available. Both that navigation
+and Settings → Setup only close the Settings sheet and push the exact pinned revision
+URL. Navigation has no device/environment side effects: no acquisition, qualification,
+invalidation, restart or synthetic failure reason. Active attempts end through normal
+page unmount/disposal. Direct/alternate Setup entry follows the same fresh Prepare rule.
+
+Explicit requalification moves normally to CHECKING and then READY, or BLOCKED only
+when that qualification transaction actually fails. Entering Setup is not a failure.
+A healthy READY_IDLE acoustic engine/model/worker stays warm: fresh external probes do
+not recreate the engine, request model access, download or load the model again. A
+FAILED/DISPOSED engine is replaced and prepared through the same existing transaction.
+No second preparation lifecycle or idempotent compatibility wrapper exists.
 
 Permission-denied browser policy may make `getUserMedia()` reject immediately; the app
 cannot force a browser permission prompt. The learner allows access in browser site
@@ -147,8 +158,8 @@ Settings links back to Setup, without inline mode/input/recording editors.
 Continuous settings also contains the presentation-only Live Feedback Switch.
 
 STEP first entry auto-arms after devices and score/scope/tempo are available. There is
-no initial Start or performance/recording timer. End discards the attempt and waits
-for Continue practice; Try Again starts a fresh attempt directly. Scope/tempo edits
+no initial Start or performance/recording timer. Ordinary healthy End discards the
+attempt and waits for Continue practice; Try Again starts a fresh attempt directly. Scope/tempo edits
 are blocked only during CAPTURING/ANALYZING; waiting and POST_VERDICT edits rebind a
 fresh attempt on the same Device Lease. Metronome toggling does not rebuild devices.
 
@@ -167,8 +178,9 @@ PerformanceTake or backend data and have no learner-facing debug UI.
 `readiness/` derives requirements purely from the complete configuration. Live
 readiness is UNCONFIGURED, CHECKING, READY or BLOCKED, with component diagnostics
 and download progress. Its fingerprint represents the effective requirement set,
-so equivalent configurations share qualification; unrelated presentation changes
-do not invalidate it. Readiness is never persisted.
+so equivalent configurations may use the same live admission evidence. This never
+skips explicit Setup requalification; unrelated presentation changes do not invalidate
+the evidence. Readiness is never persisted.
 
 | Configuration | Required checks |
 | --- | --- |
@@ -913,8 +925,8 @@ End-only infrastructure intervention. Unusable resources are released immediatel
 only End or page teardown ends domain/application truth. The controller never stops
 or reacquires the borrowed root. STEP terminal infrastructure or analysis End latches
 a page-local requirement for Setup: no in-place Continue Practice remains, even if the
-outer root is still healthy. Returning to Setup invalidates readiness; explicit Prepare
-performs fresh qualification before a fresh Practice entry/session. Ordinary healthy
+outer root is still healthy. Returning to Setup has no environment side effects; its
+explicit Prepare performs fresh qualification before a fresh Practice entry/session. Ordinary healthy
 learner End still offers Continue Practice. Initial page-entry auto-arm remains distinct.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.

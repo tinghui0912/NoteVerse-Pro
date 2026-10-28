@@ -64,7 +64,7 @@ it('Setup owns readiness configuration and exposes no presentation-feedback cont
   expect(screen.queryByText(messages.liveNoteFeedback)).toBeNull();
 });
 
-for (const input of ['MIDI', 'MICROPHONE'] as const) it(`${input}: explicit invalidation requires Prepare and reruns real browser probes, including denied → allowed`, async () => {
+for (const input of ['MIDI', 'MICROPHONE'] as const) it(`${input}: READY Setup always prepares fresh browser probes, reuses the warm engine, and blocks only on denied probes`, async () => {
   let denied = false;
   const stop = vi.fn(), track = { kind:'audio', readyState:'live', muted:false, stop };
   const stream = { getTracks:()=>[track], getAudioTracks:()=>[track] } as unknown as MediaStream;
@@ -78,7 +78,8 @@ for (const input of ['MIDI', 'MICROPHONE'] as const) it(`${input}: explicit inva
   const connect = vi.spyOn(browserMicrophoneCapture,'connectCapture').mockResolvedValue({stop:captureStop});
   const worker = { load:vi.fn(async()=>({})), beginSession:vi.fn(async()=>{}), run:vi.fn(async()=>({events:[],inferenceMs:0,decodeMs:0,actualSessionRunCount:1})),
     endSession:vi.fn(async()=>{}), dispose:vi.fn(async()=>{}), terminate:vi.fn(), onFailure:()=>()=>{} };
-  const environment = new PracticeEnvironment({ modelUrl:async()=>'/verified-model', createEngine:()=>new AcousticEngine(()=>worker), probe:probePracticeRequirements });
+  const modelUrl = vi.fn(async()=>'/verified-model'), createEngine = vi.fn(()=>new AcousticEngine(()=>worker));
+  const environment = new PracticeEnvironment({ modelUrl, createEngine, probe:probePracticeRequirements });
   render(<NextIntlClientProvider locale="en" messages={{practice:messages}}><PracticeWorkspaceProvider createEnvironment={()=>environment}><PracticeSetupPage /></PracticeWorkspaceProvider></NextIntlClientProvider>);
   fireEvent.click(screen.getByRole('button',{name:/Step-by-step/}));
   fireEvent.click(screen.getByRole('button',{name: input==='MIDI'?'MIDI keyboard':'Microphone'}));
@@ -88,19 +89,38 @@ for (const input of ['MIDI', 'MICROPHONE'] as const) it(`${input}: explicit inva
   const acquisition = input==='MIDI'?requestMIDIAccess:getUserMedia;
   expect(acquisition).toHaveBeenCalledOnce(); expect(environment.snapshot().status).toBe('READY');
   navigation.replace.mockClear();
-  act(()=>environment.invalidate('USER_REQUESTED_REQUALIFICATION'));
-  expect(screen.queryByRole('button',{name:messages.setupContinue})).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(environment.snapshot().status).toBe('READY');
   expect(screen.getByRole('button',{name:'Prepare practice'})).toBeEnabled();
-  expect(acquisition).toHaveBeenCalledOnce(); // Navigation/invalidation itself acquires nothing.
+  expect(acquisition).toHaveBeenCalledOnce(); // Remaining on/directly entering READY Setup acquires nothing.
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Prepare practice'}));});
+  await waitFor(()=>expect(environment.snapshot().status).toBe('READY'));
+  expect(acquisition).toHaveBeenCalledTimes(2);
+  if(input==='MICROPHONE') { expect(connect).toHaveBeenCalledTimes(2); expect(createEngine).toHaveBeenCalledOnce(); expect(modelUrl).toHaveBeenCalledOnce(); expect(worker.load).toHaveBeenCalledOnce(); }
+  navigation.replace.mockClear();
   denied=true;
   await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Prepare practice'}));});
-  expect(acquisition).toHaveBeenCalledTimes(2); expect(environment.snapshot().status).toBe('BLOCKED');
+  expect(acquisition).toHaveBeenCalledTimes(3); expect(environment.snapshot().status).toBe('BLOCKED');
   expect(navigation.replace).not.toHaveBeenCalled(); expect(screen.getByRole('alert')).toBeVisible();
   denied=false;
   await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Prepare practice'}));});
   await waitFor(()=>expect(environment.snapshot().status).toBe('READY'));
-  expect(acquisition).toHaveBeenCalledTimes(3); expect(environment.snapshot().status).toBe('READY');
+  expect(acquisition).toHaveBeenCalledTimes(4); expect(environment.snapshot().status).toBe('READY');
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
-  if(input==='MICROPHONE') { expect(connect).toHaveBeenCalledTimes(2); expect(captureStop).toHaveBeenCalledTimes(2); expect(close).toHaveBeenCalledTimes(2); expect(stop).toHaveBeenCalledTimes(2); }
+  if(input==='MICROPHONE') { expect(connect).toHaveBeenCalledTimes(3); expect(captureStop).toHaveBeenCalledTimes(3); expect(close).toHaveBeenCalledTimes(3); expect(stop).toHaveBeenCalledTimes(3); expect(createEngine).toHaveBeenCalledOnce(); expect(modelUrl).toHaveBeenCalledOnce(); expect(worker.load).toHaveBeenCalledOnce(); }
   else { expect(getUserMedia).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled(); }
+});
+
+it('direct Setup render with already READY shared evidence has only Prepare and cannot bypass probes', async () => {
+  localStorage.setItem(PRACTICE_PREFERENCES_KEY, JSON.stringify({schemaVersion:1, mode:'STEP_BY_STEP', inputSource:'MIDI', continuous:{recordingMode:'OFF', liveFeedbackEnabled:false}}));
+  const probe = vi.fn(async (_requirements: readonly string[], ready: (key: 'midi') => void) => { ready('midi'); });
+  const environment = new PracticeEnvironment({modelUrl:vi.fn(), createEngine:vi.fn(), probe});
+  await environment.requalify(['midi']); expect(probe).toHaveBeenCalledOnce();
+  render(<NextIntlClientProvider locale="en" messages={{practice:messages}}><PracticeWorkspaceProvider createEnvironment={()=>environment}><PracticeSetupPage /></PracticeWorkspaceProvider></NextIntlClientProvider>);
+  await waitFor(()=>expect(screen.getByRole('button',{name:messages.setupPrepare})).toBeEnabled());
+  expect(environment.snapshot().status).toBe('READY'); expect(screen.queryByRole('alert')).toBeNull();
+  expect(navigation.replace).not.toHaveBeenCalled(); expect(probe).toHaveBeenCalledOnce();
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:messages.setupPrepare}));});
+  expect(probe).toHaveBeenCalledTimes(2);
+  expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
 });
