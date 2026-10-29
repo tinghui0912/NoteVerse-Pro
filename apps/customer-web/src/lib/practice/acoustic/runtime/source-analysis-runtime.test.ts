@@ -182,15 +182,18 @@ it('R01 valid source reaches four copied queued/active inputs; fifth fails befor
     expect(R.inputBytes).toBe(M.inputSamples * Float32Array.BYTES_PER_ELEMENT);
     expect(Float32Array.BYTES_PER_ELEMENT).toBe(4); // JavaScript representation fact, not a product policy.
     expect(R.inputBytes).toBe(116480); // Secondary characterization of the current model payload.
+    expect(R.targetRingSamples).toBe(65536); // R08 remains unchanged and unqualified.
     expect(R.maxOutstandingWindows).toBe(4);
     r.runtime.beginAnalysisRegion(r.next()); r.feed(219392); await Promise.resolve();
     const snapshot = r.runtime.snapshot();
     expect(snapshot).toMatchObject({ state: 'RUNNING', outstanding: 4,
       counts: { windowsQueued: 4, windowsStarted: 1, windowsPublished: 0 },
-      resources: { outstandingInputBytes: snapshot.outstanding * R.inputBytes,
+      resources: { targetRingBytes: R.targetRingSamples * Float32Array.BYTES_PER_ELEMENT,
+        outstandingInputBytes: snapshot.outstanding * R.inputBytes,
         maximumOutstandingInputBytes: R.maxOutstandingWindows * R.inputBytes } });
     expect(snapshot.outstanding).toBe(R.maxOutstandingWindows);
     expect(snapshot.resources.outstandingInputBytes).toBe(snapshot.resources.maximumOutstandingInputBytes);
+    expect(snapshot.resources.targetRingBytes).toBe(262144); // PCM payload only; no object/allocator/runtime overhead.
     expect(snapshot.resources.maximumOutstandingInputBytes).toBe(465920); // Secondary characterization, not another policy owner.
     expect(r.worker.run).toHaveBeenCalledOnce(); expect(extract).toHaveBeenCalledTimes(4);
     const firstInput = r.worker.run.mock.calls[0][0]; expect(firstInput.pcm).toHaveLength(29120);

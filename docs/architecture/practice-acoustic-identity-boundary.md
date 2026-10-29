@@ -216,3 +216,14 @@ anchor; importing model-contract does not make attestation transitive. No select
 file/declaration changes, so executor/core/composite/model identities remain unchanged.
 Round25's scope and Result schema6/provenance shape remain unchanged; no resource,
 byte-policy, transitive-dependency or execution identity is introduced.
+
+## Round36 selected diagnostic-expression byte advance
+
+Only target-ring byte reporting in the selected executor changes expression,
+directly using the existing Float32Array representation width. Its numeric payload
+report, ring allocation/retention/admission and evidence semantics are unchanged.
+Executor attestation bytes/SHA therefore advance, followed by the canonical core
+digest and both adapter composite digests. This is mechanical selected-byte
+sensitivity, not an expanded evidence-core scope or a new Float32/byte-policy
+identity field. Result remains schema6 with unchanged provenance keys; no resource,
+runtime or execution-policy provenance is added.

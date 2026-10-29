@@ -117,11 +117,30 @@ It does not size allocations, tensors or wire messages, enforce admission or ent
 a persisted/API contract. Real R01 regression checks the authoritative relationship,
 representation fact and unchanged scalar, while retaining fifth-window failure
 before extraction. Object/message/worker/ORT/GPU/GC/total-heap overhead is excluded.
-KEEP DERIVED; R01 resource qualification remains separate. R12 is still partially
-unresolved derivation debt: targetRingBytes×4,16 samples/ms and other conversions
-remain unchanged for later subrounds. Resource policy imports only the existing
+KEEP DERIVED; R01 resource qualification remains separate. At Round35, R12 retained
+targetRingBytes×4 as well as16 samples/ms and other conversions. Round36 below
+derives only the former; time-rate conversions remain for later subrounds.
+Resource policy imports only the existing
 model authority in an allowed direction; model-contract has no reverse runtime
 dependency. No selected byte attestation or evidence identity changes.
+
+### Round36 — target-ring payload reporting follows Float32 storage
+
+AcousticPcmRing still allocates new Float32Array(targetRingSamples), at65536 samples.
+The snapshot's historical `targetRingBytes: R.targetRingSamples * 4` becomes
+R.targetRingSamples × Float32Array.BYTES_PER_ELEMENT. Its262144-byte value reports
+only that PCM payload, not object/allocator/runtime overhead or total ring memory.
+There is no independent production reader or persisted/API contract for the field;
+it does not control allocation, wrap, extraction or admission. A real four-outstanding
+runtime witness checks the derived relationship and unchanged scalar/representation.
+Resource policy, R09 inputBytes, R01 threshold and the ring implementation are untouched.
+
+Round29's746/685 output bounds,29870/29809 sufficient retention bounds,29120 input
+samples and65536 ring capacity remain unchanged. This does not qualify R08, prove
+65536 minimum/optimal or qualify total memory. R12 remains partially unresolved
+derivation debt for16/16000/1000 and other time-rate expressions. Only the selected
+executor's diagnostic expression bytes change; executor/core/composite attestations
+mechanically advance without changing evidence meaning, identity scope or Result shape.
 
 ### Round33 — R07 source block maximum is derived from R06
 
