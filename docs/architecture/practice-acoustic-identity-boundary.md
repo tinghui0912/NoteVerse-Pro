@@ -271,3 +271,19 @@ evidence-core byte anchor. No selected source/declaration changes, so executor,
 publication,planner/core/composite/model identities remain unchanged. No planner
 import, pastMs ownership, engine-source attestation or new geometry identity is
 introduced. Identity scope and Result schema6/provenance shape are unchanged.
+
+## Round41 derived-and-checked canonical past description
+
+fullWindowPastMs remains in the canonical identity as a derived-and-checked
+description; it is no longer mirrored by ACOUSTIC_MODEL.pastMs. The identity guard
+checks inputMs−ownedMs−futureMs, currently1820−600−170=1050ms, without creating a
+shared geometry owner. The retained JSON field is human-readable description,
+not an independently tunable or empirically optimal context policy.
+
+model-contract.ts is outside the selected byte-attestation anchors. Removing its
+unused redundant property and deriving the guard relationship changes internal
+model-contract shape but leaves canonical JSON bytes and all selected source
+anchors unchanged. Core/adapter composite identities and Result provenance values
+therefore remain unchanged. No model-contract source attestation, new geometry
+identity, schema migration or provenance field is introduced; Result stays schema6
+with the same shape, and attestation scope stays unchanged.

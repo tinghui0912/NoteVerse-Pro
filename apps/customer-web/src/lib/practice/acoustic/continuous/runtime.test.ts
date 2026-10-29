@@ -56,7 +56,7 @@ async function receipt(name: string, value: unknown): Promise<void> {
 it('binds the exact acoustic core, source identities and finite resource ceilings', async () => {
   await assertAcousticIdentity();
   expect(ACOUSTIC_MODEL).toMatchObject({ modelBytes: 98689283, ortVersion: '1.20.1', automaticFallback: false,
-    inputSamples: 29120, ownedMs: 600, pastMs: 1050, futureMs: 170, onsetThreshold: .30, frameThreshold: .05 });
+    inputSamples: 29120, ownedMs: 600, futureMs: 170, onsetThreshold: .30, frameThreshold: .05 });
   for (const rate of [44100, 48000] as const) {
     const identity = sourceIdentity(rate);
     expect(await sha256(new TextEncoder().encode(canonicalJson(identity.identity)))).toBe(identity.identitySha256);

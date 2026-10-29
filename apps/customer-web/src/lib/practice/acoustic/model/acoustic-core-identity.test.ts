@@ -6,6 +6,14 @@ import core from './acoustic-core-identity.json';
 import adapters from '../source/source-adapter-identities.json';
 import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson } from './model-contract';
 
+it('checks the descriptive full-window past against parent geometry without a second model owner', async () => {
+  expect(core.ownership.fullWindowPastMs)
+    .toBe(ACOUSTIC_MODEL.inputMs - ACOUSTIC_MODEL.ownedMs - ACOUSTIC_MODEL.futureMs);
+  expect(core.ownership.fullWindowPastMs).toBe(1050);
+  expect(ACOUSTIC_MODEL).not.toHaveProperty('pastMs');
+  await expect(assertAcousticIdentity()).resolves.toBeUndefined();
+});
+
 type FileAttestation = Readonly<{ path: string; bytes: number; sha256: string }>;
 const repositoryRoot = path.resolve('../..');
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');

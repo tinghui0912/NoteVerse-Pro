@@ -7,7 +7,7 @@ export const ACOUSTIC_MODEL = Object.freeze({
   modelSha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
   modelBytes: 98689283, ortVersion: '1.20.1', provider: 'webgpu', automaticFallback: false,
   inputSamples: 29120, sampleRateHz: 16000, inputMs: 1820,
-  onsetThreshold: 0.30, frameThreshold: 0.05, ownedMs: 600, futureMs: 170, pastMs: 1050,
+  onsetThreshold: 0.30, frameThreshold: 0.05, ownedMs: 600, futureMs: 170,
 } as const);
 
 /** Derived model geometry relationship, not an independent rate or policy. */
@@ -24,6 +24,7 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', buffer))].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 export async function assertAcousticIdentity(): Promise<void> {
+  const fullWindowPastMs = ACOUSTIC_MODEL.inputMs - ACOUSTIC_MODEL.ownedMs - ACOUSTIC_MODEL.futureMs;
   const hash = await sha256(new TextEncoder().encode(canonicalJson(coreIdentity)));
   if (hash !== ACOUSTIC_MODEL.identitySha256
     || coreIdentity.model.onnxSha256 !== ACOUSTIC_MODEL.modelSha256
@@ -39,7 +40,7 @@ export async function assertAcousticIdentity(): Promise<void> {
     || coreIdentity.decoder.frameThreshold !== ACOUSTIC_MODEL.frameThreshold
     || coreIdentity.ownership.ownedMs !== ACOUSTIC_MODEL.ownedMs
     || coreIdentity.ownership.futureContextMs !== ACOUSTIC_MODEL.futureMs
-    || coreIdentity.ownership.fullWindowPastMs !== ACOUSTIC_MODEL.pastMs) fail('ACOUSTIC_IDENTITY_DRIFT');
+    || coreIdentity.ownership.fullWindowPastMs !== fullWindowPastMs) fail('ACOUSTIC_IDENTITY_DRIFT');
 }
 export function sourceIdentity(rate: SourceRate) { return sourceIdentities[String(rate) as '44100' | '48000']; }
 export function sourceRate(value: number): SourceRate {

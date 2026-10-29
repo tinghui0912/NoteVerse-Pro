@@ -6,7 +6,7 @@ import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from './model-con
 it('derives target samples/ms once from model rate without a new geometry policy', () => {
   expect(ACOUSTIC_TARGET_SAMPLES_PER_MS).toBe(M.sampleRateHz / 1000);
   expect(M.sampleRateHz).toBe(16000); expect(ACOUSTIC_TARGET_SAMPLES_PER_MS).toBe(16);
-  expect([M.ownedMs, M.futureMs, M.inputMs, M.pastMs].map(ms => ms * ACOUSTIC_TARGET_SAMPLES_PER_MS))
+  expect([M.ownedMs, M.futureMs, M.inputMs, M.inputMs - M.ownedMs - M.futureMs].map(ms => ms * ACOUSTIC_TARGET_SAMPLES_PER_MS))
     .toEqual([9600, 2720, 29120, 16800]);
   expect((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS).toBe(26400);
 });

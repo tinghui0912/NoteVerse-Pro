@@ -246,6 +246,20 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round41 — G03 full-window past is derived and checked
+
+The exact production audit found only the model-contract pastMs declaration and
+its identity-guard comparison; planner/runtime/worker/Continuous/source-adapter
+geometry never read that property. The redundant ACOUSTIC_MODEL.pastMs is removed.
+The guard now derives fullWindowPastMs locally as inputMs−ownedMs−futureMs:
+1820−600−170=1050ms. The canonical JSON retains fullWindowPastMs as a useful
+human-readable ownership description with no independent numeric freedom; changing
+it alone fails identity assertion. This does not qualify1050 as an optimal
+learner/device context. No geometry, allocation, admission or smoke behavior changes.
+G03 is KEEP DERIVED/CHECKED; future DERIVE now contains S09/S10/S15/T15 only.
+X02 stays derived, R12 resolved, and R05/T14 deleted. All93 primary classifications
+and counts remain unchanged.
+
 ### Round40 — X02 smoke geometry follows the model contract
 
 The sole production engine smoke fixture now uses PCM length/endSample=inputSamples,
@@ -253,7 +267,8 @@ ownedEnd=inputSamples−futureMs×ACOUSTIC_TARGET_SAMPLES_PER_MS, then
 ownedStart=ownedEnd−ownedMs×ACOUSTIC_TARGET_SAMPLES_PER_MS. These are local derived
 variables in AcousticEngine.prepare, not shared constants or a new geometry owner.
 The model layer imports only its existing model-contract authority; no runtime
-planner dependency/helper and no pastMs read is added. G03 remains untouched.
+planner dependency/helper and no pastMs read is added. G03 was untouched in
+Round40; its duplicate declaration is removed by Round41 above.
 
 Current values stay input/PCM29120, future2720, owned width9600, ownedEnd26400,
 ownedStart16800, startSample0 and endSample29120. Future endpoint residual is exactly
