@@ -322,3 +322,19 @@ advance. Executor/publication/planner attestations, model/decoder/FIR assets and
 identity scope stay unchanged. Result remains schema6 with the existing provenance
 shape; configured evidence identity values advance through the selected-byte
 contract, without a schema migration or runtime outcome-replay claim.
+
+## Round44 exact worker endpoint validation outside selected anchors
+
+S15 removes the independent one-sample endpoint residual slack. Worker validation
+repeats Math.round(ownedEndTarget+futureSamples) from the stored Number, matching
+the unchanged planner construction and existing engine smoke. Malformed/direct
+coupled±1 endpoints now fail even when fixed input width is preserved. Successful
+producer geometry, source/evidence mapping and publication semantics do not change;
+this is an integrity admission tightening, not learner timing qualification.
+
+model-validation.ts is outside the current selected source byte-attestation set.
+No selected source or declaration JSON changes; executor/publication/planner/adapter
+attestations, canonical core, model and both composite identity values remain
+unchanged. Attestation scope is not expanded. Result remains schema6 with the same
+provenance shape and configured evidence identities; no numerical-policy field,
+new execution identity or compatibility/schema migration is introduced.

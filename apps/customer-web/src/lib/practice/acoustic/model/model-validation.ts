@@ -2,10 +2,11 @@ import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, fail } from './mod
 import type { AcousticWindow } from '../runtime/window-planner';
 
 export function assertWindowGeometry(w: AcousticWindow): void {
-  // Compare constructed endpoints, not a cancellation-sensitive recovered width.
+  // Repeat the planner construction from the stored operand, not a recovered residual.
+  const expectedEndSample = Math.round(w.ownedEndTarget + M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
   if (w.ownedEndTarget <= w.ownedStartTarget || w.ownedEndTarget > w.ownedStartTarget + M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS
     || w.endSample - w.startSample !== M.inputSamples
-    || Math.abs(w.endSample - w.ownedEndTarget - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS) > 1) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');
+    || w.endSample !== expectedEndSample) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');
 }
 
 export function assertModelNames(inputNames: readonly string[] | undefined, outputNames: readonly string[] | undefined): void {

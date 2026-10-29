@@ -246,6 +246,43 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round44 — S15 validates exact producer endpoint construction
+
+The production call-path audit found two window producers. SourceAnalysisRuntime
+planAvailable calls planWindow and enqueue forwards the returned window unchanged.
+AcousticEngine.prepare constructs the smoke window locally from model input,
+future context and owned width. Engine lease.run, worker-client INFER and worker
+entry forward the supplied window to AcousticModelSession.run; they do not
+reconstruct endpoints. No other legitimate production window constructor was found.
+
+planWindow constructs endSample=Math.round(ownedEndTarget+futureSamples), where
+futureSamples=M.futureMs×ACOUSTIC_TARGET_SAMPLES_PER_MS. assertWindowGeometry now
+recomputes that expression from the same stored ownedEndTarget Number and requires
+strict equality. Smoke satisfies ownedEndTarget+futureSamples=inputSamples exactly
+and remains valid. Existing owned-interval and fixed input-width checks are retained;
+planner arithmetic, Math.round placement and smoke geometry are unchanged.
+
+This avoids validating endSample−ownedEndTarget−futureSamples as a residual, whose
+subtractions can be cancellation-sensitive at large coordinates. The claim is
+only repeated construction from the same stored operand and operation sequence,
+not exact floating-point arithmetic in general. There is no replacement epsilon,
+ULP budget, half-sample tolerance or approximate-equality abstraction.
+
+The worker intentionally tightens malformed/direct input admission: shifting both
+input endpoints by±1 preserves29120 width but fails ACOUSTIC_WORKER_WINDOW_MISMATCH.
+Both-rate planner/full/partial/fractional tests retain existing behavior, including
+.499999/.5/.500001 rounding cases. Geometry-only near-safe-integer source-anchor
+regressions allocate no PCM and accept the exact construction while rejecting
+coupled shifts; they do not claim full-session/device coordinate qualification.
+
+S15 is KEEP EXACT CONSTRUCTION, resolving the historical independent slack. Future
+DERIVE contains T15 only. S09 stays KEEP DERIVED STORAGE and S10 stays KEEP
+DERIVED/SINGLE OWNER. All93 classifications/counts stay unchanged. model-validation
+is outside selected file anchors, so core/composite/model identities, selected
+attestations and Result schema6/provenance shape are unchanged. This establishes
+numerical/contract integrity, not recognition, learner, clock-accuracy or latency
+qualification.
+
 ### Round43 — S09 source FIR storage follows actual support
 
 The pre-change repository-wide storageBytes/sourceAdapterBytes audit found only
@@ -278,7 +315,8 @@ heap or device/headroom qualification. Admission, failures, FIR accumulation,
 readiness/emission, source mapping, first-real boundary and Result semantics do
 not change. Target-ring/R01/transport policies are untouched.
 
-S09 is KEEP DERIVED STORAGE; future DERIVE contains S15/T15 only. S08/S10 meanings
+S09 is KEEP DERIVED STORAGE; at Round43 future DERIVE contained S15/T15
+(S15 is resolved by Round44 above). S08/S10 meanings
 remain unchanged. Only the existing selected adapter source attestation advances,
 mechanically cascading core and both composite digests; executor/publication/
 planner source attestations and binary FIR assets remain unchanged. Result stays
