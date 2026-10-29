@@ -70,6 +70,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
   if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
   if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
@@ -932,4 +933,20 @@ it('Environment observes acoustic retirement without taking the attempt lease or
     ts.forEachChild(node, visit);
   }; visit(source);
   expect({ waitFound, failureGuardFound, violations }).toEqual({ waitFound: true, failureGuardFound: true, violations: [] });
+});
+
+it('keeps Continuous readiness observation local to the attempt input and outside source, STEP and Result', () => {
+  const consumers: string[] = [];
+  for (const file of files) {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'subscribeReadiness') consumers.push(relative(file));
+      ts.forEachChild(node, visit);
+    }; visit(source);
+  }
+  expect(consumers).toEqual(['continuous/continuous-microphone-input.ts']);
+  for (const owner of ['acoustic/runtime', 'step', 'result', 'kernel']) {
+    const file = path.join(practiceRoot, owner, 'boundary-probe.ts');
+    expect(dependencyAllowed(file, imports(file, "import { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';")[0])).toBe(false);
+  }
 });

@@ -16,6 +16,7 @@ export class ContinuousMicrophoneInput {
   private publications = 0;
   private disposal: Promise<void> | null = null;
   private detachWorker: (() => void) | undefined;
+  private readonly readinessWaits = new Set<() => void>();
   constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (reason: string) => void, private readonly startup = new PracticeStartupTimings()) {}
   async acquire(signal: AbortSignal): Promise<void> {
     this.worker = await this.platform.acquireInference(signal);
@@ -65,13 +66,17 @@ export class ContinuousMicrophoneInput {
   fail(reason: string): void { this.recordFailure(new Error(reason)); }
   private recordFailure(error: Error): void {
     if (this.failure || this.disposed) return;
-    this.failure = error.message; this.runtime?.failAnalysis(error); this.onFailure(error.message);
+    this.failure = error.message; this.runtime?.failAnalysis(error);
+    for (const observe of this.readinessWaits) observe();
+    this.onFailure(error.message);
   }
   snapshot() { return Object.freeze({ publications: this.publications,
     failure: this.failure, runtime: this.runtime?.snapshot() ?? null, capture: this.bridge?.snapshot() ?? null }); }
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
-    this.disposed = true; this.detachWorker?.(); this.detachWorker = undefined; this.capture?.stop();
+    this.disposed = true;
+    for (const observe of this.readinessWaits) observe();
+    this.detachWorker?.(); this.detachWorker = undefined; this.capture?.stop();
     this.disposal = this.runtime ? this.runtime.dispose() : this.worker?.dispose() ?? Promise.resolve();
     return this.disposal;
   }
@@ -80,16 +85,30 @@ export class ContinuousMicrophoneInput {
     if (this.failure) throw new Error(this.failure);
   }
   private async wait(ready: () => boolean, signal: AbortSignal, timeout: number): Promise<void> {
-    const end = performance.now() + timeout; // Timeout only, never source/transport identity.
-    while (!ready()) {
-      this.check(signal); if (performance.now() > end) throw new Error('CONTINUOUS_ANALYSIS_TIMEOUT');
-      await new Promise<void>((resolve, reject) => {
-        const aborted = () => { clearTimeout(timer); signal.removeEventListener('abort', aborted); reject(new Error('CONTINUOUS_PREPARATION_CANCELLED')); };
-        const timer = setTimeout(() => { signal.removeEventListener('abort', aborted); resolve(); }, 5);
-        signal.addEventListener('abort', aborted, { once: true });
-        if (signal.aborted) aborted();
-      });
-    }
+    this.check(signal); if (ready()) return;
+    await new Promise<void>((resolve, reject) => {
+      let settled = false, detach = () => {};
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const finish = (error?: unknown) => {
+        if (settled) return;
+        settled = true; detach(); signal.removeEventListener('abort', observe); this.readinessWaits.delete(observe);
+        if (timer !== null) clearTimeout(timer);
+        if (error) reject(error); else resolve();
+      };
+      // Resolving a Promise observes readiness without reentering application transport.
+      const observe = () => {
+        if (settled) return;
+        try { this.check(signal); if (ready()) finish(); } catch (error) { finish(error); }
+      };
+      this.readinessWaits.add(observe); signal.addEventListener('abort', observe, { once: true });
+      detach = this.bridge!.subscribeReadiness(observe);
+      if (settled) detach(); // Also safe if subscription observes an already committed transition.
+      observe(); // Snapshot -> subscribe -> recheck; no missed readiness/failure/cancellation.
+      if (!settled) timer = setTimeout(() => {
+        observe(); // Readiness committed before delayed timer delivery wins over timeout.
+        if (!settled) finish(new Error('CONTINUOUS_ANALYSIS_TIMEOUT'));
+      }, timeout);
+    });
     this.check(signal);
   }
 }

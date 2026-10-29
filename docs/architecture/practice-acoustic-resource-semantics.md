@@ -29,7 +29,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Bounded ownership is required in principle; 8 is a temporary defensive safety fuse, not a qualified workload limit; its semantic necessity remains UNRESOLVED | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; readiness notification/liveness is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R18 readiness predicate observation | Yes: real PCM preroll and TERMINAL/tail transitions | Source readiness commits; local bridge notifies after receive/schedule/abort | No observation timer or polling stall; Promise continuation follows source stack unwind | One attempt-owned subscription/abort hook/deadline per pending wait | Round28: 5ms polling removed; local event-driven observation implemented; failure/abort/dispose wake waits | Predicate truth is unchanged;5ms numerical poll was unnecessary implementation magic | KEEP local snapshot-subscribe-recheck and one-shot cleanup;15s/60s deadline qualification stays separate | Non-core Continuous bridge/input notification; source executor and all evidence identities unchanged | Polling DELETED; KEEP local observer; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for remaining deadlines |
 | R05 unused resource-policy alias: maxUnacknowledgedBlocks | No executable production read | Declaration and assertion only | None | No runtime state | Editing this alias alone cannot change actual Worklet credit behavior | Redundant ownership; real authority is capture transport constant/standalone producer | Later remove dead field/assertion while retaining actual transport contract and drift checks | resource-policy.ts is not attested; deletion does not mechanically change current core hash | DELETE AS REDUNDANT |
 
 ## Test validity and owners
@@ -402,31 +402,63 @@ The Round25 evidence-core exclusion of runtime liveness remains unchanged: no
 acoustic core/composite hash, timing provenance, assignmentV4 or Result schema6
 change, and no new runtime-policy provenance field.
 
-## R18 — observation polling and a local notification alternative
+## R18 — 5ms polling removed; local event-driven observation implemented
 
-Two input-owner tests use identical real PCM/window/source geometry while the
-requested 5ms timer is delivered at 5ms or simulated-clamped 50ms. Preroll becomes
-ready before delivery; connect remains pending until the timer fires. Source event
-sample, projected event Performance Time, exact terminal coverage and injected
-availability clock remain identical. The timer does not timestamp audio, set
-context length or guarantee latency. Delayed dispatch changes when readiness is
-noticed; if the predicate remains false, sufficiently delayed dispatch can encounter the
-existing independent predicate timeout on its next check. This is not a new recognition timing policy. The comparison holds source geometry
-fixed; it does not assert an entire attempt starts at the same physical instant
-when real capture continues during a delayed readiness callback.
+Round23 showed that delaying the old5ms readiness timer to50ms changed only when
+prerollReady was noticed, not source event sample, projected Performance Time,
+terminal analyzed-through, publication identity/order or availability clock policy.
+Round28 keeps that same PCM/source/boundary geometry regression, now observing
+readiness without any periodic timer. It does not claim improved recognition
+accuracy or a new event/latency model.
 
-A narrowly owned alternative, **not implemented**, can be specified without a global
-bus/store: SourceAnalysisRuntime owns committed readiness/failure transitions;
-ContinuousMicrophoneInput owns each one-shot wait subscription. Subscribe and
-recheck the current predicate to close the snapshot/subscribe race. Once satisfied,
-failed, aborted or disposed, the input detaches listener and abort hook exactly
-once. Per-owner generation/disposed fencing prevents an already queued callback
-from reviving a departed attempt. Publish only after committed source transitions;
-callback delivery must respect controller transaction reentrancy (R03), rather than
-calling application transitions from a half-mutated source state. The signal should
-distinguish real-input tail readiness from completed inference drain; removing 5ms
-polling cannot itself solve R14. Any retained deadline still needs separate necessity
-and device/workload qualification. These are future proof obligations, not a new API.
+The attempt-local
+[ContinuousCaptureBridge](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts)
+owns subscribeReadiness. It notifies after successful receive has committed all PCM
+and reached boundaries, after schedule has applied any immediately reached boundary
+(including TERMINAL), and after abort/failure state has committed. Observers cannot
+undo source/capture state: a throwing listener is isolated from the committed
+operation. This is not a global event bus, store, singleton or cross-mode observer.
+No notification or dependency is added to SourceAnalysisRuntime or STEP.
+
+[ContinuousMicrophoneInput](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts)
+owns each one-shot wait. It checks the current source predicate, subscribes, then
+**rechecks** predicate/failure/cancellation so a transition between snapshot and
+subscription cannot be missed. At most one existing safety deadline timer remains
+per wait; there is no5ms/10ms/20ms observation loop or periodic wakeup. Listener
+callbacks only settle the wait Promise; application continuation runs after the
+capture/source mutation stack unwinds and cannot reenter canonical transport.
+
+Readiness, first source/worker failure, AbortSignal, input disposal or deadline
+settles the wait once and detaches the bridge subscription, abort handler and
+deadline timer. The input owns a local pending-wait wake set so worker failure or
+dispose does not leave an orphan waiting for a future PCM notification/deadline.
+Dispose does not require caller abort. A stale notification or delayed timeout
+callback is fenced by settled/disposed state and cannot revive the attempt.
+
+The preroll safety deadline remains **15000ms** (R16); tail-ready remains
+**60000ms** (R17). Their callbacks recheck current predicate before rejecting with
+CONTINUOUS_ANALYSIS_TIMEOUT. If readiness committed before a delayed callback is
+actually delivered, readiness wins; browser scheduling/throttling still prevents an
+exact wall-clock timeout/SLO claim. Both values remain
+UNQUALIFIED_RESOURCE_SAFETY_POLICY. Capture readiness10000ms (R15) and worker RPC
+silence60000ms (R14) retain separate owners and unchanged values.
+
+TailReady means source-region planning has the required real PCM; it does not mean
+outstanding inference has drained. Event notification clears the readiness wait,
+then existing capture stop/seal/drain ownership continues. A deferred-inference
+regression proves tailReady can wake while finish remains pending on drain; the
+Round27 RPC silence watchdog independently handles a silent service. R18 neither
+replaces that watchdog nor merges these timeouts into a generic audio timeout.
+
+Executable regressions cover exact real preroll threshold, source origin and
+geometry; TERMINAL at current source with no later PCM; tail PCM readiness followed
+by independent drain; missed-notification subscription handoff; preroll/tail
+safety deadlines and readiness before delayed timeout; failure/abort/dispose in
+both phases; listener/timer/abort-hook cleanup and stale callbacks; and observer
+exceptions after committed bridge transitions. No production test hook is added.
+The source executor, core declaration/hash, source-adapter hashes, Result schema6,
+assignmentV4 and timing/provenance contents remain unchanged. Only predicate
+observation mechanism changes; numeric deadline qualification remains future work.
 
 ## Acoustic identity and runtime-policy boundary — resolved in Round 25
 
@@ -439,7 +471,7 @@ executable transitive closure. The hash is a versioned declaration/build identit
 behavior-neutral edits to attested files can change it, so it is not a pure
 semantic-equivalence hash.
 
-resource-policy.ts, capture transport/bridge admission, input readiness polling and
+resource-policy.ts, capture transport/bridge admission, input readiness observation and
 deadlines, worker/client/engine liveness and controller intervention policies are
 explicitly outside that provenance boundary. Attested executor bytes can still
 change when a resource-related implementation is edited; this incidental byte
@@ -456,7 +488,8 @@ schema decision, not an expansion/redefinition of the existing core hash.
 
 This resolves only provenance scope. R01/R02/R03/R04/R14/R18 retain their existing
 numeric/semantic-necessity status was unchanged by Round25. Round27 adds the
-separate R14 silence fuse; its numeric60s remains unqualified. cap8 remains
+separate R14 silence fuse; its numeric60s remains unqualified. Round28 deletes R18
+polling in favor of local observation, leaving R16/R17 unqualified. cap8 remains
 UNRESOLVED; maxUnacknowledgedBlocks remains a deletion candidate.
 
 ## Exact-reference audit
@@ -505,8 +538,9 @@ counts below do not qualify that new policy.
 
 The remaining future conclusions are:
 
-- **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state/cap necessity,
-  R18 readiness delivery.
+- **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state/cap necessity.
+- **R18 POLLING DELETED:** local event-driven observation replaces the redundant
+  interval; qualify remaining R16/R17 deadlines separately.
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining
   numeric credit/headroom and R14 silence deadline justified by actual supported
   workloads rather than tests.

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { ContinuousCaptureBridge } from './capture-bridge';
 import { ContinuousAcousticProjection } from './continuous-projection';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
@@ -88,4 +88,30 @@ it('R03 two positive short BEGIN/PAUSE intervals retain distinct source→perfor
     expect(bridge.snapshot()).toMatchObject({ failed: false, pendingBoundaryCount: 0 });
     expect(runtime.snapshot()).toMatchObject({ outstanding: 0, pendingRegions: 0, counts: { regionsStarted: 2 } });
   } finally { await runtime.dispose(); }
+});
+
+it('local readiness observers see committed receive/schedule/abort state and cannot corrupt it by throwing', async () => {
+  const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'observer', sourceDomainId: 'observer-source',
+    sourceSampleRateHz: 48000, coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'),
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: () => {},
+    worker: { run: async () => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }), dispose: async () => {} } });
+  const bridge = new ContinuousCaptureBridge(runtime, 48000), observed: ReturnType<typeof bridge.snapshot>[] = [];
+  const throwing = bridge.subscribeReadiness(() => { throw new Error('OBSERVER_FAILURE'); });
+  const listener = vi.fn(() => observed.push(bridge.snapshot())), detach = bridge.subscribeReadiness(listener);
+  try {
+    const chunk = (start: number, end: number, sequence: number) => ({ type: 'pcm-chunk' as const, sequence, sourceSampleRateHz: 48000,
+      sourceStartSampleIndex: start, sourceEndSampleIndex: end, audioContextStartFrame: start,
+      captureTimeSeconds: start / 48000, inputChannelCount: 1, samples: new Float32Array(end - start) });
+    for (let start = 0, sequence = 0; start < 88064; start += 2048, sequence++) bridge.receive(chunk(start, Math.min(start + 2048, 88064), sequence));
+    expect(observed.at(-1)).toMatchObject({ nextSourceSampleIndex: 88064, failed: false }); expect(runtime.prerollReady).toBe(true);
+    const before = listener.mock.calls.length;
+    bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: 88064, performanceTimeMs: 0 });
+    expect(listener).toHaveBeenCalledTimes(before + 1); expect(observed.at(-1)?.pendingBoundaryCount).toBe(0);
+    expect(observed.at(-1)?.boundaryDiagnostics.at(-1)).toMatchObject({ action: 'APPLIED', type: 'TERMINAL' });
+    expect(runtime.tailReady).toBe(true);
+    bridge.abort(new Error('CAPTURE_TEST_FAILURE')); expect(observed.at(-1)).toMatchObject({ failed: true, pendingBoundaryCount: 0 });
+    expect(runtime.snapshot().failureCode).toBe('CAPTURE_TEST_FAILURE');
+    throwing(); detach(); const count = listener.mock.calls.length; bridge.abort(new Error('LATE_FAILURE'));
+    expect(listener).toHaveBeenCalledTimes(count); expect(runtime.snapshot().failureCode).toBe('CAPTURE_TEST_FAILURE');
+  } finally { throwing(); detach(); await runtime.dispose(); }
 });

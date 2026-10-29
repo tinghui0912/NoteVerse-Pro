@@ -9,7 +9,10 @@ assets, identities, schemas and workflows remain unchanged.
 Round 27 updates R14 and its summary membership to the implemented worker-RPC
 silence safety fuse. Finite silent-service liveness is now required; 60000ms remains
 an unqualified resource-safety policy, not a latency/device qualification. The
-ledger remains 93 rows. Other parameter values/classifications are unchanged.
+ledger remains 93 rows. Round28 then removes R18's 5ms polling mechanism, replacing
+it with local event-driven observation in the non-core Continuous bridge/input.
+R18 is now REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC; R16/R17 deadlines remain
+unqualified resource-safety policies. Other parameter values/classifications are unchanged.
 
 The decision order is **semantic necessity → remove unnecessary behavior/dataflow →
 optimize the remaining algorithm → qualify the remaining parameters**. Every row
@@ -173,7 +176,7 @@ Qualification methods (future work only):
 | R15 Capture readiness timeout | 10000ms | [capture-transport-contract.ts](../../apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts) `CAPTURE_TRANSPORT_READY_TIMEOUT_MS`; [capture.ts](../../apps/customer-web/src/lib/practice/acoustic/source/capture.ts) `connect readyTimer` | First real accepted block admission | Avoid indefinite capture preparation wait | Preparation can hang without another liveness mechanism | Changes slow startup failure rate, not musical timing | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Fails ACOUSTIC_CAPTURE_READINESS_TIMEOUT; first accepted block settles timer | Actual device startup/permission/audio/GC distribution; why10s | Q-NECESSITY + Q-DEVICE | Deferred: preparation liveness qualification | Review timeout necessity/ownership then QUALIFY remaining deadline |
 | R16 Continuous acoustic preroll wait | 15000ms after capture connection | [continuous-microphone-input.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts) `connect acousticPreroll / wait` | Preparing microphone Continuous attempt | Bound wait for real context readiness | Unbounded preroll preparation wait | Changes preparation rejection on slow/stalled devices | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Uses performance.now only as timeout; CONTINUOUS_ANALYSIS_TIMEOUT throws | Real cold/warm/device/stall distribution; not input-latency evidence | Q-DEVICE + Q-RESOURCE | Deferred: startup liveness | QUALIFY independently of H50/W250; no new timeout chosen |
 | R17 Continuous tail-ready wait | 60000ms; only tailReady predicate wait, then seal awaits drain separately | [continuous-microphone-input.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts) `finish / wait` | Natural FINALIZING acoustic tail | Bound missing real-tail/region-planning wait | That phase can hang | Changes finalization availability failures; not a60s bound on all inference/finalization | UNQUALIFIED_RESOURCE_SAFETY_POLICY | On timeout finalizing controller produces natural UNAVAILABLE evaluation with healthy recording | Actual tail/stall/device evidence; separate RPC silence fuse (R14) is not a total-finalization SLO | Q-NECESSITY + Q-RESOURCE | Deferred: completion liveness | Review event-driven completion/timeout coverage before qualifying deadline |
-| R18 Continuous wait polling mechanism | setTimeout(...,5ms) in wait loop | [continuous-microphone-input.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts) `wait` | Preroll/tail readiness observation | Notice predicate/abort without explicit readiness subscription | Requires another notification mechanism; removing loop alone would break wait | Changes CPU/timer activity and observation delay; not recognition window | SEMANTIC_NECESSITY_UNRESOLVED | Production explicitly5ms, not20ms; abort listener detached each iteration | Whether polling is necessary; scheduling/timer-clamping measurements | Q-NECESSITY + Q-DEVICE | No: future event-driven design review; no5ms latency guarantee | DELETE/REDESIGN candidate via narrowly owned readiness notification, no new poll constant |
+| R18 Continuous readiness polling — DELETED; local event-driven readiness observation | No5ms interval or polling loop; one-shot readiness subscription with existing15000/60000ms deadlines | [capture-bridge.ts](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts) `subscribeReadiness / notifyReadiness`; [continuous-microphone-input.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts) `wait / readinessWaits` | Continuous preroll/tail readiness observation only | Observe committed predicate truth without periodic wakeup; failure/abort/dispose settle pending waits | Removing obsolete5ms poll changes no event/geometry semantics; removing its replacement without another observer would miss readiness | Notification discovery can occur sooner; does not timestamp evidence or qualify recognition/latency | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | Round23 same-geometry timer-delay proof; Round28 real PCM/TERMINAL, snapshot-subscribe-recheck, delayed deadline and cancellation/leak regressions | R16/R17 numeric deadline qualification remains separate; no event-driven accuracy/SLO claim | Q-MATH + Q-RESOURCE | No: polling removed; broken readiness/cancellation ownership remains a correctness concern | KEEP local observer and cleanup; deleted5ms magic stays deleted; QUALIFY remaining R16/R17 deadlines separately |
 
 ### Diagnostics and bounded presentation data
 
@@ -361,7 +364,8 @@ are existing behaviors, not redesigned by this audit.
 - R15/R16/R17 are liveness policies, not musical timing. The 10s capture timer ends
   at the first accepted real block.15s preroll begins after capture connection.
   60s tailReady does not cover the later awaited inference drain, nor every worker
-  RPC. The 5ms polling interval is not a recognition context or event timestamp.
+  RPC. Round28 deletes the5ms polling interval; it never defined recognition context
+  or event timestamps. Existing deadline values are unchanged.
 
 For all these limits: retaining a finite system does not prove a particular cap or
 its terminal-failure behavior necessary. Eliminate unnecessary queues/dataflow,
@@ -447,8 +451,8 @@ hardware/corpus study is claimed for this documentation-only audit.
 | UNQUALIFIED_ALGORITHM_POLICY | 19 |
 | UNQUALIFIED_RESOURCE_SAFETY_POLICY | 9 |
 | DIAGNOSTIC_PRESENTATION_POLICY | 7 |
-| REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | 11 |
-| SEMANTIC_NECESSITY_UNRESOLVED | 3 |
+| REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | 12 |
+| SEMANTIC_NECESSITY_UNRESOLVED | 2 |
 
 Class membership (row IDs are stable within this audit):
 
@@ -458,8 +462,8 @@ Class membership (row IDs are stable within this audit):
 - **UNQUALIFIED_ALGORITHM_POLICY:** M06, D01, D02, D03, D04, D05, D06, G01, G02, S12, S14, S16, T02, T03, T07, T10, T12, T13, T17.
 - **UNQUALIFIED_RESOURCE_SAFETY_POLICY:** S17, R01, R04, R06, R08, R14, R15, R16, R17.
 - **DIAGNOSTIC_PRESENTATION_POLICY:** N01, N02, N03, N04, N05, N06, N07.
-- **REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC:** G03, S09, S10, S15, T14, T15, R05, R07, R11, R12, X02.
-- **SEMANTIC_NECESSITY_UNRESOLVED:** R02, R03, R18.
+- **REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC:** G03, S09, S10, S15, T14, T15, R05, R07, R11, R12, R18, X02.
+- **SEMANTIC_NECESSITY_UNRESOLVED:** R02, R03.
 
 The structural results are the sample/byte/unit relationships, discrete FIR support,
 conditional ring storage bounds, decoder region upper bound, direct 2W/3W relationships,
@@ -474,9 +478,10 @@ unqualified regardless of the successful regression suite.
 | A. KEEP | Current verified asset/model/I/O identities, established structural relationships and exact ownership/coverage integrity | Preserve contract; a genuinely different model/runtime requires its own explicit contract decision | Integrity mismatches/invalid geometry/source identity are actual fail-closed release blockers, not reasons to tune values |
 | B. DERIVE | G03/S09/S10/S15/T14/T15/R05/R07/R11/R12/X02; input duration/bytes, ratios, descriptors and smoke/preroll relationships | Remove duplicated magic/dead ownership; isolate format derivation from product behavior | Can be independent narrow changes after proof; source edits must update attestations, not merely bypass guards |
 | C. QUALIFY | D01–D06, G01/G02/S12, W250, MIDI grace250, H35/H50, remaining numerical slacks, selected runtime/source support, ring/outstanding/transport/timeouts after necessity review | Recognition/timing changes or resource-failure/admission changes; requires explicit product decision and real learner/device/workload evidence | Required before corresponding accuracy/latency/robustness/support claims; not a synthetic tuning contest |
-| D. DELETE/REDESIGN CANDIDATE | R02/R03/R18 and caps/dataflow in R01/R04/S17; unused duplicates and unconsumed diagnostics/confidence | Review necessity of queued regions/boundaries, admission/backpressure, liveness observation, retained derived data | First step before raising caps/optimizing algorithms; no silent loss of accepted truth, no new universal coordinator |
+| D. DELETE/REDESIGN CANDIDATE | R02/R03 and caps/dataflow in R01/R04/S17; unused duplicates and unconsumed diagnostics/confidence | Review necessity of queued regions/boundaries, admission/backpressure, liveness observation, retained derived data | First step before raising caps/optimizing algorithms; no silent loss of accepted truth, no new universal coordinator |
 
-The semantic-necessity unresolved rows are R02/R03/R18. R14 now keeps a required
+The semantic-necessity unresolved rows are R02/R03. R18 polling was deleted; its
+local observer does not qualify the remaining R16/R17 safety deadlines. R14 now keeps a required
 silence-liveness mechanism with an unqualified numeric deadline. The distinct numerical
 headroom/deadline policies R01/R04/R06/R08/R14/R15/R16/R17 and identity cap S17 have no real
 workload/device qualification here. Diagnostic policies N01–N07 are not correctness

@@ -1169,7 +1169,7 @@ it('ACTIVE worker INFER silence is analysis failure with same-session degradatio
   } finally { await controller.abandon(); await controller.dispose(); await engine.dispose(); }
 });
 
-for (const timerDeliveryMs of [5, 50]) it(`R18 real preroll discovery with timer delivery=${timerDeliveryMs}ms leaves source event geometry unchanged`, async () => {
+for (const clockAdvanceMs of [0, 50]) it(`R18 event-driven preroll with observation clock advance=${clockAdvanceMs}ms preserves source/event geometry`, async () => {
   const f = environment(), publications: ContinuousEvidencePublication[] = [], failure = vi.fn(), releaseCapture = vi.fn();
   let stopped = false;
   const stop = vi.fn(() => { if (!stopped) { stopped = true; releaseCapture(); } });
@@ -1180,8 +1180,7 @@ for (const timerDeliveryMs of [5, 50]) it(`R18 real preroll discovery with timer
     midiPitch: 60, pitch: 'C4', confidence: .8, onsetScore: .8, frameScore: .8 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }));
   const input = new ContinuousMicrophoneInput(f.platform, failure), abort = new AbortController();
   await input.acquire(abort.signal); f.clock.set(10000);
-  const original = globalThis.setTimeout;
-  const timer = vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback, delay) => original(callback, delay === 5 ? timerDeliveryMs : delay));
+  const timer = vi.spyOn(globalThis, 'setTimeout');
   let next = 0, sequence = 0;
   const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, start + 2048);
     bridge.receive({ type: 'pcm-chunk', sequence: sequence++, sourceSampleRateHz: 48000,
@@ -1193,10 +1192,11 @@ for (const timerDeliveryMs of [5, 50]) it(`R18 real preroll discovery with timer
     const connecting = input.connect({ context: f.context as unknown as AudioContext, stream: f.root.media,
       sessionDomainId: 'polling', clock: f.clock, publish: p => { publications.push(p); } }, abort.signal).then(() => { connected = true; });
     await captureAttached; await vi.advanceTimersByTimeAsync(0);
-    expect(bridge.runtime.prerollReady).toBe(false); expect(timer.mock.calls.map(call => call[1])).toEqual([5]);
+    expect(bridge.runtime.prerollReady).toBe(false); expect(timer.mock.calls.map(call => call[1])).toEqual([15000]);
     feed(88064); expect(bridge.runtime.prerollReady).toBe(true); expect(connected).toBe(false);
-    await vi.advanceTimersByTimeAsync(timerDeliveryMs - 1); expect(connected).toBe(false);
-    await vi.advanceTimersByTimeAsync(1); await connecting; expect(connected).toBe(true);
+    await connecting; expect(connected).toBe(true);
+    expect(timer.mock.calls.some(call => call[1] === 5)).toBe(false); expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(clockAdvanceMs); // No timer advances are needed to discover readiness.
     const origin = next;
     input.boundary('BEGIN', origin / 48000, 0); input.boundary('TERMINAL', origin / 48000 + .1, 100);
     feed(origin + 14336); await input.finish(abort.signal);
