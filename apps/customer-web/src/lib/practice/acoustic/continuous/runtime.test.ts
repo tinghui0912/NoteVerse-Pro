@@ -62,7 +62,6 @@ it('binds the exact acoustic core, source identities and finite resource ceiling
     expect(await sha256(new TextEncoder().encode(canonicalJson(identity.identity)))).toBe(identity.identitySha256);
   }
   expect(ACOUSTIC_RESOURCES.maxOutstandingWindows).toBe(4);
-  expect(ACOUSTIC_RESOURCES.maxUnacknowledgedBlocks).toBe(32);
   expect(evaluatePracticeInputCapabilities().acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
   expect(evaluatePracticeInputCapabilities().acousticAnalysis.step.status).toBe('BROWSER_UNSUPPORTED');
 });

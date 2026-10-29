@@ -50,6 +50,11 @@ it('only unpublished provisional startup is retired on a frame discontinuity', a
   expect(f.sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_FRAME_DISCONTINUITY');
   expect(f.processor.originFrame).toBe(1024); expect(f.processor.stabilizationRestarts).toBe(1);
 });
+it('standalone Worklet credit declaration matches the authoritative transport contract', async () => {
+  const text = await readFile('src/lib/practice/acoustic/source/capture.worklet.js', 'utf8');
+  expect(CAPTURE_TRANSPORT_MAX_UNACKED).toBe(32);
+  expect(Number(text.match(/const CAPTURE_TRANSPORT_MAX_UNACKED = (\d+);/)?.[1])).toBe(CAPTURE_TRANSPORT_MAX_UNACKED);
+});
 it('32 unacked full blocks accepted; 33rd fails with no further accumulator allocation', async () => {
   const f = await fixture();
   for (let i = 0; i < CAPTURE_TRANSPORT_MAX_UNACKED; i++) expect(f.run(i * 2048, 2048)).toBe(true);
@@ -57,6 +62,17 @@ it('32 unacked full blocks accepted; 33rd fails with no further accumulator allo
   expect(f.run(32 * 2048, 2048)).toBe(false); expect(f.sent).toHaveLength(33);
   expect(f.sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED');
   expect(f.processor.accumulator).toBeNull(); expect(f.processor.state).toBe('FAILED');
+});
+it('one ordered ACK at full credit admits exactly one more block before overflow', async () => {
+  const f = await fixture();
+  for (let i = 0; i < 32; i++) expect(f.run(i * 2048, 2048)).toBe(true);
+  f.processor.port.onmessage({ data: { type: 'ACK', sequence: 0 } });
+  expect(f.run(32 * 2048, 2048)).toBe(true); expect(f.sent).toHaveLength(33);
+  expect(f.sent.at(-1)?.message).toMatchObject({ type: 'pcm-chunk', sequence: 32 });
+  expect(f.processor.state).toBe('ACTIVE');
+  expect(f.run(33 * 2048, 2048)).toBe(false);
+  expect(f.sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED');
+  expect(f.processor.state).toBe('FAILED'); expect(f.processor.accumulator).toBeNull();
 });
 it('ACK order is exact, and terminal states accept no new PCM', async () => {
   const f = await fixture();

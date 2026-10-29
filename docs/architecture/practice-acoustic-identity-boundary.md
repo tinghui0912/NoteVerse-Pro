@@ -156,8 +156,9 @@ R03 finite admission necessary in principle; numeric8/representation and R01/R04
 workload/stall evidence remain unqualified by identity scope or those proofs.
 Round28 deletes R18 polling in the non-core Continuous bridge/input; readiness
 notification and unchanged R16/R17 safety deadlines remain outside this core. Round27 separately adds an unqualified R14 silence safety fuse;
-that runtime policy remains outside this evidence core. maxUnacknowledgedBlocks remains a deletion
-candidate; no cleanup, tuning or liveness redesign starts in this round.
+that runtime policy remains outside this evidence core. Round31 deletes the dead
+maxUnacknowledgedBlocks alias without changing R04's authoritative transport policy
+or any selected attestation/core/composite identity value.
 
 ## Round29 selective-attestation byte sensitivity
 

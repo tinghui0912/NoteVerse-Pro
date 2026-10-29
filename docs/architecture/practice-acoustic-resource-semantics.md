@@ -31,7 +31,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R18 readiness predicate observation | Yes: real PCM preroll and TERMINAL/tail transitions | Source readiness commits; local bridge notifies after receive/schedule/abort | No observation timer or polling stall; Promise continuation follows source stack unwind | One attempt-owned subscription/abort hook/deadline per pending wait | Round28: 5ms polling removed; local event-driven observation implemented; failure/abort/dispose wake waits | Predicate truth is unchanged;5ms numerical poll was unnecessary implementation magic | KEEP local snapshot-subscribe-recheck and one-shot cleanup;15s/60s deadline qualification stays separate | Non-core Continuous bridge/input notification; source executor and all evidence identities unchanged | Polling DELETED; KEEP local observer; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for remaining deadlines |
-| R05 unused resource-policy alias: maxUnacknowledgedBlocks | No executable production read | Declaration and assertion only | None | No runtime state | Editing this alias alone cannot change actual Worklet credit behavior | Redundant ownership; real authority is capture transport constant/standalone producer | Later remove dead field/assertion while retaining actual transport contract and drift checks | resource-policy.ts is not attested; deletion does not mechanically change current core hash | DELETE AS REDUNDANT |
+| R05 deleted resource-policy alias: maxUnacknowledgedBlocks | No executable production reader before deletion; code references removed in Round31 | Historical declaration and assertion only | None | No runtime state | Deletion changes no admission/ACK/overflow behavior; R04 remains enforced | Redundant ownership removed; real authority is transport contract/standalone producer | KEEP DELETED; qualification belongs only to R04 | resource-policy.ts is not attested; deletion changes no core/composite hash/schema | DELETE AS REDUNDANT: implemented; KEEP DELETED |
 
 ## Test validity and owners
 
@@ -725,19 +725,32 @@ positive retention without a cap. Round27 added the separate R14 silence fuse;
 its numeric60s remains unqualified. Round28 deleted R18
 polling in favor of local observation, leaving R16/R17 unqualified. Round30 proves
 R03 finite admission necessary in principle; cap8 remains numerically unqualified.
-maxUnacknowledgedBlocks remains a deletion candidate.
+Round31 deletes the dead maxUnacknowledgedBlocks alias; transport-credit authority
+remains only with R04's contract and verified standalone Worklet declaration.
 
-## Exact-reference audit
+## Historical Round23 exact-reference audit; Round31 deletion
 
 Repository command: `rg -n "maxUnacknowledgedBlocks" .` (feature branch, local exact search).
-At the approved baseline it finds four lines: resource-policy.ts:3 (declaration),
+At the Round23 baseline it found four lines: resource-policy.ts:3 (declaration),
 acoustic/continuous/runtime.test.ts:65 (assertion), and the parameter-provenance
-ledger:158/402 (documentation). There is **no executable production consumer**.
-This companion adds only two documentation hits (its matrix row and the command
+ledger:158/402 (documentation). There was **no executable production consumer**.
+This companion originally added only two documentation hits (its matrix row and the command
 above). The completion report includes the final full path/line hit set and an
 external copy of the unfiltered command output. The enforced Worklet constant is
 uppercase CAPTURE_TRANSPORT_MAX_UNACKED and is a different, live owner. No deletion,
-rename or alias is performed in this characterization round.
+rename or alias was performed in Round23's characterization.
+
+Round31 reruns the exact branch search over apps/customer-web and docs. Before
+deletion, code hits were still only the resource-policy declaration and one
+Continuous runtime-test assertion; there was no executable reader. Both are now
+removed, without a replacement alias/import. The historical name remains only in
+audit documentation. Current `CAPTURE_TRANSPORT_MAX_UNACKED=32` is owned by the
+transport TS contract and matching standalone Worklet declaration/enforcement.
+The transport tests explicitly check declaration parity,32 accepted unacked blocks,
+33rd-block overflow, one ACK freeing exactly one credit, and invalid ACK ordering.
+Continuous runtime does not gain a transport dependency to preserve a stale test.
+This production-source deletion changes no runtime behavior; executor, evidence
+identity/composite values and Result schema/provenance shape stay unchanged.
 
 ## Round 23 validation and remaining release concerns
 
@@ -781,8 +794,8 @@ The remaining future conclusions are:
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining
   numeric credit/headroom and R14 silence deadline justified by actual supported
   workloads rather than tests.
-- **DELETE AS REDUNDANT:** the unused resource-policy alias after its exact-reference
-  audit; do not remove the real Worklet credit contract.
+- **DELETE AS REDUNDANT:** R05 implemented in Round31 after the exact-reference
+  audit; KEEP DELETED. Do not remove the real R04 Worklet credit contract.
 - **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after
   boundary and consumer review; no numerical replacement policy is inferred.
 - **IDENTITY BOUNDARY RESOLVED IN ROUND 25:** the [normative contract](practice-acoustic-identity-boundary.md)

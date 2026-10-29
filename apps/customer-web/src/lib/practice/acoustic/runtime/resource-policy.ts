@@ -1,6 +1,5 @@
 export const ACOUSTIC_RESOURCES = Object.freeze({
   maxOutstandingWindows: 4,
-  maxUnacknowledgedBlocks: 32,
   maxSourceBlockSamples: 2048,
   diagnosticWindows: 32,
   targetRingSamples: 65536,
