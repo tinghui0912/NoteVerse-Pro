@@ -17,6 +17,7 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform } from './continuous-input';
+import type { ContinuousEvidencePublication } from './domain/evaluation/evidence-types';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
@@ -47,7 +48,7 @@ class Recorder {
   requestData() { this.ondataavailable?.({ data: new Blob(['recording']) }); }
   stop() { this.state = 'inactive'; this.onstop?.(); }
 }
-function environment(rate = 48000, root = stream()) {
+function environment(rate = 48000, root = stream(), blockSamples = 128) {
   const clock = new ManualClock(0);
   let frame = 0, sequence = 0, bridge: ContinuousCaptureBridge | undefined, captureStopped = false;
   let fail: ((error: Error) => void) | undefined;
@@ -81,18 +82,19 @@ function environment(rate = 48000, root = stream()) {
   };
   let controller: ContinuousPracticeController | undefined;
   async function feed(ms: number) {
-    const end = frame + Math.ceil(ms / 1000 * rate / 128) * 128;
+    const end = frame + Math.ceil(ms / 1000 * rate / blockSamples) * blockSamples;
     while (frame < end && context.state !== 'closed') {
-      const start = frame; frame += 128; context.currentTime = Math.max(context.currentTime, frame / rate);
+      const start = frame; frame += blockSamples; context.currentTime = Math.max(context.currentTime, frame / rate);
       if (!captureStopped && bridge) bridge.receive({ type: 'pcm-chunk', sequence: sequence++, sourceSampleRateHz: rate,
         sourceStartSampleIndex: start, sourceEndSampleIndex: frame, audioContextStartFrame: start,
-        captureTimeSeconds: start / rate, inputChannelCount: 1, samples: new Float32Array(128) });
+        captureTimeSeconds: start / rate, inputChannelCount: 1, samples: new Float32Array(blockSamples) });
       controller?.refresh(); await vi.advanceTimersByTimeAsync(1);
     }
     await vi.advanceTimersByTimeAsync(10);
   }
-  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndBeat = 2.4) {
+  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndBeat = 2.4, meterDenominator = 4) {
     const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact, scoreEndBeat,
+      ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
       expectedPracticeGroups: fixture.expectedPracticeGroups.slice(0, 1), practiceAttackSteps: fixture.practiceAttackSteps.slice(0, 1) };
     controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource, countInBeats,
       tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
@@ -911,4 +913,153 @@ it('controller refresh and repeated live snapshots never request the full assign
     }
     expect(full).not.toHaveBeenCalled();
   } finally { full.mockRestore(); await controller.abandon(); await controller.dispose(); }
+});
+
+
+// Resource characterization uses only public controller commands, real clock/source mapping,
+// current caps and complete 2048-sample transport blocks (no controller/session state injection).
+it('R01 admitted running microphone failure freezes retained performance while copied inputs await the worker', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'OFF', callback, undefined, 20);
+  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+  vi.mocked(f.worker.run).mockImplementation(async ({ window }) => { await gate; return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }; });
+  try {
+    await controller.start();
+    await expect(f.feed(5400)).rejects.toThrow('ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED');
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' },
+      analysisIntervention: { pauseOrigin: 'INTERVENTION' }, resourceIntervention: null, evaluation: null, completed: null });
+    expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 4, counts: { windowsQueued: 4 } });
+    expect(callback).not.toHaveBeenCalled(); expect(f.meter.pause).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
+  } finally { release(); await controller.abandon(); await controller.dispose(); }
+  expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
+});
+
+it('R02 schema-valid short resume count-ins plus full-block capture delivery reach fifth source region before real tail exists', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn();
+  const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+  try {
+    await controller.start(); await f.feed(2048 / 48); // Consume the score-derived initial one-bar count-in.
+    expect(controller.snapshot().transport?.state).toBe('RUNNING');
+    const origin = f.context.currentTime;
+    for (let cycle = 0; cycle < 4; cycle++) {
+      f.context.currentTime = origin + (1 + cycle * 16.625) / 1000; controller.refresh();
+      expect(controller.snapshot().transport?.state).toBe('RUNNING');
+      if (cycle === 3) {
+        expect(f.bridge().snapshot().pendingBoundaryCount).toBeLessThan(8);
+        await f.feed(2048 / 48); // Consume the first three short regions using a real full-sized transport block.
+        expect(f.bridge().runtime.snapshot()).toMatchObject({ pendingRegions: 3, outstanding: 0 });
+      }
+      controller.pause(); expect(controller.snapshot().transport?.state).toBe('PAUSED'); controller.resume();
+      expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME' });
+      expect(controller.snapshot().transport!.countInRemainingMs).toBeCloseTo(15.625, 6);
+    }
+    f.context.currentTime += .016625; controller.refresh();
+    await expect(f.feed(2048 / 48)).rejects.toThrow('ACOUSTIC_SEGMENT_LIMIT_EXCEEDED');
+    expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 0,
+      counts: { regionsStarted: 4, regionsDrained: 0, windowsQueued: 0 } });
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' },
+      analysisIntervention: { pauseOrigin: 'INTERVENTION' }, resourceIntervention: null, completed: null });
+    expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
+    expect(f.root.audio.stop).not.toHaveBeenCalled();
+  } finally { await controller.abandon(); await controller.dispose(); }
+  expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
+});
+
+it('R03 valid ninth-boundary failure currently reenters the clock transaction instead of freezing', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn();
+  const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+  try {
+    await controller.start(); const source = f.bridge().snapshot().nextSourceSampleIndex;
+    f.context.currentTime += .025625; controller.refresh(); // Canonical15.625ms initial bar +10ms RUNNING; no full PCM message consumed yet.
+    for (let cycle = 0; cycle < 4; cycle++) {
+      expect(controller.snapshot().transport?.state).toBe('RUNNING'); controller.pause();
+      expect(f.bridge().snapshot().pendingBoundaryCount).toBe((cycle + 1) * 2);
+      const pending = f.bridge().snapshot();
+      expect(pending.boundaryDiagnostics.filter(d => d.action === 'CANCELLED' && d.type === 'TERMINAL')).toHaveLength(cycle + 1);
+      expect(pending.boundaryDiagnostics.filter(d => d.action === 'CANCELLED' && d.type === 'BEGIN')).toHaveLength(0);
+      if (cycle < 3) {
+        controller.resume(); expect(f.bridge().snapshot().pendingBoundaryCount).toBe((cycle + 1) * 2 + 2);
+        f.context.currentTime += .025625; controller.refresh(); // One 15.625ms canonical count-in +10ms performance.
+      }
+    }
+    expect(f.bridge().snapshot()).toMatchObject({ pendingBoundaryCount: 8, failed: false, nextSourceSampleIndex: source });
+    expect(f.bridge().runtime.snapshot().counts.regionsStarted).toBe(0);
+    // Current defect: capture/resource failure synchronously reenters the canonical clock transaction.
+    expect(() => controller.resume()).toThrow('NESTED_CLOCK_TRANSACTION');
+    expect(f.bridge().snapshot()).toMatchObject({ pendingBoundaryCount: 0, failed: true, nextSourceSampleIndex: source });
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'COUNT_IN' },
+      analysisIntervention: null, resourceIntervention: null, completed: null });
+    expect(f.bridge().runtime.snapshot().failureCode).toBe('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
+    expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
+    // Total PCM lag102.5ms, below32*2048/48000 payload seconds: transport failure is not a prerequisite.
+    expect(f.context.currentTime - source / 48000).toBeLessThan(32 * 2048 / 48000);
+    const position = controller.snapshot().transport!.performanceTimeMs;
+    f.context.currentTime += .1; controller.refresh();
+    expect(controller.snapshot().transport?.state).toBe('RUNNING');
+    expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(position);
+    expect(controller.snapshot().resourceIntervention).toBeNull(); // Characterization, not approval of this failure behavior.
+  } finally { await controller.abandon(); await controller.dispose(); }
+  expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
+});
+
+it('R14 natural FINALIZING can stay pending beyond60s after tailReady while INFER silently hangs', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'OFF', callback);
+  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+  vi.mocked(f.worker.run).mockImplementation(async ({ window }) => { await gate; return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }; });
+  try {
+    await controller.start(); await f.feed(3500);
+    expect(f.bridge().runtime.tailReady).toBe(true);
+    expect(f.bridge().runtime.snapshot()).toMatchObject({ pendingRegions: 0, outstanding: 2 });
+    expect(controller.snapshot()).toMatchObject({ session: 'FINALIZING', analysisError: null, completed: null });
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(controller.snapshot()).toMatchObject({ session: 'FINALIZING', analysisError: null, completed: null });
+    expect(callback).not.toHaveBeenCalled(); expect(f.worker.dispose).not.toHaveBeenCalled();
+    release(); await f.bridge().runtime.drain(); await vi.advanceTimersByTimeAsync(10);
+    expect(controller.snapshot().session).toBe('COMPLETE'); expect(callback).toHaveBeenCalledOnce();
+    expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
+  } finally { release(); await controller.dispose(); }
+});
+
+
+for (const timerDeliveryMs of [5, 50]) it(`R18 real preroll discovery with timer delivery=${timerDeliveryMs}ms leaves source event geometry unchanged`, async () => {
+  const f = environment(), publications: ContinuousEvidencePublication[] = [], failure = vi.fn(), releaseCapture = vi.fn();
+  let stopped = false;
+  const stop = vi.fn(() => { if (!stopped) { stopped = true; releaseCapture(); } });
+  let bridge!: ContinuousCaptureBridge, attached!: () => void;
+  const captureAttached = new Promise<void>(resolve => { attached = resolve; });
+  f.platform.connectCapture = async options => { bridge = options.bridge; attached(); return { stop }; };
+  vi.mocked(f.worker.run).mockImplementation(async ({ window }) => ({ events: [{ targetSample: Math.ceil(window.ownedStartTarget),
+    midiPitch: 60, pitch: 'C4', confidence: .8, onsetScore: .8, frameScore: .8 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }));
+  const input = new ContinuousMicrophoneInput(f.platform, failure), abort = new AbortController();
+  await input.acquire(abort.signal); f.clock.set(10000);
+  const original = globalThis.setTimeout;
+  const timer = vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback, delay) => original(callback, delay === 5 ? timerDeliveryMs : delay));
+  let next = 0, sequence = 0;
+  const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, start + 2048);
+    bridge.receive({ type: 'pcm-chunk', sequence: sequence++, sourceSampleRateHz: 48000,
+      sourceStartSampleIndex: start, sourceEndSampleIndex: next, audioContextStartFrame: start,
+      captureTimeSeconds: start / 48000, inputChannelCount: 1, samples: new Float32Array(next - start) });
+  } f.context.currentTime = next / 48000; };
+  try {
+    let connected = false;
+    const connecting = input.connect({ context: f.context as unknown as AudioContext, stream: f.root.media,
+      sessionDomainId: 'polling', clock: f.clock, publish: p => { publications.push(p); } }, abort.signal).then(() => { connected = true; });
+    await captureAttached; await vi.advanceTimersByTimeAsync(0);
+    expect(bridge.runtime.prerollReady).toBe(false); expect(timer.mock.calls.map(call => call[1])).toEqual([5]);
+    feed(88064); expect(bridge.runtime.prerollReady).toBe(true); expect(connected).toBe(false);
+    await vi.advanceTimersByTimeAsync(timerDeliveryMs - 1); expect(connected).toBe(false);
+    await vi.advanceTimersByTimeAsync(1); await connecting; expect(connected).toBe(true);
+    const origin = next;
+    input.boundary('BEGIN', origin / 48000, 0); input.boundary('TERMINAL', origin / 48000 + .1, 100);
+    feed(origin + 14336); await input.finish(abort.signal);
+    const observations = publications.flatMap(p => p.observations);
+    expect(observations).toHaveLength(1);
+    const eventSample = Math.ceil(origin / 3) * 3;
+    expect(observations[0].provenance?.sourceEventSample).toBe(eventSample);
+    expect(observations[0].performanceTimeMs).toBeCloseTo((eventSample - origin) / 48, 9);
+    expect(publications.every(p => p.availabilitySessionTimeMs === 10000)).toBe(true);
+    expect(publications.at(-1)?.analyzedThroughPerformanceMs).toBe(100);
+    expect(failure).not.toHaveBeenCalled();
+  } finally { await input.dispose(); timer.mockRestore(); }
+  expect(stop).toHaveBeenCalledTimes(2); expect(releaseCapture).toHaveBeenCalledOnce(); expect(f.worker.dispose).toHaveBeenCalledOnce();
+  expect(f.context.close).not.toHaveBeenCalled(); expect(f.root.audio.stop).not.toHaveBeenCalled();
 });

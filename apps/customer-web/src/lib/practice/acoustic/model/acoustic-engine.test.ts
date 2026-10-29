@@ -59,3 +59,22 @@ it('Worker construction failure is terminal and does not leave a preparing engin
   await expect(engine.acquire()).rejects.toThrow('NOT_READY');
   await engine.dispose(); expect(engine.snapshot().state).toBe('DISPOSED');
 });
+
+
+it('R14 a silent END_SESSION keeps valid lease retirement and engine disposal pending without an automatic deadline', async () => {
+  const r = rig(); await r.engine.prepare('/verified-model');
+  const lease = await r.engine.acquire(); let release!: () => void;
+  r.worker.endSession.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+  vi.useFakeTimers();
+  try {
+    let retired = false, disposed = false;
+    const retirement = lease.dispose().then(() => { retired = true; });
+    await Promise.resolve(); const disposal = r.engine.dispose().then(() => { disposed = true; });
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(r.engine.snapshot().state).toBe('RETIRING'); expect(retired).toBe(false); expect(disposed).toBe(false);
+    expect(r.worker.endSession).toHaveBeenCalledTimes(2); expect(r.worker.dispose).not.toHaveBeenCalled();
+    expect(r.worker.terminate).not.toHaveBeenCalled(); await expect(r.engine.acquire()).rejects.toThrow('NOT_READY');
+    release(); await retirement; await disposal;
+    expect(r.engine.snapshot().state).toBe('DISPOSED'); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  } finally { release?.(); await r.engine.dispose(); vi.useRealTimers(); }
+});

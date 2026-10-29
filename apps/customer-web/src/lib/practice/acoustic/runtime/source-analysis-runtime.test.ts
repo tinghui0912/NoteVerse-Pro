@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime } from './source-analysis-runtime';
+import { AcousticPcmRing } from './window-planner';
+import { ACOUSTIC_RESOURCES as R } from './resource-policy';
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
 import type { AcousticInferenceInput } from './inference-types';
 
@@ -129,4 +131,90 @@ it('productive, empty, productive regions publish continuous jobs with visible r
     expect(publications[1].window.ownedStartTarget).toBeGreaterThan(publications[0].window.ownedEndTarget);
     expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, counts: { windowsPublished: 2, regionsDrained: 3 } });
   } finally { await runtime.dispose(); }
+});
+
+
+// Real source runtime/adapter/PCM chronology; the only deferred component is inference.
+async function resourceRig() {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const publications: SourceAcousticPublication[] = [], failures: Error[] = [];
+  const worker = { run: vi.fn(async ({ window }: AcousticInferenceInput) => {
+    await gate; return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 };
+  }), dispose: vi.fn(async () => {}) };
+  const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'resource-source', sourceSampleRateHz: 48000,
+    coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'), worker,
+    nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, onFailure: e => { failures.push(e); } });
+  let next = 0;
+  const feed = (end: number) => { while (next < end) {
+    const start = next; next = Math.min(end, start + 2048);
+    runtime.append({ sourceSampleRateHz: 48000, sourceStartSampleIndex: start,
+      sourceEndSampleIndex: next, samples: new Float32Array(next - start) });
+  } };
+  feed(96000);
+  return { runtime, worker, publications, failures, release, feed, next: () => next };
+}
+
+it('R01 valid source reaches four copied queued/active inputs; fifth fails before ring extraction/copy', async () => {
+  const r = await resourceRig(), extract = vi.spyOn(AcousticPcmRing.prototype, 'extract');
+  try {
+    expect(R.maxOutstandingWindows).toBe(4);
+    r.runtime.beginAnalysisRegion(r.next()); r.feed(219392); await Promise.resolve();
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'RUNNING', outstanding: 4,
+      counts: { windowsQueued: 4, windowsStarted: 1, windowsPublished: 0 },
+      resources: { outstandingInputBytes: 4 * 29120 * 4 } });
+    expect(r.worker.run).toHaveBeenCalledOnce(); expect(extract).toHaveBeenCalledTimes(4);
+    const firstInput = r.worker.run.mock.calls[0][0]; expect(firstInput.pcm).toHaveLength(29120);
+    expect(() => r.feed(248320)).toThrow('ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED');
+    expect(extract).toHaveBeenCalledTimes(4); // Not even a fifth Float32Array extraction.
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'FAILED', outstanding: 4, pendingRegions: 0,
+      nextSourceSampleIndex: r.next(), counts: { windowsQueued: 4, backpressureFailures: 1 } });
+    expect(r.next()).toBeGreaterThan(219392); // Chronological source PCM was accepted before planning failed.
+    expect(r.failures).toHaveLength(1); expect(r.publications).toEqual([]);
+    let disposed = false; const disposal = r.runtime.dispose().then(() => { disposed = true; });
+    await Promise.resolve(); expect(disposed).toBe(false); expect(r.worker.dispose).toHaveBeenCalledOnce();
+    r.release(); await disposal;
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'DISPOSED', outstanding: 0 });
+    expect(r.worker.run).toHaveBeenCalledOnce(); expect(r.publications).toEqual([]); // Late result and queued jobs fenced.
+  } finally { r.release(); await r.runtime.dispose(); extract.mockRestore(); }
+});
+
+it('R02 valid short regions reach fifth begin while waiting for future PCM, with no worker stall required', async () => {
+  const r = await resourceRig();
+  try {
+    for (let region = 0; region < 4; region++) {
+      r.runtime.beginAnalysisRegion(r.next()); r.feed(r.next() + 128); r.runtime.endAnalysisRegion(r.next());
+      expect(r.runtime.snapshot()).toMatchObject({ state: 'IDLE', pendingRegions: region + 1, outstanding: 0,
+        counts: { regionsStarted: region + 1, windowsQueued: 0 } });
+    }
+    expect(r.next()).toBe(96512); expect(r.worker.run).not.toHaveBeenCalled();
+    expect(() => r.runtime.beginAnalysisRegion(r.next())).toThrow('ACOUSTIC_SEGMENT_LIMIT_EXCEEDED');
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'FAILED', pendingRegions: 0, outstanding: 0,
+      nextSourceSampleIndex: 96512, counts: { regionsStarted: 4, regionsDrained: 0 } });
+    expect(r.failures).toHaveLength(1); expect(r.publications).toEqual([]);
+    // This proves public source API reachability; controller reachability is tested separately.
+  } finally { r.release(); await r.runtime.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce(); }
+});
+
+it('R02/R14 planned regions retire before inference; tailReady and pending drain/seal can coexist indefinitely without failure', async () => {
+  const r = await resourceRig(); vi.useFakeTimers();
+  try {
+    const region = r.runtime.beginAnalysisRegion(r.next()); r.feed(r.next() + 128);
+    r.runtime.endAnalysisRegion(r.next()); r.runtime.finishRegions();
+    expect(r.runtime.tailReady).toBe(false); expect(r.runtime.snapshot().pendingRegions).toBe(1);
+    r.feed(106240); await Promise.resolve();
+    expect(r.runtime.tailReady).toBe(true);
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'DRAINING', pendingRegions: 0, outstanding: 1,
+      counts: { regionsStarted: 1, regionsDrained: 1, windowsQueued: 1, windowsPublished: 0 } });
+    expect(r.runtime.hasRegionWork(region)).toBe(true); // queuedRegions still owns the copied input.
+    let drained = false, sealed = false;
+    const drain = r.runtime.drain().then(() => { drained = true; });
+    const seal = r.runtime.seal().then(() => { sealed = true; });
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(drained).toBe(false); expect(sealed).toBe(false); expect(r.failures).toEqual([]);
+    expect(r.runtime.snapshot().outstanding).toBe(1); expect(r.publications).toEqual([]);
+    r.release(); await drain; await seal;
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'SEALED', outstanding: 0 });
+    expect(r.runtime.hasRegionWork(region)).toBe(false); expect(r.publications).toHaveLength(1);
+  } finally { r.release(); await r.runtime.dispose(); vi.useRealTimers(); }
 });

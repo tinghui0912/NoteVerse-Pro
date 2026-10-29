@@ -99,3 +99,17 @@ it('borrowed capture retains fail-on-interruption semantics unless its owner exp
   f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
   expect(f.bridge.abort).toHaveBeenCalledOnce(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce();
 });
+
+
+it('R04 capture ACK follows synchronous acceptance even while the accepted inference remains pending', async () => {
+  const f = fixture(), order: string[] = [];
+  let release!: () => void, inferred = false;
+  const inference = new Promise<void>(resolve => { release = resolve; }).then(() => { inferred = true; });
+  f.bridge.receive.mockImplementation(() => { order.push('accept'); void inference; });
+  f.node.port.postMessage.mockImplementation(message => { if (message.type === 'ACK') order.push('ack'); });
+  const capture = await connected(f, 'BORROWED_SESSION_STREAM');
+  expect(order).toEqual(['accept', 'ack']); expect(inferred).toBe(false);
+  expect(f.bridge.abort).not.toHaveBeenCalled();
+  release(); await inference; expect(inferred).toBe(true);
+  capture.stop(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce(); expect(f.recordingTrack.stop).not.toHaveBeenCalled();
+});

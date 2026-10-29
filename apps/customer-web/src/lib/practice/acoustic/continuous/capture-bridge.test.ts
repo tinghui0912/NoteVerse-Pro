@@ -57,3 +57,35 @@ for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves P
   }
   expect(await run(2048)).toEqual(await run(128));
 });
+
+
+it('R03 two positive short BEGIN/PAUSE intervals retain distinct source→performance mapping, not redundant control noise', async () => {
+  const publications: ContinuousEvidencePublication[] = [];
+  const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'short', sourceDomainId: 'short-source',
+    sourceSampleRateHz: 48000, coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'),
+    nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); },
+    worker: { run: async ({ window }) => ({ events: [{ targetSample: window.ownedStartTarget,
+      midiPitch: 60, pitch: 'C4', confidence: .8, onsetScore: .8, frameScore: .8 }],
+      inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }), dispose: async () => {} } });
+  const bridge = new ContinuousCaptureBridge(runtime, 48000);
+  try {
+    bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
+    bridge.schedule({ type: 'PAUSE', sourceSampleIndex: 96480, performanceTimeMs: 10 });
+    bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96960, performanceTimeMs: 10 });
+    bridge.schedule({ type: 'TERMINAL', sourceSampleIndex: 97440, performanceTimeMs: 20 });
+    let next = 0, sequence = 0;
+    while (next < 110592) { const start = next; next += 2048;
+      bridge.receive({ type: 'pcm-chunk', sequence: sequence++, sourceSampleRateHz: 48000,
+        sourceStartSampleIndex: start, sourceEndSampleIndex: next, audioContextStartFrame: start,
+        captureTimeSeconds: start / 48000, inputChannelCount: 1, samples: new Float32Array(2048) });
+      await runtime.drain();
+    }
+    await runtime.seal();
+    const observations = publications.flatMap(p => p.observations);
+    expect(observations.map(o => [o.performanceTimeMs, o.provenance!.sourceEventSample])).toEqual([[0, 96000], [10, 96960]]);
+    expect(new Set(observations.map(o => o.observationId)).size).toBe(2);
+    expect(publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 20, observations: [] });
+    expect(bridge.snapshot()).toMatchObject({ failed: false, pendingBoundaryCount: 0 });
+    expect(runtime.snapshot()).toMatchObject({ outstanding: 0, pendingRegions: 0, counts: { regionsStarted: 2 } });
+  } finally { await runtime.dispose(); }
+});

@@ -73,3 +73,39 @@ it('disposing active worker rejects pending inference instead of hanging', async
   const run = client.run('test', input); await client.dispose(); await expect(run).rejects.toThrow('ACOUSTIC_WORKER_DISPOSED');
 });
 
+
+
+for (const rpc of ['LOAD', 'BEGIN_SESSION', 'INFER', 'END_SESSION', 'DISPOSE'] as const)
+  for (const outcome of ['response', 'error', 'messageerror'] as const)
+    it(`R14 ${rpc}: a silent RPC has no deadline; only ${outcome} settles it`, async () => {
+      vi.useFakeTimers();
+      const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker), failure = vi.fn();
+      client.onFailure(failure);
+      const answer = async (operation: Promise<unknown>) => { worker.answer(); await operation; };
+      try {
+        if (rpc !== 'LOAD') await answer(client.load('/verified-model'));
+        if (rpc === 'INFER' || rpc === 'END_SESSION') await answer(client.beginSession('lease'));
+        const operation = rpc === 'LOAD' ? client.load('/verified-model') : rpc === 'BEGIN_SESSION' ? client.beginSession('lease')
+          : rpc === 'INFER' ? client.run('lease', input) : rpc === 'END_SESSION' ? client.endSession('lease') : client.dispose();
+        let settled = false;
+        const observed = operation.then(value => { settled = true; return { value, error: null }; }, error => { settled = true; return { value: null, error }; });
+        const requests = worker.messages.length;
+        expect(worker.messages.at(-1)?.type).toBe(rpc);
+        await vi.advanceTimersByTimeAsync(120000);
+        expect(settled).toBe(false); expect(worker.terminated).toBe(false); expect(failure).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0); expect(worker.messages).toHaveLength(requests);
+        if (rpc !== 'DISPOSE') {
+          await expect(client.run('lease', input)).rejects.toThrow('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');
+          expect(worker.messages).toHaveLength(requests); // Pending load/session/inference RPC owns the busy client.
+        } // Idle DISPOSE has no busy latch; a valid disposing owner issues no concurrent work.
+        if (outcome === 'response') worker.answer({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 });
+        else worker.dispatchEvent(new Event(outcome));
+        const result = await observed;
+        if (outcome === 'response') { expect(result.error).toBeNull(); expect(failure).not.toHaveBeenCalled(); }
+        else {
+          expect(result.error.message).toBe(outcome === 'error' ? 'ACOUSTIC_WORKER_CRASH' : 'ACOUSTIC_WORKER_MESSAGE_ERROR');
+          expect(failure).toHaveBeenCalledOnce(); expect(worker.terminated).toBe(true);
+        }
+        expect(settled).toBe(true);
+      } finally { client.terminate(); vi.useRealTimers(); }
+    });
