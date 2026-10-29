@@ -93,6 +93,19 @@ A pull-driven planner could bound copies by ownership rather than4, but source P
 still arrives and real-context retention must be accounted for. It is not a proof
 that indefinite stall can be handled losslessly with finite memory and no failure.
 
+### Round32 — R11 snapshot maximum is derived
+
+The historical `maximumOutstandingInputBytes: 4 * R.inputBytes` diagnostic repeated
+R01's multiplier. It now uses R.maxOutstandingWindows × R.inputBytes, retaining
+465920 bytes under unchanged4/116480 owners. The real four-outstanding R01 witness
+asserts that maximum and outstandingInputBytes=outstanding×inputBytes, then still
+fails the fifth ready window before ring extraction/copy. No admission, source
+region, worker/publication or readiness path changes. KEEP DERIVED; R01 remains
+UNQUALIFIED_RESOURCE_SAFETY_POLICY and R09 remains a separate byte relationship.
+The selected executor byte change mechanically advances core/composite identities
+under the [existing boundary](practice-acoustic-identity-boundary.md#round32-diagnostic-derivation-and-selected-byte-identity-advance);
+Result shape/evidence meaning and numeric policies are unchanged.
+
 ## R02 — explicit region cap deleted with structural lifecycle bounds
 
 Round23's historical cap4 witness was legal: four short closed positive regions
@@ -797,7 +810,8 @@ The remaining future conclusions are:
 - **DELETE AS REDUNDANT:** R05 implemented in Round31 after the exact-reference
   audit; KEEP DELETED. Do not remove the real R04 Worklet credit contract.
 - **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after
-  boundary and consumer review; no numerical replacement policy is inferred.
+  boundary and consumer review; R11 is completed in Round32 and stays derived.
+  No numerical replacement policy is inferred.
 - **IDENTITY BOUNDARY RESOLVED IN ROUND 25:** the [normative contract](practice-acoustic-identity-boundary.md)
   deliberately excludes runtime admission/failure/liveness from the evidence core;
   future outcome-replay provenance requires its own versioned owner/schema decision.

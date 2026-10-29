@@ -161,9 +161,14 @@ it('R01 valid source reaches four copied queued/active inputs; fifth fails befor
   try {
     expect(R.maxOutstandingWindows).toBe(4);
     r.runtime.beginAnalysisRegion(r.next()); r.feed(219392); await Promise.resolve();
-    expect(r.runtime.snapshot()).toMatchObject({ state: 'RUNNING', outstanding: 4,
+    const snapshot = r.runtime.snapshot();
+    expect(snapshot).toMatchObject({ state: 'RUNNING', outstanding: 4,
       counts: { windowsQueued: 4, windowsStarted: 1, windowsPublished: 0 },
-      resources: { outstandingInputBytes: 4 * 29120 * 4 } });
+      resources: { outstandingInputBytes: snapshot.outstanding * R.inputBytes,
+        maximumOutstandingInputBytes: R.maxOutstandingWindows * R.inputBytes } });
+    expect(snapshot.outstanding).toBe(R.maxOutstandingWindows);
+    expect(snapshot.resources.outstandingInputBytes).toBe(snapshot.resources.maximumOutstandingInputBytes);
+    expect(snapshot.resources.maximumOutstandingInputBytes).toBe(465920); // Secondary characterization, not another policy owner.
     expect(r.worker.run).toHaveBeenCalledOnce(); expect(extract).toHaveBeenCalledTimes(4);
     const firstInput = r.worker.run.mock.calls[0][0]; expect(firstInput.pcm).toHaveLength(29120);
     expect(() => r.feed(248320)).toThrow('ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED');

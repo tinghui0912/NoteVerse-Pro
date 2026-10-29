@@ -172,3 +172,16 @@ evidenceProvenance keys are unchanged; current identity values advance under the
 same current-only reader. No runtimePolicySha256 is introduced and full runtime
 outcome replay remains outside evidence provenance. This does not redefine the
 Round25 boundary or qualify any retained resource number.
+
+## Round32 diagnostic derivation and selected-byte identity advance
+
+R11 replaces only the snapshot diagnostic multiplier's repeated4 with
+R.maxOutstandingWindows. Both maximumOutstandingInputBytes and its meaning remain
+465920 bytes under the unchanged R01/inputBytes owners. Admission, extraction,
+worker scheduling, source publication and evidence semantics do not change.
+Nevertheless the selected executor file's bytes/SHA change, so its attestation,
+canonical core digest and both adapter composite digests mechanically advance.
+Model/decoder/FIR/planner/source-adapter/source-publication implementations and
+semantic declarations are unchanged. Result remains schema6 with identical
+provenance keys and no runtime-policy/execution field. This is selected-byte
+attestation sensitivity, not a scope expansion or a semantic-equivalence claim.

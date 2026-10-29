@@ -130,7 +130,7 @@ export class SourceAnalysisRuntime {
       pendingRegions: this.regions.length, outstanding: this.outstanding, counts: Object.freeze({ ...this.counts }),
       diagnostics: Object.freeze([...this.diagnostics]), resources: Object.freeze({ sessionPcmBytes: 0,
         sourceAdapterBytes: this.adapter.storageBytes(), targetRingBytes: R.targetRingSamples * 4,
-        outstandingInputBytes: this.outstanding * R.inputBytes, maximumOutstandingInputBytes: 4 * R.inputBytes,
+        outstandingInputBytes: this.outstanding * R.inputBytes, maximumOutstandingInputBytes: R.maxOutstandingWindows * R.inputBytes,
         retainedPublicationEvents: 0, diagnosticWindowLimit: R.diagnosticWindows, compactDiagnosticsPlanningBytes: R.diagnosticWindows * 512 }) });
   }
   private guard(): void {
