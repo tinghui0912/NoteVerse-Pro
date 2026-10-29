@@ -108,7 +108,7 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current l
   runtime.analyzeAttempt(identity);
   runtime.completeAttempt(identity, { observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12, captureEndSessionTime: time(150) });
   const saved = runtime.snapshot();
-  expect(saved.version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' });
+  expect(saved.version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
   expect(saved.step).toMatchObject({ attemptState: 'POST_VERDICT', currentIndex: 0,
     pendingPostVerdict: { ...identity, verdict: 'MATCH', observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12 } });
   runtime.rearm(time(200));

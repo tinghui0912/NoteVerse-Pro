@@ -187,7 +187,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(record.verdict).toBe(pitches.length === 1 && pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
       expect(record.observedAttackPitches).toEqual([...pitches].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' });
+      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);

@@ -1,11 +1,53 @@
-# STEP Domain Pitch Language and Raw-Work Contract — Round50 Audit
+# STEP Domain Pitch Language and Raw-Work Contract — Round50 Audit / Round51 Correction
 
 Approved baseline: `eb2fa7ad1513de3e3f44f9adb6dda6445cdc2c51` on
-`refactor/practice-foundation-v2`. Round50 changes documentation only. It does not
-implement the recommendation below, change any guard/verdict, or advance identities.
+`refactor/practice-foundation-v2`. Round50 changed documentation only; the historical
+findings below describe that baseline. Round51 implements only its comparison
+recommendation from approved HEAD `c599cd0bb1b7831aab2fa4d3a011e9e15853a26e`.
 The [T15 source audit](practice-step-pitch-evidence-bounds.md) records resolved
 MIDI/acoustic identity boundaries. This companion addresses the remaining domain,
 artifact compatibility and raw128 questions without assuming a new canonical universe.
+
+## Round51 current state — structurally exact comparison, runtime v9 / schema8
+
+pitchSetsEqual now calls the unchanged normalizePitchSet on both sides, checks
+equal normalized lengths and compares exact strings at each sorted index. U+001F
+is an ordinary character within a member, not comparison syntax. No delimiter,
+serialization/hash substitute, pitch canonicalization or source filtering remains
+in equality. Duplicates and order still normalize through Set+sort. Identical opaque
+strings remain equal to themselves, including strings with multiple U+001F characters.
+
+The admitted one-target artifact C4<U+001F>E4 and admitted evidence C4/E4 now finalize
+MISMATCH. Both MIDI- and MICROPHONE-labelled real runtime regressions pass the
+existing artifact assertion with all physical event/notation/target references
+consistent; the artifact and evidence are not repaired or rejected. The record
+retains normalized C4/E4 in full. Rearm keeps index0/generation1/the same target,
+matching ordinary MISMATCH progression. Normal exact-set MATCH still advances once.
+This is verdict correction, not evidence or artifact admission tightening.
+
+STEP_RUNTIME_VERSION keeps schemaVersion8 and advances runtimeVersion from
+step-exact-pitch-learning-v8 to step-exact-pitch-learning-v9. Its sole owner is
+attempt.ts; runtime.snapshot publishes that object. Current status/completion,
+snapshot and microphone integration assertions use v9, as do the product contract
+and STEP README. Source review found no multi-version STEP snapshot hydration or
+restore path requiring compatibility code; none is added. Session/record shape,
+artifact schema/payload admission and Result6/provenance shape are unchanged.
+
+The evidence regex, raw128 position, normalizePitchSet, H35/H50, source fact
+validation, target language and all acoustic source/identity declarations are
+byte-unchanged. Sparse-hole/direct malformed-shape validation remains unresolved
+and untouched. The redundant acoustic post-canonical regex remains present as the
+separate Future DERIVE cleanup. T15 comparison integrity is structurally resolved;
+domain language and raw-work qualification are not. Its primary class remains
+UNQUALIFIED_RESOURCE_SAFETY_POLICY, with only domain language/raw work/direct shape
+in DELETE/REDESIGN and raw128 in QUALIFY. All93 primary rows/classes/counts remain.
+
+Round51 validation: focused316 tests/12 files, broader STEP394/15, practice1700/90
+and full Customer Web2630/211 passed. Typecheck, lint0 warnings, architecture/
+dependency, identity/attestation, Result and existing raw128/129 tests pass. Docs
+guards11 plus structure/links and ledger/count/membership checks pass. Independent
+file/canonical/composite verification confirms all acoustic identities unchanged;
+git diff --check passes. No backend pytest or hosted workflow is rerun.
 
 ## Production owner map
 
@@ -21,7 +63,7 @@ artifact compatibility and raw128 questions without assuming a new canonical uni
 | [kernel/artifact.ts](../../apps/customer-web/src/lib/practice/kernel/artifact.ts): assertPracticeScoreArtifact | Nonempty primitive physical strings, unique physical sets, equal group/attack/strike sets, note/render identity consistency, timeline structure | No canonical spelling, pitch range, target-count128 or recomputation of musical identity from notation; its variable named canonical is an expected-note identity lookup |
 | [STEP target projection](../../apps/customer-web/src/lib/practice/step/domain/target.ts) | Copy attack target pitches; Set-deduplicate continuation pitches | No conversion, canonicalization or supported-source filtering |
 | [StepPracticeRuntime](../../apps/customer-web/src/lib/practice/step/domain/runtime.ts): completeAttempt | Own attempt/time/confidence checks, raw1..128 admission, primitive-string syntax, normalization, target comparison, current record | No MIDI/acoustic note-number contract; inputSource labels do not authenticate directly supplied pitch evidence |
-| [attempt.ts](../../apps/customer-web/src/lib/practice/step/domain/attempt.ts): normalizePitchSet / pitchSetsEqual | Exact-string Set+default sort; equality currently compares U+001F-joined normalized strings | No enharmonic conversion/range check; join is not injective over artifact-admitted strings (counterexample below) |
+| [attempt.ts](../../apps/customer-web/src/lib/practice/step/domain/attempt.ts): normalizePitchSet / pitchSetsEqual | Exact-string Set+default sort; Round51 equality compares normalized length and each member directly | No enharmonic conversion/range check; historical Round50 join collision below is now rejected as unequal |
 | [Browser MIDI](../../apps/customer-web/src/lib/practice/midi/browser-midi-controller.ts) and [STEP MIDI input](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts) | Wire NOTE_ON0..127 and canonical midiNoteToPitch; Round46 checks exact fact identity before retention | Does not own source-neutral domain language or derive domain raw128 |
 | [acoustic decoder](../../apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts) and [source publication](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts) | Qualified integer21..108 mapping through pianoMidiPitchToName; Round49 producer/direct-sequence pair integrity before STEP retention | Does not restrict MIDI to piano88 or define domain target language/raw budget |
 
@@ -107,9 +149,9 @@ spellings plus12 negative-zero spellings. This is conditional mapping arithmetic
 not a proved external-score range. Browser artifact admission is broader still:
 consistent nonempty strings are not restricted to D, M, A or that backend mapping.
 
-## Reachability and an independently proved comparison gap
+## Round50 reachability and historical comparison gap (corrected in Round51)
 
-| Target / evidence | Observed current result | Interpretation |
+| Target / evidence | Observed Round50 result | Interpretation |
 | --- | --- | --- |
 | Same E#4, B#3, C-9, C-0 or G#9 on both sides | MATCH through direct completeAttempt | Regex-valid identity can match without either physical producer emitting it |
 | E#4 target / valid MIDI F4 | MISMATCH | No enharmonic normalization; normal MIDI can never emit E#4 |
@@ -123,15 +165,17 @@ consistent nonempty strings are not restricted to D, M, A or that backend mappin
 For these ordinary separator-free pitch identities, an exact target outside a
 source's canonical set is unreachable from that source. No target-aware early
 closure/filter is introduced. The following counterexample prevents extending that
-statement to *all* artifact-admitted strings under the current implementation:
+statement to *all* artifact-admitted strings under the Round50 implementation:
 
-`pitchSetsEqual(['C4\u001fE4'], ['C4','E4'])` returns true. Both normalized arrays
+At Round50, `pitchSetsEqual(['C4\u001fE4'], ['C4','E4'])` returned true. Both normalized arrays
 join to the same string. A consistently constructed, hash-identified artifact with
 that one target passes browser and API validators, and the actual domain reports
-MATCH for valid canonical C4/E4 evidence. The target and evidence sets differ in
+MATCH for valid canonical C4/E4 evidence. Round51 now returns MISMATCH for this same
+individually admitted artifact/evidence. The target and evidence sets differ in
 cardinality and members. This is a deterministic false-positive comparison gap,
 not an enharmonic rule or normal physical-score example. No such broad target was
-found in shipped examples. It remains unfixed in this audit; changing the domain
+found in shipped examples. The historical audit did not fix it; Round51 corrects
+only structural comparison. Changing the domain
 grammar merely to hide it would mix two separate decisions.
 
 ## Raw128 evaluation order and work ownership
@@ -143,7 +187,7 @@ For an ordinary owned ANALYZING attempt, completeAttempt performs:
 3. Array shape, nonempty length and **length>128** short-circuit rejection.
 4. Present-entry typeof-string and regex checks via some.
 5. normalizePitchSet: raw Set construction and default sorting; freeze normalized evidence.
-6. currentTarget projection, then pitchSetsEqual, which normalizes both sides again and joins them.
+6. currentTarget projection, then pitchSetsEqual, which normalizes both sides again and compares their lengths/elements (Round50 used join).
 7. Frozen record creation/retention and transition to POST_VERDICT.
 
 128 raw C4 entries are accepted and normalize to one C4;129 reject before step4.
@@ -195,7 +239,7 @@ no replacement bound and no source-identity gap reopened. It remains unchanged i
 Round50. A future deletion must retain exact mapping checks, update selected
 publication attestation mechanically, and preserve the distinct domain regex.
 
-## Candidate matrix and compatibility
+## Round50 candidate matrix and compatibility (historical alternatives)
 
 | Candidate | Correctness / accepted-set effect | Work / boundedness | Architecture and valid sources | Version / artifact / Result implications | Evidence needed |
 | --- | --- | --- | --- | --- | --- |
@@ -217,9 +261,9 @@ or version-dispatch contract would need a schema decision. Canonicalizing/reject
 old targets requires explicit artifact compatibility handling and new content IDs
 where payloads change; it does not automatically require a Continuous Result6 migration.
 
-## Exactly one recommended Round51 action
+## Round50 recommendation — implemented by Round51 above
 
-Recommend the smaller correctness prerequisite: **make pitchSetsEqual compare the
+Round50 recommended the smaller correctness prerequisite: **make pitchSetsEqual compare the
 normalized arrays element by element, including equal cardinality, instead of
 serializing them with U+001F**. Add a regression for the admitted single-string
 target versus two-pitch evidence and preserve all existing ordinary exact-set cases.
@@ -227,19 +271,20 @@ This restores the declared exact-set/false-negative preference without choosing 
 new pitch universe, changing artifact admission, filtering sources or changing raw128.
 It is justified by an actual differing-set MATCH, not implementation cleanliness.
 
-Treat this future verdict correction as a runtime semantic change: make an explicit
-STEP runtimeVersion advance in the authorized implementation round, while retaining
+Round50 required treating the future verdict correction as a runtime semantic change:
+advance STEP runtimeVersion in the authorized implementation round, retaining
 schemaVersion8 if shape remains unchanged. No artifact payload rewrite/canonicalization
 or Result6 migration is required for this comparison-only correction. Preserve
 source neutrality, full evidence and ownership. Existing normal source/target
-spellings have no separator, so their comparison outcomes stay the same. No code or
-version is changed here.
+spellings have no separator, so their comparison outcomes stay the same. Round50
+changed no code/version; Round51 implements the correction and runtime advance above.
 
 The redundant acoustic regex deletion remains a separate proved future DERIVE
 sub-item, not a second Round51 recommendation. Domain-language tightening and
 numeric raw-work/target-work qualification remain undecided. T15 stays SOURCE
 IDENTITIES RESOLVED, DOMAIN UNRESOLVED in UNQUALIFIED_RESOURCE_SAFETY_POLICY;
-domain identity/comparison/raw work stays DELETE/REDESIGN and raw128 stays QUALIFY.
+domain language/raw work/direct shape stays DELETE/REDESIGN and raw128 stays QUALIFY;
+Round51 removes the completed comparison correction from that bucket.
 Future DERIVE is therefore **not empty**: it contains only this post-mapping acoustic
 regex cleanup. No primary row is added/reclassified:93 rows, structural24,
 verified18, empirical2, algorithm19, resource11, diagnostic7, redundant12,

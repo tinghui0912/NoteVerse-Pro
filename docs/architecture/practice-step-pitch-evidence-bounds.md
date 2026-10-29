@@ -7,7 +7,26 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Round50 domain audit — no implementation change
+## Round51 exact comparison correction — source identities and comparison resolved
+
+pitchSetsEqual normalizes both inputs with the unchanged Set+sort operation, then
+requires equal cardinality and exact per-index string equality. The historical
+U+001F collision no longer yields MATCH: an otherwise admitted single-string target
+versus C4/E4 evidence yields MISMATCH through both real source-neutral STEP runtime
+paths, retains all normalized evidence, and does not advance index/generation after
+rearm. Identical opaque strings, reordered sets and duplicates retain their prior
+meaning. No new pitch/evidence/artifact fact is rejected or canonicalized.
+
+STEP runtimeVersion is step-exact-pitch-learning-v9 with schemaVersion8 unchanged;
+current snapshot tests/docs advance without speculative old-session hydration.
+Result6/provenance and all acoustic selected sources/core/composites are unchanged.
+T15 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY: domain-language, raw128/target-work
+and sparse/direct-shape questions remain unresolved. The comparison gap leaves
+DELETE/REDESIGN; raw128 remains QUALIFY and the separate acoustic post-canonical
+regex remains the sole Future DERIVE cleanup, still present in production. All93
+row classifications/counts and S17/R01/R03/R04/S09/S10/S15 states are unchanged.
+
+## Round50 domain audit — historical, no implementation change in that round
 
 The [domain pitch-contract companion](practice-step-domain-pitch-contract.md)
 re-establishes D280, canonical MIDI128/acoustic88, backend mapping/range limits and

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
-import { normalizePitchSet, type StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
+import { normalizePitchSet, pitchSetsEqual, type StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepPracticeRuntime, type StepPracticeRuntimeOptions } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 
@@ -42,6 +42,72 @@ function setup(inputSource: PracticeInputSource, expected: readonly string[] = [
 }
 
 describe('STEP exact pitch-set learning verdict', () => {
+  it.each([
+    { label: 'one pitch', left: ['C4'], right: ['C4'], equal: true },
+    { label: 'reordered pair', left: ['C4', 'E4'], right: ['E4', 'C4'], equal: true },
+    { label: 'duplicates on one side', left: ['C4', 'C4', 'E4'], right: ['E4', 'C4'], equal: true },
+    { label: 'duplicates on both sides', left: ['E4', 'C4', 'E4'], right: ['C4', 'E4', 'C4'], equal: true },
+    { label: 'subset', left: ['C4'], right: ['C4', 'E4'], equal: false },
+    { label: 'superset', left: ['C4', 'E4', 'G4'], right: ['C4', 'E4'], equal: false },
+    { label: 'disjoint equal cardinality', left: ['C4', 'E4'], right: ['D4', 'F4'], equal: false },
+    { label: 'enharmonic spelling stays distinct', left: ['E#4'], right: ['F4'], equal: false },
+    { label: 'negative-zero spelling stays distinct', left: ['C-0'], right: ['C0'], equal: false },
+    { label: 'delimiter collision', left: ['C4\u001fE4'], right: ['C4', 'E4'], equal: false },
+    { label: 'reverse delimiter collision', left: ['C4', 'E4'], right: ['C4\u001fE4'], equal: false },
+    { label: 'identical opaque delimiter member', left: ['C4\u001fE4'], right: ['C4\u001fE4'], equal: true },
+    { label: 'multiple delimiters stay one opaque member', left: ['C4\u001f\u001fE4'], right: ['C4\u001f\u001fE4'], equal: true },
+    { label: 'multiple delimiters are not member syntax', left: ['C4\u001fE4\u001fG4'], right: ['C4', 'E4', 'G4'], equal: false },
+    { label: 'same-cardinality serialization collision', left: ['C4\u001fE4', 'G4'], right: ['C4', 'E4\u001fG4'], equal: false },
+    { label: 'unusual opaque strings', left: [' \n\0', '🎵'], right: ['🎵', ' \n\0'], equal: true },
+  ])('structural normalized set equality: $label', ({ left, right, equal }) => {
+    const originalLeft = [...left], originalRight = [...right];
+    expect(pitchSetsEqual(left, right)).toBe(equal);
+    expect(left).toEqual(originalLeft); expect(right).toEqual(originalRight);
+  });
+
+  it.each(['MIDI', 'MICROPHONE'] as const)('%s admitted delimiter target yields MISMATCH and stays on the target after rearm', inputSource => {
+    const artifact = structuredClone(fixture) as PracticeScoreArtifact, delimiterPitch = 'C4\u001fE4';
+    const replace = (pitch: string) => pitch === 'C4' ? delimiterPitch : pitch;
+    // Keep every physical pitch reference consistent, including source events and notation facts.
+    for (const event of artifact.playableEvents) event.pitches = event.pitches.map(replace);
+    for (const group of artifact.expectedPracticeGroups) {
+      group.pitches = group.pitches.map(replace);
+      for (const note of group.expectedNotes) note.pitch = replace(note.pitch);
+      for (const target of group.strikeTargets) {
+        target.pitch = replace(target.pitch);
+        for (const note of target.expectedNotes) note.pitch = replace(note.pitch);
+      }
+    }
+    for (const step of artifact.practiceAttackSteps) {
+      for (const target of step.attackTargets) {
+        target.pitch = replace(target.pitch);
+        for (const note of target.notes) note.pitch = replace(note.pitch);
+      }
+      for (const note of step.continuation) note.pitch = replace(note.pitch);
+    }
+    expect(() => assertPracticeScoreArtifact(artifact)).not.toThrow();
+    const before = structuredClone(artifact), clock = new ManualClock(), domainId = 'delimiter-verdict';
+    const time = (ms: number) => ({ domainId, ms });
+    const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId: domainId, clock,
+      scope: { kind: 'FULL' }, metadataClock: { nowEpochMs: () => 0 } });
+    const target = runtime.currentTarget()!;
+    expect(target.attackPitches).toEqual([delimiterPitch]);
+    const identity = runtime.openAttempt(time(100))!; expect(runtime.analyzeAttempt(identity)).toBe(true);
+    const raw: StepPitchEvidence['observedAttackPitches'] = ['C4', 'E4'];
+    const result = runtime.completeAttempt(identity, { observedAttackPitches: raw, confidence: 1, captureEndSessionTime: time(150) });
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict: 'MISMATCH', observedAttackPitches: ['C4', 'E4'] } });
+    expect(raw).toEqual(['C4', 'E4']); expect(artifact).toEqual(before);
+    expect(runtime.snapshot().step).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'POST_VERDICT' });
+    runtime.rearm(time(200));
+    expect(runtime.currentTarget()).toMatchObject({ stepId: target.stepId, targetGeneration: 1,
+      attackPitches: [delimiterPitch], inputEligibleAfter: time(200) });
+    const ordinary = setup(inputSource, ['C4']); ordinary.finish(['C4', 'E4']); ordinary.runtime.rearm(ordinary.time(200));
+    for (const s of [runtime.snapshot().step, ordinary.runtime.snapshot().step]) {
+      expect(s).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'READY', pendingPostVerdict: null });
+    }
+    expect(runtime.snapshot().version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
+  });
+
   it.each([
     { source: 'MIDI', target: ['C4','E4'], observed: ['D4'], verdict: 'MISMATCH' },
     { source: 'MICROPHONE', target: ['C4','E4'], observed: ['C4','E4'], verdict: 'MATCH' },

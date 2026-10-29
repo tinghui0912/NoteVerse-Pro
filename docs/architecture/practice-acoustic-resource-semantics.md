@@ -246,7 +246,31 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
-### Round50 — domain pitch-language/raw-work audit, comparison gap and redundant regex
+### Round51 — exact STEP set comparison, unchanged raw-work admission
+
+The [domain companion](practice-step-domain-pitch-contract.md) records the implemented
+Round50 recommendation. pitchSetsEqual compares the lengths/elements of normalized
+arrays directly, with unchanged normalizePitchSet Set+sort behavior. No serialization
+delimiter, hash or canonicalization is used. Different sets C4<U+001F>E4 versus
+C4/E4 now finalize MISMATCH instead of false MATCH. Artifact/evidence still pass
+their existing admission checks; record evidence is retained and mismatch rearm
+does not advance target/index/generation. Normal exact-set progression is preserved.
+
+This observable verdict correction advances STEP runtimeVersion to
+step-exact-pitch-learning-v9, retaining schemaVersion8. No session-record shape or
+artifact migration/old-session compatibility mechanism is introduced. Result6 and
+provenance remain unchanged. The raw128 guard/evaluation position, domain evidence
+regex, normalization, sparse-array issue, backend/artifact/source admission, H35/H50
+and every acoustic selected source/identity remain unchanged.
+
+T15 exact comparison is structurally resolved, alongside MIDI/acoustic source identity.
+Remaining domain-language/raw-work/direct-shape work stays DELETE/REDESIGN and
+raw128 stays unqualified in QUALIFY; primary resource-safety classification and all93
+rows/counts remain. Future DERIVE still contains only the redundant acoustic
+post-canonical publication regex; it is not deleted here. S17/R01/R03/R04 and resolved
+S09/S10/S15 remain unchanged. No workload, learner, recognition or timing qualification.
+
+### Round50 — historical domain pitch-language/raw-work audit
 
 The [domain contract audit](practice-step-domain-pitch-contract.md) distinguishes
 backend physical-name generation, API/browser structural consistency, canonical

@@ -93,7 +93,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
     expect(() => runtime.rearm({ domainId: runtime.localSessionId, ms: 0 })).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' },
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' },
       runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });

@@ -1,7 +1,7 @@
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
 
-export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v8' });
+export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
 export type StepAttemptState = 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT';
 export type StepTarget = Readonly<{
   stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;
@@ -29,5 +29,8 @@ export function normalizePitchSet(pitches: readonly string[]): string[] {
 }
 
 export function pitchSetsEqual(left: readonly string[], right: readonly string[]): boolean {
-  return normalizePitchSet(left).join('\u001f') === normalizePitchSet(right).join('\u001f');
+  const normalizedLeft = normalizePitchSet(left);
+  const normalizedRight = normalizePitchSet(right);
+  return normalizedLeft.length === normalizedRight.length
+    && normalizedLeft.every((pitch, index) => pitch === normalizedRight[index]);
 }

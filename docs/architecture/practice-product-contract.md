@@ -353,7 +353,11 @@ Both MIDI and microphone compare normalized observed attack pitches with normali
 expected attack pitches. Exact equality yields MATCH. Every other nonempty evidence
 set yields MISMATCH, including subsets, supersets and unrelated pitches. Continuation
 pitches are excluded. The immutable record retains all evidence and either MATCH or
-MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v8`) defines this contract.
+MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v9`) defines this contract.
+Equality compares normalized cardinality and each string directly. Delimiter-containing
+artifact pitches remain opaque single members: `C4\u001fE4` is not the two-member
+set C4/E4. This v9 verdict correction preserves artifact/evidence admission and
+Set+sort normalization; schema8 retains the existing session/record shape.
 
 POST_VERDICT holds only the current pending result. Explicit rearm clears it:
 MATCH advances exactly once; MISMATCH remains on the same target. Skip is a separate
