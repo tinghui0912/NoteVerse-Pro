@@ -5,7 +5,7 @@ import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifa
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
-import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
+import { midiNoteToPitch, parseMidiMessage, type BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';
 import { STEP_MIDI_CHORD_COHERENCE_MS } from './step-midi-attempt-input';
@@ -35,7 +35,10 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
     if (record && finalized.at(-1)?.attemptId !== record.attemptId) finalized.push(record);
   });
   const note = (pitch: string, type: 'NOTE_ON' | 'NOTE_OFF' = 'NOTE_ON', ms = clock.nowMs()) => {
-    options.onMidiNote?.({ type, pitch, velocity: 80, noteNumber: 60, sessionTime: options.timebase.atSessionMs(ms) });
+    const noteNumber = Array.from({ length: 128 }, (_, n) => n).find(n => midiNoteToPitch(n) === pitch);
+    if (noteNumber === undefined) throw new Error(`Invalid MIDI fixture pitch: ${pitch}`);
+    const parsed = parseMidiMessage(new Uint8Array([type === 'NOTE_ON' ? 0x90 : 0x80, noteNumber, 80]))!;
+    options.onMidiNote?.({ ...parsed, sessionTime: options.timebase.atSessionMs(ms) });
   };
   const close = () => { const task = timers.at(-1)!; clock.advance(35); if (!task.cancelled) task.callback(); };
   const disconnect = () => { connected = 0; options.onStateChange?.(midi.getState()); };

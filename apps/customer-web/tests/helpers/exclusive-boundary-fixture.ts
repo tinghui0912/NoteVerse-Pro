@@ -5,6 +5,7 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepMidiAttemptInput } from '../../src/lib/practice/step/step-midi-attempt-input';
+import { midiNoteToPitch, parseMidiMessage } from '../../src/lib/practice/midi/browser-midi-controller';
 
 type Verdict = 'MATCH' | 'MISMATCH';
 const artifact = fixture as PracticeScoreArtifact;
@@ -21,7 +22,12 @@ function harness(chord = false) {
     }, failure: error => { throw error; },
   }, {schedule: (callback,delay) => { assert.equal(delay,35); callbacks.push(callback); return callback; },cancel: () => {}});
   const time = (ms: number) => ({domainId:session,ms});
-  const note = (ms: number,pitch = 'C4') => input.note({type:'NOTE_ON',noteNumber:60,pitch,velocity:80,sessionTime:time(ms)});
+  const note = (ms: number,pitch = 'C4') => {
+    const noteNumber = Array.from({length:128},(_,n)=>n).find(n=>midiNoteToPitch(n)===pitch);
+    if(noteNumber===undefined) throw new Error(`Invalid MIDI fixture pitch: ${pitch}`);
+    const parsed = parseMidiMessage(new Uint8Array([0x90,noteNumber,80]))!;
+    input.note({...parsed,sessionTime:time(ms)});
+  };
   const close = (at: number) => {clock.set(at); callbacks.at(-1)!();};
   const state = () => runtime.snapshot().step;
   return {finalized,runtime,input,clock,time,note,close,state,callbacks};

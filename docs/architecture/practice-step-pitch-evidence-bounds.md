@@ -7,7 +7,50 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Findings and authority
+## Round46 current MIDI sub-boundary
+
+Round46 implements only candidate3 against approved baseline
+`1c9df071bcb0a2160a9ac24968394f6c38d2cac1`. The MIDI owner now exposes
+isMidiNoteNumber: integer0..127. Both parseMidiMessage and the source-aware STEP
+input consume that relationship; STEP additionally requires primitive pitch to
+strictly equal midiNoteToPitch(noteNumber). Validation precedes sink.open,
+active-gesture creation and any Set insertion; the validated primitive pitch
+snapshot is retained even if a callback mutates the caller object. A mismatch is
+rejected, never
+repaired, through the existing cancel/failure path with STEP_ATTEMPT_EVIDENCE_INVALID.
+NOTE_OFF still returns before validation; no velocity rule is added at this boundary.
+
+The old retained-Set128 guard and STEP_ATTEMPT_PITCH_LIMIT_EXCEEDED producer are
+deleted with no replacement cap. Injective validated MIDI identity now bounds
+retained distinct strings to128. All128 parser-produced identities can enter one
+H35 gesture; an additional valid duplicate event neither grows the Set nor fails.
+Evidence stays sorted/unique/frozen, and cancellation invalidates old timer callbacks.
+Four malformed NOTE_ON identities (mismatched string, negative, above127 and
+fractional number) fail before opening/retaining, or cancel existing ownership
+without publishing partial evidence. Real Uint8Array parser behavior, channel/
+status rules, H35 ownership and valid controller outcomes are unchanged.
+
+Valid-path helpers in step-midi-attempt-input.test.ts, step-practice-controller.test.ts
+and tests/helpers/exclusive-boundary-fixture.ts now find the number through the
+actual mapping and construct parser facts. The paced MIDI test already uses the
+real parser; the stale controller callback's C4/60 pair was already consistent.
+No handwritten pitch table or new domain MIDI dependency is introduced.
+
+The domain raw128 guard, normalizePitchSet and all accepted evidence/record
+semantics are unchanged:128 duplicate C4 entries normalize to1;129 reject before
+normalization. That number remains unqualified, separately domain-owned and not
+derived from MIDI's wire universe. T15 is unresolved overall, remains in
+DELETE/REDESIGN and raw-budget QUALIFY, with UNQUALIFIED_RESOURCE_SAFETY_POLICY
+as its primary class. Future DERIVE stays empty; all93 row/class counts remain
+unchanged from Round45 (resource-safety11, redundant12, semantic-unresolved0).
+STEP schema8/runtime version, Result/provenance and acoustic identities/selected
+attestations are unchanged. No recognition/device/latency qualification follows.
+
+The following audit sections describe the Round45 baseline and historical probes.
+Round46 supersedes only their unchecked-MIDI-fact/Set-cap and valid-fixture
+statements; the domain raw-work and acoustic identity findings remain current.
+
+## Round45 findings and authority
 
 T15 combines an unreachable-on-valid-MIDI distinct-Set guard with a reachable
 raw-array work guard. These are different contracts. The latter cannot honestly
@@ -234,7 +277,7 @@ finite identity while retaining a raw-work owner (candidate3 now; candidate6 is
 broader), or remove raw defense on trust (unsupported). No choice is justified
 merely by reducing literal count.
 
-## Exactly one recommended Round46 implementation
+## Round45 recommendation: MIDI portion implemented in Round46
 
 Recommend **candidate3, MIDI fact integrity only**: validate NOTE_ON integer
 noteNumber0..127 and primitive pitch===the MIDI owner's canonical mapping before

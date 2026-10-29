@@ -1,6 +1,6 @@
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
 import type { StepPitchEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
-import type { MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
+import { isMidiNoteNumber, midiNoteToPitch, type MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
 
 export const STEP_MIDI_CHORD_COHERENCE_MS = 35;
 export interface StepGestureTimer {
@@ -22,17 +22,20 @@ export class StepMidiAttemptInput {
   note(note: MidiNoteFact): void {
     if (note.type !== 'NOTE_ON') return;
     try {
+      const { noteNumber, pitch } = note;
+      if (!isMidiNoteNumber(noteNumber) || pitch !== midiNoteToPitch(noteNumber)) {
+        throw new Error('STEP_ATTEMPT_EVIDENCE_INVALID');
+      }
       if (this.active) {
         // Delayed timers do not turn the gesture into an unbounded bag.
         if (note.sessionTime.domainId !== this.active.end.domainId || note.sessionTime.ms < this.active.identity.attemptStartSessionTime.ms
           || note.sessionTime.ms >= this.active.end.ms) { this.ignore(); return; }
-        if (!this.active.pitches.has(note.pitch) && this.active.pitches.size >= 128) throw new Error('STEP_ATTEMPT_PITCH_LIMIT_EXCEEDED');
-        this.active.pitches.add(note.pitch); return;
+        this.active.pitches.add(pitch); return;
       }
       const identity = this.sink.open(note.sessionTime);
       if (!identity) { this.ignore(); return; }
       const epoch = ++this.epoch;
-      this.active = { identity, pitches: new Set([note.pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };
+      this.active = { identity, pitches: new Set([pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };
       this.handle = this.timer.schedule(() => {
         if (epoch !== this.epoch || !this.active) return;
         const gesture = this.active; this.active = null; this.handle = null;

@@ -5,6 +5,7 @@ import {
   BrowserMidiController,
   MidiNoConnectedInputError,
   midiNoteToPitch,
+  isMidiNoteNumber,
   parseMidiMessage,
 } from './browser-midi-controller';
 
@@ -84,4 +85,19 @@ describe('browser MIDI controller', () => {
     expect(device.access.onstatechange).toBe(slot); controller.dispose();
     device.connect(false); expect(health).toHaveBeenCalledTimes(3); expect(states).toHaveBeenCalledTimes(4);
   });
+});
+
+it.each([
+  { status: 0x90, velocity: 80, type: 'NOTE_ON' },
+  { status: 0x9f, velocity: 80, type: 'NOTE_ON' },
+  { status: 0x90, velocity: 0, type: 'NOTE_OFF' },
+  { status: 0x80, velocity: 64, type: 'NOTE_OFF' },
+  { status: 0x8f, velocity: 64, type: 'NOTE_OFF' },
+])('retains Uint8Array note-byte acceptance for status $status / velocity $velocity', ({ status, velocity, type }) => {
+  for (let noteNumber = 0; noteNumber < 256; noteNumber++) {
+    const withinWireRange = noteNumber <= 127;
+    expect(isMidiNoteNumber(noteNumber)).toBe(withinWireRange);
+    expect(parseMidiMessage(new Uint8Array([status, noteNumber, velocity]))).toEqual(withinWireRange
+      ? { type, noteNumber, pitch: midiNoteToPitch(noteNumber), velocity: type === 'NOTE_ON' ? velocity : 0 } : null);
+  }
 });

@@ -246,6 +246,37 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round46 — validate MIDI identity before retention, delete the Set cap
+
+The [STEP pitch-evidence companion](practice-step-pitch-evidence-bounds.md) records
+candidate3's narrow implementation. isMidiNoteNumber in the MIDI owner holds the
+existing integer0..127 note contract; Browser parser and STEP source-aware input
+share it. NOTE_ON must also strictly match midiNoteToPitch(noteNumber) before
+sink.open, active creation or Set insertion. Inconsistent facts are rejected,
+never canonicalized/repaired. The existing catch/cancel/failure path clears active
+ownership and fences stale timer callbacks. NOTE_OFF is still ignored before
+validation; no velocity policy changes.
+
+The explicit MIDI Set128 check and old pitch-limit error producer are deleted,
+with no replacement numeric capacity. Only validated canonical wire identities
+can enter the Set, so at most128 distinct pitches can be retained. Tests feed all
+128 parser facts and a129th duplicate event, preserving fixed H35, sorted unique
+evidence, target blindness and valid controller outcomes. Negative/above-range/
+fractional/mismatched direct facts fail before opening or cancel an existing
+gesture without partial/late evidence. Synthetic valid MIDI fixtures now use the
+real mapping/parser instead of pairing every pitch with noteNumber60; paced and
+stale input paths remain covered.
+
+Domain runtime/attempt sources are byte-for-byte unchanged. Raw128 still bounds
+pre-normalization work:128 duplicate C4 entries accept and dedup;129 reject.
+That raw-work number is not newly derived/qualified. T15 remains unresolved in
+DELETE/REDESIGN, with raw128 in QUALIFY, UNQUALIFIED_RESOURCE_SAFETY_POLICY as
+primary class and Future DERIVE empty. All93 rows/counts remain unchanged from
+Round45 (resource-safety11, redundant12, semantic-unresolved0). S09/S10/S15 stay
+resolved. STEP schema8/runtime version, Result/provenance and all acoustic selected
+source/core/composite/model identities are unchanged. No coordinator, domain MIDI
+dependency, target-aware closure or new resource/timing policy is introduced.
+
 ### Round45 — T15 is a mixed identity and raw-work boundary, not pure DERIVE
 
 The [dedicated STEP pitch-evidence audit](practice-step-pitch-evidence-bounds.md)
@@ -268,9 +299,10 @@ count13→12 and resource-safety10→11, semantic-unresolved0; no other class ch
 S09 stays KEEP DERIVED STORAGE, S10 KEEP DERIVED/SINGLE OWNER and S15 KEEP EXACT
 CONSTRUCTION. Future DERIVE is empty, without claiming all ownership debt resolved.
 
-The sole recommended Round46 implementation is MIDI fact identity validation
-before retention, then removing only the unreachable-on-valid-facts Set count
-guard. Keep domain raw128 and its current owner unchanged;129 duplicate C4 entries
+Round45 recommended MIDI fact identity validation before retention, then removal
+of only the unreachable-on-valid-facts Set count guard; Round46 implements that
+sub-boundary above. Keep domain raw128 and its current owner unchanged;129 duplicate
+C4 entries
 remain rejected as a raw-work contract. Do not move that check after dedup or add
 MIDI infrastructure dependencies to the domain. The audit implements none of this:
 all sources/tests, STEP schema8/runtime version, Result/provenance and acoustic
