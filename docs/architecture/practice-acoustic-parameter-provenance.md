@@ -20,6 +20,12 @@ a finite source-progress bound. R02 becomes REDUNDANT_OR_DERIVABLE_IMPLEMENTATIO
 selected executor byte changes mechanically advance core/composite values only.
 The inventory remains93 rows; R01 and R03 numeric policies are unchanged.
 
+Round30 resolves R03 mechanism necessity: exact accepted positive source/performance
+breakpoints cannot generally be silently dropped/coalesced, so finite fail-closed
+admission is required without an alternate lossless spill owner. Numeric8 remains
+unqualified. R03 becomes UNQUALIFIED_RESOURCE_SAFETY_POLICY; the inventory stays93
+rows and no production behavior/value changes in that round.
+
 The decision order is **semantic necessity → remove unnecessary behavior/dataflow →
 optimize the remaining algorithm → qualify the remaining parameters**. Every row
 first states purpose and removal consequences. A cap does not become necessary
@@ -167,7 +173,7 @@ Qualification methods (future work only):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | R01 Outstanding model-input cap | maxOutstandingWindows=4 | [resource-policy.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts) `ACOUSTIC_RESOURCES.maxOutstandingWindows`; [source-analysis-runtime.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts) `planAvailable` | Queued/active copied PCM inputs; serialized chain | Bound backlog allocations; fifth ready window throws before extraction | Unbounded queue/PCM if arrival outruns inference; serialized correctness itself does not require4 | Changes terminal-failure frequency and memory ceiling | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Deterministic backpressure tests;4×116480=465920 input bytes | No real workload/heap/GC/GPU inference headroom evidence for4 | Q-NECESSITY + Q-RESOURCE | Deferred: supported-workload release qualification | Review admission/scheduling/ownership first; no blind4→8 and no silent evidence dropping |
 | R02 Pending source-region count cap — DELETED; positive retention structurally bounded | No explicit count cap or replacement numeric policy; exact empty-region immediate retirement | [source-analysis-runtime.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts) `endAnalysisRegion / planAvailable`; [structural proof](practice-acoustic-resource-semantics.md#r02--explicit-region-cap-deleted-with-structural-lifecycle-bounds) | Pending source planning and projection region ownership; copied PCM remains R01-owned | Retire empty records without FIFO starvation; retain positive history only within finite source-context horizon | Reintroducing empty retention permits no-progress growth; literal cap4 is unnecessary with corrected lifecycle | No positive coalescing/drop; source-discrete/model/FIR horizon bounds retention independently of session length | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | Both-rate analytic horizon/ring proof; blocked-positive+128zero and64positive real-runtime regressions;32segment projection mapping; fifth-region public workload accepted | Real-device/memory qualification of remaining R01/R08 policies is separate; no bound is a workload SLO | Q-MATH | No: structural deletion proven; lifecycle/integrity regressions remain required | KEEP exact empty retirement/FIFO real-PCM planning; no replacement cap; R01 and R03 unchanged |
-| R03 Scheduled boundary cap | maxScheduledBoundaries=8 | [resource-policy.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts) `ACOUSTIC_RESOURCES.maxScheduledBoundaries`; [capture-bridge.ts](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts) `schedule` | Future BEGIN/PAUSE/TERMINAL queue and IDs | Bound controls scheduled ahead of captured PCM | Potential queue growth; no proof8 is intrinsically required | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge/runtime | SEMANTIC_NECESSITY_UNRESOLVED | Schedule/cancel/application tests; caps all pending boundaries including future terminal | Reachable control churn, capture lag, safe cancellation/coalescing proof | Q-NECESSITY + Q-RESOURCE | Deferred: control/capture failure qualification | DELETE/REDESIGN candidate before numeric headroom changes; never lose a required boundary silently |
+| R03 Scheduled boundary cap | maxScheduledBoundaries=8 | [resource-policy.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts) `ACOUSTIC_RESOURCES.maxScheduledBoundaries`; [capture-bridge.ts](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts) `schedule` | Pending exact BEGIN/PAUSE/TERMINAL chronology and IDs | Finite explicit admission of controls not yet consumed by source PCM; numeric8 is a temporary defensive safety fuse | Without another finite owner/spill, exact positive history can grow with admitted cycles;8 itself is not necessary | Changes intentional fail-closed CAPTURE_BOUNDARY_LIMIT_EXCEEDED admission/failure envelope; not successful evidence semantics | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Round30 real projection deletion/envelope counterexamples, information-retention lower bound and public-controller2k positive-history growth; current mechanism bounds ownership without silent loss | Why8; real learner churn, capture/main-thread scheduling, memory/headroom and whether boundary-array count is the best owner | Q-RESOURCE + Q-DEVICE; mechanism proof in companion | Deferred: numeric/representation supported-workload qualification; accepted-history integrity is required | KEEP finite fail-closed admission in principle; REDESIGN/QUALIFY exact representation and numeric8 before supported-workload claims; no silent positive coalescing/drop |
 | R04 Transport credit cap | CAPTURE_TRANSPORT_MAX_UNACKED=32 | [capture-transport-contract.ts](../../apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts) `CAPTURE_TRANSPORT_MAX_UNACKED`; [capture.worklet.js](../../apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js) `process / nextAck` | Worklet→main-thread PCM transport | Bound outstanding transferred blocks; fail rather than silently drop source PCM | Unbounded transport messages/heap under main-thread stall | Changes transport terminal-failure and memory/stall envelope | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Exact producer/ACK ordering tests; no hardware stall qualification | Real main-thread stall/GC/Worklet/load/device pressure | Q-NECESSITY + Q-RESOURCE | Deferred: transport-supported workload claims | Review backpressure design and safety tradeoff; QUALIFY remaining bound, not arbitrary32→64 |
 | R05 Dead duplicate unacked policy | ACOUSTIC_RESOURCES.maxUnacknowledgedBlocks=32 | [resource-policy.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts) `maxUnacknowledgedBlocks` | No executable production read; existing test asserts value | Duplicates R04 name/value without owning enforcement | No current runtime credit behavior changes | Changing this alone does not change Worklet credit limit | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | Repo search: declaration and test only; authoritative enforcement in CT/CW | No need to qualify an unused alias | Q-NECESSITY | No: dead ownership debt | DELETE duplicate in independent cleanup, not this audit |
 | R06 PCM transport block selection / exact format | CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048; producer emits exact-sized mono float32 blocks | [capture-transport-contract.ts](../../apps/customer-web/src/lib/practice/acoustic/source/capture-transport-contract.ts) `CAPTURE_TRANSPORT_BLOCK_SAMPLES`; [capture.worklet.js](../../apps/customer-web/src/lib/practice/acoustic/source/capture.worklet.js) `accumulator / process` | BrowserAcousticCapture exact check; SourceChronology | Fixed transfer/ACK format; cadence vs allocation tradeoff | Need another explicit producer/consumer format | Changes batching, latency, allocation and transport admission | UNQUALIFIED_RESOURCE_SAFETY_POLICY | Producer and consumer agree; standalone JS literals checked by existing tests | Why2048 is good on target devices; no numerical/structural necessity for selected size | Q-RESOURCE + Q-DEVICE | Deferred: capture latency/resource qualification | KEEP current exact wire contract; QUALIFY choice; relation agreement does not qualify2048 |
@@ -363,7 +369,12 @@ are existing behaviors, not redesigned by this audit.
   No positive interval is coalesced/dropped and R01 remains independently enforced.
 - R03 counts pending physical boundaries; future terminal and control boundaries
   consume the queue too. Its failure aborts the capture bridge, so it is not a
-  harmless UI overflow. No theorem supports 8 as the permitted legal-control limit.
+  harmless UI overflow. Round30 proves finite explicit fail-closed admission of
+  exact positive history necessary without a spill owner; deletion/envelope
+  counterexamples and the information/growth proof are in the
+  [R03 companion](practice-acoustic-resource-semantics.md#round30--finite-admission-necessity-independent-of-numeric8).
+  No theorem supports8 as the permitted legal-control limit or boundary count as
+  the best future representation.
 - R04 bounds producer credits. Main-thread ACK occurs only after synchronous PCM
   acceptance, not after inference completes.32 blocks correspond to about 1.486s
   (44.1k) or 1.365s (48k) of block payload; these are conversions, not safe-stall SLOs.
@@ -374,8 +385,9 @@ are existing behaviors, not redesigned by this audit.
   RPC. Round28 deletes the5ms polling interval; it never defined recognition context
   or event timestamps. Existing deadline values are unchanged.
 
-For all these limits: retaining a finite system does not prove a particular cap or
-its terminal-failure behavior necessary. Eliminate unnecessary queues/dataflow,
+Retaining a finite system alone does not prove a particular cap or terminal-failure
+policy necessary. R03's stronger constraints above establish fail-closed admission
+in principle, while leaving numeric8 unqualified. Eliminate unnecessary queues/dataflow,
 prove bounded ownership where possible, then qualify the remaining headroom. Never
 silently drop accepted observations, skip required PCM/windows, discard provenance,
 or produce a partial score to remain under a resource budget. No new emergency cap,
@@ -456,10 +468,10 @@ hardware/corpus study is claimed for this documentation-only audit.
 | VERIFIED_MODEL_OR_ASSET_CONTRACT | 18 |
 | EMPIRICALLY_CHARACTERIZED | 2 |
 | UNQUALIFIED_ALGORITHM_POLICY | 19 |
-| UNQUALIFIED_RESOURCE_SAFETY_POLICY | 9 |
+| UNQUALIFIED_RESOURCE_SAFETY_POLICY | 10 |
 | DIAGNOSTIC_PRESENTATION_POLICY | 7 |
 | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | 13 |
-| SEMANTIC_NECESSITY_UNRESOLVED | 1 |
+| SEMANTIC_NECESSITY_UNRESOLVED | 0 |
 
 Class membership (row IDs are stable within this audit):
 
@@ -467,10 +479,10 @@ Class membership (row IDs are stable within this audit):
 - **VERIFIED_MODEL_OR_ASSET_CONTRACT:** M01, M02, M03, M04, M05, M07, M08, M09, M10, M12, M13, M14, S02, S03, S05, I01, I02, I03.
 - **EMPIRICALLY_CHARACTERIZED:** S01, S13.
 - **UNQUALIFIED_ALGORITHM_POLICY:** M06, D01, D02, D03, D04, D05, D06, G01, G02, S12, S14, S16, T02, T03, T07, T10, T12, T13, T17.
-- **UNQUALIFIED_RESOURCE_SAFETY_POLICY:** S17, R01, R04, R06, R08, R14, R15, R16, R17.
+- **UNQUALIFIED_RESOURCE_SAFETY_POLICY:** S17, R01, R03, R04, R06, R08, R14, R15, R16, R17.
 - **DIAGNOSTIC_PRESENTATION_POLICY:** N01, N02, N03, N04, N05, N06, N07.
 - **REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC:** G03, S09, S10, S15, T14, T15, R02, R05, R07, R11, R12, R18, X02.
-- **SEMANTIC_NECESSITY_UNRESOLVED:** R03.
+- **SEMANTIC_NECESSITY_UNRESOLVED:** None.
 
 The structural results are the sample/byte/unit relationships, discrete FIR support,
 conditional ring storage bounds, decoder region upper bound, direct 2W/3W relationships,
@@ -482,16 +494,18 @@ unqualified regardless of the successful regression suite.
 
 | Future bucket | Scope | Type of possible later change | Order / release relevance |
 | --- | --- | --- | --- |
-| A. KEEP | Current verified asset/model/I/O identities, established structural relationships and exact ownership/coverage integrity | Preserve contract; a genuinely different model/runtime requires its own explicit contract decision | Integrity mismatches/invalid geometry/source identity are actual fail-closed release blockers, not reasons to tune values |
+| A. KEEP | Current verified asset/model/I/O identities, established structural relationships, exact ownership/coverage integrity and R03 finite fail-closed admission in principle | Preserve contract; R03 representation/numeric8 remain separate redesign/qualification questions; a genuinely different model/runtime requires its own explicit contract decision | Integrity mismatches/invalid geometry/source identity are actual fail-closed release blockers, not reasons to tune values |
 | B. DERIVE | G03/S09/S10/S15/T14/T15/R05/R07/R11/R12/X02; input duration/bytes, ratios, descriptors and smoke/preroll relationships | Remove duplicated magic/dead ownership; isolate format derivation from product behavior | Can be independent narrow changes after proof; source edits must update attestations, not merely bypass guards |
 | C. QUALIFY | D01–D06, G01/G02/S12, W250, MIDI grace250, H35/H50, remaining numerical slacks, selected runtime/source support, ring/outstanding/transport/timeouts after necessity review | Recognition/timing changes or resource-failure/admission changes; requires explicit product decision and real learner/device/workload evidence | Required before corresponding accuracy/latency/robustness/support claims; not a synthetic tuning contest |
-| D. DELETE/REDESIGN CANDIDATE | R03 and caps/dataflow in R01/R04/S17; unused duplicates and unconsumed diagnostics/confidence | Review necessity of queued regions/boundaries, admission/backpressure, liveness observation, retained derived data | First step before raising caps/optimizing algorithms; no silent loss of accepted truth, no new universal coordinator |
+| D. DELETE/REDESIGN CANDIDATE | R03 representation/counting unit, caps/dataflow in R01/R04/S17; unused duplicates and unconsumed diagnostics/confidence | Redesign exact positive-history representation while retaining finite admission; review other ownership/backpressure and retained derived data | Before raising caps/optimizing algorithms; R03 mechanism is KEEP, not a deletion candidate; no silent loss of accepted truth or new universal coordinator |
 
-The semantic-necessity unresolved membership is R03 only. R02 count cap was
+The semantic-necessity unresolved membership is empty. R03 now has a proven
+finite-admission requirement and an unqualified numeric8/representation choice;
+this does not qualify the cap. R02 count cap was
 deleted with exact empty retirement and a finite positive-retention proof. R18 polling was deleted; its
 local observer does not qualify the remaining R16/R17 safety deadlines. R14 now keeps a required
 silence-liveness mechanism with an unqualified numeric deadline. The distinct numerical
-headroom/deadline policies R01/R04/R06/R08/R14/R15/R16/R17 and identity cap S17 have no real
+headroom/deadline policies R01/R03/R04/R06/R08/R14/R15/R16/R17 and identity cap S17 have no real
 workload/device qualification here. Diagnostic policies N01–N07 are not correctness
 limits. R05 is dead ownership; R11 is explicitly the repeated4 in
 maximumOutstandingInputBytes, not another budget. T14/T15 have valid-producer

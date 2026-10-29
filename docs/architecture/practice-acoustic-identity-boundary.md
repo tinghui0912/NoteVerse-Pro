@@ -62,7 +62,7 @@ this identity into a runtime-policy contract.
 | Source publication identity/content/analyzed-through | source-analysis-runtime.ts; source-publication.ts | Yes: semantics and selected file attestations | Yes: through core reference | Defines successful source observations and coverage facts | Semantic changes require evidence identity review and attestation updates |
 | Resource-policy caps, including target-ring safety headroom | acoustic/runtime/resource-policy.ts | No policy identity; executor is a selective anchor | No | Bounds admission/retention/failure, not the declared successful evidence meaning | Review resource semantics; separate runtime-policy owner if reproducibility is required |
 | Worklet block/credits | capture-transport-contract.ts; capture.worklet.js | No | No | Transport format/backpressure/liveness policy | Same separate runtime-policy rule; no automatic evidence identity cascade |
-| Boundary cap/queue failure | resource-policy.ts; capture-bridge.ts | No | No | Controls capture admission/failure | Review R03 independently; cap8 remains UNRESOLVED |
+| Boundary cap/queue failure | resource-policy.ts; capture-bridge.ts | No | No | Controls capture admission/failure | Round30 proves finite fail-closed admission necessary; representation/numeric8 remain unqualified, independently of evidence identity |
 | Pending region lifecycle (explicit cap deleted in Round29) | source-analysis-runtime.ts | No runtime-policy identity; selected executor bytes remain an anchor | No | Structurally bounds pending planning retention with immediate empty retirement | Round29 deletes explicit cap after structural lifecycle proof; executor byte change still advances anchors |
 | Outstanding inference cap | resource-policy.ts; source-analysis-runtime.ts | No cap policy identity | No | Controls queued/active copied PCM and failure | Review R01 ownership before tuning; attested executor edits still update byte anchors |
 | Readiness observation/deadlines (local notifications; 10s/15s/60s) | capture.ts; ContinuousMicrophoneInput | No | No | Observes readiness and bounds some waits, not source event timestamps | Review necessity/liveness independently; no timeout addition in this round |
@@ -150,9 +150,10 @@ new schema, fallback, migration or compatibility acceptance is introduced here.
 The current Result boundary is enforced by
 [provenance tests](../../apps/customer-web/src/lib/practice/result/continuous-result-provenance.test.ts)
 and [dependency tests](../../apps/customer-web/src/lib/practice/architecture/dependency-boundaries.test.ts).
-Resolving identity scope does not qualify any resource number: R01/R02/R03 cap
-necessity and R04 supported-stall evidence are not qualified by identity scope.
-Round29 independently resolves R02 through structural deletion, as noted below.
+Resolving identity scope does not qualify any resource number. Round29 independently
+resolves R02 through structural deletion, as noted below. Round30 independently proves
+R03 finite admission necessary in principle; numeric8/representation and R01/R04
+workload/stall evidence remain unqualified by identity scope or those proofs.
 Round28 deletes R18 polling in the non-core Continuous bridge/input; readiness
 notification and unchanged R16/R17 safety deadlines remain outside this core. Round27 separately adds an unqualified R14 silence safety fuse;
 that runtime policy remains outside this evidence core. maxUnacknowledgedBlocks remains a deletion

@@ -950,3 +950,19 @@ it('keeps Continuous readiness observation local to the attempt input and outsid
     expect(dependencyAllowed(file, imports(file, "import { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous/capture-bridge';")[0])).toBe(false);
   }
 });
+
+it('R03 boundary admission is read only by capture/control ownership, never source, STEP or Result', () => {
+  const owners = new Set<string>(), readers = new Set<string>();
+  for (const file of files) {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if ((ts.isIdentifier(node) || ts.isStringLiteral(node)) && node.text === 'maxScheduledBoundaries') {
+        owners.add(relative(file));
+        if (ts.isPropertyAccessExpression(node.parent) || ts.isElementAccessExpression(node.parent)) readers.add(relative(file));
+      }
+      ts.forEachChild(node, visit);
+    }; visit(source);
+  }
+  expect([...owners].sort()).toEqual(['acoustic/continuous/capture-bridge.ts', 'acoustic/runtime/resource-policy.ts']);
+  expect([...readers]).toEqual(['acoustic/continuous/capture-bridge.ts']);
+});

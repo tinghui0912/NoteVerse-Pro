@@ -9,8 +9,9 @@ identity/hash, schema, workflow or dependency changes.
 
 Round 24, based on `2ac94b2357d1b251e542a8c2f67b6ab78fcf9154`, fixes only
 R03's synchronous controller failure-propagation defect. The Round 23 reachability
-witness remains valid. The semantic necessity of maxScheduledBoundaries=8 remains
-**UNRESOLVED**; fixing its failure handling does not qualify this cap. The source,
+witness remains valid. At Round24 the admission mechanism's semantic necessity was
+**UNRESOLVED**; Round30 resolves it below, independently of numeric8. Fixing failure
+handling did not qualify this cap. The source,
 publication, timing, resource values and identity contracts remain unchanged.
 
 The order is **semantic necessity → reachable valid workload → failure effect →
@@ -26,7 +27,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | Resource policy is deliberately outside evidence-core provenance; selected executor byte changes still cascade core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R02 pending source regions | More than4 is valid and now accepted at both supported rates | Positive intervals accumulate inside fixed future-context lag; zero-duration regions retire immediately even behind a blocked head | No worker stall is required | Only positive region records not yet planned, plus at most one active region; copied inputs remain R01-owned | Old explicit cap/error producer deleted; no replacement numeric cap | Discrete positive source intervals + finite adapter/model horizon bound retention independently of session length; see proof below | KEEP exact-region empty retirement and FIFO positive planning; no coalescing or silent drop | Runtime admission/lifecycle change edits selected executor bytes, mechanically advancing core/composite hashes without changing evidence semantics or provenance shape | DELETE AS REDUNDANT: implemented; no device/memory qualification claim |
-| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Bounded ownership is required in principle; 8 is a temporary defensive safety fuse, not a qualified workload limit; its semantic necessity remains UNRESOLVED | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Round30 proves finite fail-closed admission necessary for exact accepted positive history without an alternate spill owner; numeric8 is still an unqualified temporary resource-safety value | KEEP admission in principle; redesign/qualify exact representation and counting unit; no silent positive-history deletion/coalescing | Bridge/controller and cap leaf remain outside evidence-core provenance; tests/docs change no identity/schema | KEEP + QUALIFY mechanism; REDESIGN BEFORE TUNING representation; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for8 |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R18 readiness predicate observation | Yes: real PCM preroll and TERMINAL/tail transitions | Source readiness commits; local bridge notifies after receive/schedule/abort | No observation timer or polling stall; Promise continuation follows source stack unwind | One attempt-owned subscription/abort hook/deadline per pending wait | Round28: 5ms polling removed; local event-driven observation implemented; failure/abort/dispose wake waits | Predicate truth is unchanged;5ms numerical poll was unnecessary implementation magic | KEEP local snapshot-subscribe-recheck and one-shot cleanup;15s/60s deadline qualification stays separate | Non-core Continuous bridge/input notification; source executor and all evidence identities unchanged | Polling DELETED; KEEP local observer; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for remaining deadlines |
@@ -292,6 +293,122 @@ are delayed is a scheduling adversary, not measured hardware behavior. A normal 
 count-in would require much longer lag and may encounter R04 first; the short-meter
 witness avoids assuming that transport has unlimited credits.
 
+### Round30 — finite admission necessity, independent of numeric8
+
+#### Positive breakpoints are observable information
+
+Let accepted positive running interval i own source samples `[s_i,e_i)`, at source
+rate r, with Performance Time start p_i. Its mapping is
+`P(s)=p_i+(s-s_i)*1000/r`. Between intervals there is a real paused source gap,
+while `p_(i+1)=p_i+(e_i-s_i)*1000/r`: the gap contributes no Performance Time.
+Exact replay therefore needs enough information to recover each source start/end
+and its Performance Time relationship until PCM consumes that history. This need
+does not depend on AcousticBoundary objects being the eventual representation.
+
+The Round30 bridge regression uses real source adapter/window/projection owners,
+the same chronological deterministic PCM and physical fake-inference events in
+five counterfactual histories. At48kHz A owns `[96000,96480)`, a10ms pause follows,
+and B owns `[96960,97440)`. Original observations are C4 at `(source96000,P0)`
+and D4 at `(source96960,P10)`, from distinct region/window/observation identities;
+the terminal analyzed-through frontier is20ms. The gap's E4 atsource96720 is excluded.
+Deleting A or B loses its valid evidence even when the remaining history is made
+internally valid; deleting A also moves B toP0. Replacing all four boundaries with
+`BEGIN A → TERMINAL B` while retaining P20 fails the real
+`ACOUSTIC_SEGMENT_END_MISMATCH` invariant: the envelope owns30ms, not20ms.
+Changing the terminal toP30 makes the envelope internally valid but wrongly
+includes gap E4 atP15 and shifts B toP20. Neither preserves observable history.
+This is a semantic counterexample, not a recognition-quality or hardware claim.
+
+#### Information-retention lower bound
+
+For any N within representable source chronology, construct N independent blocks.
+Each block has A running10ms, a positive gap g1, B running10ms, and a positive gap g2
+before the next block. Choose `(g1,g2)` as either `(20ms,30ms)` or `(30ms,20ms)`.
+Both gaps allow the short-meter fixture's15.625ms canonical Resume Count-In plus
+paused time; choose a scope long enough for the admitted prefix. Both choices have
+identical70ms source duration,20ms Performance Time advance and end anchors.
+At48kHz all boundaries and a possible physical event30ms into a block
+are on real source/model frame coordinates. That event is inside B for the first
+choice and inside a paused gap for the second. The N choices yield2^N histories
+with identical aggregate/end summaries but independently distinguishable evidence
+membership. Any exact lossless representation must distinguish these histories,
+requiring at least N bits. Encoding them in one arbitrary-precision number still
+uses growing storage; a constant number of fields is not constant space.
+
+Thus there is no fixed-space exact representation of arbitrary accepted positive
+history independent of its length. This is a family/lower-bound argument within
+the existing safe-integer chronology, not an assertion of literally infinite JS
+coordinates or an exact browser delivery-lag distribution. The finite numeric
+coordinate universe is not a supported memory budget. Some particular regular
+histories can compress, and redundant/cancellable controls can disappear; the
+counterexample proves that internal positive breakpoints cannot **generally** be
+deleted or envelope-coalesced. Arbitrary possible events are enough for this
+necessity argument; no assumption that a real decoder always detects them is needed.
+
+#### Current owners and finite admission consequence
+
+The capture bridge retains pending exact source/performance boundaries and IDs.
+Projection segments/source regions are populated as that PCM history is consumed,
+not an external store for unconsumed controls. Controller future-BEGIN/TERMINAL
+handles are cancellation handles, not a lossless archive. The canonical
+[performance clock](../../apps/customer-web/src/lib/practice/continuous/domain/performance-clock.ts)
+also retains `clockSegments` for historical session/performance conversion; this
+is growing in-memory history, not bounded external persistence, nor a replacement
+source-sample boundary replay owner. Worklet credits retain PCM, not control topology.
+No current capture/controller owner spills accepted chronology to disk or another
+lossless external persistence owner. Moving history between these in-memory owners
+would not defeat the information lower bound or establish a finite browser budget.
+The present fuse bounds pending bridge admission, not all canonical-clock memory
+or total supported session duration; no whole-application memory qualification is implied.
+
+Given finite resources, exact accepted positive history, no silent drop/reorder/
+coalescing, and no alternate spill owner, some **finite explicit fail-closed
+admission** of not-yet-consumed control history is necessary in principle. The
+alternative would require a new persistence owner or an explicit product limit
+on accepted history. This proves the mechanism requirement, **not** numeric8,
+the boundary-array counting unit, or a particular overflow UX. Paired segment
+records, byte-budgeted compact exact structures or persisted history may be future
+representations, but must preserve every accepted breakpoint's mapping and
+explicitly fail or persist at capacity. No such redesign is implemented here.
+
+#### Growth induction and legitimate cancellation
+
+Let H_k be historical positive BEGIN/PAUSE boundaries after k completed RUNNING→Pause
+cycles while capture has consumed none of them. H_0 is empty. Start/Resume schedules
+a future BEGIN and a cancellable future TERMINAL. If the count-in has not logically
+reached BEGIN, Pause may cancel it: no positive interval has been accepted. Once
+RUNNING is logically reached, Pause instead retains that BEGIN, cancels the future
+TERMINAL and appends PAUSE closing a positive interval. Hence H_1 has two entries.
+Inductively Resume retains the entire H_k prefix and appends future BEGIN/TERMINAL;
+the next logically reached positive RUNNING→Pause replaces that TERMINAL with PAUSE,
+so `|H_(k+1)|=|H_k|+2=2(k+1)`. Source consumption would retire history, but without
+it each admitted cycle adds two necessary breakpoints. The induction is conditional
+on admission, independent of cap8; current8 stops the prefix from growing beyond
+its capacity rather than being a premise of the proof.
+
+The public-controller witness now asserts each preserved prefix with `isPending`,
+positive source/performance intervals, a real paused source gap with equal
+Performance Time anchors, unchanged source-consumption position and new future
+BEGIN/TERMINAL suffixes. Its four completed cycles reach2,4,6,8 historical entries
+before the next BEGIN fails admission. Bounded32-entry `boundaryDiagnostics` is
+only engineering evidence of operations; the actual pending queue/IDs own replay.
+Trimming diagnostics neither retires nor authorizes dropping accepted history.
+
+R04 does not derive8. Its32×2048/48000≈1.365s is a payload-duration conversion,
+not a safe-stall SLO or a bound on main-thread control tasks. The legal R03 witness
+fails at102.5ms PCM lag, earlier than that payload horizon. PCM credits, model-input
+ownership and accepted control chronology have different counters/failure domains.
+No exact MessagePort scheduling upper latency is inferred. R01 remains separate;
+R02's structurally bounded source-region lifecycle is not re-capped or coupled here.
+
+**Current conclusion:** mechanism KEEP in principle; representation/counting unit
+may be REDESIGNED BEFORE TUNING. Numeric8 remains
+UNQUALIFIED_RESOURCE_SAFETY_POLICY: a temporary defensive safety fuse, not a
+qualified workload, browser or user limit. Why8, real learner control churn,
+capture/main-thread scheduling distribution and memory/headroom remain NEEDS REAL
+DEVICE/WORKLOAD EVIDENCE. Round30 changes only tests/documentation. Overflow,
+explicit End → fresh healthy Start, evidence identities and Result schema6 are unchanged.
+
 ### Historical Round 23 defect; Round 24 status: FIXED
 
 At the Round 23 baseline, schedule's CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborted the
@@ -349,8 +466,9 @@ memory. The current `maxScheduledBoundaries=8` is a **temporary defensive safety
 fuse, not a qualified workload limit**. There is no proof that 8 is mathematically
 necessary, a browser safety limit or the supported ceiling for normal learner
 interaction. Worklet32 credits do not derive cap8. Raising the number would not
-resolve the ownership/chronology problem. R03 remains **REDESIGN BEFORE TUNING**;
-compact representation/queue redesign and workload qualification are future work.
+resolve the ownership/chronology problem. Round26 recorded **REDESIGN BEFORE TUNING**;
+Round30 above supersedes its mechanism-necessity uncertainty with a proof. Compact
+representation/counting-unit redesign and numeric workload qualification remain future work.
 No cap value or queue algorithm changes in Round 26.
 
 Overflow remains fail-closed: bridge/runtime retain first cause
@@ -391,18 +509,20 @@ availability. No private-state injection or production test-only hook is used.
 The Round 25 evidence-core boundary remains intact: capture/resource failure policy
 is outside that identity, and no acoustic/core/composite hash or Result schema changes.
 
-### Coalescing is not yet a safe policy
+### Historical coalescing witness and current constraint
 
-A new bridge regression delivers two 10ms positive intervals with one 10ms pause.
+The Round23 bridge regression delivers two 10ms positive intervals with one 10ms pause.
 It emits distinct observations at (performance 0ms,source 96000) and
 (performance 10ms,source 96960), then exact terminal 20ms. Dropping a BEGIN/PAUSE pair
 would remove real historical evidence and/or change later performance anchors.
 Combining separated intervals without retaining their gap/mapping also corrupts
 Source Time→Performance Time. Zero-length regions may publish nothing, but region
 indices/observation IDs/coverage and controller state still require proof before
-calling even that deletion observationally equivalent. Pending TERMINAL cancellation
-already has explicit ownership. No general coalescing implementation or proof is
-introduced. Compact representation preserving **all** intervals remains a research
+calling even that deletion observationally equivalent. Round29 now immediately retires
+exact empty source regions without renumbering other regions. Pending TERMINAL
+cancellation already has explicit ownership. Round30's counterfactual regression
+above proves positive envelope coalescing is not generally equivalent; no coalescing
+implementation is introduced. Compact representation preserving **all** intervals remains a research
 candidate; erasing positive history is not an approved optimization.
 
 ## R04 — three distinct backpressure positions
@@ -603,8 +723,9 @@ Round25 resolved only provenance scope, leaving resource necessity unchanged.
 Round29 independently resolves R02 via immediate empty retirement and finite
 positive retention without a cap. Round27 added the separate R14 silence fuse;
 its numeric60s remains unqualified. Round28 deleted R18
-polling in favor of local observation, leaving R16/R17 unqualified. cap8 remains
-UNRESOLVED; maxUnacknowledgedBlocks remains a deletion candidate.
+polling in favor of local observation, leaving R16/R17 unqualified. Round30 proves
+R03 finite admission necessary in principle; cap8 remains numerically unqualified.
+maxUnacknowledgedBlocks remains a deletion candidate.
 
 ## Exact-reference audit
 
@@ -652,8 +773,9 @@ counts below do not qualify that new policy.
 
 The remaining future conclusions are:
 
-- **REDESIGN BEFORE TUNING:** R01/R03 retained-state/cap necessity. R02 explicit cap is deleted after the
-  structural lifecycle proof above.
+- **REDESIGN BEFORE TUNING:** R01 retained-state/admission design; R03 representation/
+  counting unit, while KEEP finite fail-closed admission in principle. Numeric8
+  remains unqualified. R02 explicit cap is deleted after the structural lifecycle proof above.
 - **R18 POLLING DELETED:** local event-driven observation replaces the redundant
   interval; qualify remaining R16/R17 deadlines separately.
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining

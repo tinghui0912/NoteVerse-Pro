@@ -974,14 +974,36 @@ it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before 
   try {
     await controller.start(); const source = f.bridge().snapshot().nextSourceSampleIndex;
     f.context.currentTime += .025625; controller.refresh(); // Canonical15.625ms initial bar +10ms RUNNING; no full PCM message consumed yet.
+    let historical: ReturnType<ContinuousCaptureBridge['snapshot']>['boundaryDiagnostics'] = [];
     for (let cycle = 0; cycle < 4; cycle++) {
       expect(controller.snapshot().transport?.state).toBe('RUNNING'); controller.pause();
       expect(f.bridge().snapshot().pendingBoundaryCount).toBe((cycle + 1) * 2);
       const pending = f.bridge().snapshot();
       expect(pending.boundaryDiagnostics.filter(d => d.action === 'CANCELLED' && d.type === 'TERMINAL')).toHaveLength(cycle + 1);
       expect(pending.boundaryDiagnostics.filter(d => d.action === 'CANCELLED' && d.type === 'BEGIN')).toHaveLength(0);
+      // Diagnostics describe the witness; isPending confirms the actual retained queue, not a diagnostic surrogate.
+      const retained = pending.boundaryDiagnostics.filter(d => d.action === 'SCHEDULED' && f.bridge().isPending(d.id));
+      expect(retained.slice(0, historical.length)).toEqual(historical);
+      expect(retained.map(d => d.type)).toEqual(Array.from({ length: cycle + 1 }, () => ['BEGIN', 'PAUSE']).flat());
+      expect(retained).toHaveLength(2 * (cycle + 1)); expect(pending.nextSourceSampleIndex).toBe(source);
+      expect(pending.boundaryDiagnostics.some(d => d.action === 'APPLIED')).toBe(false);
+      for (let pair = 0; pair <= cycle; pair++) {
+        const begin = retained[pair * 2], pause = retained[pair * 2 + 1];
+        expect(pause.sourceSampleIndex).toBeGreaterThan(begin.sourceSampleIndex);
+        expect(pause.performanceTimeMs).toBeGreaterThan(begin.performanceTimeMs);
+        if (pair) {
+          expect(begin.sourceSampleIndex).toBeGreaterThan(retained[pair * 2 - 1].sourceSampleIndex);
+          expect(begin.performanceTimeMs).toBe(retained[pair * 2 - 1].performanceTimeMs);
+        }
+      }
+      historical = retained;
       if (cycle < 3) {
         controller.resume(); expect(f.bridge().snapshot().pendingBoundaryCount).toBe((cycle + 1) * 2 + 2);
+        const resumed = f.bridge().snapshot().boundaryDiagnostics.filter(d => d.action === 'SCHEDULED' && f.bridge().isPending(d.id));
+        expect(resumed.slice(0, historical.length)).toEqual(historical);
+        expect(resumed.slice(historical.length).map(d => d.type)).toEqual(['BEGIN', 'TERMINAL']);
+        expect(resumed.at(-2)?.performanceTimeMs).toBe(historical.at(-1)?.performanceTimeMs);
+        expect(f.bridge().snapshot().nextSourceSampleIndex).toBe(source);
         f.context.currentTime += .025625; controller.refresh(); // One 15.625ms canonical count-in +10ms performance.
       }
     }

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
-import { ContinuousCaptureBridge } from './capture-bridge';
+import { ContinuousCaptureBridge, type AcousticBoundary } from './capture-bridge';
 import { ContinuousAcousticProjection } from './continuous-projection';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
@@ -114,4 +114,75 @@ it('local readiness observers see committed receive/schedule/abort state and can
     throwing(); detach(); const count = listener.mock.calls.length; bridge.abort(new Error('LATE_FAILURE'));
     expect(listener).toHaveBeenCalledTimes(count); expect(runtime.snapshot().failureCode).toBe('CAPTURE_TEST_FAILURE');
   } finally { throwing(); detach(); await runtime.dispose(); }
+});
+
+it('R03 positive breakpoints carry observable information: deletion and envelope coalescing are not lossless', async () => {
+  const rate = 48000, startA = 96000, endA = 96480, startB = 96960, endB = 97440;
+  expect(endA - startA).toBeGreaterThan(0); expect(endB - startB).toBeGreaterThan(0); expect(startB - endA).toBeGreaterThan(0);
+  const physicalEvents = [
+    { targetSample: startA / 3, midiPitch: 60, pitch: 'C4' },
+    { targetSample: 96720 / 3, midiPitch: 64, pitch: 'E4' }, // Event physically inside the paused gap.
+    { targetSample: startB / 3, midiPitch: 62, pitch: 'D4' },
+  ];
+  async function replay(kind: 'original' | 'omitA' | 'omitB' | 'envelope20' | 'envelope30') {
+    const publications: ContinuousEvidencePublication[] = [], windows: AcousticInferenceInput['window'][] = [];
+    const worker = { run: vi.fn(async ({ window }: AcousticInferenceInput) => {
+      windows.push(window); return { events: physicalEvents.map(event => ({ ...event, confidence: .8, onsetScore: .8, frameScore: .8 })),
+        inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 };
+    }), dispose: vi.fn(async () => {}) };
+    const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'breakpoints', sourceDomainId: 'breakpoint-source',
+      sourceSampleRateHz: rate, coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'), worker,
+      nowAvailabilityRuntimeMs: () => 10000, onPublication: publication => { publications.push(publication); } });
+    const bridge = new ContinuousCaptureBridge(runtime, rate);
+    const boundaries: AcousticBoundary[] = kind === 'original' ? [
+      { type: 'BEGIN', sourceSampleIndex: startA, performanceTimeMs: 0 },
+      { type: 'PAUSE', sourceSampleIndex: endA, performanceTimeMs: 10 },
+      { type: 'BEGIN', sourceSampleIndex: startB, performanceTimeMs: 10 },
+      { type: 'TERMINAL', sourceSampleIndex: endB, performanceTimeMs: 20 },
+    ] : kind === 'omitB' ? [
+      { type: 'BEGIN', sourceSampleIndex: startA, performanceTimeMs: 0 },
+      { type: 'TERMINAL', sourceSampleIndex: endA, performanceTimeMs: 10 },
+    ] : [
+      { type: 'BEGIN', sourceSampleIndex: kind === 'omitA' ? startB : startA, performanceTimeMs: 0 },
+      { type: 'TERMINAL', sourceSampleIndex: endB, performanceTimeMs: kind === 'omitA' ? 10 : kind === 'envelope20' ? 20 : 30 },
+    ];
+    try {
+      boundaries.forEach(boundary => bridge.schedule(boundary));
+      const feed = async () => {
+        for (let next = 0, sequence = 0; next < 110592; next += 2048, sequence++) {
+          bridge.receive({ type: 'pcm-chunk', sequence, sourceSampleRateHz: rate, sourceStartSampleIndex: next,
+            sourceEndSampleIndex: next + 2048, audioContextStartFrame: next, captureTimeSeconds: next / rate,
+            inputChannelCount: 1, samples: Float32Array.from({ length: 2048 }, (_, index) => ((next + index) % 31) / 64) });
+          await runtime.drain();
+        }
+      };
+      if (kind === 'envelope20') {
+        // Without the pause gap breakpoint, 1440 source samples mean30ms, not the original20ms.
+        await expect(feed()).rejects.toThrow('ACOUSTIC_SEGMENT_END_MISMATCH');
+        expect(bridge.snapshot()).toMatchObject({ failed: true, pendingBoundaryCount: 0 });
+        expect(runtime.snapshot().failureCode).toBe('ACOUSTIC_SEGMENT_END_MISMATCH');
+        expect(worker.run).not.toHaveBeenCalled(); expect(publications).toEqual([]); return null;
+      }
+      await feed(); await runtime.seal();
+      return { observations: publications.flatMap(publication => publication.observations), publications, windows };
+    } finally { await runtime.dispose(); }
+  }
+  const original = (await replay('original'))!;
+  expect(original.windows.map(window => [window.regionIndex, window.windowIndex])).toEqual([[0, 0], [1, 0]]);
+  expect(original.observations.map(event => [event.pitch, event.performanceTimeMs, event.provenance!.sourceEventSample]))
+    .toEqual([['C4', 0, startA], ['D4', 10, startB]]);
+  expect(original.observations.map(event => event.observationId)).toEqual([
+    'breakpoint-source:s0:w0:p60:f32000', 'breakpoint-source:s1:w0:p62:f32320',
+  ]);
+  expect(original.publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 20, observations: [] });
+  const omitA = (await replay('omitA'))!, omitB = (await replay('omitB'))!;
+  // Even after making the remaining envelope internally valid, removing either interval loses legal evidence.
+  expect(omitA.observations.map(event => event.pitch)).toEqual(['D4']);
+  expect(omitB.observations.map(event => event.pitch)).toEqual(['C4']);
+  expect(omitA.observations[0].performanceTimeMs).toBe(0); // B also moves from10ms to0ms.
+  await replay('envelope20');
+  const envelope = (await replay('envelope30'))!;
+  expect(envelope.observations.map(event => [event.pitch, event.performanceTimeMs])).toEqual([['C4', 0], ['E4', 15], ['D4', 20]]);
+  expect(envelope.publications.at(-1)?.analyzedThroughPerformanceMs).toBe(30);
+  // Accepting the gap as active can satisfy geometry only by changing the original observable topology.
 });
