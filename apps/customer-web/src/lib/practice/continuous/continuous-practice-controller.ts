@@ -18,7 +18,6 @@ import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/k
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
-import type { RecordingRuntimeFault } from '@/lib/practice/recording/recording-runtime-fault';
 import type { ContinuousAnalysisIntervention } from './analysis-intervention';
 import type { PracticeResourceIntervention } from './resource-intervention';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
@@ -92,8 +91,9 @@ export class ContinuousPracticeController {
   private detachDevices: (() => void) | null = null;
   private detachRecorder: (() => void) | null = null;
   private transitioning = false;
-  private pendingAnalysisPause = false;
-  private pendingRecordingFault: RecordingRuntimeFault | null = null;
+  private pendingTransportPause = false;
+  private pendingResourceIntervention = false;
+  private drainingTransitions = false;
   private enabled: boolean;
   private readonly listeners = new Set<() => void>();
   private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
@@ -172,10 +172,7 @@ export class ContinuousPracticeController {
         await this.startup.measure('recorderAdmission', () => this.recorder!.prepare({ audioRoot: this.options.inputSource === 'MICROPHONE' ? this.rootStream : this.options.devices.recordingMicrophone,
           cameraStream: this.options.devices.camera }));
       } catch (error) { throw recordingPreparationError(error); }
-      this.detachRecorder = this.recorder.onRuntimeFault(fault => {
-        if (this.transitioning) this.pendingRecordingFault = fault;
-        else this.recordingFault(fault);
-      });
+      this.detachRecorder = this.recorder.onRuntimeFault(() => this.updateResourceIntervention());
       this.detachDevices = this.options.observeDevices?.(() => this.recorder?.observeDeviceHealth()) ?? null;
       this.checkAlive();
       const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
@@ -206,6 +203,7 @@ export class ContinuousPracticeController {
   }
   private pauseTransport(): void {
     if (this.state !== 'ACTIVE') return;
+    if (this.transitioning) { this.pendingTransportPause = true; return; }
     this.refresh(); if (this.transport?.state === 'ENDED' || this.transport?.state === 'PAUSED') return;
     this.transition(C => {
       const before = this.session!.snapshot();
@@ -300,14 +298,21 @@ export class ContinuousPracticeController {
   private transition(action: (C: number) => void): void {
     this.transitioning = true;
     try { if (this.renderClock) this.renderClock.transaction(action); else action(0); }
-    finally {
-      this.transitioning = false;
-      if (this.pendingAnalysisPause) { this.pendingAnalysisPause = false; this.pauseTransport(); }
-      const fault = this.pendingRecordingFault; this.pendingRecordingFault = null;
-      if (fault) this.recordingFault(fault);
-    }
+    finally { this.transitioning = false; this.drainPendingTransitions(); }
   }
-  private recordingFault(_fault: RecordingRuntimeFault): void { this.updateResourceIntervention(); }
+  /** Clock ownership is released before synchronous callbacks can act on transport. */
+  private drainPendingTransitions(): void {
+    if (this.transitioning || this.drainingTransitions) return;
+    this.drainingTransitions = true;
+    try {
+      while (this.pendingTransportPause || this.pendingResourceIntervention) {
+        const pause = this.pendingTransportPause, resources = this.pendingResourceIntervention;
+        this.pendingTransportPause = false; this.pendingResourceIntervention = false;
+        if (pause) this.pauseTransport();
+        if (resources) this.applyResourceIntervention();
+      }
+    } finally { this.drainingTransitions = false; }
+  }
   private inputHealthChanged(health: MicrophoneResourceHealth): void {
     if (this.disposed) return;
     if (this.state === 'FINALIZING' && !health.healthy) { void this.failSession(health.reason === 'CAPTURE_PIPELINE_INVALID' ? 'ANALYSIS_FAILED' : health.reason); return; }
@@ -319,9 +324,14 @@ export class ContinuousPracticeController {
     this.updateResourceIntervention();
   }
   private updateResourceIntervention(): void {
+    // An in-progress resource action rereads the latched facts after pausing.
+    if (this.updatingIntervention) return;
+    this.pendingResourceIntervention = true; this.drainPendingTransitions();
+  }
+  private applyResourceIntervention(): void {
     if (this.updatingIntervention || this.disposed || this.state !== 'ACTIVE' || this.session?.clock.terminationReason === 'SCOPE_COMPLETED') return;
     const liveInput = this.inputResources?.snapshot();
-    if (liveInput && !liveInput.healthy) this.inputIncident = liveInput;
+    if (liveInput && !liveInput.healthy && this.inputIncident?.recoverability !== 'RESTART_REQUIRED') this.inputIncident = liveInput;
     const recording = this.recorder?.runtimeFault();
     let input = this.inputIncident;
     if (!input && !recording) return;
@@ -400,7 +410,7 @@ export class ContinuousPracticeController {
       this.analysisIntervention = Object.freeze({ pauseOrigin: this.intervention?.pauseOrigin
         ?? (this.transport?.state === 'PAUSED' ? 'USER' : 'INTERVENTION') });
       // Failed analysis cannot acknowledge a PAUSE boundary. Only canonical transport/media pause.
-      if (this.transitioning) this.pendingAnalysisPause = true; else this.pauseTransport();
+      this.pauseTransport();
       if (this.state !== 'ACTIVE') this.analysisIntervention = null;
     }
     if (this.state !== 'PREPARING') {
@@ -446,7 +456,7 @@ export class ContinuousPracticeController {
     if (this.cleanupPromise) return this.cleanupPromise;
     if (this.timer) clearInterval(this.timer); this.timer = null;
     this.inputResources?.dispose(); this.inputResources = null; this.inputIncident = null;
-    this.detachDevices?.(); this.detachDevices = null; this.detachRecorder?.(); this.detachRecorder = null; this.analysisIntervention = null; this.intervention = null; this.pendingRecordingFault = null;
+    this.detachDevices?.(); this.detachDevices = null; this.detachRecorder?.(); this.detachRecorder = null; this.analysisIntervention = null; this.intervention = null; this.pendingTransportPause = false; this.pendingResourceIntervention = false;
     this.cleanupPromise = (async () => {
       const failed = (error: unknown) => {
         this.cleanupFailure ??= 'RESOURCE_CLEANUP_FAILED'; this.inputError ??= 'RESOURCE_CLEANUP_FAILED';

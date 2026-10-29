@@ -7,6 +7,12 @@ changing its 93-row inventory or any production policy. This round changes only
 existing tests and this document. No resource/timing value, source implementation,
 identity/hash, schema, workflow or dependency changes.
 
+Round 24, based on `2ac94b2357d1b251e542a8c2f67b6ab78fcf9154`, fixes only
+R03's synchronous controller failure-propagation defect. The Round 23 reachability
+witness remains valid. The semantic necessity of maxScheduledBoundaries=8 remains
+**UNRESOLVED**; fixing its failure handling does not qualify this cap. The source,
+publication, timing, resource values and identity contracts remain unchanged.
+
 The order is **semantic necessity → reachable valid workload → failure effect →
 ownership alternative → identity impact**. Reachability in a deterministic legal
 state does not estimate frequency on real hardware. A deferred worker represents
@@ -20,7 +26,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | resource-policy value itself is not attested; changing executor dataflow is attested and cascades core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap not in current core attestation; representation/source edits would change attested bytes | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **synchronous resource-pause reentrancy throws NESTED_CLOCK_TRANSACTION; no completed intervention and transport can advance again** | Limit 8 is not a source-mapping theorem; current failure handling also has a separate correctness defect | Preserve all historical positive intervals; investigate bounded representation/cancellation only after fixing ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; current core does not identify this failure behavior | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
+| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Limit 8 is not a source-mapping theorem; its semantic necessity remains UNRESOLVED after the separate failure-handling fix | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; current core does not identify this failure behavior | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability behavior is not fully identified | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: valid LOAD, BEGIN_SESSION, INFER, END_SESSION and idle DISPOSE can await an unanswered RPC indefinitely | One unanswered pending request; no malformed message required | Silent worker/driver/GPU hang or absent response, rather than crash/messageerror | Pending RPC promise/record, busy session ownership; chain/window PCM; retirement/completion promises | No intrinsic RPC deadline; preparation/FINALIZING/RETIRING can remain pending with no failure notification | No finite completion guarantee follows from promises or existing tail timeout | Define cancellation/ownership and stalled-service product policy before choosing any deadline; worker termination ownership already differs from normal lease retirement | Client/engine/liveness owners are not in current file-attestation set; source drain await is attested | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
 | R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; notification redesign would require explicit provenance boundary decision | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
@@ -139,7 +145,7 @@ represented more compactly/retired earlier requires a source→performance mappi
 proof, not a larger number. Deferred inference ownership and completed observation
 retention are different dataflows and cannot be deleted as substitutes.
 
-## R03 — controller boundaries and the observed reentrancy defect
+## R03 — controller boundaries and transaction-safe failure propagation
 
 Start/Resume plan a future BEGIN at count-in completion and a TERMINAL at the scope
 end. isPending allows cancelPending to ignore already-applied IDs. Pause always
@@ -173,26 +179,54 @@ are delayed is a scheduling adversary, not measured hardware behavior. A normal 
 count-in would require much longer lag and may encounter R04 first; the short-meter
 witness avoids assuming that transport has unlimited credits.
 
-**Current correctness defect:** schedule's CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts
-the bridge and SourceAnalysisRuntime. Because bridge.failed is already true,
-ContinuousPracticeController.analysisFailed classifies it as capture infrastructure
-and enters inputHealthChanged/updateResourceIntervention. That path immediately
-calls pauseTransport inside Resume's existing AudioContextPerformanceClock
-transaction. The nested transaction throws NESTED_CLOCK_TRANSACTION. The first
-failure callback exception may be swallowed by the source's first-cause protection;
-the repeated boundary error handling can still propagate the nested exception.
+### Historical Round 23 defect; Round 24 status: FIXED
 
-The characterization catches the actual exception, not an idealized pause. Source
-failureCode remains CAPTURE_BOUNDARY_LIMIT_EXCEEDED; bridge pending queue is cleared;
-no region/inference has started from the delayed controls. Application remains
-ACTIVE with transport COUNT_IN, analysisIntervention=null, resourceIntervention=null,
-no Result/callback. Advancing the clock and refreshing then yields RUNNING and a
-larger performance position. Thus this path currently has **no guaranteed canonical
-failure pause/intervention**, beyond the independent question of whether 8 is needed.
-End/dispose still abandons and releases once, retaining borrowed root ownership.
-This is newly exercised evidence at unchanged production behavior, rather than a
-newly introduced fault. No production fix is included; it is a release-correctness blocker for a separate
-approved production change, not a reason to hide the trigger or increase a cap.
+At the Round 23 baseline, schedule's CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborted the
+bridge and SourceAnalysisRuntime. Because bridge.failed was already true,
+ContinuousPracticeController.analysisFailed classified it as capture infrastructure
+and entered inputHealthChanged/updateResourceIntervention. That path attempted
+pauseTransport inside Resume's existing AudioContextPerformanceClock transaction,
+throwing NESTED_CLOCK_TRANSACTION. Application remained ACTIVE with COUNT_IN,
+no resource intervention, and could advance again on refresh. This was a separate
+failure-propagation correctness defect, not evidence that a larger cap was needed.
+
+Round 24 preserves the same legal witness and the first capture failure. Controller
+callbacks latch input-health facts and pending resource work during the canonical
+clock transaction. Analysis/other pause requests use a pending transport-pause
+intent; recording facts remain owned by the recorder. Only after the outer clock
+transaction releases its latch does transition's finally synchronously drain these
+actions, before the public command returns. A drain guard prevents its own pause
+transaction from recursively draining; resource application rereads latched input
+and recorder facts after pausing. A latched RESTART_REQUIRED input incident cannot
+be overwritten by a weaker live-health snapshot or subsequent health notification.
+No timer, microtask, retry, exception suppression or boundary-specific branch is
+involved. Cleanup clears pending intents and existing lifecycle guards prevent
+stale callbacks from reestablishing an intervention after abandonment/disposal.
+
+The updated witness verifies that Resume does not throw and returns with:
+
+- Application ACTIVE; canonical transport PAUSED, with Performance Time frozen
+  across a later clock advance and refresh; no Resume/recovery bypass.
+- Bridge failed=true, pending boundaries=0; source failureCode remains
+  CAPTURE_BOUNDARY_LIMIT_EXCEEDED; no worker inference, publication-derived Result
+  or natural-completion callback.
+- analysisIntervention=null; resource intervention reason CAPTURE_PIPELINE_INVALID,
+  recoverability RESTART_REQUIRED, state WAITING_FOR_USER, impact INPUT_REQUIRED
+  for recording OFF, and pauseOrigin INTERVENTION.
+- Exactly one additional canonical, recorder-port and metronome pause; exactly one
+  resource-intervention diagnostic. End/dispose abandons and releases once while
+  preserving borrowed root ownership.
+
+A separate non-cap regression emits a real AudioContext statechange synchronously
+from the metronome's Resume port. It verifies one canonical/media pause, stable
+session identity/time, SAME_PIPELINE_RECOVERABLE classification, and explicit
+same-owner recovery with normal Resume Count-In. Four transaction-local input or
+analysis + recording order permutations verify one pause and no bypass of the
+remaining learner choice. Another non-cap capture abort followed by weaker clock
+and recording facts verifies that hard first-cause ownership survives the drain.
+Existing USER-paused, INITIAL/RESUME count-in, analysis-pause-once and teardown
+regressions remain applicable. These tests establish failure ownership; they do
+not qualify cap8 or implement queue redesign.
 
 ### Coalescing is not yet a safe policy
 
@@ -361,7 +395,7 @@ external copy of the unfiltered command output. The enforced Worklet constant is
 uppercase CAPTURE_TRANSPORT_MAX_UNACKED and is a different, live owner. No deletion,
 rename or alias is performed in this characterization round.
 
-## Validation and remaining release concerns
+## Round 23 validation and remaining release concerns
 
 New tests are colocated with existing source runtime, capture bridge, transport,
 capture owner, worker/model lifecycle and Continuous controller tests. Shared-source
@@ -386,16 +420,17 @@ links and diff-check also pass. Full E2E/backend/coverage/build are not claimed.
 | [continuous-practice-controller.test.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.test.ts) | 6 | R01/R02 admitted failure; R03 reentrancy; R14 FINALIZING; R18 two timer-delivery cases |
 
 
-**R03 reentrant failure handling is an observed correctness blocker**, independent
-of resource qualification. R14 has a demonstrated absence of finite liveness under
+**R03 was an observed correctness blocker in Round 23 and is FIXED in Round 24**
+by the synchronous controller fence described above, independently of resource
+qualification. R14 has a demonstrated absence of finite liveness under
 silence; resolving its product/ownership requirement is necessary before a bounded
-completion/retirement guarantee can be claimed. No test converts those concerns
-into an approved behavior, fixes them, or infers real device incidence.
+completion/retirement guarantee can be claimed. Round 23 characterization did not
+fix those concerns or infer real device incidence. Round 24 fixes only R03 failure propagation; R14 remains unresolved.
 
-Only the following future conclusions are made; none is implemented here:
+The remaining future conclusions are:
 
-- **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state and failure ownership, the
-  R03 clock-transaction defect, R14 silent-service handling and R18 readiness delivery.
+- **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state/cap necessity,
+  R14 silent-service handling and R18 readiness delivery.
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining
   numeric credit/headroom justified by actual supported workloads rather than tests.
 - **DELETE AS REDUNDANT:** the unused resource-policy alias after its exact-reference
@@ -407,5 +442,16 @@ Only the following future conclusions are made; none is implemented here:
 - **NEEDS REAL DEVICE/WORKLOAD EVIDENCE:** frequency/headroom, scheduler task lag,
   short-control workloads, GPU/worker silence, and any eventual liveness policy.
 
-No subsequent production round, cap adjustment, coalescing, retry/fallback, silent
-drop, automatic calibration or global coordinator starts as part of this document.
+Round 24 does not implement cap adjustment, queue coalescing, retry/fallback, silent
+drop, automatic calibration, global coordination or R14 timeout work.
+
+## Round 24 validation
+
+The controller suite passes 117 tests, including the corrected R03 witness and
+six new synchronous callback regressions. The related focused run passes 37 files /
+847 tests, including clock, capture/transport, microphone/controller, source runtime,
+publication, recording, architecture boundaries and acoustic file-attestation tests.
+The full Customer Web unit suite passes 209 files / 2,425 tests. Typecheck, lint
+with zero warnings, documentation structure/links and diff-check pass. This round
+does not rerun E2E, backend, coverage or production build. No resource, timing,
+identity/hash, Result schema or evidence-publication contract changes.

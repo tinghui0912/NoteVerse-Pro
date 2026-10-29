@@ -964,7 +964,7 @@ it('R02 schema-valid short resume count-ins plus full-block capture delivery rea
   expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
 });
 
-it('R03 valid ninth-boundary failure currently reenters the clock transaction instead of freezing', async () => {
+it('R03 valid ninth-boundary failure synchronously freezes after the clock transaction', async () => {
   const f = environment(48000, stream(), 2048), callback = vi.fn();
   const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
   try {
@@ -983,22 +983,113 @@ it('R03 valid ninth-boundary failure currently reenters the clock transaction in
     }
     expect(f.bridge().snapshot()).toMatchObject({ pendingBoundaryCount: 8, failed: false, nextSourceSampleIndex: source });
     expect(f.bridge().runtime.snapshot().counts.regionsStarted).toBe(0);
-    // Current defect: capture/resource failure synchronously reenters the canonical clock transaction.
-    expect(() => controller.resume()).toThrow('NESTED_CLOCK_TRANSACTION');
+    const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause');
+    const recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
+    const metronomePauses = f.meter.pause.mock.calls.length;
+    expect(() => controller.resume()).not.toThrow();
+    expect(canonicalPause).toHaveBeenCalledOnce(); expect(recorderPause).toHaveBeenCalledOnce();
+    expect(f.meter.pause).toHaveBeenCalledTimes(metronomePauses + 1);
+    canonicalPause.mockRestore(); recorderPause.mockRestore();
     expect(f.bridge().snapshot()).toMatchObject({ pendingBoundaryCount: 0, failed: true, nextSourceSampleIndex: source });
-    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'COUNT_IN' },
-      analysisIntervention: null, resourceIntervention: null, completed: null });
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' },
+      analysisIntervention: null, analysisError: null, resourceIntervention: { reason: 'CAPTURE_PIPELINE_INVALID',
+        recoverability: 'RESTART_REQUIRED', state: 'WAITING_FOR_USER', impact: 'INPUT_REQUIRED', pauseOrigin: 'INTERVENTION' }, completed: null });
+    expect(controller.engineeringSnapshot().diagnostics.filter(d => d.action === 'RESOURCE_INTERVENTION')).toHaveLength(1);
     expect(f.bridge().runtime.snapshot().failureCode).toBe('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
     expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
     // Total PCM lag102.5ms, below32*2048/48000 payload seconds: transport failure is not a prerequisite.
     expect(f.context.currentTime - source / 48000).toBeLessThan(32 * 2048 / 48000);
     const position = controller.snapshot().transport!.performanceTimeMs;
     f.context.currentTime += .1; controller.refresh();
-    expect(controller.snapshot().transport?.state).toBe('RUNNING');
-    expect(controller.snapshot().transport!.performanceTimeMs).toBeGreaterThan(position);
-    expect(controller.snapshot().resourceIntervention).toBeNull(); // Characterization, not approval of this failure behavior.
+    expect(controller.snapshot().transport).toMatchObject({ state: 'PAUSED', performanceTimeMs: position });
+    expect(controller.continueAfterRecovery()).toBe(false); controller.resume();
+    expect(controller.snapshot().transport).toMatchObject({ state: 'PAUSED', performanceTimeMs: position });
+    expect(f.bridge().runtime.snapshot().failureCode).toBe('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
+    expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
   } finally { await controller.abandon(); await controller.dispose(); }
   expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
+});
+
+it('synchronous AudioContext health during resume pauses once after clock release and preserves recovery ownership', async () => {
+  const f = environment(), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', callback);
+  await controller.start(); await f.feed(100); controller.pause();
+  const identity = controller.engineeringSnapshot().sessionId, position = controller.snapshot().transport!.performanceTimeMs;
+  const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause'), recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
+  const metronomePauses = f.meter.pause.mock.calls.length;
+  f.meter.resume.mockImplementationOnce(() => {
+    f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+    // The callback latches facts without recursively mutating canonical transport.
+    expect(canonicalPause).not.toHaveBeenCalled();
+  });
+  try {
+    expect(() => controller.resume()).not.toThrow();
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED', performanceTimeMs: position },
+      analysisIntervention: null, completed: null, resourceIntervention: { reason: 'AUDIO_CONTEXT_INTERRUPTED',
+        impact: 'INPUT_AND_RECORDING', recoverability: 'SAME_PIPELINE_RECOVERABLE', state: 'WAITING_FOR_USER', pauseOrigin: 'INTERVENTION' } });
+    expect(controller.engineeringSnapshot().sessionId).toBe(identity);
+    expect(controller.engineeringSnapshot().diagnostics.filter(d => d.action === 'RESOURCE_INTERVENTION')).toHaveLength(1);
+    expect(canonicalPause).toHaveBeenCalledOnce(); expect(recorderPause).toHaveBeenCalledOnce();
+    expect(f.meter.pause).toHaveBeenCalledTimes(metronomePauses + 1);
+    f.context.currentTime += .1; controller.refresh();
+    expect(controller.snapshot().transport!.performanceTimeMs).toBe(position);
+    f.context.state = 'running'; f.context.dispatchEvent(new Event('statechange'));
+    expect(controller.snapshot().resourceIntervention?.state).toBe('RECOVERED_WAITING_FOR_USER');
+    expect(controller.continueAfterRecovery()).toBe(true);
+    expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: position });
+    expect(canonicalPause).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
+  } finally { await controller.abandon(); await controller.dispose(); canonicalPause.mockRestore(); recorderPause.mockRestore(); }
+});
+
+for (const incident of ['input', 'analysis'] as const) for (const first of ['input', 'recording'] as const) {
+  it(`synchronous ${incident}+recording incidents (${first} first) drain one canonical pause after resume`, async () => {
+    const f = environment(), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', callback);
+    await controller.start(); await f.feed(100); controller.pause();
+    const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause'), recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
+    const metronomePauses = f.meter.pause.mock.calls.length;
+    const input = () => { if (incident === 'analysis') f.failure();
+      else { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); } };
+    const recording = () => { const clone = f.root.copies[1]; clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute')); };
+    f.meter.resume.mockImplementationOnce(() => { if (first === 'input') { input(); recording(); } else { recording(); input(); }
+      expect(canonicalPause).not.toHaveBeenCalled(); });
+    try {
+      expect(() => controller.resume()).not.toThrow();
+      expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' }, completed: null,
+        resourceIntervention: { impact: incident === 'input' ? 'INPUT_AND_RECORDING' : 'RECORDING_ONLY', pauseOrigin: 'INTERVENTION' } });
+      expect(controller.snapshot().analysisIntervention).toEqual(incident === 'analysis' ? { pauseOrigin: 'INTERVENTION' } : null);
+      expect(canonicalPause).toHaveBeenCalledOnce(); expect(recorderPause).toHaveBeenCalledOnce();
+      expect(f.meter.pause).toHaveBeenCalledTimes(metronomePauses + 1);
+      controller.continueWithoutRecording(); expect(controller.snapshot().transport?.state).toBe('PAUSED');
+      if (incident === 'analysis') await controller.continueWithoutAnalysis();
+      expect(controller.snapshot().transport?.state).toBe('PAUSED'); expect(callback).not.toHaveBeenCalled();
+      await controller.abandon();
+      f.context.state = 'closed'; f.context.dispatchEvent(new Event('statechange')); f.failure();
+      expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', analysisIntervention: null, resourceIntervention: null, completed: null });
+    } finally { await controller.dispose(); canonicalPause.mockRestore(); recorderPause.mockRestore(); }
+  });
+}
+
+it('synchronous hard capture failure survives weaker clock health and recording facts in the same resume', async () => {
+  const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO');
+  await controller.start(); await f.feed(100); controller.pause();
+  const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause'), recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
+  const metronomePauses = f.meter.pause.mock.calls.length;
+  f.meter.resume.mockImplementationOnce(() => {
+    f.bridge().abort(new Error('CAPTURE_PIPELINE_INVALID'));
+    f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange'));
+    const clone = f.root.copies[1]; clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute'));
+    f.context.state = 'running'; f.context.dispatchEvent(new Event('statechange'));
+  });
+  try {
+    expect(() => controller.resume()).not.toThrow();
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' }, analysisIntervention: null,
+      resourceIntervention: { reason: 'CAPTURE_PIPELINE_INVALID', recoverability: 'RESTART_REQUIRED', impact: 'INPUT_AND_RECORDING',
+        state: 'WAITING_FOR_USER', pauseOrigin: 'INTERVENTION' }, completed: null });
+    expect(f.bridge().snapshot()).toMatchObject({ failed: true, pendingBoundaryCount: 0 });
+    expect(f.bridge().runtime.snapshot().failureCode).toBe('CAPTURE_PIPELINE_INVALID');
+    expect(controller.engineeringSnapshot().diagnostics.filter(d => d.action === 'RESOURCE_INTERVENTION')).toHaveLength(1);
+    expect(canonicalPause).toHaveBeenCalledOnce(); expect(recorderPause).toHaveBeenCalledOnce();
+    expect(f.meter.pause).toHaveBeenCalledTimes(metronomePauses + 1); expect(controller.continueAfterRecovery()).toBe(false);
+  } finally { await controller.abandon(); await controller.dispose(); canonicalPause.mockRestore(); recorderPause.mockRestore(); }
 });
 
 it('R14 natural FINALIZING can stay pending beyond60s after tailReady while INFER silently hangs', async () => {
