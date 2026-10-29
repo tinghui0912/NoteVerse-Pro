@@ -13,6 +13,9 @@ import type { AcousticInferenceInput } from '../acoustic/runtime/inference-types
 import { StepMicrophoneInput } from './step-microphone-input';
 import { StepPracticeController } from './step-practice-controller';
 import { browserStepPlatform, type StepPlatform } from './step-platform';
+import { AcousticEngine } from '../acoustic/model/acoustic-engine';
+import { workerRpcRig } from '../acoustic/model/__fixtures__/worker-rpc';
+import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '../acoustic/model/worker-liveness-policy';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const createSource = SourceAnalysisRuntime.create.bind(SourceAnalysisRuntime);
@@ -640,4 +643,29 @@ it('explicit fresh owner after infrastructure End starts at configured scope wit
   expect(fresh.context).not.toBe(first.context); expect(fresh.worker).not.toBe(first.worker);
   expect(fresh.controller.snapshot().activeStepGroup).toEqual(artifact.expectedPracticeGroups[0]);
   await fresh.controller.dispose(); expect(first.completion).not.toHaveBeenCalled(); expect(fresh.completion).not.toHaveBeenCalled();
+});
+
+it('ACTIVE STEP worker INFER silence retains target under terminal analysis intervention, never infrastructure failure', async () => {
+  vi.useFakeTimers(); const r = rig(), { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client);
+  try {
+    await engine.prepare('/model'); r.platform.microphone!.acquireInference = vi.fn((signal: AbortSignal) => engine.acquire(signal));
+    await r.controller.start(); const before = r.controller.snapshot().sessionSnapshot!;
+    service.silent.add('INFER'); r.pause(); await r.feed(20);
+    expect(r.source().snapshot().outstanding).toBeGreaterThan(0);
+    expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', analysisIntervention: null, infrastructureIntervention: null });
+    await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(r.controller.snapshot().analysisIntervention).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, analysisIntervention: { kind: 'TERMINAL_ANALYSIS_FAILURE' },
+      infrastructureIntervention: null, canAcceptAttempt: false, sessionSnapshot: { localSessionId: before.localSessionId,
+        runtimeStatus: 'ACTIVE', completionReason: null, step: { currentIndex: before.step.currentIndex,
+          targetGeneration: before.step.targetGeneration, inputAvailable: false, activeAttempt: null } } });
+    expect(r.input().snapshot().failure).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(r.source().snapshot()).toMatchObject({ state: 'DISPOSED', outstanding: 0 }); expect(engine.snapshot().state).toBe('FAILED');
+    expect(r.finalized).toHaveLength(0); expect(r.completion).not.toHaveBeenCalled();
+    expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(service.terminate).toHaveBeenCalledOnce();
+    expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+    await r.controller.abandon(); expect(r.controller.snapshot().sessionSnapshot?.completionReason).toBe('STOPPED_BY_USER');
+    expect(r.completion).not.toHaveBeenCalled();
+  } finally { await r.controller.dispose(); await engine.dispose(); vi.useRealTimers(); }
 });

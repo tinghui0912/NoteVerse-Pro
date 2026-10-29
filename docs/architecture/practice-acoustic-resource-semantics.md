@@ -28,7 +28,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap deliberately outside evidence-core provenance; representation/source edits still change selected byte anchors | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Bounded ownership is required in principle; 8 is a temporary defensive safety fuse, not a qualified workload limit; its semantic necessity remains UNRESOLVED | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R14 worker/RPC liveness | Yes: valid LOAD, BEGIN_SESSION, INFER, END_SESSION and idle DISPOSE can await an unanswered RPC indefinitely | One unanswered pending request; no malformed message required | Silent worker/driver/GPU hang or absent response, rather than crash/messageerror | Pending RPC promise/record, busy session ownership; chain/window PCM; retirement/completion promises | No intrinsic RPC deadline; preparation/FINALIZING/RETIRING can remain pending with no failure notification | No finite completion guarantee follows from promises or existing tail timeout | Define cancellation/ownership and stalled-service product policy before choosing any deadline; worker termination ownership already differs from normal lease retirement | Client/engine liveness is deliberately outside evidence-core provenance; selected source drain bytes remain attested | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; readiness notification/liveness is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R05 unused resource-policy alias: maxUnacknowledgedBlocks | No executable production read | Declaration and assertion only | None | No runtime state | Editing this alias alone cannot change actual Worklet credit behavior | Redundant ownership; real authority is capture transport constant/standalone producer | Later remove dead field/assertion while retaining actual transport contract and drift checks | resource-policy.ts is not attested; deletion does not mechanically change current core hash | DELETE AS REDUNDANT |
 
@@ -81,7 +81,7 @@ Disposal calls the inference port disposal once, but SourceAnalysisRuntime also
 awaits its chain. A deliberately non-settling fake inference keeps that disposal
 promise pending. After release, late result delivery is fenced, queued work is not
 restarted, outstanding returns to zero and no publication appears. The real engine's
-normal lease retirement likewise waits on its pending service (R14).
+normal lease retirement awaits its pending service, now subject to the separate R14 silence fuse.
 
 The admitted-controller witness confirms the source backpressure failure first
 reaches the analysis owner: transport PAUSED, analysis intervention latched,
@@ -318,48 +318,89 @@ substitution for the other bounds. `32×2048/rate` is 1.486077s at 44.1k and 1.3
 at 48k, solely **payload duration conversion**, not a safe-stall SLO or a liveness
 proof. Current sample/block/credit values remain unchanged.
 
-## R14 — no finite completion guarantee for silent service
+## R14 — finite silent-RPC safety fuse implemented in Round 27
 
-The client regression withholds a response for each valid RPC, advances fake time
-120000ms and verifies no deadline/retry/failure notification or extra request.
-The Promise settles only after an explicit response or error/messageerror event.
-Those events terminate the client and reject pending work; silence does neither.
-A finite virtual-time checkpoint corroborates the source inspection: send stores a
-pending resolver and has no timer/other transition that could settle it by time.
-It is that ownership/await structure, not a two-minute wait, that establishes the
-absence of a finite automatic guarantee.
+Round 23 proved the prior absence of a silence deadline: valid LOAD, BEGIN_SESSION,
+INFER, END_SESSION and idle DISPOSE could remain pending indefinitely. A real
+source tail could be ready while inference/drain remained outstanding; the former
+60000ms tail predicate wait did not cover subsequent seal/drain. This remains the
+historical defect and the reason for the Round 27 product decision.
 
-| RPC / await | Valid pending ownership | Upper-level effect if silent | Existing escape / limit |
-| --- | --- | --- | --- |
-| LOAD | Worker/client load request; engine preparation | Explicit Setup qualification can remain CHECKING/preparing | External owner cancellation/disposal can terminate preparation; no independent RPC deadline |
-| BEGIN_SESSION | Exclusive engine acquisition marked LEASED before its response; usable lease not returned yet | Attempt preparation or smoke acquisition can remain pending | Engine/worker owner teardown; ordinary lease disposer is not yet returned |
-| INFER | Active worker request + copied model input + source chain | Subsequent jobs/drain/seal wait; during ACTIVE capture may later hit R01, but not if no more ready windows arrive | Explicit worker crash/termination; normal lease retirement waits for in-flight inference |
-| END_SESSION | Lease RETIRING; engine refuses another lease | Attempt cleanup and Setup engine-retirement handoff can remain pending | Service response/failure or a separately authorized worker termination policy; no normal-retirement timeout |
-| DISPOSE (idle worker) | Awaited disposal RPC | Engine/layout cleanup can remain pending | Response/crash/explicit termination; no independent disposal deadline |
+The model-service owner now declares
+[ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS=60000](../../apps/customer-web/src/lib/practice/acoustic/model/worker-liveness-policy.ts).
+It is a **temporary defensive silence safety fuse**, not an inference latency SLO,
+GPU/device qualification, total model-load duration limit or exact wall-clock
+scheduler guarantee. While the main-thread event loop can continue executing, a
+pending RPC without a legal liveness signal no longer owns an infinite lifecycle.
+Browser background throttling/scheduling can delay timer delivery; failure is not
+promised to occur at exactly60000ms of real wall time.
 
-Idle DISPOSE itself does not set the client's busy flag; its valid disposing owner
-issues no concurrent work. The test does not invent an exclusivity guarantee for
-that method. Existing client.dispose while busy deliberately terminates pending
-work, but **AcousticEngine's normal lease disposal first awaits run/endSession**.
-These different owners cannot be conflated into a claim that every page teardown
-always forcibly terminates a silent inference.
+[AcousticModelWorker](../../apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts)
+owns one watchdog per pending request. Matching final response removes pending and
+clears its timer before settlement. Legal matching **LOAD PROGRESS** invokes the
+existing callback and rearms that request's silence window, retaining the request
+ID. Thus a progressing load may take more than60s in total. Malformed progress,
+non-LOAD progress and unrelated messages cannot refresh another request. No
+progress protocol exists for the other four RPCs. Malformed matching responses do
+not settle an RPC or renew its watchdog; existing unmatched-response failure
+remains fail-closed.
 
-The source test proves tailReady=true/pendingRegions=0 can coexist with outstanding=1
-and hasRegionWork(region)=true. drain and seal remain pending; no failure is
-reported. The controller test reaches real natural FINALIZING with tailReady=true,
-outstanding=2 and no analysis error. Another 120000ms fake time produces no Result
-or completion callback. Releasing inference permits one normal completion.
-ContinuousMicrophoneInput.finish()'s 60000ms timer covers only the tailReady predicate;
-subsequent runtime.seal awaits drain without that deadline. Healthy recorder freeze
-may already have occurred while finalization is still waiting; this is not an
-unavailable completed Result or an active intervention yet.
+On silence timeout the first terminal cause is ACOUSTIC_WORKER_RPC_TIMEOUT:
+client CLOSED, worker terminated, all pending RPCs rejected and all watchdogs
+cleared. Late messages/errors/disposal cannot revive CLOSED or notify failure
+twice. Crash/messageerror before timeout preserve their own codes. Synchronous
+postMessage failure removes its pending record/timer immediately. Explicit dispose
+of a busy client still immediately terminates with ACOUSTIC_WORKER_DISPOSED, never
+waiting for60s. Normal lease retirement still belongs to the engine; it now awaits
+RPCs that have bounded silence, rather than an unbounded service promise.
 
-A separate engine test holds END_SESSION: lease retirement and engine.dispose stay
-pending, state RETIRING, no replacement lease/automatic termination, until response.
-Therefore **yes**, legal preparation, finalization and retirement states exist with
-no finite completion guarantee under silent worker/service hangs. Crash/messageerror
-and explicit cancellation are different modes and do not prove a silence deadline.
-This conclusion does not authorize an arbitrary new timeout.
+| RPC / owner | After silence fuse (no response/progress) | Existing ownership retained |
+| --- | --- | --- |
+| LOAD | Reject TIMEOUT; engine FAILED; explicit Environment qualification becomes BLOCKED | No automatic second worker; only explicit Setup/requalification may replace it |
+| BEGIN_SESSION | Reject TIMEOUT; engine FAILED; no reusable/returned broken lease | Exclusive acquisition; no READY_IDLE reuse |
+| INFER | Reject TIMEOUT; engine FAILED; source chain/drain can settle | Accepted evidence is not invented; no worker/provider retry or fallback |
+| END_SESSION | Reject TIMEOUT; RETIRING transitions through FAILED; retirement rejects finitely; concurrent engine disposal can finish | No replacement lease from failed engine; disposal does not force earlier normal retirement |
+| DISPOSE (idle worker) | Reject TIMEOUT after worker termination | Cleanup error remains observable; no pretend successful disposal |
+
+Idle DISPOSE retains its existing owner contract (the disposing owner issues no
+concurrent work); this round does not introduce a different general concurrency
+model. The client busy-dispose and engine lease-retirement owners remain distinct.
+
+### Application propagation and real-client regressions
+
+No SourceAnalysisRuntime, publication, controller or STEP failure-classification
+behavior is changed. The existing rejection/onFailure paths give:
+
+- **Continuous ACTIVE:** canonical PAUSED transport and analysis intervention,
+  not CAPTURE_PIPELINE_INVALID/resource intervention. The learner chooses existing
+  Continue without analysis or End; accepted degradation retains session/clock/
+  healthy recorder, disables feedback and never retries the worker.
+- **Continuous natural FINALIZING:** the real tailReady=true, pendingRegions=0,
+  outstanding=2 witness has no Result before error settlement. After the silent
+  INFER times out, runtime drain settles, healthy recording finalizes and the
+  controller naturally reaches COMPLETE exactly once, with UNAVAILABLE /
+  CONTINUOUS_ANALYSIS_UNAVAILABLE evaluation and the configured acoustic evidence
+  provenance. It does not abandon scope completion or fabricate target evidence.
+- **STEP ACTIVE:** existing acoustic-runtime classification latches the terminal
+  analysis intervention, preserves ACTIVE session/target/progress and makes input
+  unavailable. No infrastructure intervention, verdict, completion or restart is
+  fabricated. Only existing End/page teardown ends the retained attempt.
+- **Setup:** silent LOAD moves explicit CHECKING to real BLOCKED with diagnostic
+  timeout reason. A new engine is created only by a later explicit requalification.
+
+Tests use real client/engine protocol with deterministic fake service replies and
+fake timers, including five silence paths, response-before-deadline, repeated LOAD
+progress beyond total60s, progress-then-silence, malformed/unrelated messages,
+crash/messageerror precedence, busy dispose, postMessage throw, late-response fences,
+engine failure/retirement/disposal and the application paths above. No real60s sleep
+or production test hook is used.
+
+R14 mechanism is **KEEP + QUALIFY**: finite silent-service liveness is required;
+the numeric60s window still **NEEDS REAL DEVICE/WORKLOAD EVIDENCE**. No generic retry,
+provider fallback, global coordinator or broader cap/polling redesign is included.
+The Round25 evidence-core exclusion of runtime liveness remains unchanged: no
+acoustic core/composite hash, timing provenance, assignmentV4 or Result schema6
+change, and no new runtime-policy provenance field.
 
 ## R18 — observation polling and a local notification alternative
 
@@ -414,8 +455,9 @@ reproducibility requires a separate versioned runtime-policy provenance owner an
 schema decision, not an expansion/redefinition of the existing core hash.
 
 This resolves only provenance scope. R01/R02/R03/R04/R14/R18 retain their existing
-numeric/semantic-necessity status: cap8 remains UNRESOLVED; R14 has no finite
-silent-service guarantee; maxUnacknowledgedBlocks remains a deletion candidate.
+numeric/semantic-necessity status was unchanged by Round25. Round27 adds the
+separate R14 silence fuse; its numeric60s remains unqualified. cap8 remains
+UNRESOLVED; maxUnacknowledgedBlocks remains a deletion candidate.
 
 ## Exact-reference audit
 
@@ -456,17 +498,18 @@ links and diff-check also pass. Full E2E/backend/coverage/build are not claimed.
 
 **R03 was an observed correctness blocker in Round 23 and is FIXED in Round 24**
 by the synchronous controller fence described above, independently of resource
-qualification. R14 has a demonstrated absence of finite liveness under
-silence; resolving its product/ownership requirement is necessary before a bounded
-completion/retirement guarantee can be claimed. Round 23 characterization did not
-fix those concerns or infer real device incidence. Round 24 fixes only R03 failure propagation; R14 remains unresolved.
+qualification. Round23 also demonstrated missing finite liveness under silence.
+Round27 now supplies the separate R14 silence safety mechanism described above;
+its60s choice has no real-device/workload qualification. Historical Round23/24
+counts below do not qualify that new policy.
 
 The remaining future conclusions are:
 
 - **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state/cap necessity,
-  R14 silent-service handling and R18 readiness delivery.
+  R18 readiness delivery.
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining
-  numeric credit/headroom justified by actual supported workloads rather than tests.
+  numeric credit/headroom and R14 silence deadline justified by actual supported
+  workloads rather than tests.
 - **DELETE AS REDUNDANT:** the unused resource-policy alias after its exact-reference
   audit; do not remove the real Worklet credit contract.
 - **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after

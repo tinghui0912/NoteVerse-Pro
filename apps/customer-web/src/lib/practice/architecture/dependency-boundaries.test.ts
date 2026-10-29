@@ -301,7 +301,8 @@ describe('Practice bounded domain dependencies', () => {
       'acoustic/runtime/resource-policy', 'acoustic/source/capture-transport-contract',
       'acoustic/source/capture.worklet.js', 'acoustic/continuous/capture', 'acoustic/continuous/capture-bridge',
       'acoustic/model/worker-client', 'acoustic/model/model-inference', 'acoustic/model/acoustic-worker.entry',
-      'acoustic/model/acoustic-engine', 'continuous/continuous-microphone-input', 'continuous/continuous-practice-controller',
+      'acoustic/model/acoustic-engine', 'acoustic/model/worker-liveness-policy',
+      'continuous/continuous-microphone-input', 'continuous/continuous-practice-controller',
       'continuous/analysis-intervention', 'continuous/resource-intervention',
       'step/step-analysis-intervention', 'step/step-infrastructure-intervention',
     ]) for (const statement of [

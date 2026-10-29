@@ -66,7 +66,7 @@ this identity into a runtime-policy contract.
 | Pending region cap | resource-policy.ts; source-analysis-runtime.ts | No cap policy identity | No | Controls retained region admission/failure | Review R02 ownership before tuning; attested executor edits still update byte anchors |
 | Outstanding inference cap | resource-policy.ts; source-analysis-runtime.ts | No cap policy identity | No | Controls queued/active copied PCM and failure | Review R01 ownership before tuning; attested executor edits still update byte anchors |
 | Readiness polling/deadlines (5ms; 10s/15s/60s) | capture.ts; ContinuousMicrophoneInput | No | No | Observes readiness and bounds some waits, not source event timestamps | Review necessity/liveness independently; no timeout addition in this round |
-| Worker RPC liveness and engine retirement | worker-client.ts; model-inference.ts; acoustic-worker.entry.ts; AcousticEngine | No | No | Owns response/lease lifecycle, including silent pending states | R14 remains unresolved; stronger outcome-replay requirement needs separate provenance |
+| Worker RPC liveness and engine retirement | worker-client.ts; model-inference.ts; acoustic-worker.entry.ts; AcousticEngine | No | No | Owns response/lease lifecycle, including silent pending states | R14 silence fuse is outside this core; stronger outcome-replay requirement needs separate provenance |
 | Controller failure/intervention behavior | ContinuousPracticeController; STEP application controllers | No | No | Owns performance/session failure disposition | Application changes do not redefine evidence core; future runtime-policy contract is separate |
 | Event-time mapping/no calibration | continuous/timing/timing-provenance.ts; acoustic source mapping owners | Acoustic source mapping is inside; session timing policy is separately identified | Yes: timing | Separates physical event coordinates from assignment and availability | Update the affected timing/evidence policy explicitly; no calibration implied |
 
@@ -151,6 +151,7 @@ The current Result boundary is enforced by
 [provenance tests](../../apps/customer-web/src/lib/practice/result/continuous-result-provenance.test.ts)
 and [dependency tests](../../apps/customer-web/src/lib/practice/architecture/dependency-boundaries.test.ts).
 Resolving identity scope does not qualify any resource number: R01/R02/R03 cap
-necessity, R04 supported-stall evidence, R14 silent-service liveness and R18 polling
-necessity keep their previous status. maxUnacknowledgedBlocks remains a deletion
+necessity, R04 supported-stall evidence and R18 polling necessity are not qualified
+by identity scope. Round27 separately adds an unqualified R14 silence safety fuse;
+that runtime policy remains outside this evidence core. maxUnacknowledgedBlocks remains a deletion
 candidate; no cleanup, tuning or liveness redesign starts in this round.

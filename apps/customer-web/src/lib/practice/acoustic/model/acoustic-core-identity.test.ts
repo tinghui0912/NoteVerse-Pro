@@ -61,7 +61,7 @@ it('uses selective evidence-core integrity anchors, deliberately excluding runti
     'acoustic/source/capture.worklet.js', 'acoustic/continuous/capture-bridge.ts',
     'continuous/continuous-microphone-input.ts', 'continuous/continuous-practice-controller.ts',
     'acoustic/model/worker-client.ts', 'acoustic/model/model-inference.ts',
-    'acoustic/model/acoustic-worker.entry.ts', 'acoustic/model/acoustic-engine.ts',
+    'acoustic/model/acoustic-worker.entry.ts', 'acoustic/model/acoustic-engine.ts', 'acoustic/model/worker-liveness-policy.ts',
   ]) {
     const file = `${prefix}src/lib/practice/${owner}`;
     expect(readFileSync(path.join(repositoryRoot, file)).length, owner).toBeGreaterThan(0);

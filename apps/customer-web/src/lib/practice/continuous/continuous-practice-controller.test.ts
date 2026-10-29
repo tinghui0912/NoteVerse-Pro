@@ -8,6 +8,9 @@ import { borrowedDevices } from '../__fixtures__/device-roots';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
+import { workerRpcRig } from '@/lib/practice/acoustic/model/__fixtures__/worker-rpc';
+import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '@/lib/practice/acoustic/model/worker-liveness-policy';
+import { microphoneEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/model-contract';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
@@ -1116,24 +1119,55 @@ it('synchronous hard capture failure survives weaker clock health and recording 
   } finally { await controller.abandon(); await controller.dispose(); canonicalPause.mockRestore(); recorderPause.mockRestore(); }
 });
 
-it('R14 natural FINALIZING can stay pending beyond60s after tailReady while INFER silently hangs', async () => {
-  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'OFF', callback);
-  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
-  vi.mocked(f.worker.run).mockImplementation(async ({ window }) => { await gate; return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }; });
+it('R14 silent INFER after tailReady settles natural FINALIZING with healthy recording and UNAVAILABLE evaluation', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'AUDIO', callback);
+  const { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client);
+  await engine.prepare('/model'); f.platform.acquireInference = signal => engine.acquire(signal); service.silent.add('INFER');
   try {
     await controller.start(); await f.feed(3500);
     expect(f.bridge().runtime.tailReady).toBe(true);
     expect(f.bridge().runtime.snapshot()).toMatchObject({ pendingRegions: 0, outstanding: 2 });
     expect(controller.snapshot()).toMatchObject({ session: 'FINALIZING', analysisError: null, completed: null });
-    await vi.advanceTimersByTimeAsync(120000);
+    await vi.advanceTimersByTimeAsync(SILENCE / 2);
     expect(controller.snapshot()).toMatchObject({ session: 'FINALIZING', analysisError: null, completed: null });
-    expect(callback).not.toHaveBeenCalled(); expect(f.worker.dispose).not.toHaveBeenCalled();
-    release(); await f.bridge().runtime.drain(); await vi.advanceTimersByTimeAsync(10);
-    expect(controller.snapshot().session).toBe('COMPLETE'); expect(callback).toHaveBeenCalledOnce();
-    expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
-  } finally { release(); await controller.dispose(); }
+    expect(callback).not.toHaveBeenCalled(); expect(service.terminate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(SILENCE); await controller.abandon(); // Joins the existing natural completion, never abandons its scope.
+    expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 0, failureCode: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(engine.snapshot().state).toBe('FAILED'); expect(service.terminate).toHaveBeenCalledOnce();
+    expect(controller.snapshot()).toMatchObject({ session: 'COMPLETE', analysisIntervention: null, resourceIntervention: null });
+    const completed = controller.snapshot().completed!;
+    expect(completed.result).toMatchObject({ schemaVersion: 6, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
+    expect(completed.result.evidenceProvenance).toEqual(microphoneEvidenceProvenance(48000));
+    expect(completedContinuousTargetFeedback(completed.result.evaluation)).toEqual({ targets: [] });
+    expect(completed.recording.status).toBe('READY'); expect(callback).toHaveBeenCalledOnce();
+    expect(controller.snapshot().transport?.completionReason).toBe('SCOPE_COMPLETED');
+    await vi.advanceTimersByTimeAsync(SILENCE * 2); expect(callback).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+  } finally { await controller.dispose(); await engine.dispose(); }
 });
 
+it('ACTIVE worker INFER silence is analysis failure with same-session degradation, not capture-device failure', async () => {
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', callback);
+  const { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client);
+  await engine.prepare('/model'); f.platform.acquireInference = signal => engine.acquire(signal); service.silent.add('INFER');
+  try {
+    await controller.start(); await f.feed(900);
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'RUNNING' }, analysisIntervention: null });
+    expect(f.bridge().runtime.snapshot().outstanding).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(SILENCE);
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' }, evaluation: null,
+      analysisIntervention: { pauseOrigin: 'INTERVENTION' }, resourceIntervention: null, completed: null });
+    expect(f.bridge().snapshot().failed).toBe(false); expect(f.bridge().runtime.snapshot().failureCode).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    const identity = controller.engineeringSnapshot().sessionId, time = controller.snapshot().transport!.performanceTimeMs;
+    f.context.currentTime += .1; controller.refresh(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(time);
+    await controller.continueWithoutAnalysis();
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', analysis: 'DISABLED', analysisIntervention: null,
+      resourceIntervention: null, evaluation: null, transport: { state: 'COUNT_IN', countInKind: 'RESUME' } });
+    expect(controller.engineeringSnapshot().sessionId).toBe(identity); expect(f.context.close).not.toHaveBeenCalled();
+    expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(service.terminate).toHaveBeenCalledOnce();
+    expect(service.messages.filter(message => message.type === 'INFER')).toHaveLength(2); // Smoke plus the failed service request; no retry.
+    expect(callback).not.toHaveBeenCalled();
+  } finally { await controller.abandon(); await controller.dispose(); await engine.dispose(); }
+});
 
 for (const timerDeliveryMs of [5, 50]) it(`R18 real preroll discovery with timer delivery=${timerDeliveryMs}ms leaves source event geometry unchanged`, async () => {
   const f = environment(), publications: ContinuousEvidencePublication[] = [], failure = vi.fn(), releaseCapture = vi.fn();

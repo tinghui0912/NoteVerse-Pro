@@ -1,6 +1,8 @@
 import { expect, it, vi } from 'vitest';
 import { PracticeEnvironment } from './practice-environment';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
+import { workerRpcRig } from '@/lib/practice/acoustic/model/__fixtures__/worker-rpc';
+import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '@/lib/practice/acoustic/model/worker-liveness-policy';
 import type { PracticeRequirement } from '@/lib/practice/readiness/requirements';
 const mic: PracticeRequirement[] = ['acousticEngine', 'browserAudio', 'microphone'];
 function rig() {
@@ -182,4 +184,29 @@ it('disposing the Environment aborts and detaches its wait without a later READY
   expect(r.environment.snapshot().status).toBe('UNCONFIGURED'); expect(states).not.toContain('READY');
   expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
   await expect(r.environment.requalify(mic)).rejects.toThrow('PRACTICE_ENVIRONMENT_DISPOSED');
+});
+
+it('silent worker LOAD leaves CHECKING finitely and requires explicit requalification for a fresh engine', async () => {
+  vi.useFakeTimers(); const old = workerRpcRig(), fresh = workerRpcRig(); old.service.silent.add('LOAD');
+  const engines: AcousticEngine[] = [];
+  const platform = { modelUrl: vi.fn(async () => '/model'), createEngine: vi.fn(() => {
+    const client = engines.length === 0 ? old.client : fresh.client;
+    const engine = new AcousticEngine(() => client); engines.push(engine); return engine;
+  }), probe: vi.fn(async (requirements: readonly PracticeRequirement[], ready: (key: PracticeRequirement) => void) => {
+    requirements.filter(key => key !== 'acousticEngine').forEach(ready);
+  }) };
+  const environment = new PracticeEnvironment(platform);
+  try {
+    const qualification = environment.requalify(mic);
+    await vi.advanceTimersByTimeAsync(SILENCE - 1);
+    expect(environment.snapshot().status).toBe('CHECKING'); expect(platform.createEngine).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1); await qualification;
+    expect(environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(engines[0].snapshot().state).toBe('FAILED'); expect(environment.matches(mic)).toBe(false);
+    expect(platform.createEngine).toHaveBeenCalledOnce(); expect(old.service.terminate).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+    await environment.requalify(mic);
+    expect(platform.createEngine).toHaveBeenCalledTimes(2); expect(environment.matches(mic)).toBe(true);
+    expect(engines[1]).not.toBe(engines[0]);
+  } finally { await environment.dispose(); vi.useRealTimers(); }
 });

@@ -1,5 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { AcousticEngine } from './acoustic-engine';
+import { workerRpcRig } from './__fixtures__/worker-rpc';
+import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from './worker-liveness-policy';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
 
 const input: AcousticInferenceInput = { pcm: new Float32Array(29120), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
@@ -61,20 +63,50 @@ it('Worker construction failure is terminal and does not leave a preparing engin
 });
 
 
-it('R14 a silent END_SESSION keeps valid lease retirement and engine disposal pending without an automatic deadline', async () => {
-  const r = rig(); await r.engine.prepare('/verified-model');
-  const lease = await r.engine.acquire(); let release!: () => void;
-  r.worker.endSession.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
-  vi.useFakeTimers();
+it('R14 END_SESSION silence fails retirement finitely and lets concurrent engine disposal finish', async () => {
+  vi.useFakeTimers(); const { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client), states: string[] = [];
+  engine.subscribe(() => states.push(engine.snapshot().state));
   try {
-    let retired = false, disposed = false;
-    const retirement = lease.dispose().then(() => { retired = true; });
-    await Promise.resolve(); const disposal = r.engine.dispose().then(() => { disposed = true; });
-    await vi.advanceTimersByTimeAsync(120000);
-    expect(r.engine.snapshot().state).toBe('RETIRING'); expect(retired).toBe(false); expect(disposed).toBe(false);
-    expect(r.worker.endSession).toHaveBeenCalledTimes(2); expect(r.worker.dispose).not.toHaveBeenCalled();
-    expect(r.worker.terminate).not.toHaveBeenCalled(); await expect(r.engine.acquire()).rejects.toThrow('NOT_READY');
-    release(); await retirement; await disposal;
-    expect(r.engine.snapshot().state).toBe('DISPOSED'); expect(r.worker.dispose).toHaveBeenCalledOnce();
-  } finally { release?.(); await r.engine.dispose(); vi.useRealTimers(); }
+    await engine.prepare('/model'); const lease = await engine.acquire(); service.silent.add('END_SESSION');
+    const failed = vi.fn(), retirement = lease.dispose().catch(failed); await Promise.resolve();
+    expect(engine.snapshot().state).toBe('RETIRING');
+    let disposed = false; const disposal = engine.dispose().then(() => { disposed = true; });
+    await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(disposed).toBe(false); expect(failed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); await retirement; await disposal;
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(states).toContain('FAILED'); expect(engine.snapshot().state).toBe('DISPOSED');
+    await expect(engine.acquire()).rejects.toThrow('NOT_READY');
+    expect(service.terminate).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+  } finally { await engine.dispose(); vi.useRealTimers(); }
+});
+
+for (const rpc of ['LOAD', 'BEGIN_SESSION', 'INFER'] as const) it(`${rpc} silence makes the real engine FAILED and prevents reuse`, async () => {
+  vi.useFakeTimers(); const { service, client } = workerRpcRig(), create = vi.fn(() => client), engine = new AcousticEngine(create), failure = vi.fn();
+  engine.onFailure(failure);
+  try {
+    let operation: Promise<unknown>, lease;
+    if (rpc === 'INFER') {
+      await engine.prepare('/model'); lease = await engine.acquire(); service.silent.add(rpc); operation = lease.run(input);
+    } else { service.silent.add(rpc); operation = engine.prepare('/model'); }
+    const failed = vi.fn(), observed = operation.catch(failed);
+    await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(failed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); await observed;
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(engine.snapshot()).toEqual({ state: 'FAILED', failure: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(failure).toHaveBeenCalledOnce(); expect(service.terminate).toHaveBeenCalledOnce(); expect(create).toHaveBeenCalledOnce();
+    await expect(engine.acquire()).rejects.toThrow('NOT_READY'); await lease?.dispose();
+    expect(engine.snapshot().state).toBe('FAILED'); expect(vi.getTimerCount()).toBe(0);
+  } finally { await engine.dispose(); vi.useRealTimers(); }
+});
+
+it('idle DISPOSE silence rejects engine cleanup rather than reporting normal successful disposal', async () => {
+  vi.useFakeTimers(); const { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client);
+  try {
+    await engine.prepare('/model'); service.silent.add('DISPOSE');
+    const failed = vi.fn(), disposal = engine.dispose().catch(failed);
+    await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(failed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); await disposal;
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(service.terminate).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0); expect(engine.snapshot().state).toBe('DISPOSED');
+  } finally { await engine.dispose(); vi.useRealTimers(); }
 });
