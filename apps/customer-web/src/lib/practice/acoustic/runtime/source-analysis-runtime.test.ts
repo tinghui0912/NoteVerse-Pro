@@ -55,6 +55,40 @@ for (const rate of [44100, 48000]) it(`${rate}: real producer delivers one conti
   } finally { await runtime.dispose(); }
 });
 
+it.each([44100, 48000] as const)('%i: nonzero source base and partial region use the model target-rate owner without shifting evidence', async rate => {
+  const base = 12345, publications: SourceAcousticPublication[] = [];
+  const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'nonzero-base', sourceSampleRateHz: rate,
+    coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
+    nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, worker: {
+      run: async ({ window }) => ({ events: [{ pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .8, frameScore: .8,
+        targetSample: Math.ceil(window.ownedStartTarget) }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }), dispose: async () => {} } });
+  let next = base;
+  const feed = async (end: number) => { while (next < end) { const start = next; next = Math.min(end, start + 128);
+    runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) });
+    await runtime.drain(); } };
+  try {
+    await feed(base + 128); expect(runtime.prerollReady).toBe(false);
+    await feed(base + rate * 2 + 7); expect(runtime.prerollReady).toBe(true);
+    const sourceStart = next, originTarget = (sourceStart - base) * M.sampleRateHz / rate;
+    runtime.beginAnalysisRegion(sourceStart);
+    expect(runtime.snapshot()).toMatchObject({ sourceBase: base, activeRegion: { sourceStart, originTarget } });
+    await feed(sourceStart + 257); const sourceEnd = next;
+    runtime.endAnalysisRegion(sourceEnd);
+    const endTarget = originTarget + (sourceEnd - sourceStart) * M.sampleRateHz / rate;
+    expect(runtime.snapshot()).toMatchObject({ activeRegion: null, pendingRegions: 1 });
+    expect(publications).toEqual([]); runtime.finishRegions();
+    await feed(sourceEnd + rate); await runtime.seal();
+    expect(publications).toHaveLength(1);
+    const p = publications[0];
+    expect(p.window).toMatchObject({ jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: originTarget, ownedEndTarget: endTarget });
+    expect(p.window.ownedEndTarget - p.window.ownedStartTarget).toBeLessThan(M.ownedMs * 16);
+    expect(p.ownedThroughSourceSample).toBe(base + endTarget * rate / M.sampleRateHz);
+    expect(p.observations[0].sourceEventSample).toBe((base * M.sampleRateHz + p.observations[0].targetSample * rate) / M.sampleRateHz);
+    expect(p.observations[0].observationId).toBe(sourceObservationId('nonzero-base', p.window, 60, p.observations[0].targetSample));
+    expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, outstanding: 0, pendingRegions: 0 });
+  } finally { await runtime.dispose(); }
+});
+
 it.each([false, true])('queued inference is delivered once in order, or terminates without restarting (failure=%s)', async failure => {
   const delivered: number[] = [], started: number[] = [], failures: Error[] = [];
   let release!: () => void;

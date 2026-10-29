@@ -24,9 +24,9 @@ type PublicationSummary = Readonly<{ job: number; region: number; index: number;
 const sourceCoordinate = (n: number) => Number.isFinite(n) && n >= 0 && n <= Number.MAX_SAFE_INTEGER;
 const index = (n: number) => Number.isSafeInteger(n) && n >= 0;
 function sourceEventSample(base: number, target: number, rate: SourceRate): number {
-  const numerator = base * 16000 + target * rate;
+  const numerator = base * M.sampleRateHz + target * rate;
   if (!Number.isSafeInteger(numerator)) fail('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
-  return numerator / 16000;
+  return numerator / M.sampleRateHz;
 }
 
 /** One ordered, exactly-once stream. Retains only the previous window, never event history. */
@@ -59,8 +59,8 @@ export class SourcePublicationSequence {
             : w.windowIndex !== 0 || w.ownedStartTarget < previous.ownedEndTarget)))) fail('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
       // Recover the integer capture origin, then require the exact producer geometry;
       // rounding this hypothesis never repairs or changes the publication.
-      const base = this.base ?? Math.round(p.ownedThroughSourceSample - w.ownedEndTarget * this.rate / 16000);
-      if (!index(base) || base + w.ownedEndTarget * this.rate / 16000 !== p.ownedThroughSourceSample) fail('ACOUSTIC_PUBLICATION_SOURCE_MAPPING_INVALID');
+      const base = this.base ?? Math.round(p.ownedThroughSourceSample - w.ownedEndTarget * this.rate / M.sampleRateHz);
+      if (!index(base) || base + w.ownedEndTarget * this.rate / M.sampleRateHz !== p.ownedThroughSourceSample) fail('ACOUSTIC_PUBLICATION_SOURCE_MAPPING_INVALID');
       const ids = new Set<string>();
       for (const o of p.observations) {
         if (Object.keys(o).length !== 8 || o.sourceDomainId !== this.domain || o.sourceSampleRateHz !== this.rate
@@ -96,7 +96,7 @@ export function sourcePublication(domain: string, rate: SourceRate, base: number
     return Object.freeze({ observationId, pitch: e.pitch, midiPitch: e.midiPitch, confidence: e.confidence,
       sourceDomainId: domain, sourceSampleRateHz: rate, sourceEventSample: sourceEventSample(base, e.targetSample, rate), targetSample: e.targetSample });
   });
-  const ownedThroughSourceSample = base + window.ownedEndTarget * rate / 16000;
+  const ownedThroughSourceSample = base + window.ownedEndTarget * rate / M.sampleRateHz;
   if (!Number.isFinite(ownedThroughSourceSample) || ownedThroughSourceSample < 0
     || ownedThroughSourceSample > Number.MAX_SAFE_INTEGER) fail('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
   return Object.freeze({ sourceDomainId: domain, sourceSampleRateHz: rate, window: Object.freeze({ ...window }), ownedThroughSourceSample,

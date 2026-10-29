@@ -32,7 +32,7 @@ export class ContinuousAcousticProjection {
         if (!segment) fail('UNKNOWN_ACOUSTIC_PERFORMANCE_SEGMENT');
         owner.deliver(projectContinuousEvidence(publication, segment, options.sessionDomainId));
         if (segment.sourceEnd !== undefined && publication.window.ownedEndTarget >= segment.originTarget
-          + (segment.sourceEnd - segment.sourceStart) * 16000 / options.sourceSampleRateHz) owner.segments.delete(segment.index);
+          + (segment.sourceEnd - segment.sourceStart) * ACOUSTIC_MODEL.sampleRateHz / options.sourceSampleRateHz) owner.segments.delete(segment.index);
       } });
     return owner;
   }
@@ -43,7 +43,7 @@ export class ContinuousAcousticProjection {
       if (performanceStartMs !== this.lastEnd || this.active || this.terminal !== null) fail('INVALID_ACOUSTIC_SEGMENT_START');
       const s = this.source.snapshot(), index = this.source.beginAnalysisRegion(s.nextSourceSampleIndex);
       const segment: PerformanceSegment = { index, sourceStart: s.nextSourceSampleIndex,
-        originTarget: (s.nextSourceSampleIndex - s.sourceBase!) * 16000 / this.options.sourceSampleRateHz, performanceStartMs };
+        originTarget: (s.nextSourceSampleIndex - s.sourceBase!) * ACOUSTIC_MODEL.sampleRateHz / this.options.sourceSampleRateHz, performanceStartMs };
       this.segments.set(index, segment); this.active = segment;
     } catch (error) { this.failAnalysis(error); throw error; }
   }

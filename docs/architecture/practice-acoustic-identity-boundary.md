@@ -227,3 +227,15 @@ digest and both adapter composite digests. This is mechanical selected-byte
 sensitivity, not an expanded evidence-core scope or a new Float32/byte-policy
 identity field. Result remains schema6 with unchanged provenance keys; no resource,
 runtime or execution-policy provenance is added.
+
+## Round37 selected source-rate consumer advance
+
+Executor and publication source replace duplicated16000 mapping literals with the
+existing model sampleRateHz declaration, preserving operation order, safe-integer
+validation, rounding and evidence semantics. Both selected source bytes/SHA advance,
+so canonical core and adapter composite digests mechanically advance as well.
+Two nonselected Continuous projection source→target consumers also derive from the
+same existing authority; no samples/ms or Performance-Time formula changes.
+Planner bytes/SHA, model rate/asset, decoder, FIR, adapter implementation and all
+semantic descriptions remain unchanged. Identity scope is not expanded. Result
+stays schema6 with identical provenance keys and no conversion/execution-policy field.

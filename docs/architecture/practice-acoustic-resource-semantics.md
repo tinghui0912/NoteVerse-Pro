@@ -138,9 +138,35 @@ Resource policy, R09 inputBytes, R01 threshold and the ring implementation are u
 Round29's746/685 output bounds,29870/29809 sufficient retention bounds,29120 input
 samples and65536 ring capacity remain unchanged. This does not qualify R08, prove
 65536 minimum/optimal or qualify total memory. R12 remains partially unresolved
-derivation debt for16/16000/1000 and other time-rate expressions. Only the selected
+derivation debt then included16/16000/1000; Round37 below derives only target-rate
+authority, leaving samples/ms and time-unit expressions. Only the selected
 executor's diagnostic expression bytes change; executor/core/composite attestations
 mechanically advance without changing evidence meaning, identity scope or Result shape.
+
+### Round37 — source↔target mappings use the model rate authority
+
+16000 remains the verified model/target-rate declaration, not a newly qualified
+or tunable policy. Executor region origin/end and preroll source→target terms,
+publication event numerator/division, base recovery/validation and owned-through
+frontier now reference M.sampleRateHz. The audit also found two direct source→target
+uses in Continuous projection's segment origin and retirement comparison; these
+now reference its existing ACOUSTIC_MODEL import. No extra rate owner/helper exists.
+
+Every arithmetic operation retains its original order. In particular, event mapping
+still forms base×modelRate+target×sourceRate, checks Number.isSafeInteger, then divides.
+Both-rate tests use the authority for expected event/frontier coordinates; a real
+nonzero-base partial-region witness checks origin/end, preroll and publication
+identity/frontier. Safe numerator boundary tests retain acceptance before overflow
+and rejection afterwards. Existing sequence/partial-region/projection/STEP regressions
+continue to exercise ordering and mapping. This does not change accepted/rejected
+coordinates, event times, rounding, observation identity or successful evidence.
+
+Planner and Continuous publication implementations remain byte-identical, including
+their *16 and samplesPerMs conventions; executor preroll's `(M.inputMs-M.futureMs)*16`
+is untouched. R12 remains STILL PARTIALLY UNRESOLVED DERIVATION DEBT for16/1000 and
+remaining sample/ms/time-unit conversions. Two selected executor/publication source
+byte changes mechanically advance core/composite identities without semantic or
+Result-shape changes; no target-rate/conversion/runtime-policy field is added.
 
 ### Round33 — R07 source block maximum is derived from R06
 

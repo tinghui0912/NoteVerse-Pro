@@ -66,7 +66,7 @@ export class SourceAnalysisRuntime {
     try {
       safeIndex(sourceSampleIndex);
       if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.active || sourceSampleIndex !== this.nextSource) fail('INVALID_ACOUSTIC_REGION_START');
-      const originTarget = (sourceSampleIndex - this.base) * 16000 / this.adapter.rate;
+      const originTarget = (sourceSampleIndex - this.base) * M.sampleRateHz / this.adapter.rate;
       const region: AnalysisRegion = { index: this.nextRegion++, sourceStart: sourceSampleIndex, originTarget, nextWindow: 0, queuedEndTarget: originTarget };
       if (planWindow(region, this.counts.windowsQueued)!.startSample < Math.max(10, this.ring.firstRetained)) fail('ACOUSTIC_PREROLL_NOT_READY');
       this.regions.push(region); this.active = region; this.state = 'RUNNING'; this.counts.regionsStarted++;
@@ -78,7 +78,7 @@ export class SourceAnalysisRuntime {
     try {
       safeIndex(sourceSampleIndex);
       if (!this.active || this.state !== 'RUNNING' || sourceSampleIndex !== this.nextSource) fail('ACOUSTIC_REGION_NOT_RUNNING');
-      const endTarget = this.active.originTarget + (sourceSampleIndex - this.active.sourceStart) * 16000 / this.adapter.rate;
+      const endTarget = this.active.originTarget + (sourceSampleIndex - this.active.sourceStart) * M.sampleRateHz / this.adapter.rate;
       if (endTarget < this.active.queuedEndTarget) fail('ACOUSTIC_REGION_END_MISMATCH');
       const region = this.active;
       region.sourceEnd = sourceSampleIndex; region.endTarget = endTarget;
@@ -98,7 +98,7 @@ export class SourceAnalysisRuntime {
   hasRegionWork(index: number): boolean { return this.regions.some(r => r.index === index) || this.queuedRegions.has(index); }
   get prerollReady(): boolean {
     if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.failure) return false;
-    return (this.nextSource - this.base) * 16000 / this.adapter.rate - (M.inputMs - M.futureMs) * 16 >= Math.max(10, this.ring.firstRetained);
+    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * 16 >= Math.max(10, this.ring.firstRetained);
   }
   attachCaptureCleanup(cleanup: () => void): () => void {
     this.guard(); if (this.cleanup) fail('ACOUSTIC_CAPTURE_ALREADY_ATTACHED');

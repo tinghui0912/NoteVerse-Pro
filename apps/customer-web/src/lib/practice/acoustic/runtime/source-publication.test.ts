@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
 import { planWindow } from './window-planner';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
+import { ACOUSTIC_MODEL as M } from '../model/model-contract';
 import { projectContinuousEvidence } from '../continuous/publication';
 
 it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
@@ -9,8 +10,10 @@ it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only sour
   const result = { events: [{ pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .9, frameScore: .8, targetSample: 20000 }],
     inferenceMs: 1, decodeMs: 0, actualSessionRunCount: 1 };
   const p = sourcePublication('source', rate, 100000, window, result, 1234567);
-  expect(p.ownedThroughSourceSample).toBe(100000 + 28800 * rate / 16000);
-  expect(p.observations[0].sourceEventSample).toBe((100000 * 16000 + 20000 * rate) / 16000);
+  expect(M.sampleRateHz).toBe(16000); // Secondary model declaration characterization, not a mapping owner.
+  expect(p.ownedThroughSourceSample).toBe(100000 + window.ownedEndTarget * rate / M.sampleRateHz);
+  expect(p.observations[0].sourceEventSample).toBe((100000 * M.sampleRateHz + result.events[0].targetSample * rate) / M.sampleRateHz);
+  expect(new SourcePublicationSequence('source', rate).accept(p)).toBeNull();
   expect(Object.isFrozen(p)).toBe(true);
   expect(Object.isFrozen(p.window)).toBe(true);
   expect(Object.isFrozen(p.observations)).toBe(true);
@@ -18,6 +21,18 @@ it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only sour
   expect(sourcePublication('source', rate, 100000, window, result, 9999999).observations).toEqual(p.observations);
   expect(p).not.toHaveProperty('capturedThroughSourceSample');
   expect(p).not.toHaveProperty('performanceTimeMs');
+});
+
+it.each([44100, 48000] as const)('%i: event mapping retains safe-integer numerator validation before division', rate => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const event = { pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .8, frameScore: .8, targetSample: 20000 };
+  const result = { events: [event], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
+  const base = Math.floor((Number.MAX_SAFE_INTEGER - event.targetSample * rate) / M.sampleRateHz);
+  const numerator = base * M.sampleRateHz + event.targetSample * rate;
+  expect(Number.isSafeInteger(numerator)).toBe(true);
+  expect(sourcePublication('source', rate, base, window, result, 0).observations[0].sourceEventSample).toBe(numerator / M.sampleRateHz);
+  expect(Number.isSafeInteger((base + 1) * M.sampleRateHz + event.targetSample * rate)).toBe(false);
+  expect(() => sourcePublication('source', rate, base + 1, window, result, 0)).toThrow('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
 });
 
 it('freezes a copied window and owns canonical identity plus duplicate rejection', () => {
