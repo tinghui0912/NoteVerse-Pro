@@ -246,6 +246,38 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round50 — domain pitch-language/raw-work audit, comparison gap and redundant regex
+
+The [domain contract audit](practice-step-domain-pitch-contract.md) distinguishes
+backend physical-name generation, API/browser structural consistency, canonical
+MIDI128/acoustic88 source identities, domain D280 syntax, exact-string normalization
+and raw-entry work admission. Browser/API artifacts can consistently admit strings
+outside either producer, outside D, or129 distinct targets. No local backend range
+check proves universal0..127; current fixture48..81 is not the accepted contract.
+
+Raw128 rejects before evidence entry iteration/Set/sort/record retention, as confirmed
+by zero index0 getter reads on a rejected129-entry array.128 duplicate C4 entries
+still normalize to1;129 reject. The policy does not bound prior allocation, hostile
+objects or target-side projection/sorting, and is not derived from producer128/88.
+It incidentally limits distinct admitted evidence, without defining the280-string
+domain universe or qualifying CPU/memory/device behavior.
+
+An actual admitted-artifact counterexample shows pitchSetsEqual's U+001F join can
+report MATCH for different sets: one target C4<U+001F>E4 versus C4/E4 evidence.
+This is a domain comparison-integrity gap, not a reason to filter source evidence
+or silently canonicalize score strings. The sole Round51 recommendation is an
+element-wise normalized-array comparison with a runtimeVersion decision/advance;
+domain language, raw128 and schema shape can stay unchanged. No code is changed now.
+
+Separately, every canonical acoustic21..108 name necessarily satisfies the later
+SourcePublicationSequence regex. It adds no rejection after exact mapping and is
+now a narrow future DERIVE/deletion sub-item. The domain regex is a different owner
+and is not proposed for deletion. Future DERIVE is therefore no longer empty.
+T15 primary remains UNQUALIFIED_RESOURCE_SAFETY_POLICY; domain comparison/language/
+raw-work remains DELETE/REDESIGN and raw128 QUALIFY. All93 rows/class counts remain;
+S17/R01/R03/R04 and resolved S09/S10/S15 are unchanged. Round50 is docs-only: no
+production/test, identity/schema/version, timing/resource or recognition behavior changes.
+
 ### Round49 — acoustic pitch identity before publication and STEP retention
 
 The [T15 companion](practice-step-pitch-evidence-bounds.md) records the resolved

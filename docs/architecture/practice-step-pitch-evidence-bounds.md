@@ -7,6 +7,27 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
+## Round50 domain audit — no implementation change
+
+The [domain pitch-contract companion](practice-step-domain-pitch-contract.md)
+re-establishes D280, canonical MIDI128/acoustic88, backend mapping/range limits and
+browser/API artifact admission. Consistent artifacts accept unusual strings and129
+distinct targets; direct domain evidence is narrower. Raw128 precedes evidence
+iteration/normalization but does not bound target-side work or caller allocation.
+An admitted target containing U+001F exposes a differing-set MATCH in the current
+join-based pitchSetsEqual. The companion recommends exactly one Round51 action:
+element-wise normalized-array equality, with an explicit runtimeVersion advance;
+it does not recommend a new pitch language or raw budget. Nothing is implemented here.
+
+Round49's later acoustic regex is also proved redundant after exact canonical
+integer21..108 mapping. It remains present and is recorded as a separate future
+DERIVE/deletion sub-item, so historical statements below that DERIVE was empty
+describe their respective rounds. T15 remains source identities resolved/domain
+unresolved, resource-safety primary, domain-only DELETE/REDESIGN and raw128 QUALIFY.
+All93 primary rows/classes/counts, production/test/schema/version and acoustic
+identity values remain unchanged in Round50. S17 and resolved source relationships
+are not reopened. The new companion contains the full owner/candidate/version matrix.
+
 ## Round49 current acoustic sub-boundary — source identities resolved, domain unresolved
 
 From approved baseline `76124db6eabf036984dade2d1be77eebf7a608b7`, Round49 exports the
