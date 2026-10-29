@@ -61,6 +61,20 @@ describe('session-level evidence identity', () => {
       }
     }
   });
+  it.each([
+    { rate: 44100, adapter: 'c51d5a9644c29eb0540166355bcb3c8ac834b09e7f068d996ca8a13f77cbbc9e' },
+    { rate: 48000, adapter: '26c621b2d4fa15a9ce351de864e386141823a9fb1b70435905007ca63fae7dcc' },
+  ] as const)('$rate rejects the previous executor-attestation identity without changing schema6 provenance shape', ({ rate, adapter }) => {
+    for (const available of [true, false]) {
+      const current = canonicalContinuousResultFixture('MICROPHONE', rate, available);
+      const parsed = JSON.parse(JSON.stringify(current));
+      parsed.evidenceProvenance.acousticCoreIdentitySha256 = '0fb6c699928908462d377145882f6ad01544e3385b865b9a8a23192e7faee644';
+      parsed.evidenceProvenance.sourceAdapterIdentitySha256 = adapter;
+      expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
+      expect(() => assertContinuousPerformanceResult(current)).not.toThrow(); expect(current.schemaVersion).toBe(6);
+      expect(Object.keys(parsed.evidenceProvenance)).toEqual(Object.keys(current.evidenceProvenance));
+    }
+  });
   it('MIDI provenance comes from the physical evidence owner without acoustic fields', () => {
     const owner = new ContinuousMidiEvidence('midi');
     const provenance = canonicalContinuousResultFixture().evidenceProvenance;

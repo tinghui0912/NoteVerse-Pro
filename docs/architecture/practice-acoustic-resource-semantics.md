@@ -25,7 +25,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | Item | Validly reachable? | Minimal trigger | Required stall/lag | What state grows? | Current failure effect | Correctness necessity | Alternative ownership/dataflow | Identity/provenance impact | Recommended next action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | Resource policy is deliberately outside evidence-core provenance; selected executor byte changes still cascade core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap deliberately outside evidence-core provenance; representation/source edits still change selected byte anchors | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
+| R02 pending source regions | More than4 is valid and now accepted at both supported rates | Positive intervals accumulate inside fixed future-context lag; zero-duration regions retire immediately even behind a blocked head | No worker stall is required | Only positive region records not yet planned, plus at most one active region; copied inputs remain R01-owned | Old explicit cap/error producer deleted; no replacement numeric cap | Discrete positive source intervals + finite adapter/model horizon bound retention independently of session length; see proof below | KEEP exact-region empty retirement and FIFO positive planning; no coalescing or silent drop | Runtime admission/lifecycle change edits selected executor bytes, mechanically advancing core/composite hashes without changing evidence semantics or provenance shape | DELETE AS REDUNDANT: implemented; no device/memory qualification claim |
 | R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Bounded ownership is required in principle; 8 is a temporary defensive safety fuse, not a qualified workload limit; its semantic necessity remains UNRESOLVED | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
@@ -92,58 +92,171 @@ A pull-driven planner could bound copies by ownership rather than4, but source P
 still arrives and real-context retention must be accounted for. It is not a proof
 that indefinite stall can be handled losslessly with finite memory and no failure.
 
-## R02 — region lifecycle and valid reachability
+## R02 — explicit region cap deleted with structural lifecycle bounds
+
+Round23's historical cap4 witness was legal: four short closed positive regions
+awaited real future PCM (regionsStarted=4, regionsDrained=0, windowsQueued=0,
+outstanding=0); the fifth BEGIN produced ACOUSTIC_SEGMENT_LIMIT_EXCEEDED. It did not
+require a worker stall. Round29 removes the explicit count check and
+maxPendingSegments field/error producer. There is **no replacement numeric cap**.
+The same public-controller short-meter/full-block witness now admits the fifth
+region, stays ACTIVE/RUNNING, and has no intervention, bridge failure or Result.
+R03 remains a separate cap8 safety fuse with unchanged ninth-boundary failure.
+
+### Exact-region empty retirement closes the no-progress loophole
+
+Simply deleting cap4 was unsafe. FIFO planAvailable returns when a positive head
+window lacks future PCM. Zero-duration followers behind it would never reach their
+own planWindow=null branch and could accumulate without source progress.
+
+endAnalysisRegion now closes the active record, and if endTarget===originTarget
+removes **that exact record** from regions immediately. It consumes its original
+monotonically allocated region index, increments regionsStarted/regionsDrained
+truthfully, clears active, returns IDLE and then calls normal planAvailable.
+An empty region owns no window, copied input, publication or observation. No
+positive head is shifted out, and no later region/job/window identity is renumbered.
+In particular, actual zero-source-duration BEGIN/END always satisfies this empty
+ownership condition. Existing finite-coordinate/representability checks remain;
+this lifecycle rule does not repair or normalize source coordinates.
 
 ```mermaid
 flowchart LR
-  B[beginAnalysisRegion at nextSource] --> A[active region also in regions array]
-  A --> E[endAnalysisRegion sets sourceEnd/endTarget]
-  E --> R[closed region remains in regions array while PCM/context unavailable]
-  R --> P[planAvailable extracts windows and advances nextWindow]
-  A --> P
-  P --> Q[queuedRegions counts copied input jobs per region]
-  P --> N[planWindow returns null: remove region and increment regionsDrained]
-  Q --> I[serialized inference and publication]
-  I --> F[finally decrement outstanding and queuedRegions]
+  B[BEGIN allocates region index] --> A[active record in regions]
+  A --> E[END records source and target endpoint]
+  E --> Z{No positive owned target interval?}
+  Z -->|yes| X[Remove exact record now; increment drained]
+  Z -->|no| P[FIFO positive planning awaits real PCM]
+  X --> P
+  P --> Q[Copy ready model input; R01 admission still applies]
+  P --> R[All windows planned: remove record; increment drained]
+  Q --> I[Serialized inference/publication; queuedRegions owns copied input]
 ```
 
-`regions.length` is neither inference history nor queuedRegions.size. A region may
-leave regions[] after all its windows are **planned**, while its inference still
-owns PCM. The new test closes a positive short region, finishes source regions,
-feeds real tail and observes pendingRegions=0, outstanding=1, hasRegionWork(index)=true
-and tailReady=true. Only inference completion removes the queuedRegions ownership.
-Empty regions retire without windows (existing tests); zero-duration toggles do not
-establish the same pressure as positive intervals.
+regions[] is pending **planning**, not inference history. queuedRegions/outstanding
+can remain nonempty after a region is removed and tailReady becomes true. R14 owns
+silent worker settlement; deletion of R02 does not create another inference queue.
 
-The direct source witness repeats four legal begin→128-sample append→end sequences.
-Only 512 source samples (10.667ms) elapsed, so their 170ms future inputs are unavailable;
-no inference has even started. Fifth begin fails. This is valid source API behavior,
-not by itself a proof of normal controller UI reachability.
+### Finite source-progress retirement horizon (both rates)
 
-The controller witness supplies that missing proof with full 2048-sample blocks.
-After one full capture block has crossed the score-derived initial BEGIN, the
-control-clock origin is recorded. Relative to that origin, user Pause/Resume
-actions occur at
-1,17.625,34.25 and 50.875ms. Resume BEGINs occur at 16.625,33.25,49.875 and 66.5ms.
-The first full capture block is delivered around the fourth Pause: it consumes the
-first three closed positive intervals. The next full block consumes the fourth
-interval and attempts the fifth BEGIN before any 170ms tail can exist. At failure:
-regionsStarted=4, regionsDrained=0, windowsQueued=0, outstanding=0; no worker stall,
-model load or forged publication is required. R03 never needs nine boundaries in
-this sequence because capture consumption clears earlier controls.
+Use relative source count N=absoluteSource−base, source rate r, model ratio
+u/d=16000/r and FIR center c=(tapCount−1)/2. Shipped pairs are:
 
-Four closed positive regions plus the next BEGIN is minimal **by region count**
-for cap4. These are witnesses, not a minimized human reaction time. Long resume
-count-ins with healthy capture normally provide time for old regions to finish
-planning; that observation is not a universal bound across admitted meter/tempo
-geometry and lag. Worker stall alone does not keep regions[] nonempty after their
-windows have been copied, though it can independently hit R01.
+| r | u | d | taps | c | Declared conservative real lookahead ceil(c/u) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 44100 | 160 | 441 | 8821 | 4410 | 28 source samples |
+| 48000 | 1 | 3 | 61 | 30 | 30 source samples |
 
-Removing the cap alone permits many records inside one future-context interval if
-there is no lower bound on legal control spacing. Whether the history can be
-represented more compactly/retired earlier requires a source→performance mapping
-proof, not a larger number. Deferred inference ownership and completed observation
-retention are different dataflows and cannot be deleted as substitutes.
+The real adapter emits target sample m exactly when its actual emission predicate
+floor((m*d+c)/u)<received holds. Thus a final window with exclusive integer input
+end F needs samples through m=F−1 and becomes ready at the exact adapter threshold
+N_required(F)=floor(((F−1)*d+c)/u)+1 (using the actual Float64 operations for an
+implementation threshold). No padded samples are admitted.
+
+For a closed endpoint E, the last partial input end is
+F=round(endTarget+170*16)=round(endTarget+2720). In exact arithmetic,
+endTarget=(E−base)*u/d. Therefore the exact-arithmetic required progress is
+N_required(round(N*u/d+2720))−N. Its phase repeats after d source samples, adding u
+target samples. Exhausting all d residues gives worst cases **7524 at44100** and
+**8189 at48000**. These are derived equation results, not latency or policy values.
+
+A strict implementation bound must also cover the existing Float64 expressions,
+not assume arbitrary source-coordinate translations are bit-exact. The following
+conservative bounds apply throughout the existing nonnegative safe-integer source
+index range (and when the subsequent source progress is representable):
+
+1. Relative source differences are exact integers. Multiplying one by16000 stays
+   below2^67, so round-to-nearest product error is at most8192. The subsequent
+   division is below2^52 target samples and has error at most1/4 target sample.
+2. endTarget is the sum of two such conversions (origin and region duration).
+   Include at most1/4 for that sum,1/4 for adding2720, and1/2 for integer rounding.
+   Hence |F−(N*u/d+2720)| <= a_r=16384/r+3/2 target samples.
+3. For44100, m*441 and its addition of4410 are below2^61, each with at most128
+   error; division by160 has error at most1 source sample, including the upper
+   safe-index boundary neighborhood. Thus the emission expression differs from
+   its real-arithmetic coordinate by at most e_44100=256/160+1=2.6 source samples.
+   For48000, m*3 and addition of30 are below2^54 with error at most1 each;
+   division by1 is exact, so e_48000=2 source samples.
+4. Consequently a uniform sufficient horizon is the derived integer
+   H_r=ceil((2720+a_r−1)*d/u+c/u+e_r+1): **7531 source samples at44100** and
+   **8196 at48000**. The −1 selects F−1 and the final +1 makes received exclusive.
+   These deliberately conservative implementation bounds are not tight minima,
+   measured device margins or new production constants.
+
+Every remaining closed **positive** source region consumes at least one discrete
+source sample. Closed endpoints are ordered and distinct. At current N, an endpoint
+E<=N−H_r has every required window ready; FIFO must plan/remove it unless R01 or an
+independent existing integrity guard fails closed. Older endpoints have the same
+bound, so earlier regions cannot indefinitely block an otherwise sufficiently old
+record. Only a finite H_r-sized suffix of possible positive endpoints can remain,
+plus at most one active region. This count relation is independent of session
+length, prior region count and worker speed. Near the safe-index ceiling no
+out-of-range future append is promised: the implication for representable N and
+E<=N−H_r still bounds retained records. Without source progress positive records
+cannot increase; zero-duration records no longer persist. No count check implements
+this derived relationship.
+
+### Ring-retention proof; R08 and R01 remain separate
+
+Each queued input copies exactly29120 target samples; in-flight inference no
+longer relies on the ring. For a not-yet-copied window with input end G, its start
+is G−29120. Planning runs after **every admitted append**, which carries at most
+2048 source samples. From the emission error bounds above, a conservative maximum
+output increment is D_r=ceil((2048+2*e_r)*u/d)+1: **746 / 685 target samples**.
+This follows by comparing the last emitted and first not-emitted sample predicates
+before/after the append, not by inventing extra audio context.
+
+Final endpoints are ordered in exact source time; their rounded target input ends
+can differ from that order by at most ceil(2*a_r)=4 target samples. Full-window ends
+use one source conversion plus exact integer9600-sample strides, whose rounding
+error is no larger than the same a_r bound. An earlier head
+window never ends after its own final window. A newly closed partial window still
+needs2720 future target samples, far more than these roundoff/adapter bounds, so
+closing cannot introduce a deeply overdue unplanned input. Once a head crosses
+readiness, FIFO immediately extracts all ready work or R01 fails closed. Thus even
+a later window delayed by the four-sample ordering skew has L−G <= D_r+4 at its
+first extraction opportunity, where L is the ring end.
+
+It suffices that ring capacity >=29120+D_r+4: **29870 at44100 / 29809 at48000**.
+The unchanged capacity65536 satisfies both, hence
+G−29120 >= L−65536 = firstRetained when the ring has wrapped. At stream origin,
+qualified preroll supplies the existing fully-real lower boundary10; a valid short
+final input remains above it. This proof concerns admitted real-context workloads,
+not forged insufficient-preroll calls, numeric overflow, padded finish or a stalled
+main-thread batch outside the2048-source-sample append contract. Those existing
+guards still fail closed. The ring has ample *proved retention for this lifecycle*;
+this neither qualifies all65536 headroom nor authorizes shrinking R08.
+
+If many windows become ready together and inference cannot drain, the unchanged
+R01 maxOutstandingWindows=4 rejects the fifth **before** ring.extract/copy. R02
+removal does not bypass it, retain an unbounded copied-PCM backlog or silently drop
+any evidence. R01's numeric qualification remains separate.
+
+### Executable witnesses and identity consequences
+
+Both rates test one blocked positive head followed by128 zero-duration regions
+without any PCM progress: only the positive head stays pending, all empty indices
+are consumed/retired immediately, no worker/publication exists, then real tail
+produces exactly the original region's window. Both also retain64 distinct positive
+regions beyond4, then append real samples and promptly drain inference: all64
+indices/windows publish once, pending/outstanding reach0 and started==drained.
+Those tests begin after ring wrap and verify extract start>=firstRetained. Positive
+source gaps retain the existing exact publication-order contract at fractional
+44100 phases; no source mapping/rounding validator is changed.
+
+Continuous projection separately tests32 positive segments at both rates, distinct
+source/performance anchors, ordered unique observation/publication identities and
+truthful terminal coverage. The existing public fifth-region controller witness
+now succeeds; the ninth-boundary R03 witness remains unchanged. Test counts128/64/32
+are witnesses, never replacement production limits. Equation/residue and large
+numeric-boundary probes support the analytic inequalities; tests are not the proof
+or a device/memory/workload qualification.
+
+Editing source-analysis-runtime.ts changes a selected byte attestation even though
+this is an admission/lifecycle change. Round29 updates executor bytes/SHA and
+mechanically recomputes core and both adapter composite identities. Model, decoder,
+FIR, planner, adapter implementation and evidence semantic declaration are unchanged.
+Result remains schema6 with the same evidenceProvenance shape; its current identity
+values advance, without adding runtime-policy provenance or full outcome replay.
 
 ## R03 — controller boundaries and transaction-safe failure propagation
 
@@ -486,9 +599,10 @@ intervention or hang cause. A future product requirement for runtime outcome
 reproducibility requires a separate versioned runtime-policy provenance owner and
 schema decision, not an expansion/redefinition of the existing core hash.
 
-This resolves only provenance scope. R01/R02/R03/R04/R14/R18 retain their existing
-numeric/semantic-necessity status was unchanged by Round25. Round27 adds the
-separate R14 silence fuse; its numeric60s remains unqualified. Round28 deletes R18
+Round25 resolved only provenance scope, leaving resource necessity unchanged.
+Round29 independently resolves R02 via immediate empty retirement and finite
+positive retention without a cap. Round27 added the separate R14 silence fuse;
+its numeric60s remains unqualified. Round28 deleted R18
 polling in favor of local observation, leaving R16/R17 unqualified. cap8 remains
 UNRESOLVED; maxUnacknowledgedBlocks remains a deletion candidate.
 
@@ -538,7 +652,8 @@ counts below do not qualify that new policy.
 
 The remaining future conclusions are:
 
-- **REDESIGN BEFORE TUNING:** R01/R02/R03 retained-state/cap necessity.
+- **REDESIGN BEFORE TUNING:** R01/R03 retained-state/cap necessity. R02 explicit cap is deleted after the
+  structural lifecycle proof above.
 - **R18 POLLING DELETED:** local event-driven observation replaces the redundant
   interval; qualify remaining R16/R17 deadlines separately.
 - **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining

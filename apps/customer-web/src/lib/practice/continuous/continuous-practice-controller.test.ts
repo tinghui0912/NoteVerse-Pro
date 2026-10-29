@@ -936,7 +936,7 @@ it('R01 admitted running microphone failure freezes retained performance while c
   expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
 });
 
-it('R02 schema-valid short resume count-ins plus full-block capture delivery reach fifth source region before real tail exists', async () => {
+it('R02 schema-valid short resume count-ins plus full-block capture accept fifth source region before real tail exists', async () => {
   const f = environment(48000, stream(), 2048), callback = vi.fn();
   const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
   try {
@@ -956,11 +956,12 @@ it('R02 schema-valid short resume count-ins plus full-block capture delivery rea
       expect(controller.snapshot().transport!.countInRemainingMs).toBeCloseTo(15.625, 6);
     }
     f.context.currentTime += .016625; controller.refresh();
-    await expect(f.feed(2048 / 48)).rejects.toThrow('ACOUSTIC_SEGMENT_LIMIT_EXCEEDED');
+    await expect(f.feed(2048 / 48)).resolves.toBeUndefined();
     expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 0,
-      counts: { regionsStarted: 4, regionsDrained: 0, windowsQueued: 0 } });
-    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' },
-      analysisIntervention: { pauseOrigin: 'INTERVENTION' }, resourceIntervention: null, completed: null });
+      counts: { regionsStarted: 5, regionsDrained: 0, windowsQueued: 0 }, pendingRegions: 5, state: 'RUNNING', failureCode: null });
+    expect(f.bridge().snapshot().failed).toBe(false);
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'RUNNING' },
+      analysisError: null, analysisIntervention: null, resourceIntervention: null, completed: null });
     expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
     expect(f.root.audio.stop).not.toHaveBeenCalled();
   } finally { await controller.abandon(); await controller.dispose(); }

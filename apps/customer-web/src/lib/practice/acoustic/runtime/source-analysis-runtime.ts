@@ -65,7 +65,6 @@ export class SourceAnalysisRuntime {
     try {
       safeIndex(sourceSampleIndex);
       if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.active || sourceSampleIndex !== this.nextSource) fail('INVALID_ACOUSTIC_REGION_START');
-      if (this.regions.length >= R.maxPendingSegments) fail('ACOUSTIC_SEGMENT_LIMIT_EXCEEDED');
       const originTarget = (sourceSampleIndex - this.base) * 16000 / this.adapter.rate;
       const region: AnalysisRegion = { index: this.nextRegion++, sourceStart: sourceSampleIndex, originTarget, nextWindow: 0, queuedEndTarget: originTarget };
       if (planWindow(region, this.counts.windowsQueued)!.startSample < Math.max(10, this.ring.firstRetained)) fail('ACOUSTIC_PREROLL_NOT_READY');
@@ -80,7 +79,12 @@ export class SourceAnalysisRuntime {
       if (!this.active || this.state !== 'RUNNING' || sourceSampleIndex !== this.nextSource) fail('ACOUSTIC_REGION_NOT_RUNNING');
       const endTarget = this.active.originTarget + (sourceSampleIndex - this.active.sourceStart) * 16000 / this.adapter.rate;
       if (endTarget < this.active.queuedEndTarget) fail('ACOUSTIC_REGION_END_MISMATCH');
-      this.active.sourceEnd = sourceSampleIndex; this.active.endTarget = endTarget;
+      const region = this.active;
+      region.sourceEnd = sourceSampleIndex; region.endTarget = endTarget;
+      // An empty region owns no window; retire this exact record even behind a blocked positive head.
+      if (endTarget === region.originTarget) {
+        this.regions.splice(this.regions.indexOf(region), 1); this.counts.regionsDrained++;
+      }
       this.active = null; this.state = 'IDLE'; this.planAvailable();
     } catch (error) { this.failAnalysis(error); throw error; }
   }

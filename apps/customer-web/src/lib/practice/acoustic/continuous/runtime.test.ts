@@ -388,3 +388,45 @@ it('worker failure while paused closes capture independently of clock', async ()
   expect(stopCapture).toHaveBeenCalledTimes(1); expect(() => feedTo(140000)).toThrow('ACOUSTIC_WORKER_CRASH');
   expect(publications).toHaveLength(before); await runtime.dispose();
 });
+
+for (const rate of [44100, 48000] as const) it(`${rate}: R02 distinct short positive segments beyond four preserve source/performance identity and terminal coverage`, async () => {
+  const publications: ContinuousEvidencePublication[] = [], inputs: AcousticInferenceInput[] = [];
+  const worker = { run: async (input: AcousticInferenceInput) => {
+    inputs.push(input); return { events: [{ midiPitch: 60, pitch: 'C4', targetSample: Math.ceil(input.window.ownedStartTarget),
+      confidence: .8, onsetScore: .8, frameScore: .8 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 };
+  }, dispose: vi.fn(async () => {}) };
+  const runtime = await ContinuousAcousticProjection.create({ sessionDomainId: 'many-segments', sourceDomainId: 'many-source', sourceSampleRateHz: rate,
+    coefficientBytes: await coefficients(rate), worker, nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); } });
+  let source = 0, performance = 0;
+  const segments: { start: number; end: number; time: number }[] = [];
+  const append = (end: number) => { while (source < end) { const start = source; source = Math.min(end, source + 2048);
+    runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: source, samples: new Float32Array(source - start) }); } };
+  try {
+    append(rate * 2); expect(runtime.prerollReady).toBe(true);
+    for (let i = 0; i < 32; i++) {
+      const start = source, time = performance; runtime.beginSegment(time); append(start + 3);
+      performance += 3 / rate * 1000; runtime.endSegment(performance); segments.push({ start, end: source, time }); append(source + 3);
+    }
+    expect(runtime.snapshot()).toMatchObject({ pendingRegions: 32, outstanding: 0, failureCode: null, counts: { windowsQueued: 0 } });
+    expect(inputs).toEqual([]); expect(publications).toEqual([]); runtime.requestTerminal(performance);
+    const end = source + (rate === 44100 ? 7531 : 8196);
+    while (source < end) { append(source + 1); await runtime.drain(); }
+    await runtime.seal();
+    expect(inputs.map(input => [input.window.jobIndex, input.window.regionIndex, input.window.windowIndex]))
+      .toEqual(segments.map((_, index) => [index, index, 0]));
+    expect(publications.map(p => p.publicationId)).toEqual([...segments.map((_, index) => `many-source:window:${index}`), 'many-source:terminal']);
+    const observations = publications.flatMap(p => p.observations);
+    expect(observations).toHaveLength(32); expect(new Set(observations.map(o => o.observationId)).size).toBe(32);
+    observations.forEach((event, index) => {
+      const segment = segments[index], eventSource = Math.ceil(segment.start * 16000 / rate) * rate / 16000;
+      expect(event.provenance?.sourceEventSample).toBe(eventSource);
+      expect(eventSource).toBeGreaterThanOrEqual(segment.start); expect(eventSource).toBeLessThan(segment.end);
+      expect(event.performanceTimeMs).toBeCloseTo(segment.time + (eventSource - segment.start) * 1000 / rate, 9);
+      expect(event.observationId).toContain(`:s${index}:w0:`);
+    });
+    expect(publications.every(p => p.availabilitySessionTimeMs === 10000)).toBe(true);
+    expect(publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: performance, observations: [] });
+    expect(runtime.snapshot()).toMatchObject({ pendingRegions: 0, outstanding: 0, failureCode: null,
+      counts: { regionsStarted: 32, regionsDrained: 32, windowsQueued: 32, windowsPublished: 32 } });
+  } finally { await runtime.dispose(); }
+});

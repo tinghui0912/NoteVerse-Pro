@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime } from './source-analysis-runtime';
-import { AcousticPcmRing } from './window-planner';
+import { AcousticPcmRing, planWindow } from './window-planner';
+import { ACOUSTIC_MODEL as M, sourceIdentity } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES as R } from './resource-policy';
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
 import type { AcousticInferenceInput } from './inference-types';
@@ -179,21 +180,108 @@ it('R01 valid source reaches four copied queued/active inputs; fifth fails befor
   } finally { r.release(); await r.runtime.dispose(); extract.mockRestore(); }
 });
 
-it('R02 valid short regions reach fifth begin while waiting for future PCM, with no worker stall required', async () => {
-  const r = await resourceRig();
-  try {
-    for (let region = 0; region < 4; region++) {
-      r.runtime.beginAnalysisRegion(r.next()); r.feed(r.next() + 128); r.runtime.endAnalysisRegion(r.next());
-      expect(r.runtime.snapshot()).toMatchObject({ state: 'IDLE', pendingRegions: region + 1, outstanding: 0,
-        counts: { regionsStarted: region + 1, windowsQueued: 0 } });
+for (const rate of [44100, 48000] as const) {
+  it(`${rate}: R02 blocked positive head cannot retain arbitrarily many zero-duration followers`, async () => {
+    const publications: SourceAcousticPublication[] = [], failure = vi.fn(), worker = { run: vi.fn(async ({ window }: AcousticInferenceInput) => ({
+      events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 })), dispose: vi.fn(async () => {}) };
+    const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'zero-followers', sourceSampleRateHz: rate,
+      coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`), worker,
+      nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, onFailure: failure });
+    let next = 0;
+    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + R.maxSourceBlockSamples);
+      runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) }); } };
+    try {
+      feed(rate * 2); expect(runtime.prerollReady).toBe(true);
+      const first = runtime.beginAnalysisRegion(next); feed(next + 128); runtime.endAnalysisRegion(next);
+      expect(runtime.snapshot()).toMatchObject({ pendingRegions: 1, outstanding: 0, counts: { windowsQueued: 0 } });
+      const source = next, indices = [first];
+      for (let i = 0; i < 128; i++) { // Test witness, not a retained-state policy.
+        const region = runtime.beginAnalysisRegion(next); indices.push(region); runtime.endAnalysisRegion(next);
+        expect(runtime.hasRegionWork(region)).toBe(false); expect(runtime.hasRegionWork(first)).toBe(true);
+        expect(runtime.snapshot()).toMatchObject({ state: 'IDLE', pendingRegions: 1, outstanding: 0, nextSourceSampleIndex: source,
+          counts: { regionsStarted: i + 2, regionsDrained: i + 1, windowsQueued: 0 } });
+      }
+      expect(indices).toEqual(Array.from({ length: 129 }, (_, index) => index));
+      expect(worker.run).not.toHaveBeenCalled(); expect(publications).toEqual([]); expect(failure).not.toHaveBeenCalled();
+      runtime.finishRegions(); feed(source + Math.ceil(M.futureMs * rate / 1000) + sourceIdentity(rate).identity.realSourceLookaheadSamples + 3);
+      await runtime.seal();
+      expect(publications.map(p => [p.window.jobIndex, p.window.regionIndex, p.window.windowIndex])).toEqual([[0, first, 0]]);
+      expect(worker.run).toHaveBeenCalledOnce(); expect(runtime.snapshot()).toMatchObject({ pendingRegions: 0, outstanding: 0,
+        counts: { regionsStarted: 129, regionsDrained: 129, windowsQueued: 1, windowsPublished: 1 } });
+    } finally { await runtime.dispose(); }
+  });
+
+  it(`${rate}: R02 retains64 distinct positive regions beyond old cap and plans every real window without loss`, async () => {
+    const publications: SourceAcousticPublication[] = [], failure = vi.fn(), inputs: AcousticInferenceInput[] = [];
+    const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'positive-regions', sourceSampleRateHz: rate,
+      coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
+      nowAvailabilityRuntimeMs: () => 10000, onPublication: p => { publications.push(p); }, onFailure: failure, worker: {
+        run: async input => { inputs.push(input); return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 }; }, dispose: async () => {} } });
+    let next = 0, extractedWithRetention = false;
+    const extract = AcousticPcmRing.prototype.extract;
+    const checked = vi.spyOn(AcousticPcmRing.prototype, 'extract').mockImplementation(function (this: AcousticPcmRing, start, end) {
+      expect(start).toBeGreaterThanOrEqual(this.firstRetained); expect(end - start).toBe(M.inputSamples);
+      extractedWithRetention ||= this.firstRetained > 0; return extract.call(this, start, end);
+    });
+    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + R.maxSourceBlockSamples);
+      runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) }); } };
+    const regions: number[] = [];
+    try {
+      feed(rate * 8); expect(runtime.prerollReady).toBe(true); // Ring has already wrapped; not only an origin fixture.
+      for (let i = 0; i < 64; i++) {
+        const start = next; regions.push(runtime.beginAnalysisRegion(start)); feed(start + 3); runtime.endAnalysisRegion(next);
+        expect(next).toBeGreaterThan(start); feed(next + 3); // Positive gaps preserve the existing exact publication-order contract at fractional phases.
+        expect(runtime.snapshot().pendingRegions).toBe(i + 1);
+      }
+      expect(regions).toEqual(Array.from({ length: 64 }, (_, index) => index));
+      expect(inputs).toEqual([]); expect(publications).toEqual([]); expect(failure).not.toHaveBeenCalled();
+      runtime.finishRegions(); const horizon = rate === 44100 ? 7531 : 8196; // Derived Float64-safe proof bound, test only.
+      const lastEnd = next;
+      while (next < lastEnd + horizon) { feed(next + 1); await runtime.drain(); } // Prompt service avoids conflating R02 with R01.
+      await runtime.seal();
+      expect(publications.map(p => p.window.regionIndex)).toEqual(regions);
+      expect(new Set(publications.map(p => `${p.window.regionIndex}:${p.window.windowIndex}`)).size).toBe(64);
+      expect(publications.map(p => p.window.jobIndex)).toEqual(regions); expect(inputs).toHaveLength(64); expect(extractedWithRetention).toBe(true);
+      expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, pendingRegions: 0, outstanding: 0,
+        counts: { regionsStarted: 64, regionsDrained: 64, windowsQueued: 64, windowsPublished: 64 } });
+      expect(failure).not.toHaveBeenCalled();
+    } finally { checked.mockRestore(); await runtime.dispose(); }
+  });
+}
+
+it('R02 source-discrete future horizon and retained-input bounds follow shipped adapter equations, not a replacement cap', () => {
+  for (const rate of [44100, 48000] as const) {
+    const identity = sourceIdentity(rate).identity, { up, down, tapCount } = identity, center = (tapCount - 1) / 2;
+    expect(Math.ceil(center / up)).toBe(identity.realSourceLookaheadSamples);
+    const future = M.futureMs * M.sampleRateHz / 1000, lengths: number[] = [];
+    // All rational source phases; translating by down adds exactly up target samples in exact arithmetic.
+    for (let phase = 0; phase < down; phase++) {
+      const end = Math.round(phase * up / down + future);
+      const received = Math.floor(((end - 1) * down + center) / up) + 1;
+      lengths.push(received - phase);
     }
-    expect(r.next()).toBe(96512); expect(r.worker.run).not.toHaveBeenCalled();
-    expect(() => r.runtime.beginAnalysisRegion(r.next())).toThrow('ACOUSTIC_SEGMENT_LIMIT_EXCEEDED');
-    expect(r.runtime.snapshot()).toMatchObject({ state: 'FAILED', pendingRegions: 0, outstanding: 0,
-      nextSourceSampleIndex: 96512, counts: { regionsStarted: 4, regionsDrained: 0 } });
-    expect(r.failures).toHaveLength(1); expect(r.publications).toEqual([]);
-    // This proves public source API reachability; controller reachability is tested separately.
-  } finally { r.release(); await r.runtime.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce(); }
+    expect(Math.max(...lengths)).toBe(rate === 44100 ? 7524 : 8189);
+    // Float64 error bound derived in the R02 proof: two source→target terms, sum, future-add and round.
+    const geometryError = 16384 / rate + 1.5;
+    const emissionError = rate === 44100 ? 256 / up + 1 : 2;
+    const horizon = Math.ceil((future + geometryError - 1) * down / up + center / up + emissionError + 1);
+    expect(horizon).toBe(rate === 44100 ? 7531 : 8196);
+    const blockOutputs = Math.ceil((R.maxSourceBlockSamples + 2 * emissionError) * up / down) + 1;
+    const fifoSkew = Math.ceil(2 * geometryError);
+    expect([blockOutputs, fifoSkew]).toEqual([rate === 44100 ? 746 : 685, 4]);
+    expect(M.inputSamples + blockOutputs + fifoSkew).toBeLessThan(R.targetRingSamples);
+    // Numeric boundary probes supplement (not replace) the uniform Float64 inequalities.
+    for (const endpoint of [rate * 8, 2 ** 32, 2 ** 48, Number.MAX_SAFE_INTEGER - horizon]) {
+      for (const width of [1, 3, 128]) {
+        const start = endpoint - width, originTarget = start * M.sampleRateHz / rate;
+        const region = { index: 0, sourceStart: start, originTarget, nextWindow: 0, queuedEndTarget: originTarget,
+          sourceEnd: endpoint, endTarget: originTarget + width * M.sampleRateHz / rate };
+        const window = planWindow(region, 0)!;
+        const received = Math.floor(((window.endSample - 1) * down + center) / up) + 1;
+        expect(received - endpoint).toBeLessThanOrEqual(horizon);
+      }
+    }
+  }
 });
 
 it('R02/R14 planned regions retire before inference; tailReady and pending drain/seal can coexist indefinitely without failure', async () => {

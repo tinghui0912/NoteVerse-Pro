@@ -7,7 +7,6 @@ export const ACOUSTIC_RESOURCES = Object.freeze({
   inputBytes: 29120 * 4,
   maxEventsPerWindow: 183 * 88,
   // Bounds rapid control changes as well as PCM; failure never changes transport.
-  maxPendingSegments: 4,
   maxScheduledBoundaries: 8,
 } as const);
 

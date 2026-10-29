@@ -63,7 +63,7 @@ this identity into a runtime-policy contract.
 | Resource-policy caps, including target-ring safety headroom | acoustic/runtime/resource-policy.ts | No policy identity; executor is a selective anchor | No | Bounds admission/retention/failure, not the declared successful evidence meaning | Review resource semantics; separate runtime-policy owner if reproducibility is required |
 | Worklet block/credits | capture-transport-contract.ts; capture.worklet.js | No | No | Transport format/backpressure/liveness policy | Same separate runtime-policy rule; no automatic evidence identity cascade |
 | Boundary cap/queue failure | resource-policy.ts; capture-bridge.ts | No | No | Controls capture admission/failure | Review R03 independently; cap8 remains UNRESOLVED |
-| Pending region cap | resource-policy.ts; source-analysis-runtime.ts | No cap policy identity | No | Controls retained region admission/failure | Review R02 ownership before tuning; attested executor edits still update byte anchors |
+| Pending region lifecycle (explicit cap deleted in Round29) | source-analysis-runtime.ts | No runtime-policy identity; selected executor bytes remain an anchor | No | Structurally bounds pending planning retention with immediate empty retirement | Round29 deletes explicit cap after structural lifecycle proof; executor byte change still advances anchors |
 | Outstanding inference cap | resource-policy.ts; source-analysis-runtime.ts | No cap policy identity | No | Controls queued/active copied PCM and failure | Review R01 ownership before tuning; attested executor edits still update byte anchors |
 | Readiness observation/deadlines (local notifications; 10s/15s/60s) | capture.ts; ContinuousMicrophoneInput | No | No | Observes readiness and bounds some waits, not source event timestamps | Review necessity/liveness independently; no timeout addition in this round |
 | Worker RPC liveness and engine retirement | worker-client.ts; model-inference.ts; acoustic-worker.entry.ts; AcousticEngine | No | No | Owns response/lease lifecycle, including silent pending states | R14 silence fuse is outside this core; stronger outcome-replay requirement needs separate provenance |
@@ -152,7 +152,21 @@ The current Result boundary is enforced by
 and [dependency tests](../../apps/customer-web/src/lib/practice/architecture/dependency-boundaries.test.ts).
 Resolving identity scope does not qualify any resource number: R01/R02/R03 cap
 necessity and R04 supported-stall evidence are not qualified by identity scope.
+Round29 independently resolves R02 through structural deletion, as noted below.
 Round28 deletes R18 polling in the non-core Continuous bridge/input; readiness
 notification and unchanged R16/R17 safety deadlines remain outside this core. Round27 separately adds an unqualified R14 silence safety fuse;
 that runtime policy remains outside this evidence core. maxUnacknowledgedBlocks remains a deletion
 candidate; no cleanup, tuning or liveness redesign starts in this round.
+
+## Round29 selective-attestation byte sensitivity
+
+R02 explicit pending-region count cap removal and exact empty-region retirement
+change runtime admission/lifecycle policy. Because source-analysis-runtime.ts is
+one selected integrity anchor, its bytes/SHA change mechanically advances the
+canonical core declaration digest and both source-adapter composite digests. This
+does not mean decoder, model, window geometry, FIR or source-event mapping evidence
+semantics changed. The semantic declaration remains unchanged. Result schema6 and
+evidenceProvenance keys are unchanged; current identity values advance under the
+same current-only reader. No runtimePolicySha256 is introduced and full runtime
+outcome replay remains outside evidence provenance. This does not redefine the
+Round25 boundary or qualify any retained resource number.
