@@ -246,6 +246,36 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round45 — T15 is a mixed identity and raw-work boundary, not pure DERIVE
+
+The [dedicated STEP pitch-evidence audit](practice-step-pitch-evidence-bounds.md)
+records the complete production call graph, four cardinalities, canonicality gaps,
+current duplicate behavior and six-candidate decision matrix. Valid Browser MIDI
+can emit only128 distinct canonical pitches; valid current decoder output has88.
+Both assemblers deduplicate before domain completion. However, MidiNoteFact is
+structural and note() does not validate noteNumber/pitch consistency; inconsistent
+direct callbacks can reach its distinct-Set guard. The domain grammar admits280
+primitive spellings and normalizePitchSet does not canonicalize physical identity.
+Publication validation also does not bind pitch strings to midiPitch, so actual
+decoder bounds must not be attributed to every validator-accepted forged stream.
+
+The runtime raw128 guard is effective pre-normalization work defense, as the
+128-duplicate-accepted/129-duplicate-rejected contract shows. It is not a theorem
+about distinct MIDI identities. T15 therefore leaves Future DERIVE for
+DELETE/REDESIGN (remaining raw budget needs qualification), and its primary class
+is corrected to UNQUALIFIED_RESOURCE_SAFETY_POLICY. All93 rows remain; redundant
+count13→12 and resource-safety10→11, semantic-unresolved0; no other class changes.
+S09 stays KEEP DERIVED STORAGE, S10 KEEP DERIVED/SINGLE OWNER and S15 KEEP EXACT
+CONSTRUCTION. Future DERIVE is empty, without claiming all ownership debt resolved.
+
+The sole recommended Round46 implementation is MIDI fact identity validation
+before retention, then removing only the unreachable-on-valid-facts Set count
+guard. Keep domain raw128 and its current owner unchanged;129 duplicate C4 entries
+remain rejected as a raw-work contract. Do not move that check after dedup or add
+MIDI infrastructure dependencies to the domain. The audit implements none of this:
+all sources/tests, STEP schema8/runtime version, Result/provenance and acoustic
+identities remain unchanged. No learner/device/headroom qualification follows.
+
 ### Round44 — S15 validates exact producer endpoint construction
 
 The production call-path audit found two window producers. SourceAnalysisRuntime
@@ -275,8 +305,9 @@ Both-rate planner/full/partial/fractional tests retain existing behavior, includ
 regressions allocate no PCM and accept the exact construction while rejecting
 coupled shifts; they do not claim full-session/device coordinate qualification.
 
-S15 is KEEP EXACT CONSTRUCTION, resolving the historical independent slack. Future
-DERIVE contains T15 only. S09 stays KEEP DERIVED STORAGE and S10 stays KEEP
+S15 is KEEP EXACT CONSTRUCTION, resolving the historical independent slack. At
+Round44 Future DERIVE contained T15 only; Round45 audits and re-buckets it above.
+S09 stays KEEP DERIVED STORAGE and S10 stays KEEP
 DERIVED/SINGLE OWNER. All93 classifications/counts stay unchanged. model-validation
 is outside selected file anchors, so core/composite/model identities, selected
 attestations and Result schema6/provenance shape are unchanged. This establishes
