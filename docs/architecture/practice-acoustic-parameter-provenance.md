@@ -43,6 +43,12 @@ slice accepted blocks without expansion. The maximum stays2048, comparisons stay
 upper-bound checks, and R06 remains unqualified. Selected executor bytes again
 mechanically advance core/composite values; all93 audit classifications stay unchanged.
 
+Round34 deletes T14's redundant STEP gesture observation cap. The accepted source
+contract bounds each publication and its same-region topology; active H50 cannot
+cross regions. Proof3 below establishes the deleted guard's unreachability, including
+partial finals. No replacement count/byte/time limit is installed. Accepted-contract
+runtime/product behavior, identities and all93 audit classifications remain unchanged.
+
 The decision order is **semantic necessity → remove unnecessary behavior/dataflow →
 optimize the remaining algorithm → qualify the remaining parameters**. Every row
 first states purpose and removal consequences. A cap does not become necessary
@@ -178,7 +184,7 @@ Qualification methods (future work only):
 | T11 Four coordinate domains | Session includes pauses/count-in; Performance excludes them; Source is physical samples; availability is knowledge time | [timebase.ts](../../apps/customer-web/src/lib/practice/kernel/timebase.ts) `PracticeTimebase`; [performance-clock.ts](../../apps/customer-web/src/lib/practice/continuous/domain/performance-clock.ts) `PerformanceClockRuntime`; [source-publication.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts) `SourceAcousticPublication` | Controllers, projections, finalizer timestamps | Separate event identity from processing latency/progression | Inference delay/pause could be mistaken for learner timing | Changes completion/ownership domain semantics | PROVEN_STRUCTURAL_INVARIANT | Domain-tagged affine/sample and segmented-clock formulas; pause/finality tests | Real clock/ADC accuracy still needs measurement | Q-MATH + Q-DEVICE | No: coordinate contract; clock health remains prerequisite | KEEP domain separation, never turn stalls into timing corrections |
 | T12 STEP MIDI gesture | H35=35ms; fixed first NOTE_ON window, no target-based extension or early close | [step-midi-attempt-input.ts](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts) `STEP_MIDI_CHORD_COHERENCE_MS / note` | STEP exact pitch-set evidence | Aggregate chord attacks without waiting indefinitely | Per-note answers can reject chords or accept a subset before an extra attack | Changes grouping, subset/superset and false-positive progression | UNQUALIFIED_ALGORITHM_POLICY | Timer/boundary fixtures; exact pitch-set equality | Real human chord asynchrony/device delivery evidence | Q-RECOGNITION + Q-TIMING | Deferred: learner progression qualification | QUALIFY after gesture necessity; no value change |
 | T13 STEP acoustic gesture | H50=50ms; [first fresh source event, first+50ms), seal only at source coverage frontier | [step-acoustic-attempt-assembler.ts](../../apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts) `STEP_ACOUSTIC_GESTURE_MS / accept` | StepMicrophoneInput → domain pitch-set equality | Finite score-blind attack aggregation before verdict | A subset could prematurely advance; sustained/unbounded bag also wrong | Changes chord sets/false-positive progression | UNQUALIFIED_ALGORITHM_POLICY | Source frontier/rearm/mute tests; false-negative preference is a product principle | No structural derivation of50; real learner acoustic data | Q-RECOGNITION + Q-TIMING | Deferred: progression safety/recognition qualification | KEEP false negative over false-positive progression; that principle does not derive50 |
-| T14 STEP acoustic gesture observation cap | MAX_GESTURE_OBSERVATIONS=32768 | [step-acoustic-attempt-assembler.ts](../../apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts) `MAX_GESTURE_OBSERVATIONS` | Active gesture Map; terminal STEP_ACOUSTIC_GESTURE_LIMIT | Bound unfinished gesture retained evidence | Existing source/ownership constraints still provide a finite bound for valid input | A smaller unjustified cap could fail valid evidence | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | Proof 3: H50<owned600; max2 publications, each<=16104, so <=32208; actual decoder bound tighter | Independent malformed-source threat model/need for separate guard | Q-MATH + Q-NECESSITY | No: non-binding for valid current source stream | DELETE/DERIVE candidate;32768 is not a learner-qualified density limit |
+| T14 STEP acoustic gesture observation cap — DELETED | DELETED; no independent gesture observation-count cap | [step-acoustic-attempt-assembler.ts](../../apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts) `accept`; historical MAX_GESTURE_OBSERVATIONS/STEP_ACOUSTIC_GESTURE_LIMIT removed in Round34 | Current H50 Map; no consumer of the deleted internal failure | Remove a guard unreachable under the upstream accepted contract | Deletion preserves accepted-contract outcomes; upstream/topology guards still fail closed | No replacement limit; H50/ordering/copy/freeze/region behavior unchanged | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | Proof3: publication<=16104 before retention; H50=50ms<owned600ms; full predecessor required for same-region successor; partial final has none; active region crossing rejected; at most2 publications and32208 observations, below historical32768 | No learner-density qualification follows; H50's product/algorithm choice and all other qualification states remain independent | Upstream-bound rejection and real cross-window/partial-final/region/long-run regressions | No: unreachable guard removed; upstream integrity remains required | KEEP DELETED; retain upstream publication bound and H50/window topology regressions |
 | T15 STEP distinct-pitch / evidence-array bounds | 128; input throws before129th distinct pitch; runtime rejects raw array length>128 before dedup | [step-midi-attempt-input.ts](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts) `note pitch-limit guard`; [runtime.ts](../../apps/customer-web/src/lib/practice/step/domain/runtime.ts) `completeAttempt` | MIDI assembler and source-neutral evidence validation | Bound evidence and reject malformed inputs | Valid parser has only128 MIDI note numbers; microphone has88 | Changes malformed/direct-call admission; valid producers already dedup | REDUNDANT_OR_DERIVABLE_IMPLEMENTATION_MAGIC | 7-bit0..127 injective pitch mapping; both valid assemblers deduplicate | Do not assume arbitrary direct caller raw arrays are already deduplicated | Q-MATH + Q-NECESSITY | No: valid producer bound; boundary design review deferred | DERIVE wire bound / review duplicate array guard before adjusting |
 | T16 MIDI wire acceptance / presence confidence | NOTE_ON0x90 with velocity1..127; velocity0→NOTE_OFF; minimum3 bytes; note/velocity<=127; confidence1 | [browser-midi-controller.ts](../../apps/customer-web/src/lib/practice/midi/browser-midi-controller.ts) `parseMidiMessage / handleNoteOn` | Both MIDI modes | Represent physical attack presence, not calibrated probability | Malformed/status messages could become attacks | Changes evidence vocabulary/event admission | PROVEN_STRUCTURAL_INVARIANT | MIDI byte interpretation and finite7-bit domain; parser tests | No proof of learner intent; confidence1 is a fact sentinel, no downstream threshold | Q-CONTRACT | No: wire semantics established; malformed bytes rejected | KEEP format semantics; never call confidence1 acoustic-style calibration |
 | T17 Continuous refresh cadence | setInterval(refresh,10ms) | [continuous-practice-controller.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts) `prepareAndStart timer` | Transport refresh, MIDI deadline processing, presentation | Schedule observation of clock/finality/completion | No periodic progression without another notification source | Changes notification/finality availability latency, not W or source event time | UNQUALIFIED_ALGORITHM_POLICY | Manual-clock/controller tests; real timers may be delayed | Main-thread scheduling/GC impact and whether event-driven scheduling can remove polling | Q-NECESSITY + Q-DEVICE | Deferred: UI/availability latency claims | Review scheduler necessity before timer tuning; not a10ms input-latency promise |
@@ -288,16 +294,27 @@ bound, not a claim that every tensor cell can be an independent event. This proo
 assumes the current contiguous-region decoder and verified descriptor; arbitrary
 raw producer objects are still validated/fail closed.
 
-Within one valid source region, all nonfinal publications have 600ms ownership;
-`SourcePublicationSequence` requires full previous ownership before a same-region
-successor. An H50 half-open gesture is shorter than 600ms, so intersects at most
-two ownership windows, including a possible partial final window. The assembler
-rejects a region change while a gesture is active. Each accepted publication is
-already bounded by 16104 observations, so a valid gesture retains at most 32208,
-below 32768. Using the raw decoder bound gives the still looser-than-local bound
-16192 for two publications. These are safety arguments, not learner-density
-qualification or a recommendation to install a smaller cap. Region crossing and
-malformed publication behavior must be preserved in any future deletion.
+The assembler first calls `SourcePublicationSequence.accept`, which rejects a
+publication with more than16104 observations **before** sorting, opening or Map
+retention. Within one accepted region, the sequence requires consecutive window
+indices, the next start at the prior start+600ms, and the prior owned end equal to
+that next start. Therefore every publication with a same-region successor has full
+600ms ownership: partial finals cannot precede another accepted same-region window.
+For H50,50ms<600ms. A half-open gesture anchored near a full window's end may touch
+its successor, whose full frontier seals it before any third publication. A partial
+final can supply enough frontier to seal; if not, it has no legal same-region
+successor, and a new region still fails STEP_ACOUSTIC_GESTURE_COVERAGE_GAP while
+active. Thus even an unsealed final gesture retains at most two publications.
+
+The Map retains only observations inside H50, with copying/freezing/deduplication
+unchanged. Consequently the accepted-stream upper bound is2×16104=32208, below the
+historical32768 guard. Round34 uses this proof to **delete T14**, not to install32208
+as another cap. The raw decoder bound above gives16192 for two publications, also
+not a replacement policy. Tests cover cross-window sealing, rejection before
+retention, partial finals with sufficient/insufficient frontier, rejected successors,
+region crossing and thousands of retire/rearm cycles. Sparse malformed oversized
+arrays test the upstream length gates without a dense heap benchmark. Neither this
+structural proof nor its tests qualify learner density or H50's chosen duration.
 
 H35/H50 are not structural consequences of pitch-set equality. Finite aggregation
 is meaningful because independently verdicting every event can prematurely accept
@@ -513,7 +530,7 @@ unqualified regardless of the successful regression suite.
 | Future bucket | Scope | Type of possible later change | Order / release relevance |
 | --- | --- | --- | --- |
 | A. KEEP | Current verified asset/model/I/O identities, established structural relationships, exact ownership/coverage integrity and R03 finite fail-closed admission in principle | Preserve contract; R03 representation/numeric8 remain separate redesign/qualification questions; a genuinely different model/runtime requires its own explicit contract decision | Integrity mismatches/invalid geometry/source identity are actual fail-closed release blockers, not reasons to tune values |
-| B. DERIVE | G03/S09/S10/S15/T14/T15/R12/X02; input duration/bytes, ratios, descriptors and smoke/preroll relationships | Remove duplicated magic/dead ownership; isolate format derivation from product behavior; R05 stays deleted and R07/R11 stay derived | Can be independent narrow changes after proof; source edits must update attestations, not merely bypass guards |
+| B. DERIVE | G03/S09/S10/S15/T15/R12/X02; input duration/bytes, ratios, descriptors and smoke/preroll relationships | Remove duplicated magic/dead ownership; isolate format derivation from product behavior; T14/R05 stay deleted and R07/R11 stay derived | Can be independent narrow changes after proof; source edits must update attestations, not merely bypass guards |
 | C. QUALIFY | D01–D06, G01/G02/S12, W250, MIDI grace250, H35/H50, remaining numerical slacks, selected runtime/source support, ring/outstanding/transport/timeouts after necessity review | Recognition/timing changes or resource-failure/admission changes; requires explicit product decision and real learner/device/workload evidence | Required before corresponding accuracy/latency/robustness/support claims; not a synthetic tuning contest |
 | D. DELETE/REDESIGN CANDIDATE | R03 representation/counting unit, caps/dataflow in R01/R04/S17; unused duplicates and unconsumed diagnostics/confidence | Redesign exact positive-history representation while retaining finite admission; review other ownership/backpressure and retained derived data | Before raising caps/optimizing algorithms; R03 mechanism is KEEP, not a deletion candidate; no silent loss of accepted truth or new universal coordinator |
 
@@ -526,8 +543,9 @@ silence-liveness mechanism with an unqualified numeric deadline. The distinct nu
 headroom/deadline policies R01/R03/R04/R06/R08/R14/R15/R16/R17 and identity cap S17 have no real
 workload/device qualification here. Diagnostic policies N01–N07 are not correctness
 limits. R05's dead alias is deleted with no replacement; R11's historical repeated4
-in maximumOutstandingInputBytes is now derived from R01, not another budget. T14/T15 have valid-producer
-structural bounds, not independent learner density qualification.
+in maximumOutstandingInputBytes is now derived from R01, not another budget. T14 is
+deleted using accepted-stream topology/upstream bounds; T15 retains its separate
+valid-producer proof. Neither establishes learner-density qualification.
 
 **Release blockers:** mismatched bytes/descriptors/current attestations, invalid
 source chronology/clock ownership, or an implementation that silently discards accepted

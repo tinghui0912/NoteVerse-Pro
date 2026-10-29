@@ -197,3 +197,13 @@ file attestation, canonical core and adapter composite digests. No new selected
 file or transitive policy attestation is added. Model/decoder/FIR/planner/source
 adapter/publication semantics remain unchanged; Result schema6 and provenance keys
 remain unchanged with no transport/runtime-policy or execution identity field.
+
+## Round34 STEP guard deletion without an identity advance
+
+The STEP acoustic attempt assembler is outside the selected evidence-core file
+attestation set. Removing its T14 guard, proved unreachable for accepted source
+streams by upstream publication bounds and H50/window/region topology, changes
+implementation but not accepted-contract runtime/product behavior. No evidence
+producer, selected executor/publication/decoder/planner/adapter/FIR file or semantic
+declaration changes. Core/executor/composite/model identities remain unchanged;
+Result stays schema6 with identical provenance shape and no new policy field.

@@ -3,7 +3,6 @@ import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
-const MAX_GESTURE_OBSERVATIONS = 32768;
 
 export type StepAcousticAttemptSink<Identity> = Readonly<{
   open(time: SessionTime): Identity | null;
@@ -88,7 +87,6 @@ export class StepAcousticAttemptAssembler<Identity> {
       const active = this.active;
       for (const o of observations) if (o.sourceEventSample >= active.anchor && o.sourceEventSample < active.end) {
         active.observations.set(o.observationId, Object.freeze({ ...o }));
-        if (active.observations.size > MAX_GESTURE_OBSERVATIONS) this.fail('STEP_ACOUSTIC_GESTURE_LIMIT');
       }
       if (this.frontier < active.end) return null;
       if (!active.observations.size) this.fail('STEP_ACOUSTIC_EMPTY_GESTURE');

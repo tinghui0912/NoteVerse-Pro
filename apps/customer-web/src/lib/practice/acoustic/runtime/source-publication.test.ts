@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
 import { planWindow } from './window-planner';
+import { ACOUSTIC_RESOURCES } from './resource-policy';
 import { projectContinuousEvidence } from '../continuous/publication';
 
 it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
@@ -28,6 +29,14 @@ it('freezes a copied window and owns canonical identity plus duplicate rejection
   expect(sourceObservationId('source', window, 60, 19200)).toBe(p.observations[0].observationId);
   window.windowIndex = 999; expect(p.window.windowIndex).toBe(0);
   expect(() => sourcePublication('source', 48000, 0, p.window, { ...result, events: [event, event] }, 0)).toThrow('DUPLICATE_ACOUSTIC_OBSERVATION');
+});
+
+it('rejects oversized inference output before inspecting events or producing a publication', () => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  // Sparse malformed output exercises the upstream bound; it is not a dense gesture stress test.
+  const events = new Array<Parameters<typeof sourcePublication>[4]['events'][number]>(ACOUSTIC_RESOURCES.maxEventsPerWindow + 1);
+  expect(() => sourcePublication('source', 48000, 0, window, { events, inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 0))
+    .toThrow('ACOUSTIC_EVENT_BOUND_EXCEEDED');
 });
 
 it('stream failure is terminal without retaining a replay ledger', () => {

@@ -136,6 +136,37 @@ KEEP DERIVED; R06's numeric2048 still requires device/latency/allocation qualifi
 The selected executor's import/expression bytes mechanically advance core/composite
 attestations; no evidence meaning or Result shape changes.
 
+### Round34 — T14 gesture count guard deleted under the accepted contract
+
+Before retaining observations, StepAcousticAttemptAssembler calls the unchanged
+SourcePublicationSequence. It rejects publication length>maxEventsPerWindow=16104;
+sourcePublication also rejects oversized raw inference output. This upstream bound
+is retained. Accepted same-region successors require consecutive window indices,
+next start at previous start+owned600ms, and previous owned end equal to that start.
+Hence a nonfinal predecessor is full-width; a partial final has no same-region
+successor. H50=50ms<600ms, so an active half-open gesture can touch at most its
+initial publication and one successor. A full successor seals before a third;
+a partial successor either seals or leaves the gesture active with no legal
+same-region successor. A region change while active still fails
+STEP_ACOUSTIC_GESTURE_COVERAGE_GAP, rather than accumulating another region.
+
+Thus at most2×16104=32208 observations can be retained for any accepted gesture,
+below the historical32768 guard. Round34 deletes the independent constant and
+internal failure branch; it installs **no replacement cap**. Cross-window tests
+show sealing at window1 and no contribution from window2; partial-final tests cover
+both enough/not-enough frontier and rejected successors. The upstream length-gate
+tests use sparse invalid arrays, not tens of thousands of generated gesture events.
+Existing malformed/sequence/duplicate/mapping/retirement/reentrancy failures and
+the6000-publication ownership regression remain. Copy/freeze/order/dedupe and the
+current-H50-plus-previous-summary lifecycle are unchanged.
+
+Production implementation changes; runtime/product behavior changes **NO for all
+inputs accepted by the current source-publication contract**. This is not a claim
+about arbitrary JavaScript objects or a device/learner-density qualification.
+KEEP DELETED; retain upstream bounds and topology regressions. H50 and R10/R06
+retain their independent evidence classifications. The STEP assembler is not a
+selected evidence-core byte anchor, so no core/composite identity changes occur.
+
 ## R02 — explicit region cap deleted with structural lifecycle bounds
 
 Round23's historical cap4 witness was legal: four short closed positive regions

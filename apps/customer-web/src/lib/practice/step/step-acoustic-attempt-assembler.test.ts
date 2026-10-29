@@ -1,6 +1,8 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { sourcePublication, type SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import { planWindow } from '../acoustic/runtime/window-planner';
+import { ACOUSTIC_MODEL } from '../acoustic/model/model-contract';
+import { ACOUSTIC_RESOURCES } from '../acoustic/runtime/resource-policy';
 import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -44,14 +46,64 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
   it('seals across consecutive windows only after coverage, never on a wall timer', () => {
     vi.useFakeTimers();
     try {
-      const s = setup(); expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
+      expect(STEP_ACOUSTIC_GESTURE_MS).toBeLessThan(ACOUSTIC_MODEL.ownedMs);
+      const first = publication(0, [event(end - 3)]), second = publication(1, [event(end, 'E4', .3)], 999999);
+      expect(first.window.ownedEndTarget - first.window.ownedStartTarget).toBe(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
+      expect(second.window.ownedStartTarget).toBe(first.window.ownedEndTarget);
+      expect([first.window.windowIndex, second.window.windowIndex]).toEqual([0, 1]);
+      const s = setup(); expect(s.assembler.accept(first)).toBeNull();
       expect(s.assembler.snapshot().activeObservationCount).toBe(1);
       vi.advanceTimersByTime(100000); expect(s.completed).toHaveLength(0);
-      const sealed = s.assembler.accept(publication(1, [event(end, 'E4', .3)], 999999));
+      const sealed = s.assembler.accept(second);
       expect(sealed?.observations.map(o => o.sourceEventSample)).toEqual([end - 3, end]);
+      expect(sealed?.observations.map(o => o.observationId)).toEqual([first.observations[0].observationId, second.observations[0].observationId]);
+      expect(second.ownedThroughSourceSample).toBeGreaterThanOrEqual(sealed!.endSourceSample);
       expect(sealed?.evidence.confidence).toBe(.3); expect(s.completed).toHaveLength(1);
       expect(s.assembler.snapshot().activeObservationCount).toBe(0);
+      const before = structuredClone(sealed), third = publication(2, [event(second.ownedThroughSourceSample + 3)]);
+      expect(s.assembler.accept(third)).toBeNull(); expect(sealed).toEqual(before);
+      expect(s.open).toHaveBeenCalledOnce(); expect(s.completed).toHaveLength(1);
+      expect(s.assembler.snapshot()).toMatchObject({ phase: 'BLOCKED', activeObservationCount: 0 });
     } finally { vi.useRealTimers(); }
+  });
+  it('rejects an oversized publication at the source sequence before opening or retaining a gesture', () => {
+    const s = setup(), valid = publication(0, [event(start + 3)]);
+    // Sparse invalid input tests the upstream length gate without synthesizing a dense gesture/heap workload.
+    const observations = new Array<SourceAcousticPublication['observations'][number]>(ACOUSTIC_RESOURCES.maxEventsPerWindow + 1);
+    expect(() => s.assembler.accept({ ...valid, observations })).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+    expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0, processedThroughSourceSample: null });
+  });
+  it('a partial final second window can seal H50 but cannot have a same-region successor', () => {
+    const s = setup(), gestureSamples = 48000 * STEP_ACOUSTIC_GESTURE_MS / 1000;
+    const partialEnd = end + gestureSamples + 300;
+    const window = planWindow({ index: 0, sourceStart: start, originTarget: start / 3, nextWindow: 1,
+      queuedEndTarget: end / 3, endTarget: partialEnd / 3 }, 1)!;
+    const partial = sourcePublication('source', 48000, 0, window, { events: [event(end, 'E4')],
+      inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
+    expect(window.ownedEndTarget - window.ownedStartTarget).toBeLessThan(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
+    expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
+    const sealed = s.assembler.accept(partial);
+    expect(sealed?.observations.map(o => o.sourceEventSample)).toEqual([end - 3, end]);
+    expect(partial.ownedThroughSourceSample).toBeGreaterThanOrEqual(sealed!.endSourceSample);
+    expect(s.completed).toHaveLength(1);
+    expect(() => s.assembler.accept(publication(2))).toThrow('ACOUSTIC_PUBLICATION_SEQUENCE_INVALID');
+    expect(s.completed).toHaveLength(1);
+  });
+  it.each(['same-region', 'new-region'] as const)('an insufficient partial tail cannot accumulate a third %s publication into active H50', kind => {
+    const s = setup(), partialEnd = end + 48000 * STEP_ACOUSTIC_GESTURE_MS / 2000;
+    const window = planWindow({ index: 0, sourceStart: start, originTarget: start / 3, nextWindow: 1,
+      queuedEndTarget: end / 3, endTarget: partialEnd / 3 }, 1)!;
+    expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
+    expect(s.assembler.accept(sourcePublication('source', 48000, 0, window, { events: [event(end, 'E4')],
+      inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1))).toBeNull();
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'CAPTURING', activeObservationCount: 2 });
+    const next = kind === 'same-region' ? publication(2) : sourcePublication('source', 48000, 0,
+      planWindow({ index: 1, sourceStart: partialEnd, originTarget: partialEnd / 3, nextWindow: 0, queuedEndTarget: partialEnd / 3 }, 2)!,
+      { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 3 }, 2);
+    expect(() => s.assembler.accept(next)).toThrow(kind === 'same-region'
+      ? 'ACOUSTIC_PUBLICATION_SEQUENCE_INVALID' : 'STEP_ACOUSTIC_GESTURE_COVERAGE_GAP');
+    expect(s.completed).toEqual([]); expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0 });
   });
   it('retired delayed analysis is new source chronology but cannot open the next gesture', () => {
     const s = setup(); s.assembler.accept(publication(0, [event(start + 3)]));
