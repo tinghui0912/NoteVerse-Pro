@@ -7,6 +7,42 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
+## Round54 current audit — target compatibility is distinct from language/budget policy
+
+The [domain companion's Round54 proof](practice-step-domain-pitch-contract.md#round54-current-audit--step-targetevidence-satisfiability)
+audits approved HEAD `745365eb4660209d5d7f42bc537002255e240442` without changing
+production or tests. For normalized distinct target T, legal ordinary direct STEP
+evidence can exact-MATCH **iff T is nonempty, every member belongs to current D280,
+and |T|<=128**. Necessity follows from dense nonempty raw1..128/D280 admission and
+exact equality; sufficiency submits T itself as dense evidence under valid ownership/
+time/confidence. Source-neutral direct satisfiability does not imply physical
+MIDI/acoustic reachability: E#4 can direct-MATCH but neither canonical source emits it.
+
+Fully consistent canonical-fixture adaptations pass the real browser artifact
+assertion and STEP constructor with empty target/group sets, C10/other non-D280
+strings, and129 distinct D280 members. None can MATCH legal evidence. Empty arrays
+in one retained group/step pass vacuous consistency checks; this is different from
+zero expected groups, which scope resolution rejects. A normal1..128 D280 target is
+directly satisfiable. Raw129 still rejects before entry access;128 duplicate C4
+entries still normalize to one. Producer128/88 do not justify the raw-work budget.
+
+Exactly one Round55 action is recommended: STEP-constructor compatibility validation
+of **every step in the resolved scope**, using existing domain language/raw maximum
+owners, with distinct domain error STEP_TARGET_INVALID and narrow projection to
+existing application STEP_SCORE_UNAVAILABLE. Do not reject a good selected section
+solely for an incompatible unused target, alter shared artifact admission, or put
+target knowledge into sources. Future observable start rejection requires runtime
+v11; schema8/artifact1/Result6 shapes and artifact payload identities can remain.
+Current runtime stays step-exact-pitch-learning-v10; no code/error/version is added.
+
+T15 source identities/comparison/dense shape/redundant acoustic grammar remain
+resolved. The new **target/evidence compatibility relationship** is the one proved
+Future DERIVE item. Domain canonical-language/raw-work policy stays DELETE/REDESIGN;
+raw128 stays unqualified/QUALIFY and T15 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY.
+All93 classes/counts and S17/R01/R03/R04/S09/S10/S15 states remain unchanged. Acoustic
+sources/core/composites, STEP production, Result6/provenance and schemas are unchanged.
+Round53's empty DERIVE bucket below records its historical completed cleanup state.
+
 ## Round53 acoustic grammar cleanup — equivalent admission, no STEP behavior change
 
 The post-canonical SourcePublicationSequence regex is deleted. Integer21..108 and

@@ -8,7 +8,236 @@ The [T15 source audit](practice-step-pitch-evidence-bounds.md) records resolved
 MIDI/acoustic identity boundaries. This companion addresses the remaining domain,
 artifact compatibility and raw128 questions without assuming a new canonical universe.
 
-## Round53 current state — redundant acoustic grammar deleted, qualified admission equivalent
+## Round54 current audit — STEP target/evidence satisfiability
+
+Approved baseline: `745365eb4660209d5d7f42bc537002255e240442`, branch
+`refactor/practice-foundation-v2`. This is documentation/read-only characterization
+only. STEP production/tests, schema8/runtime `step-exact-pitch-learning-v10`,
+artifact schema1/admission, Result6/provenance, acoustic selected files/identities
+and every resource/timing/language constant remain unchanged. Round53's completed
+acoustic grammar deletion stays completed; its then-empty DERIVE bucket is history.
+
+### Current owners and exact contract
+
+| Owner | What current committed code proves | What it does not prove |
+| --- | --- | --- |
+| [kernel/artifact.ts](../../apps/customer-web/src/lib/practice/kernel/artifact.ts), assertPracticeScoreArtifact | Artifact schema1, identities/timeline checks, one step per group; nonempty primitive pitch strings when members exist; unique group/strike/attack sets; equality of those sets; notation/expected-note/render partitions | No D280 admission, no target128 limit, no nonempty attack-set requirement. assertTargetNotation requires notes for each existing target, not the existence of a target |
+| [kernel/scope.ts](../../apps/customer-web/src/lib/practice/kernel/scope.ts), resolvePracticeScope | Reasserts the whole artifact; requires at least one expected group; FULL or ordered inclusive RANGE resolves startIndex/endIndex | Does not check that any resolved group's attack set is nonempty, D280, or satisfiable |
+| [step/domain/target.ts](../../apps/customer-web/src/lib/practice/step/domain/target.ts), attackPitchesForStep | Copies step.attackTargets.map(target => target.pitch); continuation is separate | No canonicalization, filtering, grammar or cardinality validation |
+| [step/domain/runtime.ts](../../apps/customer-web/src/lib/practice/step/domain/runtime.ts), constructor/currentTarget | Artifact assertion then scope resolution, index/session/timebase setup; currentTarget copies the current step's pitches | No STEP target/evidence compatibility check, even before an attempt opens |
+| Same runtime, completeAttempt | Ownership/ANALYZING, capture time, confidence, Array.isArray, raw length1..128, dense own indices, primitive string and unchanged `/^[A-G]#?-?\d$/`, normalization, exact comparison, record retention | Source labels do not authenticate directly submitted evidence; no MIDI/acoustic universe is imposed on the domain |
+| [step/domain/attempt.ts](../../apps/customer-web/src/lib/practice/step/domain/attempt.ts) | normalizePitchSet is Set+default sort; pitchSetsEqual compares normalized cardinality and every string by exact equality | No enharmonic conversion, delimiter serialization, empty-set exception or repair |
+| [Browser MIDI](../../apps/customer-web/src/lib/practice/midi/browser-midi-controller.ts) / [STEP MIDI input](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.ts) | Canonical identities for integer MIDI0..127; fact consistency checked before retention; Set dedup | Source128 does not derive raw-entry128 or domain target validity |
+| [acoustic decoder](../../apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts) / [source publication](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts) | Canonical21..108 mapping and exact observation pair identity,88 spellings; STEP assembler deduplicates retained pitch evidence | Source88 is not the domain language or target compatibility limit |
+| Backend generator / [source_schemas.py](../../backend/app/modules/practice/source_schemas.py) | Historical backend spelling/range findings below remain; typed artifact shape/physical partitions | Generated examples cannot establish browser direct-artifact admission. No repository-owned D280/128 target compatibility follows from generation |
+
+The primitive-string domain language D280 has7 letters ×2 sharp choices ×2 sign
+choices ×10 single digits =280 exact strings. It includes E#4, B#3, C-0 and G#9;
+it excludes C10 and arbitrary nonempty text. Let M be the128 Browser MIDI canonical
+names and A the88 acoustic names. A is a subset of M, and M a subset of D280.
+Neither inclusion says every D280 target is source-reachable, nor derives a raw
+array work budget. All claims below concern ordinary dense arrays/primitive strings
+under the declared contract, not adversarial getters/proxies/mutated iteration.
+
+### Necessary-and-sufficient theorem
+
+Let T = normalizePitchSet(attackPitchesForStep(step)) for one artifact-admitted
+STEP target. Fix ordinary valid ownership, clock/capture time and confidence.
+There exists legal direct observedAttackPitches evidence whose normalized set
+exactly equals T **iff T is nonempty, T is a subset of D280, and |T| <=128**.
+
+Necessity: a legal dense evidence array E has1..128 entries and every entry is a
+primitive D280 string. Set normalization cannot remove every entry from a nonempty
+ordinary dense array, add a new string, or increase cardinality. Thus its normalized
+set N(E) is nonempty, contained in D280, and has size at most128. Round51 structural
+equality can MATCH T only when T has exactly those same members and cardinality.
+This also rules out the old delimiter-collision escape; no serialization is involved.
+
+Sufficiency is constructive: list T's distinct strings in an ordinary dense array,
+one own entry per index, with no extras needed. The three conditions give legal
+raw length1..128 and existing per-entry syntax. With an owned ANALYZING attempt,
+confidence1 and a valid capture end after its start, completeAttempt accepts the
+array; unchanged Set+sort normalizes it back to T; exact equality yields MATCH.
+No physical MIDI/microphone fact is asserted by this direct domain construction.
+Artifact admission already guarantees attack-target uniqueness, so on these valid
+artifacts the raw attack-target count also equals |T|.
+
+Consequences are conditional logic, not parameter qualification. If |T|=129, no
+array of at most128 entries can have129 distinct members. If any t in T is outside
+D280, no admitted array can contain it. If T is empty, no legal nonempty evidence
+can normalize to it. These contradictions require no guess about learner intent,
+MIDI cardinality, decoder88, physical hand size or whether128 is a good budget.
+Explicit Skip can still advance a current target; that does not make an impossible
+target exact-MATCHable and is not a counterexample to this theorem.
+
+### Real artifact/runtime characterization
+
+An external read-only Node script loads the actual TypeScript modules via the
+repository TypeScript transpiler, using their real imports and the canonical
+practice-score artifact fixture. It rebuilds all affected group.pitches,
+strikeTargets/expectedNotes, step.attackTargets/notes, event/render identities and
+aggregates consistently, then invokes assertPracticeScoreArtifact and the actual
+StepPracticeRuntime constructor/open/analyze/complete/rearm path. No private target
+injection, production/test edit, mock validator or proposed validator is used.
+Synthetic opaque artifact IDs distinguish the probes; the browser does not
+recompute a backend content digest. These are admitted browser-contract witnesses,
+not claims that the backend normally generates these scores.
+
+| Target | Browser artifact / current STEP construction | Legal direct exact MATCH? | Current MIDI identity support | Current acoustic identity support |
+| --- | --- | --- | --- | --- |
+| C4/E4, reordered/duplicate evidence | Both accept | Yes; duplicate/order normalization unchanged | Both identities supported | Both identities supported |
+| E#4 | Both accept | Yes with direct E#4, for either inputSource label | Cannot emit E#4; F4 stays a different string | Cannot emit E#4; no enharmonic repair |
+| C-1 | Both accept | Yes | MIDI0 can emit it | Below qualified21..108 |
+| G#9 | Both accept | Yes | Outside0..127 mapping, which ends G9 | Outside qualified21..108 |
+| C10 | Both accept | No; C10 evidence rejects with STEP_ATTEMPT_EVIDENCE_INVALID; legal C4 finalizes MISMATCH | Cannot emit it | Cannot emit it |
+| Nonempty `opaque pitch` | Both accept | No; same evidence error; legal C4 yields MISMATCH | Cannot emit it | Cannot emit it |
+|129 distinct D280 names: M plus E#4 | Both accept | No;129 raw entries reject, the128-member M subset yields MISMATCH | Cannot emit the complete set; E#4 is absent | Cannot emit the complete set |
+|128 distinct D280 members | Both accept | Yes, densely submitted, for either label | Only if all members lie in M; probe includes non-M names | Only if all lie in A; probe does not |
+| Empty attack/group set, retained step/group entry | Both accept | No; empty evidence rejects, nonempty legal C4 yields MISMATCH | No legal nonempty STEP evidence equals empty | Same |
+
+Source columns describe identity support/obstruction, not guaranteed simultaneous
+gesture recognition, physical playability, device qualification or a new source
+admission rule. A normal1..128-member D280 target is directly satisfiable regardless
+of whether its members belong to a physical producer's canonical set.
+
+The empty witness removes the affected attack targets, strike targets, expected
+notes and render/event aggregates consistently, retaining a real step/group with
+its original finite onset/end. There is no remaining target whose notation must
+be nonempty; partition and uniqueness checks hold vacuously. Other fixture groups
+remain. Scope only requires at least one group, not at least one pitch per group.
+Thus the whole-artifact assertion and STEP constructor accept this empty target.
+This differs from **zero groups**: that artifact passes the browser assertion but
+resolvePracticeScope rejects it with `Practice scope requires at least one expected
+group.` No claim is made that a zero-group session can start.
+
+Characterization also constructs each of280 singleton targets and each cardinality
+1..128 through both runtime source labels:560 singleton MATCH executions and256
+size-witness MATCH executions. These finite executions supplement the constructive
+proof; they are not816 newly committed tests or an exhaustive powerset test.
+Dense128 C4 entries still MATCH/normalize to one; a129-length array with a throwing
+index0 getter rejects with zero indexed reads. No production evidence admission,
+normalization/comparison, clock or state transition changes in Round54.
+
+### Resolved scope is the future compatibility boundary
+
+The same complete artifact has C4 at index0 and C10 at index1. At baseline, both
+source labels construct all of the following:
+
+- RANGE0..0: C4 MATCH then rearm completes the selected scope; C10 is never a target.
+- RANGE1..1: C4 evidence yields MISMATCH; rearm leaves index1/generation unchanged.
+- FULL: C4 MATCH/rearm exposes C10 as the next impossible target. There is no early
+  target-compatibility rejection today.
+
+Future STEP validation should cover **every attack step inside the resolved scope,
+up front in the STEP constructor**, after artifact assertion and scope resolution
+and before exposing interaction/session target state. A bad later selected step
+must not survive until the learner reaches it. A D280/cardinality-incompatible step
+outside the section must not block a section whose selected steps are satisfiable.
+Whole-artifact structural validation still runs as today; out-of-scope corrupt
+partitions are not excused. This distinction is STEP compatibility versus shared
+artifact integrity, not target-aware source filtering. A new runtime constructed
+for a different scope must check that new scope independently.
+
+| Potential owner | Direct defense / fail-closed timing | Scope, reuse and architecture assessment |
+| --- | --- | --- |
+| Global assertPracticeScoreArtifact | Protects browser consumers but rejects the whole payload globally | Imposes today's STEP D280/raw-work consequences on Continuous/shared kernel and unrelated sections; no evidence authorizes that broader contract |
+| Backend generation only | Can prevent some new generated targets, cannot defend direct/imported existing artifacts | Browser independently callable construction still accepts impossible targets; not sufficient and would not define browser compatibility |
+| STEP constructor, entire artifact | Source-neutral and fail-closed before interaction | Rejects good selected sections due to an unused incompatible step; broader than the actual session's targets |
+| STEP constructor, resolved scope | Independently callable, source-neutral; all selected targets checked before interaction | Preferred: mode-owned constraint over actual session targets; kernel/source APIs remain reusable and score-blind |
+| Lazy currentTarget/openAttempt | Delays failure until exposure/open; later invalid targets may survive successful earlier interactions | Harder partial-session failure semantics, repeated reads/checks and no early assurance of selected scope; unnecessary |
+| MIDI/acoustic checks | Source-dependent or bypassed by direct domain calls | Wrong owner: would leak score knowledge into aggregation/analysis and confuse source reachability with direct-domain satisfiability |
+
+### Target-side work is separate
+
+Artifact attack-target arrays have finite actual JS lengths but no STEP-specific
+cardinality limit. On the artifact-admitted path, distinct target strings themselves
+are not even bounded by D280. The browser assertion already maps/copies/sorts
+physical sets, builds expected-note Maps/Sets and checks notation partitions over
+the **entire** artifact. Constructor scope resolution reasserts the artifact. These
+costs occur before any future STEP compatibility guard and are not bounded by
+evidence raw128. Caller artifact allocation and other modes are also outside it.
+
+currentTarget copies attack pitches and separately projects continuation. At
+completion, pitchSetsEqual creates a target-side Set and sorted array in addition
+to re-normalizing evidence. Current target work is governed by artifact size, not
+raw evidence length; rejected evidence can short-circuit before comparison but
+legal short evidence still compares against a large target. A scoped |T|<=128
+compatibility check would incidentally bound subsequent selected **attack-set**
+projection/Set/sort inputs to128 (artifact uniqueness is already asserted). It
+would not bound total artifact/continuation/notation work, number of steps, earlier
+validation, arbitrary JS object behavior or total heap. This logical relationship
+does not qualify128 as a workload/device budget, and no new number is proposed.
+
+### Candidate designs and compatibility
+
+| Design | Correctness / product semantics | Source coupling | Work/resource consequence | Artifact compatibility / version consequence |
+| --- | --- | --- | --- | --- |
+| A. Keep impossible targets | Current starts/MISMATCH loops persist; an explicit product reason would be needed to retain provably unsatisfiable selected targets indefinitely | Source-neutral, no producer changes | Raw128 and unbounded target work remain | No change/version bump for no-op; no justification for intentional impossibility was found |
+| B. Global D280/nonempty/128 artifact restriction | Makes all admitted targets satisfy current STEP contract, but changes shared artifact language | Couples kernel/other modes to STEP evidence/work policy | Bounds pitch sets after global admission, not prior artifact work | Rejects existing payloads even outside scope/STEP; shared compatibility contract and artifact version policy required; STEP runtime advance for changed starts; Result shape need not change |
+| C. STEP compatibility of resolved scope | Rejects exactly impossible selected targets under current evidence semantics, preserving satisfiable D280 strings including E#4 | Source-neutral domain check; no source/target imports added below domain | Reuses raw128 as a compatibility parent, not a qualified/new cap; later selected target-set work bounded | Preferred narrow runtime behavior change: v10→v11, schema8 shape unchanged; artifact schema1/bytes/identity unchanged; incompatible selected scope rejects without rewriting payload; Result6 unchanged |
+| D. STEP compatibility of entire artifact | Same theorem, but good selected sections fail for unused bad steps | Domain-owned, broader product rejection | Scans all steps and limits unused targets too | Runtime advance needed, schema8 can stay; no artifact rewrite/schema or Result6 change intrinsically required; no evidence favors this wider scope |
+| E. Raise/remove raw128 | Could admit larger D280 targets only; empty and non-D280 targets still impossible | No source guarantee derives safe replacement | Weakens/changes raw-work protection,129 duplicates and target/evidence work; requires separate workload/API trust evidence | Changes domain evidence/start behavior, needs runtime advance; schema8/Result6 shapes may stay; no artifact rewrite by itself |
+| F. Evidence accepts artifact arbitrary strings | Removes grammar obstruction, but empty and >128 targets still impossible; broadens domain semantics | Can remain domain-owned but does not prove physical producer reachability | Longer arbitrary evidence strings need separate work analysis;128 count alone is not a string-byte budget | Runtime advance and product language decision; no inherent schema8/Result6 migration; artifact bytes could stay |
+| G. Canonical MIDI0..127 target/evidence universe | Removes valid direct D-minus-M identities, still requires nonempty/cardinality compatibility | Source-neutral only if independently domain-owned; cannot derive policy from Browser MIDI |128 distinct names do not derive raw iteration budget | Runtime advance, legacy target compatibility/re-encoding decision; artifact schema change only if shared contract/version changes; no automatic Result6 migration. Not justified by producer neatness |
+| H. Piano21..108 target/evidence universe | Also disallows40 currently valid MIDI identities such as C-1 | Makes source-neutral STEP piano-model-specific without product evidence |88 distinct names still do not derive raw128 | Runtime and target compatibility changes; possible shared artifact version decision, no inherent Result shape change. No piano-only mandate found |
+
+### Exactly one Round55 recommendation
+
+Implement **candidate C only**: a STEP-owned resolved-scope target compatibility
+guard implementing this theorem, with the existing D280 predicate and raw evidence
+maximum as its parent contracts. Keep one domain owner of each existing relationship
+when reusing them; do not copy128 or the regex into a second policy owner, choose
+MIDI128/acoustic88, change evidence admission/order, or qualify the budget. After the
+existing whole-artifact assertion and resolvePracticeScope, validate every selected
+attack set for nonempty, D280 membership and compatible distinct count before the
+runtime can expose targets/attempts. Existing asserted uniqueness can avoid an
+unbounded second normalization solely to count target members.
+E#4 and other directly satisfiable D280 identities remain compatible even when a
+particular source cannot emit them; this is not a source-playability guarantee.
+
+Use a distinct **STEP-domain `STEP_TARGET_INVALID`** for incompatibility, rather
+than learner `STEP_ATTEMPT_EVIDENCE_INVALID`. The malformed object here is a selected
+target/session contract, before any evidence. Existing artifact-structure and scope
+errors keep their owners/order. The current application error projector would
+otherwise mislabel an unknown constructor error as MIDI unavailable or microphone
+preparation failed; the narrow future integration should map this domain error to
+the existing `STEP_SCORE_UNAVAILABLE` application category and verify cleanup,
+without adding source-aware target rules or redesigning acquisition. In the current
+microphone controller, inference/context/start preparation precedes runtime
+construction; constructor failure must use its existing cleanup path. An early
+domain check guarantees before learner interaction, **not before all acquisition**.
+
+That future change converts starts-with-impossible-target into fail-closed session
+admission, so explicitly advance runtime `step-exact-pitch-learning-v10`→
+`step-exact-pitch-learning-v11`.
+SchemaVersion8 can remain: session/attempt record shape does not change. Keep
+artifact schema1, payload/content identities and backend generation unchanged;
+no rewrite of older artifacts is required, only rejection when the selected STEP
+scope is incompatible. Compatible sections of the same artifact remain usable;
+no dual-version hydration/migration is established. Result6 and acoustic provenance/
+identity need no change. These are recommendations, not edits in Round54.
+
+### Ledger and validation status
+
+T15 remains primary UNQUALIFIED_RESOURCE_SAFETY_POLICY: source identities, structural
+comparison, dense shape and redundant acoustic grammar cleanup remain resolved;
+domain canonical-language choice and raw128 qualification remain open. Target/evidence
+compatibility is now a **proved structural consequence of the current contract**
+and the single future DERIVE action, not a new row or a derivation/qualification
+of128 itself. DELETE/REDESIGN still covers remaining domain-language/raw-work policy;
+raw128 stays QUALIFY. All93 primary rows/classes/counts stay unchanged. S17 keeps
+KEEP SINGLE OWNER/NUMERIC UNQUALIFIED; R01/R03/R04 and resolved S09/S10/S15 stay intact.
+
+Actual local validation:240 existing tests/12 files, including artifact/scope,
+STEP domain/attempt/verdict/status, architecture/dependency, acoustic identity/
+attestation/source adapter and Result provenance. Read-only real-module probes
+cover the table, empty versus zero groups, both source labels, selected/excluded
+bad steps, all280 singleton targets and sizes1..128. No production/test changes,
+full-suite/typecheck/lint/backend claim or hosted rerun is part of this audit.
+Documentation guards11, structure/links, independent ledger/count/membership and
+all-current-attestation/canonical/composite checks pass; git diff --check passes.
+
+## Round53 historical state — redundant acoustic grammar deleted, qualified admission equivalent
 
 From approved HEAD `e6864c6486950d23c38a3f4d87890051b8860e50`, the only acoustic
 behavior-source edit deletes SourcePublicationSequence's regex after canonical pair

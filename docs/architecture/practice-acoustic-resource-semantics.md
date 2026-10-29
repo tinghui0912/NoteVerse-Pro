@@ -246,6 +246,50 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round54 — target/evidence compatibility follows from the existing contract
+
+The [STEP domain audit](practice-step-domain-pitch-contract.md#round54-current-audit--step-targetevidence-satisfiability)
+proves that an artifact-admitted normalized distinct attack set T has legal direct
+matching evidence exactly when T is nonempty, lies in D280, and has at most128
+members. Legal evidence is an ordinary dense1..128-entry D280 array; normalization
+cannot add members, increase count or empty a nonempty set. Conversely T itself is
+a legal dense witness with ordinary valid attempt/time/confidence. This proves a
+compatibility consequence of raw128; it does **not** qualify or derive that number.
+
+Real browser artifact/runtime probes admit empty attack/group sets, C10 and129
+distinct D280 targets, all impossible to MATCH. A retained empty group/step is not
+the zero-group artifact rejected by resolvePracticeScope. E#4 direct-MATCHes but
+cannot come from either canonical source. Source reachability is a different
+question from domain satisfiability and does not justify MIDI128/piano88 restrictions.
+
+Target-side work is not currently bounded by raw128. Artifact validation maps/sorts
+physical sets, checks notation/partitions and allocates Maps/Sets for the entire
+artifact before the runtime's evidence gate, and scope resolution reasserts it.
+currentTarget projects target/continuation data; pitchSetsEqual independently
+normalizes/sorts expected pitches. A future resolved-scope compatibility guard
+would bound later selected attack-set work using already-asserted uniqueness, but
+would not bound earlier/global artifact work, continuation/notation size, number
+of steps, caller allocation or total memory. No device/headroom qualification follows.
+
+The one recommended Round55 action is an upfront STEP-owned **resolved-scope**
+compatibility guard using existing D280/raw maximum ownership. Whole-artifact
+structural validation stays; a good selected section need not inherit another
+section's unsatisfiable target. STEP_TARGET_INVALID should distinguish target
+defects from learner evidence failures; future application projection should use
+existing STEP_SCORE_UNAVAILABLE, preserving source blindness and cleanup. Runtime
+would advance v10→v11 for changed session admission, while schema8/artifact1/
+Result6 shapes and existing artifact bytes/content identities need no migration.
+Current microphone acquisition begins before runtime construction, so a constructor
+guard is not a promise of zero pre-validation resource work.
+
+Round54 changes documentation only. T15 remains resource-safety for unqualified
+raw128; domain-language/raw-work policy remains DELETE/REDESIGN and raw128 QUALIFY.
+Future DERIVE gains only the proved target/evidence compatibility relationship.
+All93 rows/class counts and S17/R01/R03/R04/S09/S10/S15 are unchanged. Current STEP
+v10/schema8, D280/raw128/normalization/structural comparison/dense validation,
+artifact/source behavior, Result6/provenance and all Round53 acoustic identities
+remain unchanged. No new policy, test/production edit or hosted rerun is performed.
+
 ### Round53 — delete the implied acoustic grammar check, preserve exact identity
 
 SourcePublicationSequence now relies on its existing integer21..108 and exact
