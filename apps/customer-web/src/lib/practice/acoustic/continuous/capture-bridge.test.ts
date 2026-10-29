@@ -4,6 +4,7 @@ import { expect, it, vi } from 'vitest';
 import { ContinuousCaptureBridge, type AcousticBoundary } from './capture-bridge';
 import { ContinuousAcousticProjection } from './continuous-projection';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves PCM inputs, source mapping and pause/resume boundaries`, async () => {
@@ -17,7 +18,7 @@ for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves P
     { type: 'BEGIN', sourceSampleIndex: resume, performanceTimeMs: pauseTime },
     { type: 'TERMINAL', sourceSampleIndex: end, performanceTimeMs: endTime },
   ] as const;
-  expect(boundaries.every(b => b.sourceSampleIndex % 2048 !== 0)).toBe(true);
+  expect(boundaries.every(b => b.sourceSampleIndex % CAPTURE_TRANSPORT_BLOCK_SAMPLES !== 0)).toBe(true);
   async function run(blockSize: number) {
     const inputs: { window: AcousticInferenceInput['window']; sha256: string }[] = [];
     const publications: ContinuousEvidencePublication[] = [];
@@ -30,18 +31,31 @@ for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves P
         return { events: [{ midiPitch: 60, pitch: 'C4', targetSample: Math.ceil(input.window.ownedStartTarget),
           confidence: .4, onsetScore: .6, frameScore: .4 }], actualSessionRunCount: inputs.length, inferenceMs: 0, decodeMs: 0 };
       }, dispose: async () => {} } });
-    const bridge = new ContinuousCaptureBridge(runtime, rate);
+    const bridge = new ContinuousCaptureBridge(runtime, rate), append = vi.spyOn(runtime, 'append');
+    let splitTransportBlock = false;
     try {
       for (const boundary of boundaries) bridge.schedule(boundary);
       let sequence = 0;
       for (let next = 0; next < pcm.length; next += blockSize) {
         const sourceEnd = Math.min(pcm.length, next + blockSize);
+        const before = append.mock.calls.length, samples = pcm.subarray(next, sourceEnd);
         bridge.receive({ type: 'pcm-chunk', sequence: sequence++, sourceSampleRateHz: rate,
           sourceStartSampleIndex: next, sourceEndSampleIndex: sourceEnd, audioContextStartFrame: next,
-          captureTimeSeconds: next / rate, inputChannelCount: 1, samples: pcm.subarray(next, sourceEnd) });
+          captureTimeSeconds: next / rate, inputChannelCount: 1, samples });
+        const parts = append.mock.calls.slice(before).map(([block]) => block);
+        if (blockSize === CAPTURE_TRANSPORT_BLOCK_SAMPLES && parts.length > 1) splitTransportBlock = true;
+        let cursor = next;
+        for (const part of parts) {
+          expect(part.samples.length).toBeGreaterThan(0); expect(part.samples.length).toBeLessThanOrEqual(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
+          expect(part.sourceStartSampleIndex).toBe(cursor); expect(part.sourceEndSampleIndex).toBe(cursor + part.samples.length);
+          expect(part.samples.buffer).toBe(samples.buffer); expect(part.samples.byteOffset).toBe(cursor * Float32Array.BYTES_PER_ELEMENT);
+          cursor = part.sourceEndSampleIndex;
+        }
+        expect(cursor).toBe(sourceEnd);
         await runtime.drain();
       }
       await runtime.seal();
+      if (blockSize === CAPTURE_TRANSPORT_BLOCK_SAMPLES) expect(splitTransportBlock).toBe(true);
       const snapshot = bridge.snapshot();
       expect(snapshot.nextSourceSampleIndex).toBe(pcm.length);
       expect(snapshot.boundaryDiagnostics.filter(b => b.action === 'APPLIED').map(b => b.sourceSampleIndex)).toEqual(boundaries.map(b => b.sourceSampleIndex));
@@ -55,7 +69,7 @@ for (const rate of [44100, 48000]) it(`${rate}: capture partitioning preserves P
       return { inputs, publications };
     } finally { await runtime.dispose(); }
   }
-  expect(await run(2048)).toEqual(await run(128));
+  expect(await run(CAPTURE_TRANSPORT_BLOCK_SAMPLES)).toEqual(await run(128));
 });
 
 

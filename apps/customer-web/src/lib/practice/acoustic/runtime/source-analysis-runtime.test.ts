@@ -4,6 +4,7 @@ import { SourceAnalysisRuntime } from './source-analysis-runtime';
 import { AcousticPcmRing, planWindow } from './window-planner';
 import { ACOUSTIC_MODEL as M, sourceIdentity } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES as R } from './resource-policy';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
 import type { AcousticInferenceInput } from './inference-types';
 
@@ -156,6 +157,25 @@ async function resourceRig() {
   return { runtime, worker, publications, failures, release, feed, next: () => next };
 }
 
+it('R07 append accepts the transport maximum and smaller splits, rejecting oversized source before chronology advances', async () => {
+  const r = await resourceRig();
+  try {
+    let next = r.runtime.snapshot().nextSourceSampleIndex;
+    for (const size of [CAPTURE_TRANSPORT_BLOCK_SAMPLES, 128]) {
+      r.runtime.append({ sourceSampleRateHz: 48000, sourceStartSampleIndex: next,
+        sourceEndSampleIndex: next + size, samples: new Float32Array(size) }); next += size;
+      expect(r.runtime.snapshot()).toMatchObject({ nextSourceSampleIndex: next, failureCode: null, outstanding: 0 });
+    }
+    const oversized = CAPTURE_TRANSPORT_BLOCK_SAMPLES + 1;
+    expect(() => r.runtime.append({ sourceSampleRateHz: 48000, sourceStartSampleIndex: next,
+      sourceEndSampleIndex: next + oversized, samples: new Float32Array(oversized) })).toThrow('INVALID_ACOUSTIC_CAPTURE_BLOCK');
+    expect(r.runtime.snapshot()).toMatchObject({ state: 'FAILED', nextSourceSampleIndex: next,
+      failureCode: 'INVALID_ACOUSTIC_CAPTURE_BLOCK', outstanding: 0 });
+    expect(r.worker.run).not.toHaveBeenCalled(); expect(r.publications).toEqual([]); expect(r.failures).toHaveLength(1);
+  } finally { r.release(); await r.runtime.dispose(); }
+  expect(r.worker.dispose).toHaveBeenCalledOnce();
+});
+
 it('R01 valid source reaches four copied queued/active inputs; fifth fails before ring extraction/copy', async () => {
   const r = await resourceRig(), extract = vi.spyOn(AcousticPcmRing.prototype, 'extract');
   try {
@@ -193,7 +213,7 @@ for (const rate of [44100, 48000] as const) {
       coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`), worker,
       nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, onFailure: failure });
     let next = 0;
-    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + R.maxSourceBlockSamples);
+    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + CAPTURE_TRANSPORT_BLOCK_SAMPLES);
       runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) }); } };
     try {
       feed(rate * 2); expect(runtime.prerollReady).toBe(true);
@@ -228,7 +248,7 @@ for (const rate of [44100, 48000] as const) {
       expect(start).toBeGreaterThanOrEqual(this.firstRetained); expect(end - start).toBe(M.inputSamples);
       extractedWithRetention ||= this.firstRetained > 0; return extract.call(this, start, end);
     });
-    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + R.maxSourceBlockSamples);
+    const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + CAPTURE_TRANSPORT_BLOCK_SAMPLES);
       runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) }); } };
     const regions: number[] = [];
     try {
@@ -271,7 +291,7 @@ it('R02 source-discrete future horizon and retained-input bounds follow shipped 
     const emissionError = rate === 44100 ? 256 / up + 1 : 2;
     const horizon = Math.ceil((future + geometryError - 1) * down / up + center / up + emissionError + 1);
     expect(horizon).toBe(rate === 44100 ? 7531 : 8196);
-    const blockOutputs = Math.ceil((R.maxSourceBlockSamples + 2 * emissionError) * up / down) + 1;
+    const blockOutputs = Math.ceil((CAPTURE_TRANSPORT_BLOCK_SAMPLES + 2 * emissionError) * up / down) + 1;
     const fifoSkew = Math.ceil(2 * geometryError);
     expect([blockOutputs, fifoSkew]).toEqual([rate === 44100 ? 746 : 685, 4]);
     expect(M.inputSamples + blockOutputs + fifoSkew).toBeLessThan(R.targetRingSamples);

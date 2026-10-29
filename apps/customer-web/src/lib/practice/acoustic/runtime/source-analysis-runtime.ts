@@ -1,5 +1,6 @@
 import { ACOUSTIC_MODEL as M, AcousticAnalysisError, assertAcousticIdentity, fail, onlyFields, safeIndex } from '../model/model-contract';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { AcousticPcmRing, planWindow, type AnalysisRegion, type AcousticWindow } from './window-planner';
 import type { AcousticInferencePort } from './inference-types';
 import { deliverSynchronously, SourcePublicationSequence, sourcePublication, type SourcePublicationSink } from './source-publication';
@@ -53,7 +54,7 @@ export class SourceAnalysisRuntime {
       onlyFields(block, ['sourceSampleRateHz', 'sourceStartSampleIndex', 'sourceEndSampleIndex', 'samples']);
       safeIndex(block.sourceStartSampleIndex); safeIndex(block.sourceEndSampleIndex);
       if (block.sourceSampleRateHz !== this.adapter.rate || !(block.samples instanceof Float32Array)
-        || block.samples.length > R.maxSourceBlockSamples || block.samples.length !== block.sourceEndSampleIndex - block.sourceStartSampleIndex
+        || block.samples.length > CAPTURE_TRANSPORT_BLOCK_SAMPLES || block.samples.length !== block.sourceEndSampleIndex - block.sourceStartSampleIndex
         || block.samples.some(v => !Number.isFinite(v))) fail('INVALID_ACOUSTIC_CAPTURE_BLOCK');
       if (this.base === null) { this.base = block.sourceStartSampleIndex; this.nextSource = this.base; }
       if (block.sourceStartSampleIndex !== this.nextSource) fail('NONCHRONOLOGICAL_ACOUSTIC_SOURCE');

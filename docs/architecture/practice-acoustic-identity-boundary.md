@@ -185,3 +185,15 @@ Model/decoder/FIR/planner/source-adapter/source-publication implementations and
 semantic declarations are unchanged. Result remains schema6 with identical
 provenance keys and no runtime-policy/execution field. This is selected-byte
 attestation sensitivity, not a scope expansion or a semantic-equivalence claim.
+
+## Round33 source-block relationship and selected-byte advance
+
+R07 removes its duplicate resource-policy field. SourceChronology and the executor
+directly reference R06's unchanged transport-block contract, preserving upper-bound
+admission and smaller valid source chunks. This is implementation derivation, not
+an evidence or transport-format change and not qualification of numeric2048.
+The executor's import/comparison bytes change, mechanically advancing selected
+file attestation, canonical core and adapter composite digests. No new selected
+file or transitive policy attestation is added. Model/decoder/FIR/planner/source
+adapter/publication semantics remain unchanged; Result schema6 and provenance keys
+remain unchanged with no transport/runtime-policy or execution identity field.

@@ -50,8 +50,10 @@ it('only unpublished provisional startup is retired on a frame discontinuity', a
   expect(f.sent.at(-1)?.message.code).toBe('ACOUSTIC_CAPTURE_FRAME_DISCONTINUITY');
   expect(f.processor.originFrame).toBe(1024); expect(f.processor.stabilizationRestarts).toBe(1);
 });
-it('standalone Worklet credit declaration matches the authoritative transport contract', async () => {
+it('standalone Worklet block/credit declarations match the authoritative transport contract', async () => {
   const text = await readFile('src/lib/practice/acoustic/source/capture.worklet.js', 'utf8');
+  expect(CAPTURE_TRANSPORT_BLOCK_SAMPLES).toBe(2048);
+  expect(Number(text.match(/const CAPTURE_TRANSPORT_BLOCK_SAMPLES = (\d+);/)?.[1])).toBe(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
   expect(CAPTURE_TRANSPORT_MAX_UNACKED).toBe(32);
   expect(Number(text.match(/const CAPTURE_TRANSPORT_MAX_UNACKED = (\d+);/)?.[1])).toBe(CAPTURE_TRANSPORT_MAX_UNACKED);
 });

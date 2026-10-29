@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { BrowserAcousticCapture } from '../source/capture';
 import type { ContinuousCaptureBridge } from './capture-bridge';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 function fixture() {
@@ -24,6 +25,18 @@ async function connected(f: ReturnType<typeof fixture>, ownership: 'BORROWED_SES
   (f.node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 0, samples: new Float32Array(2048) } });
   return pending;
 }
+it.each([CAPTURE_TRANSPORT_BLOCK_SAMPLES - 1, CAPTURE_TRANSPORT_BLOCK_SAMPLES + 1])('browser transport rejects non-exact block size %i before consumer/ACK', async size => {
+  const f = fixture();
+  const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
+    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+  const rejection = expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_TRANSPORT_BLOCK_VIOLATION');
+  await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
+  (f.node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 0, samples: new Float32Array(size) } });
+  await rejection;
+  expect(f.bridge.receive).not.toHaveBeenCalled(); expect(f.node.port.postMessage).not.toHaveBeenCalledWith({ type: 'ACK', sequence: 0 });
+  expect(f.bridge.abort).toHaveBeenCalledOnce(); expect(f.analysisTrack.stop).toHaveBeenCalledOnce(); expect(f.recordingTrack.stop).not.toHaveBeenCalled();
+});
+
 it('borrowed recording stream is cloned; analysis failure stops only the owned clone and disconnects all nodes', async () => {
   const f = fixture();
   const capture = await connected(f, 'BORROWED_SESSION_STREAM');

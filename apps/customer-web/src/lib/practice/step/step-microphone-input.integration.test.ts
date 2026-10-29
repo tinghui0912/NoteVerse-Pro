@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-types';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../acoustic/source/capture-transport-contract';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../acoustic/runtime/inference-types';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
@@ -108,6 +109,22 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
 }
 
 describe.each([44100, 48000] as const)('%i persistent microphone resource owner / TEST DOUBLES ONLY', rate => {
+  it('STEP capture passes the accepted transport block to the real source runtime without expanding or copying it', async () => {
+    const r = await rig(rate);
+    try {
+      const append = vi.spyOn(r.source, 'append'), chunk = r.chunk();
+      expect(chunk.samples).toHaveLength(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
+      r.context.currentTime = (r.origin + chunk.sourceEndSampleIndex) / rate;
+      r.bridge.receive(chunk);
+      expect(append).toHaveBeenCalledOnce();
+      expect(append.mock.calls[0][0]).toEqual({ sourceSampleRateHz: rate, sourceStartSampleIndex: chunk.sourceStartSampleIndex,
+        sourceEndSampleIndex: chunk.sourceEndSampleIndex, samples: chunk.samples });
+      expect(append.mock.calls[0][0].samples).toBe(chunk.samples);
+      expect(r.source.snapshot().nextSourceSampleIndex).toBe(chunk.sourceEndSampleIndex);
+      expect(r.failures).toEqual([]);
+    } finally { await r.input.dispose(); }
+  });
+
   it('establishes capture-origin mapping, real-capture boundary, preroll and exactly one long-lived owner graph', async () => {
     const r = await rig(rate);
     try {

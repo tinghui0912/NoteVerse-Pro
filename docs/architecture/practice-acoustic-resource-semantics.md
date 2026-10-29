@@ -106,6 +106,36 @@ The selected executor byte change mechanically advances core/composite identitie
 under the [existing boundary](practice-acoustic-identity-boundary.md#round32-diagnostic-derivation-and-selected-byte-identity-advance);
 Result shape/evidence meaning and numeric policies are unchanged.
 
+### Round33 — R07 source block maximum is derived from R06
+
+R06's `CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048` is the numeric format authority,
+with a verified standalone Worklet declaration. BrowserAcousticCapture checks
+message samples.length equals that exact value **before** bridge acceptance/ACK.
+The production SourceAnalysisRuntime.append callers are
+[StepAcousticCaptureBridge.receive](../../apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts)
+and [ContinuousAcousticProjection.append](../../apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts).
+The former passes the accepted chunk's identical Float32Array without expansion;
+the latter only forwards its block. Its sole production upstream,
+[ContinuousCaptureBridge.receive](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts),
+first validates SourceChronology, then takes subarrays partitioned by boundaries
+inside that chunk. Each slice is bounded by its parent; ordered slices cover the
+same source coordinates without padding/combining. No file-input, batch or synthetic
+production producer exists. The runtime's internal ring.append is a resampled-ring
+operation, not another source producer.
+
+Thus source/runtime maximum <= current transport block size is a structural
+pipeline relationship, not an independent numeric choice. Round33 deletes the
+historical resource-policy.maxSourceBlockSamples alias; SourceChronology and source
+runtime directly import the transport constant. Both retain `length > maximum`
+validation, not exact-size admission. SourceChronology still rejects empty chunks;
+all other source/rate/finite/chronology checks and failure codes are unchanged.
+Real-owner regressions accept2048 and smaller chunks, reject oversized input before
+source truth advances, preserve Continuous within-block slices and STEP pass-through.
+Runtime→source is an existing permitted dependency direction; no guard is relaxed.
+KEEP DERIVED; R06's numeric2048 still requires device/latency/allocation qualification.
+The selected executor's import/expression bytes mechanically advance core/composite
+attestations; no evidence meaning or Result shape changes.
+
 ## R02 — explicit region cap deleted with structural lifecycle bounds
 
 Round23's historical cap4 witness was legal: four short closed positive regions
@@ -214,7 +244,10 @@ this derived relationship.
 Each queued input copies exactly29120 target samples; in-flight inference no
 longer relies on the ring. For a not-yet-copied window with input end G, its start
 is G−29120. Planning runs after **every admitted append**, which carries at most
-2048 source samples. From the emission error bounds above, a conservative maximum
+CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048 source samples, now directly derived from R06
+by both validation owners rather than a separate R07 literal. Given that unchanged
+transport format, the proof remains intact; this does not qualify numeric2048.
+From the emission error bounds above, a conservative maximum
 output increment is D_r=ceil((2048+2*e_r)*u/d)+1: **746 / 685 target samples**.
 This follows by comparing the last emitted and first not-emitted sample predicates
 before/after the append, not by inventing extra audio context.
@@ -810,7 +843,8 @@ The remaining future conclusions are:
 - **DELETE AS REDUNDANT:** R05 implemented in Round31 after the exact-reference
   audit; KEEP DELETED. Do not remove the real R04 Worklet credit contract.
 - **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after
-  boundary and consumer review; R11 is completed in Round32 and stays derived.
+  boundary and consumer review; R11 is completed in Round32 and R07 in Round33;
+  both stay derived.
   No numerical replacement policy is inferred.
 - **IDENTITY BOUNDARY RESOLVED IN ROUND 25:** the [normative contract](practice-acoustic-identity-boundary.md)
   deliberately excludes runtime admission/failure/liveness from the evidence core;
