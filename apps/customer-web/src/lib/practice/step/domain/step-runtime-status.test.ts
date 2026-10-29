@@ -24,7 +24,7 @@ describe('local STEP domain status, independent of browser resources', () => {
     const s = setup(), snapshot = s.runtime.snapshot();
     expect(s.runtime.state).toBe('ACTIVE');
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
-      version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' }, step: { completed: false, attemptState: 'READY' } });
+      version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' }, step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
     expect(snapshot.scoreId).toBe(fixture.scoreId);
     expect(snapshot.revisionId).toBe(fixture.revisionId); expect(snapshot.artifactId).toBe(fixture.artifactId);

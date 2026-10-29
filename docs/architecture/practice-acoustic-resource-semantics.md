@@ -246,7 +246,32 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
-### Round51 — exact STEP set comparison, unchanged raw-work admission
+### Round52 — dense own-entry evidence, unchanged raw128 work admission
+
+The [domain companion](practice-step-domain-pitch-contract.md) records a narrow
+direct-array shape correction. completeAttempt checks every index after its existing
+raw128 gate, requiring an own property and a primitive string matching the unchanged
+domain regex. Missing/inherited-only entries now fail STEP_ATTEMPT_EVIDENCE_INVALID;
+some no longer skips holes that Set iteration would observe as undefined. No full
+copy, normalization change or new policy constant is introduced.
+
+Sparse1/partial/leading-hole/128 rejection leaves ANALYZING, the same active attempt,
+no pending record and unchanged target/index/generation. A valid retry finalizes
+normally. Dense128 duplicate C4 remains valid; length129 rejects before index0 reads.
+Non-index array properties remain irrelevant and ordinary own accessors remain
+ordinary indexed reads. This is fail-closed shape integrity, not arbitrary hostile
+getter/proxy or total-memory protection. Raw128 is still an unqualified budget.
+
+Runtime behavior identity advances to step-exact-pitch-learning-v10, schema8 remains;
+no session/Result6/provenance migration. Domain language/artifact/source admission,
+Round51 exact comparison, normalization, clocks/H35/H50 and all acoustic sources/
+attestations/core/composites remain unchanged. T15 dense-array shape joins source
+identity and comparison as resolved; only domain-language/raw-work policy stays
+DELETE/REDESIGN and raw128 QUALIFY. The independent acoustic regex Future DERIVE
+item is still present/unmodified. All93 classifications/counts and S17/R01/R03/R04/
+S09/S10/S15 states remain unchanged; no learner/device/resource qualification follows.
+
+### Round51 — historical exact STEP set comparison correction
 
 The [domain companion](practice-step-domain-pitch-contract.md) records the implemented
 Round50 recommendation. pitchSetsEqual compares the lengths/elements of normalized

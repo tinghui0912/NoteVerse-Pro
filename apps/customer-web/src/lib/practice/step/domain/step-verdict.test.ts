@@ -105,7 +105,7 @@ describe('STEP exact pitch-set learning verdict', () => {
     for (const s of [runtime.snapshot().step, ordinary.runtime.snapshot().step]) {
       expect(s).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'READY', pendingPostVerdict: null });
     }
-    expect(runtime.snapshot().version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
+    expect(runtime.snapshot().version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' });
   });
 
   it.each([

@@ -1,7 +1,7 @@
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
 
-export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' });
+export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' });
 export type StepAttemptState = 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT';
 export type StepTarget = Readonly<{
   stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;

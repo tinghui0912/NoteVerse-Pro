@@ -93,7 +93,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
     expect(() => runtime.rearm({ domainId: runtime.localSessionId, ms: 0 })).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v9' },
+    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' },
       runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });
@@ -123,6 +123,64 @@ describe('one target / one bounded attempt / one verdict', () => {
 
 
 describe('STEP evidence and outcome integrity', () => {
+  it.each([
+    { label: 'one-slot sparse', pitches: () => Array<string>(1) },
+    { label: 'own first entry and trailing hole', pitches: () => { const value = Array<string>(2); value[0] = 'C4'; return value; } },
+    { label: 'leading hole and own later entry', pitches: () => { const value = Array<string>(2); value[1] = 'C4'; return value; } },
+    { label: '128 sparse slots', pitches: () => Array<string>(128) },
+  ])('rejects $label without losing attempt ownership and accepts a valid retry', ({ pitches }) => {
+    const s = setup(), identity = s.begin(); expect(s.runtime.analyzeAttempt(identity)).toBe(true);
+    const before = s.runtime.snapshot().step, target = s.runtime.currentTarget();
+    const sparse = pitches(), length = sparse.length, ownEntries = Object.keys(sparse);
+    // Deliberately malformed direct input cannot satisfy the declared dense string tuple.
+    const evidence = { observedAttackPitches: sparse, confidence: 1,
+      captureEndSessionTime: s.time(235) } as unknown as StepPitchEvidence;
+    expect(() => s.runtime.completeAttempt(identity, evidence)).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+    expect(s.runtime.snapshot().step).toEqual(before);
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', activeAttempt: identity,
+      pendingPostVerdict: null, currentIndex: 0, targetGeneration: 1 });
+    expect(s.runtime.currentTarget()).toEqual(target);
+    expect(sparse.length).toBe(length); expect(Object.keys(sparse)).toEqual(ownEntries);
+    const result = s.runtime.completeAttempt(identity, { ...evidence, observedAttackPitches: ['C4'] });
+    expect(result).toMatchObject({ kind: 'FINALIZED', record: { ...identity, verdict: 'MATCH', observedAttackPitches: ['C4'] } });
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'POST_VERDICT', activeAttempt: null,
+      currentIndex: 0, targetGeneration: 1 });
+  });
+
+  it('rejects an inherited array index without reading it or fabricating evidence', () => {
+    const s = setup(), identity = s.begin(); s.runtime.analyzeAttempt(identity);
+    const pitches = Array<string>(1), prototype = Object.create(Array.prototype);
+    let inheritedReads = 0;
+    Object.defineProperty(prototype, '0', { get: () => { inheritedReads++; throw Error('inherited index read'); } });
+    Object.setPrototypeOf(pitches, prototype);
+    expect(Array.isArray(pitches)).toBe(true); expect(Object.hasOwn(pitches, 0)).toBe(false);
+    expect(() => s.runtime.completeAttempt(identity, { observedAttackPitches: pitches as unknown as StepPitchEvidence['observedAttackPitches'],
+      confidence: 1, captureEndSessionTime: s.time(235) })).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+    expect(inheritedReads).toBe(0);
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', activeAttempt: identity, pendingPostVerdict: null });
+  });
+
+  it('rejects length129 before any index0 read, keeping the active attempt retryable', () => {
+    const s = setup(), identity = s.begin(); s.runtime.analyzeAttempt(identity);
+    const pitches = Array<string>(129); let indexReads = 0;
+    Object.defineProperty(pitches, '0', { get: () => { indexReads++; throw Error('index0 must not be read'); } });
+    expect(() => s.runtime.completeAttempt(identity, { observedAttackPitches: pitches as unknown as StepPitchEvidence['observedAttackPitches'],
+      confidence: 1, captureEndSessionTime: s.time(235) })).toThrow('STEP_ATTEMPT_EVIDENCE_INVALID');
+    expect(indexReads).toBe(0);
+    expect(s.runtime.snapshot().step).toMatchObject({ attemptState: 'ANALYZING', activeAttempt: identity, pendingPostVerdict: null });
+    expect(s.runtime.completeAttempt(identity, { observedAttackPitches: ['C4'], confidence: 1, captureEndSessionTime: s.time(235) }))
+      .toMatchObject({ kind: 'FINALIZED', record: { verdict: 'MATCH', observedAttackPitches: ['C4'] } });
+  });
+
+  it('ignores extra non-index array properties and accepts an ordinary own indexed accessor', () => {
+    const s = setup(), identity = s.begin(); s.runtime.analyzeAttempt(identity);
+    const pitches: [string, ...string[]] = ['C4', 'C4'];
+    Object.defineProperty(pitches, 'unrelated', { enumerable: true, get: () => { throw Error('non-index property must not be read'); } });
+    Object.defineProperty(pitches, '0', { get: () => 'C4' });
+    expect(s.runtime.completeAttempt(identity, { observedAttackPitches: pitches, confidence: 1, captureEndSessionTime: s.time(235) }))
+      .toMatchObject({ kind: 'FINALIZED', record: { verdict: 'MATCH', observedAttackPitches: ['C4'] } });
+  });
+
   it('only permits nonempty evidence and the two learning outcomes', () => {
     expectTypeOf<[]>().not.toExtend<StepPitchEvidence['observedAttackPitches']>();
     expectTypeOf<StepAttemptRecord['confidence']>().toEqualTypeOf<number>();
@@ -136,6 +194,7 @@ describe('STEP evidence and outcome integrity', () => {
     ['non-array pitch list', { observedAttackPitches: 'C4' }],
     ['invalid pitch', { observedAttackPitches: ['H4'] }],
     ['non-string pitch', { observedAttackPitches: ['C4', 42] }],
+    ['own undefined pitch', { observedAttackPitches: ['C4', undefined] }],
     ['empty pitch string', { observedAttackPitches: [''] }],
     ['non-canonical flat pitch', { observedAttackPitches: ['Ab3'] }],
     ['non-finite confidence', { confidence: NaN }],

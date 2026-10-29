@@ -7,7 +7,28 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Round51 exact comparison correction — source identities and comparison resolved
+## Round52 dense evidence correction — source identities, comparison and sparse shape resolved
+
+completeAttempt keeps raw128 admission before indexed reads, then explicitly checks
+every integer index using Object.hasOwn and the unchanged primitive-string/D280
+predicate. It no longer uses hole-skipping some. Missing or inherited-only entries
+fail STEP_ATTEMPT_EVIDENCE_INVALID before normalization/record retention, without
+repair, filtering or attempt cancellation. ANALYZING/active ownership remain intact
+and the same attempt can retry valid dense evidence. Dense128 duplicates normalize
+to one; length129 rejects before a throwing index0 getter is read. Extra non-index
+properties and ordinary own indexed accessors retain their behavior; hostile-object
+defense is not claimed.
+
+STEP runtimeVersion advances v9→step-exact-pitch-learning-v10; schema8/session shape,
+Result6/provenance, raw128/value/order, normalizePitchSet and Round51 structural
+pitchSetsEqual stay unchanged. Artifact/domain language/source behavior and all
+acoustic selected source bytes/hashes/core/composites are unchanged. T15 remains
+primarily resource-safety: source identities/comparison/dense-array shape are resolved,
+domain pitch-language/raw-work policy remains DELETE/REDESIGN and raw128 QUALIFY.
+The separate acoustic post-canonical regex remains the sole Future DERIVE cleanup.
+All93 primary rows/classes/counts and S17/R01/R03/R04/S09/S10/S15 states remain.
+
+## Round51 historical exact comparison correction
 
 pitchSetsEqual normalizes both inputs with the unchanged Set+sort operation, then
 requires equal cardinality and exact per-index string equality. The historical

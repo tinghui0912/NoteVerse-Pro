@@ -75,9 +75,14 @@ export class StepPracticeRuntime {
     if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     if (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
       || !Array.isArray(evidence.observedAttackPitches) || evidence.observedAttackPitches.length < 1
-      || evidence.observedAttackPitches.length > 128
-      || evidence.observedAttackPitches.some((pitch: unknown) => typeof pitch !== 'string' || !/^[A-G]#?-?\d$/.test(pitch))) {
+      || evidence.observedAttackPitches.length > 128) {
       throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    }
+    const observed = evidence.observedAttackPitches;
+    for (let index = 0; index < observed.length; index++) {
+      if (!Object.hasOwn(observed, index)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+      const pitch: unknown = observed[index];
+      if (typeof pitch !== 'string' || !/^[A-G]#?-?\d$/.test(pitch)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
     const normalized = normalizePitchSet(evidence.observedAttackPitches);
     const pitches = Object.freeze([normalized[0], ...normalized.slice(1)] as const);

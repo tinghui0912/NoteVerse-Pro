@@ -41,11 +41,14 @@ once, including final scope completion; MISMATCH stays on the target. Skip is a
 separate READY-only progression action. Snapshots contain current interaction
 state, without attempt/skip history, statistics or learner reports. Completion
 offers Try Again and Section Practice / Adjust Section, without a Review action.
-The runtime contract is schema 8 (`step-exact-pitch-learning-v9`).
+The runtime contract is schema 8 (`step-exact-pitch-learning-v10`).
 Normalized pitch sets compare by equal cardinality and exact per-member equality;
 opaque artifact strings containing delimiters cannot alias multiple pitch members.
 The v9 correction changes verdict integrity, while schema8, admission and Set+sort
-normalization remain unchanged. No artifact migration or version hydration is added.
+normalization remain unchanged. Runtime v10 additionally rejects sparse/inherited-only
+pitch entries before normalization; raw128 still rejects before indexed reads.
+Malformed evidence leaves ANALYZING and the same attempt can retry. Extra non-index
+properties remain irrelevant. No artifact migration or version hydration is added.
 
 Microphone instructions ask the learner to play the highlighted target and wait
 for the result before playing again. CAPTURING/ANALYZING asks them to wait while

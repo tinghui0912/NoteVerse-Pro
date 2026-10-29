@@ -1,4 +1,4 @@
-# STEP Domain Pitch Language and Raw-Work Contract — Round50 Audit / Round51 Correction
+# STEP Domain Pitch Language and Raw-Work Contract — Round50 Audit / Round51–52 Corrections
 
 Approved baseline: `eb2fa7ad1513de3e3f44f9adb6dda6445cdc2c51` on
 `refactor/practice-foundation-v2`. Round50 changed documentation only; the historical
@@ -8,7 +8,48 @@ The [T15 source audit](practice-step-pitch-evidence-bounds.md) records resolved
 MIDI/acoustic identity boundaries. This companion addresses the remaining domain,
 artifact compatibility and raw128 questions without assuming a new canonical universe.
 
-## Round51 current state — structurally exact comparison, runtime v9 / schema8
+## Round52 current state — dense own-index evidence, runtime v10 / schema8
+
+From approved HEAD `aea17c1e8e7e1634d637d3050487b8d1ac093f05`, completeAttempt replaces
+the hole-skipping some callback with an explicit indexed loop. After unchanged
+ownership/time/confidence/Array.isArray/nonempty/raw128 checks, every index0 through
+length−1 must be an own array property; its ordinarily indexed value must be a
+primitive string passing the same D280 regex. Object.hasOwn runs before reading
+that index. No copy/filter/fill/repair or new validation framework is introduced.
+
+One-slot, partially sparse, leading-hole and sparse128 evidence reject with
+STEP_ATTEMPT_EVIDENCE_INVALID before normalization or record construction. The
+runtime remains ANALYZING with the same activeAttempt, target/index/generation and
+null pendingPostVerdict; valid dense evidence can retry that same identity normally.
+Dense128 duplicate C4 entries still normalize to one; length129 still rejects before
+any indexed access, including a throwing index0 getter. Inherited numeric properties
+cannot fill missing own entries. Extra non-index properties remain irrelevant;
+ordinary own accessors can still supply valid strings. This is not a claim of
+protection against hostile getters/proxies or arbitrary process resource use.
+
+The observable malformed-direct-evidence change advances STEP runtimeVersion from
+step-exact-pitch-learning-v9 to step-exact-pitch-learning-v10, retaining schema8.
+Current snapshot/completion/status/microphone assertions and product documentation
+use v10. No hydration/migration path is added. normalizePitchSet and Round51
+pitchSetsEqual are byte-unchanged, as are D280, raw128/value/order, artifact/source
+admission, backend mapping, H35/H50 and all acoustic selected sources/identity values.
+Result6/provenance and session/record shape remain unchanged.
+
+T15 source identities, exact comparison and sparse-array fail-closed shape are now
+resolved. Domain pitch-language policy and raw128/target-work qualification remain
+unresolved. Only domain language/raw-work policy remains DELETE/REDESIGN; raw128
+stays QUALIFY. Primary resource-safety classification/all93 row counts remain;
+Future DERIVE still contains only the separate acoustic post-canonical regex cleanup,
+which remains in production. S17/R01/R03/R04 and resolved S09/S10/S15 are unchanged.
+
+Round52 validation: focused324 tests/12 files, broader STEP402/15, practice1708/90
+and full Customer Web2638/211 passed. Typecheck, lint0 warnings, architecture/
+dependency, Result/schema and identity/attestation guards pass. Docs guards11 plus
+structure/links, ledger/count/membership and diff checks pass. Independent selected
+file/canonical/composite verification confirms acoustic identities unchanged. No
+backend pytest or hosted workflow is rerun.
+
+## Round51 historical correction — structurally exact comparison, runtime v9 / schema8
 
 pitchSetsEqual now calls the unchanged normalizePitchSet on both sides, checks
 equal normalized lengths and compares exact strings at each sorted index. U+001F
@@ -185,7 +226,7 @@ For an ordinary owned ANALYZING attempt, completeAttempt performs:
 1. Ownership/state checks; stale calls return REJECTED before evidence processing.
 2. Capture time/domain/start ordering and confidence validation.
 3. Array shape, nonempty length and **length>128** short-circuit rejection.
-4. Present-entry typeof-string and regex checks via some.
+4. Round52 dense indexed validation: Object.hasOwn at every position, then primitive-string and unchanged regex validation. Round50–51 used some, skipping holes.
 5. normalizePitchSet: raw Set construction and default sorting; freeze normalized evidence.
 6. currentTarget projection, then pitchSetsEqual, which normalizes both sides again and compares their lengths/elements (Round50 used join).
 7. Frozen record creation/retention and transition to POST_VERDICT.
@@ -195,13 +236,15 @@ A129-entry audit array with an index0 getter that would throw is rejected with
 zero entry-getter reads. This small ordering probe does not promise protection from
 arbitrary getters/proxies or dishonest length/iteration behavior.
 
-Nor does it prove every malformed Array is a well-formed string tuple: some skips
-holes. A separate one-slot sparse direct array passes that scan and finalizes
+The Round50–51 scan did not prove every malformed Array was a well-formed string
+tuple: some skips holes. A one-slot sparse direct array historically passed it and finalized
 MISMATCH with an undefined normalized entry (shown as null by JSON serialization
-of the probe). No valid current producer emits this shape. D280 describes primitive
+of the probe). Round52 now rejects that same sparse shape before normalization,
+preserving active ownership and valid retry. No valid current producer emits it. D280 describes primitive
 pitch strings, not a complete theorem about arbitrary JavaScript arrays. This is
-an additional unresolved direct-input shape issue within T15, not a new numeric
-policy, source-identity gap or authorization to change validation in Round50.
+a historical direct-input shape issue now resolved within T15, not a new numeric
+policy or source-identity gap. Ordinary accessor/proxy behavior is not universally
+qualified by that fix.
 
 | Work / storage | What128 bounds |
 | --- | --- |
@@ -283,8 +326,8 @@ The redundant acoustic regex deletion remains a separate proved future DERIVE
 sub-item, not a second Round51 recommendation. Domain-language tightening and
 numeric raw-work/target-work qualification remain undecided. T15 stays SOURCE
 IDENTITIES RESOLVED, DOMAIN UNRESOLVED in UNQUALIFIED_RESOURCE_SAFETY_POLICY;
-domain language/raw work/direct shape stays DELETE/REDESIGN and raw128 stays QUALIFY;
-Round51 removes the completed comparison correction from that bucket.
+domain language/raw work stays DELETE/REDESIGN and raw128 stays QUALIFY;
+Round51 removes comparison and Round52 removes dense-array shape from that bucket.
 Future DERIVE is therefore **not empty**: it contains only this post-mapping acoustic
 regex cleanup. No primary row is added/reclassified:93 rows, structural24,
 verified18, empirical2, algorithm19, resource11, diagnostic7, redundant12,
