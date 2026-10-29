@@ -11,6 +11,20 @@ import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { StepAcousticAttemptAssembler, STEP_ACOUSTIC_GESTURE_MS, type StepAcousticAssemblerOptions } from './step-acoustic-attempt-assembler';
 
 const start = 57600, end = 86400;
+it.each(['', 'a', 'a'.repeat(192), 'a'.repeat(193), '🎵'.repeat(96), '🎵'.repeat(97), '音'.repeat(192), ' :\n\0'])
+  ('assembler preserves source identity admission for %j', sourceDomainId => {
+    const localId = vi.fn(() => 'session');
+    const options = { sourceDomainId, sourceSampleRateHz: 48000 as const, get localSessionId() { return localId(); },
+      sourceAnchorSample: 0, sessionAnchorTime: { domainId: 'session', ms: 0 }, sink: { open: vi.fn(), complete: vi.fn() } };
+    if (!sourceDomainId || sourceDomainId.length > 192) {
+      expect(() => new StepAcousticAttemptAssembler(options)).toThrow('STEP_ACOUSTIC_SOURCE_MAPPING_INVALID');
+      expect(localId).not.toHaveBeenCalled();
+    } else {
+      expect(new StepAcousticAttemptAssembler(options).snapshot().phase).toBe('BLOCKED');
+      expect(localId).toHaveBeenCalled();
+    }
+  });
+
 const event = (sample: number, pitch = 'C4', confidence = .8) => ({ targetSample: sample / 3, pitch,
   midiPitch: ({ C4: 60, C5: 72, E4: 64, G4: 67 } as Record<string, number>)[pitch], confidence, onsetScore: .8, frameScore: .8 });
 function publication(job: number, events: ReturnType<typeof event>[] = [], availabilityRuntimeMs = 0) {

@@ -246,7 +246,35 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
-### Round47 — audit acoustic domain identity admission, retain numerical uncertainty
+### Round48 — one selected-source admission owner, numeric192 still unqualified
+
+Round47 candidate2 is implemented: isAcousticDomainIdentity in selected
+source-publication.ts owns Boolean(value) && value.length<=192. The four original
+runtime/projection/STEP assembler/STEP input gates retain their fields, positions,
+short-circuit ordering and errors. Nothing moves into an unattested helper or new
+resource module; no defensive gate is deleted. Source runtime already depends on
+publication, and the existing dependency/cycle guards apply without relaxed rules.
+
+Primitive-string equivalence includes0/1/192/193 code units,96/97 emoji,192 non-ASCII
+units, whitespace, separators and control characters. Character count is still not
+byte accounting or a semantic grammar. Direct projection session192/source192 and
+the product184→192 /185→193 suffix consequence remain unchanged. Invalid STEP source
+still fails before inference acquisition/FIR/capture. Source/session field-shape
+validation remains first, and valid session/invalid source still fails at runtime.
+
+S17 duplicate ownership is KEEP SINGLE OWNER, removed from DELETE/REDESIGN;
+numeric192 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY in QUALIFY. Short generated
+IDs and structural payload amplification do not select or qualify that number.
+All93 rows/classes/counts remain; DERIVE is empty. R01/R03/R04/T15 and resolved
+S09/S10/S15 are untouched. No learner/device/recognition/latency qualification follows.
+
+Only selected executor/publication source bytes advance their attestations, then
+canonical core and both adapter composites advance mechanically. Model/FIR/decoder/
+planner/adapter implementation, source geometry, event/availability separation,
+publication ordering and product behavior remain unchanged. Result6/STEP8/runtime
+version/provenance shape stay the same; no policy field or attestation scope is added.
+
+### Round47 — historical audit of acoustic domain identity admission
 
 The [domain identity audit](practice-acoustic-domain-identity-bounds.md) enumerates
 all four192-code-unit guards, including STEP microphone setup omitted from the

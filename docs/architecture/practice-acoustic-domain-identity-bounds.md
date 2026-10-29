@@ -1,16 +1,51 @@
-# Acoustic Domain Identity Bounds — Round47 Audit
+# Acoustic Domain Identity Bounds — Round47 Audit / Round48 Implementation
 
 This audit describes branch `refactor/practice-foundation-v2` at approved HEAD
 `78ad1b365bd9f8c2b1e0b77594a6dd5d96e2a79c`, parent
-`1c9df071bcb0a2160a9ac24968394f6c38d2cac1`. It changes documentation only.
+`1c9df071bcb0a2160a9ac24968394f6c38d2cac1`. Round47 changed documentation only.
 The [parameter ledger](practice-acoustic-parameter-provenance.md) retains S17 as
-UNQUALIFIED_RESOURCE_SAFETY_POLICY. The recommendation below is for Round48;
-it is not implemented here. No production/test, identity, schema or workflow changes.
+UNQUALIFIED_RESOURCE_SAFETY_POLICY. Round48 implements candidate2 below from approved
+HEAD `9844ede6c43e6d07d35e3e4a0310c3ade51eab1e`; the audit tables retain baseline
+characterization. The implementation preserves the admitted primitive-string set.
+
+## Round48 current state — single selected-source owner, four defensive gates
+
+[isAcousticDomainIdentity](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts)
+now owns Boolean(value) && value.length<=192. It lives in the already-selected
+publicationSource, not an unattested helper. Every existing gate in the table below
+calls it at the same position on the same field, preserving its error owner. Source
+runtime and Continuous projection still validate field shape first; assembler still
+checks source before local/mapping fields; STEP setup still checks abort/context/
+rate/local ID before source admission and acquires no inference/FIR/capture on failure.
+No gate was removed and no semantic grammar or typeof hardening was added.
+
+Focused regressions cover empty/1/192/193,96 emoji (192 UTF-16 code units),97 emoji,
+192 non-ASCII code units with a larger UTF-8 encoding, separators, whitespace,
+newline and NUL. Direct projection session192/source192 remains accepted; invalid
+session never reaches the source factory, whereas valid session/invalid source does.
+The real Continuous microphone path retains184→192 acceptance and185→193 source-gate
+rejection. Product generators, prefixes, :capture and observation/publication/terminal
+formats are byte-unchanged; source/evidence/timing semantics remain unchanged.
+
+Duplicate-predicate ownership is **KEEP SINGLE OWNER**. Numeric192 remains an
+unqualified resource-safety budget in QUALIFY, not an identity grammar or a bound
+derived from generated lengths. S17 leaves DELETE/REDESIGN for the completed
+predicate cleanup, remains numerically unqualified, and does not enter DERIVE.
+All93 primary rows/classifications/counts remain unchanged.
+
+The existing selected executor import/use bytes and publicationSource predicate
+bytes change, requiring normalized CRLF→LF-only file attestations and a mechanical
+canonical core/both adapter composite cascade. No new selected anchor, transitive
+digest or provenance field is introduced. Model/FIR/decoder/planner/adapter source
+bytes and geometry are unchanged. Result6, STEP8/runtimeVersion and provenance
+shape remain unchanged; configured identity values advance through the existing
+selected-byte contract. See [identity boundary](practice-acoustic-identity-boundary.md).
 
 ## Four current admission sites
 
-The exact `192` search across Customer Web source finds these four identity guards,
-including the STEP microphone owner omitted from the previous ledger source list.
+Round47's exact `192` search found four inline identity owners, including the STEP
+microphone site omitted from the earlier ledger source list. Round48 retains these
+four admission gates but their numeric predicate now has one selected-source owner.
 The tested contract is a declared primitive string: nonempty and at most192 UTF-16
 code units (`String.length`), not Unicode scalar values or UTF-8 bytes. The current
 guards do not assert `typeof value === 'string'`; this audit does not extend their
@@ -191,7 +226,7 @@ changes its attestation/core/composite identity values.
 | 5. Byte/payload-oriented admission | Changes Unicode/escaping and potentially ASCII admission | New accounting/failure timing may differ | More direct work budget, but requires encoding and amplification scope | Must qualify | Must qualify | Different accepted strings/cost model | Schema need not change; payload/replay compatibility must be reviewed | Explicit budget/product decision, encoding, workload/heap/headroom data and composed publication cost |
 | 6. Remove cap because generated IDs are short | Accepts long nonempty direct strings | Length failures disappear | Removes finite per-string resource defense; short generator is not proof for direct APIs | Ordinary generated path unchanged | Ordinary generated path unchanged | Long strings amplify evidence work with no S17 admission budget | Shape may stay same, much larger payloads possible | Intentional exclusion of raw-call defense or replacement bounded owner; neither established |
 
-## Exactly one recommended Round48 implementation
+## Round47 recommendation — implemented by Round48 above
 
 Recommend **candidate2 only**: a pure, narrow acoustic identity-admission predicate
 under the existing acoustic/runtime contract ownership, shared by all four current
@@ -210,10 +245,11 @@ The finite raw-string budget stays a resource-safety policy, not a semantic gram
 - All four independently callable/early-failure checks remain; generated length does not replace direct API defense.
 - No Result/provenance/schema/runtime-version change is required. A future selected executor source edit requires the existing mechanical byte-attestation cascade, without expanding scope.
 
-Round48 would remove duplicated admission ownership, not resolve numerical S17
-qualification. Real legitimate ID-envelope, Unicode/serialization cost, workload and
+Round48 removes duplicated admission ownership and does not qualify numeric192.
+Real legitimate ID-envelope, Unicode/serialization cost, workload and
 memory/headroom evidence is still absent. S17 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY
-in DELETE/REDESIGN (repeated ownership) and QUALIFY (numeric192), not DERIVE/resolved.
+in QUALIFY (numeric192); repeated ownership leaves DELETE/REDESIGN after centralization.
+S17 is not numerically resolved or qualified.
 Future DERIVE stays empty. Ledger remains93 rows: structural24, verified18,
 empirical2, algorithm19, resource11, diagnostic7, redundant12, semantic-unresolved0.
 R01/R03/R04/T15 are untouched; S09 KEEP DERIVED STORAGE, S10 KEEP DERIVED/SINGLE
@@ -224,7 +260,7 @@ Round47 leaves selected source bytes, canonical/core/composite identities, Resul
 schema6, STEP schema8/runtimeVersion, provenance shape, timing and runtime behavior
 unchanged. Identity-scope or production changes are not part of this audit.
 
-## Validation scope
+## Round47 validation scope (historical)
 
 The read-only module probes above are audit characterization, not added unit tests
 or device qualification. The unchanged focused suite passed252 tests in10 files:
@@ -236,3 +272,15 @@ wording changed, every primary class/count/membership unchanged and DERIVE empty
 The three-document-only diff proves production/test/schema/identity bytes unchanged;
 git diff --check passes. No full suite, typecheck, lint, E2E, backend, build or hosted
 workflow success is inferred from this documentation audit.
+
+## Round48 validation
+
+The narrow boundary/identity/architecture/Result suite passed333 tests in10 files;
+the broader practice suite passed1674 tests in90 files. Full Customer Web unit
+validation passed2604 tests in211 files. Typecheck and lint with zero warnings pass.
+Docs guards pass11 tests plus structure/links; ledger checks retain93 stable IDs,
+all primary classes/counts/memberships, empty DERIVE and S17 only in QUALIFY rather
+than DELETE/REDESIGN. Independent Node canonical/file verification agrees with the
+Python-computed selected-source/core/composite values using CRLF→LF-only text
+normalization and raw binary coefficients. Existing identity guards are unchanged.
+git diff --check passes. No hosted workflow is rerun.

@@ -22,7 +22,7 @@ afterAll(async () => {
 });
 
 /** Synthetic PCM and deterministic inference port. Never imports a model or decoder. */
-async function rig(rate: 44100 | 48000, pitches = ['C4']) {
+async function rig(rate: 44100 | 48000, pitches = ['C4'], sourceDomainId = 'v25:capture') {
   const origin = rate * 7, context = Object.assign(new EventTarget(), { sampleRate: rate, currentTime: 7, state: 'running' });
   const rootStop = vi.fn(), cloneStop = vi.fn(), root = { getTracks: () => [{ stop: rootStop }], clone: vi.fn(() => ({ getTracks: () => [{ stop: cloneStop }] })) };
   const base = fixture as PracticeScoreArtifact;
@@ -81,7 +81,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   });
   const signal = new AbortController();
   const starting = input.start({ context: context as unknown as AudioContext, stream: root as unknown as MediaStream,
-    localSessionId: 'v25', sourceDomainId: 'v25:capture' }, signal.signal);
+    localSessionId: 'v25', sourceDomainId }, signal.signal);
   const runtime: StepPracticeRuntime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: input.clock,
     localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
   runtime.setInputUnavailable();
@@ -107,6 +107,30 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
       captureTimeSeconds: (origin + next) / rate, inputChannelCount: 1, samples: new Float32Array(2048), ...overrides }),
   };
 }
+
+it.each(['a', 'a'.repeat(192), '🎵'.repeat(96), '音'.repeat(192), ' :\n\0'])
+  ('STEP microphone accepts opaque source identity %j through real runtime/assembler setup', async sourceDomainId => {
+    const r = await rig(48000, ['C4'], sourceDomainId);
+    try {
+      expect(r.initial.sourceDomainId).toBe(sourceDomainId);
+      expect(r.failures).toEqual([]); expect(r.input.snapshot().resourceState).toBe('AVAILABLE');
+      expect(r.platform.acquireInference).toHaveBeenCalledOnce();
+    } finally { await r.input.dispose(); }
+  });
+
+it.each(['', 'a'.repeat(193), '🎵'.repeat(97)])
+  ('STEP microphone rejects invalid source identity %j before inference/FIR/capture', async sourceDomainId => {
+    const platform: StepMicrophonePlatform = { workletUrl: 'unused', acquireInference: vi.fn(), coefficients: vi.fn(), connectCapture: vi.fn() };
+    const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: vi.fn(), complete: vi.fn(), failure });
+    const context = Object.assign(new EventTarget(), { state: 'running', sampleRate: 48000, currentTime: 0 });
+    try {
+      await expect(input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
+        localSessionId: 'session', sourceDomainId }, new AbortController().signal)).rejects.toThrow('STEP_MICROPHONE_CONNECTION_INVALID');
+      expect(failure).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: 'STEP_MICROPHONE_CONNECTION_INVALID' }));
+      expect(platform.acquireInference).not.toHaveBeenCalled(); expect(platform.coefficients).not.toHaveBeenCalled();
+      expect(platform.connectCapture).not.toHaveBeenCalled();
+    } finally { await input.dispose(); }
+  });
 
 describe.each([44100, 48000] as const)('%i persistent microphone resource owner / TEST DOUBLES ONLY', rate => {
   it('STEP capture passes the accepted transport block to the real source runtime without expanding or copying it', async () => {

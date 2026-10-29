@@ -1,7 +1,7 @@
 {
   "44100": {
     "identity": {
-      "acousticCoreIdentitySha256": "ba6c55ff34bda366195084a4013f7d069ce4faeca131e99f5720323e17315508",
+      "acousticCoreIdentitySha256": "00e67fcc5f7fc0c0871a127a38b0c9838560868cd2bd69db3deb2ffd1b084fe0",
       "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
       "down": 441,
       "realSourceLookaheadSamples": 28,
@@ -22,11 +22,11 @@
         "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
       }
     },
-    "identitySha256": "1fa977a808b47804573ba95468277f94729d960466b69087a3f156c49acae7d0"
+    "identitySha256": "66372a10784734a2e089661f5b2f0804a3bf12df0d8a563ce94e7b37f6f7c50b"
   },
   "48000": {
     "identity": {
-      "acousticCoreIdentitySha256": "ba6c55ff34bda366195084a4013f7d069ce4faeca131e99f5720323e17315508",
+      "acousticCoreIdentitySha256": "00e67fcc5f7fc0c0871a127a38b0c9838560868cd2bd69db3deb2ffd1b084fe0",
       "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
       "coefficients": {
         "bytes": 244,
@@ -62,6 +62,6 @@
       "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
       "up": 1
     },
-    "identitySha256": "c4f2e1e6655b9683dece9aa219a8d400028195da517d7a1961aa355c3b1f1049"
+    "identitySha256": "0f8ddd997467f62152611489e0f91b2f4c5001bdb531f2a1d49bbd3c6ec27080"
   }
 }

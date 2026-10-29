@@ -1,6 +1,6 @@
 import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
 import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
-import { SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
+import { isAcousticDomainIdentity, SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
 
@@ -39,7 +39,7 @@ export class StepAcousticAttemptAssembler<Identity> {
   private readonly sink: StepAcousticAttemptSink<Identity>;
 
   constructor(options: StepAcousticAssemblerOptions<Identity>) {
-    if (!options.sourceDomainId || options.sourceDomainId.length > 192 || !options.localSessionId
+    if (!isAcousticDomainIdentity(options.sourceDomainId) || !options.localSessionId
       || ![44100, 48000].includes(options.sourceSampleRateHz) || !validSample(options.sourceAnchorSample)
       || options.sessionAnchorTime.domainId !== options.localSessionId || !Number.isFinite(options.sessionAnchorTime.ms)) {
       throw new Error('STEP_ACOUSTIC_SOURCE_MAPPING_INVALID');

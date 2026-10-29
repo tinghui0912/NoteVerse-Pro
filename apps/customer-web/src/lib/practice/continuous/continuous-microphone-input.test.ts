@@ -6,6 +6,7 @@ import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bri
 import type { ContinuousEvidencePublication } from './domain/evaluation/evidence-types';
 import type { AcousticInferencePort } from '../acoustic/runtime/inference-types';
 import { ManualClock } from '../kernel/timebase';
+import { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
@@ -59,9 +60,27 @@ function rig() {
   };
   const cleanWait = () => { expect(listeners.size).toBe(0); for (const detach of detaches) expect(detach).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0); };
   return { input, abort, context, worker, clock, publications, failure, stop, listeners, stale, detaches, connect, ready, terminal, feed,
-    bridge: () => bridge, captureStopped, cleanWait, duringSubscribe: (callback: () => void) => { beforeSubscribe = callback; },
+    bridge: () => bridge, captureStopped, captureConnected: subscription, cleanWait, duringSubscribe: (callback: () => void) => { beforeSubscribe = callback; },
     suppressNotifications: () => { deliver = false; }, workerFailure: () => workerFailure?.(new Error('ACOUSTIC_WORKER_RPC_TIMEOUT')) };
 }
+
+it.each([184, 185])('Continuous retains the :capture composition for session length%i', async length => {
+  const r = rig(), sourceCreate = vi.spyOn(SourceAnalysisRuntime, 'create'), sessionDomainId = 's'.repeat(length);
+  await r.input.acquire(r.abort.signal);
+  const connecting = r.input.connect({ context: r.context as AudioContext, stream: {} as MediaStream,
+    sessionDomainId, clock: r.clock, publish: vi.fn() }, r.abort.signal);
+  try {
+    if (length === 184) {
+      await r.captureConnected; r.feed(88064); await connecting;
+      expect(r.bridge().runtime.prerollReady).toBe(true);
+    } else {
+      await expect(connecting).rejects.toThrow('INVALID_ACOUSTIC_DOMAIN');
+      expect(r.bridge()).toBeUndefined();
+    }
+    expect(sourceCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ sourceDomainId: `${sessionDomainId}:capture` }));
+    expect(`${sessionDomainId}:capture`.length).toBe(length + 8);
+  } finally { await r.input.dispose(); }
+});
 
 it('preroll wakes at the real PCM threshold with one deadline and no periodic timer', async () => {
   const r = rig(), timer = vi.spyOn(globalThis, 'setTimeout');

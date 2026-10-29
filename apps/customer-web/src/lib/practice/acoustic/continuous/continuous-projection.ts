@@ -1,5 +1,6 @@
 import type { SourcePcmBlock } from '../runtime/source-analysis-runtime';
 import { SourceAnalysisRuntime } from '../runtime/source-analysis-runtime';
+import { isAcousticDomainIdentity } from '../runtime/source-publication';
 import { ACOUSTIC_MODEL, fail, onlyFields } from '../model/model-contract';
 import type { AcousticInferencePort } from '../runtime/inference-types';
 import { deliverPublication, projectContinuousEvidence, type AcousticPublicationSink, type PerformanceSegment } from './publication';
@@ -23,7 +24,7 @@ export class ContinuousAcousticProjection {
   private constructor(private readonly options: AcousticRuntimeOptions) {}
   static async create(options: AcousticRuntimeOptions): Promise<ContinuousAcousticProjection> {
     onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
-    if (!options.sessionDomainId || options.sessionDomainId.length > 192) fail('INVALID_ACOUSTIC_DOMAIN');
+    if (!isAcousticDomainIdentity(options.sessionDomainId)) fail('INVALID_ACOUSTIC_DOMAIN');
     const owner = new ContinuousAcousticProjection(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }));
     owner.source = await SourceAnalysisRuntime.create({ sourceDomainId: options.sourceDomainId, sourceSampleRateHz: options.sourceSampleRateHz,
       coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityRuntimeMs: options.nowAvailabilityRuntimeMs,

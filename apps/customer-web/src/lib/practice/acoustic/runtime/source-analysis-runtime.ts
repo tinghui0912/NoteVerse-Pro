@@ -3,7 +3,7 @@ import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { AcousticPcmRing, planWindow, type AnalysisRegion, type AcousticWindow } from './window-planner';
 import type { AcousticInferencePort } from './inference-types';
-import { deliverSynchronously, SourcePublicationSequence, sourcePublication, type SourcePublicationSink } from './source-publication';
+import { deliverSynchronously, isAcousticDomainIdentity, SourcePublicationSequence, sourcePublication, type SourcePublicationSink } from './source-publication';
 import { ACOUSTIC_RESOURCES as R, retainCompact } from './resource-policy';
 
 export type SourcePcmBlock = Readonly<{ sourceSampleRateHz: number; sourceStartSampleIndex: number;
@@ -44,7 +44,7 @@ export class SourceAnalysisRuntime {
   }
   static async create(options: SourceAnalysisOptions): Promise<SourceAnalysisRuntime> {
     onlyFields(options, ['sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
-    if (!options.sourceDomainId || options.sourceDomainId.length > 192) fail('INVALID_ACOUSTIC_DOMAIN');
+    if (!isAcousticDomainIdentity(options.sourceDomainId)) fail('INVALID_ACOUSTIC_DOMAIN');
     await assertAcousticIdentity();
     const adapter = await QualifiedSourceAdapter.create(options.sourceSampleRateHz, options.coefficientBytes);
     return new SourceAnalysisRuntime(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }), adapter);

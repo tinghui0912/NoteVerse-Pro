@@ -338,3 +338,25 @@ attestations, canonical core, model and both composite identity values remain
 unchanged. Attestation scope is not expanded. Result remains schema6 with the same
 provenance shape and configured evidence identities; no numerical-policy field,
 new execution identity or compatibility/schema migration is introduced.
+
+## Round48 shared admission stays inside selected publicationSource
+
+isAcousticDomainIdentity now centralizes the existing nonempty/192-UTF-16-code-unit
+predicate in source-publication.ts. This is an already-selected publicationSource;
+moving the behavior into an unattested helper would weaken the declared boundary
+and is deliberately avoided. The four original defensive checks remain in source
+runtime, Continuous projection, STEP assembler and STEP microphone setup with
+unchanged fields, order and failure codes. The shared predicate is not a universal
+product identity grammar and does not qualify numeric192.
+
+Normalized UTF-8 bytes (CRLF→LF only) change for publicationSource and executorSource
+(import/use), so those existing attestations are recalculated. Canonical core SHA,
+ACOUSTIC_MODEL.identitySha256, both adapter acousticCoreIdentitySha256 fields and
+both composite digests mechanically advance. This honestly records selected-byte
+drift without adding an identity field, transitive dependency digest or new anchor.
+Model asset, FIR bytes, decoder, planner and source-adapter implementation remain
+unchanged. Source/publication/evidence semantics, generated IDs and product behavior
+are unchanged. Result stays schema6 with the same provenance keys, STEP stays8 with
+the same runtime version; configured core/composite identity values advance without
+a schema migration. S17 duplicate ownership is complete; numerical qualification
+is still missing. The existing selective-attestation scope remains intact.

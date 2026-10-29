@@ -20,6 +20,40 @@ import { ContinuousAcousticProjection, type AcousticRuntimeOptions } from './con
 import { projectContinuousEvidence } from './publication';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
+import { SourceAnalysisRuntime } from '../runtime/source-analysis-runtime';
+
+it.each(['', 'a', 'a'.repeat(192), 'a'.repeat(193), '🎵'.repeat(96), '🎵'.repeat(97), '音'.repeat(192), ' :\n\0'])
+  ('projection preserves separate session/source domain admission for %j', async domain => {
+    const sourceCreate = vi.spyOn(SourceAnalysisRuntime, 'create');
+    const options = { sessionDomainId: domain, sourceDomainId: 'source', sourceSampleRateHz: 48000,
+      coefficientBytes: await coefficients(), worker: { run: vi.fn(), dispose: vi.fn(async () => {}) },
+      nowAvailabilityRuntimeMs: () => 0, onPublication: vi.fn() };
+    try {
+      if (!domain || domain.length > 192) {
+        await expect(ContinuousAcousticProjection.create(options)).rejects.toThrow('INVALID_ACOUSTIC_DOMAIN');
+        expect(sourceCreate).not.toHaveBeenCalled();
+        await expect(ContinuousAcousticProjection.create({ ...options, sessionDomainId: 'session', sourceDomainId: domain }))
+          .rejects.toThrow('INVALID_ACOUSTIC_DOMAIN');
+        expect(sourceCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ sourceDomainId: domain }));
+      } else {
+        // Both independent fields accept192; no product suffix relationship is imposed here.
+        const runtime = await ContinuousAcousticProjection.create({ ...options, sourceDomainId: domain });
+        try { expect(sourceCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ sourceDomainId: domain })); }
+        finally { await runtime.dispose(); }
+      }
+    } finally { sourceCreate.mockRestore(); }
+  });
+
+it('projection field-shape validation remains before session admission and source construction', async () => {
+  const sourceCreate = vi.spyOn(SourceAnalysisRuntime, 'create');
+  try {
+    const options = { sessionDomainId: '', sourceDomainId: '', sourceSampleRateHz: 48000, coefficientBytes: new Uint8Array(),
+      worker: { run: vi.fn(), dispose: vi.fn(async () => {}) }, nowAvailabilityRuntimeMs: () => 0,
+      onPublication: vi.fn(), unexpected: true };
+    await expect(ContinuousAcousticProjection.create(options)).rejects.toThrow('ACOUSTIC_FIELD_VIOLATION');
+    expect(sourceCreate).not.toHaveBeenCalled();
+  } finally { sourceCreate.mockRestore(); }
+});
 
 const coefficients = (rate = 48000) => readFile(rate === 44100 ? 'public/model-assets/practice-acoustic/fir-160-441.f32' : 'public/model-assets/practice-acoustic/fir-1-3.f32');
 function result(input: AcousticInferenceInput): AcousticInferenceResult {

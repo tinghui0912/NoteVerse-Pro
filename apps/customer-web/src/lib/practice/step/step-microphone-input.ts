@@ -1,7 +1,7 @@
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
-import type { SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
+import { isAcousticDomainIdentity, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
@@ -153,7 +153,7 @@ export class StepMicrophoneInput<Identity> {
   private async setup(signal: AbortSignal): Promise<void> {
     const c = this.connection!;
     if (signal.aborted || c.context.state !== 'running' || ![44100, 48000].includes(c.context.sampleRate)
-      || !c.localSessionId || !c.sourceDomainId || c.sourceDomainId.length > 192) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
+      || !c.localSessionId || !isAcousticDomainIdentity(c.sourceDomainId)) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
     this.worker = await this.platform.acquireInference(signal); this.check();
     this.detachWorker = this.worker.onFailure?.(error => this.fail(error));
     const coefficientBytes = await this.startup.measure('firLoad', () => this.platform.coefficients(c.context.sampleRate)); this.check();

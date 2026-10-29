@@ -15,6 +15,11 @@ export type SourceAcousticPublication = Readonly<{
 }>;
 export type SourcePublicationSink = (publication: SourceAcousticPublication) => void;
 
+/** Primitive-string admission budget in UTF-16 code units, not an identity grammar. */
+export function isAcousticDomainIdentity(value: string): boolean {
+  return Boolean(value) && value.length <= 192;
+}
+
 /** Identity belongs to the newly owned source window, never to a product attempt. */
 export function sourceObservationId(domain: string, window: AcousticWindow, midiPitch: number, targetSample: number): string {
   return `${domain}:r${window.regionIndex}:w${window.windowIndex}:p${midiPitch}:f${targetSample}`;

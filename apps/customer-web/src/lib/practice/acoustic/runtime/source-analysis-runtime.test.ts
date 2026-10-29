@@ -9,6 +9,36 @@ import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-con
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
 import type { AcousticInferenceInput } from './inference-types';
 
+it.each(['', 'a', 'a'.repeat(192), 'a'.repeat(193), '🎵'.repeat(96), '🎵'.repeat(97), '音'.repeat(192), ' :\n\0'])
+  ('source admission preserves %j and precedes adapter/runtime construction', async sourceDomainId => {
+    const adapterCreate = vi.spyOn(QualifiedSourceAdapter, 'create'), onFailure = vi.fn();
+    const options = { sourceDomainId, sourceSampleRateHz: 48000,
+      coefficientBytes: await readFile('public/model-assets/practice-acoustic/fir-1-3.f32'),
+      worker: { run: vi.fn(), dispose: vi.fn(async () => {}), onFailure },
+      nowAvailabilityRuntimeMs: () => 0, onPublication: vi.fn() };
+    try {
+      if (!sourceDomainId || sourceDomainId.length > 192) {
+        await expect(SourceAnalysisRuntime.create(options)).rejects.toThrow('INVALID_ACOUSTIC_DOMAIN');
+        expect(adapterCreate).not.toHaveBeenCalled(); expect(onFailure).not.toHaveBeenCalled();
+      } else {
+        const runtime = await SourceAnalysisRuntime.create(options);
+        try { expect(adapterCreate).toHaveBeenCalledOnce(); expect(onFailure).toHaveBeenCalledOnce(); }
+        finally { await runtime.dispose(); }
+      }
+    } finally { adapterCreate.mockRestore(); }
+  });
+
+it('source field-shape validation still precedes invalid domain admission', async () => {
+  const adapterCreate = vi.spyOn(QualifiedSourceAdapter, 'create');
+  try {
+    const options = { sourceDomainId: '', sourceSampleRateHz: 48000, coefficientBytes: new Uint8Array(),
+      worker: { run: vi.fn(), dispose: vi.fn(async () => {}) }, nowAvailabilityRuntimeMs: () => 0,
+      onPublication: vi.fn(), unexpected: true };
+    await expect(SourceAnalysisRuntime.create(options)).rejects.toThrow('ACOUSTIC_FIELD_VIOLATION');
+    expect(adapterCreate).not.toHaveBeenCalled();
+  } finally { adapterCreate.mockRestore(); }
+});
+
 for (const rate of [44100, 48000]) it(`${rate}: real producer delivers one contiguous immutable stream across windows, partial regions and source gaps`, async () => {
   const publications: SourceAcousticPublication[] = [], runs: number[] = [];
   const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'source', sourceSampleRateHz: rate,

@@ -1,9 +1,26 @@
 import { expect, it } from 'vitest';
-import { SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
+import { isAcousticDomainIdentity, SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
 import { planWindow } from './window-planner';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
 import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../model/model-contract';
 import { projectContinuousEvidence } from '../continuous/publication';
+
+it.each([
+  { label: 'empty', value: '', valid: false },
+  { label: 'one code unit', value: 'a', valid: true },
+  { label: '192 code units', value: 'a'.repeat(192), valid: true },
+  { label: '193 code units', value: 'a'.repeat(193), valid: false },
+  { label: '96 emoji / 192 code units', value: '🎵'.repeat(96), valid: true },
+  { label: '97 emoji / 194 code units', value: '🎵'.repeat(97), valid: false },
+  { label: '192 non-ASCII code units', value: '音'.repeat(192), valid: true },
+  { label: 'opaque separators', value: 'a:r0:w0:p60:f1:terminal', valid: true },
+  { label: 'whitespace', value: ' \t ', valid: true },
+  { label: 'newline and NUL', value: '\n\0', valid: true },
+])('domain admission preserves primitive-string semantics: $label', ({ value, valid }) => {
+  expect(isAcousticDomainIdentity(value)).toBe(valid);
+  if (value === '🎵'.repeat(96)) expect(value.length).toBe(192);
+  if (value === '音'.repeat(192)) expect(new TextEncoder().encode(value).length).toBeGreaterThan(value.length);
+});
 
 it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
   const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 19200, ownedEndTarget: 28800, startSample: 2400, endSample: 31520 };
