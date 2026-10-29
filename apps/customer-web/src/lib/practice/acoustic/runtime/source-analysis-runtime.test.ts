@@ -70,6 +70,9 @@ it.each([44100, 48000] as const)('%i: nonzero source base and partial region use
     runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) });
     await runtime.drain(); } };
   try {
+    expect(runtime.snapshot().resources.sourceAdapterBytes).toBe(coefficients.byteLength
+      + Math.ceil(coefficients.byteLength / Float32Array.BYTES_PER_ELEMENT / adapter.up) * Float32Array.BYTES_PER_ELEMENT);
+    expect(runtime.snapshot().resources.sourceAdapterBytes).toBe(rate === 44100 ? 35508 : 488);
     await feed(base + 128); expect(runtime.prerollReady).toBe(false);
     const firstEligibleDelta = Math.ceil(((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS + adapter.firstFullyRealOutputIndex) * rate / M.sampleRateHz);
     await feed(base + firstEligibleDelta - 1); expect(runtime.prerollReady).toBe(false);

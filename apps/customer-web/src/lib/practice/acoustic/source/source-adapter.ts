@@ -2,7 +2,7 @@ import { canonicalJson, fail, sha256, sourceIdentity, sourceRate, type SourceRat
 
 /** Frozen float32 rational FIR; the source ring is independent of session length. */
 export class QualifiedSourceAdapter {
-  private readonly ring = new Float32Array(128);
+  private readonly ring: Float32Array;
   private received = 0;
   private nextOutput = 0;
   readonly firstFullyRealOutputIndex: number;
@@ -14,6 +14,7 @@ export class QualifiedSourceAdapter {
     const identity = sourceIdentity(rate);
     this.identitySha256 = identity.identitySha256;
     this.up = rate === 44100 ? 160 : 1;
+    this.ring = new Float32Array(Math.ceil(coefficients.length / this.up));
     this.down = rate === 44100 ? 441 : 3;
     this.center = (coefficients.length - 1) / 2;
     this.firstFullyRealOutputIndex = Math.ceil(this.center / this.down);
@@ -33,13 +34,13 @@ export class QualifiedSourceAdapter {
     if (input.some(v => !Number.isFinite(v))) fail('NONFINITE_CAPTURE_PCM');
     const output: number[] = [];
     for (const value of input) {
-      this.ring[this.received++ % 128] = value;
+      this.ring[this.received++ % this.ring.length] = value;
       while (Math.floor((this.nextOutput * this.down + this.center) / this.up) < this.received) {
         const coordinate = this.nextOutput * this.down + this.center;
         const begin = Math.max(0, Math.ceil((coordinate - this.coefficients.length + 1) / this.up));
         const end = Math.floor(coordinate / this.up);
         let sum = 0;
-        for (let n = begin; n <= end; n++) sum = Math.fround(sum + Math.fround(this.ring[n % 128] * this.coefficients[coordinate - n * this.up]));
+        for (let n = begin; n <= end; n++) sum = Math.fround(sum + Math.fround(this.ring[n % this.ring.length] * this.coefficients[coordinate - n * this.up]));
         output.push(sum); this.nextOutput++;
       }
     }

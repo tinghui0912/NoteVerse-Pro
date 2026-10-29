@@ -72,8 +72,8 @@
     "lookaheadSourceSamples": 27.5625,
     "source": {
       "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
-      "bytes": 2729,
-      "sha256": "8de1a49dbb1424d9a9f3ba07ab8667b1b79999e8d0d8655652adba81fe9db0d3"
+      "bytes": 2821,
+      "sha256": "1dd1d7975a1f48dd7885407a1e379a1e10f2a8c504b9b9bba5a68bda1f2038a5"
     },
     "sourceRateHz": 44100,
     "tapCount": 8821,

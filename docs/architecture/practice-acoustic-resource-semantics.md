@@ -246,6 +246,44 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round43 — S09 source FIR storage follows actual support
+
+The pre-change repository-wide storageBytes/sourceAdapterBytes audit found only
+the adapter accounting method, its source-runtime diagnostic snapshot projection
+and tests. No admission, Result, product threshold or release-policy consumer
+uses that scalar. Continuous/STEP snapshots may carry diagnostics without making
+them evidence or admission owners.
+
+The adapter now initializes its private Float32 source ring after up is established:
+capacity=ceil(actual coefficient count/up). Every write/read modulo uses ring.length.
+There is no new public capacity field, numeric constant, transport/model-window
+relationship or generic resource owner. The current assets yield ceil(8821/160)=56
+source samples at44100 and ceil(61/1)=61 at48000.
+
+For q=mD+C, the production convolution reads source indices
+max(0,ceil((q−L+1)/U)) through floor(q/U), at most ceil(L/U) consecutive positions.
+Since U and D are coprime, U successive full-support outputs visit all rational
+phases; tests attain56 and61, not merely an upper estimate. The loop drains ready
+outputs after each source sample. Each emitted output therefore has end=received−1;
+begin≥end−capacity+1, so its entire support remains in the ring before overwrite.
+Origin-clipped spans are no larger. This argument is independent of input chunk
+size and session length. Existing seeded2048-sample partition tests and longer
+streaming tests repeatedly wrap the smaller rings without changing output bytes.
+
+Payload storageBytes/sourceAdapterBytes changes only with the private allocation:
+44100:35284+128×4=35796 →35284+56×4=35508 bytes;
+48000:244+128×4=756 →244+61×4=488 bytes. Float32Array.BYTES_PER_ELEMENT supplies
+the width in tests; these are asset/representation characterizations, not total
+heap or device/headroom qualification. Admission, failures, FIR accumulation,
+readiness/emission, source mapping, first-real boundary and Result semantics do
+not change. Target-ring/R01/transport policies are untouched.
+
+S09 is KEEP DERIVED STORAGE; future DERIVE contains S15/T15 only. S08/S10 meanings
+remain unchanged. Only the existing selected adapter source attestation advances,
+mechanically cascading core and both composite digests; executor/publication/
+planner source attestations and binary FIR assets remain unchanged. Result stays
+schema6 with the same provenance shape. All93 classifications/counts stay unchanged.
+
 ### Round42 — S10 uses the FIR-owned usable origin boundary
 
 QualifiedSourceAdapter derives firstFullyRealOutputIndex as ceil(center/down),
@@ -267,8 +305,10 @@ into one new readiness policy. Partial-region, gap, publication and resource
 regressions remain applicable; FIR push/accumulation/emission code and seeded
 numerical golden fixtures are unchanged.
 
-S10 is KEEP DERIVED/SINGLE OWNER; future DERIVE contains S09/S15/T15 only.
-S09 ring128, S15 endpoint tolerance and T15 remain untouched. Selected source byte
+S10 is KEEP DERIVED/SINGLE OWNER; at Round42 future DERIVE contained S09/S15/T15
+(S09 is resolved by Round43 above).
+At Round42, S09 ring128, S15 endpoint tolerance and T15 were untouched;
+Round43 derives S09 above. Selected source byte
 changes mechanically advance core/composite identities; model/FIR assets, window
 geometry, timing/resource policies and Result schema6/provenance shape do not change.
 All93 classifications/counts remain unchanged.

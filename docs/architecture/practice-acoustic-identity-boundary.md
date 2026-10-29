@@ -305,3 +305,20 @@ assets and seeded numerical golden outputs remain exact and unchanged. No new
 identity anchor, origin-policy identity, field or scope is added; Result remains
 schema6 with the same provenance keys. This is selected-byte sensitivity, not a
 new semantic-equivalence or full-execution identity claim.
+
+## Round43 source-ring derivation and selected-byte advance
+
+S09 derives the private adapter source ring from actual coefficient count and up:
+ceil(L/U), currently56/61 samples. Allocation and both modulo indices share
+ring.length. Only private support storage and its diagnostic payload accounting
+shrink; FIR numerical results, emission/readiness, source mapping and S08/S10
+first-real semantics remain unchanged. No admission/device/headroom qualification
+or new source-ring policy/provenance field follows from this derivation.
+
+The selected source-adapter implementation changes normalized bytes (CRLF→LF
+only). Its existing core resampler.source and both adapter implementation
+attestations update, then canonical core and both adapter composites mechanically
+advance. Executor/publication/planner attestations, model/decoder/FIR assets and
+identity scope stay unchanged. Result remains schema6 with the existing provenance
+shape; configured evidence identity values advance through the selected-byte
+contract, without a schema migration or runtime outcome-replay claim.

@@ -225,7 +225,10 @@ it('30-minute fake-fast chronology has constant transient memory, 32 compact dia
   expect(s.counts.windowsPublished).toBe(3000); expect(s.diagnostics).toHaveLength(32);
   expect(s.diagnostics.every(d => !('observations' in d))).toBe(true);
   expect(s.resources.sessionPcmBytes).toBe(0); expect(s.resources.targetRingBytes).toBe(262144);
-  expect(s.resources.sourceAdapterBytes).toBe(512 + 244); expect(s.resources.retainedPublicationEvents).toBe(0);
+  const firBytes = await coefficients(), { up } = sourceIdentity(48000).identity;
+  const sourceSpan = Math.ceil(firBytes.byteLength / Float32Array.BYTES_PER_ELEMENT / up);
+  expect(s.resources.sourceAdapterBytes).toBe(firBytes.byteLength + sourceSpan * Float32Array.BYTES_PER_ELEMENT);
+  expect(s.resources.retainedPublicationEvents).toBe(0);
   expect(s.outstanding).toBe(0); expect(s.state).toBe('SEALED');
   await receipt('long_session', { seconds: 1800, neuralInferenceCount: 0, fakePortWindows: windows, snapshot: s });
   await runtime.dispose();
@@ -238,7 +241,8 @@ for (const rate of [44100, 48000]) it(`${rate} streaming chunk boundaries exactl
   for (let i = 0; i < input.length; i += 137) actual.push(...stream.push(input.subarray(i, i + 137)));
   expect(Float32Array.from(actual)).toEqual(expected);
   expect(createHash('sha256').update(new Uint8Array(expected.buffer)).digest('hex')).toHaveLength(64);
-  expect(single.storageBytes()).toBe((rate === 44100 ? 35284 : 244) + 512);
+  expect(single.storageBytes()).toBe(bytes.byteLength
+    + Math.ceil(bytes.byteLength / Float32Array.BYTES_PER_ELEMENT / single.up) * Float32Array.BYTES_PER_ELEMENT);
 });
 
 it('real assignment finalizer retains source-blind ownership from the model-agnostic publication stream', async () => {
