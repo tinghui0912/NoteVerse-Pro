@@ -246,6 +246,45 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round47 — audit acoustic domain identity admission, retain numerical uncertainty
+
+The [domain identity audit](practice-acoustic-domain-identity-bounds.md) enumerates
+all four192-code-unit guards, including STEP microphone setup omitted from the
+earlier S17 source list. Runtime/STEP gates check sourceDomainId; Continuous
+projection checks the separate sessionDomainId. Product source IDs append :capture,
+so a184-character session composes to source192 while session185 fails the runtime
+source gate. This is a composition consequence, not a new policy or a reason to
+derive192. UUID product session/source lengths are51/59 for Continuous and41/49 for
+STEP; arbitrary generator prefixes and direct constructors still admit raw callers.
+
+Source publications retain2N+1 domain-bearing string fields for N observations;
+Continuous projection retains2M+1 source-prefix fields plus its session ID. Existing
+upstream event bounds apply; no new event cap is proposed. Map keys, canonical
+replay comparisons, Result evidence and serialization further depend on ID length.
+These are structural amplification relationships, not exact heap-byte measurements.
+String.length counts UTF-16 code units and does not measure UTF-8/escaped JSON cost.
+Current IDs remain opaque: whitespace, Unicode, colons and control characters are
+not excluded by these gates; no reverse delimiter parser was found.
+
+The six-candidate matrix recommends exactly one future Round48 change: centralize
+the current predicate under narrow acoustic/runtime identity-admission ownership,
+while preserving every gate, field, check position and caller-specific failure code.
+Some STEP checks repeat previously validated source IDs on shipped paths, but the
+constructors/start/factories are independently callable defensive boundaries. Root
+generation alone does not justify removing them. Direct193 stays rejected; normal
+IDs, failure owners and Result/schema/version shape would stay unchanged. A future
+selected-runtime source edit must still follow mechanical attestation rules.
+
+Round47 implements none of that recommendation: documentation only. S17 stays
+UNQUALIFIED_RESOURCE_SAFETY_POLICY, unresolved in duplicate-owner REDESIGN and
+numeric192 QUALIFY. There is no derived/qualified192 envelope, learner/device or
+memory-headroom claim. Future DERIVE remains empty; all93 rows and class counts
+remain unchanged (resource11, redundant12, semantic-unresolved0). R01/R03/R04/T15
+and resolved S09/S10/S15 are untouched. Production/test behavior, selected source
+bytes/core/composite identities, Result6 and STEP8/runtimeVersion/provenance remain
+unchanged. The companion records call graphs, native-generator length assumptions,
+direct0/1/192/193/4096 probes, payload/grammar findings and future decision evidence.
+
 ### Round46 — validate MIDI identity before retention, delete the Set cap
 
 The [STEP pitch-evidence companion](practice-step-pitch-evidence-bounds.md) records
