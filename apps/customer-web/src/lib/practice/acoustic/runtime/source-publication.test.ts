@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
 import { planWindow } from './window-planner';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
-import { ACOUSTIC_MODEL as M } from '../model/model-contract';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../model/model-contract';
 import { projectContinuousEvidence } from '../continuous/publication';
 
 it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only source origin and owned-end geometry', rate => {
@@ -109,9 +109,27 @@ it('accepts full then partial windows and contiguous region 1 with a physical so
   const partial = regionPublication(0, 1, 19200, 1, 32000);
   const next = regionPublication(1, 2, 40000);
   expect(partial.window.ownedStartTarget).toBe(full.window.ownedEndTarget);
-  expect(partial.window.ownedEndTarget).toBeLessThan(partial.window.ownedStartTarget + 9600);
+  expect(partial.window.ownedEndTarget).toBeLessThan(partial.window.ownedStartTarget + M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
   expect(next.window.ownedStartTarget).toBeGreaterThan(partial.window.ownedEndTarget);
   expect(() => { sequence.accept(full); sequence.accept(partial); sequence.accept(next); }).not.toThrow();
+});
+
+it.each([44100, 48000] as const)('%i: planner and source validation share target samples/ms while Continuous projection preserves partial half-open times', rate => {
+  const originTarget = 32000, durationMs = 33.25; // Enough real past for a short final full model input.
+  const window = planWindow({ index: 0, sourceStart: 100000 + originTarget * rate / M.sampleRateHz, originTarget,
+    nextWindow: 0, queuedEndTarget: originTarget, endTarget: originTarget + durationMs * ACOUSTIC_TARGET_SAMPLES_PER_MS }, 0)!;
+  const event = (targetSample: number) => ({ pitch: 'C4', midiPitch: 60, targetSample, confidence: .8, onsetScore: .9, frameScore: .8 });
+  const p = sourcePublication('source', rate, 100000, window, { events: [event(originTarget), event(window.ownedEndTarget - 1), event(window.ownedEndTarget)],
+    inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 1000);
+  expect(new SourcePublicationSequence('source', rate).accept(p)).toBeNull();
+  expect(p.observations.map(o => o.targetSample)).toEqual([originTarget, window.ownedEndTarget - 1]); // Exact half-open end excluded.
+  const projected = projectContinuousEvidence(p, { index: 0, sourceStart: 100000 + originTarget * rate / M.sampleRateHz,
+    originTarget, performanceStartMs: 42.5, performanceEndMs: 42.5 + durationMs }, 'session');
+  expect(projected.observations.map(o => o.performanceTimeMs)).toEqual([42.5, 75.6875]);
+  expect(projected.observations.map(o => o.performanceTimeMs)).toEqual(p.observations.map(o =>
+    42.5 + (window.startSample - originTarget) / ACOUSTIC_TARGET_SAMPLES_PER_MS
+      + (o.targetSample - window.startSample) / ACOUSTIC_TARGET_SAMPLES_PER_MS));
+  expect(projected.observations.every(o => o.performanceTimeMs >= 42.5 && o.performanceTimeMs < 75.75)).toBe(true);
 });
 
 it('Continuous projection ignores the source frontier without changing its evaluation clock or observations', () => {

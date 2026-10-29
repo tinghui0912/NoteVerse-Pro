@@ -3,12 +3,15 @@ import sourceIdentities from '../source/source-adapter-identities.json';
 
 export const ACOUSTIC_MODEL = Object.freeze({
   identityName: 'practice-acoustic-robust-browser@v1',
-  identitySha256: 'de8aa83479df97a76d6b9ec257d746986abd4996e641eeb2082195e840b7e5ca',
+  identitySha256: '404da42e7bdb30c6c86e23265c3be1b0e3889a47a45157d37a3f722e6f20cfb3',
   modelSha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
   modelBytes: 98689283, ortVersion: '1.20.1', provider: 'webgpu', automaticFallback: false,
   inputSamples: 29120, sampleRateHz: 16000, inputMs: 1820,
   onsetThreshold: 0.30, frameThreshold: 0.05, ownedMs: 600, futureMs: 170, pastMs: 1050,
 } as const);
+
+/** Derived model geometry relationship, not an independent rate or policy. */
+export const ACOUSTIC_TARGET_SAMPLES_PER_MS = ACOUSTIC_MODEL.sampleRateHz / 1000;
 
 export type SourceRate = 44100 | 48000;
 export function canonicalJson(value: unknown): string {

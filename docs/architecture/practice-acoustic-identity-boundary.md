@@ -239,3 +239,15 @@ same existing authority; no samples/ms or Performance-Time formula changes.
 Planner bytes/SHA, model rate/asset, decoder, FIR, adapter implementation and all
 semantic descriptions remain unchanged. Identity scope is not expanded. Result
 stays schema6 with identical provenance keys and no conversion/execution-policy field.
+
+## Round38 derived target samples/ms and selected-byte advance
+
+The model contract exports only the derived relationship
+ACOUSTIC_TARGET_SAMPLES_PER_MS=ACOUSTIC_MODEL.sampleRateHz/1000, not a new rate
+declaration, policy or provenance field. Runtime/planner/source validation and
+Continuous evidence projection use its exact16 value while preserving consumer
+operation topology and Float64 boundaries. Existing selected executor/publication/
+planner bytes/SHA advance, mechanically cascading canonical core and both adapter
+composites. Nonselected Continuous publication and worker model-validation remain
+outside the attestation path set. No declaration scope or evidence semantics change;
+model/decoder/FIR/resampler meanings and Result schema6/provenance keys stay unchanged.

@@ -1,4 +1,4 @@
-import { ACOUSTIC_MODEL, fail } from '../model/model-contract';
+import { ACOUSTIC_MODEL, ACOUSTIC_TARGET_SAMPLES_PER_MS, fail } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
 
 /** All coordinates are resampled source samples, never a product clock. */
@@ -12,10 +12,10 @@ export type AnalysisRegion = {
   sourceEnd?: number; endTarget?: number;
 };
 export function planWindow(segment: AnalysisRegion, jobIndex: number): AcousticWindow | null {
-  const ownedStartTarget = segment.originTarget + segment.nextWindow * ACOUSTIC_MODEL.ownedMs * 16;
-  const ownedEndTarget = Math.min(ownedStartTarget + ACOUSTIC_MODEL.ownedMs * 16, segment.endTarget ?? Infinity);
+  const ownedStartTarget = segment.originTarget + segment.nextWindow * ACOUSTIC_MODEL.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
+  const ownedEndTarget = Math.min(ownedStartTarget + ACOUSTIC_MODEL.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS, segment.endTarget ?? Infinity);
   if (ownedEndTarget <= ownedStartTarget) return null;
-  const endSample = Math.round(ownedEndTarget + ACOUSTIC_MODEL.futureMs * 16);
+  const endSample = Math.round(ownedEndTarget + ACOUSTIC_MODEL.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
   const startSample = endSample - ACOUSTIC_MODEL.inputSamples;
   return Object.freeze({ jobIndex, regionIndex: segment.index, windowIndex: segment.nextWindow,
     ownedStartTarget, ownedEndTarget, startSample, endSample });

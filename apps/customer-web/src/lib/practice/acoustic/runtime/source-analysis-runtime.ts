@@ -1,4 +1,4 @@
-import { ACOUSTIC_MODEL as M, AcousticAnalysisError, assertAcousticIdentity, fail, onlyFields, safeIndex } from '../model/model-contract';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, AcousticAnalysisError, assertAcousticIdentity, fail, onlyFields, safeIndex } from '../model/model-contract';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { AcousticPcmRing, planWindow, type AnalysisRegion, type AcousticWindow } from './window-planner';
@@ -98,7 +98,7 @@ export class SourceAnalysisRuntime {
   hasRegionWork(index: number): boolean { return this.regions.some(r => r.index === index) || this.queuedRegions.has(index); }
   get prerollReady(): boolean {
     if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.failure) return false;
-    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * 16 >= Math.max(10, this.ring.firstRetained);
+    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS >= Math.max(10, this.ring.firstRetained);
   }
   attachCaptureCleanup(cleanup: () => void): () => void {
     this.guard(); if (this.cleanup) fail('ACOUSTIC_CAPTURE_ALREADY_ATTACHED');

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime } from './source-analysis-runtime';
 import { AcousticPcmRing, planWindow } from './window-planner';
-import { ACOUSTIC_MODEL as M, sourceIdentity } from '../model/model-contract';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, sourceIdentity } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES as R } from './resource-policy';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
@@ -68,6 +68,9 @@ it.each([44100, 48000] as const)('%i: nonzero source base and partial region use
     await runtime.drain(); } };
   try {
     await feed(base + 128); expect(runtime.prerollReady).toBe(false);
+    const firstEligibleDelta = Math.ceil(((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS + 10) * rate / M.sampleRateHz);
+    await feed(base + firstEligibleDelta - 1); expect(runtime.prerollReady).toBe(false);
+    await feed(base + firstEligibleDelta); expect(runtime.prerollReady).toBe(true);
     await feed(base + rate * 2 + 7); expect(runtime.prerollReady).toBe(true);
     const sourceStart = next, originTarget = (sourceStart - base) * M.sampleRateHz / rate;
     runtime.beginAnalysisRegion(sourceStart);
@@ -81,7 +84,7 @@ it.each([44100, 48000] as const)('%i: nonzero source base and partial region use
     expect(publications).toHaveLength(1);
     const p = publications[0];
     expect(p.window).toMatchObject({ jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: originTarget, ownedEndTarget: endTarget });
-    expect(p.window.ownedEndTarget - p.window.ownedStartTarget).toBeLessThan(M.ownedMs * 16);
+    expect(p.window.ownedEndTarget - p.window.ownedStartTarget).toBeLessThan(M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
     expect(p.ownedThroughSourceSample).toBe(base + endTarget * rate / M.sampleRateHz);
     expect(p.observations[0].sourceEventSample).toBe((base * M.sampleRateHz + p.observations[0].targetSample * rate) / M.sampleRateHz);
     expect(p.observations[0].observationId).toBe(sourceObservationId('nonzero-base', p.window, 60, p.observations[0].targetSample));

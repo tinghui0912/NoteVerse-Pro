@@ -1,4 +1,4 @@
-import { ACOUSTIC_MODEL as M, AcousticAnalysisError, fail, type SourceRate } from '../model/model-contract';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, AcousticAnalysisError, fail, type SourceRate } from '../model/model-contract';
 import type { AcousticWindow } from './window-planner';
 import type { AcousticInferenceResult } from './inference-types';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
@@ -46,8 +46,8 @@ export class SourcePublicationSequence {
         || !Number.isFinite(p.availabilityRuntimeMs) || p.availabilityRuntimeMs < 0
         || !w || !index(w.jobIndex) || !index(w.regionIndex) || !index(w.windowIndex)
         || !sourceCoordinate(w.ownedStartTarget) || !sourceCoordinate(w.ownedEndTarget)
-        || w.ownedEndTarget <= w.ownedStartTarget || w.ownedEndTarget > w.ownedStartTarget + M.ownedMs * 16
-        || w.endSample !== Math.round(w.ownedEndTarget + M.futureMs * 16)
+        || w.ownedEndTarget <= w.ownedStartTarget || w.ownedEndTarget > w.ownedStartTarget + M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS
+        || w.endSample !== Math.round(w.ownedEndTarget + M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS)
         || w.startSample !== w.endSample - M.inputSamples || !index(w.startSample)
         || w.jobIndex !== (previous ? previous.job + 1 : 0)
         || (!previous && w.windowIndex !== 0)
@@ -75,7 +75,7 @@ export class SourcePublicationSequence {
         ids.add(o.observationId);
       }
       this.previous = Object.freeze({ job: w.jobIndex, region: w.regionIndex, index: w.windowIndex,
-        ownedEndTarget: w.ownedEndTarget, nextOwnedStartTarget: w.ownedStartTarget + M.ownedMs * 16, frontier: p.ownedThroughSourceSample });
+        ownedEndTarget: w.ownedEndTarget, nextOwnedStartTarget: w.ownedStartTarget + M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS, frontier: p.ownedThroughSourceSample });
       this.base = base;
       return previous;
     } catch (error) { this.failed = true; throw error; }

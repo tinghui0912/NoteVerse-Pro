@@ -161,12 +161,48 @@ and rejection afterwards. Existing sequence/partial-region/projection/STEP regre
 continue to exercise ordering and mapping. This does not change accepted/rejected
 coordinates, event times, rounding, observation identity or successful evidence.
 
-Planner and Continuous publication implementations remain byte-identical, including
+At Round37, planner and Continuous publication implementations remained byte-identical, including
 their *16 and samplesPerMs conventions; executor preroll's `(M.inputMs-M.futureMs)*16`
 is untouched. R12 remains STILL PARTIALLY UNRESOLVED DERIVATION DEBT for16/1000 and
 remaining sample/ms/time-unit conversions. Two selected executor/publication source
 byte changes mechanically advance core/composite identities without semantic or
 Result-shape changes; no target-rate/conversion/runtime-policy field is added.
+
+### Round38 — one derived target samples/ms relationship
+
+ACOUSTIC_TARGET_SAMPLES_PER_MS is model.sampleRateHz/1000, evaluated once in the
+model contract. It is exactly16 today: a derived geometry relationship, neither a
+second rate owner nor a numeric policy/identity field. Runtime preroll, planner's
+three target-ms multiplications, publication sequence's three matching geometry
+checks/summary expressions, and worker geometry validation's two matching checks
+now use it. Continuous evidence projection retains its local samplesPerMs alias,
+referencing the same derived value instead of recomputing division.
+
+Each original x×16 remains one multiplication with the same exact operand value;
+nextWindow×ownedMs×derived retains left associativity. Addition, Math.round,
+comparisons and cancellation-sensitive event projection keep their original order.
+Putting x×modelRate/1000 at each consumer would add a division and is deliberately
+avoided. Full ownership9600, future2720, input29120, past16800 and preroll26400 remain
+current exact characterizations, not new policy owners or qualification claims.
+
+Real-runtime both-rate tests cover the last ineligible/first eligible preroll
+source coordinates. Fractional-origin/full/partial planner and worker tests cover
+Math.round around the half-sample boundary. Source-publication tests validate the
+same planner relationship and exact half-open exclusion; Continuous projected
+times remain unchanged. Existing mapping, sequence, STEP and terminal coverage
+regressions remain applicable. No tolerance is widened.
+
+The audit additionally found worker model-validation target geometry, included in
+this same derivation. SHA radix16 and capture10000ms are unrelated and untouched.
+Continuous projection's source-Hz↔ms `delta/sourceRate*1000` and `1000/sourceRate`,
+including its Round37 source→target formulas, stay byte-identical. Those two unit
+literals are the remaining R12 review item: STILL PARTIALLY UNRESOLVED DERIVATION
+DEBT, pending a separate decision whether naming unit definitions is useful.
+
+Executor/publication/planner selected bytes mechanically advance core/composite
+identities. Continuous publication and model-validation are not added as anchors;
+evidence meaning, model declarations, source semantics and Result shape remain
+unchanged. This derivation does not qualify16000, owned600ms or future170ms.
 
 ### Round33 — R07 source block maximum is derived from R06
 
