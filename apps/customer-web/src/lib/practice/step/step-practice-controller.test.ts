@@ -2,7 +2,7 @@ import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
 import { describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { midiNoteToPitch, parseMidiMessage, type BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
@@ -11,7 +11,21 @@ import type { StepPlatform } from './step-platform';
 import { STEP_MIDI_CHORD_COHERENCE_MS } from './step-midi-attempt-input';
 
 const artifact = fixture as PracticeScoreArtifact;
-function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed = false) {
+function incompatibleFirstTarget(): PracticeScoreArtifact {
+  const value = structuredClone(artifact), group = value.expectedPracticeGroups[0], step = value.practiceAttackSteps[0];
+  group.pitches = ['C10'];
+  for (const note of group.expectedNotes) note.pitch = 'C10';
+  for (const target of group.strikeTargets) {
+    target.pitch = 'C10'; for (const note of target.expectedNotes) note.pitch = 'C10';
+  }
+  for (const target of step.attackTargets) {
+    target.pitch = 'C10'; for (const note of target.notes) note.pitch = 'C10';
+  }
+  for (const event of value.playableEvents) if (group.eventIds.includes(event.eventId)) event.pitches = ['C10'];
+  assertPracticeScoreArtifact(value); return value;
+}
+
+function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed = false, selectedArtifact = artifact) {
   const clock = new ManualClock(100), timers: { callback(): void; delay: number; cancelled: boolean }[] = [];
   let options: BrowserMidiControllerOptions;
   let connected = 1, running = false;
@@ -23,11 +37,11 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const platform: StepPlatform = { clock, timer: {
     schedule: (callback, delay) => { const task = { callback, delay, cancelled: false }; timers.push(task); return task; },
     cancel: handle => { (handle as typeof timers[number]).cancelled = true; },
-  }, createMidi: value => { options = value; return midi; }, createMetronome: () => metronome };
-  const scope: PracticeScope = { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups[index].groupId,
-    endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId };
+  }, createMidi: vi.fn(value => { options = value; return midi; }), createMetronome: vi.fn(() => metronome) };
+  const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.expectedPracticeGroups[index].groupId,
+    endGroupId: selectedArtifact.expectedPracticeGroups.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ devices: borrowedDevices(), artifact, scope, inputSource, platform, onNaturalCompletion: completion });
+  const create = () => new StepPracticeController({ devices: borrowedDevices(), artifact: selectedArtifact, scope, inputSource, platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
@@ -43,10 +57,33 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const close = () => { const task = timers.at(-1)!; clock.advance(35); if (!task.cancelled) task.callback(); };
   const disconnect = () => { connected = 0; options.onStateChange?.(midi.getState()); };
   const reconnect = () => { connected = 1; options.onStateChange?.(midi.getState()); };
-  return { finalized, controller, create, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
+  return { finalized, controller, create, platform, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
+  it('rejects an incompatible selected target as score unavailable before creating MIDI or metronome resources', async () => {
+    const s = setup(0, 'MIDI', false, incompatibleFirstTarget()), states: string[] = [];
+    s.controller.subscribe(() => states.push(s.controller.snapshot().state));
+    await s.controller.start();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_SCORE_UNAVAILABLE',
+      sessionSnapshot: null, canAcceptAttempt: false, pendingPostVerdict: null });
+    expect(states).not.toContain('ACTIVE'); expect(s.finalized).toEqual([]); expect(s.timers).toEqual([]);
+    expect(s.platform.createMidi).not.toHaveBeenCalled(); expect(s.midi.start).not.toHaveBeenCalled();
+    expect(s.platform.createMetronome).not.toHaveBeenCalled(); expect(s.metronome.start).not.toHaveBeenCalled();
+    expect(s.completion).not.toHaveBeenCalled();
+    await Promise.resolve(); expect(s.controller.snapshot().sessionSnapshot).toBeNull();
+    s.controller.dispose(); expect(s.midi.dispose).not.toHaveBeenCalled(); expect(s.metronome.destroy).not.toHaveBeenCalled();
+  });
+
+  it('keeps MIDI interaction usable when only an unselected earlier target is incompatible', async () => {
+    const s = setup(1, 'MIDI', false, incompatibleFirstTarget()); await s.controller.start();
+    expect(s.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null,
+      sessionSnapshot: { step: { currentIndex: 1 } } });
+    s.clock.set(101); s.note('C4'); s.close();
+    expect(s.finalized[0]).toMatchObject({ verdict: 'MATCH', observedAttackPitches: ['C4'] });
+    expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2);
+    s.controller.dispose();
+  });
   it('application IDLE -> PREPARING -> ACTIVE is separate from already-ACTIVE internal domain status', async () => {
     const s = setup(0, 'MIDI', true);
     expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', sessionSnapshot: null });

@@ -246,9 +246,42 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round55 — resolved-scope compatibility, unchanged raw-work qualification
+
+The [STEP implementation state](practice-step-domain-pitch-contract.md#round55-current-state--selected-scope-target-compatibility-enforced)
+enforces Round54's theorem in the STEP constructor after whole-artifact assertion
+and inclusive scope resolution, before ordinary session initialization. Selected
+attack sets must be nonempty D280 with distinct count<=the existing raw evidence
+maximum128. One module-local predicate and maximum in STEP domain/runtime.ts are
+reused by evidence admission; no duplicated regex/count owner or new helper module.
+Asserted artifact uniqueness permits direct count, without another Set/sort.
+
+STEP_TARGET_INVALID belongs to target/session compatibility and projects to the
+existing STEP_SCORE_UNAVAILABLE application error, not learner evidence/device
+failure. Selected C10/empty/129 fail,128/E#4 accept; unused incompatible sections
+do not invalidate a good selected scope. Shared kernel artifact admission/backend/
+artifact schema1 and physical sources are unchanged. Constructor failure is before
+learner interaction, not all microphone resource acquisition; existing cleanup
+disposes inference/input and closes context, preserving borrowed device roots.
+
+Later selected attack-set projection/Set/sort work is now limited by the existing
+compatible cardinality. Prior whole-artifact validation/allocation, global Maps/
+Sets/sorts, continuation/notation size, step count, total heap, hostile JS objects
+and device workload remain outside this guarantee. Raw128 is still unqualified;
+MIDI128/acoustic88 do not derive it. Evidence admission/order/dense retry, D280 and
+normalization/structural comparison remain unchanged. Runtime advances v10→v11
+for changed session starts, with STEP schema8 and Result6/provenance shape intact;
+no acoustic selected-source/identity movement or payload migration occurs.
+
+T15 compatibility is resolved and leaves Future DERIVE, now **None**. T15 remains
+UNQUALIFIED_RESOURCE_SAFETY_POLICY; canonical domain-language/raw-work policy stays
+DELETE/REDESIGN and raw128 QUALIFY. All93 primary rows/classes/counts and S17/R01/
+R03/R04/S09/S10/S15 states remain unchanged. Round54's descriptions below of an
+unimplemented guard and then-future bucket are historical.
+
 ### Round54 — target/evidence compatibility follows from the existing contract
 
-The [STEP domain audit](practice-step-domain-pitch-contract.md#round54-current-audit--step-targetevidence-satisfiability)
+The [STEP domain audit](practice-step-domain-pitch-contract.md#round54-historical-audit--step-targetevidence-satisfiability)
 proves that an artifact-admitted normalized distinct attack set T has legal direct
 matching evidence exactly when T is nonempty, lies in D280, and has at most128
 members. Legal evidence is an ordinary dense1..128-entry D280 array; normalization

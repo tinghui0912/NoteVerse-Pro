@@ -1,7 +1,7 @@
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
 
-export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' });
+export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v11' });
 export type StepAttemptState = 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT';
 export type StepTarget = Readonly<{
   stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;
@@ -19,7 +19,7 @@ export type StepPitchEvidence = Readonly<{
 }>;
 export type StepAttemptRecord = StepAttemptIdentity & StepPitchEvidence & Readonly<{ verdict: 'MATCH' | 'MISMATCH' }>;
 export class StepDomainError extends Error {
-  constructor(readonly code: 'STEP_ATTEMPT_STATE_INVALID' | 'STEP_ATTEMPT_EVIDENCE_INVALID') {
+  constructor(readonly code: 'STEP_ATTEMPT_STATE_INVALID' | 'STEP_ATTEMPT_EVIDENCE_INVALID' | 'STEP_TARGET_INVALID') {
     super(code); this.name = 'StepDomainError';
   }
 }

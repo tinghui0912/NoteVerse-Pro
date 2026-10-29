@@ -7,6 +7,13 @@ import { normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainErro
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
 import { attackPitchesForStep, continuationPitchesForStep, groupForStep } from './target';
 
+const STEP_MAX_RAW_ATTACK_PITCH_ENTRIES = 128;
+const STEP_DOMAIN_PITCH = /^[A-G]#?-?\d$/;
+
+function isStepDomainPitch(value: unknown): value is string {
+  return typeof value === 'string' && STEP_DOMAIN_PITCH.test(value);
+}
+
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
   localSessionId?: string; clock: LocalClock; timebase?: PracticeTimebase; metadataClock?: DurableClock;
@@ -38,8 +45,14 @@ export class StepPracticeRuntime {
 
   constructor(private readonly options: StepPracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
-    this.inputSource = options.inputSource;
     this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
+    for (let index = this.resolvedScope.startIndex; index <= this.resolvedScope.endIndex; index++) {
+      const targets = this.artifact.practiceAttackSteps[index].attackTargets;
+      // Artifact assertion already establishes distinct attack pitches.
+      if (targets.length < 1 || targets.length > STEP_MAX_RAW_ATTACK_PITCH_ENTRIES
+        || targets.some(target => !isStepDomainPitch(target.pitch))) throw new StepDomainError('STEP_TARGET_INVALID');
+    }
+    this.inputSource = options.inputSource;
     this.currentIndex = this.resolvedScope.startIndex;
     this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
     this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
@@ -75,14 +88,14 @@ export class StepPracticeRuntime {
     if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     if (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
       || !Array.isArray(evidence.observedAttackPitches) || evidence.observedAttackPitches.length < 1
-      || evidence.observedAttackPitches.length > 128) {
+      || evidence.observedAttackPitches.length > STEP_MAX_RAW_ATTACK_PITCH_ENTRIES) {
       throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
     const observed = evidence.observedAttackPitches;
     for (let index = 0; index < observed.length; index++) {
       if (!Object.hasOwn(observed, index)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
       const pitch: unknown = observed[index];
-      if (typeof pitch !== 'string' || !/^[A-G]#?-?\d$/.test(pitch)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+      if (!isStepDomainPitch(pitch)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
     const normalized = normalizePitchSet(evidence.observedAttackPitches);
     const pitches = Object.freeze([normalized[0], ...normalized.slice(1)] as const);

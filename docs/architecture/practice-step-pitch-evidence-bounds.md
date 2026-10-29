@@ -7,9 +7,41 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Round54 current audit — target compatibility is distinct from language/budget policy
+## Round55 current state — selected STEP targets must be satisfiable
 
-The [domain companion's Round54 proof](practice-step-domain-pitch-contract.md#round54-current-audit--step-targetevidence-satisfiability)
+Round55 implements only the proved [resolved-scope compatibility](practice-step-domain-pitch-contract.md#round55-current-state--selected-scope-target-compatibility-enforced).
+After whole-artifact assertion and scope resolution, the STEP constructor checks
+every selected attack step for nonempty, count<=existing raw128 and unchanged D280
+membership, using asserted uniqueness without another Set/sort. One local domain
+predicate/raw maximum is shared with evidence admission; continuation is not checked.
+Selected C10/non-D280/empty/129 reject as STEP_TARGET_INVALID;128 and E#4 accept;
+good scopes with incompatible unused steps accept, while FULL with a later bad
+step rejects before interaction. Source reachability is a separate question.
+
+The domain error projects to existing STEP_SCORE_UNAVAILABLE in both sources and
+phases. MIDI creates/starts no binding/metronome; microphone keeps its prior
+acquisition order and uses existing input/inference/context cleanup while leaving
+borrowed roots live. Preparation returns IDLE with null session/no completion;
+pending/stale work cannot reactivate it. No controller lifecycle redesign is made.
+
+STEP runtime is step-exact-pitch-learning-v11, schema8 unchanged; artifact1/kernel
+admission/payload identities, Result6/provenance and Round53 acoustic identities
+are unchanged. Evidence raw128/read order, dense validation/retry, D280, Set+sort
+and structural equality remain. The historical selected delimiter target now fails
+earlier at construction; its comparison collision still returns false, and ordinary
+compatible MISMATCH/rearm semantics remain unchanged.
+
+T15 selected-target compatibility joins source identities/comparison/shape/grammar
+as resolved. Future DERIVE is **None**. Domain canonical-language/raw-work policy
+remains DELETE/REDESIGN and raw128 remains unqualified/QUALIFY; T15 primary class
+stays UNQUALIFIED_RESOURCE_SAFETY_POLICY. All93 rows/class counts, S17 and R01/R03/R04/
+S09/S10/S15 states remain unchanged. The check bounds later selected attack-set
+work, not earlier/global artifact work, continuation/notation, total heap or device
+workload. It does not qualify128 or promise either source can emit every D280 target.
+
+## Round54 historical audit — target compatibility is distinct from language/budget policy
+
+The [domain companion's Round54 proof](practice-step-domain-pitch-contract.md#round54-historical-audit--step-targetevidence-satisfiability)
 audits approved HEAD `745365eb4660209d5d7f42bc537002255e240442` without changing
 production or tests. For normalized distinct target T, legal ordinary direct STEP
 evidence can exact-MATCH **iff T is nonempty, every member belongs to current D280,

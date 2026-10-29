@@ -344,11 +344,11 @@ or Pause/Resume lifecycle. Elapsed presentation time does not drive progression.
 READY -> CAPTURING -> ANALYZING -> POST_VERDICT -> READY / scope completion
 ```
 
-Input owners publish score-blind `StepPitchEvidence`: 1–128 canonical pitch entries,
+Input owners publish score-blind `StepPitchEvidence`: 1–128 pitch entries in the current STEP domain language,
 finite confidence in `[0,1]`, and a same-session capture end at or after attempt
 start. Silence opens no attempt and produces no synthetic outcome or timeout.
 Confidence remains evidence metadata, without a secondary confidence threshold.
-Before normalization, runtime v10 requires an own array entry at every index and
+Before normalization, the runtime requires an own array entry at every index and
 the existing primitive-string pitch syntax. Sparse or inherited-only entries fail
 STEP_ATTEMPT_EVIDENCE_INVALID while the attempt remains ANALYZING and retryable.
 The raw128 gate precedes indexed reads. Extra non-index array properties are ignored;
@@ -359,12 +359,38 @@ Both MIDI and microphone compare normalized observed attack pitches with normali
 expected attack pitches. Exact equality yields MATCH. Every other nonempty evidence
 set yields MISMATCH, including subsets, supersets and unrelated pitches. Continuation
 pitches are excluded. The immutable record retains all evidence and either MATCH or
-MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v10`) defines this contract.
+MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v11`) defines this contract.
 Equality compares normalized cardinality and each string directly. Delimiter-containing
 artifact pitches remain opaque single members: `C4\u001fE4` is not the two-member
 set C4/E4. This v9 verdict correction preserves artifact/evidence admission and
 Set+sort normalization. The subsequent v10 correction rejects malformed sparse
 arrays without changing pitch language/raw128; schema8 retains the session/record shape.
+
+Runtime v11 validates selected target compatibility before learner interaction:
+whole-artifact structural assertion → inclusive scope resolution → every selected
+attack step's compatibility → ordinary session initialization. An attack set must
+be nonempty, contain only current D280 strings, and have at most the existing raw
+evidence maximum128 distinct pitches. The asserted unique attack-target count is
+used directly; continuation pitches are outside this theorem. Domain/runtime.ts
+owns the one D280 predicate and raw maximum reused by targets and evidence. No
+MIDI128/acoustic88 universe or numeric qualification is implied.
+
+Only incompatible selected scopes throw STEP_TARGET_INVALID. Shared artifact
+schema1/admission/content identities stay unchanged; an unused incompatible step
+does not block a good selected section. E#4 remains directly compatible even though
+current canonical sources cannot emit it. A selected C10, empty or129-distinct
+target cannot be matched by legal current evidence and now fails before interaction.
+The old delimiter-containing selected target likewise fails compatibility early;
+the underlying exact structural comparison remains unchanged.
+
+The application projects this domain error to existing STEP_SCORE_UNAVAILABLE for
+both sources, returning IDLE with no session/completion. MIDI has not bound/started
+resources. Microphone uses existing cleanup for already-acquired inference/input/
+AudioContext while retaining borrowed root ownership; its acquisition ordering is
+unchanged. No artifact rewrite, hydration/migration, Result6/provenance change or
+acoustic identity advance accompanies this STEP runtime-only semantic version change.
+Selected attack-set work is subsequently bounded; prior/global artifact validation,
+continuation/notation size, step count, allocations and total heap are not.
 
 POST_VERDICT holds only the current pending result. Explicit rearm clears it:
 MATCH advances exactly once; MISMATCH remains on the same target. Skip is a separate

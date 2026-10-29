@@ -3,7 +3,8 @@ import type { StepAttemptRecord } from './domain/attempt';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
@@ -27,8 +28,22 @@ const artifact: PracticeScoreArtifact = { ...base,
   practiceAttackSteps: base.practiceAttackSteps.slice(0, 3).map(s => ({ ...s,
     attackTargets: [{ ...s.attackTargets[0], pitch: 'C4', notes: s.attackTargets[0].notes.map(n => ({ ...n, pitch: 'C4' })) }] })) };
 
+function incompatibleFirstTarget(): PracticeScoreArtifact {
+  const value = structuredClone(base), group = value.expectedPracticeGroups[0], step = value.practiceAttackSteps[0];
+  group.pitches = ['C10'];
+  for (const note of group.expectedNotes) note.pitch = 'C10';
+  for (const target of group.strikeTargets) {
+    target.pitch = 'C10'; for (const note of target.expectedNotes) note.pitch = 'C10';
+  }
+  for (const target of step.attackTargets) {
+    target.pitch = 'C10'; for (const note of target.notes) note.pitch = 'C10';
+  }
+  for (const event of value.playableEvents) if (group.eventIds.includes(event.eventId)) event.pitches = ['C10'];
+  assertPracticeScoreArtifact(value); return value;
+}
+
 /** Real STEP/source/assembler/chronology, deterministic PCM/inference ports. No model or device qualification. */
-function rig(rate: 44100 | 48000 = 48000) {
+function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: PracticeScope = { kind: 'FULL' }) {
   const origin = rate * 7;
   const track = Object.assign(new EventTarget(), { readyState: 'live', muted: false, stop: vi.fn() });
   const cloneStop = vi.fn();
@@ -74,7 +89,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     microphone: {
       createAudioContext: vi.fn(() => context as unknown as AudioContext),
       acquireInference: vi.fn(async () => worker), workletUrl: 'fake://worklet',
-      coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
+      coefficients: vi.fn(async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`)),
       connectCapture: vi.fn(async options => {
         expect(options.stream).toBe(stream); expect(options.context).toBe(context);
         expect(options.ownership).toBe('BORROWED_SESSION_STREAM');
@@ -84,7 +99,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ devices: borrowedDevices(stream as unknown as MediaStream), artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
+  const controller = new StepPracticeController({ devices: borrowedDevices(stream as unknown as MediaStream), artifact: selectedArtifact, scope, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -97,6 +112,7 @@ function rig(rate: 44100 | 48000 = 48000) {
     expect(finalized).toHaveLength(count);
   };
   return { finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
+    starting: () => startSpy.mock.results.at(-1)!.value,
     untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
     captureFailure: (error = new Error('CAPTURE_PIPELINE_FAILED')) => bridge.abort(error),
     corruptCapture: () => bridge.receive({ type: 'pcm-chunk', sequence: sequence + 1, sourceSampleRateHz: rate,
@@ -108,6 +124,43 @@ function rig(rate: 44100 | 48000 = 48000) {
 }
 
 describe.each([44100, 48000] as const)('STEP microphone controller / %i / deterministic ports', rate => {
+  it('cleans up acquired microphone preparation after target rejection without stopping borrowed roots or reviving a session', async () => {
+    const r = rig(rate, incompatibleFirstTarget()), states: string[] = [];
+    const disposed = vi.spyOn(StepMicrophoneInput.prototype, 'dispose');
+    r.controller.subscribe(() => states.push(r.controller.snapshot().state));
+    await r.controller.start();
+    expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_SCORE_UNAVAILABLE',
+      sessionSnapshot: null, canAcceptAttempt: false, pendingPostVerdict: null });
+    expect(states).not.toContain('ACTIVE'); expect(r.finalized).toEqual([]); expect(r.completion).not.toHaveBeenCalled();
+    expect(r.platform.microphone!.acquireInference).toHaveBeenCalledTimes(1);
+    expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledTimes(1);
+    expect(disposed).toHaveBeenCalledTimes(1); expect(r.worker.dispose).toHaveBeenCalledTimes(1);
+    expect(r.context.close).toHaveBeenCalledTimes(1); expect(r.context.state).toBe('closed');
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.track.readyState).toBe('live');
+    expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(r.platform.createMetronome).not.toHaveBeenCalled();
+    expect(r.metronome.start).not.toHaveBeenCalled(); expect(r.worker.run).not.toHaveBeenCalled();
+    expect(r.platform.microphone!.connectCapture).not.toHaveBeenCalled(); expect(r.stream.clone).not.toHaveBeenCalled();
+    await expect(r.starting()).rejects.toThrow();
+    r.track.dispatchEvent(new Event('mute')); r.context.dispatchEvent(new Event('statechange'));
+    await Promise.resolve();
+    expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_SCORE_UNAVAILABLE', sessionSnapshot: null });
+    expect(r.completion).not.toHaveBeenCalled(); expect(r.finalized).toEqual([]);
+    await r.controller.dispose();
+    expect(r.worker.dispose).toHaveBeenCalledTimes(1); expect(r.context.close).toHaveBeenCalledTimes(1);
+    expect(r.track.stop).not.toHaveBeenCalled();
+  });
+
+  it('keeps microphone interaction usable when an incompatible earlier target is outside the selected scope', async () => {
+    const selected = incompatibleFirstTarget(), r = rig(rate, selected, { kind: 'RANGE',
+      startGroupId: selected.expectedPracticeGroups[1].groupId, endGroupId: selected.expectedPracticeGroups[2].groupId });
+    await r.controller.start();
+    expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null,
+      sessionSnapshot: { step: { currentIndex: 1 } } });
+    await r.untilFinalized(1);
+    expect(r.finalized[0]).toMatchObject({ verdict: 'MATCH', observedAttackPitches: ['C4'] });
+    expect(r.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(2);
+    await r.controller.dispose(); expect(r.track.stop).not.toHaveBeenCalled();
+  });
   it.each(['READY', 'CAPTURING', 'ANALYZING'] as const)('temporary mute in %s cancels unfinished evidence, preserves progress and recovers after fresh physical retirement', async phase => {
     const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
     const prior = r.controller.snapshot().sessionSnapshot!;

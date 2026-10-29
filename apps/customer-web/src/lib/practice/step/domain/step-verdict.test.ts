@@ -65,7 +65,7 @@ describe('STEP exact pitch-set learning verdict', () => {
     expect(left).toEqual(originalLeft); expect(right).toEqual(originalRight);
   });
 
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s admitted delimiter target yields MISMATCH and stays on the target after rearm', inputSource => {
+  it.each(['MIDI', 'MICROPHONE'] as const)('%s kernel-admitted delimiter target fails STEP compatibility; structural comparison still rejects the collision', inputSource => {
     const artifact = structuredClone(fixture) as PracticeScoreArtifact, delimiterPitch = 'C4\u001fE4';
     const replace = (pitch: string) => pitch === 'C4' ? delimiterPitch : pitch;
     // Keep every physical pitch reference consistent, including source events and notation facts.
@@ -87,25 +87,17 @@ describe('STEP exact pitch-set learning verdict', () => {
     }
     expect(() => assertPracticeScoreArtifact(artifact)).not.toThrow();
     const before = structuredClone(artifact), clock = new ManualClock(), domainId = 'delimiter-verdict';
-    const time = (ms: number) => ({ domainId, ms });
-    const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId: domainId, clock,
-      scope: { kind: 'FULL' }, metadataClock: { nowEpochMs: () => 0 } });
-    const target = runtime.currentTarget()!;
-    expect(target.attackPitches).toEqual([delimiterPitch]);
-    const identity = runtime.openAttempt(time(100))!; expect(runtime.analyzeAttempt(identity)).toBe(true);
     const raw: StepPitchEvidence['observedAttackPitches'] = ['C4', 'E4'];
-    const result = runtime.completeAttempt(identity, { observedAttackPitches: raw, confidence: 1, captureEndSessionTime: time(150) });
-    expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict: 'MISMATCH', observedAttackPitches: ['C4', 'E4'] } });
+    expect(pitchSetsEqual([delimiterPitch], raw)).toBe(false);
+    expect(() => new StepPracticeRuntime({ artifact, inputSource, localSessionId: domainId, clock,
+      scope: { kind: 'FULL' }, metadataClock: { nowEpochMs: () => 0 } })).toThrow('STEP_TARGET_INVALID');
     expect(raw).toEqual(['C4', 'E4']); expect(artifact).toEqual(before);
-    expect(runtime.snapshot().step).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'POST_VERDICT' });
-    runtime.rearm(time(200));
-    expect(runtime.currentTarget()).toMatchObject({ stepId: target.stepId, targetGeneration: 1,
-      attackPitches: [delimiterPitch], inputEligibleAfter: time(200) });
-    const ordinary = setup(inputSource, ['C4']); ordinary.finish(['C4', 'E4']); ordinary.runtime.rearm(ordinary.time(200));
-    for (const s of [runtime.snapshot().step, ordinary.runtime.snapshot().step]) {
-      expect(s).toMatchObject({ currentIndex: 0, targetGeneration: 1, attemptState: 'READY', pendingPostVerdict: null });
-    }
-    expect(runtime.snapshot().version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v10' });
+    const ordinary = setup(inputSource, ['C4']);
+    expect(ordinary.finish(raw).record).toMatchObject({ verdict: 'MISMATCH', observedAttackPitches: ['C4', 'E4'] });
+    ordinary.runtime.rearm(ordinary.time(200));
+    expect(ordinary.runtime.snapshot().step).toMatchObject({ currentIndex: 0, targetGeneration: 1,
+      attemptState: 'READY', pendingPostVerdict: null });
+    expect(ordinary.runtime.snapshot().version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v11' });
   });
 
   it.each([

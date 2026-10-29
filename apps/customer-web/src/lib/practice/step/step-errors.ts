@@ -1,3 +1,5 @@
+import { StepDomainError } from './domain/attempt';
+
 export type StepApplicationErrorCode = 'STEP_SCORE_UNAVAILABLE'
   | 'PRACTICE_ENVIRONMENT_NOT_READY'
   | 'STEP_MIDI_PERMISSION_DENIED' | 'NO_CONNECTED_INPUT' | 'STEP_MIDI_UNAVAILABLE'
@@ -23,6 +25,7 @@ export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, stri
 });
 export function stepApplicationError(error: unknown, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI',
   phase: 'PREPARING' | 'ACTIVE' = 'PREPARING'): StepApplicationErrorCode {
+  if (error instanceof StepDomainError && error.code === 'STEP_TARGET_INVALID') return 'STEP_SCORE_UNAVAILABLE';
   const message = error instanceof Error ? error.message : '';
   if (Object.hasOwn(STEP_ERROR_MESSAGES, message)) return message as StepApplicationErrorCode;
   if (inputSource === 'MICROPHONE') {

@@ -14,6 +14,17 @@ attack pitches and continuation pitches for STEP. `domain/runtime.ts` owns progr
 shared `kernel/` contracts and each other. Browser inputs, microphone resources
 and the application controller remain outside `domain/`.
 
+Construction first asserts the whole artifact, resolves the inclusive practice
+scope, then validates every selected attack-target set before session initialization.
+Selected targets must be nonempty, admitted by the existing D280 pitch language,
+and have at most the current raw evidence maximum128 distinct members. Artifact
+assertion already proves uniqueness; compatibility adds no Set/sort or continuation
+restriction. Only incompatible selected STEP scopes fail with STEP_TARGET_INVALID;
+a valid selected section can coexist with an incompatible target outside it.
+Shared artifact schema1/admission and source behavior do not change. E#4 remains
+compatible even though neither current canonical source can emit it: compatibility
+is not a MIDI/acoustic reachability guarantee or qualification of raw128.
+
 - `StepMidiAttemptInput` opens on the first NOTE_ON while READY and closes the
   complete half-open 35ms gesture. Native event timestamps define capture time.
   Velocity-zero NOTE_ON is NOTE_OFF. The input has no target knowledge or early
@@ -41,7 +52,7 @@ once, including final scope completion; MISMATCH stays on the target. Skip is a
 separate READY-only progression action. Snapshots contain current interaction
 state, without attempt/skip history, statistics or learner reports. Completion
 offers Try Again and Section Practice / Adjust Section, without a Review action.
-The runtime contract is schema 8 (`step-exact-pitch-learning-v10`).
+The runtime contract is schema 8 (`step-exact-pitch-learning-v11`).
 Normalized pitch sets compare by equal cardinality and exact per-member equality;
 opaque artifact strings containing delimiters cannot alias multiple pitch members.
 The v9 correction changes verdict integrity, while schema8, admission and Set+sort
@@ -49,6 +60,11 @@ normalization remain unchanged. Runtime v10 additionally rejects sparse/inherite
 pitch entries before normalization; raw128 still rejects before indexed reads.
 Malformed evidence leaves ANALYZING and the same attempt can retry. Extra non-index
 properties remain irrelevant. No artifact migration or version hydration is added.
+Runtime v11 adds selected-target compatibility admission; normalizePitchSet,
+pitchSetsEqual and evidence admission/order remain unchanged. The historical
+delimiter-target runtime collision witness now fails earlier as STEP_TARGET_INVALID;
+structural equality still treats delimiter-containing strings as opaque distinct
+members rather than serialization, and ordinary compatible mismatches do not advance.
 
 Microphone instructions ask the learner to play the highlighted target and wait
 for the result before playing again. CAPTURING/ANALYZING asks them to wait while
@@ -100,6 +116,14 @@ Initial input readiness requires an accepted physical
 boundary and armed input. MIDI execution constructs no microphone resources.
 Abandon/dispose await release; restart and mode/input changes wait for cleanup before
 constructing a fresh owner. Owned resources are released once.
+
+STEP_TARGET_INVALID projects to the existing STEP_SCORE_UNAVAILABLE application
+category for either source. MIDI rejects before binding/starting MIDI or metronome.
+Microphone acquisition/context/start preparation still precedes runtime construction;
+failure uses the existing input/inference disposal and AudioContext cleanup, leaving
+borrowed root tracks live. Preparation returns IDLE with no session or completion;
+stale asynchronous preparation cannot activate it. No new UI error or acquisition
+ordering is introduced.
 
 Both product modes support microphone analysis when the browser acoustic runtime
 is available. Workspace Setup validates actual capture and warm recognition before

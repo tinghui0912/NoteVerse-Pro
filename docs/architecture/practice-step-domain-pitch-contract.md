@@ -8,7 +8,90 @@ The [T15 source audit](practice-step-pitch-evidence-bounds.md) records resolved
 MIDI/acoustic identity boundaries. This companion addresses the remaining domain,
 artifact compatibility and raw128 questions without assuming a new canonical universe.
 
-## Round54 current audit — STEP target/evidence satisfiability
+## Round55 current state — selected-scope target compatibility enforced
+
+From approved baseline `6abe59f36a33f6b3a76a5864ce3f2b345c5dc710`, Round55 implements
+only Round54 candidate C. The STEP constructor keeps whole-artifact structural
+assertion and scope resolution first, validates every index in inclusive
+startIndex..endIndex, then initializes runtime/session state. A selected step must
+have1..128 attack targets and every pitch must pass the unchanged D280 primitive
+string predicate. Artifact assertion already establishes uniqueness, so count is
+read directly without another Set/sort. Continuation is deliberately not validated
+by this attack-set compatibility relationship.
+
+The one module-local STEP_MAX_RAW_ATTACK_PITCH_ENTRIES=128 and STEP_DOMAIN_PITCH
+regex in domain/runtime.ts own the existing relationships; the local
+isStepDomainPitch predicate is reused by constructor and completeAttempt. No new
+public policy API/helper file, musical universe or qualification is introduced.
+Evidence retains ownership/time/confidence/Array/nonempty/raw maximum checks before
+any indexed entry access, then Object.hasOwn and the same string/regex predicate,
+normalization, comparison and record retention. Raw129 still rejects before reads;
+dense128 duplicates still normalize to one. Sparse/inherited entries still reject,
+leaving the same ANALYZING attempt retryable. normalizePitchSet and pitchSetsEqual
+are byte-unchanged.
+
+Incompatible selected C10/arbitrary non-D280/empty/129-distinct targets fail with
+new STEP-domain STEP_TARGET_INVALID, distinct from malformed learner evidence.
+Artifact-structure and scope errors keep earlier owners/order. Selected128 distinct
+D280 targets construct and direct-MATCH, as does E#4 for both inputSource labels.
+An incompatible target outside the selected range is not a STEP rejection; FULL
+containing a later invalid target fails at construction, before clock/session
+initialization or any attempt. Shared artifact schema1/admission/backend/payload
+identity is unchanged. This enforces the theorem below, not physical source
+reachability, canonical-language reform or evidence128 resource qualification.
+
+stepApplicationError explicitly recognizes StepDomainError/STEP_TARGET_INVALID
+before source/phase fallback and returns existing STEP_SCORE_UNAVAILABLE for
+MIDI/MICROPHONE in PREPARING/ACTIVE. No new user-facing error/message is added.
+MIDI constructor failure precedes MIDI/metronome creation/start. Microphone still
+acquires inference/context and starts input preparation before runtime construction;
+existing catch/cleanup disposes the input/inference lease, closes AudioContext and
+leaves borrowed device-root tracks live. Tests verify IDLE/no session/no natural
+completion, no ACTIVE notification, and no resurrection after the pending input
+start rejects or stale root/context events arrive. Controller/input production
+lifecycle implementations are unchanged; no pre-acquisition validation claim is made.
+
+Runtime behavior identity advances step-exact-pitch-learning-v10→
+step-exact-pitch-learning-v11. STEP schema8/session shape, artifact schema1,
+Result6/provenance, all acoustic sources/selected attestations/core/composites and
+resource/timing policies remain unchanged. No payload rewrite/migration or
+multi-version hydration is added.
+
+One historical regression necessarily changes its runtime endpoint: the kernel-
+admitted `C4\u001fE4` target is outside D280 and now fails STEP construction, so it
+cannot reach a verdict in v11. The Round51 helper collision still compares unequal;
+the test retains that proof and verifies ordinary C4 target plus C4/E4 evidence
+finalizes MISMATCH, retains all evidence and does not advance after rearm. This is
+earlier authorized target admission, not a change to structural equality or kernel
+artifact grammar. Historical v9/v10 MISMATCH observations below remain accurate.
+
+Selected attack-target sets reaching interaction/comparison are nonempty D280 sets
+with at most128 members, incidentally bounding later attack-set projection/Set/sort.
+Whole-artifact assertion/allocation, prior global Maps/Sets/sorts, continuation or
+notation size, number of steps, total heap, hostile JS objects and device workload
+are not bounded/qualified by this check.
+
+T15 source identities/comparison/dense shape/redundant grammar and now selected-
+scope target compatibility are resolved. Domain canonical-language/product policy
+and raw128 qualification remain unresolved; T15 stays UNQUALIFIED_RESOURCE_SAFETY_POLICY,
+raw128 QUALIFY and domain-language/raw-work DELETE/REDESIGN. The implemented
+compatibility item leaves Future DERIVE, now **None**, without a replacement item.
+All93 primary rows/classes/counts stay unchanged. S17 remains KEEP SINGLE OWNER,
+NUMERIC UNQUALIFIED; R01/R03/R04 and resolved S09/S10/S15 are untouched.
+
+Observed local validation: focused domain/artifact/scope/application407 tests/13
+files; broader STEP/MIDI447/17; practice1753/91; full Customer Web2683/212 passed.
+Typecheck and lint0 warnings pass. Architecture/dependency, Result/schema/provenance
+and acoustic identity/attestation guards pass, including independent normalization/
+canonical/composite checks. Documentation guards11, structure/links, ledger/count/
+membership and diff checks pass. No hosted workflow rerun or backend/E2E/build/
+coverage claim is made.
+
+## Round54 historical audit — STEP target/evidence satisfiability
+
+The following theorem, characterization and recommendation describe the pre-fix
+Round54 baseline. Round55 above implements only candidate C; references below to
+currently admitted incompatible scopes/runtime v10 or future DERIVE are historical.
 
 Approved baseline: `745365eb4660209d5d7f42bc537002255e240442`, branch
 `refactor/practice-foundation-v2`. This is documentation/read-only characterization
