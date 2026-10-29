@@ -1,8 +1,10 @@
+import { ACOUSTIC_MODEL as M } from '../model/model-contract';
+
 export const ACOUSTIC_RESOURCES = Object.freeze({
   maxOutstandingWindows: 4,
   diagnosticWindows: 32,
   targetRingSamples: 65536,
-  inputBytes: 29120 * 4,
+  inputBytes: M.inputSamples * Float32Array.BYTES_PER_ELEMENT,
   maxEventsPerWindow: 183 * 88,
   // Bounds rapid control changes as well as PCM; failure never changes transport.
   maxScheduledBoundaries: 8,

@@ -106,6 +106,23 @@ The selected executor byte change mechanically advances core/composite identitie
 under the [existing boundary](practice-acoustic-identity-boundary.md#round32-diagnostic-derivation-and-selected-byte-identity-advance);
 Result shape/evidence meaning and numeric policies are unchanged.
 
+### Round35 — R09 input PCM accounting is derived
+
+The historical `inputBytes: 29120 * 4` in resource policy is now
+M.inputSamples × Float32Array.BYTES_PER_ELEMENT. Model geometry owns29120 and the
+typed representation owns width4; the scalar remains116480. Its only production
+reads are snapshot outstandingInputBytes=outstanding×inputBytes and
+maximumOutstandingInputBytes=maxOutstandingWindows×inputBytes, still465920 at4.
+It does not size allocations, tensors or wire messages, enforce admission or enter
+a persisted/API contract. Real R01 regression checks the authoritative relationship,
+representation fact and unchanged scalar, while retaining fifth-window failure
+before extraction. Object/message/worker/ORT/GPU/GC/total-heap overhead is excluded.
+KEEP DERIVED; R01 resource qualification remains separate. R12 is still partially
+unresolved derivation debt: targetRingBytes×4,16 samples/ms and other conversions
+remain unchanged for later subrounds. Resource policy imports only the existing
+model authority in an allowed direction; model-contract has no reverse runtime
+dependency. No selected byte attestation or evidence identity changes.
+
 ### Round33 — R07 source block maximum is derived from R06
 
 R06's `CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048` is the numeric format authority,

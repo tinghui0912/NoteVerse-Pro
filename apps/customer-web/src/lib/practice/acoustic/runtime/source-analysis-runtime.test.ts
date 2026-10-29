@@ -179,6 +179,9 @@ it('R07 append accepts the transport maximum and smaller splits, rejecting overs
 it('R01 valid source reaches four copied queued/active inputs; fifth fails before ring extraction/copy', async () => {
   const r = await resourceRig(), extract = vi.spyOn(AcousticPcmRing.prototype, 'extract');
   try {
+    expect(R.inputBytes).toBe(M.inputSamples * Float32Array.BYTES_PER_ELEMENT);
+    expect(Float32Array.BYTES_PER_ELEMENT).toBe(4); // JavaScript representation fact, not a product policy.
+    expect(R.inputBytes).toBe(116480); // Secondary characterization of the current model payload.
     expect(R.maxOutstandingWindows).toBe(4);
     r.runtime.beginAnalysisRegion(r.next()); r.feed(219392); await Promise.resolve();
     const snapshot = r.runtime.snapshot();

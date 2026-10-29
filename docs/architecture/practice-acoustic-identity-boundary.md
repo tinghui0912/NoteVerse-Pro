@@ -207,3 +207,12 @@ implementation but not accepted-contract runtime/product behavior. No evidence
 producer, selected executor/publication/decoder/planner/adapter/FIR file or semantic
 declaration changes. Core/executor/composite/model identities remain unchanged;
 Result stays schema6 with identical provenance shape and no new policy field.
+
+## Round35 resource-policy derivation without an identity advance
+
+R09 derives PCM payload byte accounting in resource-policy.ts from existing model
+geometry and Float32Array width. That resource-policy file is not a selected byte
+anchor; importing model-contract does not make attestation transitive. No selected
+file/declaration changes, so executor/core/composite/model identities remain unchanged.
+Round25's scope and Result schema6/provenance shape remain unchanged; no resource,
+byte-policy, transitive-dependency or execution identity is introduced.
