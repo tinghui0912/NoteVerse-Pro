@@ -1,7 +1,10 @@
 import acousticCoreIdentity from './acoustic-core-identity.json';
 import { ACOUSTIC_MODEL } from './model-contract';
 
-/** Public, immutable identity of the decoder-qualified source analysis implementation. */
+/**
+ * Public identity of the declared evidence-producing acoustic semantic core.
+ * Selected repository attestations are not an executable dependency closure.
+ */
 export const ACOUSTIC_ANALYSIS_IDENTITY = Object.freeze({
   identityName: ACOUSTIC_MODEL.identityName,
   coreIdentitySha256: ACOUSTIC_MODEL.identitySha256,

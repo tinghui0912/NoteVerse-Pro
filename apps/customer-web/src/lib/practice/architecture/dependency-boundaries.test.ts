@@ -292,6 +292,29 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
+  it('keeps persisted evidence provenance separate from resource, transport, liveness and intervention implementations', () => {
+    for (const file of files.filter(file => relative(file).startsWith('result/'))) {
+      for (const edge of imports(file)) expect(dependencyAllowed(file, edge), relative(file) + ' -> ' + edge.specifier).toBe(true);
+    }
+    const file = path.join(practiceRoot, 'result/continuous-result-provenance.ts');
+    for (const target of [
+      'acoustic/runtime/resource-policy', 'acoustic/source/capture-transport-contract',
+      'acoustic/source/capture.worklet.js', 'acoustic/continuous/capture', 'acoustic/continuous/capture-bridge',
+      'acoustic/model/worker-client', 'acoustic/model/model-inference', 'acoustic/model/acoustic-worker.entry',
+      'acoustic/model/acoustic-engine', 'continuous/continuous-microphone-input', 'continuous/continuous-practice-controller',
+      'continuous/analysis-intervention', 'continuous/resource-intervention',
+      'step/step-analysis-intervention', 'step/step-infrastructure-intervention',
+    ]) for (const statement of [
+      `import { Contract } from '@/lib/practice/${target}';`,
+      `import type { Contract } from '@/lib/practice/${target}';`,
+      `export * from '@/lib/practice/${target}';`,
+      `const contract = import('@/lib/practice/${target}');`,
+    ]) expect(dependencyAllowed(file, imports(file, statement)[0]), target).toBe(false);
+    for (const target of ['acoustic/model/analysis-identity', 'acoustic/model/model-contract', 'continuous/timing/timing-provenance']) {
+      expect(dependencyAllowed(file, imports(file, `import { Contract } from '@/lib/practice/${target}';`)[0]), target).toBe(true);
+    }
+  });
+
   it('exposes concrete result/recording owners without a metrics product module', () => {
     for (const file of ['result/continuous-performance-result.ts',
       'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-recorder.ts',

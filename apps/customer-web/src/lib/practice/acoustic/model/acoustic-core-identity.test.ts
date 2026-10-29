@@ -32,12 +32,41 @@ function assertFileAttestation(entry: FileAttestation, raw = readFileSync(path.j
 }
 
 const attestations = [...fileAttestations(core, 'core'), ...fileAttestations(adapters, 'adapters')];
-it('discovers every declared current-file attestation, including the source executor and publication', () => {
-  expect(attestations.map(({ key }) => key)).toEqual(expect.arrayContaining([
+it('discovers the exact current declaration entries, including composite repetitions', () => {
+  expect(attestations.map(({ key }) => key).sort()).toEqual([
     'core.acousticPublication.executorSource', 'core.acousticPublication.publicationSource',
     'core.decoder.authoritativeSource', 'core.ownership.plannerSource', 'core.resampler.source',
     'core.resampler.coefficients', 'core.resampler.coefficients48000',
-  ]));
+    'adapters.44100.identity.implementation', 'adapters.44100.identity.coefficients',
+    'adapters.48000.identity.implementation', 'adapters.48000.identity.coefficients',
+  ].sort());
+});
+it('uses selective evidence-core integrity anchors, deliberately excluding runtime-policy and liveness owners', () => {
+  const prefix = 'apps/customer-web/';
+  const expected = [
+    'src/lib/practice/acoustic/runtime/source-analysis-runtime.ts',
+    'src/lib/practice/acoustic/runtime/source-publication.ts',
+    'src/lib/practice/acoustic/model/robust-piano-decoder.ts',
+    'src/lib/practice/acoustic/runtime/window-planner.ts',
+    'src/lib/practice/acoustic/source/source-adapter.ts',
+    'public/model-assets/practice-acoustic/fir-160-441.f32',
+    'public/model-assets/practice-acoustic/fir-1-3.f32',
+  ].map(file => prefix + file).sort();
+  const corePaths = fileAttestations(core, 'core').map(({ entry }) => entry.path).sort();
+  expect(corePaths).toEqual(expected);
+  expect([...new Set(attestations.map(({ entry }) => entry.path))].sort()).toEqual(expected);
+  // These executable dependencies still matter, but the declared core is not their closure.
+  for (const owner of [
+    'acoustic/runtime/resource-policy.ts', 'acoustic/source/capture-transport-contract.ts',
+    'acoustic/source/capture.worklet.js', 'acoustic/continuous/capture-bridge.ts',
+    'continuous/continuous-microphone-input.ts', 'continuous/continuous-practice-controller.ts',
+    'acoustic/model/worker-client.ts', 'acoustic/model/model-inference.ts',
+    'acoustic/model/acoustic-worker.entry.ts', 'acoustic/model/acoustic-engine.ts',
+  ]) {
+    const file = `${prefix}src/lib/practice/${owner}`;
+    expect(readFileSync(path.join(repositoryRoot, file)).length, owner).toBeGreaterThan(0);
+    expect(corePaths, owner).not.toContain(file);
+  }
 });
 it.each(attestations)('$key attests the current repository content', ({ entry }) => {
   assertFileAttestation(entry);

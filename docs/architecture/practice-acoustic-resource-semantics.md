@@ -24,12 +24,12 @@ raising/lowering it. No accepted evidence may be silently discarded.
 
 | Item | Validly reachable? | Minimal trigger | Required stall/lag | What state grows? | Current failure effect | Correctness necessity | Alternative ownership/dataflow | Identity/provenance impact | Recommended next action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | resource-policy value itself is not attested; changing executor dataflow is attested and cascades core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap not in current core attestation; representation/source edits would change attested bytes | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Limit 8 is not a source-mapping theorem; its semantic necessity remains UNRESOLVED after the separate failure-handling fix | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; current core does not identify this failure behavior | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
-| R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability behavior is not fully identified | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R14 worker/RPC liveness | Yes: valid LOAD, BEGIN_SESSION, INFER, END_SESSION and idle DISPOSE can await an unanswered RPC indefinitely | One unanswered pending request; no malformed message required | Silent worker/driver/GPU hang or absent response, rather than crash/messageerror | Pending RPC promise/record, busy session ownership; chain/window PCM; retirement/completion promises | No intrinsic RPC deadline; preparation/FINALIZING/RETIRING can remain pending with no failure notification | No finite completion guarantee follows from promises or existing tail timeout | Define cancellation/ownership and stalled-service product policy before choosing any deadline; worker termination ownership already differs from normal lease retirement | Client/engine/liveness owners are not in current file-attestation set; source drain await is attested | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
-| R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; notification redesign would require explicit provenance boundary decision | REDESIGN BEFORE TUNING; IDENTITY BOUNDARY MUST BE RESOLVED |
+| R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | Resource policy is deliberately outside evidence-core provenance; selected executor byte changes still cascade core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
+| R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap deliberately outside evidence-core provenance; representation/source edits still change selected byte anchors | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
+| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Limit 8 is not a source-mapping theorem; its semantic necessity remains UNRESOLVED after the separate failure-handling fix | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
+| R14 worker/RPC liveness | Yes: valid LOAD, BEGIN_SESSION, INFER, END_SESSION and idle DISPOSE can await an unanswered RPC indefinitely | One unanswered pending request; no malformed message required | Silent worker/driver/GPU hang or absent response, rather than crash/messageerror | Pending RPC promise/record, busy session ownership; chain/window PCM; retirement/completion promises | No intrinsic RPC deadline; preparation/FINALIZING/RETIRING can remain pending with no failure notification | No finite completion guarantee follows from promises or existing tail timeout | Define cancellation/ownership and stalled-service product policy before choosing any deadline; worker termination ownership already differs from normal lease retirement | Client/engine liveness is deliberately outside evidence-core provenance; selected source drain bytes remain attested | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; readiness notification/liveness is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R05 unused resource-policy alias: maxUnacknowledgedBlocks | No executable production read | Declaration and assertion only | None | No runtime state | Editing this alias alone cannot change actual Worklet credit behavior | Redundant ownership; real authority is capture transport constant/standalone producer | Later remove dead field/assertion while retaining actual transport contract and drift checks | resource-policy.ts is not attested; deletion does not mechanically change current core hash | DELETE AS REDUNDANT |
 
 ## Test validity and owners
@@ -337,51 +337,35 @@ distinguish real-input tail readiness from completed inference drain; removing 5
 polling cannot itself solve R14. Any retained deadline still needs separate necessity
 and device/workload qualification. These are future proof obligations, not a new API.
 
-## Acoustic identity and runtime-policy boundary
+## Acoustic identity and runtime-policy boundary — resolved in Round 25
 
-The current [core declaration](../../apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json)
-attests selected source files/assets and declares model/runtime/decoder/source
-geometry. [ACOUSTIC_ANALYSIS_IDENTITY](../../apps/customer-web/src/lib/practice/acoustic/model/analysis-identity.ts)
-calls this the decoder-qualified source-analysis implementation identity, but the
-selection is **not a transitive executable dependency closure**.
+The normative [acoustic evidence identity boundary](practice-acoustic-identity-boundary.md)
+defines ACOUSTIC_ANALYSIS_IDENTITY/acousticCoreIdentitySha256 as the
+evidence-producing acoustic semantic core: model, decoder, source mapping,
+window ownership and successful publication contents/source identity/analyzed-through
+semantics. Selected file attestations are deliberate integrity anchors, not an
+executable transitive closure. The hash is a versioned declaration/build identity;
+behavior-neutral edits to attested files can change it, so it is not a pure
+semantic-equivalence hash.
 
-The attested source executor imports resource-policy.ts, whose values can alter
-admission/failure without changing that executor's bytes. Worker-client/engine,
-capture transport/bridge and Continuous input liveness also lie outside the direct
-file-attestation set. Conversely, a behavior-neutral change in an attested file
-changes the digest. Thus the current hash is accurately described as **a selective
-model/decoder/source-geometry declaration plus selected implementation/asset
-attestations**. It is neither a complete executable implementation identity nor a
-pure equivalence hash of successful publication contents alone.
+resource-policy.ts, capture transport/bridge admission, input readiness polling and
+deadlines, worker/client/engine liveness and controller intervention policies are
+explicitly outside that provenance boundary. Attested executor bytes can still
+change when a resource-related implementation is edited; this incidental byte
+sensitivity does not identify all runtime policy or make the declaration transitive.
+No core JSON/hash/composite/schema change implements this clarification.
 
-No current declared contract clearly states that resource-policy exclusion is an
-intentional semantic exemption. Relative to a claim of complete implementation
-identity it is a coverage gap; relative to a selective snapshot it is observable
-scope. The intended normative boundary remains unresolved, not retroactively
-justified by tests. Approved adf43ba6 repaired declaration↔selected files; it did
-not prove or implement transitive closure.
+Result evidenceProvenance identifies the configured evidence-producing semantics
+used/intended by the attempt. COMPLETE identifies the accepted evidence stack;
+UNAVAILABLE identifies the intended stack without claiming successful publication.
+It is not full execution provenance and cannot replay every COMPLETE/UNAVAILABLE,
+intervention or hang cause. A future product requirement for runtime outcome
+reproducibility requires a separate versioned runtime-policy provenance owner and
+schema decision, not an expansion/redefinition of the existing core hash.
 
-| Possible intended boundary | Resource/liveness changes | Result provenance implication |
-| --- | --- | --- |
-| Complete source-analysis executable contract | Must identify relevant dependencies/policies or a deliberate canonical policy projection; current set insufficient | Reproducible admission/failure/liveness claims need the corresponding execution contract |
-| Successful-evidence semantic contract | A policy that changes only failure/availability might be deliberately outside, but that exclusion must be explicit; byte attestations are also over-sensitive to nonsemantic edits | Current successful content provenance alone cannot explain COMPLETE vs UNAVAILABLE or a hang |
-| Model/decoder/source geometry contract with selective attestation (current descriptive scope) | A leaf resource-policy edit does not mechanically change core; an executor/planner edit does | Current schema6 preserves these exact identities but records no separate cap/liveness policy fingerprint |
-
-Changing a cap can change whether a learner obtains COMPLETE, UNAVAILABLE, an
-intervention or no completion even when successful publication contents would be
-identical. **If Result provenance is intended to reproduce that outcome, these
-policies should be represented by an explicit scoped contract**; successful-content
-identity alone is insufficient. Whether this belongs in core identity or a separate
-runtime-policy provenance owner requires an approved boundary decision. This round
-chooses no new field/schema/policy ID and makes no claim current Result already
-records it. Diagnostics may answer a narrower engineering question, but cannot be
-silently substituted for a promised provenance contract.
-
-Until resolved, do not assume either that every cap edit must bump core by current
-mechanics, or that failure-only changes are provenance-neutral. File-based executor
-redesign would cascade core and source-adapter hashes; leaf resource/capture/liveness
-changes may not. Boundary definition must precede a future attestation expansion,
-cleanup or semantic behavior change. No identity JSON/hash/name/schema changes here.
+This resolves only provenance scope. R01/R02/R03/R04/R14/R18 retain their existing
+numeric/semantic-necessity status: cap8 remains UNRESOLVED; R14 has no finite
+silent-service guarantee; maxUnacknowledgedBlocks remains a deletion candidate.
 
 ## Exact-reference audit
 
@@ -437,8 +421,9 @@ The remaining future conclusions are:
   audit; do not remove the real Worklet credit contract.
 - **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after
   boundary and consumer review; no numerical replacement policy is inferred.
-- **IDENTITY BOUNDARY MUST BE RESOLVED:** selective source attestation versus runtime
-  admission/failure/liveness and successful-evidence contracts.
+- **IDENTITY BOUNDARY RESOLVED IN ROUND 25:** the [normative contract](practice-acoustic-identity-boundary.md)
+  deliberately excludes runtime admission/failure/liveness from the evidence core;
+  future outcome-replay provenance requires its own versioned owner/schema decision.
 - **NEEDS REAL DEVICE/WORKLOAD EVIDENCE:** frequency/headroom, scheduler task lag,
   short-control workloads, GPU/worker silence, and any eventual liveness policy.
 

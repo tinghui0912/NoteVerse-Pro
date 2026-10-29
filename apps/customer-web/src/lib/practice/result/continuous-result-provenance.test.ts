@@ -23,6 +23,28 @@ describe('session-level evidence identity', () => {
       expect(Object.isFrozen(ACOUSTIC_ANALYSIS_IDENTITY)).toBe(true);
     }
   });
+  it.each([44100, 48000] as const)('%i COMPLETE and UNAVAILABLE identify the configured evidence stack, not execution outcome', rate => {
+    const complete = canonicalContinuousResultFixture('MICROPHONE', rate, true);
+    const unavailable = canonicalContinuousResultFixture('MICROPHONE', rate, false);
+    expect(complete.evaluation.status).toBe('COMPLETE'); expect(unavailable.evaluation.status).toBe('UNAVAILABLE');
+    expect(unavailable.evidenceProvenance).toEqual(complete.evidenceProvenance);
+    expect(Object.keys(complete.evidenceProvenance).sort()).toEqual([
+      'inputSource', 'acousticIdentityName', 'acousticCoreIdentitySha256', 'modelSha256',
+      'decoderSourceSha256', 'sourceSampleRateHz', 'sourceAdapterIdentitySha256', 'timing',
+    ].sort());
+    expectTypeOf<keyof Extract<ContinuousEvidenceProvenance, { inputSource: 'MICROPHONE' }>>().toEqualTypeOf<
+      'inputSource' | 'acousticIdentityName' | 'acousticCoreIdentitySha256' | 'modelSha256'
+      | 'decoderSourceSha256' | 'sourceSampleRateHz' | 'sourceAdapterIdentitySha256' | 'timing'
+    >();
+  });
+  it.each([true, false].flatMap(available => [
+    'resourcePolicyId', 'runtimePolicySha256', 'livenessPolicyId', 'executionIdentitySha256',
+  ].map(field => ({ available, field }))))('rejects $field in configured microphone provenance (analysis available=$available)', ({ available, field }) => {
+    const parsed = JSON.parse(JSON.stringify(canonicalContinuousResultFixture('MICROPHONE', 48000, available)));
+    parsed.evidenceProvenance[field] = 'not-part-of-evidence-provenance';
+    expect(() => assertContinuousEvidenceProvenance(parsed.evidenceProvenance)).toThrow('Continuous acoustic evidence identity is corrupt.');
+    expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
+  });
   // Retired hashes are rejection probes only, never an accepted identity/compatibility path.
   it.each([
     { rate: 44100, retiredAdapter: '27dc3ec4690d0e715ccc76481d056417eb913b4c64e1147880985795941d71fd' },
