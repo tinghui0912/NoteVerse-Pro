@@ -2,12 +2,54 @@
 
 Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 `25737d23e623f6c5e2e524f9796b1535b243db14`, parent
-`b77722d6db1345f5d3a8f9b93d4ebc085c73d0bc`. This is documentation only: both
+`b77722d6db1345f5d3a8f9b93d4ebc085c73d0bc`. Round45 was documentation only: both
 128 guards, STEP schema 8/runtime version, Result/provenance and acoustic identities
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Round46 current MIDI sub-boundary
+## Round49 current acoustic sub-boundary — source identities resolved, domain unresolved
+
+From approved baseline `76124db6eabf036984dade2d1be77eebf7a608b7`, Round49 exports the
+decoder's existing piano mapping as pianoMidiPitchToName in the already-selected
+robust-piano-decoder.ts. The decoder continues using this same mapping; no second
+table or Browser MIDI dependency is introduced. All88 integer MIDI identities21..108
+retain the shipped sharp/natural spellings A0..C8, event ordering, timing and confidence.
+
+sourcePublication now requires pitch===pianoMidiPitchToName(midiPitch) after numeric
+range/integer validation and before observation identity construction/copy/retention.
+Mismatched worker events fail ACOUSTIC_EVENT_IDENTITY_MISMATCH, without repair.
+Independently callable SourcePublicationSequence requires the same equality before
+advancing its accepted summary, failing ACOUSTIC_PUBLICATION_OBSERVATION_INVALID.
+The existing numeric/coordinate/confidence/event-count/sequence checks remain.
+
+STEP's existing sequence-before-open/retention order is unchanged. A forged first
+publication fails READY with no sink.open, completion or retained observations.
+A forged successor invalidates active H50, clears its Map and blocks later evidence;
+no partial/late StepPitchEvidence is published. The historical280-spelling forgery
+below is now a rejection regression at producer and direct-publication/assembler
+boundaries, even with valid coordinates and unique canonical observation IDs.
+Normal acoustic evidence is unchanged; malformed source-aware admission is stricter.
+
+MIDI identity remains resolved by Round46. Acoustic identity is now resolved by
+the selected decoder/source owner, with at most88 distinct canonical acoustic
+strings entering a valid gesture. This does not derive or qualify domain raw128:
+128 duplicate C4 entries still normalize to1,129 reject before normalization.
+The broader domain regex/normalization and domain-owned canonical-language question
+are unchanged and unresolved. T15 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY,
+DELETE/REDESIGN only for remaining domain identity/raw work, and QUALIFY for raw128.
+Future DERIVE is empty; all93 rows/classes/counts remain unchanged. H50, matching,
+score/artifact semantics, STEP8/step-exact-pitch-learning-v8 and Result6/provenance
+shape do not change. Only decoder/publication selected bytes mechanically advance
+their attestations, canonical core and both composites; no attestation scope changes.
+
+Round49 local validation: focused332 tests/10 files; broader practice1682/90;
+full Customer Web2612/211. Existing domain tests retain128-duplicate acceptance
+and129-duplicate rejection. Typecheck, lint0 warnings, architecture/cycle and
+identity/Result guards pass; docs guards11 plus structure/links and ledger/count/
+membership checks pass. Independent normalized-file/canonical/composite hashing
+agrees with the declarations. No hosted workflow is rerun.
+
+## Round46 implemented MIDI sub-boundary
 
 Round46 implements only candidate3 against approved baseline
 `1c9df071bcb0a2160a9ac24968394f6c38d2cac1`. The MIDI owner now exposes
@@ -47,7 +89,8 @@ STEP schema8/runtime version, Result/provenance and acoustic identities/selected
 attestations are unchanged. No recognition/device/latency qualification follows.
 
 The following audit sections describe the Round45 baseline and historical probes.
-Round46 supersedes only their unchecked-MIDI-fact/Set-cap and valid-fixture
+Round49 supersedes their unchecked acoustic-pair/forged-publication admission;
+Round46 supersedes their unchecked-MIDI-fact/Set-cap and valid-fixture
 statements; the domain raw-work and acoustic identity findings remain current.
 
 ## Round45 findings and authority
@@ -155,13 +198,13 @@ See [decoder](../../apps/customer-web/src/lib/practice/acoustic/model/robust-pia
 and [assembler](../../apps/customer-web/src/lib/practice/step/step-acoustic-attempt-assembler.ts).
 
 - The shipped decoder iterates 88 piano classes, midiPitch=21+pitchIndex, so integer
-  MIDI 21..108. pitchName derives the same twelve sharp/natural spellings from that
+  MIDI 21..108. Historical pitchName (now pianoMidiPitchToName) derives the same twelve sharp/natural spellings from that
   number (A0..C8). The actual worker decoder therefore emits consistent pairs and
   at most 88 distinct pitch strings across any publication or H50 gesture.
-- sourcePublication bounds event count, integer midiPitch21..108, coordinates,
+- At Round45, sourcePublication bounded event count, integer midiPitch21..108, coordinates,
   confidence and IDs. It copies e.pitch. SourcePublicationSequence checks the same
   numeric pitch range, pitch syntax, ordered source mapping/ownership and duplicate
-  observation IDs. Neither cross-checks the pitch string against midiPitch.
+  observation IDs. Neither then cross-checked the pitch string against midiPitch.
   Sequence's regex alone is not proof of the decoder's 88-string identity universe;
   it even uses regex coercion rather than a separate typeof-string assertion.
 - The assembler runs its own SourcePublicationSequence before retaining
@@ -173,13 +216,14 @@ and [assembler](../../apps/customer-web/src/lib/practice/step/step-acoustic-atte
 - StepMicrophoneInput defers its application completion handoff until the source
   delivery/assembler stack unwinds, then the same source-neutral controller sink
   completes the domain attempt. It does not add target-aware filtering.
-- Important distinction: actual decoded production output is bounded by 88 distinct
+- Historical Round45 distinction: actual decoded production output was bounded by88 distinct
   pitches; a structurally accepted publication with primitive string fields can
-  carry all 280 syntax strings described below if its other facts are consistent.
+  historically could carry all280 syntax strings described below if its other facts were consistent.
   A read-only forged-worker-result probe passed sourcePublication and Sequence
   with midiPitch60, distinct target/observation IDs and 280 different syntax strings
   inside H50. The real assembler emitted 280 distinct entries; the domain rejected
-  that raw array. This is validator-accepted forged data, not a legitimate decoder
+  that raw array. This was Round45 validator-accepted forged data, now rejected by
+  Round49 before STEP retention, not a legitimate decoder
   output or a new product pitch contract. Arbitrary non-string JS objects are not
   bounded by the primitive-string language argument and are not legitimate decoded
   facts; the domain's typeof check rejects them within its raw-work envelope.
@@ -198,9 +242,10 @@ does not alter either mechanism or install another cap.
 | C: valid producer output | Array emitted by each shipped assembler | MIDI A=B<=128; microphone A=B<=88. Both producers deduplicate. This proves their output bounds, not the treatment of arbitrary raw arrays. |
 | D: malformed/direct raw work | Pre-normalization short-circuit length rejection | The existing raw128 guard avoids scanning/deduplicating/sorting an arbitrarily long array and bounds retained normalized entries. Why128 is an appropriate resource budget is unqualified. It cannot bound a caller's prior allocation, message rate, hostile getters/proxies or total process memory. |
 
-The Set guard separately limits retained distinct strings for inconsistent MIDI
-callbacks; it does not limit total NOTE_ON count or the size of a forged first
-pitch string. A finite raw-work policy and an injective wire-universe proof must
+The historical Round45 Set guard separately limited retained distinct strings for
+inconsistent MIDI callbacks; Round46 deleted it after validating canonical source
+identity before retention. It never limited total NOTE_ON count or the size of a
+forged first pitch string. A finite raw-work policy and an injective wire-universe proof must
 not be conflated.
 
 ## Current duplicate-array behavior and defensive intent
@@ -237,22 +282,23 @@ not map E# to F, canonicalize -0, or enforce the MIDI number range.
 | --- | --- | --- |
 | Backend score production | [score_loader.py](../../backend/app/processing/practice_score/score_loader.py) passes Partitura note_array to [score_timeline.py](../../backend/app/processing/practice_score/score_timeline.py); _event_from_notes uses _midi_pitch_name(int(pitch)), then [artifact serialization](../../backend/app/processing/practice_score/practice_score_artifact.py) preserves it. | The twelve sharp/natural spellings are produced, not E#/B# notation. Repository timeline conversion does not itself enforce0..127; an external parser assumption is not a domain-owned range proof. No score parser changes are proposed here. |
 | Browser artifact/STEP target | [kernel/artifact.ts](../../apps/customer-web/src/lib/practice/kernel/artifact.ts) checks nonempty unique physical pitch strings and notation/target identity consistency; [step target projection](../../apps/customer-web/src/lib/practice/step/domain/target.ts) copies them. API pitch fields are strings. | Artifact admission does not enforce the evidence regex, MIDI range or canonical spelling. Consistently altered artifacts can pass this local validator; that does not make them shipped backend outputs. |
-| Browser MIDI | Byte gate plus midiNoteToPitch on0..127 | Actual path has128 canonical identities; note() alone does not enforce that invariant. |
-| Acoustic | Shipped decoder generates21..108 and pitchName; publication checks numeric range and syntax independently | Actual path has88 identities, but payload validation does not prove pair consistency. |
+| Browser MIDI | Byte gate plus midiNoteToPitch on0..127; Round46 note() checks exact number/pitch identity before retention | Current accepted source facts have128 canonical identities; malformed direct facts fail. |
+| Acoustic | Shipped decoder and Round49 publication validators share pianoMidiPitchToName for integer21..108 | Current accepted source observations have88 canonical identities; inconsistent pairs fail before STEP retention. |
 | StepPitchEvidence/domain | A nonempty string tuple in TypeScript; runtime validates raw count, typeof, regex, confidence/time/attempt ownership | No domain-owned canonical pitch↔MIDI identity contract exists. The accepted primitive pitch language is broader than Browser MIDI's128 values; a single accepted array is still capped at128 raw entries. |
 
 Neither normal Browser MIDI nor the shipped decoder emits unusual E#/B# strings.
-They can reach completeAttempt via direct accepted evidence or forged publications
-that pass current validators. Do not label those counterexamples normal physical
+They can still reach completeAttempt via direct accepted domain evidence. Forged
+acoustic pairs passed Round45 validators but are rejected upstream in Round49.
+Do not label those historical counterexamples normal physical
 producer facts, and do not use normal producers alone to claim that the domain
 already guarantees standard MIDI identity for every admitted value.
 
-The MIDI [assembler tests](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.test.ts)
-use noteNumber 60 for every chosen pitch, including E4. The controller tests use the
+At Round45 the MIDI [assembler tests](../../apps/customer-web/src/lib/practice/step/step-midi-attempt-input.test.ts)
+used noteNumber60 for every chosen pitch, including E4. The controller tests used the
 same convenience pattern. They prove gesture/application behavior, not parser
 consistency. A future consistency regression must use real parser facts or honest
 numbers for valid scenarios, and identify mismatched objects as malformed tests;
-Round45 changes none of those tests.
+Round45 changed none of those tests; Round46 corrected the valid-path fixtures as recorded above.
 
 ## Candidate decision matrix
 

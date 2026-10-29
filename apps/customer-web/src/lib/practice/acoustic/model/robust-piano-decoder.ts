@@ -25,7 +25,7 @@ export function decodeRobustPiano(raw: PianoRawOutputs, inputStartSample: number
       if (frameScore < thresholds.frameThreshold) continue;
       const midiPitch = 21 + pitchIndex;
       const sampleOffset = Math.round(peak / PIANO_OUTPUT_FRAME_RATE_HZ * ACOUSTIC_MODEL.sampleRateHz);
-      events.push(Object.freeze({ pitch: pitchName(midiPitch), midiPitch, targetSample: inputStartSample + sampleOffset,
+      events.push(Object.freeze({ pitch: pianoMidiPitchToName(midiPitch), midiPitch, targetSample: inputStartSample + sampleOffset,
         confidence: Math.min(peakScore, frameScore), onsetScore: peakScore, frameScore }));
     }
   }
@@ -39,6 +39,7 @@ function matrix(data: Float32Array, shape: readonly number[]) {
   if (data.some(v => !Number.isFinite(v))) fail('ACOUSTIC_NONFINITE_OUTPUT');
   return { frameCount, value: (frame: number, pitch: number) => data[frame * PIANO_PITCH_COUNT + pitch] };
 }
-function pitchName(midi: number): string {
+/** Canonical spelling for a validated qualified piano MIDI identity. */
+export function pianoMidiPitchToName(midi: number): string {
   return `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][midi % 12]}${Math.floor(midi / 12) - 1}`;
 }

@@ -246,6 +246,35 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round49 — acoustic pitch identity before publication and STEP retention
+
+The [T15 companion](practice-step-pitch-evidence-bounds.md) records the resolved
+acoustic source sub-boundary. Decoder-private pitchName becomes exported
+pianoMidiPitchToName in the same selected decoder file; decoder and source
+publication validators share its single sharp/natural mapping. Integer21..108
+validation still comes first. Worker mismatches fail ACOUSTIC_EVENT_IDENTITY_MISMATCH
+before observation identity/copy/retention; direct publication mismatches fail
+ACOUSTIC_PUBLICATION_OBSERVATION_INVALID before accepted sequence advancement.
+No mismatch is repaired and no second pitch table or Browser MIDI dependency appears.
+
+The existing STEP sequence-before-open/retention order rejects malformed READY
+publications without opening/completing or retaining observations. An active H50
+gesture is invalidated/cleared on a malformed successor, with no partial/late evidence.
+The historical280-spelling forgery with valid coordinates/IDs is now rejected
+upstream. All88 canonical A0..C8 identities, valid observation values/order, decoder
+region finding/peak ties, event time/confidence and H50 geometry remain unchanged.
+
+T15 is SOURCE IDENTITIES RESOLVED, DOMAIN UNRESOLVED. Domain raw128,128-duplicate
+acceptance/normalization and129-duplicate rejection stay unchanged; the broader
+domain regex/language question is not decided here. No new count cap or raw128
+qualification follows from88 source identities. T15 stays resource-safety in
+domain-only DELETE/REDESIGN and raw128 QUALIFY; DERIVE empty; all93 classes/counts
+unchanged. S17 remains KEEP SINGLE OWNER/numeric unqualified, R01/R03/R04 untouched.
+Only selected decoder/publication attestations and dependent core/composites advance
+mechanically. Executor/planner/adapter/FIR/model assets, Result6/STEP8/runtimeVersion
+and provenance shape remain unchanged. This is malformed-source integrity, not
+recognition, learner, device, timing or resource-policy tuning.
+
 ### Round48 — one selected-source admission owner, numeric192 still unqualified
 
 Round47 candidate2 is implemented: isAcousticDomainIdentity in selected

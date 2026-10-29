@@ -1,4 +1,5 @@
 import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, AcousticAnalysisError, fail, type SourceRate } from '../model/model-contract';
+import { pianoMidiPitchToName } from '../model/robust-piano-decoder';
 import type { AcousticWindow } from './window-planner';
 import type { AcousticInferenceResult } from './inference-types';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
@@ -73,7 +74,8 @@ export class SourcePublicationSequence {
           || (previous && o.sourceEventSample < previous.frontier)
           || !index(o.targetSample) || o.targetSample < w.ownedStartTarget || o.targetSample >= w.ownedEndTarget
           || o.sourceEventSample !== sourceEventSample(base, o.targetSample, this.rate)
-          || !Number.isInteger(o.midiPitch) || o.midiPitch < 21 || o.midiPitch > 108 || !/^[A-G]#?-?\d$/.test(o.pitch)
+          || !Number.isInteger(o.midiPitch) || o.midiPitch < 21 || o.midiPitch > 108
+          || o.pitch !== pianoMidiPitchToName(o.midiPitch) || !/^[A-G]#?-?\d$/.test(o.pitch)
           || !Number.isFinite(o.confidence) || o.confidence < 0 || o.confidence > 1
           || o.observationId !== sourceObservationId(this.domain, w, o.midiPitch, o.targetSample)) fail('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
         if (ids.has(o.observationId)) fail('DUPLICATE_ACOUSTIC_OBSERVATION');
@@ -93,6 +95,7 @@ export function sourcePublication(domain: string, rate: SourceRate, base: number
   const ids = new Set<string>();
   const observations = result.events.filter(e => e.targetSample >= window.ownedStartTarget && e.targetSample < window.ownedEndTarget).map(e => {
     if (!Number.isSafeInteger(e.targetSample) || !Number.isInteger(e.midiPitch) || e.midiPitch < 21 || e.midiPitch > 108
+      || e.pitch !== pianoMidiPitchToName(e.midiPitch)
       || !Number.isFinite(e.confidence) || e.confidence < 0 || e.confidence > 1
       || !Number.isFinite(e.onsetScore) || !Number.isFinite(e.frameScore)) fail('ACOUSTIC_EVENT_IDENTITY_MISMATCH');
     const observationId = sourceObservationId(domain, window, e.midiPitch, e.targetSample);

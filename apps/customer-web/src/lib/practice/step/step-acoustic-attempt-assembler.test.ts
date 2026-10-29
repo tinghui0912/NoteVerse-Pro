@@ -40,6 +40,42 @@ function setup(open = vi.fn((): number | null => 1)) {
 }
 
 describe('score-blind H50 ownership over the canonical source stream', () => {
+  it('a malformed first pitch/MIDI pair fails READY before sink.open or observation retention', () => {
+    const s = setup(), valid = publication(0, [event(start + 3)]);
+    const forged = { ...valid, observations: [{ ...valid.observations[0], pitch: 'E4' }] };
+    expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+    expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0, processedThroughSourceSample: null });
+    expect(() => s.assembler.accept(valid)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
+    expect(s.completed).toEqual([]);
+  });
+  it('a malformed subsequent pair invalidates active H50 without partial or late evidence', () => {
+    const s = setup(), first = publication(0, [event(end - 3)]), second = publication(1, [event(end)]);
+    expect(s.assembler.accept(first)).toBeNull(); expect(s.open).toHaveBeenCalledOnce();
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'CAPTURING', activeObservationCount: 1 });
+    const forged = { ...second, observations: [{ ...second.observations[0], pitch: 'E4' }] };
+    expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0, processedThroughSourceSample: first.ownedThroughSourceSample });
+    expect(s.completed).toEqual([]); expect(s.open).toHaveBeenCalledOnce();
+    expect(() => s.assembler.accept(second)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
+    expect(s.completed).toEqual([]);
+  });
+  it('the historical280-spelling forgery is rejected upstream and cannot produce StepPitchEvidence', () => {
+    const spellings = [...'ABCDEFG'].flatMap(letter => ['', '#'].flatMap(sharp => ['', '-'].flatMap(sign =>
+      Array.from({ length: 10 }, (_, octave) => `${letter}${sharp}${sign}${octave}`))));
+    expect(new Set(spellings).size).toBe(280);
+    const validEvents = spellings.map((_, index) => event(start + 3 * (index + 1)));
+    const valid = publication(0, validEvents);
+    const result = { events: validEvents.map((e, index) => ({ ...e, pitch: spellings[index] })),
+      inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
+    expect(() => sourcePublication('source', 48000, 0, valid.window, result, 0)).toThrow('ACOUSTIC_EVENT_IDENTITY_MISMATCH');
+    const forged = { ...valid, observations: valid.observations.map((o, index) => ({ ...o, pitch: spellings[index] })) };
+    expect(new Set(forged.observations.map(o => o.observationId)).size).toBe(280);
+    const s = setup();
+    expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+    expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
+    expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0 });
+  });
   it('ignores exact physical watermark and accepts the next source event', () => {
     const s = setup(); s.assembler.acceptInputAfter(start + 3);
     const sealed = s.assembler.accept(publication(0, [event(start + 3), event(start + 6)]));

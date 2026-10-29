@@ -4,6 +4,35 @@ import { planWindow } from './window-planner';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
 import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../model/model-contract';
 import { projectContinuousEvidence } from '../continuous/publication';
+import { pianoMidiPitchToName } from '../model/robust-piano-decoder';
+
+it.each([44100, 48000] as const)('%i: all88 canonical event identities retain exact publication values and ordering', rate => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const events = Array.from({ length: 88 }, (_, index) => ({ midiPitch: 21 + index, pitch: pianoMidiPitchToName(21 + index),
+    targetSample: 20000, confidence: .8, onsetScore: .9, frameScore: .8 }));
+  const p = sourcePublication('source', rate, 0, window, { events, inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 1234);
+  expect(new SourcePublicationSequence('source', rate).accept(p)).toBeNull();
+  expect(p.observations.map(o => [o.pitch, o.midiPitch, o.targetSample, o.confidence]))
+    .toEqual(events.map(e => [e.pitch, e.midiPitch, e.targetSample, e.confidence]));
+  expect(p.observations.map(o => o.observationId)).toEqual(events.map(e => sourceObservationId('source', window, e.midiPitch, e.targetSample)));
+  expect(p.observations.every(o => o.sourceEventSample === 20000 * rate / M.sampleRateHz)).toBe(true);
+});
+
+it.each([44100, 48000] as const)('%i: mismatched worker and direct-publication pairs fail at their existing integrity owners', rate => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const event = { midiPitch: 60, pitch: 'E4', targetSample: 20000, confidence: .8, onsetScore: .9, frameScore: .8 };
+  const result = { events: [event], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
+  const before = structuredClone(result);
+  expect(() => sourcePublication('source', rate, 0, window, result, 0)).toThrow('ACOUSTIC_EVENT_IDENTITY_MISMATCH');
+  expect(result).toEqual(before); // No canonicalization/repair of caller evidence.
+  const valid = sourcePublication('source', rate, 0, window, { ...result, events: [{ ...event, pitch: 'C4' }] }, 0);
+  const forged = { ...valid, observations: [{ ...valid.observations[0], pitch: 'E4' }] };
+  expect(forged.observations[0].observationId).toBe(sourceObservationId('source', window, 60, 20000));
+  const sequence = new SourcePublicationSequence('source', rate);
+  expect(() => sequence.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+  expect(() => sequence.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+  expect(forged.observations[0].pitch).toBe('E4');
+});
 
 it.each([
   { label: 'empty', value: '', valid: false },

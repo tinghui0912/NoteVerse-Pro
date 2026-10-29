@@ -360,3 +360,23 @@ are unchanged. Result stays schema6 with the same provenance keys, STEP stays8 w
 the same runtime version; configured core/composite identity values advance without
 a schema migration. S17 duplicate ownership is complete; numerical qualification
 is still missing. The existing selective-attestation scope remains intact.
+
+## Round49 decoder-owned pitch identity and mechanical selected-byte advance
+
+The existing canonical piano spelling function is exported as pianoMidiPitchToName
+from selected robust-piano-decoder.ts, with the decoder still consuming it. Selected
+source-publication.ts uses that same owner after integer21..108 validation in both
+sourcePublication and independently callable SourcePublicationSequence. Inconsistent
+pairs fail at their existing event/publication integrity errors before STEP retention.
+No new unattested mapping helper, duplicate table or Browser MIDI dependency is added;
+the decoder's runtime inference type import remains type-only, avoiding a runtime cycle.
+
+Decoder authoritativeSource and publicationSource normalized bytes/SHA change
+(CRLF→LF only); canonical core, ACOUSTIC_MODEL.identitySha256 and both adapter core
+references/composites mechanically advance. Executor source remains byte-unchanged;
+planner, source-adapter implementation, model and FIR assets/identities are unchanged.
+The declaration's semantic scope and selected-anchor set are unchanged. This attests
+a source-integrity tightening, not recognition-model calibration: valid decoder
+spellings, thresholds, peak finding/timing, confidence and publication ordering stay
+the same. Result6/STEP8/step-exact-pitch-learning-v8/provenance shape remain unchanged;
+only existing evidence identity values advance, without a new identity/schema field.
