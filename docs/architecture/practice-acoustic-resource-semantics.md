@@ -195,14 +195,56 @@ regressions remain applicable. No tolerance is widened.
 The audit additionally found worker model-validation target geometry, included in
 this same derivation. SHA radix16 and capture10000ms are unrelated and untouched.
 Continuous projection's source-Hz↔ms `delta/sourceRate*1000` and `1000/sourceRate`,
-including its Round37 source→target formulas, stay byte-identical. Those two unit
-literals are the remaining R12 review item: STILL PARTIALLY UNRESOLVED DERIVATION
-DEBT, pending a separate decision whether naming unit definitions is useful.
+including its Round37 source→target formulas, stay byte-identical. At Round38 those
+two unit literals remained an R12 review item, then marked STILL PARTIALLY
+UNRESOLVED DERIVATION DEBT. Round39 below closes that review without changing expressions.
 
 Executor/publication/planner selected bytes mechanically advance core/composite
 identities. Continuous publication and model-validation are not added as anchors;
 evidence meaning, model declarations, source semantics and Result shape remain
 unchanged. This derivation does not qualify16000, owned600ms or future170ms.
+
+### Round39 — R12 unit-definition closure, no production change
+
+The exact current-branch audit (`rg -n "\b1000\b|MILLISECONDS|SECONDS|samplesPerMs|performanceEndMs|actualEnd" apps/customer-web/src/lib/practice/acoustic docs/architecture`)
+finds exactly three executable acoustic uses of standalone1000, plus one unchanged
+identity-description string. Other production hits are the derived samplesPerMs
+alias and Performance Time fields/control flow.
+
+| Production location | Unchanged expression | Dimensional meaning |
+| --- | --- | --- |
+| model-contract.ts:14 | model.sampleRateHz /1000 | [samples/second] divided by [milliseconds/second] = target samples/millisecond |
+| continuous-projection.ts:55 actualEnd | performanceStartMs + sourceDelta/sourceRate*1000 | sourceDelta [samples] / sourceRate [samples/second] = seconds; multiply by1000 [milliseconds/second] gives milliseconds, then add the Performance Time anchor |
+| continuous-projection.ts:56 tolerance | 1000/sourceRate | [milliseconds/second] / [samples/second] = milliseconds/sample; for one sample, its duration expressed in milliseconds |
+| acoustic-core-identity.json:28 declaration string | inputWindowStartMs + round(peakFrame/100*16000)/16000*1000 | Describes decoder target-sample→seconds→milliseconds mapping;1000 is the same unit definition in non-executable declaration text, not a second tunable owner |
+
+The tolerance is **one source sample**, not1000ms or a one-second tolerance.
+At44100Hz it is approximately0.02267573696ms; at48000Hz,0.02083333333ms. These
+are mathematical characterizations of a declared source rate, not device timing
+qualification. The numeric one-sample comparison is not a new1000-valued policy.
+No other acoustic production1000 was found beyond the four classified hits above.
+10000ms readiness,60000ms liveness,
+test timestamps/availability values and historical examples are separate concerns;
+substring matches must not turn them into R12 unit ownership.
+
+1000 milliseconds =1 second is an exact unit definition, not a model, learner,
+resource or admission parameter. The existing local delta/sourceRate*1000 and
+1000/sourceRate make dimensions clear. A new MILLISECONDS_PER_SECOND constant,
+generic units module/service or conversion class would add indirection without
+eliminating any independently tunable owner, so none is introduced. Rewriting to
+delta*1000/sourceRate could change Float64 ordering and serves no closure purpose;
+the current expressions remain byte-identical. The model-derived target samples/ms
+relationship and all Round35–38 derivations remain intact.
+
+Existing both-rate runtime/segment, partial/half-open publication, geometry/source
+mapping and mismatch regressions remain relevant. No trivial unit-constant test,
+production comment, retry, calibration or policy change is added. R12 ownership
+debt is **RESOLVED / KEEP RESOLVED**: derive where there was duplicate ownership,
+keep explicit local unit definitions where there is none. This does not claim the
+repository has no other magic numbers. Unit identity is not empirical timing
+qualification: source-clock/ADC accuracy and browser scheduling retain their own
+evidence requirements. No selected source/declaration, core/composite identity,
+Result schema6 or provenance shape changes.
 
 ### Round33 — R07 source block maximum is derived from R06
 

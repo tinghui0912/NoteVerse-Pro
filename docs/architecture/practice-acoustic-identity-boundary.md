@@ -251,3 +251,13 @@ planner bytes/SHA advance, mechanically cascading canonical core and both adapte
 composites. Nonselected Continuous publication and worker model-validation remain
 outside the attestation path set. No declaration scope or evidence semantics change;
 model/decoder/FIR/resampler meanings and Result schema6/provenance keys stay unchanged.
+
+## Round39 unit-definition closure without an identity advance
+
+R12's remaining1000 uses are explicit seconds↔milliseconds definitions, not new
+model/resource/timing owners. Round39 keeps their local arithmetic and all derived
+relationships unchanged, closing only documentation/ledger status. Production
+implementation and selected executor/publication/planner bytes stay unchanged, as
+do canonical core, adapter composites and model asset identity. No units constant,
+attestation scope expansion, conversion/runtime-policy identity or Result field is
+introduced. Result remains schema6 with the same provenance shape.
