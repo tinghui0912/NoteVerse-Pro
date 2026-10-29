@@ -380,6 +380,8 @@
   "recordingRecovered": "录制设备已恢复",
   "inputInterrupted": "输入暂时中断",
   "inputRecovered": "输入设备已恢复",
+  "captureProcessingStopped": "音频输入处理已停止",
+  "captureProcessingStoppedDescription": "本次练习的音频处理无法安全继续。请结束本次练习，然后重新开始。",
   "inputCannotContinue": "输入设备已断开",
   "inputInterruptionDescription": "练习已暂停，原输入设备恢复后可继续。",
   "inputRestartRequiredDescription": "所需输入不可用，本次练习无法安全继续。请结束本次练习。",

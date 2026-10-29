@@ -8,10 +8,12 @@ import common from '../../../../../../../messages/en/common.json';
 import errors from '../../../../../../../messages/en/errors.json';
 import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import PracticePage from './page';
+import type { PracticeResourceIntervention } from '@/lib/practice/continuous/resource-intervention';
 
 const fake = vi.hoisted(() => {
   const local = { mode: 'STEP_BY_STEP', lifecycle: 'ACTIVE', inputState: 'READY', inputError: null,
     analysisIntervention: null as { kind: string } | null, infrastructureIntervention: null as { kind: string } | null,
+    resourceIntervention: null as PracticeResourceIntervention | null,
     activeStepGroup: { groupId: 'retained-target' }, isFinalizingPerformance: false, stepInteractionPhase: 'READY',
     restart: vi.fn(async () => {}), start: vi.fn(), abandon: vi.fn(async () => {}), setMetronomeEnabled: vi.fn() };
   const workspace = { ready: true, hydrated: true, readiness: { status: 'READY' },
@@ -42,10 +44,10 @@ vi.mock('@/components/practice/practice-score-viewer', () => ({ PracticeScoreVie
 
 beforeEach(() => {
   vi.clearAllMocks(); fake.local.mode = 'STEP_BY_STEP'; fake.local.lifecycle = 'ACTIVE';
-  fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null;
+  fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; fake.local.resourceIntervention = null;
   fake.workspace.ready = true; fake.workspace.readiness.status = 'READY'; fake.workspace.profile.mode = 'STEP_BY_STEP'; fake.device.snapshot.state = 'READY';
   fake.workspace.environment.invalidate.mockReset();
-  fake.local.abandon.mockImplementation(async () => { fake.local.lifecycle = 'IDLE'; fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; });
+  fake.local.abandon.mockImplementation(async () => { fake.local.lifecycle = fake.local.mode === 'CONTINUOUS_PLAY' ? 'READY' : 'IDLE'; fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; fake.local.resourceIntervention = null; });
 });
 afterEach(cleanup);
 async function openPage() {
@@ -91,4 +93,21 @@ for (const ready of [true, false]) it(`completion Try Again with devices ready=$
   await waitFor(() => ready ? expect(fake.local.restart).toHaveBeenCalledOnce() : expect(fake.router.push).toHaveBeenCalled());
   expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
   expect(fake.workspace.ready).toBe(true);
+});
+
+it('hard Continuous capture End restores healthy explicit Start without forcing Setup or restarting', async () => {
+  fake.local.mode = 'CONTINUOUS_PLAY'; fake.local.lifecycle = 'PAUSED'; fake.workspace.profile.mode = 'CONTINUOUS_PLAY';
+  fake.local.resourceIntervention = { reason: 'CAPTURE_PIPELINE_INVALID', impact: 'INPUT_REQUIRED', recoverability: 'RESTART_REQUIRED',
+    state: 'WAITING_FOR_USER', pauseOrigin: 'INTERVENTION' };
+  await openPage();
+  const dialog = screen.getByRole('alertdialog');
+  expect(dialog).toHaveAccessibleName(practice.captureProcessingStopped);
+  expect(dialog.textContent).not.toMatch(/disconnected|CAPTURE_BOUNDARY_LIMIT_EXCEEDED/);
+  expect(dialog.querySelectorAll('button')).toHaveLength(1);
+  await act(async () => { fireEvent.click(dialog.querySelector('button')!); });
+  expect(fake.local.abandon).toHaveBeenCalledOnce(); expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(fake.workspace.ready).toBe(true); expect(fake.device.snapshot.state).toBe('READY');
+  expect(fake.router.push).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
+  const start = screen.getByRole('button', { name: practice.start });
+  expect(start).toBeEnabled(); fireEvent.click(start); expect(fake.local.start).toHaveBeenCalledOnce();
 });

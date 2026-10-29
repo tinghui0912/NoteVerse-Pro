@@ -380,6 +380,8 @@
   "recordingRecovered": "Recording device recovered",
   "inputInterrupted": "Input temporarily interrupted",
   "inputRecovered": "Input device recovered",
+  "captureProcessingStopped": "Audio input processing stopped",
+  "captureProcessingStoppedDescription": "Audio processing for this attempt could not continue safely. End this attempt, then start a new one.",
   "inputCannotContinue": "Input disconnected",
   "inputInterruptionDescription": "Practice is paused. Continue when the original input is available again.",
   "inputRestartRequiredDescription": "The required input is unavailable. This attempt cannot safely continue. End this attempt.",

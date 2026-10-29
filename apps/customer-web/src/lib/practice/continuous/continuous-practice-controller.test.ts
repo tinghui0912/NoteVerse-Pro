@@ -964,7 +964,7 @@ it('R02 schema-valid short resume count-ins plus full-block capture delivery rea
   expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(callback).not.toHaveBeenCalled();
 });
 
-it('R03 valid ninth-boundary failure synchronously freezes after the clock transaction', async () => {
+it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before a fresh healthy attempt', async () => {
   const f = environment(48000, stream(), 2048), callback = vi.fn();
   const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
   try {
@@ -1006,6 +1006,30 @@ it('R03 valid ninth-boundary failure synchronously freezes after the clock trans
     expect(controller.snapshot().transport).toMatchObject({ state: 'PAUSED', performanceTimeMs: position });
     expect(f.bridge().runtime.snapshot().failureCode).toBe('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
     expect(f.worker.run).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
+    const failedBridge = f.bridge(), oldSession = controller.engineeringSnapshot().sessionId;
+    await controller.abandon();
+    expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', completed: null, resourceIntervention: null });
+    expect(continuousControllerView(controller.snapshot()).lifecycle).toBe('READY');
+    expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
+    expect(f.meter.destroy).toHaveBeenCalledOnce(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
+    expect(f.root.audio.readyState).toBe('live'); expect(f.root.audio.stop).not.toHaveBeenCalled();
+    expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(callback).not.toHaveBeenCalled();
+    // Reuse the healthy borrowed device, not any attempt-owned graph/session/lease.
+    const fresh = environment(48000, f.root, 2048), next = fresh.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+    try {
+      await next.start();
+      expect(next.engineeringSnapshot().sessionId).not.toBe(oldSession);
+      expect(fresh.bridge()).not.toBe(failedBridge); expect(fresh.worker).not.toBe(f.worker); expect(fresh.context).not.toBe(f.context);
+      expect(next.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'COUNT_IN' }, analysisError: null,
+        inputError: null, resourceIntervention: null, analysisIntervention: null, completed: null });
+      expect(fresh.bridge().snapshot()).toMatchObject({ failed: false, pendingBoundaryCount: 2 });
+      expect(fresh.bridge().runtime.snapshot().failureCode).toBeNull();
+      await fresh.feed(2048 / 48);
+      expect(next.snapshot().transport?.state).toBe('RUNNING');
+      expect(failedBridge.runtime.snapshot().failureCode).toBe('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
+      expect(callback).not.toHaveBeenCalled();
+    } finally { await next.abandon(); await next.dispose(); }
+    expect(fresh.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
   } finally { await controller.abandon(); await controller.dispose(); }
   expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
 });

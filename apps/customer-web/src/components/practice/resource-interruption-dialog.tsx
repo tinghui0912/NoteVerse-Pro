@@ -13,12 +13,13 @@ export function ResourceInterruptionDialog({ intervention, onContinueWithout, on
   const inputRequired = intervention.impact !== 'RECORDING_ONLY';
   const hard = intervention.recoverability === 'RESTART_REQUIRED';
   const recovered = intervention.state === 'RECOVERED_WAITING_FOR_USER';
-  const title = inputRequired ? hard ? 'inputCannotContinue' : recovered ? 'inputRecovered' : 'inputInterrupted'
+  const captureFailed = inputRequired && hard && intervention.reason === 'CAPTURE_PIPELINE_INVALID';
+  const title = captureFailed ? 'captureProcessingStopped' : inputRequired ? hard ? 'inputCannotContinue' : recovered ? 'inputRecovered' : 'inputInterrupted'
     : hard ? 'recordingCannotContinue' : recovered ? 'recordingRecovered' : 'recordingInterrupted';
   return <AlertDialog open>
     <AlertDialogContent>
       <AlertDialogHeader><AlertDialogTitle>{t(title)}</AlertDialogTitle>
-        <AlertDialogDescription>{t(inputRequired ? hard ? 'inputRestartRequiredDescription' : 'inputInterruptionDescription'
+        <AlertDialogDescription>{t(captureFailed ? 'captureProcessingStoppedDescription' : inputRequired ? hard ? 'inputRestartRequiredDescription' : 'inputInterruptionDescription'
           : hard ? 'recordingRestartRequiredDescription' : 'recordingInterruptedDescription')}</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter className="flex-wrap gap-2">
         {recovered && !hard && <Button disabled={busy} onClick={onContinue}>{t('resume')}</Button>}

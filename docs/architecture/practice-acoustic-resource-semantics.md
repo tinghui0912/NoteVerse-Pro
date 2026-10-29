@@ -26,7 +26,7 @@ raising/lowering it. No accepted evidence may be silently discarded.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | Resource policy is deliberately outside evidence-core provenance; selected executor byte changes still cascade core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R02 pending source regions | Yes: legal source API; also schema-valid short-meter controller with complete 2048-sample capture blocks | Four positive closed regions still waiting future PCM, fifth BEGIN; four Pause/Resume cycles from initial running region | Less than 170ms real tail between short regions; no worker stall required; normal long count-ins instead allow planning retirement | regions[] awaiting geometry/PCM, active region pointer; not queued inference history | ACOUSTIC_SEGMENT_LIMIT_EXCEEDED; terminal source analysis; controller retains ACTIVE attempt paused under analysis intervention | No proof that 4 region records or this terminal response is necessary | Prove bounded representation/earlier retirement; positive historical source→performance intervals cannot be erased | Leaf cap deliberately outside evidence-core provenance; representation/source edits still change selected byte anchors | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Limit 8 is not a source-mapping theorem; its semantic necessity remains UNRESOLVED after the separate failure-handling fix | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
+| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Bounded ownership is required in principle; 8 is a temporary defensive safety fuse, not a qualified workload limit; its semantic necessity remains UNRESOLVED | Preserve all historical positive intervals; investigate bounded representation/cancellation independently of the fixed ownership reentrancy; no general BEGIN/PAUSE deletion proof | Bridge/controller are outside current file attestation; cap leaf also excluded; this failure behavior is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
 | R14 worker/RPC liveness | Yes: valid LOAD, BEGIN_SESSION, INFER, END_SESSION and idle DISPOSE can await an unanswered RPC indefinitely | One unanswered pending request; no malformed message required | Silent worker/driver/GPU hang or absent response, rather than crash/messageerror | Pending RPC promise/record, busy session ownership; chain/window PCM; retirement/completion promises | No intrinsic RPC deadline; preparation/FINALIZING/RETIRING can remain pending with no failure notification | No finite completion guarantee follows from promises or existing tail timeout | Define cancellation/ownership and stalled-service product policy before choosing any deadline; worker termination ownership already differs from normal lease retirement | Client/engine liveness is deliberately outside evidence-core provenance; selected source drain bytes remain attested | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
 | R18 readiness predicate observation | Yes: tests deliver the requested 5ms timer at5 or 50ms with identical source/evidence geometry | Real preroll becomes ready while wait timer remains pending | Timer scheduling/clamping affects observation only | At most current wait timer/abort listener; repeated wakeups while predicate false | Readiness discovered later; independent 15s/60s predicate deadlines remain; no 5ms latency guarantee | Predicate observation/cancellation is necessary, polling itself is not proved necessary | Local one-shot readiness/failure subscription owned by input, with snapshot/subscribe recheck and disposal generation fence; no global bus | continuous-microphone-input.ts is not directly attested; readiness notification/liveness is deliberately outside evidence-core provenance | REDESIGN BEFORE TUNING; [evidence identity boundary resolved](practice-acoustic-identity-boundary.md) |
@@ -227,6 +227,56 @@ and recording facts verifies that hard first-cause ownership survives the drain.
 Existing USER-paused, INITIAL/RESUME count-in, analysis-pause-once and teardown
 regressions remain applicable. These tests establish failure ownership; they do
 not qualify cap8 or implement queue redesign.
+
+### Round 26 — temporary defensive safety fuse and honest recovery
+
+Bounded ownership/backpressure is required in principle: when capture source PCM
+does not advance, learner control chronology cannot consume unbounded retained
+memory. The current `maxScheduledBoundaries=8` is a **temporary defensive safety
+fuse, not a qualified workload limit**. There is no proof that 8 is mathematically
+necessary, a browser safety limit or the supported ceiling for normal learner
+interaction. Worklet32 credits do not derive cap8. Raising the number would not
+resolve the ownership/chronology problem. R03 remains **REDESIGN BEFORE TUNING**;
+compact representation/queue redesign and workload qualification are future work.
+No cap value or queue algorithm changes in Round 26.
+
+Overflow remains fail-closed: bridge/runtime retain first cause
+CAPTURE_BOUNDARY_LIMIT_EXCEEDED; the bridge is failed and its pending queue aborts.
+This is an explicit attempt failure, not silent removal of positive BEGIN/PAUSE
+history followed by continued analysis. No accepted positive interval is silently
+coalesced, no failed bridge is retried, no Result is fabricated and Performance Time
+stays PAUSED. The current attempt cannot safely resume its failed capture pipeline.
+Application attempt ownership remains ACTIVE until explicit learner End or existing
+page teardown; overflow itself is neither abandonment nor natural completion.
+
+The existing application reason CAPTURE_PIPELINE_INVALID is sufficient to distinguish
+capture processing failure from MICROPHONE_SOURCE_LOST. For hard capture incidents,
+ResourceInterruptionDialog says “Audio input processing stopped” / “音频输入处理已停止”,
+with “Audio processing for this attempt could not continue safely. End this attempt,
+then start a new one.” / “本次练习的音频处理无法安全继续。请结束本次练习，然后重新开始。”
+It exposes only **End**. It does not claim physical disconnection, expose technical
+codes, offer Resume/degradation/Restart/Retry or silently restart. Physical source
+loss retains its input-loss copy; recoverable AudioContext and recording-only
+incidents retain their existing actions and wording. Device icons continue to
+represent actual Device Lease health, not internal capture failure.
+
+End uses the existing abandon/dispose path: no Result or natural-completion callback,
+release of the failed capture graph/worker lease/attempt clock/metronome, and no stop
+of a healthy borrowed root. The hook waits for release and returns READY/IDLE with
+no stale intervention. **When workspace readiness and Device Lease remain healthy,
+explicit Start is allowed directly**, without forced Setup. It creates a new
+controller/session/capture bridge and inference lease; the failed graph/session is
+never reused. It can enter normal count-in/running. If actual device/environment
+readiness is unhealthy, the existing Setup/requalification owner still applies.
+This is explicit End → new Start, not a new universal Restart action.
+
+Regression evidence is compositional: the real ninth-boundary controller witness
+now includes release and a fresh successful admission on the same healthy borrowed
+root; hook tests verify READY and a new controller after explicit End/Start; page
+and EN/ZH component tests verify honest copy, End-only action and healthy Start
+availability. No private-state injection or production test-only hook is used.
+The Round 25 evidence-core boundary remains intact: capture/resource failure policy
+is outside that identity, and no acoustic/core/composite hash or Result schema changes.
 
 ### Coalescing is not yet a safe policy
 

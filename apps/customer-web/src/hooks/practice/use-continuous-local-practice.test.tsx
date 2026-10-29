@@ -220,3 +220,33 @@ it('exposes only analysis choice commands and keeps accepted degradation out of 
   expect(result.current.analysisIntervention).toBeNull(); expect(result.current.inputState).not.toBe('ERROR');
   expect(result.current).not.toHaveProperty('controller'); unmount(); await barrier.waitForRelease();
 });
+
+it('hard capture End returns to READY and an explicit Start creates a fresh controller after release', async () => {
+  const owner = ownerMocks(), barrier = new PracticeResourceCoordinator(), onNaturalCompletion = vi.fn();
+  const abandon = vi.spyOn(ContinuousPracticeController.prototype, 'abandon').mockImplementation(async () => {
+    owner.publish({ ...owner.snapshot(), session: 'ABANDONED', resourceIntervention: null, completed: null });
+  });
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, inputSource: 'MICROPHONE', onNaturalCompletion }, tempoPlan, barrier, () => {}));
+  await act(async () => { await result.current.start(); });
+  const first = owner.start.mock.contexts[0];
+  const transport = { state: 'PAUSED' as const, countInKind: null, nowMs: 4000, musicalBeat: 2, performanceTimeMs: 1250,
+    countInTotalMs: 2000, countInRemainingMs: 0, countInBeats: 4, countInPulses: 4, countInPulse: 1,
+    scopeCompleted: false, scopeStartBeat: 0, scopeTerminalBeat: artifact.scoreEndBeat, completionReason: null };
+  act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', transport, analysis: 'PAUSED',
+    resourceIntervention: { reason: 'CAPTURE_PIPELINE_INVALID', impact: 'INPUT_REQUIRED', recoverability: 'RESTART_REQUIRED',
+      state: 'WAITING_FOR_USER', pauseOrigin: 'INTERVENTION' } }));
+  expect(result.current).toMatchObject({ lifecycle: 'PAUSED', inputError: null, resourceIntervention: { reason: 'CAPTURE_PIPELINE_INVALID' } });
+  const stale = owner.subscribe.mock.calls[0][0];
+  await act(async () => { await result.current.abandon(); });
+  expect(abandon).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
+  expect(owner.events).toEqual(['unsubscribe', 'dispose']);
+  expect(result.current).toMatchObject({ lifecycle: 'READY', inputState: 'IDLE', inputError: null, resourceIntervention: null, performanceClock: null });
+  expect(owner.start).toHaveBeenCalledOnce(); expect(onNaturalCompletion).not.toHaveBeenCalled();
+  const reads = owner.snapshots.mock.calls.length; act(stale); expect(owner.snapshots).toHaveBeenCalledTimes(reads);
+  owner.start.mockImplementationOnce(async () => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', analysis: 'PREROLL',
+    transport: { ...transport, state: 'COUNT_IN', countInKind: 'INITIAL' }, resourceIntervention: null, inputError: null, analysisError: null }));
+  await act(async () => { await result.current.start(); });
+  expect(owner.start).toHaveBeenCalledTimes(2); expect(owner.start.mock.contexts[1]).not.toBe(first);
+  expect(result.current).toMatchObject({ lifecycle: 'ACTIVE', inputError: null, resourceIntervention: null, performanceClock: { state: 'COUNT_IN' } });
+  expect(onNaturalCompletion).not.toHaveBeenCalled(); unmount(); await barrier.waitForRelease(); expect(owner.dispose).toHaveBeenCalledTimes(2);
+});
