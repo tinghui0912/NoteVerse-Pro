@@ -15,7 +15,11 @@ it('all88 qualified piano identities preserve shipped sharp/natural spelling thr
   const midi = Array.from({ length: 88 }, (_, index) => 21 + index);
   expect(events.map(e => e.midiPitch)).toEqual(midi);
   expect(events.map(e => e.pitch)).toEqual(expected);
-  expect(midi.map(pianoMidiPitchToName)).toEqual(expected);
+  const canonical = midi.map(pianoMidiPitchToName);
+  expect(canonical).toEqual(expected); expect(canonical).toHaveLength(88); expect(new Set(canonical).size).toBe(88);
+  expect(pianoMidiPitchToName(21)).toBe('A0'); expect(pianoMidiPitchToName(108)).toBe('C8');
+  // Test-only historical grammar: exact qualified mapping already implies this deleted check.
+  expect(canonical.every(pitch => /^[A-G]#?-?\d$/.test(pitch))).toBe(true);
   expect(new Set(expected).size).toBe(88); expect(expected[0]).toBe('A0'); expect(expected.at(-1)).toBe('C8');
   expect(events.every(e => e.targetSample === 3520 && e.confidence === Math.fround(.8))).toBe(true);
 });

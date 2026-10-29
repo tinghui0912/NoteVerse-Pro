@@ -35,6 +35,42 @@ it.each([44100, 48000] as const)('%i: mismatched worker and direct-publication p
 });
 
 it.each([
+  { reason: 'below qualified range', patch: { midiPitch: 20, pitch: pianoMidiPitchToName(20) } },
+  { reason: 'above qualified range', patch: { midiPitch: 109, pitch: pianoMidiPitchToName(109) } },
+  { reason: 'noninteger MIDI', patch: { midiPitch: 60.5 } },
+  { reason: 'malformed observation ID', patch: { observationId: 'forged-alias' } },
+  { reason: 'negative source coordinate', patch: { sourceEventSample: -1 } },
+  { reason: 'nonfinite source coordinate', patch: { sourceEventSample: NaN } },
+  { reason: 'wrong affine source coordinate', patch: { sourceEventSample: 60001 } },
+  { reason: 'negative confidence', patch: { confidence: -.01 } },
+  { reason: 'confidence above one', patch: { confidence: 1.01 } },
+  { reason: 'nonfinite confidence', patch: { confidence: NaN } },
+])('direct sequence retains fail-closed observation defense: $reason', ({ patch }) => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const valid = sourcePublication('source', 48000, 0, window, { events: [{ midiPitch: 60, pitch: 'C4',
+    targetSample: 20000, confidence: .8, onsetScore: .9, frameScore: .8 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 0);
+  const forged = { ...valid, observations: [{ ...valid.observations[0], ...patch }] }, before = structuredClone(forged);
+  const sequence = new SourcePublicationSequence('source', 48000);
+  expect(() => sequence.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+  expect(forged).toEqual(before);
+  expect(() => sequence.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+});
+
+it('direct sequence still rejects duplicate IDs and half-open ownership violations without accepting a stream', () => {
+  const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
+  const valid = sourcePublication('source', 48000, 0, window, { events: [{ midiPitch: 60, pitch: 'C4', targetSample: 20000,
+    confidence: .8, onsetScore: .9, frameScore: .8 }], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 0);
+  const duplicate = new SourcePublicationSequence('source', 48000);
+  expect(() => duplicate.accept({ ...valid, observations: [valid.observations[0], valid.observations[0]] })).toThrow('DUPLICATE_ACOUSTIC_OBSERVATION');
+  expect(() => duplicate.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+  const endpoint = window.ownedEndTarget, outside = { ...valid.observations[0], targetSample: endpoint,
+    sourceEventSample: endpoint * 3, observationId: sourceObservationId('source', window, 60, endpoint) };
+  const ownership = new SourcePublicationSequence('source', 48000);
+  expect(() => ownership.accept({ ...valid, observations: [outside] })).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
+  expect(() => ownership.accept(valid)).toThrow('ACOUSTIC_PUBLICATION_STREAM_FAILED');
+});
+
+it.each([
   { label: 'empty', value: '', valid: false },
   { label: 'one code unit', value: 'a', valid: true },
   { label: '192 code units', value: 'a'.repeat(192), valid: true },

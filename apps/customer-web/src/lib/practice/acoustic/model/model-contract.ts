@@ -3,7 +3,7 @@ import sourceIdentities from '../source/source-adapter-identities.json';
 
 export const ACOUSTIC_MODEL = Object.freeze({
   identityName: 'practice-acoustic-robust-browser@v1',
-  identitySha256: 'cdccee4137834abacc7ec573fdbc40ae61be32adc9cea6e0124adb14ba09e496',
+  identitySha256: '55035819bf38bce2aad09ed7f9cbbcab4c7ea342c41fd39d1d574e0bfc06f533',
   modelSha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
   modelBytes: 98689283, ortVersion: '1.20.1', provider: 'webgpu', automaticFallback: false,
   inputSamples: 29120, sampleRateHz: 16000, inputMs: 1820,

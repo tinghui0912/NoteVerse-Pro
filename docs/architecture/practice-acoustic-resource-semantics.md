@@ -246,7 +246,37 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
-### Round52 — dense own-entry evidence, unchanged raw128 work admission
+### Round53 — delete the implied acoustic grammar check, preserve exact identity
+
+SourcePublicationSequence now relies on its existing integer21..108 and exact
+pianoMidiPitchToName equality without the later regex. The helper's twelve sharp/
+natural names plus single-digit octave0..8 produce88 distinct A0..C8 strings, all
+satisfying the deleted grammar. Hence the old condition was implied, with no
+independent rejection after canonical identity. Tests characterize all88 through
+the actual helper and retain the old regex locally only as historical proof.
+No production helper/table/grammar is added, moved or duplicated.
+
+The accepted qualified publication set is equivalent. Existing direct/worker
+mismatch errors remain ACOUSTIC_PUBLICATION_OBSERVATION_INVALID and
+ACOUSTIC_EVENT_IDENTITY_MISMATCH; range/integer/coordinates/confidence/ID/duplicate/
+ownership/sequence defenses and fail-before-summary ordering remain unchanged.
+All88 direct observations retain values/order/IDs at both rates; STEP's historical
+280-spelling forgery is still rejected upstream. No canonicalization or repair.
+
+Only publicationSource selected bytes/SHA change, then core/model-contract current
+SHA and both adapter core references/composites advance mechanically. Executor,
+decoder, planner, source-adapter implementation, model and FIR identities remain.
+No STEP production change or v11 bump: schema8/runtime v10, Round51 comparison,
+Round52 dense validation, D280/raw128, artifact admission and Result6/provenance shape
+stay unchanged. No resource/timing/calibration/recognition parameter is changed.
+
+The completed grammar cleanup leaves Future DERIVE **None**. T15 stays primary
+resource-safety for unqualified raw128; only remaining domain-language/raw-work policy
+stays DELETE/REDESIGN and raw128 QUALIFY. All93 rows/class counts and S17/R01/R03/R04/
+S09/S10/S15 states remain unchanged. This proves a current structural implication,
+not learner, device, memory-headroom or recognition qualification.
+
+### Round52 — historical dense own-entry evidence correction
 
 The [domain companion](practice-step-domain-pitch-contract.md) records a narrow
 direct-array shape correction. completeAttempt checks every index after its existing

@@ -1,4 +1,4 @@
-# STEP Domain Pitch Language and Raw-Work Contract — Round50 Audit / Round51–52 Corrections
+# STEP Domain Pitch Language and Raw-Work Contract
 
 Approved baseline: `eb2fa7ad1513de3e3f44f9adb6dda6445cdc2c51` on
 `refactor/practice-foundation-v2`. Round50 changed documentation only; the historical
@@ -8,7 +8,55 @@ The [T15 source audit](practice-step-pitch-evidence-bounds.md) records resolved
 MIDI/acoustic identity boundaries. This companion addresses the remaining domain,
 artifact compatibility and raw128 questions without assuming a new canonical universe.
 
-## Round52 current state — dense own-index evidence, runtime v10 / schema8
+## Round53 current state — redundant acoustic grammar deleted, qualified admission equivalent
+
+From approved HEAD `e6864c6486950d23c38a3f4d87890051b8860e50`, the only acoustic
+behavior-source edit deletes SourcePublicationSequence's regex after canonical pair
+equality. Integer/range21..108 and pitch===pianoMidiPitchToName(midiPitch) remain in
+the same order, as do every coordinate/confidence/ID/duplicate/sequence check and
+error. sourcePublication producer validation and the decoder helper are byte-unchanged.
+The separate STEP domain regex is unchanged; no replacement grammar is introduced.
+
+For each integer21..108, modulo12 selects one of the existing twelve unique natural/
+sharp names, while floor(midi/12)−1 is a single digit0..8. These concatenations all
+satisfy the deleted regex. Distinct pitch classes/octaves distinguish all88 inputs;
+21→A0 and108→C8. Thus integer range plus exact mapping equality implies the old
+regex. It had no independent rejection on qualified primitive-string observations;
+deleting it neither widens nor narrows that accepted set. Exhaustive actual-helper
+tests retain the old regex only as a local historical equivalence witness, not a
+second production owner. This is a finite construction proof, not qualification.
+
+All88 direct observations still accept at44100/48000, preserving values/order/IDs.
+60/E4 direct mismatches retain ACOUSTIC_PUBLICATION_OBSERVATION_INVALID; worker
+mismatches retain ACOUSTIC_EVENT_IDENTITY_MISMATCH. The historical280-spelling
+forgery stays blocked before STEP retention. Publication errors remain fail-closed
+before accepted summary advancement; no caller data is repaired. Invalid MIDI range/
+integer, IDs/source coordinates/confidence, duplicates and ownership/sequence errors
+remain covered independently of grammar.
+
+Only selected publicationSource bytes/SHA change (CRLF→LF-only text normalization),
+then canonical core, current model-contract core SHA and both adapter core references/
+composite hashes advance mechanically. Executor/decoder/planner/adapter implementation,
+model/FIR identities, STEP production code/schema8/runtime v10, D280/raw128, Round51
+comparison, Round52 dense validation, artifact/source behavior and Result6/provenance
+shape remain unchanged. No identity field, migration, dual acceptance or scope change.
+
+The completed acoustic regex item leaves Future DERIVE, now **None**. T15 source
+identities/comparison/dense shape and redundant grammar cleanup are resolved;
+domain-language/raw-work policy remains DELETE/REDESIGN and raw128 QUALIFY. Primary
+UNQUALIFIED_RESOURCE_SAFETY_POLICY and all93 row/class counts remain. S17 stays
+KEEP SINGLE OWNER/numeric unqualified; R01/R03/R04 and S09/S10/S15 are unchanged.
+References below to the still-present acoustic regex or its future cleanup describe
+their historical rounds and are superseded by this Round53 state.
+
+Round53 validation: focused337 tests/10 files; broader acoustic/STEP/Continuous1287/50;
+broader practice1719/90; full Customer Web2649/211 passed. Typecheck, lint0 warnings,
+architecture/dependency, identity/attestation and Result/schema/provenance guards
+pass. Docs guards11 plus structure/links, ledger/count/membership and diff checks
+pass. Independent normalized-source/canonical/composite verification agrees with
+the declarations and preserves all non-publication anchors. No hosted workflow rerun.
+
+## Round52 historical correction — dense own-index evidence, runtime v10 / schema8
 
 From approved HEAD `aea17c1e8e7e1634d637d3050487b8d1ac093f05`, completeAttempt replaces
 the hole-skipping some callback with an explicit indexed loop. After unchanged
@@ -265,22 +313,22 @@ D contains280 distinct strings and artifact targets can be larger/different. The
 policy, not a justified musical-universe limit. Why128 is an appropriate budget
 remains unqualified; neither source cardinality nor these synthetic probes answers it.
 
-## Acoustic post-mapping regex: proved redundant, still present
+## Acoustic post-mapping regex: historical redundancy proof, deleted in Round53
 
-This is the regex in SourcePublicationSequence, **not** the domain runtime regex.
+This was the regex in SourcePublicationSequence, **not** the domain runtime regex.
 Round49 first validates integer21..108 and requires exact equality to the decoder's
 pianoMidiPitchToName. Every output of that finite mapping is one of88 sharp/natural
 strings A0..C8, all within D. Therefore any observation reaching the later regex
 already necessarily passes it. Exhaustive actual-helper characterization confirms
 all88; the implication follows from the mapping construction, not from tests alone.
 
-The later regex has no independently reachable rejection or extra integrity
+The former later regex had no independently reachable rejection or extra integrity
 guarantee on the current qualified mapping. It repeats a grammar that could conflict
 with a future deliberate canonical-mapping change rather than validating that
-future contract. It is a narrow **future deletion/DERIVE cleanup** sub-item, with
-no replacement bound and no source-identity gap reopened. It remains unchanged in
-Round50. A future deletion must retain exact mapping checks, update selected
-publication attestation mechanically, and preserve the distinct domain regex.
+future contract. Round50 recorded a narrow future deletion/DERIVE cleanup, without
+a replacement bound or reopening source identity. Round53 implements only that
+deletion, retains exact mapping checks and the domain regex, and mechanically
+updates selected publication attestation/core/composites. The item is complete.
 
 ## Round50 candidate matrix and compatibility (historical alternatives)
 
@@ -322,14 +370,14 @@ source neutrality, full evidence and ownership. Existing normal source/target
 spellings have no separator, so their comparison outcomes stay the same. Round50
 changed no code/version; Round51 implements the correction and runtime advance above.
 
-The redundant acoustic regex deletion remains a separate proved future DERIVE
-sub-item, not a second Round51 recommendation. Domain-language tightening and
+At Round50, acoustic regex deletion was a separate proved future DERIVE sub-item,
+not a second Round51 recommendation. Round53 completes it. Domain-language tightening and
 numeric raw-work/target-work qualification remain undecided. T15 stays SOURCE
 IDENTITIES RESOLVED, DOMAIN UNRESOLVED in UNQUALIFIED_RESOURCE_SAFETY_POLICY;
 domain language/raw work stays DELETE/REDESIGN and raw128 stays QUALIFY;
 Round51 removes comparison and Round52 removes dense-array shape from that bucket.
-Future DERIVE is therefore **not empty**: it contains only this post-mapping acoustic
-regex cleanup. No primary row is added/reclassified:93 rows, structural24,
+Future DERIVE is now **None** after Round53; historical Round50–52 states had only
+this acoustic regex cleanup. No primary row is added/reclassified:93 rows, structural24,
 verified18, empirical2, algorithm19, resource11, diagnostic7, redundant12,
 semantic-unresolved0. S17/R01/R03/R04 are unchanged; S09/S10/S15 remain resolved.
 

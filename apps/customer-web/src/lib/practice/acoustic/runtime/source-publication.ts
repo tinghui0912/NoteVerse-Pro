@@ -75,7 +75,7 @@ export class SourcePublicationSequence {
           || !index(o.targetSample) || o.targetSample < w.ownedStartTarget || o.targetSample >= w.ownedEndTarget
           || o.sourceEventSample !== sourceEventSample(base, o.targetSample, this.rate)
           || !Number.isInteger(o.midiPitch) || o.midiPitch < 21 || o.midiPitch > 108
-          || o.pitch !== pianoMidiPitchToName(o.midiPitch) || !/^[A-G]#?-?\d$/.test(o.pitch)
+          || o.pitch !== pianoMidiPitchToName(o.midiPitch)
           || !Number.isFinite(o.confidence) || o.confidence < 0 || o.confidence > 1
           || o.observationId !== sourceObservationId(this.domain, w, o.midiPitch, o.targetSample)) fail('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
         if (ids.has(o.observationId)) fail('DUPLICATE_ACOUSTIC_OBSERVATION');

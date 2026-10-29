@@ -9,8 +9,8 @@
     "semantics": "Sequential source windows produce immutable all-pitch observations with source sample identity, half-open ownership and analyzed-through coverage. Source event time and publication availability use separate clocks. No score, target or verdict enters source analysis.",
     "publicationSource": {
       "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
-      "bytes": 8313,
-      "sha256": "a8099c5c15274e7e632aea57eca38eeada27dfb06934f9f1b729a1c0a675aa71"
+      "bytes": 8279,
+      "sha256": "6938e9409d2dd24abd5f4ed687c55e728360b7c3586935d118fb75cbf54c17b1"
     }
   },
   "decoder": {

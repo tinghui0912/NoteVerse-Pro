@@ -380,3 +380,25 @@ a source-integrity tightening, not recognition-model calibration: valid decoder
 spellings, thresholds, peak finding/timing, confidence and publication ordering stay
 the same. Result6/STEP8/step-exact-pitch-learning-v8/provenance shape remain unchanged;
 only existing evidence identity values advance, without a new identity/schema field.
+
+## Round53 implied publication grammar deletion and selected-byte drift
+
+Only source-publication.ts's post-canonical observation regex is removed. Existing
+integer21..108 plus exact decoder-owned pitch equality implies that regex over all88
+qualified names, so no admitted qualified publication changes and no new grammar
+owner replaces it. sourcePublication producer validation, decoder mapping, executor,
+planner and source-adapter implementation remain byte-unchanged. STEP production,
+schema8/runtime v10, domain D280/raw128/dense validation/structural comparison and
+artifact admission remain unchanged.
+
+Normalized publicationSource bytes/SHA (UTF-8, CRLF→LF only) are recalculated in the
+existing core JSON field, then canonical core/model-contract SHA and both adapter
+core references/composite hashes advance mechanically. No other core declaration
+field or selected anchor changes. Model asset/FIR coefficients/decoder/executor/
+planner/adapter implementation attestations retain their prior values. Independent
+verification reads the final committed blobs as well as canonical/composite JSON.
+This is selected-byte sensitivity to deleting implied code, not recognition-model
+calibration or a new semantic scope. Result remains schema6 with unchanged provenance
+keys; existing current-only identity validation remains, without dual acceptance,
+migration or a new identity field. Source event/availability clocks, immutable
+all-pitch evidence and half-open ownership are not altered.

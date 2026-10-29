@@ -7,7 +7,29 @@ Round45 audits branch `refactor/practice-foundation-v2` at approved baseline
 remain unchanged. It complements the [parameter ledger](practice-acoustic-parameter-provenance.md)
 and [resource semantics](practice-acoustic-resource-semantics.md).
 
-## Round52 dense evidence correction — source identities, comparison and sparse shape resolved
+## Round53 acoustic grammar cleanup — equivalent admission, no STEP behavior change
+
+The post-canonical SourcePublicationSequence regex is deleted. Integer21..108 and
+exact pianoMidiPitchToName equality already imply every accepted pitch is one of88
+natural/sharp A0..C8 strings, all satisfying the former grammar. The actual helper's
+finite88 outputs are characterized with a test-only historical regex witness;
+there is no replacement grammar or accepted-set change. All range/coordinate/ID/
+confidence/duplicate/sequence defenses and existing errors remain. Worker60/E4 and
+direct60/E4 still fail, and the historical280-spelling forgery remains blocked.
+
+Decoder, sourcePublication producer, executor and every STEP production file remain
+byte-unchanged; schema8/runtime step-exact-pitch-learning-v10, dense validation,
+structural comparison, D280/raw128 and artifact admission are untouched. Only selected
+publication source bytes mechanically advance core/composite identity values;
+Result6/provenance shape and model/FIR/planner/adapter identities do not change.
+T15 source identity/comparison/sparse shape and grammar cleanup are resolved,
+domain-language/raw-work policy remains unresolved in DELETE/REDESIGN with raw128
+QUALIFY. Future DERIVE is **None**; all93 primary classes/counts and S17/R01/R03/R04/
+S09/S10/S15 states remain unchanged. No recognition/device/timing qualification follows.
+The still-present/future-cleanup descriptions in historical sections below record
+their respective rounds; Round53's completed deletion supersedes that status.
+
+## Round52 historical dense evidence correction
 
 completeAttempt keeps raw128 admission before indexed reads, then explicitly checks
 every integer index using Object.hasOwn and the unchanged primitive-string/D280
