@@ -28,3 +28,16 @@ for (const rate of [44100, 48000] as const) it(`${rate}: shipped FIR matches the
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(golden.outputs[rate].sha256);
   }
 });
+
+for (const rate of [44100, 48000] as const) it(`${rate}: first fully-real output derives from the shipped FIR support`, async () => {
+  const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
+  const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
+  const taps = coefficients.byteLength / Float32Array.BYTES_PER_ELEMENT;
+  expect(taps).toBe(rate === 44100 ? 8821 : 61);
+  expect(adapter.center).toBe((taps - 1) / 2);
+  expect([adapter.center, adapter.down]).toEqual(rate === 44100 ? [4410, 441] : [30, 3]);
+  expect(adapter.firstFullyRealOutputIndex).toBe(Math.ceil(adapter.center / adapter.down));
+  expect(adapter.firstFullyRealOutputIndex).toBe(10); // Established current support boundary, not another owner.
+  expect((adapter.firstFullyRealOutputIndex - 1) * adapter.down).toBeLessThan(adapter.center);
+  expect(adapter.firstFullyRealOutputIndex * adapter.down).toBeGreaterThanOrEqual(adapter.center);
+});

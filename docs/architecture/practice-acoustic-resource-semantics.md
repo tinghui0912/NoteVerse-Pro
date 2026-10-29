@@ -246,6 +246,33 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round42 — S10 uses the FIR-owned usable origin boundary
+
+QualifiedSourceAdapter derives firstFullyRealOutputIndex as ceil(center/down),
+where center=(actual coefficient length−1)/2. The shipped44100 FIR has8821 taps:
+ceil(4410/441)=10. The shipped48000 FIR has61 taps:ceil(30/3)=10. This is the
+first target output whose FIR support no longer needs pre-stream samples, not an
+empirically optimal context or recognition/device/latency qualification.
+
+SourceAnalysisRuntime supplies that adapter boundary to AcousticPcmRing. The ring
+exposes firstUsable=max(minimumUsableTargetIndex,firstRetained); extract, region
+admission and preroll all consume that single relationship. No numeric origin
+constant, generic policy module or second rate-specific owner is introduced.
+The existing preroll source-delta expression and planWindow arithmetic remain
+unchanged. Both-rate tests exercise false immediately before and true exactly at
+the established preroll frontier, region admission at the rounded window-input
+frontier, real FIR extraction and the transition to wrap-retention ownership.
+These distinct predicates retain their existing frontiers; they are not collapsed
+into one new readiness policy. Partial-region, gap, publication and resource
+regressions remain applicable; FIR push/accumulation/emission code and seeded
+numerical golden fixtures are unchanged.
+
+S10 is KEEP DERIVED/SINGLE OWNER; future DERIVE contains S09/S15/T15 only.
+S09 ring128, S15 endpoint tolerance and T15 remain untouched. Selected source byte
+changes mechanically advance core/composite identities; model/FIR assets, window
+geometry, timing/resource policies and Result schema6/provenance shape do not change.
+All93 classifications/counts remain unchanged.
+
 ### Round41 — G03 full-window past is derived and checked
 
 The exact production audit found only the model-contract pastMs declaration and
@@ -256,7 +283,8 @@ The guard now derives fullWindowPastMs locally as inputMs−ownedMs−futureMs:
 human-readable ownership description with no independent numeric freedom; changing
 it alone fails identity assertion. This does not qualify1050 as an optimal
 learner/device context. No geometry, allocation, admission or smoke behavior changes.
-G03 is KEEP DERIVED/CHECKED; future DERIVE now contains S09/S10/S15/T15 only.
+G03 is KEEP DERIVED/CHECKED; at Round41 future DERIVE contained S09/S10/S15/T15
+(S10 is resolved by Round42 above).
 X02 stays derived, R12 resolved, and R05/T14 deleted. All93 primary classifications
 and counts remain unchanged.
 

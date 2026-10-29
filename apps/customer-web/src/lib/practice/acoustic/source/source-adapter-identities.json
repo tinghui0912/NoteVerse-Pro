@@ -1,7 +1,7 @@
 {
   "44100": {
     "identity": {
-      "acousticCoreIdentitySha256": "404da42e7bdb30c6c86e23265c3be1b0e3889a47a45157d37a3f722e6f20cfb3",
+      "acousticCoreIdentitySha256": "6da9306ee15c67ee43b9e03e303d9f0a46e009821fb79d1558e4c717d8da50e7",
       "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
       "down": 441,
       "realSourceLookaheadSamples": 28,
@@ -13,8 +13,8 @@
       "up": 160,
       "implementation": {
         "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
-        "bytes": 2653,
-        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+        "bytes": 2729,
+        "sha256": "8de1a49dbb1424d9a9f3ba07ab8667b1b79999e8d0d8655652adba81fe9db0d3"
       },
       "coefficients": {
         "path": "apps/customer-web/public/model-assets/practice-acoustic/fir-160-441.f32",
@@ -22,11 +22,11 @@
         "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
       }
     },
-    "identitySha256": "94e937adde9d50efd19edd274030b6e7548fab08391fb70621fd5fae3647e8e5"
+    "identitySha256": "c7d543ffbbbf8a3965cf2df202f352ce4eb3ea9d39f8971fb4d584f8c1bdc54f"
   },
   "48000": {
     "identity": {
-      "acousticCoreIdentitySha256": "404da42e7bdb30c6c86e23265c3be1b0e3889a47a45157d37a3f722e6f20cfb3",
+      "acousticCoreIdentitySha256": "6da9306ee15c67ee43b9e03e303d9f0a46e009821fb79d1558e4c717d8da50e7",
       "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
       "coefficients": {
         "bytes": 244,
@@ -48,8 +48,8 @@
       },
       "implementation": {
         "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
-        "bytes": 2653,
-        "sha256": "6f429d95a5f1b65308b890fa93ce04bdf2801bc6bcd2d32057540d02176d52d5"
+        "bytes": 2729,
+        "sha256": "8de1a49dbb1424d9a9f3ba07ab8667b1b79999e8d0d8655652adba81fe9db0d3"
       },
       "precision": "float32 input/coefficients/product/each accumulation",
       "realSourceLookaheadMs": 0.625,
@@ -62,6 +62,6 @@
       "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
       "up": 1
     },
-    "identitySha256": "5a1c6d4ab9308e2b423554b1abe233db9954d7988005d2f31558ab2e51d25b70"
+    "identitySha256": "02c4e3a900609980b75dbb856b3c8d902a6cdb74baf331a6774851d7d601d45a"
   }
 }

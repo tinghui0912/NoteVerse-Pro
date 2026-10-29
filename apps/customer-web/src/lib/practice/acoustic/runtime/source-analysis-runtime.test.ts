@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime } from './source-analysis-runtime';
 import { AcousticPcmRing, planWindow } from './window-planner';
+import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, sourceIdentity } from '../model/model-contract';
 import { ACOUSTIC_RESOURCES as R } from './resource-policy';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
@@ -57,6 +58,8 @@ for (const rate of [44100, 48000]) it(`${rate}: real producer delivers one conti
 
 it.each([44100, 48000] as const)('%i: nonzero source base and partial region use the model target-rate owner without shifting evidence', async rate => {
   const base = 12345, publications: SourceAcousticPublication[] = [];
+  const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
+  const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
   const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: 'nonzero-base', sourceSampleRateHz: rate,
     coefficientBytes: await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
     nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, worker: {
@@ -68,7 +71,7 @@ it.each([44100, 48000] as const)('%i: nonzero source base and partial region use
     await runtime.drain(); } };
   try {
     await feed(base + 128); expect(runtime.prerollReady).toBe(false);
-    const firstEligibleDelta = Math.ceil(((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS + 10) * rate / M.sampleRateHz);
+    const firstEligibleDelta = Math.ceil(((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS + adapter.firstFullyRealOutputIndex) * rate / M.sampleRateHz);
     await feed(base + firstEligibleDelta - 1); expect(runtime.prerollReady).toBe(false);
     await feed(base + firstEligibleDelta); expect(runtime.prerollReady).toBe(true);
     await feed(base + rate * 2 + 7); expect(runtime.prerollReady).toBe(true);
@@ -373,4 +376,74 @@ it('R02/R14 planned regions retire before inference; tailReady and pending drain
     expect(r.runtime.snapshot()).toMatchObject({ state: 'SEALED', outstanding: 0 });
     expect(r.runtime.hasRegionWork(region)).toBe(false); expect(r.publications).toHaveLength(1);
   } finally { r.release(); await r.runtime.dispose(); vi.useRealTimers(); }
+});
+
+it.each([44100, 48000] as const)('%i: real FIR PCM extraction shares the usable origin and wrap-retention boundary', async rate => {
+  const adapter = await QualifiedSourceAdapter.create(rate,
+    await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`));
+  const ring = new AcousticPcmRing(adapter.firstFullyRealOutputIndex);
+  const output = adapter.push(Float32Array.from({ length: rate * 2 }, (_, i) => (i % 31) / 32));
+  ring.append(output);
+  expect(ring.firstRetained).toBe(0);
+  expect(ring.firstUsable).toBe(adapter.firstFullyRealOutputIndex);
+  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.inputSamples))
+    .toThrow('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
+  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.inputSamples))
+    .toEqual(output.slice(ring.firstUsable, ring.firstUsable + M.inputSamples));
+  const tail = adapter.push(Float32Array.from({ length: rate * 4 }, (_, i) => (i % 17) / 32));
+  ring.append(tail);
+  const all = new Float32Array([...output, ...tail]);
+  expect(ring.firstRetained).toBeGreaterThan(adapter.firstFullyRealOutputIndex);
+  expect(ring.firstUsable).toBe(Math.max(adapter.firstFullyRealOutputIndex, ring.firstRetained));
+  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.inputSamples))
+    .toThrow('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
+  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.inputSamples))
+    .toEqual(all.slice(ring.firstUsable, ring.firstUsable + M.inputSamples));
+});
+
+it.each([44100, 48000] as const)('%i: region admission and real input extraction obey the adapter-owned usable boundary', async rate => {
+  const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
+  const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
+  const windowAt = (delta: number) => planWindow({ index: 0, sourceStart: delta,
+    originTarget: delta * M.sampleRateHz / rate, nextWindow: 0, queuedEndTarget: delta * M.sampleRateHz / rate }, 0)!;
+  let firstAdmitted = Math.floor((M.inputSamples - (M.ownedMs + M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS
+    + adapter.firstFullyRealOutputIndex) * rate / M.sampleRateHz);
+  while (windowAt(firstAdmitted).startSample < adapter.firstFullyRealOutputIndex) firstAdmitted++;
+  while (windowAt(firstAdmitted - 1).startSample >= adapter.firstFullyRealOutputIndex) firstAdmitted--;
+  expect(windowAt(firstAdmitted - 1).startSample).toBeLessThan(adapter.firstFullyRealOutputIndex);
+  expect(windowAt(firstAdmitted).startSample).toBe(adapter.firstFullyRealOutputIndex);
+  for (const eligible of [false, true]) {
+    const inputs: AcousticInferenceInput[] = [], publications: SourceAcousticPublication[] = [];
+    const runtime = await SourceAnalysisRuntime.create({ sourceDomainId: `real-origin-${eligible}`, sourceSampleRateHz: rate,
+      coefficientBytes: coefficients, nowAvailabilityRuntimeMs: () => 0, onPublication: p => { publications.push(p); }, worker: {
+        run: async input => { inputs.push(input); return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }; },
+        dispose: async () => {} } });
+    let next = 0;
+    const feed = async (end: number) => { while (next < end) { const start = next; next = Math.min(end, start + CAPTURE_TRANSPORT_BLOCK_SAMPLES);
+      runtime.append({ sourceSampleRateHz: rate, sourceStartSampleIndex: start, sourceEndSampleIndex: next, samples: new Float32Array(next - start) });
+      await runtime.drain(); } };
+    const extract = AcousticPcmRing.prototype.extract;
+    const checked = vi.spyOn(AcousticPcmRing.prototype, 'extract').mockImplementation(function (this: AcousticPcmRing, start, end) {
+      expect(this.firstUsable).toBe(Math.max(adapter.firstFullyRealOutputIndex, this.firstRetained));
+      expect(start).toBeGreaterThanOrEqual(this.firstUsable);
+      return extract.call(this, start, end);
+    });
+    try {
+      await feed(firstAdmitted - (eligible ? 0 : 1));
+      if (!eligible) {
+        expect(() => runtime.beginAnalysisRegion(next)).toThrow('ACOUSTIC_PREROLL_NOT_READY');
+        expect(runtime.snapshot()).toMatchObject({ state: 'FAILED', failureCode: 'ACOUSTIC_PREROLL_NOT_READY' });
+        expect(checked).not.toHaveBeenCalled(); expect(inputs).toEqual([]); expect(publications).toEqual([]);
+      } else {
+        expect(runtime.beginAnalysisRegion(next)).toBe(0);
+        await feed(firstAdmitted + rate * M.ownedMs / 1000); runtime.finishRegions();
+        const finalInputEnd = windowAt(firstAdmitted).endSample;
+        const requiredRealSourceEnd = Math.floor(((finalInputEnd - 1) * adapter.down + adapter.center) / adapter.up) + 1;
+        await feed(requiredRealSourceEnd); await runtime.seal();
+        expect(checked).toHaveBeenCalledTimes(1); expect(inputs).toHaveLength(1); expect(publications).toHaveLength(1);
+        expect(inputs[0].window.startSample).toBe(adapter.firstFullyRealOutputIndex);
+        expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, outstanding: 0, pendingRegions: 0 });
+      }
+    } finally { checked.mockRestore(); await runtime.dispose(); }
+  }
 });

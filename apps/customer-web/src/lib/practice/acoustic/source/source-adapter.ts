@@ -5,7 +5,7 @@ export class QualifiedSourceAdapter {
   private readonly ring = new Float32Array(128);
   private received = 0;
   private nextOutput = 0;
-  readonly firstFullyRealOutputIndex = 10;
+  readonly firstFullyRealOutputIndex: number;
   readonly identitySha256: string;
   readonly up: number;
   readonly down: number;
@@ -16,6 +16,7 @@ export class QualifiedSourceAdapter {
     this.up = rate === 44100 ? 160 : 1;
     this.down = rate === 44100 ? 441 : 3;
     this.center = (coefficients.length - 1) / 2;
+    this.firstFullyRealOutputIndex = Math.ceil(this.center / this.down);
   }
   static async create(rateHz: number, bytes: Uint8Array): Promise<QualifiedSourceAdapter> {
     const rate = sourceRate(rateHz), identity = sourceIdentity(rate);

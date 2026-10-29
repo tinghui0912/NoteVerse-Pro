@@ -19,7 +19,7 @@ type WindowDiagnostic = Readonly<{ jobIndex: number; regionIndex: number; ownedS
 /** Owns bounded source regions, not transport, score, or product completion. */
 export class SourceAnalysisRuntime {
   private state: 'PREROLL' | 'RUNNING' | 'IDLE' | 'DRAINING' | 'SEALED' | 'FAILED' | 'DISPOSED' = 'PREROLL';
-  private readonly ring = new AcousticPcmRing();
+  private readonly ring: AcousticPcmRing;
   private readonly regions: AnalysisRegion[] = [];
   private readonly diagnostics: WindowDiagnostic[] = [];
   private active: AnalysisRegion | null = null;
@@ -38,6 +38,7 @@ export class SourceAnalysisRuntime {
   private readonly counts = { windowsQueued: 0, windowsStarted: 0, windowsPublished: 0, observationsPublished: 0,
     peakOutstanding: 0, backpressureFailures: 0, regionsStarted: 0, regionsDrained: 0 };
   private constructor(private readonly options: SourceAnalysisOptions, private readonly adapter: QualifiedSourceAdapter) {
+    this.ring = new AcousticPcmRing(adapter.firstFullyRealOutputIndex);
     this.publications = new SourcePublicationSequence(options.sourceDomainId, adapter.rate);
     this.detachWorker = options.worker.onFailure?.(error => this.failAnalysis(error));
   }
@@ -68,7 +69,7 @@ export class SourceAnalysisRuntime {
       if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.active || sourceSampleIndex !== this.nextSource) fail('INVALID_ACOUSTIC_REGION_START');
       const originTarget = (sourceSampleIndex - this.base) * M.sampleRateHz / this.adapter.rate;
       const region: AnalysisRegion = { index: this.nextRegion++, sourceStart: sourceSampleIndex, originTarget, nextWindow: 0, queuedEndTarget: originTarget };
-      if (planWindow(region, this.counts.windowsQueued)!.startSample < Math.max(10, this.ring.firstRetained)) fail('ACOUSTIC_PREROLL_NOT_READY');
+      if (planWindow(region, this.counts.windowsQueued)!.startSample < this.ring.firstUsable) fail('ACOUSTIC_PREROLL_NOT_READY');
       this.regions.push(region); this.active = region; this.state = 'RUNNING'; this.counts.regionsStarted++;
       return region.index;
     } catch (error) { this.failAnalysis(error); throw error; }
@@ -98,7 +99,7 @@ export class SourceAnalysisRuntime {
   hasRegionWork(index: number): boolean { return this.regions.some(r => r.index === index) || this.queuedRegions.has(index); }
   get prerollReady(): boolean {
     if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.failure) return false;
-    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS >= Math.max(10, this.ring.firstRetained);
+    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS >= this.ring.firstUsable;
   }
   attachCaptureCleanup(cleanup: () => void): () => void {
     this.guard(); if (this.cleanup) fail('ACOUSTIC_CAPTURE_ALREADY_ATTACHED');

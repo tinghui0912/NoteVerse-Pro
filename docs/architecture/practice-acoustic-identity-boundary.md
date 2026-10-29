@@ -287,3 +287,21 @@ anchors unchanged. Core/adapter composite identities and Result provenance value
 therefore remain unchanged. No model-contract source attestation, new geometry
 identity, schema migration or provenance field is introduced; Result stays schema6
 with the same shape, and attestation scope stays unchanged.
+
+## Round42 FIR-derived origin boundary and mechanical attestation advance
+
+S10 centralizes an existing structural FIR-support relationship: the adapter
+computes ceil(center/down), currently10 at both supported rates, and supplies it
+to the PCM ring. Extraction, region admission and preroll consume the ring's
+single usable-retention boundary. This does not change FIR coefficients, float32
+accumulation/emission, source mapping, evidence/publication or geometry semantics.
+It makes no recognition/device/latency qualification claim.
+
+The existing selected source-adapter, executor and planner anchors change bytes.
+Their normalized UTF-8 attestations (CRLF→LF only) are recomputed; the adapter
+implementation attestation updates in the core and both adapter declarations.
+Canonical core and both composite digests then mechanically advance. Binary FIR
+assets and seeded numerical golden outputs remain exact and unchanged. No new
+identity anchor, origin-policy identity, field or scope is added; Result remains
+schema6 with the same provenance keys. This is selected-byte sensitivity, not a
+new semantic-equivalence or full-execution identity claim.

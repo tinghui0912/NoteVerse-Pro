@@ -23,12 +23,14 @@ export function planWindow(segment: AnalysisRegion, jobIndex: number): AcousticW
 export class AcousticPcmRing {
   private readonly pcm = new Float32Array(ACOUSTIC_RESOURCES.targetRingSamples);
   private end = 0;
+  constructor(private readonly minimumUsableTargetIndex: number) {}
   get length(): number { return this.end; }
   get firstRetained(): number { return Math.max(0, this.end - this.pcm.length); }
+  get firstUsable(): number { return Math.max(this.minimumUsableTargetIndex, this.firstRetained); }
   append(input: Float32Array): void { for (const value of input) this.pcm[this.end++ % this.pcm.length] = value; }
   extract(start: number, end: number): Float32Array {
     if (!Number.isInteger(start) || end - start !== ACOUSTIC_MODEL.inputSamples
-      || start < Math.max(10, this.firstRetained) || end > this.end) fail('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
+      || start < this.firstUsable || end > this.end) fail('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
     return Float32Array.from({ length: end - start }, (_, i) => this.pcm[(start + i) % this.pcm.length]);
   }
 }
