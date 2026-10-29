@@ -1,5 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { AcousticEngine } from './acoustic-engine';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from './model-contract';
+import { assertWindowGeometry } from './model-validation';
 import { workerRpcRig } from './__fixtures__/worker-rpc';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from './worker-liveness-policy';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
@@ -29,6 +31,39 @@ it('reuses one model load across smoke, STEP and Continuous leases with fresh jo
   expect(worker.run.mock.calls.every(call => call[1].window.jobIndex === 0)).toBe(true);
   expect(worker.endSession).toHaveBeenCalledTimes(3); expect(worker.dispose).not.toHaveBeenCalled();
   await engine.dispose(); expect(worker.dispose).toHaveBeenCalledOnce();
+});
+it('prepare derives one unchanged smoke input from model geometry, without planner or past declaration ownership', async () => {
+  const { engine, worker } = rig(), states: string[] = [], calls: string[] = [];
+  engine.subscribe(() => states.push(engine.snapshot().state));
+  worker.load.mockImplementation(async () => { calls.push('LOAD'); return {}; });
+  worker.beginSession.mockImplementation(async () => { calls.push('BEGIN_SESSION'); });
+  worker.run.mockImplementation(async (_token, smoke) => { calls.push('INFER'); assertWindowGeometry(smoke.window); return result; });
+  worker.endSession.mockImplementation(async () => { calls.push('END_SESSION'); });
+  try {
+    await engine.prepare('/verified-model');
+    expect(worker.run).toHaveBeenCalledOnce();
+    const [token, smoke] = worker.run.mock.calls[0];
+    const expectedEnd = M.inputSamples - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
+    const expectedStart = expectedEnd - M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
+    expect(smoke.pcm).toBeInstanceOf(Float32Array); expect(smoke.pcm).toHaveLength(M.inputSamples);
+    expect(smoke.pcm.every(sample => sample === 0)).toBe(true);
+    expect(smoke.window).toEqual({ jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: expectedStart,
+      ownedEndTarget: expectedEnd, startSample: 0, endSample: M.inputSamples });
+    expect(smoke.window.endSample - smoke.window.startSample).toBe(M.inputSamples);
+    expect(smoke.window.ownedEndTarget - smoke.window.ownedStartTarget).toBe(M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
+    expect(smoke.window.endSample - smoke.window.ownedEndTarget - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS).toBe(0);
+    expect([M.inputSamples, M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS, M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS,
+      smoke.window.ownedStartTarget, smoke.window.ownedEndTarget, smoke.window.startSample, smoke.window.endSample, smoke.pcm.length])
+      .toEqual([29120, 2720, 9600, 16800, 26400, 0, 29120, 29120]); // Secondary current characterization.
+    expect(worker.beginSession).toHaveBeenCalledExactlyOnceWith(token);
+    expect(worker.endSession).toHaveBeenCalledExactlyOnceWith(token);
+    expect(calls).toEqual(['LOAD', 'BEGIN_SESSION', 'INFER', 'END_SESSION']);
+    expect(states).toEqual(['PREPARING', 'READY_IDLE', 'LEASED', 'RETIRING', 'READY_IDLE']);
+    expect(engine.snapshot()).toEqual({ state: 'READY_IDLE', failure: null });
+    await engine.prepare('/verified-model'); // Warm prepare remains idempotent; no second smoke.
+    expect(worker.load).toHaveBeenCalledOnce(); expect(worker.run).toHaveBeenCalledOnce();
+  } finally { await engine.dispose(); }
+  expect(worker.dispose).toHaveBeenCalledOnce(); expect(engine.snapshot().state).toBe('DISPOSED');
 });
 it('retires outstanding inference before ending the lease and cannot leak its result into a new session', async () => {
   const { engine, worker } = rig(); await engine.prepare('/verified-model');

@@ -261,3 +261,13 @@ implementation and selected executor/publication/planner bytes stay unchanged, a
 do canonical core, adapter composites and model asset identity. No units constant,
 attestation scope expansion, conversion/runtime-policy identity or Result field is
 introduced. Result remains schema6 with the same provenance shape.
+
+## Round40 engine smoke derivation outside selected anchors
+
+Engine smoke PCM/window geometry derives locally from existing inputSamples,
+futureMs,ownedMs and target samples/ms, preserving its exact values and validation.
+Production implementation changes in acoustic-engine.ts, which is not a selected
+evidence-core byte anchor. No selected source/declaration changes, so executor,
+publication,planner/core/composite/model identities remain unchanged. No planner
+import, pastMs ownership, engine-source attestation or new geometry identity is
+introduced. Identity scope and Result schema6/provenance shape are unchanged.

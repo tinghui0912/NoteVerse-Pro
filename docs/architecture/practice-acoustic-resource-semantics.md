@@ -246,6 +246,31 @@ qualification: source-clock/ADC accuracy and browser scheduling retain their own
 evidence requirements. No selected source/declaration, core/composite identity,
 Result schema6 or provenance shape changes.
 
+### Round40 — X02 smoke geometry follows the model contract
+
+The sole production engine smoke fixture now uses PCM length/endSample=inputSamples,
+ownedEnd=inputSamples−futureMs×ACOUSTIC_TARGET_SAMPLES_PER_MS, then
+ownedStart=ownedEnd−ownedMs×ACOUSTIC_TARGET_SAMPLES_PER_MS. These are local derived
+variables in AcousticEngine.prepare, not shared constants or a new geometry owner.
+The model layer imports only its existing model-contract authority; no runtime
+planner dependency/helper and no pastMs read is added. G03 remains untouched.
+
+Current values stay input/PCM29120, future2720, owned width9600, ownedEnd26400,
+ownedStart16800, startSample0 and endSample29120. Future endpoint residual is exactly
+zero, not merely within worker-validation tolerance. A real prepare regression
+captures the worker input, validates it with assertWindowGeometry, and checks one
+LOAD→BEGIN_SESSION→INFER→END_SESSION, the unchanged state sequence, and no second
+smoke on warm prepare. Existing lease, crash, cancellation, retirement and RPC
+silence regressions remain. The ordinary-lease input at the top of acoustic-engine
+tests is an independent valid-input fixture, intentionally retained rather than
+mechanically eliminating test literals.
+
+X02 KEEP DERIVED; smoke compatibility is not real-audio qualification. Production
+implementation changes, but runtime/product admission, smoke worker geometry,
+inference count and lifecycle do not. Engine source is outside the selected byte
+anchors: executor/publication/planner/core/composites and Result schema6/provenance
+shape stay unchanged, without an engine-source identity or scope expansion.
+
 ### Round33 — R07 source block maximum is derived from R06
 
 R06's `CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048` is the numeric format authority,

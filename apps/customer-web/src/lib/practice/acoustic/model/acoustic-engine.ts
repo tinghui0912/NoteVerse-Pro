@@ -1,4 +1,5 @@
 import { createAcousticModelWorker, type AcousticModelWorker } from './worker-client';
+import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from './model-contract';
 import type { AcousticInferenceInput, AcousticInferencePort } from '../runtime/inference-types';
 import type { ModelAssetProgressCallback } from '../../../model-assets/types';
 
@@ -43,8 +44,10 @@ export class AcousticEngine {
         this.state = 'READY_IDLE';
         const smoke = await this.acquire();
         try {
-          await smoke.run({ pcm: new Float32Array(29120), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
-            ownedStartTarget: 16800, ownedEndTarget: 26400, startSample: 0, endSample: 29120 } });
+          const smokeOwnedEndTarget = M.inputSamples - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
+          const smokeOwnedStartTarget = smokeOwnedEndTarget - M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
+          await smoke.run({ pcm: new Float32Array(M.inputSamples), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
+            ownedStartTarget: smokeOwnedStartTarget, ownedEndTarget: smokeOwnedEndTarget, startSample: 0, endSample: M.inputSamples } });
         } finally { await smoke.dispose(); }
       } catch (error) { this.fail(error); throw error; }
     })();
