@@ -1,3 +1,4 @@
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { ContinuousPracticeSession } from './domain/practice-session';
@@ -54,7 +55,7 @@ class Recorder {
   requestData() { this.ondataavailable?.({ data: new Blob(['recording']) }); }
   stop() { this.state = 'inactive'; this.onstop?.(); }
 }
-function environment(rate = 48000, root = stream(), blockSamples = 128) {
+function environment(rate = 48000, root = stream(), blockSamples = 128, recordingRoot = root.media) {
   const clock = new ManualClock(0);
   let frame = 0, sequence = 0, bridge: ContinuousCaptureBridge | undefined, captureStopped = false;
   let fail: ((error: Error) => void) | undefined;
@@ -84,7 +85,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128) {
     },
     createMidi: vi.fn(options => { midiOptions = options; return { start: async () => {}, dispose: vi.fn(),
       getState: () => ({ connectedInputCount: 1, isRunning: true, isSupported: true, hasPermission: true }) }; }),
-    createRecorder: mode => new PerformanceRecorder(mode), createMetronome: vi.fn(() => meter),
+    createRecorder: vi.fn(mode => new PerformanceRecorder(mode)), createMetronome: vi.fn(() => meter),
   };
   let controller: ContinuousPracticeController | undefined;
   async function feed(ms: number) {
@@ -104,7 +105,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128) {
     const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
       ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
     };
-    controller = new ContinuousPracticeController({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
+    controller = new ContinuousPracticeController({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
     return controller;
   }
   return { create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
@@ -119,6 +120,32 @@ beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers
   }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
+  it.each([
+    ['MICROPHONE', 'AUDIO', 'inputMicrophone'],
+    ['MICROPHONE', 'VIDEO', 'inputMicrophone'],
+    ['MIDI', 'AUDIO', 'recordingMicrophone'],
+    ['MIDI', 'VIDEO', 'recordingMicrophone'],
+  ] as const)('%s %s binds recorder and analysis to the planned roots', async (inputSource, mode, audioRoot) => {
+    const input = stream(), recording = stream(), camera = stream(true);
+    const f = environment(48000, input, 128, recording.media);
+    const prepare = vi.spyOn(PerformanceRecorder.prototype, 'prepare');
+    const controller = f.create(inputSource, 0, mode, vi.fn(), camera.media);
+    try {
+      await controller.start(); expect(controller.snapshot().session).toBe('ACTIVE');
+      expect(f.platform.createRecorder).toHaveBeenCalledExactlyOnceWith(mode);
+      expect(prepare).toHaveBeenCalledExactlyOnceWith({
+        audioRoot: audioRoot === 'inputMicrophone' ? input.media : recording.media,
+        cameraStream: mode === 'VIDEO' ? camera.media : null,
+      });
+      expect(f.platform.acquireInference).toHaveBeenCalledTimes(inputSource === 'MICROPHONE' ? 1 : 0);
+      expect(f.platform.createAudioContext).toHaveBeenCalledTimes(inputSource === 'MICROPHONE' ? 1 : 0);
+      if (inputSource === 'MICROPHONE') {
+        expect(f.root).toBe(input); expect(recording.copies).toHaveLength(0);
+      } else {
+        expect(f.platform.createMidi).toHaveBeenCalledOnce(); expect(input.copies).toHaveLength(0);
+      }
+    } finally { await controller.dispose(); prepare.mockRestore(); }
+  });
   it('live metronome control preserves the executed scope, tempo, owner and transport', async () => {
     const f = environment(), controller = f.create('MIDI');
     const resolveScope = vi.spyOn(scopeContract, 'resolvePracticeScope');
@@ -869,7 +896,7 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
   const workspace = new PracticeEnvironment(platform), prepare = vi.spyOn(workspace, 'requalify');
   await workspace.requalify(['acousticEngine', 'browserAudio', 'microphone', 'audioRecording']);
   const sharedRoot = stream(), acquire = vi.fn(async () => sharedRoot.media);
-  const devices = new PracticeDeviceLease({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'AUDIO' }, { acquireStream: acquire, acquireMidi: vi.fn() });
+  const devices = new PracticeDeviceLease(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'AUDIO' }), { acquireStream: acquire, acquireMidi: vi.fn() });
   await devices.open();
   const ids = new Set<string>(), sessions = new Set<unknown>(), recorders = new Set<unknown>(), leases = new Set<unknown>(), contexts = new Set<unknown>();
   for (const natural of [false, false, true, true]) {

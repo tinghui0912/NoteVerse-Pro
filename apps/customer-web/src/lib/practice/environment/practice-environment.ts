@@ -1,7 +1,7 @@
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { getPracticeAcousticModelAccess } from '@/lib/api/practice-acoustic-model-asset';
-import { requirementFingerprint, type PracticeRequirement } from '@/lib/practice/readiness/requirements';
+import { qualificationFingerprint, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
 import { unconfiguredReadiness, type PracticeReadiness } from '@/lib/practice/readiness/readiness-state';
 import { probePracticeRequirements } from './browser-readiness-probes';
 
@@ -27,19 +27,19 @@ export class PracticeEnvironment {
   constructor(private readonly platform: EnvironmentPlatform = browserPlatform) {}
   snapshot = (): PracticeReadiness => this.readiness;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  matches(requirements: readonly PracticeRequirement[]): boolean {
-    return this.readiness.status === 'READY' && this.readiness.fingerprint === requirementFingerprint(requirements)
+  matches(requirements: readonly PracticeQualificationRequirement[]): boolean {
+    return this.readiness.status === 'READY' && this.readiness.fingerprint === qualificationFingerprint(requirements)
       && (!requirements.includes('acousticEngine') || this.engine?.snapshot().state === 'READY_IDLE');
   }
   /** Explicit qualification always rechecks external requirements; a healthy warm engine is reused. */
-  requalify(requirements: readonly PracticeRequirement[]): Promise<void> {
+  requalify(requirements: readonly PracticeQualificationRequirement[]): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_DISPOSED'));
     if (this.pending) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_BUSY'));
     const epoch = ++this.epoch, abort = new AbortController(); this.abort = abort;
-    const fingerprint = requirementFingerprint(requirements);
+    const fingerprint = qualificationFingerprint(requirements);
     this.update({ status: 'CHECKING', fingerprint, components: Object.fromEntries(requirements.map(key => [key, 'CHECKING'])), reason: null, progress: null });
     const check = () => { if (abort.signal.aborted || this.disposed || epoch !== this.epoch) throw new Error('PRACTICE_PREPARATION_CANCELLED'); };
-    const ready = (key: PracticeRequirement) => {
+    const ready = (key: PracticeQualificationRequirement) => {
       check(); this.update({ ...this.readiness, components: { ...this.readiness.components, [key]: 'READY' } });
     };
     this.pending = (async () => {

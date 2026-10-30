@@ -1,11 +1,11 @@
 import { browserMicrophoneCapture } from '@/lib/practice/acoustic/source/browser-microphone-platform';
 import { QualifiedSourceAdapter } from '@/lib/practice/acoustic/source/source-adapter';
 import { probeRecording } from '@/lib/practice/recording/recorder-capability';
-import type { PracticeRequirement } from '@/lib/practice/readiness/requirements';
+import type { PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
 
-export async function probePracticeRequirements(requirements: readonly PracticeRequirement[],
-  ready: (requirement: PracticeRequirement) => void, signal: AbortSignal): Promise<void> {
-  const needs = (requirement: PracticeRequirement) => requirements.includes(requirement);
+export async function probePracticeRequirements(requirements: readonly PracticeQualificationRequirement[],
+  ready: (requirement: PracticeQualificationRequirement) => void, signal: AbortSignal): Promise<void> {
+  const needs = (requirement: PracticeQualificationRequirement) => requirements.includes(requirement);
   const check = () => { if (signal.aborted) throw new Error('PRACTICE_PREPARATION_CANCELLED'); };
   let microphone: MediaStream | null = null, camera: MediaStream | null = null;
   let context: AudioContext | null = null, capture: { stop(): void } | null = null;

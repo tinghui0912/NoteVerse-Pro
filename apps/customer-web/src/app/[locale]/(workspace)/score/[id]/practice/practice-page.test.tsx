@@ -1,3 +1,5 @@
+import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 // @vitest-environment jsdom
 import { Suspense } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -20,7 +22,8 @@ const fake = vi.hoisted(() => {
     profile: { mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } },
     scope: { kind: 'FULL' }, tempoSelection: { mode: 'SCORE' }, metronomeEnabled: false,
     setScope: vi.fn(), setTempoSelection: vi.fn(), setMetronomeEnabled: vi.fn(), updateProfile: vi.fn(),
-    get configuration() { return { mode: workspace.profile.mode, inputSource: workspace.profile.inputSource, recordingMode: workspace.profile.mode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode, liveFeedbackEnabled: workspace.profile.continuous.liveFeedbackEnabled }; },
+    get resourcePlan() { return this.configuration ? planPracticeResources(this.configuration) : null; },
+    get configuration() { return { mode: workspace.profile.mode, inputSource: workspace.profile.inputSource, recordingMode: workspace.profile.mode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode, liveFeedbackEnabled: workspace.profile.continuous.liveFeedbackEnabled } as PracticeConfiguration; },
     environment: { invalidate: vi.fn(), acquireInference: vi.fn() } };
   return { invalidScore: false, leaseEnabled: vi.fn(), localOptions: vi.fn(), local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
     device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), observe: vi.fn() },

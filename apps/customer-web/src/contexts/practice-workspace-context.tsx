@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { emptyPracticePreferences, resolvePracticeConfiguration, type PracticePreferenceProfile } from '@/lib/practice/configuration/preferences';
 import { readPracticePreferences, writePracticePreferences } from '@/lib/practice/configuration/preference-storage';
-import { resolvePracticeRequirements } from '@/lib/practice/readiness/requirements';
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { unconfiguredReadiness } from '@/lib/practice/readiness/readiness-state';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
@@ -36,11 +36,11 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   }, []);
   const resolution = useMemo(() => resolvePracticeConfiguration(profile), [profile]);
   const configuration = resolution.status === 'COMPLETE' ? resolution.configuration : null;
-  const requirements = useMemo(() => configuration ? resolvePracticeRequirements(configuration) : null, [configuration]);
+  const resourcePlan = useMemo(() => configuration ? planPracticeResources(configuration) : null, [configuration]);
   const readiness = useSyncExternalStore(environment.subscribe, environment.snapshot, () => unconfiguredReadiness);
-  const ready = hydrated && requirements !== null && environment.matches(requirements);
-  const requalify = useCallback(async () => { if (requirements) await environment.requalify(requirements); }, [environment, requirements]);
-  return { profile, updateProfile, hydrated, configuration, resolution, requirements, readiness, ready, requalify, environment,
+  const ready = hydrated && resourcePlan !== null && environment.matches(resourcePlan.qualification);
+  const requalify = useCallback(async () => { if (resourcePlan) await environment.requalify(resourcePlan.qualification); }, [environment, resourcePlan]);
+  return { profile, updateProfile, hydrated, configuration, resolution, resourcePlan, readiness, ready, requalify, environment,
     scope, setScope, tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled };
 }
 const Workspace = createContext<ReturnType<typeof useWorkspaceState> | null>(null);

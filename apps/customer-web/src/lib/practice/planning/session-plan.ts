@@ -1,9 +1,11 @@
+import { planPracticeResources, type PracticeResourcePlan } from './resource-plan';
 import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeTempoPlan, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { PracticeExecutionIntent } from './execution-intent';
 
 type PlannedTruth = Readonly<{
+  resources: PracticeResourcePlan;
   sourceId: string;
   artifact: PracticeScoreArtifact;
   inputSource: PracticeExecutionIntent['inputSource'];
@@ -30,11 +32,8 @@ export function createPracticeSessionPlanner() {
   ): PracticeSessionPlan {
     if (typeof source.sourceId !== 'string' || !source.sourceId) throw new Error('Practice source identity required.');
     assertPracticeScoreArtifact(source.artifact);
-    if (!intent || !['STEP_BY_STEP', 'CONTINUOUS_PLAY'].includes(intent.mode)
-      || !['MIDI', 'MICROPHONE'].includes(intent.inputSource)
-      || !['OFF', 'AUDIO', 'VIDEO'].includes(intent.recordingMode)
-      || (intent.mode === 'STEP_BY_STEP' && intent.recordingMode !== 'OFF')
-      || typeof intent.metronomeEnabled !== 'boolean'
+    const resources = planPracticeResources(intent);
+    if (typeof intent.metronomeEnabled !== 'boolean'
       || !intent.scope || !['FULL', 'RANGE'].includes(intent.scope.kind)
       || !intent.tempoSelection || !['SCORE', 'CUSTOM_FIXED_BPM'].includes(intent.tempoSelection.mode)) {
       throw new Error('Invalid Practice execution intent.');
@@ -46,7 +45,7 @@ export function createPracticeSessionPlanner() {
       const tempoPlan = freezeValue(resolvePracticeTempoPlan(source.artifact, { ...intent.tempoSelection }));
       current = { key, artifact: freezeValue(source.artifact), scope, tempoPlan };
     }
-    const truth = { sourceId: source.sourceId, artifact: current.artifact, inputSource: intent.inputSource,
+    const truth = { resources, sourceId: source.sourceId, artifact: current.artifact, inputSource: intent.inputSource,
       scope: current.scope, tempoPlan: current.tempoPlan, metronomeInitiallyEnabled: intent.metronomeEnabled };
     return intent.mode === 'STEP_BY_STEP'
       ? Object.freeze({ ...truth, mode: 'STEP_BY_STEP', recordingMode: 'OFF' })

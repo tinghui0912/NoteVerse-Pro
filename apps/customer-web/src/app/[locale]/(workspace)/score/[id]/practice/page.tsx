@@ -22,7 +22,6 @@ import { AnalysisInterruptionDialog } from '@/components/practice/analysis-inter
 import { ResourceInterruptionDialog } from '@/components/practice/resource-interruption-dialog';
 import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeDeviceStatusPopover } from '@/components/practice/practice-device-status-popover';
-import { practiceDeviceRequirements } from '@/lib/practice/device/device-contract';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
@@ -134,8 +133,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
-  const device = usePracticeDeviceLease({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' }, Boolean(artifact) && workspace.ready);
-  const requiredDevices = practiceDeviceRequirements({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' });
+  const device = usePracticeDeviceLease(workspace.resourcePlan, Boolean(artifact) && workspace.ready);
+  const requiredDevices = workspace.resourcePlan?.liveRoots ?? [];
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
   const stepAutoArm = useRef<string | null>(null);
@@ -225,8 +224,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   }, [workspace.ready, workspace.readiness.status, isActive, isCompletionDialogOpen, router, id, selectedRevisionId]);
   const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
   const selectedInputCapability = useMemo(
-    () => getSelectedInputCapability(inputSource, inputCapabilities, practiceMode),
-    [inputCapabilities, inputSource, practiceMode]
+    () => workspace.resourcePlan ? getSelectedInputCapability(workspace.resourcePlan, inputCapabilities) : undefined,
+    [inputCapabilities, workspace.resourcePlan]
   );
 
 
@@ -271,7 +270,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       isPreparingSession: localPractice.inputState === 'STARTING' || !device.snapshot || device.snapshot.state === 'OPENING',
       canPrepareSession: canPreparePractice,
       selectedInputCapability,
-      selectedInputSupported: selectedInputCapability.supported,
+      selectedInputSupported: selectedInputCapability?.supported,
       rangeSelectionActive: range.rangeSelectionActive,
       canSelectRange: isStepMode ? !stepBusy : !isActive,
       tempoSelection,

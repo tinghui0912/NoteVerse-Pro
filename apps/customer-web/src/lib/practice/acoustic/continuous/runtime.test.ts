@@ -97,8 +97,7 @@ it('binds the exact acoustic core, source identities and finite resource ceiling
     expect(await sha256(new TextEncoder().encode(canonicalJson(identity.identity)))).toBe(identity.identitySha256);
   }
   expect(ACOUSTIC_RESOURCES.maxOutstandingWindows).toBe(4);
-  expect(evaluatePracticeInputCapabilities().acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
-  expect(evaluatePracticeInputCapabilities().acousticAnalysis.step.status).toBe('BROWSER_UNSUPPORTED');
+  expect(evaluatePracticeInputCapabilities().acousticAnalysis.status).toBe('BROWSER_UNSUPPORTED');
 });
 
 for (const rate of [44100, 48000]) it(`${rate}: PCM/window/source parity, half-open ownership and exact terminal coverage`, async () => {

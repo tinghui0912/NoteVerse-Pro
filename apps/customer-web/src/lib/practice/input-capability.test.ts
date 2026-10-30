@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import { planPracticeResources } from './planning/resource-plan';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   evaluatePracticeInputCapabilities,
   getSelectedInputCapability,
-  isInputSourceSupported,
 } from './input-capability';
 
 describe('evaluatePracticeInputCapabilities', () => {
@@ -67,32 +67,31 @@ describe('evaluatePracticeInputCapabilities', () => {
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphoneCapture.supported).toBe(true);
     expect(caps.microphoneCapture.status).toBe('AVAILABLE');
-    expect(caps.acousticAnalysis.step.status).toBe('AVAILABLE');
-    expect(caps.acousticAnalysis.continuous.status).toBe('AVAILABLE');
+    expect(caps.acousticAnalysis.status).toBe('AVAILABLE');
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
-    expect(getSelectedInputCapability('MIDI', caps, 'STEP_BY_STEP').status).toBe('AVAILABLE');
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).status).toBe('AVAILABLE');
   });
 
   it('enables STEP microphone through the integrated controller on a full acoustic runtime', () => {
     const caps = evaluatePracticeInputCapabilities();
 
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps)).toMatchObject({
       supported: true,
       status: 'AVAILABLE',
     });
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(true);
   });
 
   it('enables Continuous microphone with the full acoustic runtime while leaving MIDI independent', () => {
     const caps = evaluatePracticeInputCapabilities();
 
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toMatchObject({
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps)).toMatchObject({
       supported: true,
       status: 'AVAILABLE',
     });
-    expect(isInputSourceSupported('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toBe(true);
-    expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(true);
   });
 
   it('does not make model access a browser microphone capture prerequisite', () => {
@@ -103,9 +102,9 @@ describe('evaluatePracticeInputCapabilities', () => {
     // MIDI remains independent of microphone model access.
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
-    expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(true);
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
-    expect(isInputSourceSupported('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(true);
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(navigator.storage.getDirectory).not.toHaveBeenCalled();
     expect(crypto.subtle.digest).not.toHaveBeenCalled();
@@ -123,8 +122,8 @@ describe('evaluatePracticeInputCapabilities', () => {
 
     // MIDI is independent of OPFS
     expect(caps.midi.supported).toBe(true);
-    expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(true);
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY').status).toBe('BROWSER_UNSUPPORTED');
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).status).toBe('BROWSER_UNSUPPORTED');
   });
 
   it('reports BROWSER_UNSUPPORTED when AudioWorklet is missing, but MIDI remains AVAILABLE', () => {
@@ -132,7 +131,7 @@ describe('evaluatePracticeInputCapabilities', () => {
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphoneCapture.supported).toBe(false);
     expect(caps.microphoneCapture.status).toBe('BROWSER_UNSUPPORTED');
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps)).toMatchObject({
       supported: false,
       status: 'BROWSER_UNSUPPORTED',
       reason: 'BROWSER_UNSUPPORTED',
@@ -140,7 +139,7 @@ describe('evaluatePracticeInputCapabilities', () => {
 
     // MIDI is independent of AudioWorklet
     expect(caps.midi.supported).toBe(true);
-    expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(true);
   });
 
   it('reports BROWSER_UNSUPPORTED for MIDI when requestMIDIAccess is missing, but microphone remains AVAILABLE', () => {
@@ -150,8 +149,8 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(caps.midi.supported).toBe(false);
     expect(caps.midi.status).toBe('BROWSER_UNSUPPORTED');
     expect(caps.midi.reason).toBe('BROWSER_UNSUPPORTED');
-    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(true);
-    expect(isInputSourceSupported('MIDI', caps, 'STEP_BY_STEP')).toBe(false);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(true);
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(false);
   });
 
   it('reports NO_CONNECTED_INPUT for MIDI when connectedMidiInputs is 0', () => {
@@ -178,14 +177,13 @@ describe('evaluatePracticeInputCapabilities', () => {
       remove();
       const caps = evaluatePracticeInputCapabilities();
       expect(caps.microphoneCapture.supported).toBe(pcmSupported);
-      expect(caps.acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
-      expect(caps.acousticAnalysis.step.status).toBe('BROWSER_UNSUPPORTED');
-      expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toEqual({
+      expect(caps.acousticAnalysis.status).toBe('BROWSER_UNSUPPORTED');
+      expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps)).toEqual({
         supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED',
       });
-      expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
-      expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP').status).toBe('BROWSER_UNSUPPORTED');
-      expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
+      expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(false);
+      expect(getSelectedInputCapability(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).status).toBe('BROWSER_UNSUPPORTED');
+      expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' }), caps).supported).toBe(true);
     });
   }
 
@@ -194,23 +192,26 @@ describe('evaluatePracticeInputCapabilities', () => {
     window.AudioContext = undefined as unknown as typeof AudioContext;
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphoneCapture.status).toBe('AVAILABLE');
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY').status).toBe('BROWSER_UNSUPPORTED');
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).status).toBe('BROWSER_UNSUPPORTED');
   });
 
   it('fails closed during server rendering without browser primitives', () => {
     vi.stubGlobal('window', undefined);
     const caps = evaluatePracticeInputCapabilities();
-    expect(caps.acousticAnalysis.continuous.status).toBe('BROWSER_UNSUPPORTED');
-    expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY').supported).toBe(false);
+    expect(caps.acousticAnalysis.status).toBe('BROWSER_UNSUPPORTED');
+    expect(getSelectedInputCapability(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' }), caps).supported).toBe(false);
   });
 
-  it('requires PracticeMode for product-level microphone availability', () => {
+  it('uses the planned analysis projection while recording-only microphone stays separate', () => {
+    vi.stubGlobal('Worker', undefined);
     const caps = evaluatePracticeInputCapabilities();
-    const unsafeCall = getSelectedInputCapability as unknown as (
-      source: 'MICROPHONE',
-      inputCapabilities: typeof caps
-    ) => unknown;
-
-    expect(() => unsafeCall('MICROPHONE', caps)).toThrow(/PracticeMode is required/);
+    const microphone = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' });
+    expect(caps.microphoneCapture.supported).toBe(true);
+    expect(getSelectedInputCapability(microphone, caps).supported).toBe(false);
+    expect(getSelectedInputCapability({ input: microphone.input, analysis: { kind: 'NONE' } }, caps).supported).toBe(true);
+    for (const recordingMode of ['AUDIO', 'VIDEO'] as const) {
+      const resources = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode });
+      expect(getSelectedInputCapability(resources, caps)).toBe(caps.midi);
+    }
   });
 });

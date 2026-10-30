@@ -1,4 +1,4 @@
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeResourcePlan } from '@/lib/practice/planning/resource-plan';
 
 type WindowWithWebKitAudioContext = Window & {
   AudioContext?: typeof AudioContext;
@@ -26,19 +26,8 @@ export type PracticeInputCapabilities = {
    */
   microphoneCapture: MicrophoneCaptureCapability;
   midi: PracticeMidiCapability;
-  acousticAnalysis: {
-    step: StepAcousticAnalysisCapability;
-    continuous: ContinuousAcousticAnalysisCapability;
-  };
+  acousticAnalysis: { status: 'BROWSER_UNSUPPORTED' | 'AVAILABLE' };
 };
-
-type ContinuousAcousticAnalysisCapability =
-  | { status: 'BROWSER_UNSUPPORTED' }
-  | { status: 'AVAILABLE' };
-
-type StepAcousticAnalysisCapability =
-  | { status: 'BROWSER_UNSUPPORTED' }
-  | { status: 'AVAILABLE' };
 
 export type EvaluatePracticeInputOptions = {
   connectedMidiInputs?: number;
@@ -51,15 +40,11 @@ export function evaluatePracticeInputCapabilities(
     return {
       microphoneCapture: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       midi: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
-      acousticAnalysis: {
-        step: { status: 'BROWSER_UNSUPPORTED' },
-        continuous: { status: 'BROWSER_UNSUPPORTED' },
-      },
+      acousticAnalysis: { status: 'BROWSER_UNSUPPORTED' },
     };
   }
 
-  // Evaluate browser microphone capture only. Model/runtime validation is mode-specific
-  // and intentionally lives in acousticAnalysis below.
+  // Capture facts and acoustic worker prerequisites have separate capability projections.
   const audioWindow = window as WindowWithWebKitAudioContext;
   const hasAudioContext =
     typeof (audioWindow.AudioContext || audioWindow.webkitAudioContext) === 'function';
@@ -87,7 +72,7 @@ export function evaluatePracticeInputCapabilities(
     && typeof navigator.storage?.getDirectory === 'function'
     && typeof crypto !== 'undefined'
     && typeof crypto.subtle?.digest === 'function';
-  const continuous: ContinuousAcousticAnalysisCapability = {
+  const acousticAnalysis: PracticeInputCapabilities['acousticAnalysis'] = {
     status: hasAcousticRuntime ? 'AVAILABLE' : 'BROWSER_UNSUPPORTED',
   };
 
@@ -108,57 +93,19 @@ export function evaluatePracticeInputCapabilities(
   return {
     microphoneCapture,
     midi,
-    acousticAnalysis: {
-      step: { status: hasAcousticRuntime ? 'AVAILABLE' : 'BROWSER_UNSUPPORTED' },
-      continuous,
-    },
+    acousticAnalysis,
   };
 }
 
+/** Selected performance input only; recording qualification is owned by Setup. */
 export function getSelectedInputCapability(
-  inputSource: PracticeInputSource,
+  resources: Pick<PracticeResourcePlan, 'input' | 'analysis'>,
   capabilities: PracticeInputCapabilities,
-  mode: PracticeMode
 ): PracticeMicrophoneCapability | PracticeMidiCapability {
-  if (inputSource !== 'MICROPHONE') {
-    return capabilities.midi;
-  }
-  return getSelectedMicrophoneCapability(capabilities, mode);
-}
-
-function getSelectedMicrophoneCapability(
-  capabilities: PracticeInputCapabilities,
-  mode: PracticeMode
-): PracticeMicrophoneCapability {
-  if (mode !== 'STEP_BY_STEP' && mode !== 'CONTINUOUS_PLAY') {
-    throw new Error('PracticeMode is required to resolve product microphone availability.');
-  }
-  if (!capabilities.microphoneCapture.supported) {
-    return capabilities.microphoneCapture;
-  }
-  if (
-    mode === 'CONTINUOUS_PLAY'
-    && capabilities.acousticAnalysis.continuous.status !== 'AVAILABLE'
-  ) {
-    return {
-      supported: false,
-      status: 'BROWSER_UNSUPPORTED',
-      reason: 'BROWSER_UNSUPPORTED',
-    };
-  }
-  if (
-    mode === 'STEP_BY_STEP'
-    && capabilities.acousticAnalysis.step.status !== 'AVAILABLE'
-  ) {
+  if (resources.input.kind === 'MIDI') return capabilities.midi;
+  if (!capabilities.microphoneCapture.supported) return capabilities.microphoneCapture;
+  if (resources.analysis.kind === 'ACOUSTIC' && capabilities.acousticAnalysis.status !== 'AVAILABLE') {
     return { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
   }
   return capabilities.microphoneCapture;
-}
-
-export function isInputSourceSupported(
-  inputSource: PracticeInputSource,
-  capabilities: PracticeInputCapabilities,
-  mode: PracticeMode
-): boolean {
-  return getSelectedInputCapability(inputSource, capabilities, mode).supported;
 }

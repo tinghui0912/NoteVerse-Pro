@@ -1,3 +1,4 @@
+import type { PracticeAnalysisResourcePlan } from '@/lib/practice/planning/resource-plan';
 import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { StepPracticeRuntime, groupForCurrentStep } from '@/lib/practice/step/domain/runtime';
@@ -84,10 +85,11 @@ export class StepPracticeController {
     if (generation !== this.generation) return;
     try {
       const localSessionId = createLocalSessionId('step');
-      if (this.options.plan.inputSource === 'MICROPHONE') {
-        await this.prepareMicrophone(localSessionId, generation);
+      const resources = this.options.plan.resources;
+      if (resources.analysis.kind === 'ACOUSTIC') {
+        await this.prepareMicrophone(localSessionId, generation, resources.analysis);
         if (generation !== this.generation) return;
-      } else {
+      } else if (resources.input.kind === 'MIDI') {
         const timebase = new PracticeTimebase({ domainId: localSessionId });
         this.timebase = timebase;
         this.retirement = new MidiStepRetirementPolicy(this.platform.clock, timebase);
@@ -96,14 +98,14 @@ export class StepPracticeController {
         this.runtime = runtime;
         this.createMetronome();
         this.input = new StepMidiAttemptInput({ ...this.attemptSink(runtime), failure: error => this.failAttempt(error) }, this.platform.timer);
-        this.midi = this.platform.createMidi({ access: this.options.devices.midi!, timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
+        this.midi = this.platform.createMidi({ access: this.options.devices[resources.input.root]!, timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
         await this.startup.measure('midiBind', () => this.midi!.start());
         if (generation !== this.generation) return;
         if (this.midi.getState().connectedInputCount > 0) {
           runtime.acceptInputAfter(timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
           this.error = null;
         } else this.error = 'NO_CONNECTED_INPUT';
-      }
+      } else throw new Error('STEP_MICROPHONE_UNAVAILABLE');
       this.state = 'ACTIVE'; this.updateTarget();
       this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
     } catch (error) {
@@ -115,13 +117,13 @@ export class StepPracticeController {
       this.runtime = null; this.state = 'IDLE'; this.emit();
     }
   }
-  private async prepareMicrophone(localSessionId: string, generation: number): Promise<void> {
+  private async prepareMicrophone(localSessionId: string, generation: number, analysis: Extract<PracticeAnalysisResourcePlan, { kind: 'ACOUSTIC' }>): Promise<void> {
     const platform = this.platform.microphone;
     if (!platform) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
     const inference = await this.startup.measure('acquireInferenceLease', () => platform.acquireInference(this.abort.signal));
     if (generation !== this.generation) { await inference.dispose(); return; }
     this.unboundInference = inference;
-    const stream = this.options.devices.inputMicrophone;
+    const stream = this.options.devices[analysis.sourceRoot];
     if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
     if (generation !== this.generation) return;
     this.stream = stream;

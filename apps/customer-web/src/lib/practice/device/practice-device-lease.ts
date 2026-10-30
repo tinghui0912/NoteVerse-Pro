@@ -1,5 +1,6 @@
-import { practiceDeviceRequirements, type PracticeDeviceConfiguration, type PracticeDeviceHealth,
-  type PracticeDeviceResource, type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
+import type { PracticeResourcePlan, PracticeLiveRoot } from '@/lib/practice/planning/resource-plan';
+import { type PracticeDeviceHealth,
+  type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
 import { browserDevicePlatform, type PracticeDevicePlatform } from './browser-device-platform';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 
@@ -10,17 +11,17 @@ export class PracticeDeviceLease {
   };
   private state: 'NEW' | 'OPENING' | 'READY' | 'FAULTED' | 'CLOSED' = 'NEW';
   private issue: PracticeDeviceIssue | null = null;
-  private readonly required: readonly PracticeDeviceResource[];
+  private readonly required: readonly PracticeLiveRoot[];
   private readonly listeners = new Set<() => void>();
-  private readonly detach = new Map<PracticeDeviceResource, () => void>();
+  private readonly detach = new Map<PracticeLiveRoot, () => void>();
   private pending: Promise<void> | null = null;
   private readonly timings = new PracticeStartupTimings();
-  constructor(configuration: PracticeDeviceConfiguration, private readonly platform: PracticeDevicePlatform = browserDevicePlatform) {
-    this.required = practiceDeviceRequirements(configuration);
+  constructor(resources: PracticeResourcePlan, private readonly platform: PracticeDevicePlatform = browserDevicePlatform) {
+    this.required = resources.liveRoots;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot() {
-    const health = Object.fromEntries(this.required.map(resource => [resource, this.health(resource)])) as Partial<Record<PracticeDeviceResource, PracticeDeviceHealth>>;
+    const health = Object.fromEntries(this.required.map(resource => [resource, this.health(resource)])) as Partial<Record<PracticeLiveRoot, PracticeDeviceHealth>>;
     return Object.freeze({ state: this.state, issue: this.issue, roots: Object.freeze({ ...this.roots }), health: Object.freeze(health) });
   }
   engineeringSnapshot() { return this.timings.snapshot(); }
@@ -31,7 +32,7 @@ export class PracticeDeviceLease {
     if (this.state !== 'NEW') return this.state === 'READY' ? Promise.resolve() : Promise.reject(new Error('PRACTICE_DEVICE_UNAVAILABLE'));
     this.state = 'OPENING'; this.notify();
     this.pending = this.timings.measure('deviceLeaseOpen', async () => {
-      const acquired: PracticeDeviceResource[] = [];
+      const acquired: PracticeLiveRoot[] = [];
       let opening = this.required[0];
       try {
         for (const resource of this.required) {
@@ -82,12 +83,12 @@ export class PracticeDeviceLease {
     this.notify(); this.listeners.clear();
   }
   private isClosed(): boolean { return this.state === 'CLOSED'; }
-  private release(resource: PracticeDeviceResource): void {
+  private release(resource: PracticeLiveRoot): void {
     this.detach.get(resource)?.(); this.detach.delete(resource);
     if (resource !== 'midi') this.roots[resource]?.getTracks().forEach(track => track.stop());
     this.roots[resource] = null;
   }
-  private health(resource: PracticeDeviceResource): PracticeDeviceHealth {
+  private health(resource: PracticeLiveRoot): PracticeDeviceHealth {
     if (resource === 'midi') return this.roots.midi && [...this.roots.midi.inputs.values()].some(input => input.state === 'connected') ? 'HEALTHY' : 'LOST';
     const stream = this.roots[resource];
     const tracks = resource === 'camera' ? stream?.getVideoTracks() : stream?.getAudioTracks();

@@ -1,3 +1,4 @@
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
 import { probePracticeRequirements } from './browser-readiness-probes';
@@ -20,7 +21,7 @@ it('acoustic readiness validates real FIR and capture attachment then releases e
       sourceStartSampleIndex: 0, sourceEndSampleIndex: 2048, audioContextStartFrame: 0, inputChannelCount: 1, captureTimeSeconds: 0 });
     return { stop: captureStop };
   });
-  const ready = vi.fn(); await probePracticeRequirements(['browserAudio', 'microphone'], ready, new AbortController().signal);
+  const ready = vi.fn(); await probePracticeRequirements(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification, ready, new AbortController().signal);
   expect(capture).toHaveBeenCalledOnce(); expect(ready.mock.calls.flat()).toEqual(['browserAudio', 'microphone']);
   expect(stop).toHaveBeenCalledOnce(); expect(captureStop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
@@ -28,12 +29,12 @@ it('unsupported source rate fails closed and still releases the microphone and c
   const { stream, stop } = microphone(), close = vi.fn(async () => {});
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: async () => stream } });
   vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 32000; resume = async () => {}; close = close; });
-  await expect(probePracticeRequirements(['browserAudio', 'microphone'], vi.fn(), new AbortController().signal)).rejects.toThrow('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
+  await expect(probePracticeRequirements(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification, vi.fn(), new AbortController().signal)).rejects.toThrow('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
   expect(stop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
 it('MIDI needs real access and a connected input, without touching microphone capture', async () => {
   const acquire = vi.fn(), midi = vi.fn(async () => ({ inputs: new Map() }));
   vi.stubGlobal('navigator', { requestMIDIAccess: midi, mediaDevices: { getUserMedia: acquire } });
-  await expect(probePracticeRequirements(['midi'], vi.fn(), new AbortController().signal)).rejects.toThrow('NO_CONNECTED_INPUT');
+  await expect(probePracticeRequirements(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }).qualification, vi.fn(), new AbortController().signal)).rejects.toThrow('NO_CONNECTED_INPUT');
   expect(midi).toHaveBeenCalledWith({ sysex: false }); expect(acquire).not.toHaveBeenCalled();
 });

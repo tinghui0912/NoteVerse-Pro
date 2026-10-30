@@ -99,7 +99,7 @@ Repeated open calls cannot retry a failed transaction or replace a lost root.
 
 Device Lease faults update the message inside the same `PracticeStatus` shell,
 without replacing its geometry, background or border. Required resources come from
-`practiceDeviceRequirements`. Microphone icons keep the same glyph: healthy is green,
+`PracticeResourcePlan.liveRoots`. Microphone icons keep the same glyph: healthy is green,
 unavailable/interrupted is red, with localized accessible labels. Required camera and
 MIDI resources use the same compact pattern. Popovers are informational only: resource,
 health and issue facts, without commands or access to device/platform/session owners.
@@ -204,8 +204,10 @@ PerformanceTake or backend data and have no learner-facing debug UI.
 
 ## Practice Readiness
 
-`readiness/` derives requirements purely from the complete configuration. Live
-readiness is UNCONFIGURED, CHECKING, READY or BLOCKED, with component diagnostics
+`planning/resource-plan.ts` derives qualification, live roots and input/analysis/recording
+bindings from the execution configuration. `PracticeSessionPlan.resources` carries
+that immutable plan into execution. The workspace uses its qualification projection
+before source/scope/tempo planning. Live readiness is UNCONFIGURED, CHECKING, READY or BLOCKED, with component diagnostics
 and download progress. Its fingerprint represents the effective requirement set,
 so equivalent configurations may use the same live admission evidence. This never
 skips explicit Setup requalification; unrelated presentation changes do not invalidate
@@ -223,7 +225,11 @@ the evidence. Readiness is never persisted.
 | Continuous / MIDI / VIDEO | MIDI, recording microphone, camera and video recorder |
 
 MIDI recording never starts acoustic analysis. Microphone recording uses the session
-microphone audio; camera acquisition is video-only. Recorder probes use the same
+microphone audio; camera acquisition is video-only. `qualification` defines disposable Setup checks; `liveRoots` defines retained
+Practice-page physical roots. Both projections have one resource-planning owner and
+different lifecycle owners. `PracticeDeviceLease` and the page status controls consume
+the same live-root projection. Controllers bind acoustic analysis and recorder audio/video
+from the planned root names. Recorder probes use the same
 MIME strategy as the session recorder, construct and start/stop a real recorder,
 and discard all probe data. Probe tracks, worklets and AudioContexts are released.
 VIDEO/AUDIO/MIDI failures keep the selected intent and block Start; no fallback
@@ -299,7 +305,8 @@ consume its narrow resolved projections. Live feedback is not execution intent.
 The plan captures the initial metronome flag. Live enable/disable stays a runtime
 command and preserves execution ownership, localSessionId and progression. Flag-only
 candidate changes reuse the current resolved scope/tempo. Resources belong to the
-existing readiness/device/application boundaries and are not included in the plan.
+readiness/device/application boundaries. The plan contains immutable resource
+requirements/bindings; acquired objects and health state belong to those runtime owners.
 
 Common local snapshots contain sourceId, resolved scope/tempo and current metronome
 state. Natural Continuous completion creates Result7 from those executed resolved

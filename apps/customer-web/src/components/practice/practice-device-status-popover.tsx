@@ -1,15 +1,16 @@
 'use client';
+import type { PracticeLiveRoot } from '@/lib/practice/planning/resource-plan';
 import { useTranslations } from 'next-intl';
 import { Camera, KeyboardMusic, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import type { PracticeDeviceHealth, PracticeDeviceIssue, PracticeDeviceResource } from '@/lib/practice/device/device-contract';
+import type { PracticeDeviceHealth, PracticeDeviceIssue } from '@/lib/practice/device/device-contract';
 import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 
 /** Read-only page-device facts. Qualification belongs to Practice Setup. */
 export function PracticeDeviceStatusPopover({ resource, health, issue }: {
-  resource: PracticeDeviceResource; health: PracticeDeviceHealth | null; issue: PracticeDeviceIssue | null;
+  resource: PracticeLiveRoot; health: PracticeDeviceHealth | null; issue: PracticeDeviceIssue | null;
 }) {
   const t = useTranslations('practice');
   const resourceLabel = t(`deviceResource_${resource}`);

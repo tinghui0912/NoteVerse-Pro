@@ -6,7 +6,7 @@ import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
-import { requirementFingerprint } from '@/lib/practice/readiness/requirements';
+import { qualificationFingerprint } from '@/lib/practice/planning/resource-plan';
 
 export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
@@ -14,8 +14,8 @@ export default function PracticeSetupPage() {
   const source = usePracticeSource(params.id, { loadNotation: false });
   const { profile, updateProfile, readiness } = workspace;
   const checking = readiness.status === 'CHECKING';
-  const currentRequirements = workspace.requirements ?? [];
-  const currentReadiness = readiness.fingerprint === requirementFingerprint(currentRequirements);
+  const currentRequirements = workspace.resourcePlan?.qualification ?? [];
+  const currentReadiness = readiness.fingerprint === qualificationFingerprint(currentRequirements);
   const enter = () => router.replace(practiceLocation(params.id, 'practice', source.revisionId));
   return <main className="mx-auto max-w-2xl space-y-6 p-6" data-testid="practice-setup">
     <h1 className="text-2xl font-semibold">{t('setupTitle')}</h1>
@@ -53,7 +53,7 @@ export default function PracticeSetupPage() {
       disabled={!source.artifact || !workspace.configuration || checking || !workspace.hydrated}
       aria-busy={checking}
       onClick={() => { if (!source.artifact) return; void workspace.requalify().then(() => {
-        if (workspace.requirements && workspace.environment.matches(workspace.requirements)) enter();
+        if (workspace.resourcePlan?.qualification && workspace.environment.matches(workspace.resourcePlan?.qualification)) enter();
       }); }}>{t('setupPrepare')}</button>
   </main>;
 }

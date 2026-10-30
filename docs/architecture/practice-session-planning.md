@@ -5,6 +5,7 @@ Canonical Practice Source (sourceId + parsed artifact)
   + PracticeExecutionIntent
   -> planPracticeSession
   -> immutable PracticeSessionPlan
+       -> resources: PracticeResourcePlan
        -> STEP execution
        -> Continuous execution
 ```
@@ -20,7 +21,7 @@ admission. Live note feedback is presentation state and is absent from the inten
 creates a composition-local `planPracticeSession(source, intent)` function. It checks
 source identity, canonical artifact validity and intent validity, then resolves scope
 and tempo. The frozen plan owns sourceId, the canonical artifact, mode/input/recording,
-resolved scope, resolved tempo and the initial metronome flag. Score/revision/artifact
+resolved scope, resolved tempo, the canonical resource plan and the initial metronome flag. Score/revision/artifact
 IDs remain owned by the artifact. Scope and tempo projections and canonical notation
 are immutable to consumers.
 
@@ -60,13 +61,66 @@ metronome flag is captured at admission. Active enable/disable uses the existing
 `setMetronomeEnabled` command. That live control does not replace an execution owner,
 change localSessionId, reset progress/transport or resolve scope/tempo.
 
-## Resource Boundaries
+## Resource Planning and Lifetimes
 
-The plan contains no devices, AudioContext, inference lease, timers or callbacks.
-Existing readiness, device, environment, application controllers and resource-release
-coordination own those resources. Both mode hooks are mounted by the local binding;
-the selected plan determines execution. Planning does not consolidate resource
-requirements or redefine lifecycle/start policy.
+```text
+PracticeExecutionIntent (mode + inputSource + recordingMode)
+  -> planPracticeResources
+  -> immutable PracticeResourcePlan
+       -> PracticeSessionPlan.resources
+       -> qualification -> Setup / PracticeEnvironment / temporary probes
+       -> liveRoots -> PracticeDeviceLease / retained page roots
+       -> input -> STEP / Continuous input binding
+       -> analysis -> acoustic execution
+       -> recording -> recorder audio/video root binding
+```
+
+`planning/resource-plan.ts` owns the complete resource matrix. Its input is the
+resource-choice projection of `PracticeExecutionIntent`; scope, tempo, metronome,
+source/artifact identity and live feedback have no effect on resource requirements.
+STEP accepts recording OFF. Invalid mode/input/recording combinations fail admission.
+All arrays and nested projections are frozen. Equivalent resource choices return the
+same immutable plan and stable projection identities.
+
+The plan contains qualification requirements, live root names, discriminated input
+and analysis bindings, and a discriminated recording binding. It contains no
+MediaStream, MIDIAccess, AudioContext, inference/recorder instance, callback or health
+state. `PracticeDeviceRoots` maps the planned root names directly to acquired objects.
+
+| Mode | Input | Recording | Qualification | Live roots | Analysis | Recording binding |
+| --- | --- | --- | --- | --- | --- | --- |
+| STEP | MICROPHONE | OFF | acousticEngine, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | OFF |
+| STEP | MIDI | OFF | midi | midi | NONE | OFF |
+| Continuous | MICROPHONE | OFF | acousticEngine, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | OFF |
+| Continuous | MICROPHONE | AUDIO | acousticEngine, audioRecording, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | AUDIO: inputMicrophone |
+| Continuous | MICROPHONE | VIDEO | acousticEngine, browserAudio, camera, microphone, videoRecording | inputMicrophone, camera | ACOUSTIC: inputMicrophone | VIDEO: inputMicrophone + camera |
+| Continuous | MIDI | OFF | midi | midi | NONE | OFF |
+| Continuous | MIDI | AUDIO | audioRecording, microphone, midi | midi, recordingMicrophone | NONE | AUDIO: recordingMicrophone |
+| Continuous | MIDI | VIDEO | camera, microphone, midi, videoRecording | midi, recordingMicrophone, camera | NONE | VIDEO: recordingMicrophone + camera |
+
+Input binding is MICROPHONE to inputMicrophone or MIDI to midi. Acoustic execution
+uses the planned analysis source root. Microphone recording shares inputMicrophone;
+MIDI recording uses recordingMicrophone without acoustic analysis or browserAudio
+qualification. Selected-input capability combines the planned input/analysis bindings
+with detected browser facts. Recording capability remains separate Setup evidence.
+
+The workspace can plan resources as soon as execution configuration is complete;
+artifact, source identity, scope and tempo are not prerequisites for qualification.
+`PracticeEnvironment` consumes `qualification` and owns qualification execution and
+the warm acoustic engine. `qualificationFingerprint` is the sole qualification-set
+identity derivation. Setup probes release their temporary streams, capture and
+AudioContext. They do not provide live execution roots.
+
+The exact Practice page gives that same resource plan to `usePracticeDeviceLease`.
+The lease consumes `liveRoots`, retains acquired roots, observes them and releases
+them on unmount. Its binding transaction, same-root observation and fail-closed
+admission are owned by the device boundary. Controller pipeline/analysis/recorder
+health remains with its current execution owners.
+
+Both mode hooks are mounted by the local binding; the selected session plan determines
+execution. `PracticeResourceCoordinator` sequences release between execution owners.
+Resource planning defines requirements and bindings, not acquisition or Start/End
+lifecycle.
 
 Artifact schema3, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema7,
 count-in policy, timing/recognition/resource values and acoustic identities are their

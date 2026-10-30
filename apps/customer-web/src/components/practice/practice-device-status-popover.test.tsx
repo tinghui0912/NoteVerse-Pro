@@ -1,3 +1,4 @@
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
@@ -52,7 +53,7 @@ for (const [locale, messages] of [['en', en], ['zh', zh]] as const) {
     const getUserMedia = vi.fn().mockRejectedValue(new DOMException('blocked', 'NotAllowedError'));
     vi.stubGlobal('navigator', { userAgent: navigator.userAgent, maxTouchPoints: 0, mediaDevices: { getUserMedia } });
     function Status() {
-      const device = usePracticeDeviceLease({ mode:'STEP_BY_STEP', inputSource:'MICROPHONE', recordingMode:'OFF' }, true);
+      const device = usePracticeDeviceLease(planPracticeResources({ mode:'STEP_BY_STEP', inputSource:'MICROPHONE', recordingMode:'OFF' }), true);
       return <PracticeStatus lifecycle="IDLE" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
         <PracticeDeviceStatusPopover resource="inputMicrophone" health={device.snapshot?.health.inputMicrophone ?? null} issue={device.snapshot?.issue ?? null} />
       } />;
@@ -72,7 +73,7 @@ it('existing MIDIAccess statechange recovers naturally without requesting new ac
   const midi = midiDeviceFixture(), requestMIDIAccess = vi.fn().mockResolvedValue(midi.access);
   vi.stubGlobal('navigator', { userAgent:navigator.userAgent, maxTouchPoints:0, requestMIDIAccess });
   function Status() {
-    const device = usePracticeDeviceLease({mode:'STEP_BY_STEP', inputSource:'MIDI', recordingMode:'OFF'}, true);
+    const device = usePracticeDeviceLease(planPracticeResources({mode:'STEP_BY_STEP', inputSource:'MIDI', recordingMode:'OFF'}), true);
     return <PracticeStatus lifecycle="IDLE" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
       <PracticeDeviceStatusPopover resource="midi" health={device.snapshot?.health.midi ?? null} issue={device.snapshot?.issue ?? null} />
     } />;

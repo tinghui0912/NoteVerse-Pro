@@ -1,3 +1,4 @@
+import { planPracticeResources } from './resource-plan';
 import { beforeEach, expect, it, vi } from 'vitest';
 import fixture from '../__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '../kernel/artifact';
@@ -20,9 +21,10 @@ beforeEach(() => vi.restoreAllMocks());
 it('deterministically retains canonical source and artifact identities', () => {
   const input = source(), planPracticeSession = createPracticeSessionPlanner();
   const first = planPracticeSession(input, intent), second = planPracticeSession(input, structuredClone(intent));
+  expect(first.resources).toBe(planPracticeResources(intent));
   expect(first).toEqual(second); expect(first.artifact).toBe(input.artifact);
   expect(first.sourceId).toBe(input.sourceId); expect(Object.keys(first).sort()).toEqual([
-    'sourceId', 'artifact', 'mode', 'inputSource', 'recordingMode', 'scope', 'tempoPlan', 'metronomeInitiallyEnabled',
+    'resources', 'sourceId', 'artifact', 'mode', 'inputSource', 'recordingMode', 'scope', 'tempoPlan', 'metronomeInitiallyEnabled',
   ].sort());
 });
 it('resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM', () => {
@@ -60,7 +62,7 @@ it('initial metronome choices reuse exactly one scope/tempo resolution', () => {
   const resolveTempo = vi.spyOn(tempoContract, 'resolvePracticeTempoPlan');
   const planPracticeSession = createPracticeSessionPlanner(), input = source();
   const off = planPracticeSession(input, intent), on = planPracticeSession(input, { ...intent, metronomeEnabled: true });
-  expect(on.scope).toBe(off.scope); expect(on.tempoPlan).toBe(off.tempoPlan);
+  expect(on.resources).toBe(off.resources); expect(on.scope).toBe(off.scope); expect(on.tempoPlan).toBe(off.tempoPlan);
   expect(on.metronomeInitiallyEnabled).toBe(true); expect(off.metronomeInitiallyEnabled).toBe(false);
   expect(resolveScope).toHaveBeenCalledOnce(); expect(resolveTempo).toHaveBeenCalledOnce();
 });

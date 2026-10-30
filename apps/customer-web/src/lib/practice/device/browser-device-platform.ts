@@ -1,7 +1,7 @@
-import type { PracticeDeviceResource } from './device-contract';
+import type { PracticeLiveRoot } from '@/lib/practice/planning/resource-plan';
 
 export interface PracticeDevicePlatform {
-  acquireStream(resource: Exclude<PracticeDeviceResource, 'midi'>): Promise<MediaStream>;
+  acquireStream(resource: Exclude<PracticeLiveRoot, 'midi'>): Promise<MediaStream>;
   acquireMidi(): Promise<MIDIAccess>;
 }
 export const browserDevicePlatform: PracticeDevicePlatform = {

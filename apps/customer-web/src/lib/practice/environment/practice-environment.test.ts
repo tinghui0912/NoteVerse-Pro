@@ -3,8 +3,9 @@ import { PracticeEnvironment } from './practice-environment';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import { workerRpcRig } from '@/lib/practice/acoustic/model/__fixtures__/worker-rpc';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '@/lib/practice/acoustic/model/worker-liveness-policy';
-import type { PracticeRequirement } from '@/lib/practice/readiness/requirements';
-const mic: PracticeRequirement[] = ['acousticEngine', 'browserAudio', 'microphone'];
+import { planPracticeResources, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
+const mic = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification;
+const midi = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }).qualification;
 function rig() {
   let crash: (error: Error) => void = () => {};
   const worker = { load: vi.fn(async () => ({})), beginSession: vi.fn(async () => {}),
@@ -12,15 +13,15 @@ function rig() {
     endSession: vi.fn(async () => {}), dispose: vi.fn(async () => {}), terminate: vi.fn(),
     onFailure: (listener: (error: Error) => void) => { crash = listener; return () => {}; } };
   const platform = { modelUrl: vi.fn(async () => '/verified-model'), createEngine: vi.fn(() => new AcousticEngine(() => worker)),
-    probe: vi.fn(async (requirements: readonly PracticeRequirement[], ready: (key: PracticeRequirement) => void) => {
+    probe: vi.fn(async (requirements: readonly PracticeQualificationRequirement[], ready: (key: PracticeQualificationRequirement) => void) => {
       requirements.filter(key => key !== 'acousticEngine').forEach(ready);
     }) };
   const environment = new PracticeEnvironment(platform);
   return { environment, platform, worker, crash: () => crash(new Error('ACOUSTIC_WORKER_CRASH')) };
 }
 it('MIDI OFF prepares no audio, acoustic engine or model, and uses the exact requirements fingerprint', async () => {
-  const r = rig(); await r.environment.requalify(['midi']);
-  expect(r.environment.matches(['midi'])).toBe(true); expect(r.environment.matches(mic)).toBe(false);
+  const r = rig(); await r.environment.requalify(midi);
+  expect(r.environment.matches(midi)).toBe(true); expect(r.environment.matches(mic)).toBe(false);
   expect(r.platform.modelUrl).not.toHaveBeenCalled(); expect(r.platform.createEngine).not.toHaveBeenCalled();
   await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toThrow('NOT_READY');
   await r.environment.dispose();
@@ -37,10 +38,10 @@ it('every explicit qualification reruns probes while healthy acoustic session le
 });
 it('camera failure leaves VIDEO requirements blocked rather than turning them into a ready OFF set', async () => {
   const r = rig(); r.platform.probe.mockRejectedValueOnce(new Error('CAMERA_PERMISSION_DENIED'));
-  const requirements: PracticeRequirement[] = ['midi', 'microphone', 'camera', 'videoRecording'];
+  const requirements = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }).qualification;
   await r.environment.requalify(requirements);
   expect(r.environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'CAMERA_PERMISSION_DENIED' });
-  expect(r.environment.matches(requirements)).toBe(false); expect(r.environment.matches(['midi'])).toBe(false);
+  expect(r.environment.matches(requirements)).toBe(false); expect(r.environment.matches(midi)).toBe(false);
   expect(r.platform.createEngine).not.toHaveBeenCalled(); await r.environment.dispose();
 });
 it('failure invalidates live readiness and only explicit prepare creates a replacement engine', async () => {
@@ -54,14 +55,14 @@ it('failure invalidates live readiness and only explicit prepare creates a repla
 it('cancellation cannot publish readiness after disposal', async () => {
   const r = rig(); let release!: () => void;
   r.platform.probe.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
-  const preparation = r.environment.requalify(['midi']); const disposed = r.environment.dispose();
+  const preparation = r.environment.requalify(midi); const disposed = r.environment.dispose();
   release(); await preparation; await disposed; expect(r.environment.snapshot().status).toBe('UNCONFIGURED');
-  await expect(r.environment.requalify(['midi'])).rejects.toThrow('DISPOSED');
+  await expect(r.environment.requalify(midi)).rejects.toThrow('DISPOSED');
 });
 
 it('an unused acoustic engine failure does not invalidate MIDI-only readiness', async () => {
-  const r = rig(); await r.environment.requalify(mic); await r.environment.requalify(['midi']);
-  r.crash(); expect(r.environment.matches(['midi'])).toBe(true);
+  const r = rig(); await r.environment.requalify(mic); await r.environment.requalify(midi);
+  r.crash(); expect(r.environment.matches(midi)).toBe(true);
   expect(r.platform.createEngine).toHaveBeenCalledOnce();
   await r.environment.requalify(mic);
   expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
@@ -192,7 +193,7 @@ it('silent worker LOAD leaves CHECKING finitely and requires explicit requalific
   const platform = { modelUrl: vi.fn(async () => '/model'), createEngine: vi.fn(() => {
     const client = engines.length === 0 ? old.client : fresh.client;
     const engine = new AcousticEngine(() => client); engines.push(engine); return engine;
-  }), probe: vi.fn(async (requirements: readonly PracticeRequirement[], ready: (key: PracticeRequirement) => void) => {
+  }), probe: vi.fn(async (requirements: readonly PracticeQualificationRequirement[], ready: (key: PracticeQualificationRequirement) => void) => {
     requirements.filter(key => key !== 'acousticEngine').forEach(ready);
   }) };
   const environment = new PracticeEnvironment(platform);
