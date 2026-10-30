@@ -396,26 +396,29 @@ function recordingOption(page: Page, mode: 'OFF' | 'AUDIO' | 'VIDEO') {
 
 test('first use requires explicit intent; full reload restores intent but requires live preparation', async ({ page }) => {
   await setupContinuousPracticeMocks(page);
-  await page.goto(`/zh/score/${scoreId}/practice?practiceRevisionId=${revisionId}`);
+  await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   const setup = page.getByTestId('practice-setup');
   await expect(setup).toBeVisible();
   await expect(setup.locator('button[aria-pressed="true"]')).toHaveCount(0);
-  await expect(setup.getByRole('button', { name: '准备练习', exact: true })).toBeDisabled();
+  await expect(setup.getByRole('button', { name: '开始练习', exact: true })).toBeDisabled();
   await setup.getByRole('button', { name: '连贯演奏', exact: true }).click();
   await setup.getByRole('button', { name: 'MIDI 键盘', exact: true }).click();
-  await expect(setup.getByRole('button', { name: '准备练习', exact: true })).toBeDisabled();
+  await expect(setup.getByRole('button', { name: '开始练习', exact: true })).toBeDisabled();
   await setup.getByRole('button', { name: '不录制', exact: true }).click();
   await expect(setup.getByRole('checkbox')).toHaveCount(0);
   await expect(setup.getByRole('switch')).toHaveCount(0);
-  await setup.getByRole('button', { name: '准备练习', exact: true }).click();
+  await setup.getByRole('button', { name: '开始练习', exact: true }).click();
   await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
   await page.reload();
+  await expect(page).toHaveURL(new RegExp(`/practice\\?practiceRevisionId=${revisionId}$`));
+  await expect(page.getByText('请先完成练习准备。')).toBeVisible();
+  await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
   await expect(setup).toBeVisible();
   await expect(setup.getByRole('button', { name: '连贯演奏', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(setup.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(setup.getByRole('button', { name: '不录制', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
-  await expect(setup.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled();
+  await expect(setup.getByRole('button', { name: '开始练习', exact: true })).toBeEnabled();
 });
 
 test('warm microphone engine survives STEP End, next Start, Continuous completion, Try Again and Review Retry', async ({ page }) => {
@@ -1069,7 +1072,7 @@ test('runtime AUDIO interruption pauses until explicit no-recording continuation
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await observeNativeRecorders(page); await setupContinuousPracticeMocks(page);
   await openPreparedPractice(page, scoreId, revisionId); await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
-  for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '不录制', '录音', '录像', '准备练习']) {
+  for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '不录制', '录音', '录像', '开始练习']) {
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
@@ -1330,7 +1333,7 @@ for (const fault of ['root', 'context'] as const) test(`STEP ${fault} failure re
   }
   await setupNav.click();
   await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
-  await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '开始练习', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: '进入练习', exact: true })).toHaveCount(0);
   expect(await deviceAndEnvironmentCounts(page)).toEqual(counts); // Navigation never qualifies or binds.
   await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveCount(0);
@@ -1359,7 +1362,7 @@ test('Continuous idle mute recovers on the same root; hard loss is informational
   await expect(page.getByRole('dialog', { name: '录制麦克风', exact: true }).getByRole('button')).toHaveCount(0); await page.keyboard.press('Escape');
   expect(await deviceAndEnvironmentCounts(page)).toEqual(counts);
   await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
-  await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '开始练习', exact: true })).toBeEnabled();
   expect(await preparePracticeSetup(page)).toBe('READY'); await expect(start).toBeEnabled();
   const fresh = await deviceAndEnvironmentCounts(page);
   expect(fresh.media).toBe(counts.media + 2); expect(fresh.midi).toBe(counts.midi + 2); expect(fresh.engine).toEqual(counts.engine);
@@ -1388,7 +1391,7 @@ test('permission-denied page binding has no recovery command; only Setup Prepare
   await expect(page.getByRole('button', { name: /^(重新连接|重试|更改练习配置)$/ })).toHaveCount(0);
   await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
-  await expect(page.getByRole('button', { name: '准备练习', exact: true })).toBeEnabled(); expect(await calls()).toBe(initialCalls);
+  await expect(page.getByRole('button', { name: '开始练习', exact: true })).toBeEnabled(); expect(await calls()).toBe(initialCalls);
   await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveCount(0);
   expect(await preparePracticeSetup(page)).toBe('BLOCKED'); expect(await calls()).toBe(initialCalls + 1);
   await page.evaluate(() => { (window as unknown as { __setupPermission: { allowed: boolean } }).__setupPermission.allowed = true; });
@@ -1438,7 +1441,8 @@ for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis i
   await expect(page.getByRole('button',{name:'查看报告',exact:true})).toHaveCount(0);
   if(choice==='End'){
     await dialog.getByRole('button',{name:'结束',exact:true}).click();await expect(dialog).toHaveCount(0);
-    await expect(page).toHaveURL(/\/practice\/setup/);
+    await expect(page).toHaveURL(new RegExp(`/practice\\?practiceRevisionId=${revisionId}$`));
+    await expect(page.getByRole('button', { name: '返回练习设置', exact: true })).toBeVisible();
   }else{
     // Trigger actual client navigation, as a proxy for leaving through browser navigation while the dialog blocks pointer interaction.
     await page.getByRole('button',{name:'返回练习设置',includeHidden:true}).evaluate((button:HTMLButtonElement)=>button.click());
@@ -1459,7 +1463,7 @@ test('READY microphone Setup always probes afresh through both navigation entrie
     else await openPracticeSetup(page);
     await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
     const setup=page.getByTestId('practice-setup');
-    await expect(setup.getByRole('button',{name:'准备练习',exact:true})).toBeEnabled();
+    await expect(setup.getByRole('button',{name:'开始练习',exact:true})).toBeEnabled();
     await expect(setup.getByRole('button',{name:'进入练习',exact:true})).toHaveCount(0);
     await expect(setup.getByRole('alert')).toHaveCount(0);
     expect(await deviceAndEnvironmentCounts(page)).toEqual(before);
@@ -1473,7 +1477,7 @@ test('READY microphone Setup always probes afresh through both navigation entrie
 });
 
 
-test('immediate Setup Prepare waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
+test('Setup Start Practice waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
   await setupContinuousPracticeMocks(page);
   let modelAccesses=0;
   page.on('request',request=>{if(request.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access'))modelAccesses++;});
@@ -1483,7 +1487,7 @@ test('immediate Setup Prepare waits for the previous microphone attempt retireme
   const before=await deviceAndEnvironmentCounts(page), accesses=modelAccesses;
   await page.evaluate(()=>{(window as unknown as {__practiceAcousticEngineFixture:{holdRetirement:boolean}}).__practiceAcousticEngineFixture.holdRetirement=true;});
   await page.getByRole('button',{name:'返回练习设置',exact:true}).click();
-  const setup=page.getByTestId('practice-setup'), prepare=setup.getByRole('button',{name:'准备练习',exact:true});
+  const setup=page.getByTestId('practice-setup'), prepare=setup.getByRole('button',{name:'开始练习',exact:true});
   await prepare.click();
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{pendingRetirements:number}}).__practiceAcousticEngineFixture.pendingRetirements)).toBe(1);
   await expect.poll(async()=>(await deviceAndEnvironmentCounts(page)).media).toBe(before.media+1);

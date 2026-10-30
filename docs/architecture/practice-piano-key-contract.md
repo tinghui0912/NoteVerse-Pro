@@ -26,13 +26,14 @@ PracticeSourceService exposes one `/source` resource containing the artifact, op
 prepared-MusicXML notation and source_id. See [Practice Source](practice-source.md).
 Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
 parser/storage/serialization/invariant failures map to503 practice_source_failed.
-Generated DTOs describe transport; the kernel owns semantic admission. Independently
-callable mode/scope boundaries assert the same domain artifact.
+Generated DTOs describe transport; the kernel parser owns revision-wide semantic
+admission. Planning and mode execution consume that admitted runtime artifact.
 
-usePracticeSource pins exact revision identity and shares the immutable artifact
-query between Setup and Practice. Invalid scores disable Prepare and resource
-creation; direct Practice entry returns them to pinned Setup. Score validity is
-independent of device readiness. Localized invalid-score feedback preserves that
+usePracticeSource pins exact revision identity and delegates transport parsing to the
+canonical Source query. Setup Start Practice requests fresh artifact-only admission
+before qualification. Invalid scores block that revision's preparation and resource
+creation; direct Practice entry renders the error in place with user-controlled Setup
+navigation. Score validity is independent of device readiness. Localized invalid-score feedback preserves that
 distinction.
 
 ## Source adapters

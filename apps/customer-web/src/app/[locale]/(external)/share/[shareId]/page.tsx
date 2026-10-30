@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Ban, CircleAlert, Clock3, Play, SearchX } from 'lucide-react';
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +16,12 @@ import { ScoreDetailHero } from '@/components/score-detail/score-detail-hero';
 import { ScoreDetailTabs } from '@/components/score-detail/score-detail-tabs';
 import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
 import { ResourceLoadError } from '@/components/states';
-import { routing } from '@/i18n/routing';
+import { routing, useRouter } from '@/i18n/routing';
 import { useSharePageData } from '@/hooks/share/use-share-page-data';
 import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
+import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
@@ -75,7 +76,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
           });
           return;
         }
-        router.replace(`/score/${response.data.score_id}/practice`);
+        router.replace(practiceLocation(response.data.score_id, 'setup'));
       },
       onError: (error) => {
         autoPracticeRef.current = false;
@@ -162,7 +163,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
           });
           return;
         }
-        router.push(`/score/${response.data.score_id}/practice`);
+        router.push(practiceLocation(response.data.score_id, 'setup'));
       },
       onError: (error) => toast({
         title: t('practiceStartFailed'),

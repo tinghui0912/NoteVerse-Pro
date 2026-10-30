@@ -83,17 +83,39 @@ Pure runtime components consume resolved projections without full score traversa
 Common local snapshots expose sourceId, resolved scope/tempo and current metronome
 state. Continuous natural Result7 uses the executed scope/tempo without re-resolution.
 
-## Score Admission
+## Preparation and Score Admission
+
+```text
+Score Detail Practice -> Setup (pinned revision)
+Setup Start Practice -> fresh canonical Source admission
+                     -> current input capability
+                     -> fresh Environment qualification
+                     -> Practice workspace
+Practice Start -> PracticeExecutionOwner -> selected attempt
+```
+
+Setup is a configuration surface until its single Start Practice command. Mounting
+or editing choices requests no Practice Source and performs no qualification. Each
+command captures the revision/configuration/resource requirements, locks controls,
+and refetches Source before checking capability and calling Environment requalification.
+A warm engine can be reused; previous readiness and query-cache success cannot bypass
+admission. Only current successful completion enters Practice at the admitted revision.
+Setup's component evidence describes the current visit's preparation transaction.
 
 `usePracticeRevisionSource` maps the untrusted source envelope through
 `parsePracticeScoreArtifact()` and verifies source/score/revision identity. The strict
-parser owns revision-wide score correctness. Setup prominently displays invalid-score
-state and disables preparation; mode/input/Section cannot repair the revision.
-Practice consumes that same admission result as a defensive route gate and creates no
-execution plan/controller for missing, invalid or failed source data. Revision pinning
-is retained. Planning validates intent, sourceId, scope/tempo selection and resource
-combinations; execution assumes the artifact was admitted. It does not introduce
-another full artifact validator.
+parser owns revision-wide score correctness. Invalid Score blocks qualification and
+preparation for that revision. Source load failure remains retryable through the same
+Start Practice CTA. Practice uses the same parser defensively and renders loading,
+load error, invalid Score, access denial or unavailable admission in place. A direct
+Practice URL with incomplete configuration creates no plan, live roots or controller.
+User-controlled Setup navigation remains available and preserves the pinned revision.
+Retry creates a fresh attempt only when current admission permits it; it stays on
+Practice otherwise.
+
+Planning consumes admitted runtime values, validates intent/sourceId/scope/tempo
+selection and resource combinations, and resolves execution truth. Execution does not
+introduce another full artifact validator.
 
 ## Resource Planning and Lifetimes
 
@@ -139,7 +161,8 @@ qualification. Selected-input capability combines the planned input/analysis bin
 with detected browser facts. Recording capability remains separate Setup evidence.
 
 The workspace can plan resources as soon as execution configuration is complete;
-artifact, source identity, scope and tempo are not prerequisites for qualification.
+artifact, source identity, scope and tempo are not inputs to resource planning.
+The Setup preparation command requires successful Source admission before executing qualification.
 `PracticeEnvironment` consumes `qualification` and owns qualification execution and
 the warm acoustic engine. `qualificationFingerprint` is the sole qualification-set
 identity derivation. Setup probes release their temporary streams, capture and

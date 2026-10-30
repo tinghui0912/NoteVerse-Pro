@@ -20,6 +20,7 @@ import {
 import { useDownload } from '@/hooks/use-download';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import type { ScoreRevisionAssetsRead } from '@/generated/api';
+import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 
 interface ScoreHeroActionsProps {
   imagePreparing?: boolean;
@@ -85,7 +86,7 @@ export function ScoreHeroActions({
       ) : null}
       {capabilities.can_practice ? (
         <Button asChild>
-          <Link href={`/score/${scoreId}/practice`}>
+          <Link href={practiceLocation(scoreId, 'setup', revisionId)}>
             <Gamepad2 className="mr-2 h-4 w-4" />
             {t('practiceScore')}
           </Link>

@@ -29,7 +29,7 @@
   "setupNotPrepared": "Not prepared",
   "setupBlocked": "Needs attention",
   "setupChecking": "Preparing...",
-  "setupPrepare": "Prepare practice",
+  "setupStartPractice": "Start practice",
   "setupFailure": "Preparation could not finish. Check browser permissions and connected devices, then try again.",
   "setupTechnicalDetails": "Technical details",
   "setupComponent_browserAudio": "Browser compatibility",

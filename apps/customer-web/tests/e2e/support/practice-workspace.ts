@@ -44,7 +44,7 @@ export async function installAcousticEngineFixture(page: Page) {
           }
           else if (message.type === 'DISPOSE') this.token = null;
           else error = 'INVALID_FIXTURE_ENGINE_PROTOCOL';
-          this.dispatchEvent(new MessageEvent('message', { data: { id: message.id, result, error } }));
+          this.dispatchEvent(new MessageEvent('message', { data: error ? { id: message.id, error } : { id: message.id, result } }));
         });
       }
       terminate() { this.closed = true; stats.terminations++; }
@@ -55,7 +55,7 @@ export async function installAcousticEngineFixture(page: Page) {
 
 /** Enter the workspace through the real Setup admission boundary. */
 export async function openPreparedPractice(page: Page, scoreId: string, revisionId: string) {
-  await page.goto(`/zh/score/${scoreId}/practice?practiceRevisionId=${encodeURIComponent(revisionId)}`);
+  await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${encodeURIComponent(revisionId)}`);
   await page.waitForURL(/\/practice\/setup\?/);
   await expect(page.getByTestId('practice-setup')).toBeVisible();
   await selectPracticeConfiguration(page, 'STEP', 'MIDI', 'OFF');
@@ -85,7 +85,7 @@ export async function configurePractice(page: Page, mode: 'STEP' | 'CONTINUOUS' 
 }
 
 export async function preparePracticeSetup(page: Page): Promise<'READY' | 'BLOCKED'> {
-  await page.getByTestId('practice-setup').getByRole('button', { name: '准备练习' }).click();
+  await page.getByTestId('practice-setup').getByRole('button', { name: '开始练习' }).click();
   await expect.poll(async () => !page.url().includes('/setup') || await page.getByTestId('practice-setup').getByRole('alert').count() > 0).toBe(true);
   if (page.url().includes('/setup')) return 'BLOCKED';
   await expect(page.getByRole('button', { name: '结束', exact: true })).toBeVisible();

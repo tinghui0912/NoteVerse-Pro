@@ -10,6 +10,11 @@ import { parsePracticeScoreArtifact, PracticeScoreContractError } from '@/lib/pr
 
 type SourceIdentity = { scoreId: string; revisionId: string; artifactId?: string };
 
+export function isInvalidPracticeSource(error: unknown): boolean {
+  return error instanceof PracticeScoreContractError || Boolean(error && typeof error === 'object'
+    && 'code' in error && error.code === 'practice_score_invalid');
+}
+
 /** Maps one source envelope into the runtime artifact and optional presentation notation. */
 function parseSource(value: PracticeSourceRead | undefined, identity: SourceIdentity, loadNotation: boolean) {
   if (!value || typeof value.source_id !== 'string' || !value.source_id) {
@@ -43,6 +48,7 @@ function useSourceQuery(options: {
     },
     enabled: options.enabled,
     staleTime: Infinity,
+    ...(options.enabled ? {} : { retry: false }),
   });
   const error = sourceQuery.error;
   const source = options.enabled && !error ? sourceQuery.data : undefined;
@@ -54,7 +60,7 @@ function useSourceQuery(options: {
     error,
     isError: sourceQuery.isError,
     isLoading: options.enabled && sourceQuery.isLoading,
-    invalid: error instanceof PracticeScoreContractError || Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'practice_score_invalid'),
+    invalid: isInvalidPracticeSource(error),
   };
 }
 

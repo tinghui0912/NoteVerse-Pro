@@ -3,12 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { usePracticeSource } from '@/hooks/practice/use-practice-source';
 import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
 import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
-import { PracticeReadinessGate } from '@/components/practice/practice-readiness-gate';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import { usePracticeRangeSelection } from '@/hooks/practice/use-practice-range-selection';
 import { ClientOnly } from '@/components/client-only';
@@ -75,7 +74,7 @@ function CameraPreview({
 }
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
-  return <PracticeReadinessGate><PracticeWorkspace params={params} /></PracticeReadinessGate>;
+  return <PracticeWorkspace params={params} />;
 }
 
 function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
@@ -88,8 +87,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   // Mode and settings
   const workspace = usePracticeWorkspace();
-  const practiceMode = workspace.profile.mode!;
-  const inputSource = workspace.profile.inputSource!;
+  const practiceMode = workspace.configuration?.mode ?? null;
+  const inputSource = workspace.configuration?.inputSource ?? null;
   const recordingMode = practiceMode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode;
   const { tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled, profile, updateProfile } = workspace;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -101,9 +100,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const canEnterPractice = source.canPractice;
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
   const selectedRevisionId = source.revisionId ?? undefined;
-  useEffect(() => {
-    if (source.invalid) router.replace(practiceLocation(id, 'setup', source.revisionId));
-  }, [source.invalid, source.revisionId, id, router]);
 
   const xmlContent = source.musicXml;
   const sourceAdmitted = Boolean(artifact && source.sourceId && selectedRevisionId && xmlContent)
@@ -130,7 +126,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     ? planPracticeSession({ sourceId: source.sourceId, artifact }, executionIntent) : null,
     [artifact, source.sourceId, executionIntent, planPracticeSession, sourceAdmitted]);
 
-  const device = usePracticeDeviceLease(workspace.resourcePlan, sourceAdmitted && workspace.ready);
+  const device = usePracticeDeviceLease(workspace.resourcePlan, sourceAdmitted && Boolean(plan) && workspace.ready);
   const requiredDevices = workspace.resourcePlan?.liveRoots ?? [];
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
@@ -185,7 +181,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   };
   const handleRetry = async () => {
     setIsCompletionDialogOpen(false);
-    if (!canPreparePractice) { goToPracticeSetup(); return; }
+    if (!canPreparePractice) return;
     await execution.retry();
   };
 
@@ -216,11 +212,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     execution.lifecycle === 'ACTIVE' ||
     execution.lifecycle === 'PAUSED' || execution.lifecycle === 'FINALIZING'
     || execution.lifecycle === 'ERROR' && Boolean(execution.executedPlan);
-  useEffect(() => {
-    if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isCompletionDialogOpen) {
-      router.replace(practiceLocation(id, 'setup', selectedRevisionId));
-    }
-  }, [workspace.ready, workspace.readiness.status, isActive, isCompletionDialogOpen, router, id, selectedRevisionId]);
 
 
 
@@ -269,7 +260,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={execution.lifecycle}
         onPause={() => void execution.pause()} onResume={() => void execution.resume()} />;
 
-  const practiceSessionStatus = (
+  const practiceSessionStatus = practiceMode && inputSource ? (
     <PracticeStatus
       className="border-0 bg-transparent px-0 py-0 shadow-none"
       deviceIssue={device.snapshot?.issue ?? null}
@@ -288,7 +279,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       stepInteractionPhase={execution.mode === 'STEP_BY_STEP' ? execution.stepInteractionPhase : null}
       pendingPostVerdict={execution.mode === 'STEP_BY_STEP' ? execution.pendingPostVerdict : null}
     />
-  );
+  ) : null;
 
   const renderFrame = (children: React.ReactNode) => (
     <ScoreSurface>
@@ -302,6 +293,15 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       </div>
     </ScoreSurface>
   );
+
+  if (!canEnterPractice) {
+    return renderFrame(<WorkspaceAccessDenied title={t('accessDeniedTitle')} description={t('accessDeniedDesc')}
+      backHref={`/score/${id}`} backLabel={common('back')} />);
+  }
+
+  if (source.invalid) {
+    return renderFrame(<p role="alert" className="p-6">{t('scoreInvalid')}</p>);
+  }
 
   if (isResourceLoading) {
     return renderFrame(
@@ -318,6 +318,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
         onAction={() => router.back()}
       />
     );
+  }
+
+  if (!configuration || !workspace.hydrated || (!workspace.ready && !isActive && !isCompletionDialogOpen)) {
+    return renderFrame(<p role="status" className="p-6">{t('setupRequired')}</p>);
   }
 
   return renderFrame(
@@ -341,7 +345,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                     xmlContent={xmlContent}
                     isLoadingXml={isLoadingXml}
                     lifecycle={execution.lifecycle}
-                    sessionMode={practiceMode}
+                    sessionMode={configuration.mode}
                     activeStepGroup={execution.activeStepGroup}
                     performanceMusicalBeat={execution.performanceClock?.musicalBeat ?? null}
                     performanceEvaluation={execution.performanceEvaluation}

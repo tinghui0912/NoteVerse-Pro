@@ -5,9 +5,9 @@
 Practice-ready validity belongs to the entire pinned score revision. The only current
 artifact is schema3 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; source or scope never repairs an invalid revision.
-Setup loads it through the shared revision/source query before explicit environment
-Prepare; direct Practice entry disables Device Lease/session resources and returns
-invalid scores to pinned Setup. Device readiness remains independent. See the
+Setup requests it through the shared Source parser only when Start Practice is pressed,
+before Environment qualification. Invalid direct Practice entry disables DeviceLease/session
+resources and shows an in-place score-unavailable state. Device readiness remains independent. See the
 [canonical contract](practice-piano-key-contract.md) for owners, error codes and versions.
 
 ## Execution and Inputs
@@ -57,8 +57,8 @@ SCORE, OFF and FULL. Retry and same-page Try Again retain all these options.
 
 Setup exclusively edits mode, input source and recording mode. Practice exposes execution
 controls and presentation preferences, with no inline editors for readiness-affecting
-configuration. Idle not-ready entry returns to Setup; an active recording intervention
-keeps the current attempt in Practice while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
+configuration. Unavailable admission stays on Practice with explicit Setup navigation;
+an active recording intervention keeps the current attempt while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
 not Setup. The switch controls score feedback visibility independently of readiness,
 session identity, inference, evaluation, Review and Share Video. The preference
 persists with the profile and defaults to OFF.
@@ -108,17 +108,17 @@ MIDI resources use the same compact pattern. Popovers are informational only: re
 health and issue facts, without commands or access to device/platform/session owners.
 
 Explicit device/permission requalification belongs exclusively to Practice Setup:
-The single Prepare practice action calls `workspace.requalify()`, which invokes
-`PracticeEnvironment.requalify(requirements)`. Every click runs fresh browser/device
-requirement probes even when previous evidence is READY. There is no READY shortcut or
-Continue-to-practice action on Setup. `workspace.ready` is live Practice admission
-evidence, not a command to skip Setup qualification.
+The single Start Practice action first refetches and admits the pinned Source, then
+checks the selected capability and invokes `PracticeEnvironment.requalify(requirements)`.
+Every successful Score-admission command runs fresh browser/device requirement probes,
+even when Environment evidence is READY. `workspace.ready` describes live runtime
+admission; it does not authorize navigation or skip qualification.
 
 A stable, quiet Practice setup navigation is always available. Both that navigation
 and Settings → Setup only close the Settings sheet and push the exact pinned revision
 URL. Navigation has no device/environment side effects: no acquisition, qualification,
 invalidation, restart or synthetic failure reason. Active attempts end through normal
-page unmount/disposal. Direct/alternate Setup entry follows the same fresh Prepare rule.
+page unmount/disposal. Every Setup visit starts with unprepared transaction presentation.
 
 Explicit requalification moves normally to CHECKING and then READY, or BLOCKED only
 when that qualification transaction actually fails. Entering Setup is not a failure.
@@ -167,7 +167,8 @@ and never acquire or stop roots. Recorder audio always clones the selected audio
 root; video combines that clone with a camera-root clone. Preview only displays
 the Device Lease camera stream. Normal healthy completion Try Again creates a fresh
 attempt on these roots, without device recovery. If devices or Environment are no longer
-ready, Try Again returns to Setup requalification instead. There is no in-place root
+ready, Try Again stays on Practice without starting an attempt. The learner can choose
+the pinned Setup navigation to prepare. There is no in-place root
 replacement or multi-segment recording.
 
 Leaving the exact Practice page for Setup, Review, Score or another route immediately
@@ -218,11 +219,11 @@ retirement or explicit continuation boundary. See [physical health contracts](pr
 `planning/resource-plan.ts` derives qualification, live roots and input/analysis/recording
 bindings from the execution configuration. `PracticeSessionPlan.resources` carries
 that immutable plan into execution. The workspace uses its qualification projection
-before source/scope/tempo planning. Live readiness is UNCONFIGURED, CHECKING, READY or BLOCKED, with component diagnostics
-and download progress. Its fingerprint represents the effective requirement set,
-so equivalent configurations may use the same live admission evidence. This never
-skips explicit Setup requalification; unrelated presentation changes do not invalidate
-the evidence. Readiness is never persisted.
+for candidate configuration. Live Environment readiness is UNCONFIGURED, CHECKING,
+READY or BLOCKED, with component diagnostics and download progress. Its fingerprint
+represents the effective requirement set. Environment evidence supports current runtime
+admission and warm infrastructure ownership; it is never persisted or used as a navigation
+credential. Setup presents only the preparation transaction initiated on its current visit.
 
 | Configuration | Required checks |
 | --- | --- |
@@ -246,13 +247,33 @@ and discard all probe data. Probe tracks, worklets and AudioContexts are release
 VIDEO/AUDIO/MIDI failures keep the selected intent and block Start; no fallback
 changes the configuration. Technical reason codes are available behind details.
 
-`/practice/setup` owns explicit preparation. Practice entry redirects there until
-the selected requirements are satisfied, preserving revision identity. Practice settings
-only link back to Setup to change mode, input or recording; no inline selector or
-standalone Prepare patch is present. Full reload restores preferences, not readiness or GPU memory.
-Setup success does not promise immutable permissions. Practice page binding acquires live
-devices and fails closed on device/permission loss without cold model bootstrap. Start
-only binds fresh attempt-owned resources to the admitted Device Lease.
+Score Detail's Practice command always enters `/practice/setup`, pinning the current
+head revision when available. A direct Setup URL resolves and pins an absent revision
+from score metadata. Mounting Setup and editing configuration perform no Practice Source
+admission, Environment probes, DeviceLease acquisition or execution construction.
+Setup has a Back to score navigation and one primary action: Start practice (开始练习).
+
+Every Setup Start Practice command captures the pinned revision, complete configuration
+and planned requirements. It requests a fresh artifact-only Practice Source through the
+canonical parser first, then checks the current selected input capability and calls
+`PracticeEnvironment.requalify()` for the captured qualification projection. Cached Source
+success and READY Environment state never skip these checks. Healthy warm infrastructure
+may be reused by its owner. Controls are locked during preparation; stale or unmounted
+completion cannot navigate. Only successful current preparation replaces the route with
+Practice at the exact admitted revision.
+
+Invalid Score admission stays on Setup and blocks preparation for that revision before
+qualification. A transient Source load failure stays retryable through the same CTA.
+Capability or qualification failure stays on Setup. All navigation is user-directed except
+successful preparation and revision pinning within the current route.
+
+Practice loads and strictly parses its own Source response defensively. Missing configuration,
+invalid or failed Source, access denial and unavailable Environment/device admission fail
+closed in place, without automatic navigation to Setup. Its top Setup navigation preserves
+the pinned revision. An unavailable Retry stays on Practice. Full reload restores preferences,
+not readiness or GPU memory. Setup preparation enters the workspace; the separate Practice
+Start command constructs an actual attempt through `PracticeExecutionOwner`. Live page
+binding owns DeviceLease roots; Start borrows them and creates fresh attempt-owned resources.
 
 ## Practice Environment
 
@@ -262,9 +283,9 @@ readiness diagnostics and the score-blind `acoustic/model/acoustic-engine.ts`.
 It owns no score, scope, evaluator, attempt, result or recording artifact.
 
 ```text
-Preferences -> Readiness gate -> Warm environment -> Session inference lease
-                                  |                       |
-                           workspace lifetime       fresh every Start
+Setup Start Practice -> Source admission -> Qualification
+                                               -> Warm environment (workspace lifetime)
+                                               -> Session inference lease (fresh attempt Start)
 ```
 
 Cold preparation verifies the OPFS/downloaded model identity, creates one Worker
@@ -383,8 +404,8 @@ Retry, release serialization and stale callback fencing belong to that owner.
 Controllers retain mode-specific domain evaluation and processing pipelines.
 
 Strict artifact parsing at the Practice Source projection is the score-level
-correctness authority. Setup consumes invalid-source state as its proactive UX gate;
-Practice consumes it defensively before plan/execution admission. Planners/controllers
+correctness authority. Setup invokes it only from Start Practice, before qualification;
+Practice invokes it defensively before plan/execution admission and stays in place on failure. Planners/controllers
 consume admitted runtime values and do not perform full artifact validation.
 The acoustic foundation remains score-blind. Static architecture checks enforce
 these dependency and ownership boundaries.
@@ -924,7 +945,7 @@ only End or page teardown ends domain/application truth. The controller never st
 or reacquires the borrowed root. End retires the STEP attempt and returns READY; the
 next Start uses current Source, Environment, DeviceLease and selected-capability
 admission. Past intervention state is not a readiness authority. Returning to Setup
-has no environment side effects; explicit Prepare performs qualification.
+has no environment side effects; explicit Start Practice performs fresh Source admission and qualification.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.
 Continuous required-input root ended, context closure and invalid capture offer End only. Required

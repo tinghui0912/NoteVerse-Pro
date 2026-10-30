@@ -66,7 +66,8 @@ One request authorizes and resolves one revision and builds one bundle. The resp
 }
 ```
 
-`include_notation=false` returns `notation=null`. Setup uses that option.
+`include_notation=false` returns `notation=null`. Setup requests that representation only
+when the user presses Start Practice, forcing a fresh request on every command.
 `include_notation=true` includes the exact prepared Practice MusicXML. Practice and
 Review request notation for browser presentation consumers such as Verovio.
 Notation is a rendering representation, not an evaluation/domain input. STEP and
@@ -83,11 +84,15 @@ remain independent of API clients and generated transport DTOs.
 ## Browser Score Admission and Execution
 
 The source projection's strict `parsePracticeScoreArtifact()` call owns revision-wide
-score correctness. It returns the runtime artifact or invalid-source state. Setup
-prominently surfaces invalid state and disables Prepare without qualification. Practice
-uses the same admitted source as a defensive route gate; absent/failed/invalid source
-data cannot create an executed plan or controller. Score revision pinning remains
-part of the source query identity.
+score correctness. It returns the runtime artifact or invalid-source state. Setup performs
+no Source request on mount or configuration edits. Its explicit Start Practice command
+refetches the pinned revision through this parser before capability checks or Environment
+qualification. Invalid revision admission disables that command for the pinned revision;
+transient load failure remains retryable. Qualification never runs after Source failure.
+Practice loads its artifact and notation through the same parser. Absent/failed/invalid
+Source data disables DeviceLease execution and cannot create a plan or controller. These
+states render in place; they never automatically route to Setup. Score revision pinning
+remains part of the Source query identity.
 
 Planning consumes the admitted artifact, checks its own intent/sourceId/scope/tempo
 inputs and produces a candidate plan. Explicit Start captures that plan in the single

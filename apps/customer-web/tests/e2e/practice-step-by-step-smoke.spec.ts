@@ -621,7 +621,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Setup exclusively owns mode, input and recording. STEP has no empty settings sheet.
     await expect(page.getByRole('button', { name: '设置', exact: true })).toBeVisible();
-    for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '录音', '录像', '准备练习']) {
+    for (const name of ['逐音练习', '连贯演奏', '麦克风', 'MIDI 键盘', '录音', '录像', '开始练习']) {
       await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
     await openPracticeSetup(page);
@@ -812,19 +812,19 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const requests: string[] = [];
     page.on('request', request => { if (request.url().includes('/model-assets')) requests.push(request.url()); });
     await setupPracticeMocks(page, { initialMidiInputs: 0 });
-    await page.goto('/zh/score/' + scoreId + '/practice?practiceRevisionId=' + revisionId);
+    await page.goto('/zh/score/' + scoreId + '/practice/setup?practiceRevisionId=' + revisionId);
     await expect(page.getByTestId('practice-setup')).toBeVisible();
     await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '逐音练习', exact: true }).click();
     await page.getByRole('button', { name: 'MIDI 键盘', exact: true }).click();
     expect(requests).toEqual([]);
-    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await page.getByRole('button', { name: '开始练习', exact: true }).click();
     await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
     await page.getByText('技术详情', { exact: true }).click();
     await expect(page.getByText('NO_CONNECTED_INPUT', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.evaluate(() => (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice());
-    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await page.getByRole('button', { name: '开始练习', exact: true }).click();
     const start = page.getByRole('button', { name: '开始', exact: true });
     await expect(start).toBeEnabled(); await start.click();
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
@@ -838,14 +838,14 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const requests: string[] = [];
     page.on('request', request => { if (new URL(request.url()).pathname === practiceModelAccessPath) requests.push(request.url()); });
     await setupPracticeMocks(page, { modelAccessOverride: 'error' });
-    await page.goto('/zh/score/' + scoreId + '/practice?practiceRevisionId=' + revisionId);
+    await page.goto('/zh/score/' + scoreId + '/practice/setup?practiceRevisionId=' + revisionId);
     await expect(page.getByTestId('practice-setup')).toBeVisible();
     await page.getByRole('button', { name: '连贯演奏', exact: true }).click();
     await page.getByRole('button', { name: '麦克风', exact: true }).click();
     await page.getByRole('button', { name: '不录制', exact: true }).click();
     expect(requests).toEqual([]);
     const access = page.waitForResponse(response => new URL(response.url()).pathname === practiceModelAccessPath);
-    await page.getByRole('button', { name: '准备练习', exact: true }).click();
+    await page.getByRole('button', { name: '开始练习', exact: true }).click();
     expect((await access).status()).toBe(500);
     await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
     await expect(page.getByRole('button', { name: '麦克风', exact: true })).toHaveAttribute('aria-pressed', 'true');

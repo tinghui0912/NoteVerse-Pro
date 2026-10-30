@@ -840,12 +840,12 @@ it('keeps execution device status informational and requalification exclusively 
     }
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleRetry') {
       completionGuard = true; const text = node.getText(page);
-      expect(text).toContain('!canPreparePractice'); expect(text).toContain('goToPracticeSetup(); return;');
+      expect(text).toContain('!canPreparePractice'); expect(text).toContain('if (!canPreparePractice) return;');
       expect(text).toContain('await execution.retry()'); expect(text).not.toContain('device.');
     }
     if (ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(page), text = node.getText(page);
-      if (tag === 'PracticeStatus') { statusCount++; expect(ts.isConditionalExpression(node.parent)).toBe(false); expect(text).toContain('deviceControls='); }
+      if (tag === 'PracticeStatus') { statusCount++; expect(text).toContain('inputSource={inputSource}'); expect(text).toContain('deviceControls='); }
       if (tag === 'PracticeDeviceStatusPopover') { popoverCount++; expect(text).not.toMatch(/onReconnect|canReconnect/); }
       if (tag === 'StepPracticeControls') { stepControls = true; expect(text).toContain('lifecycle={execution.lifecycle}'); }
     }
@@ -874,7 +874,7 @@ it('keeps execution device status informational and requalification exclusively 
   }
 });
 
-it('Setup always invokes explicit fresh qualification, while ready remains admission evidence', () => {
+it('Setup commands admit Source before current capability and fresh Environment qualification', () => {
   const file = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx');
   const source = ts.createSourceFile(file, readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const calls: string[]=[];
@@ -883,8 +883,11 @@ it('Setup always invokes explicit fresh qualification, while ready remains admis
     if (ts.isCallExpression(node)) calls.push(node.expression.getText(source));
     ts.forEachChild(node, inspect);
   }; inspect(source);
-  expect(calls.filter(call=>call==='workspace.requalify')).toHaveLength(1);
-  expect(calls).not.toContain('workspace.prepare');
+  expect(calls.filter(call => call === 'source.sourceQuery.refetch')).toHaveLength(1);
+  expect(calls.filter(call => call === 'environment.requalify')).toHaveLength(1);
+  expect(calls.indexOf('source.sourceQuery.refetch')).toBeLessThan(calls.indexOf('evaluatePracticeInputCapabilities'));
+  expect(calls.indexOf('evaluatePracticeInputCapabilities')).toBeLessThan(calls.indexOf('environment.requalify'));
+  expect(calls.indexOf('environment.requalify')).toBeLessThan(calls.indexOf('environment.matches'));
   const environmentFile=path.join(practiceRoot,'environment/practice-environment.ts');
   const environment=ts.createSourceFile(environmentFile,readFileSync(environmentFile,'utf8'),ts.ScriptTarget.Latest,true);
   let fresh=false;

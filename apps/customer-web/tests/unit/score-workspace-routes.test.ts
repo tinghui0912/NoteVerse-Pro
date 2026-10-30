@@ -43,7 +43,7 @@ describe('score workspace routes', () => {
     const reviewEditor = readSource('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx');
 
     expect(actions).toContain('/score/${scoreId}/edit');
-    expect(actions).toContain('/score/${scoreId}/practice');
+    expect(actions).toContain("practiceLocation(scoreId, 'setup', revisionId)");
     expect(upload).toContain('/review/${jobId}');
     expect(reviewPage).toContain('/review/${jobId}/edit');
     expect(scoreEditor).toContain('<EditorWorkspacePage');
@@ -57,6 +57,8 @@ describe('score workspace routes', () => {
     const publicPage = readSource('src/components/external/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreSurface');
+    expect(sharePage).toContain("router.push(practiceLocation(response.data.score_id, 'setup'))");
+    expect(sharePage).toContain("router.replace(practiceLocation(response.data.score_id, 'setup'))");
     expect(sharePage).toContain('<ScoreCapabilityProvider');
     expect(sharePage).toContain('capabilities={data.capabilities}');
     expect(sharePage).toContain('playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}');
