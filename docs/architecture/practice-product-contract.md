@@ -52,9 +52,9 @@ Setup exclusively edits mode, input source and recording mode. Practice exposes 
 controls and presentation preferences, with no inline editors for readiness-affecting
 configuration. Idle not-ready entry returns to Setup; an active recording intervention
 keeps the current attempt in Practice while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
-not Setup. It only changes current score feedback visibility: readiness, session identity,
-inference, evaluation, Review and Share Video remain unchanged. The preference persists
-with the profile and defaults to OFF.
+not Setup. The switch controls score feedback visibility independently of readiness,
+session identity, inference, evaluation, Review and Share Video. The preference
+persists with the profile and defaults to OFF.
 
 ## Environment, Device Lease and Attempt Lifetimes
 
@@ -114,8 +114,8 @@ Explicit requalification moves normally to CHECKING and then READY, or BLOCKED o
 when that qualification transaction actually fails. Entering Setup is not a failure.
 A healthy READY_IDLE acoustic engine/model/worker stays warm: fresh external probes do
 not recreate the engine, request model access, download or load the model again. A
-FAILED/DISPOSED engine is replaced and prepared through the same existing transaction.
-No second preparation lifecycle or idempotent compatibility wrapper exists.
+FAILED/DISPOSED engine is constructed and prepared inside the explicit
+requalification transaction.
 
 Fresh Setup qualification may overlap asynchronous retirement of the previous Practice
 attempt's acoustic inference lease. The previous attempt owns that retirement through
@@ -134,8 +134,8 @@ cannot force a browser permission prompt. The learner allows access in browser s
 settings, returns to Practice Setup, and explicitly prepares again. Execution status has
 no Reconnect, Retry or fault-specific configuration action.
 
-Natural same-resource recovery remains distinct. Microphone mute/unmute observes the
-same root and preserves existing recovery semantics. Existing MIDIAccess statechange may
+Natural same-resource recovery has its own ownership. Microphone mute/unmute observes
+the same root; input controllers own recovery on that root. MIDIAccess statechange may
 observe a connected input again without requesting new access. Neither requires Setup.
 A hard access/permission reacquisition does. Settings navigation remains deliberate;
 ordinary device faults do not invalidate Environment or navigate automatically.
@@ -269,15 +269,15 @@ analysis/recorder clones, AudioContexts, recorder and inference lease while reta
 the page Device Lease and healthy warm engine.
 Natural completion and abandonment retain their distinct contracts below.
 
-Persistent state consists only of user preferences and the existing verified OPFS
+Persistent state consists only of user preferences and the verified OPFS
 model asset. Readiness, warm engine, tempo/metronome/scope and current completion
 are browser memory; capture, clocks, evaluation and recorder are session resources.
 Practice Results/reports remain transient and are never persisted.
 
 Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/unsupported decorations while retaining score, range
-and playhead. Evaluation and natural Result production
-continue unchanged. ON/OFF does not restart a session or engine. Review always
+and playhead. Evaluation and natural Result production operate independently of
+the feedback setting. ON/OFF does not restart a session or engine. Review always
 shows completed feedback; Share Video always uses its clean-score contract.
 
 ## Domain Ownership
@@ -358,8 +358,8 @@ Equal cardinality and every equal member yields MATCH; subsets, supersets and ot
 sets yield MISMATCH. Continuation is excluded. Confidence is metadata, never a
 verdict threshold. No target-aware source filtering or evidence loss is permitted.
 The current snapshot is schema9/runtime `step-piano-key-learning-v12`.
-There is no string-language admission, selected-target compatibility loop,
-STEP_TARGET_INVALID mapping, schema8 reader or speculative hydration/migration.
+Revision-wide artifact admission establishes the physical-key target contract;
+STEP evidence admission uses the kernel piano-key predicate.
 
 READY → CAPTURING → ANALYZING → POST_VERDICT owns exactly one attempt. Explicit rearm
 commits MATCH once and completes at scope end; MISMATCH retains the answered target.
@@ -380,7 +380,8 @@ callbacks cannot resurrect a retired owner. Analysis and infrastructure interven
 remain terminal and distinct; End releases resources through current ownership.
 Natural completion wins over late failures and cleanup errors remain visible.
 Borrowed microphone root tracks are not stopped by an attempt; owned clones,
-capture, context and inference leases are released. No manual STEP Start is added.
+capture, context and inference leases are released. STEP activation follows the
+controller/page lifecycle.
 
 See the [STEP owner README](../../apps/customer-web/src/lib/practice/step/README.md)
 and [raw-work audit](practice-step-pitch-evidence-bounds.md).
@@ -453,9 +454,9 @@ it does not prove that declared path/bytes/SHA fingerprints still describe curre
 repository files. A Node-side recursive attestation test checks those source and FIR
 assets separately: text uses UTF-8 with CRLF normalized to LF only, while binary
 coefficients use exact raw bytes. Browser identity validation does not read or fetch
-repository source. Repairing stale implementation attestations mechanically updates
-the core hash and source-adapter composite hashes; it does not change recognition
-behavior, the model asset, identityName, or the schema-6 Result shape.
+repository source. The core hash and source-adapter composite hashes bind the
+selected implementation and asset attestations. Result schema7 retains the configured
+acoustic identity values in its evidence provenance.
 
 `practice/acoustic/continuous` projects source observations into performance time
 and publishes `ContinuousEvidencePublication` through the session. Paused context
@@ -484,8 +485,6 @@ MIDI native timestamp / acoustic source sample
        Session / source coordinate
                   ↓
        event → performance mapping
-                  ↓
-       [future optional calibration]
                   ↓
        observation.performanceTimeMs
                   ↓
@@ -518,8 +517,8 @@ must have the target key, exact timing offset and local assignment-window eligib
 Every child strike shares its parent group's canonical onset. Each observation is
 owned exactly once by an exact same-key strike match or an unattributed relation;
 non-target evidence is never substituted into a target slot. This boundary never
-reruns an optimizer or reassigns evidence, and never repairs, migrates or normalizes
-caller data.
+reruns an optimizer or reassigns evidence. It validates caller data without repair,
+coercion or mutation.
 Live completion records availability when terminal coverage actually closes the
 assignment, no earlier than either the completion request or accepted terminal evidence.
 
@@ -569,15 +568,16 @@ Same-key cohort coverage has a derived 3W safety invariant: the direct cohort
 extends at most 2W from its anchor, then requires W more coverage. W is the current
 assignment window, not an independent frontier tuning parameter. Acoustic 170ms
 future context remains model lookahead, never an event timestamp subtraction.
-Model windows and decoder thresholds are unchanged.
+Model windows and decoder thresholds are defined by the acoustic model and decoder
+contracts.
 
 Non-zero input timing calibration requires empirical device/runtime qualification.
 Browser API latency hints alone are insufficient; baseLatency/outputLatency and
-matched-note timing medians do not establish physical input latency. Any future
-versioned calibration belongs at the source-specific evidence mapping boundary,
-before source-blind assignment. It must shift event coordinates and safe analyzed
-frontiers coherently to prevent late evidence and premature finalization. No non-zero
-calibration is implemented by this contract.
+matched-note timing medians do not establish physical input latency. Calibration
+qualification must establish coherent source-specific event coordinates and safe
+analyzed frontiers before source-blind assignment, including protection
+against late evidence and premature finalization. The current timing contract
+specifies calibrationApplied=false and applies no input timing offset.
 
 A performance retains three distinct layers: immutable evidence truth,
 source-blind assignment truth and source-bound evidence provenance.
@@ -617,12 +617,12 @@ observations.
 
 ### Source-blind assignment
 
-Same-key assignment uses the unchanged inclusive +/-250ms eligibility window.
+Same-key assignment uses an inclusive +/-250ms eligibility window.
 `CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5` defines three objectives:
 maximize cardinality, minimize total absolute timing error, then choose the
 lexicographically earliest chronological non-crossing pair sequence.
 
-Targets sort by expected Performance Time, then existing canonical score order only
+Targets sort by expected Performance Time, then canonical score order only
 when time is identical, with strike identity as the final corruption-safe fallback.
 Events sort by Performance Time, then observation identity only for identical times.
 Different-onset target colors never depend on opaque target identity. At 1000/1300ms
@@ -639,8 +639,8 @@ per-target greedy and midpoint clipping do not preserve these objectives.
 W=250ms remains an unqualified algorithm-policy parameter. The common-radius
 non-crossing proof works for any common radius. Solver correctness does not
 establish learner timing tolerance or recognition accuracy.
-Note duration / notation end is not an attack acceptance deadline. Beat/IOI-relative
-acceptance, midpoint ownership and device/learner qualification are not adopted.
+Note duration / notation end is not an attack acceptance deadline. Learner/input
+timing and physical-device behavior require separate qualification evidence.
 
 Canonical chord strikes share one onset. Direct same-key cohorts are literal
 interval neighbors within 2W, not recursively expanded graph components. A strike
@@ -682,11 +682,11 @@ retaining or committing any publication, observation, frontier, ownership or
 completion mutation. Correctness failures discard the plan and remain errors;
 there is no capacity-specific degradation latch or input/start failure mapping.
 
-No new Continuous evaluation capacity ceiling is frozen without qualification
-evidence. Future emergency limits must be justified by measured workload/device
-headroom and must never silently truncate evaluation truth. This round introduces
-no replacement count, length, memory heuristic or environment-configured ceiling.
-Existing acoustic resource constants are unchanged and require their own audit.
+Continuous evaluation retains all accepted evidence without an independent count,
+length, memory-heuristic or environment-configured capacity ceiling. Workload/device
+headroom for this retention requires measurement. Acoustic admission budgets belong
+to their resource-policy owners and require separate qualification. Resource handling
+must fail closed rather than silently truncate accepted evaluation truth.
 
 The research-only `npm run benchmark:practice-evaluation-scale` runs the real
 finalizer at 100/500/1,000/5,000 strikes with incremental publications, repeated
@@ -697,8 +697,8 @@ local output. Wall-clock is local engineering evidence, not a qualification
 threshold, CI timing assertion or learner metric. Pathological dense graphs can
 still require many legal edges; this does not justify inventing a ceiling here.
 
-STEP multi-hour soak is not part of this round. Continuous recording chunk growth
-is not part of this round.
+The benchmark characterizes Continuous assignment work. STEP multi-hour retention
+and Continuous recording chunk growth require separate workload measurements.
 
 ### Canonical target truth
 
@@ -729,8 +729,8 @@ For a C4+D4 target, both sources produce the same assignment states and colors:
 | C4 + D4 | MATCHED | MATCHED | green / green |
 
 E4 in the second row remains UNATTRIBUTED; the third row contains no E4 fact.
-PENDING and NOT_REACHED are untouched. UNAVAILABLE means trustworthy analysis could
-not complete and never fabricates negative target colors. User abandonment still
+PENDING and NOT_REACHED carry no correctness colors. UNAVAILABLE means trustworthy
+analysis could not complete and never fabricates negative target colors. User abandonment still
 produces no learner Result. UNAVAILABLE also covers an admitted Continuous microphone
 attempt whose analysis became unavailable under the explicit Analysis Failure
 Intervention contract below.
@@ -740,8 +740,8 @@ Intervention contract below.
 Continuous Review is replay-first, not a statistics dashboard. No learner-facing
 aggregate performance metrics artifact exists. Review keeps synchronized replay,
 score/playhead, completed annotations, useful metadata and recording/save/share
-and retry/back actions; it does not display outcome/extra counts or replacement
-percentages, grades or scores.
+and retry/back actions; it does not display outcome/extra counts, percentages,
+grades or scores.
 
 Live Practice and completed Review share one target-feedback contract and annotation
 mapper. MATCHED maps to supported green; UNMATCHED maps to unsupported red. PENDING,
@@ -778,7 +778,7 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-6: local session and score/revision/artifact identities, resolved scope, tempo plan,
+7: local session and score/revision/artifact identities, resolved scope, tempo plan,
 input source, active performance duration, completed evaluation, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
@@ -789,8 +789,8 @@ resolved scope. COMPLETE evaluation has exactly status, inputSource, assignmentP
 assignment. UNAVAILABLE has exactly status, inputSource, assignmentPolicyId and
 reason, without inventing empty analysis.
 Validation rejects mismatched session/source identities, corrupt assignment and
-unsupported provenance. It never repairs
-or upgrades an artifact. JSON round-trip preserves these semantic checks.
+unsupported provenance. It validates exact artifact fields without repair or coercion.
+JSON round-trip preserves these semantic checks.
 Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
@@ -812,11 +812,10 @@ Session Time; expected/event/frontier positions use Performance Time. There is n
 independent interpretation algorithm or interpretation policy identity. Validation
 checks exact assignment truth and source consistency without repair or reassignment.
 
-MIDI evidence declares
-`MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3`: physical NOTE_ON facts,
-session-time capture, one observation per NOTE_ON, 250ms publication-coverage grace
-and exact terminal coverage. V2 corrects availability to Session Time; native NOTE_ON
-event mapping and 250ms coverage behavior remain unchanged. The evidence owner supplies this identity.
+`MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3` records physical NOTE_ON
+capture in Session Time, one observation per NOTE_ON, a 250ms coverage-publication
+grace, Session-Time availability and exact terminal coverage. The MIDI evidence owner
+supplies this identity.
 
 Microphone results retain the public canonical acoustic analysis descriptor:
 acoustic identity name/core SHA-256, model SHA-256 and authoritative decoder-source
@@ -863,7 +862,7 @@ A recorder-owned clone fault with healthy input, or recording loss with healthy 
 can offer Continue without recording while interruption is unresolved. Recovered
 recording offers only Resume or End, preserving the now-recoverable intent. Root microphone mute and temporary AudioContext
 interruption pause canonical transport and wait for the same input/capture pipeline to
-recover. Continuous capture explicitly retains its existing graph across temporary
+recover. Continuous capture retains its graph across temporary
 context suspension; closure or invalid chronology still invalidates it. STEP temporary
 root mute cancels unfinished input, preserves target/progress and automatically returns
 to waiting on same-root recovery. Its recovery commits a fresh physical capture
@@ -881,7 +880,7 @@ failure remains owned by the Attempt or engine, without generic Environment inva
 Continuous required-input root ended, context closure and invalid capture offer End only. Required
 input loss never offers recording-only degradation. Shared-source callbacks converge
 on one intervention, with input-required impact taking priority and one canonical pause.
-MIDI disconnection retains its existing pause/reconnect contract and cannot accept
+MIDI disconnection follows its pause/reconnect contract and cannot accept
 recording-only degradation while input is unavailable.
 
 Continuous microphone terminal **analysis** failure after admission has an independent
@@ -902,7 +901,7 @@ session, performance clock and healthy recording. It resumes through normal Resu
 Count-In only when the intervention caused the pause; an existing user pause needs
 an explicit later Resume. Accepted degradation is a quiet valid performance, not an
 input/start ERROR. No worker retry or publication can revive analysis. Completed
-natural evaluation is the existing exact UNAVAILABLE shape with reason
+natural evaluation has the exact UNAVAILABLE shape with reason
 `CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema7
 binds the configured assignment and evidence provenance. Healthy media finalizes normally;
 Review retains replay/save/share and its unavailable notice without target colors.
@@ -944,7 +943,7 @@ from the result's active performance duration; recording is not a JSON result co
 The recorder can build segments mutably, but finalized timebase/segments are copied
 and frozen. READY validation requires finite nonnegative coordinates, ordered
 non-overlapping performance segments, a media timeline starting at zero with no
-unexplained gaps, and nominal duration matching the final media end. Existing
+unexplained gaps, and nominal duration matching the final media end. The
 container rounding tolerance is one millisecond; zero-duration boundaries are valid.
 Replay preserves pause/resume mapping, actual decoded-duration scaling, gap-to-null
 behavior and bounds clamping.
@@ -1031,7 +1030,8 @@ PracticeScoreViewer composes these primitives and owns React effects, observer
 subscriptions and animation-frame cancellation. Range geometry and DOM mutation
 belong to range-overlay.ts. STEP and Continuous retain distinct playhead controllers
 with their respective group and beat/scope input contracts. Rendering options,
-cursor dimensions, staff mapping, colors and scroll thresholds remain fixed.
+cursor dimensions, staff mapping, colors and scroll thresholds are owned by the
+score-view primitives.
 
 `review/` consumes the current transient completion. review-score-state.ts gates
 annotations, playhead and share-score rendering on exact score/revision/artifact
