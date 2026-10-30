@@ -11,14 +11,14 @@ export const tempoGrid = [MIN_PRACTICE_TEMPO_BPM, 60, 80, 100, 120, 160, 200, MA
 export const spacingGrid = [2, 1, 1 / 2, 1 / 3, 1 / 4];
 export const offsetSweepMs = [0, ...[10, 25, 50, 75, 100, 125, 150, 200, 249, 250, 251, 300].flatMap(ms => [-ms, ms])];
 export const patternFamilies = {
-  ISOLATED_NOTE: [['C4']],
-  SAME_PITCH_REPEATED_NOTES: [['C4'], ['C4'], ['C4'], ['C4']],
-  ALTERNATING_PITCHES: [['C4'], ['D4'], ['C4'], ['D4']],
-  SAME_PITCH_REPEATED_GROUPS: [['C4'], ['C4'], ['C4']],
-  CHORD_REPEATED_CHORD: [['C4', 'E4', 'G4'], ['C4', 'E4', 'G4'], ['C4', 'E4', 'G4']],
-  CHORD_ONE_REPEATED_MEMBER: [['C4', 'E4', 'G4'], ['C4', 'F4', 'A4'], ['C4', 'E4', 'G4']],
-  DENSE_NEIGHBORING_GROUPS: [['C4', 'E4'], ['D4', 'F4'], ['C4', 'G4'], ['D4', 'F4']],
-  CHORD_SUBSTITUTION: [['C4', 'E4', 'G4']],
+  ISOLATED_NOTE: [[60]],
+  SAME_PITCH_REPEATED_NOTES: [[60], [60], [60], [60]],
+  ALTERNATING_PITCHES: [[60], [62], [60], [62]],
+  SAME_PITCH_REPEATED_GROUPS: [[60], [60], [60]],
+  CHORD_REPEATED_CHORD: [[60, 64, 67], [60, 64, 67], [60, 64, 67]],
+  CHORD_ONE_REPEATED_MEMBER: [[60, 64, 67], [60, 65, 69], [60, 64, 67]],
+  DENSE_NEIGHBORING_GROUPS: [[60, 64], [62, 65], [60, 67], [62, 65]],
+  CHORD_SUBSTITUTION: [[60, 64, 67]],
 } as const;
 
 export function fixedTimeline(bpm: number): PracticeTempoTimeline {
@@ -26,14 +26,14 @@ export function fixedTimeline(bpm: number): PracticeTempoTimeline {
     segments: [{ startBeat: 0, bpm, source: 'CUSTOM' }] }, 32);
 }
 
-export function expectedPattern(timeline: PracticeTempoTimeline, groups: readonly (readonly string[])[], spacingBeats: number, startBeat = 4): ContinuousExpectedStrike[] {
-  return groups.flatMap((pitches, group) => pitches.map(pitch => ({
-    strikeId: `g${group}:${pitch}`, groupId: `g${group}`, pitch,
+export function expectedPattern(timeline: PracticeTempoTimeline, groups: readonly (readonly number[])[], spacingBeats: number, startBeat = 4): ContinuousExpectedStrike[] {
+  return groups.flatMap((pianoKeys, group) => pianoKeys.map(pianoKey => ({
+    strikeId: `g${group}:${pianoKey}`, groupId: `g${group}`, pianoKey,
     expectedPerformanceTimeMs: timeline.beatToTimeMs(startBeat + group * spacingBeats), renderNoteIds: [],
   })));
 }
 
-type Probe = { intendedStrikeId: string; offsetMs: number; pitch?: string };
+type Probe = { intendedStrikeId: string; offsetMs: number; pianoKey?: number };
 type CaseInput = { caseId: string; family: string; variant: string; bpm: number; spacingBeats: number;
   timeline: PracticeTempoTimeline; strikes: ContinuousExpectedStrike[]; probes: Probe[]; atBeat?: number; tag?: 'TIE_CASE' };
 
@@ -43,7 +43,7 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
   const observations = input.probes.map((probe, index) => {
     const strike = strikes.find(strike => strike.strikeId === probe.intendedStrikeId);
     if (!strike) throw new Error('RESEARCH_INTENDED_STRIKE_INVALID');
-    return { observationId: `o${index}`, pitch: probe.pitch ?? strike.pitch,
+    return { observationId: `o${index}`, pianoKey: probe.pianoKey ?? strike.pianoKey,
       performanceTimeMs: strike.expectedPerformanceTimeMs + probe.offsetMs, confidence: 1, source: 'MIDI' as const };
   });
   const terminal = Math.max(...strikes.map(strike => strike.expectedPerformanceTimeMs),
@@ -60,11 +60,11 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
   assertCompletedAssignment(result.assignment);
   const assignedStrikes = result.assignment.groups.flatMap(group => group.strikes);
   const samePitchGaps: { previous: ContinuousExpectedStrike; next: ContinuousExpectedStrike }[] = [];
-  const previousByPitch = new Map<string, ContinuousExpectedStrike>();
+  const previousByPitch = new Map<number, ContinuousExpectedStrike>();
   for (const strike of [...strikes].sort((a, b) => a.expectedPerformanceTimeMs - b.expectedPerformanceTimeMs)) {
-    const previous = previousByPitch.get(strike.pitch);
+    const previous = previousByPitch.get(strike.pianoKey);
     if (previous) samePitchGaps.push({ previous, next: strike });
-    previousByPitch.set(strike.pitch, strike);
+    previousByPitch.set(strike.pianoKey, strike);
   }
   const atBeat = input.atBeat ?? 4;
   const beatDurationMs = timeline.beatToTimeMs(atBeat + 1) - timeline.beatToTimeMs(atBeat);
@@ -86,7 +86,7 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
       const intended = assignedStrikes.find(strike => strike.strikeId === intendedStrikeId)!;
       if (intended.state === 'NOT_REACHED') throw new Error('RESEARCH_UNEXPECTED_NOT_REACHED');
       return { observationId: observation.observationId, intendedStrikeId, assignedStrikeId, assignmentKind: relation.kind,
-        observedPitch: observation.pitch, intendedPerformanceTimeMs: intended.expectedPerformanceTimeMs,
+        observedKey: observation.pianoKey, intendedPerformanceTimeMs: intended.expectedPerformanceTimeMs,
         observationPerformanceTimeMs: observation.performanceTimeMs, assignedPerformanceTimeMs: assigned?.expectedPerformanceTimeMs ?? null,
         intendedStrikeState: intended.state, generatedOffsetMs: input.probes[index].offsetMs,
         timingOffsetMs: relation.kind === 'STRIKE_MATCH' && assigned?.state === 'MATCHED' ? assigned.match.timingOffsetMs : null,
@@ -133,7 +133,7 @@ export function benchmarkTempo(bpm: number): SyntheticCase[] {
       for (const offsetMs of offsetSweepMs) {
         const input = { caseId: `${bpm}/${spacingBeats}/${family}/${offsetMs}`, bpm, spacingBeats, family, timeline, strikes };
         cases.push(characterizeCase({ ...input, variant: 'FULL_SWEEP', probes: strikes.map(strike => ({
-          intendedStrikeId: strike.strikeId, offsetMs, ...(family === 'CHORD_SUBSTITUTION' && strike.pitch === 'G4' ? { pitch: 'A4' } : {}),
+          intendedStrikeId: strike.strikeId, offsetMs, ...(family === 'CHORD_SUBSTITUTION' && strike.pianoKey === 67 ? { pianoKey: 69 } : {}),
         })) }));
         if (family === 'SAME_PITCH_REPEATED_NOTES') {
           for (const strike of [strikes[0], strikes[1]]) cases.push(characterizeCase({ ...input,
@@ -152,7 +152,7 @@ export function benchmarkTempo(bpm: number): SyntheticCase[] {
 
 export function tieCase(): SyntheticCase {
   const timeline = fixedTimeline(120);
-  const strikes = expectedPattern(timeline, [['C4'], ['C4']], 1);
+  const strikes = expectedPattern(timeline, [[60], [60]], 1);
   return characterizeCase({ caseId: 'stable-tie', family: 'SAME_PITCH_REPEATED_NOTES', variant: 'MIDPOINT_PROBE',
     bpm: 120, spacingBeats: 1, timeline, strikes, tag: 'TIE_CASE',
     probes: [{ intendedStrikeId: strikes[1].strikeId, offsetMs: -productionPolicy.assignmentWindowMs }] });
@@ -163,7 +163,7 @@ export function transitionCases(): SyntheticCase[] {
     { startBeat: 0, bpm: 80, source: 'MUSICXML' }, { startBeat: 8, bpm: 160, source: 'MUSICXML' },
   ] }, 16);
   return [7, 8].map(beat => {
-    const strikes = expectedPattern(timeline, [['C4']], 1, beat);
+    const strikes = expectedPattern(timeline, [[60]], 1, beat);
     return characterizeCase({ caseId: `transition-${beat}`, family: 'TEMPO_TRANSITION', variant: 'TRANSITION_CONTROL',
       timeline, strikes, bpm: timeline.bpmAtBeat(beat), spacingBeats: 1, atBeat: beat,
       probes: [{ intendedStrikeId: strikes[0].strikeId, offsetMs: productionPolicy.assignmentWindowMs }] });

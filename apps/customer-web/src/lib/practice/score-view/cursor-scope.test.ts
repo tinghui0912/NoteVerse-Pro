@@ -17,22 +17,22 @@ function artifact(): PracticeScoreArtifact {
     scoreId: 'score',
     revisionId: 'revision',
     artifactId: 'artifact',
-    playableEvents: [],
+    playableEvents: groups.map(group => ({ ...group, eventId: group.groupId, pianoKeys: [60], durationBeats: 1, measureNumbers: ['1'], staffIds: ['1'], voiceIds: ['1'], tieTypes: [], playable: true, entryCandidate: true })),
     expectedPracticeGroups: groups.map((group) => ({
       ...group,
       eventIds: [group.groupId],
-      expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
+      expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pianoKey: 60, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
       strikeTargets: [
         {
           strikeId: group.groupId,
-          pitch: group.groupId,
-          expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
+          pianoKey: 60,
+          expectedNotes: [{ expectedNoteId: group.groupId, eventId: group.groupId, pianoKey: 60, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'] }],
           eventIds: [group.groupId],
           renderNoteIds: group.renderNoteIds,
           measureNumbers: ['1'],
         },
       ],
-      pitches: [group.groupId],
+      pianoKeys: [60],
       measureNumbers: ['1'],
       staffIds: ['staff-1'],
       voiceIds: ['voice-1'],
@@ -44,8 +44,8 @@ function artifact(): PracticeScoreArtifact {
       attackTargets: [
         {
           attackId: group.groupId,
-          pitch: group.groupId,
-          notes: [{ stepNoteId: group.groupId, eventId: group.groupId, pitch: group.groupId, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'], staffIds: ['staff-1'], voiceIds: ['voice-1'] }],
+          pianoKey: 60,
+          notes: [{ stepNoteId: group.groupId, eventId: group.groupId, pianoKey: 60, renderNoteId: group.renderNoteIds[0], measureNumbers: ['1'], staffIds: ['staff-1'], voiceIds: ['voice-1'] }],
           eventIds: [group.groupId],
           renderNoteIds: group.renderNoteIds,
           measureNumbers: ['1'],

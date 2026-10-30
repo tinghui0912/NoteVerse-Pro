@@ -8,11 +8,11 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 function assignment(reason: CompletedContinuousAssignment['completion']['reason'] = 'SCOPE_COMPLETED',
   evidence: Pick<ContinuousObservation, 'source' | 'provenance'> = { source: 'MIDI' }): Mutable<CompletedContinuousAssignment> {
   const f = new ContinuousAssignmentFinalizer('validation', [
-    ...['C4','D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch] })),
-    { strikeId: 'G4', groupId: 'h', pitch: 'G4', expectedPerformanceTimeMs: 1800, renderNoteIds: ['G4'] },
+    ...[60,62].map(pianoKey => ({ strikeId: String(pianoKey), groupId: 'g', pianoKey, expectedPerformanceTimeMs: 1000, renderNoteIds: [String(pianoKey)] })),
+    { strikeId: '67', groupId: 'h', pianoKey: 67, expectedPerformanceTimeMs: 1800, renderNoteIds: ['67'] },
   ]);
   f.publish({ publicationId: 'p', sessionDomainId: 'validation', analyzedThroughPerformanceMs: 4000, availabilitySessionTimeMs: 4100,
-    observations: ['C4','E4','F4','A4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: pitch === 'A4' ? 1800 : 1000, confidence: 1, ...evidence })) });
+    observations: [60,64,65,69].map(pianoKey => ({ observationId: String(pianoKey), pianoKey, performanceTimeMs: pianoKey === 69 ? 1800 : 1000, confidence: 1, ...evidence })) });
   f.complete({ reason, performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 });
   const result = f.completedAssignment();
   if (result.status !== 'COMPLETE') throw new Error('incomplete');
@@ -20,7 +20,7 @@ function assignment(reason: CompletedContinuousAssignment['completion']['reason'
 }
 
 function notReachedAssignment(): Mutable<CompletedContinuousAssignment> {
-  const f = new ContinuousAssignmentFinalizer('not-reached', [{ strikeId: 'future', groupId: 'future', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+  const f = new ContinuousAssignmentFinalizer('not-reached', [{ strikeId: 'future', groupId: 'future', pianoKey: 60, expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
   f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 100, availabilitySessionTimeMs: 100 });
   f.publish({ publicationId: 'tail', sessionDomainId: 'not-reached', analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 200, observations: [] });
   const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
@@ -45,8 +45,8 @@ const provenance = { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourc
 const parsedAssignment = () => JSON.parse(JSON.stringify(assignment('SCOPE_COMPLETED', { source: 'MIDI', provenance }))) as Mutable<CompletedContinuousAssignment>;
 
 describe('completed retained assignment current shapes and local semantics', () => {
-  const baseStrikeFields = ['strikeId', 'groupId', 'pitch', 'expectedPerformanceTimeMs', 'renderNoteIds', 'state', 'finality'];
-  const observationFields = ['observationId', 'pitch', 'performanceTimeMs', 'confidence', 'source'];
+  const baseStrikeFields = ['strikeId', 'groupId', 'pianoKey', 'expectedPerformanceTimeMs', 'renderNoteIds', 'state', 'finality'];
+  const observationFields = ['observationId', 'pianoKey', 'performanceTimeMs', 'confidence', 'source'];
   const finalityFields = ['requiredAnalysisFrontierMs', 'unclampedRequiredFrontierMs', 'enablingPublicationId', 'enablingAnalysisFrontierMs', 'finalizationSessionTimeMs', 'terminalClamp'];
   const nodes: { label: string; fields: string[]; get: (value: Mutable<CompletedContinuousAssignment>) => object;
     create?: () => Mutable<CompletedContinuousAssignment> }[] = [
@@ -83,13 +83,13 @@ describe('completed retained assignment current shapes and local semantics', () 
     });
   }
   it.each<[string, (v: Mutable<CompletedContinuousAssignment>) => void]>([
-    ['matched wrong pitch with canonical ledger equality', v => changeObservation(v, 'C4', { pitch: 'B4' })],
+    ['matched wrong pianoKey with canonical ledger equality', v => changeObservation(v, '60', { pianoKey: 71 })],
     ['matched inconsistent timing offset', v => { matchedStrike(v).match.timingOffsetMs = 1; }],
     ['matched outside window with consistent offset and ledger', v => {
-      changeObservation(v, 'C4', { performanceTimeMs: 1251 }); matchedStrike(v).match.timingOffsetMs = 251;
+      changeObservation(v, '60', { performanceTimeMs: 1251 }); matchedStrike(v).match.timingOffsetMs = 251;
     }],
     ['matched before window with consistent offset and ledger', v => {
-      changeObservation(v, 'C4', { performanceTimeMs: 749 }); matchedStrike(v).match.timingOffsetMs = -251;
+      changeObservation(v, '60', { performanceTimeMs: 749 }); matchedStrike(v).match.timingOffsetMs = -251;
     }],
     ['matched non-finite timing offset', v => { matchedStrike(v).match.timingOffsetMs = NaN; }],
     ['null match', v => { Object.assign(matchedStrike(v), { match: null }); }],
@@ -128,9 +128,9 @@ describe('completed retained assignment current shapes and local semantics', () 
     ['groupId', (v: Mutable<CompletedContinuousAssignment>) => v.groups[0]],
     ['strikeId', (v: Mutable<CompletedContinuousAssignment>) => matchedStrike(v)],
     ['groupId', (v: Mutable<CompletedContinuousAssignment>) => matchedStrike(v)],
-    ['pitch', (v: Mutable<CompletedContinuousAssignment>) => matchedStrike(v)],
+    ['pianoKey', (v: Mutable<CompletedContinuousAssignment>) => matchedStrike(v)],
     ['observationId', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0]],
-    ['pitch', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0]],
+    ['pianoKey', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0]],
     ['sourceDomainId', (v: Mutable<CompletedContinuousAssignment>) => v.observations[0].provenance!],
     ...['STRIKE_MATCH', 'UNATTRIBUTED'].flatMap(kind => (kind === 'UNATTRIBUTED' ? ['observationId']
       : kind === 'STRIKE_MATCH' ? ['observationId', 'strikeId'] : ['observationId', 'strikeId', 'groupId'])
@@ -186,24 +186,24 @@ describe('completed retained assignment current shapes and local semantics', () 
     expect(value).toEqual(before); expect(JSON.stringify(value)).toBe(serializedBefore);
   });
   it.each([-250, 250])('accepts live-generated inclusive matched/non-target boundary %i', offset => {
-    const f = new ContinuousAssignmentFinalizer('boundary', ['C4', 'D4'].map(pitch => ({ strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [] })));
+    const f = new ContinuousAssignmentFinalizer('boundary', [60, 62].map(pianoKey => ({ strikeId: String(pianoKey), groupId: 'g', pianoKey, expectedPerformanceTimeMs: 1000, renderNoteIds: [] })));
     f.publish({ publicationId: 'p', sessionDomainId: 'boundary', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3000,
-      observations: ['C4', 'E4'].map((pitch, index) => ({ observationId: pitch, pitch, performanceTimeMs: 1000 + offset, confidence: index, source: 'MIDI' })) });
+      observations: [60, 64].map((pianoKey, index) => ({ observationId: String(pianoKey), pianoKey, performanceTimeMs: 1000 + offset, confidence: index, source: 'MIDI' })) });
     f.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3000 });
     const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
     expect(result.assignment.observationAssignments.map(row => row.kind)).toEqual(['STRIKE_MATCH', 'UNATTRIBUTED']);
     expect(() => assertCompletedAssignment(JSON.parse(JSON.stringify(result.assignment)))).not.toThrow();
   });
-  it('does not add pitch syntax, render multiplicity, completion-reason or optimizer policy', () => {
+  it('does not add pianoKey syntax, render multiplicity, completion-reason or optimizer policy', () => {
     const value = parsedAssignment();
-    changeObservation(value, 'C4', { pitch: 'opaque pitch identity' }); matchedStrike(value).pitch = 'opaque pitch identity';
+    changeObservation(value, '60', { pianoKey: 21 }); matchedStrike(value).pianoKey = 21;
     matchedStrike(value).renderNoteIds = ['duplicate', 'duplicate'];
     expect(() => assertCompletedAssignment(value)).not.toThrow();
     const future = notReachedAssignment(); future.completion.reason = 'SCOPE_COMPLETED';
     expect(() => assertCompletedAssignment(future)).not.toThrow();
     // Local validation does not try to reassign an otherwise consistent unattributed observation.
     const unclaimed = value.unattributedObservations[0];
-    changeObservation(value, unclaimed.observation.observationId, { pitch: 'D4' });
+    changeObservation(value, unclaimed.observation.observationId, { pianoKey: 62 });
     expect(() => assertCompletedAssignment(value)).not.toThrow();
   });
 });
@@ -221,13 +221,13 @@ describe('completed assignment relation integrity', () => {
         { label: 'clamped required 800 below terminal', unclamped: 1250, required: 800, terminalClamp: true, valid: false },
         { label: 'clamped required above terminal', unclamped: 1250, required: 1100, terminalClamp: true, valid: false },
       ])(`${owner}: $label`, ({ unclamped, required, terminalClamp, valid }) => {
-        const f = new ContinuousAssignmentFinalizer('terminal-anchor', ['C4', 'D4'].map(pitch => ({
-          strikeId: pitch, groupId: 'g', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch],
+        const f = new ContinuousAssignmentFinalizer('terminal-anchor', [60, 62].map(pianoKey => ({
+          strikeId: String(pianoKey), groupId: 'g', pianoKey, expectedPerformanceTimeMs: 1000, renderNoteIds: [String(pianoKey)],
         })));
         f.complete({ reason, performanceTimeMs: 1000, availabilitySessionTimeMs: 2000 });
         f.publish({ publicationId: 'tail', sessionDomainId: 'terminal-anchor', analyzedThroughPerformanceMs: 1000,
-          availabilitySessionTimeMs: 3000, observations: ['C4', 'D4', 'C4'].map((pitch, index) => ({
-            observationId: `${pitch}:${index}`, pitch, performanceTimeMs: index === 0 ? 1000 : 900, confidence: 1, source: 'MIDI',
+          availabilitySessionTimeMs: 3000, observations: [60, 62, 60].map((pianoKey, index) => ({
+            observationId: `${pianoKey}:${index}`, pianoKey, performanceTimeMs: index === 0 ? 1000 : 900, confidence: 1, source: 'MIDI',
           })) });
         const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
         const value = structuredClone(result.assignment) as Mutable<CompletedContinuousAssignment>;
@@ -271,7 +271,7 @@ describe('completed assignment relation integrity', () => {
     }
   });
   it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s requested before delayed terminal coverage retains causal completion availability', reason => {
-    const f = new ContinuousAssignmentFinalizer('tail', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1900, renderNoteIds: [] }]);
+    const f = new ContinuousAssignmentFinalizer('tail', [{ strikeId: 'c', groupId: 'g', pianoKey: 60, expectedPerformanceTimeMs: 1900, renderNoteIds: [] }]);
     f.publish({ publicationId: 'early', sessionDomainId: 'tail', analyzedThroughPerformanceMs: 500, availabilitySessionTimeMs: 1000, observations: [] });
     const request = Object.freeze({ reason, performanceTimeMs: 2000, availabilitySessionTimeMs: 2000 });
     f.complete(request);
@@ -321,7 +321,7 @@ describe('completed assignment relation integrity', () => {
     }
   });
   it('accepts independently valid session availability smaller than the performance frontier, including generic stopped evaluation', () => {
-    const f = new ContinuousAssignmentFinalizer('independent', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+    const f = new ContinuousAssignmentFinalizer('independent', [{ strikeId: 'c', groupId: 'g', pianoKey: 60, expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
     f.publish({ publicationId: 'coverage', sessionDomainId: 'independent', analyzedThroughPerformanceMs: 5000, availabilitySessionTimeMs: 3000, observations: [] });
     f.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 5000, availabilitySessionTimeMs: 3000 });
     const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
@@ -329,7 +329,7 @@ describe('completed assignment relation integrity', () => {
     expect(() => assertCompletedAssignment(JSON.parse(JSON.stringify(result.assignment)))).not.toThrow();
   });
   it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s accepts live-generated terminal clamps with enabling coverage at the terminal', reason => {
-    const f = new ContinuousAssignmentFinalizer('clamped', [{ strikeId: 'c', groupId: 'g', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
+    const f = new ContinuousAssignmentFinalizer('clamped', [{ strikeId: 'c', groupId: 'g', pianoKey: 60, expectedPerformanceTimeMs: 1000, renderNoteIds: [] }]);
     f.complete({ reason, performanceTimeMs: 1000, availabilitySessionTimeMs: 3000 });
     f.publish({ publicationId: 'terminal', sessionDomainId: 'clamped', analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 3000, observations: [] });
     const result = f.completedAssignment(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
@@ -353,7 +353,7 @@ describe('completed assignment relation integrity', () => {
     ['unassigned ledger observation', value => { value.observations.push({ ...value.observations[0], observationId: 'unassigned' }); }],
     ['duplicate ledger identity', value => { value.observations.push(value.observations[0]); }],
     ['strike group disagreement', value => { value.groups[0].strikes[1].groupId = 'h'; }],
-    ['duplicated strike identity', value => { value.groups[1].strikes[0].strikeId = 'D4'; }],
+    ['duplicated strike identity', value => { value.groups[1].strikes[0].strikeId = '62'; }],
     ['duplicated group identity', value => { value.groups[1].groupId = 'g'; }],
   ])('rejects %s rather than repairing retained truth', (_name, corrupt) => {
     const value = assignment();

@@ -399,5 +399,8 @@
   "deviceStatusReady": "{resource}正常",
   "deviceStatusUnavailable": "{resource}不可用",
   "deviceConnected": "已连接，可以使用。",
-  "practiceSetup": "返回练习设置"
+  "practiceSetup": "返回练习设置",
+  "scoreInvalid": "这份乐谱目前无法用于练习。",
+  "scoreLoadFailed": "暂时无法加载练习乐谱，请重试。",
+  "scoreLoading": "正在加载练习乐谱…"
 }

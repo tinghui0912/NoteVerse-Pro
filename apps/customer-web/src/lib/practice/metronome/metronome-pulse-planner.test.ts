@@ -10,7 +10,7 @@ import {
 
 function makeTestArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scoreId: 'test-score',
     revisionId: 'test-rev',
     artifactId: 'practice-score-artifact:test',

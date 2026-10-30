@@ -14,9 +14,9 @@ function setup(final = false) {
   const start = () => runtime.openAttempt(time(100))!;
   const finish = (verdict: 'MATCH' | 'MISMATCH' = 'MATCH') => {
     const id = start(); runtime.analyzeAttempt(id);
-    const expected = runtime.currentTarget()!.attackPitches;
-    runtime.completeAttempt(id, { confidence: 1, observedAttackPitches: verdict === 'MATCH'
-      ? [expected[0], ...expected.slice(1)] : ['F#9'],
+    const expected = runtime.currentTarget()!.attackKeys;
+    runtime.completeAttempt(id, { confidence: 1, observedAttackKeys: verdict === 'MATCH'
+      ? [expected[0], ...expected.slice(1)] : [61],
       captureEndSessionTime: time(135) });
     return id;
   };
@@ -33,7 +33,7 @@ describe('paced single-attempt commit boundary', () => {
       expect(s.runtime.skip()).toBe(false);
       expect(s.runtime.currentTarget()!.stepId).toBe(target.stepId);
       if (phase === 'CAPTURING') s.runtime.analyzeAttempt(id);
-      if (phase === 'ANALYZING') s.runtime.completeAttempt(id, { observedAttackPitches: ['C4'], confidence: 1, captureEndSessionTime: s.time(135) });
+      if (phase === 'ANALYZING') s.runtime.completeAttempt(id, { observedAttackKeys: [60], confidence: 1, captureEndSessionTime: s.time(135) });
     }
     const immutable = s.runtime.snapshot();
     s.runtime.rearm(s.time(500));
@@ -90,7 +90,7 @@ describe('paced single-attempt commit boundary', () => {
       expect(() => s.runtime.rearm(s.time(400))).toThrow('STEP_ATTEMPT_STATE_INVALID');
     }
     s.runtime.acceptInputAfter(s.time(500));
-    if (id) expect(s.runtime.completeAttempt(id, { observedAttackPitches: ['C4'], confidence: 1, captureEndSessionTime: s.time(535) }).kind).toBe('REJECTED');
+    if (id) expect(s.runtime.completeAttempt(id, { observedAttackKeys: [60], confidence: 1, captureEndSessionTime: s.time(535) }).kind).toBe('REJECTED');
     if (phase === 'POST_VERDICT') {
       expect(s.runtime.canAcceptAttempt).toBe(false);
       expect(s.runtime.currentTarget()!.targetGeneration).toBe(1);

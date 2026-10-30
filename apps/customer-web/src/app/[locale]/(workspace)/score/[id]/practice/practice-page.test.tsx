@@ -21,18 +21,18 @@ const fake = vi.hoisted(() => {
     scope: { kind: 'FULL' }, tempoSelection: { mode: 'SCORE' }, metronomeEnabled: false,
     setScope: vi.fn(), setTempoSelection: vi.fn(), setMetronomeEnabled: vi.fn(), updateProfile: vi.fn(),
     environment: { invalidate: vi.fn(), acquireInference: vi.fn() } };
-  return { local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
+  return { invalidScore: false, leaseEnabled: vi.fn(), localOptions: vi.fn(), local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
     device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), observe: vi.fn() },
     natural: (_snapshot: { completionReason: string }) => {} };
 });
 vi.mock('next/navigation', () => ({ useRouter: () => fake.router, usePathname: () => '/score/score-id/practice',
   useSearchParams: () => new URLSearchParams('practiceRevisionId=pinned-revision') }));
 vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => fake.workspace }));
-vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: () => fake.device }));
-vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.natural = options.onNaturalCompletion; return fake.local; } }));
+vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: (_config: unknown, enabled: boolean) => { fake.leaseEnabled(enabled); return fake.device; } }));
+vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.localOptions(options); fake.natural = options.onNaturalCompletion; return fake.local; } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { capabilities: { can_practice: true }, head_revision_id: 'head-revision' } } }) }));
 vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({ usePracticeReadyScoreContent: () => ({ data: { data: { content: '<score />' } } }) }));
-vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({ usePracticeScoreArtifact: () => ({ data: artifact }) }));
+vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({ usePracticeScoreArtifact: () => ({ data: fake.invalidScore ? undefined : artifact, isError: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null }) }));
 vi.mock('@/hooks/practice/use-practice-range-selection', () => ({ usePracticeRangeSelection: () => ({ practiceScope: { kind: 'FULL' }, isIncomplete: false, isSelecting: false }) }));
 vi.mock('@/lib/practice/input-capability', () => ({ evaluatePracticeInputCapabilities: () => ({}), getSelectedInputCapability: () => ({ supported: true }) }));
 vi.mock('@/components/states', () => ({ ResourceLoadError: () => null }));
@@ -42,7 +42,7 @@ vi.mock('@/components/client-only', () => ({ ClientOnly: ({ children }: { childr
 vi.mock('@/components/score/score-surface', () => ({ ScoreSurface: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/practice/practice-score-viewer', () => ({ PracticeScoreViewer: ({ sessionStatus }: { sessionStatus: React.ReactNode }) => sessionStatus }));
 
-beforeEach(() => {
+beforeEach(() => { fake.invalidScore = false; fake.leaseEnabled.mockClear(); fake.localOptions.mockClear();
   vi.clearAllMocks(); fake.local.mode = 'STEP_BY_STEP'; fake.local.lifecycle = 'ACTIVE';
   fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; fake.local.resourceIntervention = null;
   fake.workspace.ready = true; fake.workspace.readiness.status = 'READY'; fake.workspace.profile.mode = 'STEP_BY_STEP'; fake.device.snapshot.state = 'READY';
@@ -110,4 +110,14 @@ it('hard Continuous capture End restores healthy explicit Start without forcing 
   expect(fake.router.push).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
   const start = screen.getByRole('button', { name: practice.start });
   expect(start).toBeEnabled(); fireEvent.click(start); expect(fake.local.start).toHaveBeenCalledOnce();
+});
+
+it('direct invalid entry disables the device lease and routes to the pinned Setup source gate without arming', async () => {
+  fake.invalidScore = true;
+  await act(async () => { render(<NextIntlClientProvider locale="en" messages={{ practice, common, errors }}><Suspense><PracticePage params={Promise.resolve({ id: 'score-id' })} /></Suspense></NextIntlClientProvider>); });
+  expect(fake.leaseEnabled).toHaveBeenCalled(); expect(fake.leaseEnabled.mock.calls.every(([enabled]) => !enabled)).toBe(true);
+  expect(fake.localOptions.mock.calls.every(([options]) => options.artifact === null)).toBe(true);
+  expect(fake.router.replace).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
+  expect(fake.local.start).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled();
+  expect(fake.workspace.environment.acquireInference).not.toHaveBeenCalled();
 });

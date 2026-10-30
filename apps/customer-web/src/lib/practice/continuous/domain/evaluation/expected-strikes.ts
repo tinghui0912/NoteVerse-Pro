@@ -60,7 +60,7 @@ export function buildContinuousExpectedStrikesFromTimeline(
       return group.strikeTargets.map((strike) => ({
         strikeId: strike.strikeId,
         groupId: group.groupId,
-        pitch: strike.pitch,
+        pianoKey: strike.pianoKey,
         expectedPerformanceTimeMs: performanceTimeMs,
         renderNoteIds: strike.renderNoteIds,
       }));

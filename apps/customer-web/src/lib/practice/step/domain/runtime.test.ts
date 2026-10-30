@@ -22,7 +22,7 @@ describe('STEP runtime target and session contracts', () => {
     expect(() => new StepPracticeRuntime({
       inputSource: 'MIDI', artifact: empty, scope: { kind: 'FULL' },
       clock: new ManualClock()
-    })).toThrow(/at least one expected group/);
+    })).toThrow(/PracticeScoreArtifact/);
 
   });
 
@@ -106,11 +106,11 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current l
   const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId, scope: { kind: 'FULL' }, clock: new ManualClock(0) });
   const identity = runtime.openAttempt(time(100))!;
   runtime.analyzeAttempt(identity);
-  runtime.completeAttempt(identity, { observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12, captureEndSessionTime: time(150) });
+  runtime.completeAttempt(identity, { observedAttackKeys: [60], confidence: inputSource === 'MIDI' ? 1 : .12, captureEndSessionTime: time(150) });
   const saved = runtime.snapshot();
-  expect(saved.version).toEqual({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v11' });
+  expect(saved.version).toEqual({ schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' });
   expect(saved.step).toMatchObject({ attemptState: 'POST_VERDICT', currentIndex: 0,
-    pendingPostVerdict: { ...identity, verdict: 'MATCH', observedAttackPitches: ['C4'], confidence: inputSource === 'MIDI' ? 1 : .12 } });
+    pendingPostVerdict: { ...identity, verdict: 'MATCH', observedAttackKeys: [60], confidence: inputSource === 'MIDI' ? 1 : .12 } });
   runtime.rearm(time(200));
   expect(runtime.snapshot().step.currentIndex).toBe(1);
   expect(saved.step.currentIndex).toBe(0); expect(Object.isFrozen(saved.step.pendingPostVerdict)).toBe(true);

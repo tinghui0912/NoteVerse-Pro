@@ -5,7 +5,7 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { StepMidiAttemptInput } from '../../src/lib/practice/step/step-midi-attempt-input';
-import { midiNoteToPitch, parseMidiMessage } from '../../src/lib/practice/midi/browser-midi-controller';
+import { parseMidiMessage } from '../../src/lib/practice/midi/browser-midi-controller';
 
 type Verdict = 'MATCH' | 'MISMATCH';
 const artifact = fixture as PracticeScoreArtifact;
@@ -22,9 +22,8 @@ function harness(chord = false) {
     }, failure: error => { throw error; },
   }, {schedule: (callback,delay) => { assert.equal(delay,35); callbacks.push(callback); return callback; },cancel: () => {}});
   const time = (ms: number) => ({domainId:session,ms});
-  const note = (ms: number,pitch = 'C4') => {
-    const noteNumber = Array.from({length:128},(_,n)=>n).find(n=>midiNoteToPitch(n)===pitch);
-    if(noteNumber===undefined) throw new Error(`Invalid MIDI fixture pitch: ${pitch}`);
+  const note = (ms: number,pianoKey = 60) => {
+    const noteNumber = pianoKey;
     const parsed = parseMidiMessage(new Uint8Array([0x90,noteNumber,80]))!;
     input.note({...parsed,sessionTime:time(ms)});
   };
@@ -35,7 +34,7 @@ function harness(chord = false) {
 export function raceWitness(verdict: Verdict, order: 'BEFORE' | 'AFTER') {
   const h = harness();
   assert.equal(h.runtime.openAttempt(h.time(100)),null);
-  h.note(200,verdict === 'MISMATCH' ? 'D4' : 'C4');
+  h.note(200,verdict === 'MISMATCH' ? 62 : 60);
   const first = h.state().activeAttempt!; assert.ok(first);
   if(order === 'BEFORE') h.note(235);
   h.close(235);
@@ -65,7 +64,7 @@ export function lifecycleWitnesses() {
   assert.equal(h.runtime.skip(),true);
   const skipped = h.state(); h.note(350); assert.equal(h.state().activeAttempt,null);
   for(const callback of h.callbacks) callback(); assert.equal(h.finalized.length,0);
-  const late = h.runtime.completeAttempt(old,{observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:h.time(235)});
+  const late = h.runtime.completeAttempt(old,{observedAttackKeys:[60],confidence:1,captureEndSessionTime:h.time(235)});
   assert.equal(late.kind,'REJECTED');
   h.note(351); const afterSkip = h.state().activeAttempt!; assert.ok(afterSkip);
   assert.equal(afterSkip.targetGeneration,skipped.targetGeneration);
@@ -76,7 +75,7 @@ export function lifecycleWitnesses() {
 }
 export function accumulationWitness() {
   const h=harness(true);
-  h.note(200,'A4');h.close(235);h.note(236,'C5');h.close(271);
+  h.note(200,69);h.close(235);h.note(236,72);h.close(271);
   assert.deepEqual(h.finalized.map(r=>r.verdict),['MISMATCH','MISMATCH']);
   assert.equal(h.state().currentIndex,3);
   return {name:'no cross-target accumulation',status:'PASS',finalized:h.finalized,currentIndex:h.state().currentIndex};

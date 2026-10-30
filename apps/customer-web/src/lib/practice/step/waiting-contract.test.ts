@@ -22,13 +22,13 @@ it.each(['MATCH','MISMATCH'] as const)('%s retires physical input beyond the com
   const old=runtime.openAttempt(time(200))!; runtime.analyzeAttempt(old);
   // Analysis covered only through 600, but physical capture continued through 1000.
   clock.set(1000);
-  const result=runtime.completeAttempt(old,{ observedAttackPitches: [verdict === 'MATCH' ? 'C4' : 'D4'],
+  const result=runtime.completeAttempt(old,{ observedAttackKeys: [verdict === 'MATCH' ? 60 : 62],
     confidence:1,captureEndSessionTime:time(235)});
   expect(result).toMatchObject({ kind: 'FINALIZED', record: { verdict } });
   expect(result.kind).toBe('FINALIZED');
   runtime.rearm(time(1000));
   for(const ms of [235,600,800,1000]) expect(runtime.openAttempt(time(ms))).toBeNull();
-  expect(runtime.completeAttempt(old,{observedAttackPitches:['C4'],confidence:1,captureEndSessionTime:time(235)}).kind).toBe('REJECTED');
+  expect(runtime.completeAttempt(old,{observedAttackKeys:[60],confidence:1,captureEndSessionTime:time(235)}).kind).toBe('REJECTED');
   expect(runtime.openAttempt(time(1001))).not.toBeNull();
   expect(runtime.snapshot().step.pendingPostVerdict).toBeNull();
 });

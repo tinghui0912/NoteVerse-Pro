@@ -1,6 +1,7 @@
+import { isPracticePianoKey, type PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import type { SessionTime } from '@/lib/practice/kernel/timebase';
-import type { StepPitchEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
-import { isMidiNoteNumber, midiNoteToPitch, type MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
+import type { StepPianoKeyEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import { isMidiNoteNumber, type MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
 
 export const STEP_MIDI_CHORD_COHERENCE_MS = 35;
 export interface StepGestureTimer {
@@ -9,12 +10,12 @@ export interface StepGestureTimer {
 }
 export type StepMidiAttemptSink = Readonly<{
   open(time: SessionTime): StepAttemptIdentity | null;
-  complete(identity: StepAttemptIdentity, evidence: StepPitchEvidence): void;
+  complete(identity: StepAttemptIdentity, evidence: StepPianoKeyEvidence): void;
   failure(error: unknown): void;
 }>;
 /** Fixed first-NOTE_ON window, never extended or closed early by target content. */
 export class StepMidiAttemptInput {
-  private active: { identity: StepAttemptIdentity; pitches: Set<string>; end: SessionTime } | null = null;
+  private active: { identity: StepAttemptIdentity; pianoKeys: Set<PracticePianoKey>; end: SessionTime } | null = null;
   private handle: unknown = null;
   private epoch = 0;
   private ignored = 0;
@@ -22,28 +23,30 @@ export class StepMidiAttemptInput {
   note(note: MidiNoteFact): void {
     if (note.type !== 'NOTE_ON') return;
     try {
-      const { noteNumber, pitch } = note;
-      if (!isMidiNoteNumber(noteNumber) || pitch !== midiNoteToPitch(noteNumber)) {
+      const { noteNumber } = note;
+      if (!isMidiNoteNumber(noteNumber)) {
         throw new Error('STEP_ATTEMPT_EVIDENCE_INVALID');
       }
+      if (!isPracticePianoKey(noteNumber)) return;
+      const pianoKey = noteNumber;
       if (this.active) {
         // Delayed timers do not turn the gesture into an unbounded bag.
         if (note.sessionTime.domainId !== this.active.end.domainId || note.sessionTime.ms < this.active.identity.attemptStartSessionTime.ms
           || note.sessionTime.ms >= this.active.end.ms) { this.ignore(); return; }
-        this.active.pitches.add(pitch); return;
+        this.active.pianoKeys.add(pianoKey); return;
       }
       const identity = this.sink.open(note.sessionTime);
       if (!identity) { this.ignore(); return; }
       const epoch = ++this.epoch;
-      this.active = { identity, pitches: new Set([pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };
+      this.active = { identity, pianoKeys: new Set([pianoKey]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };
       this.handle = this.timer.schedule(() => {
         if (epoch !== this.epoch || !this.active) return;
         const gesture = this.active; this.active = null; this.handle = null;
         try {
-          const [firstPitch, ...otherPitches] = [...gesture.pitches].sort();
-          if (firstPitch === undefined) throw new Error('STEP_ATTEMPT_EVIDENCE_INVALID');
+          const [firstKey, ...otherKeys] = [...gesture.pianoKeys].sort((a, b) => a - b);
+          if (firstKey === undefined) throw new Error('STEP_ATTEMPT_EVIDENCE_INVALID');
           this.sink.complete(gesture.identity, Object.freeze({ confidence: 1,
-            observedAttackPitches: Object.freeze([firstPitch, ...otherPitches] as const), captureEndSessionTime: Object.freeze(gesture.end) }));
+            observedAttackKeys: Object.freeze([firstKey, ...otherKeys] as const), captureEndSessionTime: Object.freeze(gesture.end) }));
         }
         catch (error) { this.sink.failure(error); }
       }, STEP_MIDI_CHORD_COHERENCE_MS);
@@ -53,6 +56,6 @@ export class StepMidiAttemptInput {
     this.epoch++; if (this.handle !== null) this.timer.cancel(this.handle);
     this.handle = null; this.active = null;
   }
-  snapshot() { return Object.freeze({ capturing: this.active !== null, retainedPitchCount: this.active?.pitches.size ?? 0, ignoredNotes: this.ignored }); }
+  snapshot() { return Object.freeze({ capturing: this.active !== null, retainedKeyCount: this.active?.pianoKeys.size ?? 0, ignoredNotes: this.ignored }); }
   private ignore(): void { this.ignored = Math.min(Number.MAX_SAFE_INTEGER, this.ignored + 1); }
 }

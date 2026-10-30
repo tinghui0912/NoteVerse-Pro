@@ -7,18 +7,18 @@ import { fixedTimeline, expectedPattern, patternFamilies, tempoGrid } from './po
 import type { SyntheticCase } from './research-report';
 import { naturalTerminal, type AuditScenario, type AuditTarget, type AuditEvent } from './candidate-policies';
 
-export function scenario(id:string,times:readonly number[],eventTimes:readonly number[],options:{ pitches?:readonly string[];eventPitches?:readonly string[];beats?:readonly number[];terminalMs?:number;ids?:readonly string[];groups?:readonly string[];scoreGroupOnsets?:number[] }={}):AuditScenario {
-  const targets=times.map((time,i)=>({strikeId:options.ids?.[i]??`t${i}`,groupId:options.groups?.[i]??`g${i}`,pitch:options.pitches?.[i]??'C4',expectedPerformanceTimeMs:time,renderNoteIds:[],beatDurationMs:options.beats?.[i]??beatsToMs(1,120)}));
-  const events=eventTimes.map((time,i)=>({id:`o${i}`,pitch:options.eventPitches?.[i]??'C4',timeMs:time}));
+export function scenario(id:string,times:readonly number[],eventTimes:readonly number[],options:{ pianoKeys?:readonly number[];eventKeys?:readonly number[];beats?:readonly number[];terminalMs?:number;ids?:readonly string[];groups?:readonly string[];scoreGroupOnsets?:number[] }={}):AuditScenario {
+  const targets=times.map((time,i)=>({strikeId:options.ids?.[i]??`t${i}`,groupId:options.groups?.[i]??`g${i}`,pianoKey:options.pianoKeys?.[i]??60,expectedPerformanceTimeMs:time,renderNoteIds:[],beatDurationMs:options.beats?.[i]??beatsToMs(1,120)}));
+  const events=eventTimes.map((time,i)=>({id:`o${i}`,pianoKey:options.eventKeys?.[i]??60,timeMs:time}));
   return {id,targets,events,terminalMs:options.terminalMs??naturalTerminal(targets,events),scoreGroupOnsets:options.scoreGroupOnsets??[...new Set(times)]};
 }
 export function fromBaseline(c:SyntheticCase):AuditScenario {
   const timeline=fixedTimeline(c.bpm);
-  const groups=c.variant==='MIDPOINT_PROBE'?[['C4'],['C4']]:patternFamilies[c.family as keyof typeof patternFamilies];
+  const groups=c.variant==='MIDPOINT_PROBE'?[[60],[60]]:patternFamilies[c.family as keyof typeof patternFamilies];
   const targets:AuditTarget[]=groups?expectedPattern(timeline,groups,c.spacingBeats).map(t=>({...t,beatDurationMs:c.beatDurationMs}))
-    :c.observations.map(o=>({strikeId:o.intendedStrikeId,groupId:o.intendedStrikeId.split(':')[0],pitch:o.observedPitch,
+    :c.observations.map(o=>({strikeId:o.intendedStrikeId,groupId:o.intendedStrikeId.split(':')[0],pianoKey:o.observedKey,
       expectedPerformanceTimeMs:o.intendedPerformanceTimeMs,renderNoteIds:[],beatDurationMs:c.beatDurationMs}));
-  const events:AuditEvent[]=c.observations.map(o=>({id:o.observationId,pitch:o.observedPitch,timeMs:o.observationPerformanceTimeMs}));
+  const events:AuditEvent[]=c.observations.map(o=>({id:o.observationId,pianoKey:o.observedKey,timeMs:o.observationPerformanceTimeMs}));
   return {id:c.caseId,targets,events,terminalMs:naturalTerminal(targets,events),scoreGroupOnsets:[...new Set(targets.map(t=>t.expectedPerformanceTimeMs))]};
 }
 export function adversarialScenarios():AuditScenario[] {
@@ -32,7 +32,7 @@ export function adversarialScenarios():AuditScenario[] {
     scenario('first-target-long-prerest',[10000,11000],[1000],{terminalMs:15000}),
     scenario('final-target-long-postrest',[1000,2000],[11000],{terminalMs:12000}),
     scenario('sparse-score',[1000,100000],[50000],{terminalMs:200000}),
-    scenario('large-same-pitch-spacing',[1000,4000],[1100,3900]),
+    scenario('large-same-pianoKey-spacing',[1000,4000],[1100,3900]),
     scenario('touching-current-windows',[1000,1500],[1250]),
     scenario('overlapping-current-windows',[1000,1300],[1200]),
     scenario('very-fast-repeated',[1000,1060,1120,1180],[1030,1090,1150]),
@@ -45,7 +45,7 @@ export function adversarialScenarios():AuditScenario[] {
     scenario('midpoint-equality',[1000,1300],[1150]),
     scenario('midpoint-right-epsilon',[1000,1300],[1150+epsilon]),
     scenario('dense-chord-one-repeat',[1000,1000,1000,1200,1200,1200],[1100,1000,1000,1200,1200],
-      {pitches:['C4','E4','G4','C4','F4','A4'],eventPitches:['C4','E4','G4','F4','A4'],groups:['a','a','a','b','b','b']}),
+      {pianoKeys:[60,64,67,60,65,69],eventKeys:[60,64,67,65,69],groups:['a','a','a','b','b','b']}),
     scenario('tempo-transition-repeated',[time(3.9),time(4.1)],[time(4)],{beats:[beatsToMs(1,80),beatsToMs(1,160)]}),
     scenario('variable-beat-crossing-required',[1000,1250],[1500,1750],{beats:[beatsToMs(1,80),beatsToMs(1,240)]}),
     scenario('natural-terminal-clamp',[1000],[1050],{terminalMs:1100}),
@@ -57,8 +57,8 @@ export function adversarialScenarios():AuditScenario[] {
 }
 export function tempoScalingScenarios():AuditScenario[] {
   return tempoGrid.flatMap(bpm=>[0,0.2,0.5,0.8].map(offsetBeats=>{
-    const timeline=fixedTimeline(bpm), beats=[4,5,6,7], targets=expectedPattern(timeline,[['C4'],['C4'],['C4'],['C4']],1);
-    const events=beats.map((b,i)=>({id:`o${i}`,pitch:'C4',timeMs:timeline.beatToTimeMs(b+offsetBeats)}));
+    const timeline=fixedTimeline(bpm), beats=[4,5,6,7], targets=expectedPattern(timeline,[[60],[60],[60],[60]],1);
+    const events=beats.map((b,i)=>({id:`o${i}`,pianoKey:60,timeMs:timeline.beatToTimeMs(b+offsetBeats)}));
     const local=beatsToMs(1,timeline.bpmAtBeat(4));
     return {id:`tempo/${bpm}/${offsetBeats}`,targets:targets.map(t=>({...t,beatDurationMs:local})),events,
       terminalMs:timeline.beatToTimeMs(12),scoreGroupOnsets:targets.map(t=>t.expectedPerformanceTimeMs)};

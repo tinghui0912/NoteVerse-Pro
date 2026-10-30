@@ -41,7 +41,7 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
         }) => void;
         onAttack?: (attack: {
           sessionTime: { domainId: string; ms: number };
-          pitch: string;
+          pianoKey: number;
           confidence: number;
         }) => void;
         timebase?: {
@@ -55,7 +55,7 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
       private readonly options: {
         onAttack?: (attack: {
           sessionTime: { domainId: string; ms: number };
-          pitch: string;
+          pianoKey: number;
           confidence: number;
         }) => void;
         timebase?: {
@@ -71,7 +71,7 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
         if (midiMock.emitAttackDuringStart && this.options.timebase) {
           this.options.onAttack?.({
             sessionTime: this.options.timebase.runtimeToSessionTime(0),
-            pitch: 'C4',
+            pianoKey: 60,
             confidence: 1,
           });
         }

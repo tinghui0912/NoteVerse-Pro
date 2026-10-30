@@ -1,3 +1,4 @@
+import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { readFile, writeFile } from 'node:fs/promises';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
@@ -22,13 +23,13 @@ afterAll(async () => {
 });
 
 /** Synthetic PCM and deterministic inference port. Never imports a model or decoder. */
-async function rig(rate: 44100 | 48000, pitches = ['C4'], sourceDomainId = 'v25:capture') {
+async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:capture') {
   const origin = rate * 7, context = Object.assign(new EventTarget(), { sampleRate: rate, currentTime: 7, state: 'running' });
   const rootStop = vi.fn(), cloneStop = vi.fn(), root = { getTracks: () => [{ stop: rootStop }], clone: vi.fn(() => ({ getTracks: () => [{ stop: cloneStop }] })) };
   const base = fixture as PracticeScoreArtifact;
   const artifact: PracticeScoreArtifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pitches: ['C4'], strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4' }] })),
-    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pitch: 'C4' }] })) };
+    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pianoKeys: [60], strikeTargets: [{ ...g.strikeTargets[0], pianoKey: 60 }] })),
+    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pianoKey: 60 }] })) };
   const records: ReturnType<StepPracticeRuntime['completeAttempt']>[] = [], failures: Error[] = [];
   let source!: SourceAnalysisRuntime, publish!: SourceAnalysisOptions['onPublication'];
   let bridge!: CaptureConsumer, next = 0, sequence = 0, paused = false, failureListener: ((e: Error) => void) | undefined;
@@ -43,7 +44,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4'], sourceDomainId = 'v25:
   const worker = {
     run: vi.fn(async (input: AcousticInferenceInput): Promise<AcousticInferenceResult> => {
       if (paused) await new Promise<void>(resolve => releases.push(resolve));
-      return { events: paused ? [] : pitches.map(pitch => ({ pitch, midiPitch: pitch === 'C5' ? 72 : pitch === 'D4' ? 62 : 60,
+      return { events: paused ? [] : pianoKeys.map(pianoKey => ({ pitch: pianoMidiPitchToName(pianoKey), midiPitch: pianoKey === 72 ? 72 : pianoKey === 62 ? 62 : 60,
         targetSample: Math.ceil(input.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
         inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 };
     }),
@@ -75,7 +76,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4'], sourceDomainId = 'v25:
   };
   const input: StepMicrophoneInput<StepAttemptIdentity> = new StepMicrophoneInput<StepAttemptIdentity>(platform, {
     open: time => runtime.openAttempt(time), complete: (id, evidence) => {
-      expect(Object.keys(evidence).sort()).toEqual(['captureEndSessionTime','confidence','observedAttackPitches']); expect(runtime.analyzeAttempt(id)).toBe(true);
+      expect(Object.keys(evidence).sort()).toEqual(['captureEndSessionTime','confidence','observedAttackKeys']); expect(runtime.analyzeAttempt(id)).toBe(true);
       records.push(runtime.completeAttempt(id, evidence)); extraComplete?.();
     }, failure: error => failures.push(error),
   });
@@ -110,7 +111,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4'], sourceDomainId = 'v25:
 
 it.each(['a', 'a'.repeat(192), '🎵'.repeat(96), '音'.repeat(192), ' :\n\0'])
   ('STEP microphone accepts opaque source identity %j through real runtime/assembler setup', async sourceDomainId => {
-    const r = await rig(48000, ['C4'], sourceDomainId);
+    const r = await rig(48000, [60], sourceDomainId);
     try {
       expect(r.initial.sourceDomainId).toBe(sourceDomainId);
       expect(r.failures).toEqual([]); expect(r.input.snapshot().resourceState).toBe('AVAILABLE');
@@ -179,15 +180,15 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
     await r.input.dispose(); expect(r.worker.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it.each([{ pitches: ['C4'] }, { pitches: ['C4', 'C5'] }, { pitches: ['D4'] }])('runtime alone interprets acoustic pitch evidence $pitches', async ({ pitches }) => {
-    const r = await rig(rate, pitches);
+  it.each([{ pianoKeys: [60] }, { pianoKeys: [60, 72] }, { pianoKeys: [62] }])('runtime alone interprets acoustic pianoKey evidence $pianoKeys', async ({ pianoKeys }) => {
+    const r = await rig(rate, pianoKeys);
     try {
       r.activate(); await r.untilPublications(1);
       const record = r.runtime.snapshot().step.pendingPostVerdict!;
-      expect(record.verdict).toBe(pitches.length === 1 && pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
-      expect(record.observedAttackPitches).toEqual([...pitches].sort()); expect(record.confidence).toBe(.8);
+      expect(record.verdict).toBe(pianoKeys.length === 1 && pianoKeys[0] === 60 ? 'MATCH' : 'MISMATCH');
+      expect(record.observedAttackKeys).toEqual([...pianoKeys].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 8, runtimeVersion: 'step-exact-pitch-learning-v11' });
+      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);
@@ -212,7 +213,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       const second = r.runtime.snapshot().step.pendingPostVerdict!;
       expect(second.attemptStartSessionTime.sampleIndex).toBeGreaterThan(boundary.capturedThroughSourceSample);
       expect(second.captureEndSessionTime.sampleIndex).toBe(second.attemptStartSessionTime.sampleIndex! + rate * .05);
-      expect(second.verdict).toBe('MATCH'); expect(second.observedAttackPitches).toEqual(['C4']);
+      expect(second.verdict).toBe('MATCH'); expect(second.observedAttackKeys).toEqual([60]);
       expect(r.runtime.isCompleted).toBe(false); const final = r.input.retirementBoundary(); r.runtime.rearm(final.sessionTime);
       expect(r.runtime.isCompleted).toBe(true); expect(r.failures).toEqual([]);
       expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1); expect(r.platform.acquireInference).toHaveBeenCalledTimes(1);

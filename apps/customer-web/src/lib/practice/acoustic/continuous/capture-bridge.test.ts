@@ -183,20 +183,20 @@ it('R03 positive breakpoints carry observable information: deletion and envelope
   }
   const original = (await replay('original'))!;
   expect(original.windows.map(window => [window.regionIndex, window.windowIndex])).toEqual([[0, 0], [1, 0]]);
-  expect(original.observations.map(event => [event.pitch, event.performanceTimeMs, event.provenance!.sourceEventSample]))
-    .toEqual([['C4', 0, startA], ['D4', 10, startB]]);
+  expect(original.observations.map(event => [event.pianoKey, event.performanceTimeMs, event.provenance!.sourceEventSample]))
+    .toEqual([[60, 0, startA], [62, 10, startB]]);
   expect(original.observations.map(event => event.observationId)).toEqual([
     'breakpoint-source:s0:w0:p60:f32000', 'breakpoint-source:s1:w0:p62:f32320',
   ]);
   expect(original.publications.at(-1)).toMatchObject({ analyzedThroughPerformanceMs: 20, observations: [] });
   const omitA = (await replay('omitA'))!, omitB = (await replay('omitB'))!;
   // Even after making the remaining envelope internally valid, removing either interval loses legal evidence.
-  expect(omitA.observations.map(event => event.pitch)).toEqual(['D4']);
-  expect(omitB.observations.map(event => event.pitch)).toEqual(['C4']);
+  expect(omitA.observations.map(event => event.pianoKey)).toEqual([62]);
+  expect(omitB.observations.map(event => event.pianoKey)).toEqual([60]);
   expect(omitA.observations[0].performanceTimeMs).toBe(0); // B also moves from10ms to0ms.
   await replay('envelope20');
   const envelope = (await replay('envelope30'))!;
-  expect(envelope.observations.map(event => [event.pitch, event.performanceTimeMs])).toEqual([['C4', 0], ['E4', 15], ['D4', 20]]);
+  expect(envelope.observations.map(event => [event.pianoKey, event.performanceTimeMs])).toEqual([[60, 0], [64, 15], [62, 20]]);
   expect(envelope.publications.at(-1)?.analyzedThroughPerformanceMs).toBe(30);
   // Accepting the gap as active can satisfy geometry only by changing the original observable topology.
 });

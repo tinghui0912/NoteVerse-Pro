@@ -99,7 +99,7 @@ const mockStepGroup: ExpectedPracticeGroup = {
   groupId: 'entry-64',
   onsetBeat: 64,
   canonicalEndBeat: 66,
-  pitches: ['C4'],
+  pianoKeys: [60],
   renderNoteIds: ['note-a'],
   measureNumbers: ['1'],
   eventIds: [],

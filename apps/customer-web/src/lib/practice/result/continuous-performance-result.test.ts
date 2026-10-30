@@ -13,10 +13,10 @@ function resultWithRetainedEvidence() {
   const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: { kind: 'FULL' },
     sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
   evaluator.publish({ publicationId: 'evidence', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000,
-    observations: [{ observationId: 'matched', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: 'MIDI',
+    observations: [{ observationId: 'matched', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: 'MIDI',
       provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourceEventSample: 0 } },
-    { observationId: 'non-target', pitch: 'B4', performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
-    { observationId: 'unattributed', pitch: 'E5', performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
+    { observationId: 'non-target', pianoKey: 71, performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
+    { observationId: 'unattributed', pianoKey: 76, performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
   evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
   return createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
     inputSource: 'MIDI', scope: { kind: 'FULL' }, tempoPlan: base.tempoPlan, activeElapsedMs: 10000,
@@ -37,7 +37,7 @@ describe('parsed Result delegates retained local truth validation', () => {
     expect(callerObjects.every(row => !Object.isFrozen(row))).toBe(true);
     expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
   });
-  it.each(['matched pitch', 'matched timing offset', 'matched outside window', 'group onset', 'malformed observation', 'malformed provenance', 'unknown retained field'])('rejects %s at the assignment boundary without mutation', corruption => {
+  it.each(['matched pianoKey', 'matched timing offset', 'matched outside window', 'group onset', 'malformed observation', 'malformed provenance', 'unknown retained field'])('rejects %s at the assignment boundary without mutation', corruption => {
     const parsed = JSON.parse(JSON.stringify(resultWithRetainedEvidence())) as ReturnType<typeof resultWithRetainedEvidence>;
     expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
@@ -50,7 +50,7 @@ describe('parsed Result delegates retained local truth validation', () => {
       Object.assign(matched.match.observation, patch);
     };
     let expectedError = 'Continuous assignment matched strike semantics are corrupt.';
-    if (corruption === 'matched pitch') changeEvidence('matched', { pitch: 'D4' });
+    if (corruption === 'matched pianoKey') changeEvidence('matched', { pianoKey: 62 });
     if (corruption === 'matched timing offset') Object.assign(matched.match, { timingOffsetMs: 1 });
     if (corruption === 'matched outside window') {
       changeEvidence('matched', { performanceTimeMs: 251 }); Object.assign(matched.match, { timingOffsetMs: 251 });
@@ -91,7 +91,7 @@ describe('immutable Continuous product result', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(result));
-    expect(parsed.schemaVersion).toBe(6);
+    expect(parsed.schemaVersion).toBe(7);
     expect(parsed.evidenceProvenance.timing.calibrationApplied).toBe(false);
     expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
     expect(parsed).toEqual(result);
@@ -102,6 +102,7 @@ describe('immutable Continuous product result', () => {
   });
   it.each([
     ['schema 1', (value: ReturnType<typeof clone>) => { value.schemaVersion = 1; }],
+    ['schema 6', (value: ReturnType<typeof clone>) => { value.schemaVersion = 6; }],
     ['schema 5', (value: ReturnType<typeof clone>) => { value.schemaVersion = 5; }],
     ['assignment policy V3', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3'; }],
     ['schema 4', (value: ReturnType<typeof clone>) => { value.schemaVersion = 4; }],
@@ -140,7 +141,7 @@ describe('immutable Continuous product result', () => {
     const base = canonicalContinuousResultFixture(inputSource), localSessionId = 'evidence-result';
     const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: { kind: 'FULL' },
       sessionDomainId: localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
-    const observation = { observationId: 'observed-C4', pitch: 'C4', performanceTimeMs: 0, confidence: .42,
+    const observation = { observationId: 'observed-C4', pianoKey: 60, performanceTimeMs: 0, confidence: .42,
       source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
       ...(inputSource === 'MICROPHONE' ? { provenance: { sourceDomainId: 'capture', sourceEventSample: 2400, sourceSampleRateHz: 48000 } } : {}) };
     evaluator.publish({ publicationId: 'evidence', sessionDomainId: localSessionId, observations: [observation],
@@ -152,7 +153,7 @@ describe('immutable Continuous product result', () => {
     expect(parsed.evaluation.status).toBe('COMPLETE');
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
     expect(parsed.evaluation.assignment.observations).toEqual([observation]);
-    expect(parsed.schemaVersion).toBe(6);
+    expect(parsed.schemaVersion).toBe(7);
     expect(parsed.evaluation.assignment.completion).toMatchObject({ performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
     expect(parsed.evaluation.assignment.groups[0].strikes[0].finality.finalizationSessionTimeMs).toBe(3000);
     expect(parsed.evidenceProvenance.timing).toMatchObject({ calibrationApplied: false,
@@ -163,7 +164,7 @@ describe('immutable Continuous product result', () => {
   it('unavailable evaluation retains identities and provenance without fabricated outcomes', () => {
     const result = canonicalContinuousResultFixture('MICROPHONE', 44100, false);
     expect(result).not.toHaveProperty('metrics');
-    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4' });
+    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5' });
     expect(result.evidenceProvenance).toMatchObject({ sourceSampleRateHz: 44100 });
     expect(() => assertContinuousPerformanceResult(JSON.parse(JSON.stringify(result)))).not.toThrow();
   });

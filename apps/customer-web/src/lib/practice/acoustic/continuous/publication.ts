@@ -18,7 +18,7 @@ export function projectContinuousEvidence(input: SourceAcousticPublication, segm
   const inputStartMs = segment.performanceStartMs + (w.startSample - segment.originTarget) / samplesPerMs;
   const observations = input.observations.map(e => Object.freeze({
     observationId: `${input.sourceDomainId}:s${segment.index}:w${w.windowIndex}:p${e.midiPitch}:f${e.targetSample}`,
-    pitch: e.pitch, performanceTimeMs: inputStartMs + (e.targetSample - w.startSample) / samplesPerMs,
+    pianoKey: e.midiPitch, performanceTimeMs: inputStartMs + (e.targetSample - w.startSample) / samplesPerMs,
     confidence: e.confidence, source: 'ACOUSTIC' as const,
     provenance: Object.freeze({ sourceDomainId: e.sourceDomainId, sourceSampleRateHz: e.sourceSampleRateHz, sourceEventSample: e.sourceEventSample })
   })).filter(e => e.performanceTimeMs >= start && e.performanceTimeMs < end);

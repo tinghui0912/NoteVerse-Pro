@@ -32,11 +32,11 @@ export const take: PerformanceTakeRead = {
 };
 
 export const artifact: PracticeScoreArtifact = {
-  schemaVersion: 1 as const,
+  schemaVersion: 2 as const,
   scoreId: 'score-1',
   revisionId: 'revision-1',
   artifactId: 'artifact-1',
-  playableEvents: [],
+  playableEvents: [0, 1].map(i => ({ eventId: `event-${i + 1}`, onsetBeat: i * 4, durationBeats: 4, pianoKeys: [60], renderNoteIds: [`note-${i + 1}`], measureNumbers: [String(i + 1)], staffIds: [], voiceIds: [], tieTypes: [], playable: true, entryCandidate: true })),
   scoreTempoSegments: [{ startBeat: 0, bpm: 96 }],
   meterSegments: [{
     startBeat: 0,
@@ -52,11 +52,11 @@ export const artifact: PracticeScoreArtifact = {
     {
       groupId: 'group-1',
       onsetBeat: 0,
-      eventIds: [],
-      expectedNotes: [{ expectedNoteId: 'expected-1', eventId: 'event-1', pitch: 'C4', renderNoteId: 'note-1', measureNumbers: ['1'] }],
-      strikeTargets: [{ strikeId: 'strike-1', pitch: 'C4', expectedNotes: [{ expectedNoteId: 'expected-1', eventId: 'event-1', pitch: 'C4', renderNoteId: 'note-1', measureNumbers: ['1'] }], eventIds: ['event-1'], renderNoteIds: ['note-1'], measureNumbers: ['1'] }],
+      eventIds: ['event-1'],
+      expectedNotes: [{ expectedNoteId: 'expected-1', eventId: 'event-1', pianoKey: 60, renderNoteId: 'note-1', measureNumbers: ['1'] }],
+      strikeTargets: [{ strikeId: 'strike-1', pianoKey: 60, expectedNotes: [{ expectedNoteId: 'expected-1', eventId: 'event-1', pianoKey: 60, renderNoteId: 'note-1', measureNumbers: ['1'] }], eventIds: ['event-1'], renderNoteIds: ['note-1'], measureNumbers: ['1'] }],
       renderNoteIds: ['note-1'],
-      pitches: ['C4'],
+      pianoKeys: [60],
       measureNumbers: ['1'],
       staffIds: [],
       voiceIds: [],
@@ -65,11 +65,11 @@ export const artifact: PracticeScoreArtifact = {
     {
       groupId: 'group-2',
       onsetBeat: 4,
-      eventIds: [],
-      expectedNotes: [{ expectedNoteId: 'expected-2', eventId: 'event-2', pitch: 'C4', renderNoteId: 'note-2', measureNumbers: ['2'] }],
-      strikeTargets: [{ strikeId: 'strike-2', pitch: 'C4', expectedNotes: [{ expectedNoteId: 'expected-2', eventId: 'event-2', pitch: 'C4', renderNoteId: 'note-2', measureNumbers: ['2'] }], eventIds: ['event-2'], renderNoteIds: ['note-2'], measureNumbers: ['2'] }],
+      eventIds: ['event-2'],
+      expectedNotes: [{ expectedNoteId: 'expected-2', eventId: 'event-2', pianoKey: 60, renderNoteId: 'note-2', measureNumbers: ['2'] }],
+      strikeTargets: [{ strikeId: 'strike-2', pianoKey: 60, expectedNotes: [{ expectedNoteId: 'expected-2', eventId: 'event-2', pianoKey: 60, renderNoteId: 'note-2', measureNumbers: ['2'] }], eventIds: ['event-2'], renderNoteIds: ['note-2'], measureNumbers: ['2'] }],
       renderNoteIds: ['note-2'],
-      pitches: ['C4'],
+      pianoKeys: [60],
       measureNumbers: ['2'],
       staffIds: [],
       voiceIds: [],
@@ -80,8 +80,8 @@ export const artifact: PracticeScoreArtifact = {
     {
       stepId: 'step-1',
       onsetBeat: 0,
-      eventIds: [],
-      attackTargets: [{ attackId: 'attack-1', pitch: 'C4', notes: [{ stepNoteId: 'step-note-1', eventId: 'event-1', pitch: 'C4', renderNoteId: 'note-1', measureNumbers: ['1'], staffIds: [], voiceIds: [] }], eventIds: ['event-1'], renderNoteIds: ['note-1'], measureNumbers: ['1'] }],
+      eventIds: ['event-1'],
+      attackTargets: [{ attackId: 'attack-1', pianoKey: 60, notes: [{ stepNoteId: 'step-note-1', eventId: 'event-1', pianoKey: 60, renderNoteId: 'note-1', measureNumbers: ['1'], staffIds: [], voiceIds: [] }], eventIds: ['event-1'], renderNoteIds: ['note-1'], measureNumbers: ['1'] }],
       continuation: [],
       renderNoteIds: ['note-1'],
       measureNumbers: ['1'],
@@ -91,8 +91,8 @@ export const artifact: PracticeScoreArtifact = {
     {
       stepId: 'step-2',
       onsetBeat: 4,
-      eventIds: [],
-      attackTargets: [{ attackId: 'attack-2', pitch: 'C4', notes: [{ stepNoteId: 'step-note-2', eventId: 'event-2', pitch: 'C4', renderNoteId: 'note-2', measureNumbers: ['2'], staffIds: [], voiceIds: [] }], eventIds: ['event-2'], renderNoteIds: ['note-2'], measureNumbers: ['2'] }],
+      eventIds: ['event-2'],
+      attackTargets: [{ attackId: 'attack-2', pianoKey: 60, notes: [{ stepNoteId: 'step-note-2', eventId: 'event-2', pianoKey: 60, renderNoteId: 'note-2', measureNumbers: ['2'], staffIds: [], voiceIds: [] }], eventIds: ['event-2'], renderNoteIds: ['note-2'], measureNumbers: ['2'] }],
       continuation: [],
       renderNoteIds: ['note-2'],
       measureNumbers: ['2'],

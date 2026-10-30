@@ -1,5 +1,6 @@
 'use client';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { usePracticeSource } from '@/hooks/practice/use-practice-source';
 import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
@@ -9,15 +10,19 @@ import { requirementFingerprint } from '@/lib/practice/readiness/requirements';
 
 export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
-  const params = useParams<{ id: string }>(), query = useSearchParams(), router = useRouter();
+  const params = useParams<{ id: string }>(), router = useRouter();
+  const source = usePracticeSource(params.id);
   const { profile, updateProfile, readiness } = workspace;
   const checking = readiness.status === 'CHECKING';
   const currentRequirements = workspace.requirements ?? [];
   const currentReadiness = readiness.fingerprint === requirementFingerprint(currentRequirements);
-  const enter = () => router.replace(practiceLocation(params.id, 'practice', query.get('practiceRevisionId')));
+  const enter = () => router.replace(practiceLocation(params.id, 'practice', source.revisionId));
   return <main className="mx-auto max-w-2xl space-y-6 p-6" data-testid="practice-setup">
     <h1 className="text-2xl font-semibold">{t('setupTitle')}</h1>
     <p>{t('setupDescription')}</p>
+    {source.invalid ? <p role="alert">{t('scoreInvalid')}</p>
+      : source.artifactQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
+      : !source.artifact ? <p role="status">{t('scoreLoading')}</p> : null}
     <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsMode')}</legend>
       {(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as PracticeMode[]).map(mode => <button key={mode} type="button"
         className="mr-3 rounded border p-3 aria-pressed:bg-orange-100" aria-pressed={profile.mode === mode}
@@ -45,9 +50,9 @@ export default function PracticeSetupPage() {
       {currentReadiness && readiness.status === 'BLOCKED' && <><p role="alert">{t('setupFailure')}</p><details><summary>{t('setupTechnicalDetails')}</summary><code>{readiness.reason}</code></details></>}
     </section>
     <button type="button" className="rounded bg-orange-600 px-5 py-3 text-white disabled:opacity-50"
-      disabled={!workspace.configuration || checking || !workspace.hydrated}
+      disabled={!source.artifact || !workspace.configuration || checking || !workspace.hydrated}
       aria-busy={checking}
-      onClick={() => { void workspace.requalify().then(() => {
+      onClick={() => { if (!source.artifact) return; void workspace.requalify().then(() => {
         if (workspace.requirements && workspace.environment.matches(workspace.requirements)) enter();
       }); }}>{t('setupPrepare')}</button>
   </main>;

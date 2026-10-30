@@ -1,6 +1,7 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 export type ContinuousObservation = Readonly<{
   observationId: string;
-  pitch: string;
+  pianoKey: PracticePianoKey;
   performanceTimeMs: number;
   confidence: number;
   source: 'MIDI' | 'ACOUSTIC';

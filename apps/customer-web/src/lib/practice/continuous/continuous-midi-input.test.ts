@@ -20,10 +20,12 @@ describe('Continuous physical MIDI input projection', () => {
     const timebase = new PracticeTimebase({ domainId: 'physical-midi' });
     new ContinuousMidiInput(platform, { access: midiDeviceFixture().access, timebase, observe, onState });
     const sessionTime = timebase.atSessionMs(112);
-    options.onAttack!({ sessionTime, pitch: 'E4', confidence: 1 });
+    options.onAttack!({ sessionTime, noteNumber: 64, confidence: 1 });
     expect(options.timebase).toBe(timebase);
     expect(options.onStateChange).toBe(onState);
-    expect(observe).toHaveBeenCalledExactlyOnceWith({ captureTime: sessionTime, pitch: 'E4', confidence: 1 });
+    expect(observe).toHaveBeenCalledExactlyOnceWith({ captureTime: sessionTime, pianoKey: 64, confidence: 1 });
+    for (const noteNumber of [20, 21, 108, 109]) expect(() => options.onAttack!({ sessionTime, noteNumber, confidence: 1 })).not.toThrow();
+    expect(observe.mock.calls.map(([fact]) => fact.pianoKey)).toEqual([64, 21, 108]);
   });
 
   it('retains preparation, disconnect rejection and resource release ownership', async () => {

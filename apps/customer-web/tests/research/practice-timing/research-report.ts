@@ -1,3 +1,4 @@
+import { isPracticePianoKey } from '../../../src/lib/practice/kernel/piano-key';
 import { productionPolicy } from './production-policy';
 
 const limitations = [
@@ -14,7 +15,7 @@ export type ResearchEnvelope = {
 };
 type ObservationOutcome = {
   observationId: string; intendedStrikeId: string; assignedStrikeId: string | null;
-  observedPitch: string; intendedPerformanceTimeMs: number; observationPerformanceTimeMs: number;
+  observedKey: number; intendedPerformanceTimeMs: number; observationPerformanceTimeMs: number;
   assignedPerformanceTimeMs: number | null;
   assignmentKind: 'STRIKE_MATCH' | 'UNATTRIBUTED';
   intendedStrikeState: 'MATCHED' | 'UNMATCHED';
@@ -114,9 +115,9 @@ export function assertResearchReport(value: unknown): asserts value is TimingRes
       if (Number(c.matchedCount) + Number(c.unmatchedCount) !== c.targetCount
         || Number(c.overlappingSamePitchGapCount) > Number(c.samePitchGapCount)) fail();
       for (const item of array(c.observations)) {
-        const o = fields(item, 'observationId intendedStrikeId assignedStrikeId observedPitch intendedPerformanceTimeMs observationPerformanceTimeMs assignedPerformanceTimeMs assignmentKind intendedStrikeState timingOffsetMs generatedOffsetMs claimantCount claimantBucket neighborMisassignment unattributed');
+        const o = fields(item, 'observationId intendedStrikeId assignedStrikeId observedKey intendedPerformanceTimeMs observationPerformanceTimeMs assignedPerformanceTimeMs assignmentKind intendedStrikeState timingOffsetMs generatedOffsetMs claimantCount claimantBucket neighborMisassignment unattributed');
         text(o.observationId); text(o.intendedStrikeId); if (o.assignedStrikeId !== null) text(o.assignedStrikeId);
-        text(o.observedPitch); numericFields(o, 'intendedPerformanceTimeMs observationPerformanceTimeMs');
+        if (!isPracticePianoKey(o.observedKey)) fail(); numericFields(o, 'intendedPerformanceTimeMs observationPerformanceTimeMs');
         if (o.assignedPerformanceTimeMs !== null) number(o.assignedPerformanceTimeMs);
         enumValue(o.assignmentKind, ['STRIKE_MATCH', 'UNATTRIBUTED']);
         enumValue(o.intendedStrikeState, ['MATCHED', 'UNMATCHED']);

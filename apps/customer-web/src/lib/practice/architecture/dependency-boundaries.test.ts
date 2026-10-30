@@ -73,7 +73,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
   if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
   if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
-    || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts'].includes(target ?? '');
+    || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts', 'kernel/piano-key.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || target === 'kernel/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
   if (source.startsWith('continuous/timing/')) return Boolean(target && (target.startsWith('continuous/timing/') || target.startsWith('kernel/')));
@@ -235,14 +235,14 @@ describe('Practice bounded domain dependencies', () => {
   });
 
   it('separates raw assignment mechanics from target feedback and presentation', () => {
-    const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'same-pitch-matching.ts', 'observation-store.ts',
+    const rawModules = new Set(['assignment-types.ts', 'evidence-types.ts', 'same-key-matching.ts', 'observation-store.ts',
       'finalization-policy.ts', 'assignment-finalizer.ts', 'assignment-projection.ts', 'evaluation-error.ts', 'immutable-value.ts']);
     const evaluationRoot = 'continuous/domain/evaluation/';
     for (const file of files) {
       const name = relative(file);
       if (name.startsWith(evaluationRoot) && rawModules.has(path.basename(file))) {
         for (const edge of graph.get(normalize(file))!) {
-          expect(edge.target && relative(edge.target).startsWith(evaluationRoot) && rawModules.has(path.basename(edge.target)), name + ' -> ' + edge.specifier).toBe(true);
+          expect(edge.target && (relative(edge.target) === 'kernel/piano-key.ts' || relative(edge.target).startsWith(evaluationRoot) && rawModules.has(path.basename(edge.target))), name + ' -> ' + edge.specifier).toBe(true);
         }
       }
     }
@@ -694,7 +694,7 @@ it('has no source-specific interpretation implementation or target/group classif
 
 it('has only domain-specific ordered same-pitch matching in production and keeps score-view policy-blind',()=>{
   expect(existsSync(path.join(practiceRoot,'continuous/domain/evaluation/matching.ts'))).toBe(false);
-  const matcher=path.join(practiceRoot,'continuous/domain/evaluation/same-pitch-matching.ts');
+  const matcher=path.join(practiceRoot,'continuous/domain/evaluation/same-key-matching.ts');
   const source=ts.createSourceFile(matcher,readFileSync(matcher,'utf8'),ts.ScriptTarget.Latest,true);
   const visit=(node:ts.Node)=>{
     if(ts.isIdentifier(node))expect(['leftCount','rightCount','Edge','capacity','reverse'].includes(node.text),node.text).toBe(false);

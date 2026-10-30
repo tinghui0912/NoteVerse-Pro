@@ -10,6 +10,8 @@ from typing import Any, Literal
 import xml.etree.ElementTree as ET
 
 
+from app.processing.practice_score.piano_key import PracticeScoreInvalidError, practice_piano_key
+
 ScoreBeat = float
 DEFAULT_METER_NUMERATOR = 4
 DEFAULT_METER_DENOMINATOR = 4
@@ -21,7 +23,7 @@ class PracticeScoreEvent:
     event_id: str
     onset_beat: ScoreBeat
     duration_beats: ScoreBeat
-    pitches: tuple[str, ...]
+    piano_keys: tuple[int, ...]
     render_note_ids: tuple[str, ...]
     measure_numbers: tuple[str, ...]
     staff_ids: tuple[str, ...]
@@ -44,7 +46,7 @@ class PracticeEntryGroup:
 class ExpectedPracticeNote:
     expected_note_id: str
     event_id: str
-    pitch: str
+    piano_key: int
     render_note_id: str
     measure_numbers: tuple[str, ...]
 
@@ -52,7 +54,7 @@ class ExpectedPracticeNote:
 @dataclass(frozen=True)
 class ExpectedPracticeStrikeTarget:
     strike_id: str
-    pitch: str
+    piano_key: int
     expected_notes: tuple[ExpectedPracticeNote, ...]
     event_ids: tuple[str, ...]
     render_note_ids: tuple[str, ...]
@@ -67,7 +69,7 @@ class ExpectedPracticeGroup:
     expected_notes: tuple[ExpectedPracticeNote, ...]
     strike_targets: tuple[ExpectedPracticeStrikeTarget, ...]
     render_note_ids: tuple[str, ...]
-    pitches: tuple[str, ...]
+    piano_keys: tuple[int, ...]
     measure_numbers: tuple[str, ...]
     staff_ids: tuple[str, ...]
     voice_ids: tuple[str, ...]
@@ -77,7 +79,7 @@ class ExpectedPracticeGroup:
 class PracticeStepNote:
     step_note_id: str
     event_id: str
-    pitch: str
+    piano_key: int
     render_note_id: str
     measure_numbers: tuple[str, ...]
     staff_ids: tuple[str, ...]
@@ -87,7 +89,7 @@ class PracticeStepNote:
 @dataclass(frozen=True)
 class PracticeAttackTarget:
     attack_id: str
-    pitch: str
+    piano_key: int
     notes: tuple[PracticeStepNote, ...]
     event_ids: tuple[str, ...]
     render_note_ids: tuple[str, ...]
@@ -141,14 +143,7 @@ class PracticeScoreTimeline:
     ) -> "PracticeScoreTimeline":
         names = set(note_array.dtype.names or ())
         if not {"onset_beat", "duration_beat", "pitch", "id"} <= names:
-            return cls(
-                events=(),
-                entry_groups=(),
-                first_playable_event_id=None,
-                first_playable_beat=None,
-                end_beat=0.0,
-                meter_segments=(),
-            )
+            raise ValueError("Partitura note array is missing required columns.")
 
         note_metadata = _musicxml_note_metadata(musicxml_path)
         meter_segments = _musicxml_meter_segments(musicxml_path)
@@ -175,6 +170,8 @@ class PracticeScoreTimeline:
             )
         )
         entry_groups = _build_entry_groups(events)
+        if not entry_groups:
+            raise PracticeScoreInvalidError("Score has no playable Practice attack groups.")
         first_playable = next((event for event in events if event.playable), None)
         end_beat = max(
             (event.onset_beat + event.duration_beats for event in events if event.playable),
@@ -273,7 +270,7 @@ class PracticeScoreTimeline:
             expected_notes=expected_notes,
             strike_targets=strike_targets,
             render_note_ids=tuple(dict.fromkeys(note.render_note_id for note in expected_notes)),
-            pitches=tuple(strike.pitch for strike in strike_targets),
+            piano_keys=tuple(strike.piano_key for strike in strike_targets),
             measure_numbers=tuple(
                 dict.fromkeys(number for event in events for number in event.measure_numbers)
             ),
@@ -331,7 +328,7 @@ def _event_from_notes(
 ) -> PracticeScoreEvent:
     onset_beat, duration_beats, voice_id, staff_id, _tie_continuation = key
     render_note_ids = tuple(_field_as_string(item.note["id"]) for item in notes)
-    pitches = tuple(_midi_pitch_name(int(item.note["pitch"])) for item in notes)
+    piano_keys = tuple(practice_piano_key(item.note["pitch"]) for item in notes)
     measure_numbers = tuple(
         dict.fromkeys(
             item.metadata.measure_number
@@ -361,7 +358,7 @@ def _event_from_notes(
         event_id=event_id,
         onset_beat=onset_beat,
         duration_beats=duration_beats,
-        pitches=pitches,
+        piano_keys=piano_keys,
         render_note_ids=render_note_ids,
         measure_numbers=measure_numbers,
         staff_ids=() if not staff_id else (staff_id,),
@@ -373,34 +370,34 @@ def _event_from_notes(
 
 
 def _expected_notes_for_event(event: PracticeScoreEvent) -> tuple[ExpectedPracticeNote, ...]:
-    if len(event.pitches) != len(event.render_note_ids):
-        raise ValueError("Practice score event pitch/render-note identity mismatch.")
+    if len(event.piano_keys) != len(event.render_note_ids):
+        raise ValueError("Practice score event piano_key/render-note identity mismatch.")
     return tuple(
         ExpectedPracticeNote(
             expected_note_id=f"{event.event_id}:{render_note_id}",
             event_id=event.event_id,
-            pitch=pitch,
+            piano_key=piano_key,
             render_note_id=render_note_id,
             measure_numbers=event.measure_numbers,
         )
-        for pitch, render_note_id in zip(event.pitches, event.render_note_ids, strict=True)
+        for piano_key, render_note_id in zip(event.piano_keys, event.render_note_ids, strict=True)
     )
 
 
 def _step_notes_for_event(event: PracticeScoreEvent) -> tuple[PracticeStepNote, ...]:
-    if len(event.pitches) != len(event.render_note_ids):
-        raise ValueError("Practice score event pitch/render-note identity mismatch.")
+    if len(event.piano_keys) != len(event.render_note_ids):
+        raise ValueError("Practice score event piano_key/render-note identity mismatch.")
     return tuple(
         PracticeStepNote(
             step_note_id=f"{event.event_id}:{render_note_id}",
             event_id=event.event_id,
-            pitch=pitch,
+            piano_key=piano_key,
             render_note_id=render_note_id,
             measure_numbers=event.measure_numbers,
             staff_ids=event.staff_ids,
             voice_ids=event.voice_ids,
         )
-        for pitch, render_note_id in zip(event.pitches, event.render_note_ids, strict=True)
+        for piano_key, render_note_id in zip(event.piano_keys, event.render_note_ids, strict=True)
     )
 
 
@@ -488,26 +485,26 @@ def _attack_targets_for_step_notes(
     *,
     step_id: str,
 ) -> tuple[PracticeAttackTarget, ...]:
-    notes_by_pitch: dict[str, list[PracticeStepNote]] = {}
+    notes_by_key: dict[int, list[PracticeStepNote]] = {}
     for note in notes:
-        notes_by_pitch.setdefault(note.pitch, []).append(note)
+        notes_by_key.setdefault(note.piano_key, []).append(note)
 
     return tuple(
         PracticeAttackTarget(
-            attack_id=_stable_attack_target_id(step_id, pitch, tuple(note.event_id for note in pitch_notes)),
-            pitch=pitch,
-            notes=tuple(pitch_notes),
-            event_ids=tuple(dict.fromkeys(note.event_id for note in pitch_notes)),
-            render_note_ids=tuple(dict.fromkeys(note.render_note_id for note in pitch_notes)),
+            attack_id=_stable_attack_target_id(step_id, piano_key, tuple(note.event_id for note in key_notes)),
+            piano_key=piano_key,
+            notes=tuple(key_notes),
+            event_ids=tuple(dict.fromkeys(note.event_id for note in key_notes)),
+            render_note_ids=tuple(dict.fromkeys(note.render_note_id for note in key_notes)),
             measure_numbers=tuple(
                 dict.fromkeys(
                     measure_number
-                    for note in pitch_notes
+                    for note in key_notes
                     for measure_number in note.measure_numbers
                 )
             ),
         )
-        for pitch, pitch_notes in notes_by_pitch.items()
+        for piano_key, key_notes in notes_by_key.items()
     )
 
 
@@ -515,14 +512,14 @@ def _strike_targets_for_expected_notes(
     group_id: str,
     expected_notes: tuple[ExpectedPracticeNote, ...],
 ) -> tuple[ExpectedPracticeStrikeTarget, ...]:
-    notes_by_pitch: dict[str, list[ExpectedPracticeNote]] = {}
+    notes_by_key: dict[int, list[ExpectedPracticeNote]] = {}
     for note in expected_notes:
-        notes_by_pitch.setdefault(note.pitch, []).append(note)
+        notes_by_key.setdefault(note.piano_key, []).append(note)
 
     return tuple(
         ExpectedPracticeStrikeTarget(
-            strike_id=f"{group_id}:strike:{_safe_id(pitch)}",
-            pitch=pitch,
+            strike_id=f"{group_id}:strike:{_safe_id(str(piano_key))}",
+            piano_key=piano_key,
             expected_notes=tuple(notes),
             event_ids=tuple(dict.fromkeys(note.event_id for note in notes)),
             render_note_ids=tuple(dict.fromkeys(note.render_note_id for note in notes)),
@@ -534,7 +531,7 @@ def _strike_targets_for_expected_notes(
                 )
             ),
         )
-        for pitch, notes in notes_by_pitch.items()
+        for piano_key, notes in notes_by_key.items()
     )
 
 
@@ -692,14 +689,14 @@ def _event_sounding_end_beat(
         return _round_beat(base_end)
 
     tied_end_beats = (
-        _tied_pitch_sounding_end_beat(event, pitch, events) for pitch in event.pitches
+        _tied_key_sounding_end_beat(event, piano_key, events) for piano_key in event.piano_keys
     )
     return _round_beat(max(base_end, *tied_end_beats))
 
 
-def _tied_pitch_sounding_end_beat(
+def _tied_key_sounding_end_beat(
     event: PracticeScoreEvent,
-    pitch: str,
+    piano_key: int,
     events: tuple[PracticeScoreEvent, ...],
 ) -> ScoreBeat:
     end_beat = event.onset_beat + event.duration_beats
@@ -709,7 +706,7 @@ def _tied_pitch_sounding_end_beat(
     while "start" in set(current.tie_types):
         continuation = _next_tie_continuation(
             current,
-            pitch,
+            piano_key,
             events,
             visited_event_ids=visited,
         )
@@ -724,7 +721,7 @@ def _tied_pitch_sounding_end_beat(
 
 def _next_tie_continuation(
     event: PracticeScoreEvent,
-    pitch: str,
+    piano_key: int,
     events: tuple[PracticeScoreEvent, ...],
     *,
     visited_event_ids: set[str],
@@ -737,7 +734,7 @@ def _next_tie_continuation(
         and candidate.onset_beat >= event.onset_beat
         and candidate.onset_beat <= event_end
         and "stop" in set(candidate.tie_types)
-        and pitch in candidate.pitches
+        and piano_key in candidate.piano_keys
         and _same_staff_voice(event, candidate)
     )
     return min(candidates, key=lambda candidate: candidate.onset_beat, default=None)
@@ -801,10 +798,10 @@ def _stable_attack_step_id(onset_beat: ScoreBeat, event_ids: tuple[str, ...]) ->
     return f"attack-{_safe_id(str(onset_beat))}-{digest}"
 
 
-def _stable_attack_target_id(step_id: str, pitch: str, event_ids: tuple[str, ...]) -> str:
-    identity = "|".join((step_id, pitch, *event_ids))
+def _stable_attack_target_id(step_id: str, piano_key: int, event_ids: tuple[str, ...]) -> str:
+    identity = "|".join((step_id, str(piano_key), *event_ids))
     digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
-    return f"{step_id}:target:{_safe_id(pitch)}:{digest}"
+    return f"{step_id}:target:{_safe_id(str(piano_key))}:{digest}"
 
 
 def _field_as_string(value: object) -> str:
@@ -820,7 +817,13 @@ def _safe_id(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_")
 
 
-def _midi_pitch_name(pitch: int) -> str:
-    names = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-    octave = pitch // 12 - 1
-    return f"{names[pitch % 12]}{octave}"
+
+def assert_practice_timeline(timeline: PracticeScoreTimeline) -> None:
+    if not timeline.expected_practice_groups or not timeline.practice_attack_steps:
+        raise PracticeScoreInvalidError("Score has no playable Practice targets.")
+    for event in timeline.events:
+        if event.playable:
+            if not event.piano_keys:
+                raise PracticeScoreInvalidError("Playable event has no piano keys.")
+            for key in event.piano_keys:
+                practice_piano_key(key)

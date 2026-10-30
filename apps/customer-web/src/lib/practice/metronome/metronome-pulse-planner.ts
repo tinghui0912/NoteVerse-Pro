@@ -1,6 +1,9 @@
-import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { MeterSegment } from '@/lib/practice/kernel/artifact';
 import { roundBeat } from '@/lib/practice/kernel/artifact';
 import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+
+/** Timing-only input; it makes no claim of Practice score validity. */
+export type MetronomeMeterSource = Readonly<{ meterSegments: readonly MeterSegment[] }>;
 
 export interface MetronomePulse {
   readonly scoreBeat: number;
@@ -78,7 +81,7 @@ export function pulseStepBeats(meter: MeterSegment): number {
 /**
  * Finds the active MeterSegment for a given musical beat in the score.
  */
-export function meterAtBeat(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
+export function meterAtBeat(artifact: MetronomeMeterSource, beat: number): MeterSegment {
   const targetBeat = roundBeat(Math.max(0, beat));
   const segments = artifact.meterSegments;
   if (!segments || segments.length === 0) {
@@ -132,7 +135,7 @@ export class MetronomePulsePlanner {
    */
   static createContinuousCursor(
     syncPoint: ContinuousMetronomeSyncPoint,
-    artifact: PracticeScoreArtifact,
+    artifact: MetronomeMeterSource,
     timeline: PracticeTempoTimeline,
     baseTimeMs = 0
   ): ContinuousCountInState | ContinuousRunningState {
@@ -204,7 +207,7 @@ export class MetronomePulsePlanner {
    */
   static createStepCursor(
     targetOnsetBeat: number,
-    artifact: PracticeScoreArtifact,
+    artifact: MetronomeMeterSource,
     timeline: PracticeTempoTimeline,
     baseTimeMs = 0
   ): StepRunningState {
@@ -259,7 +262,7 @@ export class MetronomePulsePlanner {
     cursor: MetronomePlanningCursor,
     horizonMs: number,
     context: {
-      artifact: PracticeScoreArtifact;
+      artifact: MetronomeMeterSource;
       timeline: PracticeTempoTimeline;
       scopeEndBeat: number;
     }
@@ -364,7 +367,7 @@ export class MetronomePulsePlanner {
    */
   static planContinuousPulses(options: {
     timeline: PracticeTempoTimeline;
-    artifact: PracticeScoreArtifact;
+    artifact: MetronomeMeterSource;
     scopeStartBeat: number;
     countInPulses: number;
     countInBeats: number;
@@ -472,7 +475,7 @@ export class MetronomePulsePlanner {
    */
   static planStepPulses(options: {
     timeline: PracticeTempoTimeline;
-    artifact: PracticeScoreArtifact;
+    artifact: MetronomeMeterSource;
     targetOnsetBeat: number;
     windowStartMs: number;
     windowEndMs: number;

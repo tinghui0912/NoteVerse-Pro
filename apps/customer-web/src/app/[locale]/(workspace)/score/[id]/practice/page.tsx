@@ -3,10 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { useRouter } from 'next/navigation';
+import { usePracticeSource } from '@/hooks/practice/use-practice-source';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
-import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
 import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
@@ -87,8 +86,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   // Mode and settings
   const workspace = usePracticeWorkspace();
@@ -102,20 +99,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [stepRequiresSetup, setStepRequiresSetup] = useState(false);
 
   // Score details and assets
-  const scoreQuery = useScoreDetail(id);
+  const source = usePracticeSource(id);
+  const { scoreQuery, artifactQuery, artifact } = source;
+  const canEnterPractice = source.canPractice;
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
-  const canEnterPractice = scoreCapabilities?.can_practice !== false;
-  const requestedRevisionId = searchParams.get('practiceRevisionId');
-  const headRevisionId = scoreQuery.data?.data?.head_revision_id ?? null;
+  const selectedRevisionId = source.revisionId ?? undefined;
   useEffect(() => {
-    if (requestedRevisionId || !headRevisionId) {
-      return;
-    }
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set('practiceRevisionId', headRevisionId);
-    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-  }, [headRevisionId, pathname, requestedRevisionId, router, searchParams]);
-  const selectedRevisionId = requestedRevisionId ?? headRevisionId ?? undefined;
+    if (source.invalid) router.replace(practiceLocation(id, 'setup', source.revisionId));
+  }, [source.invalid, source.revisionId, id, router]);
 
   const revisionQuery = usePracticeReadyScoreContent(
     id,
@@ -123,14 +114,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     canEnterPractice && Boolean(selectedRevisionId)
   );
   const xmlContent = revisionQuery.data?.data?.content ?? null;
-
-  // Artifact query
-  const artifactQuery = usePracticeScoreArtifact(
-    id,
-    selectedRevisionId,
-    canEnterPractice && Boolean(selectedRevisionId)
-  );
-  const artifact = artifactQuery.data ?? null;
 
   // Range interaction uses the artifact's expected groups.
   const expectedGroups: readonly ExpectedPracticeGroup[] = useMemo(
@@ -149,7 +132,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
-  const device = usePracticeDeviceLease({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' }, true);
+  const device = usePracticeDeviceLease({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' }, Boolean(artifact) && workspace.ready);
   const requiredDevices = practiceDeviceRequirements({ mode: practiceMode, inputSource, recordingMode: recordingMode ?? 'OFF' });
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;

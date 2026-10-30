@@ -281,11 +281,11 @@ for (const rate of [44100, 48000]) it(`${rate} streaming chunk boundaries exactl
 
 it('real assignment finalizer retains source-blind ownership from the model-agnostic publication stream', async () => {
   const expected = [
-    { strikeId: 'correct', groupId: 'correct', pitch: 'C4', expectedPerformanceTimeMs: 100, renderNoteIds: [] },
-    { strikeId: 'missing', groupId: 'missing', pitch: 'C4', expectedPerformanceTimeMs: 700, renderNoteIds: [] },
-    { strikeId: 'wrong', groupId: 'wrong', pitch: 'C4', expectedPerformanceTimeMs: 1300, renderNoteIds: [] },
-    { strikeId: 'chord-c', groupId: 'chord', pitch: 'C4', expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
-    { strikeId: 'chord-e', groupId: 'chord', pitch: 'E4', expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
+    { strikeId: 'correct', groupId: 'correct', pianoKey: 60, expectedPerformanceTimeMs: 100, renderNoteIds: [] },
+    { strikeId: 'missing', groupId: 'missing', pianoKey: 60, expectedPerformanceTimeMs: 700, renderNoteIds: [] },
+    { strikeId: 'wrong', groupId: 'wrong', pianoKey: 60, expectedPerformanceTimeMs: 1300, renderNoteIds: [] },
+    { strikeId: 'chord-c', groupId: 'chord', pianoKey: 60, expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
+    { strikeId: 'chord-e', groupId: 'chord', pianoKey: 64, expectedPerformanceTimeMs: 1900, renderNoteIds: [] },
   ];
   const finalizer = new ContinuousAssignmentFinalizer('session', expected);
   const physical = [{ time: 100, midi: 60, pitch: 'C4' }, { time: 1300, midi: 62, pitch: 'D4' },

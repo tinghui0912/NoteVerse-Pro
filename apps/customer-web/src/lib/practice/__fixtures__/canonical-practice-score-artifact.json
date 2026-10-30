@@ -1,5 +1,5 @@
 {
-  "artifactId": "practice-score-artifact:ec2262af8d689ffb",
+  "artifactId": "practice-score-artifact:7b0516d2970f8726",
   "expectedPracticeGroups": [
     {
       "canonicalEndBeat": 1.0,
@@ -13,7 +13,7 @@
           "measureNumbers": [
             "1"
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteId": "n1"
         }
       ],
@@ -22,8 +22,8 @@
         "1"
       ],
       "onsetBeat": 0.0,
-      "pitches": [
-        "C4"
+      "pianoKeys": [
+        60
       ],
       "renderNoteIds": [
         "n1"
@@ -43,18 +43,18 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "C4",
+              "pianoKey": 60,
               "renderNoteId": "n1"
             }
           ],
           "measureNumbers": [
             "1"
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteIds": [
             "n1"
           ],
-          "strikeId": "entry-0.0-05162c611506:strike:C4"
+          "strikeId": "entry-0.0-05162c611506:strike:60"
         }
       ],
       "voiceIds": [
@@ -73,7 +73,7 @@
           "measureNumbers": [
             "1"
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteId": "n2"
         }
       ],
@@ -82,8 +82,8 @@
         "1"
       ],
       "onsetBeat": 1.0,
-      "pitches": [
-        "C4"
+      "pianoKeys": [
+        60
       ],
       "renderNoteIds": [
         "n2"
@@ -103,18 +103,18 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "C4",
+              "pianoKey": 60,
               "renderNoteId": "n2"
             }
           ],
           "measureNumbers": [
             "1"
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteIds": [
             "n2"
           ],
-          "strikeId": "entry-1.0-57d82a629c08:strike:C4"
+          "strikeId": "entry-1.0-57d82a629c08:strike:60"
         }
       ],
       "voiceIds": [
@@ -133,7 +133,7 @@
           "measureNumbers": [
             "1"
           ],
-          "pitch": "G4",
+          "pianoKey": 67,
           "renderNoteId": "n3"
         }
       ],
@@ -142,8 +142,8 @@
         "1"
       ],
       "onsetBeat": 2.0,
-      "pitches": [
-        "G4"
+      "pianoKeys": [
+        67
       ],
       "renderNoteIds": [
         "n3"
@@ -163,18 +163,18 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "G4",
+              "pianoKey": 67,
               "renderNoteId": "n3"
             }
           ],
           "measureNumbers": [
             "1"
           ],
-          "pitch": "G4",
+          "pianoKey": 67,
           "renderNoteIds": [
             "n3"
           ],
-          "strikeId": "entry-2.0-1aede64d62ef:strike:G4"
+          "strikeId": "entry-2.0-1aede64d62ef:strike:67"
         }
       ],
       "voiceIds": [
@@ -193,7 +193,7 @@
           "measureNumbers": [
             "2"
           ],
-          "pitch": "A4",
+          "pianoKey": 69,
           "renderNoteId": "n5"
         },
         {
@@ -202,7 +202,7 @@
           "measureNumbers": [
             "2"
           ],
-          "pitch": "C5",
+          "pianoKey": 72,
           "renderNoteId": "n6"
         }
       ],
@@ -211,9 +211,9 @@
         "2"
       ],
       "onsetBeat": 3.0,
-      "pitches": [
-        "A4",
-        "C5"
+      "pianoKeys": [
+        69,
+        72
       ],
       "renderNoteIds": [
         "n5",
@@ -234,18 +234,18 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "A4",
+              "pianoKey": 69,
               "renderNoteId": "n5"
             }
           ],
           "measureNumbers": [
             "2"
           ],
-          "pitch": "A4",
+          "pianoKey": 69,
           "renderNoteIds": [
             "n5"
           ],
-          "strikeId": "entry-3.0-c2c1674e1bf7:strike:A4"
+          "strikeId": "entry-3.0-c2c1674e1bf7:strike:69"
         },
         {
           "eventIds": [
@@ -258,18 +258,18 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "C5",
+              "pianoKey": 72,
               "renderNoteId": "n6"
             }
           ],
           "measureNumbers": [
             "2"
           ],
-          "pitch": "C5",
+          "pianoKey": 72,
           "renderNoteIds": [
             "n6"
           ],
-          "strikeId": "entry-3.0-c2c1674e1bf7:strike:C5"
+          "strikeId": "entry-3.0-c2c1674e1bf7:strike:72"
         }
       ],
       "voiceIds": [
@@ -288,7 +288,7 @@
           "measureNumbers": [
             "2"
           ],
-          "pitch": "D5",
+          "pianoKey": 74,
           "renderNoteId": "n7"
         }
       ],
@@ -297,8 +297,8 @@
         "2"
       ],
       "onsetBeat": 4.5,
-      "pitches": [
-        "D5"
+      "pianoKeys": [
+        74
       ],
       "renderNoteIds": [
         "n7"
@@ -318,18 +318,18 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "D5",
+              "pianoKey": 74,
               "renderNoteId": "n7"
             }
           ],
           "measureNumbers": [
             "2"
           ],
-          "pitch": "D5",
+          "pianoKey": 74,
           "renderNoteIds": [
             "n7"
           ],
-          "strikeId": "entry-4.5-547c4de8e393:strike:D5"
+          "strikeId": "entry-4.5-547c4de8e393:strike:74"
         }
       ],
       "voiceIds": [
@@ -365,8 +365,8 @@
         "1"
       ],
       "onsetBeat": 0.0,
-      "pitches": [
-        "C4"
+      "pianoKeys": [
+        60
       ],
       "playable": true,
       "renderNoteIds": [
@@ -388,8 +388,8 @@
         "1"
       ],
       "onsetBeat": 1.0,
-      "pitches": [
-        "C4"
+      "pianoKeys": [
+        60
       ],
       "playable": true,
       "renderNoteIds": [
@@ -411,8 +411,8 @@
         "1"
       ],
       "onsetBeat": 2.0,
-      "pitches": [
-        "G4"
+      "pianoKeys": [
+        67
       ],
       "playable": true,
       "renderNoteIds": [
@@ -436,8 +436,8 @@
         "2"
       ],
       "onsetBeat": 3.0,
-      "pitches": [
-        "G4"
+      "pianoKeys": [
+        67
       ],
       "playable": true,
       "renderNoteIds": [
@@ -461,9 +461,9 @@
         "2"
       ],
       "onsetBeat": 3.0,
-      "pitches": [
-        "A4",
-        "C5"
+      "pianoKeys": [
+        69,
+        72
       ],
       "playable": true,
       "renderNoteIds": [
@@ -486,8 +486,8 @@
         "2"
       ],
       "onsetBeat": 4.5,
-      "pitches": [
-        "D5"
+      "pianoKeys": [
+        74
       ],
       "playable": true,
       "renderNoteIds": [
@@ -506,7 +506,7 @@
     {
       "attackTargets": [
         {
-          "attackId": "attack-0.0-05162c611506:target:C4:f41d35b19cfd",
+          "attackId": "attack-0.0-05162c611506:target:60:d1ac60055201",
           "eventIds": [
             "event-0.0-1.0-1-1-p1-m1-e1"
           ],
@@ -519,7 +519,7 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "C4",
+              "pianoKey": 60,
               "renderNoteId": "n1",
               "staffIds": [
                 "1"
@@ -530,7 +530,7 @@
               ]
             }
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteIds": [
             "n1"
           ]
@@ -558,7 +558,7 @@
     {
       "attackTargets": [
         {
-          "attackId": "attack-1.0-57d82a629c08:target:C4:f51a37df0817",
+          "attackId": "attack-1.0-57d82a629c08:target:60:1e2e43f24efa",
           "eventIds": [
             "event-1.0-1.0-1-1-p1-m1-e2"
           ],
@@ -571,7 +571,7 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "C4",
+              "pianoKey": 60,
               "renderNoteId": "n2",
               "staffIds": [
                 "1"
@@ -582,7 +582,7 @@
               ]
             }
           ],
-          "pitch": "C4",
+          "pianoKey": 60,
           "renderNoteIds": [
             "n2"
           ]
@@ -610,7 +610,7 @@
     {
       "attackTargets": [
         {
-          "attackId": "attack-2.0-1aede64d62ef:target:G4:abce10cd5e13",
+          "attackId": "attack-2.0-1aede64d62ef:target:67:bd357d8c4e44",
           "eventIds": [
             "event-2.0-1.0-1-1-p1-m1-e3"
           ],
@@ -623,7 +623,7 @@
               "measureNumbers": [
                 "1"
               ],
-              "pitch": "G4",
+              "pianoKey": 67,
               "renderNoteId": "n3",
               "staffIds": [
                 "1"
@@ -634,7 +634,7 @@
               ]
             }
           ],
-          "pitch": "G4",
+          "pianoKey": 67,
           "renderNoteIds": [
             "n3"
           ]
@@ -662,7 +662,7 @@
     {
       "attackTargets": [
         {
-          "attackId": "attack-3.0-f5eb8414c490:target:A4:cb6fe267eb4d",
+          "attackId": "attack-3.0-f5eb8414c490:target:69:cde79025b608",
           "eventIds": [
             "event-3.0-1.5-1-2-p1-m2-e2"
           ],
@@ -675,7 +675,7 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "A4",
+              "pianoKey": 69,
               "renderNoteId": "n5",
               "staffIds": [
                 "1"
@@ -686,13 +686,13 @@
               ]
             }
           ],
-          "pitch": "A4",
+          "pianoKey": 69,
           "renderNoteIds": [
             "n5"
           ]
         },
         {
-          "attackId": "attack-3.0-f5eb8414c490:target:C5:84ee62cc51f1",
+          "attackId": "attack-3.0-f5eb8414c490:target:72:984afd866bd3",
           "eventIds": [
             "event-3.0-1.5-1-2-p1-m2-e2"
           ],
@@ -705,7 +705,7 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "C5",
+              "pianoKey": 72,
               "renderNoteId": "n6",
               "staffIds": [
                 "1"
@@ -716,7 +716,7 @@
               ]
             }
           ],
-          "pitch": "C5",
+          "pianoKey": 72,
           "renderNoteIds": [
             "n6"
           ]
@@ -728,7 +728,7 @@
           "measureNumbers": [
             "2"
           ],
-          "pitch": "G4",
+          "pianoKey": 67,
           "renderNoteId": "n4",
           "staffIds": [
             "1"
@@ -764,7 +764,7 @@
     {
       "attackTargets": [
         {
-          "attackId": "attack-4.5-547c4de8e393:target:D5:fdcdea355720",
+          "attackId": "attack-4.5-547c4de8e393:target:74:d39deee256f2",
           "eventIds": [
             "event-4.5-1.5-1-1-p1-m2-e4"
           ],
@@ -777,7 +777,7 @@
               "measureNumbers": [
                 "2"
               ],
-              "pitch": "D5",
+              "pianoKey": 74,
               "renderNoteId": "n7",
               "staffIds": [
                 "1"
@@ -788,7 +788,7 @@
               ]
             }
           ],
-          "pitch": "D5",
+          "pianoKey": 74,
           "renderNoteIds": [
             "n7"
           ]
@@ -815,7 +815,7 @@
     }
   ],
   "revisionId": "canonical-local-core-revision",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scoreEndBeat": 6.0,
   "scoreId": "canonical-local-core-score",
   "scoreTempoSegments": [

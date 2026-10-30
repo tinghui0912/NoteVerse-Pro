@@ -188,12 +188,12 @@ vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
 }));
 
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   scoreId: 'score-123',
   revisionId: 'rev-1',
   artifactId: 'art-1',
   scoreEndBeat: 16,
-  playableEvents: [],
+  playableEvents: Array.from({ length: 5 }, (_, index) => ({ eventId: `event-${index + 1}`, onsetBeat: index * 4, durationBeats: 4, pianoKeys: [60], renderNoteIds: [`n-${index + 1}`], measureNumbers: ['1'], staffIds: [], voiceIds: [], tieTypes: [], playable: true, entryCandidate: true })),
   scoreTempoSegments: [{ startBeat: 0, bpm: 100 }],
   meterSegments: [{
     startBeat: 0,
@@ -206,11 +206,11 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
   expectedPracticeGroups: Array.from({ length: 5 }, (_, index) => ({
     groupId: `g-${index + 1}`,
     onsetBeat: index * 4,
-    eventIds: [],
-    expectedNotes: [{ expectedNoteId: `expected-${index + 1}`, eventId: `event-${index + 1}`, pitch: 'C4', renderNoteId: `n-${index + 1}`, measureNumbers: ['1'] }],
-    strikeTargets: [{ strikeId: `strike-${index + 1}`, pitch: 'C4', expectedNotes: [{ expectedNoteId: `expected-${index + 1}`, eventId: `event-${index + 1}`, pitch: 'C4', renderNoteId: `n-${index + 1}`, measureNumbers: ['1'] }], eventIds: [`event-${index + 1}`], renderNoteIds: [`n-${index + 1}`], measureNumbers: ['1'] }],
+    eventIds: [`event-${index + 1}`],
+    expectedNotes: [{ expectedNoteId: `expected-${index + 1}`, eventId: `event-${index + 1}`, pianoKey: 60, renderNoteId: `n-${index + 1}`, measureNumbers: ['1'] }],
+    strikeTargets: [{ strikeId: `strike-${index + 1}`, pianoKey: 60, expectedNotes: [{ expectedNoteId: `expected-${index + 1}`, eventId: `event-${index + 1}`, pianoKey: 60, renderNoteId: `n-${index + 1}`, measureNumbers: ['1'] }], eventIds: [`event-${index + 1}`], renderNoteIds: [`n-${index + 1}`], measureNumbers: ['1'] }],
     renderNoteIds: [`n-${index + 1}`],
-    pitches: ['C4'],
+    pianoKeys: [60],
     measureNumbers: ['1'],
     staffIds: [],
     voiceIds: [],
@@ -219,8 +219,8 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
   practiceAttackSteps: Array.from({ length: 5 }, (_, index) => ({
     stepId: `step-${index + 1}`,
     onsetBeat: index * 4,
-    eventIds: [],
-    attackTargets: [{ attackId: `attack-${index + 1}`, pitch: 'C4', notes: [{ stepNoteId: `step-note-${index + 1}`, eventId: `event-${index + 1}`, pitch: 'C4', renderNoteId: `n-${index + 1}`, measureNumbers: ['1'], staffIds: [], voiceIds: [] }], eventIds: [`event-${index + 1}`], renderNoteIds: [`n-${index + 1}`], measureNumbers: ['1'] }],
+    eventIds: [`event-${index + 1}`],
+    attackTargets: [{ attackId: `attack-${index + 1}`, pianoKey: 60, notes: [{ stepNoteId: `step-note-${index + 1}`, eventId: `event-${index + 1}`, pianoKey: 60, renderNoteId: `n-${index + 1}`, measureNumbers: ['1'], staffIds: [], voiceIds: [] }], eventIds: [`event-${index + 1}`], renderNoteIds: [`n-${index + 1}`], measureNumbers: ['1'] }],
     continuation: [],
     renderNoteIds: [`n-${index + 1}`],
     measureNumbers: ['1'],
@@ -291,11 +291,11 @@ type TestOutcome = {
   source: 'ACOUSTIC' | 'MIDI';
   expectedStrikeOutcomes: {
     strikeId: string;
-    pitch: string;
+    pianoKey: number;
     renderNoteIds: string[];
     result: 'MATCHED' | 'UNMATCHED' | 'NOT_REACHED';
   }[];
-  unattributedPitches: string[];
+  unattributedKeys: number[];
   timingOffsetMs?: number;
   renderNoteIds?: string[];
   measureNumbers?: string[];
@@ -311,7 +311,7 @@ function completeEvaluation(
         const base = {
           strikeId: strike.strikeId,
           groupId: outcome.expectedGroupId,
-          pitch: strike.pitch,
+          pianoKey: strike.pianoKey,
           expectedPerformanceTimeMs: outcome.performanceTimeMs,
           renderNoteIds: strike.renderNoteIds,
         };
@@ -319,7 +319,7 @@ function completeEvaluation(
           return {
             ...base,
             state: 'MATCHED' as const, finality,
-            match: { observation: { observationId: `${strike.strikeId}:matched`, pitch: strike.pitch,
+            match: { observation: { observationId: `${strike.strikeId}:matched`, pianoKey: strike.pianoKey,
               performanceTimeMs: outcome.performanceTimeMs + (outcome.timingOffsetMs ?? 0), confidence: outcome.confidence, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' },
               timingOffsetMs: outcome.timingOffsetMs ?? 0 },
           };
@@ -329,8 +329,8 @@ function completeEvaluation(
           state: strike.result, finality,
         };
       }),
-  })), outcomes.flatMap(outcome => outcome.unattributedPitches.map((pitch, index) => ({
-    observationId: `${outcome.expectedGroupId}:unattributed:${index}`, pitch, performanceTimeMs: outcome.performanceTimeMs,
+  })), outcomes.flatMap(outcome => outcome.unattributedKeys.map((pianoKey, index) => ({
+    observationId: `${outcome.expectedGroupId}:unattributed:${index}`, pianoKey, performanceTimeMs: outcome.performanceTimeMs,
     confidence: outcome.confidence, source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
   }))));
 }
@@ -469,8 +469,8 @@ describe('PracticeReviewPage', () => {
             performanceTimeMs: 0,
             confidence: 0.9,
             source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-            unattributedPitches: [],
+            expectedStrikeOutcomes: [{ strikeId: 's-1', pianoKey: 60, renderNoteIds: ['n-1'], result: 'MATCHED' }],
+            unattributedKeys: [],
             renderNoteIds: ['n-1'],
             measureNumbers: ['1'],
           },
@@ -479,8 +479,8 @@ describe('PracticeReviewPage', () => {
             performanceTimeMs: 600,
             confidence: 0.7,
             source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
-            unattributedPitches: [],
+            expectedStrikeOutcomes: [{ strikeId: 's-2', pianoKey: 62, renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
+            unattributedKeys: [],
             renderNoteIds: ['n-2'],
             measureNumbers: ['1'],
           },
@@ -549,10 +549,10 @@ describe('PracticeReviewPage', () => {
             confidence: 0.95,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [
-              { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
-              { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
+              { strikeId: 's-c4', pianoKey: 60, renderNoteIds: ['note-c4'], result: 'MATCHED' },
+              { strikeId: 's-e4', pianoKey: 64, renderNoteIds: ['note-e4'], result: 'MATCHED' },
             ],
-            unattributedPitches: [],
+            unattributedKeys: [],
             renderNoteIds: ['note-c4', 'note-e4'],
             measureNumbers: ['1'],
           },
@@ -563,10 +563,10 @@ describe('PracticeReviewPage', () => {
             confidence: 0.7,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [
-              { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
-              { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
+              { strikeId: 's-g4', pianoKey: 67, renderNoteIds: ['note-g4'], result: 'MATCHED' },
+              { strikeId: 's-b4', pianoKey: 71, renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
             ],
-            unattributedPitches: [],
+            unattributedKeys: [],
             renderNoteIds: ['note-g4', 'note-b4'],
             measureNumbers: ['1'],
           },
@@ -577,10 +577,10 @@ describe('PracticeReviewPage', () => {
             confidence: 0.3,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [
-              { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
-              { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
+              { strikeId: 's-c5', pianoKey: 72, renderNoteIds: ['note-c5'], result: 'MATCHED' },
+              { strikeId: 's-e5', pianoKey: 76, renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
             ],
-            unattributedPitches: ['D#5'],
+            unattributedKeys: [75],
             renderNoteIds: ['note-c5', 'note-e5'],
             measureNumbers: ['2'],
           },
@@ -591,9 +591,9 @@ describe('PracticeReviewPage', () => {
             confidence: 0.4,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [
-              { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
+              { strikeId: 's-f4', pianoKey: 65, renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
             ],
-            unattributedPitches: [],
+            unattributedKeys: [],
             renderNoteIds: ['note-f4'],
             measureNumbers: ['2'],
           },
@@ -604,9 +604,9 @@ describe('PracticeReviewPage', () => {
             confidence: 0,
             source: 'ACOUSTIC',
             expectedStrikeOutcomes: [
-              { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
+              { strikeId: 's-a4', pianoKey: 69, renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
             ],
-            unattributedPitches: [],
+            unattributedKeys: [],
             renderNoteIds: ['note-a4'],
             measureNumbers: ['3'],
           },
@@ -679,8 +679,8 @@ describe('PracticeReviewPage', () => {
             performanceTimeMs: 0,
             confidence: 0.9,
             source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
-            unattributedPitches: [],
+            expectedStrikeOutcomes: [{ strikeId: 's-1', pianoKey: 60, renderNoteIds: ['n-1'], result: 'MATCHED' }],
+            unattributedKeys: [],
             renderNoteIds: ['n-1'],
             measureNumbers: ['1'],
           },
@@ -728,7 +728,7 @@ describe('PracticeReviewPage', () => {
       scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
-      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
+      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
     continuousCompletionStore.setCompletion({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });

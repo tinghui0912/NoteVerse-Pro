@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { practiceApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { parsePracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export function usePracticeScoreArtifact(
   scoreId: string,
@@ -23,8 +23,11 @@ export function usePracticeScoreArtifact(
       if (!response.data) {
         throw new Error('PracticeScoreArtifact response missing data');
       }
-      assertPracticeScoreArtifact(response.data);
-      return response.data;
+      const artifact = parsePracticeScoreArtifact(response.data);
+      if (artifact.scoreId !== scoreId || artifact.revisionId !== resolvedRevisionId) {
+        throw new Error('Practice artifact revision identity mismatch');
+      }
+      return artifact;
     },
     enabled: enabled && Boolean(scoreId && resolvedRevisionId),
     staleTime: Infinity,

@@ -1,8 +1,9 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 export type ContinuousExpectedStrike = Readonly<{
   strikeId: string;
   groupId: string;
-  pitch: string;
+  pianoKey: PracticePianoKey;
   expectedPerformanceTimeMs: number;
   renderNoteIds: readonly string[];
 }>;

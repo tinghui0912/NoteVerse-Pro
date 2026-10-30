@@ -15,7 +15,7 @@ function harness() {
     runtime.analyzeAttempt(identity);
     expect(runtime.openAttempt(time(130))).toBeNull();
     return runtime.completeAttempt(identity, { confidence: 1,
-      observedAttackPitches: [kind === 'MATCH' ? 'C4' : 'D4'], captureEndSessionTime: time(135) });
+      observedAttackKeys: [kind === 'MATCH' ? 60 : 62], captureEndSessionTime: time(135) });
   };
   return { runtime, clock, time, finish };
 }

@@ -6,12 +6,12 @@ import json
 from typing import Any, Sequence
 
 from app.processing.practice_score.score_timeline import (
-    PracticeScoreTimeline,
+    PracticeScoreTimeline, assert_practice_timeline,
 )
 from app.processing.practice_score.tempo import PracticeTempoSegment
 
 
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2
 
 
 def practice_score_artifact_from_timeline(
@@ -23,6 +23,7 @@ def practice_score_artifact_from_timeline(
 ) -> dict[str, Any]:
     """Serialize the practice-ready score timeline for browser-local execution."""
 
+    assert_practice_timeline(timeline)
     payload: dict[str, Any] = {
         "schemaVersion": PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,
         "scoreId": score_id,

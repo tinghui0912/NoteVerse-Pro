@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 function createMockArtifact(scoreTempoSegments: { startBeat: number; bpm: number }[]): PracticeScoreArtifact {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scoreId: 'test-score',
     revisionId: 'test-revision',
     artifactId: 'test-artifact',

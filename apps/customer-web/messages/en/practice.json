@@ -399,5 +399,8 @@
   "deviceStatusReady": "{resource} ready",
   "deviceStatusUnavailable": "{resource} unavailable",
   "deviceConnected": "Connected and ready.",
-  "practiceSetup": "Practice setup"
+  "practiceSetup": "Practice setup",
+  "scoreInvalid": "This score cannot be used for Practice.",
+  "scoreLoadFailed": "The Practice score could not be loaded. Please try again.",
+  "scoreLoading": "Loading the Practice score…"
 }

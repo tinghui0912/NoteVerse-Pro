@@ -1,3 +1,4 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import type { ExpectedPracticeGroup, PracticeAttackStep, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export function groupForStep(
@@ -7,10 +8,10 @@ export function groupForStep(
   return artifact.expectedPracticeGroups[stepIndex] ?? null;
 }
 
-export function attackPitchesForStep(step: PracticeAttackStep): string[] {
-  return step.attackTargets.map((target) => target.pitch);
+export function attackKeysForStep(step: PracticeAttackStep): PracticePianoKey[] {
+  return step.attackTargets.map((target) => target.pianoKey);
 }
 
-export function continuationPitchesForStep(step: PracticeAttackStep): string[] {
-  return Array.from(new Set(step.continuation.map((note) => note.pitch)));
+export function continuationKeysForStep(step: PracticeAttackStep): PracticePianoKey[] {
+  return Array.from(new Set(step.continuation.map((note) => note.pianoKey)));
 }

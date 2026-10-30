@@ -1,5 +1,11 @@
 # Practice Foundation Release Gate
 
+> Historical Round56 gate, superseded by the explicit Round57 product-domain decision.
+> It audits its recorded HEAD only. Current artifact2/STEP9-v12/Result7 piano-key
+> architecture is defined by the [canonical contract](practice-piano-key-contract.md);
+> this document is not a current final release approval.
+
+
 Audited production HEAD: `66b2a050da34616e826817c58330909e50e5adbb` (Round55), on
 `refactor/practice-foundation-v2`, repository `tinghui0912/NoteVerse-Pro`, PR171.
 Round56 records the consolidated gate; it changes no production, tests, parameters,
@@ -30,7 +36,7 @@ neither substitute for hosted execution nor authorize marking the PR ready/mergi
 
 Production was reread alongside the existing regression/AST guards. The
 [product contract](practice-product-contract.md), [resource semantics](practice-acoustic-resource-semantics.md),
-[pitch contract](practice-step-domain-pitch-contract.md) and
+[pitch contract](practice-piano-key-contract.md) and
 [identity boundary](practice-acoustic-identity-boundary.md) retain detailed proofs.
 
 | Gate | Current production evidence and disposition |

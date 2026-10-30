@@ -73,5 +73,6 @@
   "invalid_depth": "Invalid fingering depth setting.",
   "score_fingering_failed": "Fingering generation failed. Please try again later.",
   "internal_error": "Something went wrong. Please try again later.",
-  "unknown_error": "An unknown error occurred. Please try again."
+  "unknown_error": "An unknown error occurred. Please try again.",
+  "practice_score_invalid": "This score cannot be used for Practice."
 }

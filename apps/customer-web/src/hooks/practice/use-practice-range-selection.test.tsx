@@ -8,7 +8,7 @@ const groups: ExpectedPracticeGroup[] = [1, 2, 3].map(number => ({
   groupId: `g${number}`,
   onsetBeat: number - 1,
   canonicalEndBeat: number,
-  pitches: ['C4'],
+  pianoKeys: [60],
   renderNoteIds: number === 2 ? ['n2a', 'n2b'] : [`n${number}`],
   measureNumbers: [String(number)],
   eventIds: [],

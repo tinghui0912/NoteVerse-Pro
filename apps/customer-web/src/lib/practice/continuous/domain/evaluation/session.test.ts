@@ -46,7 +46,7 @@ describe('source-bound evaluation composition', () => {
     const session = new ContinuousEvaluationSession({ artifact, timeline: { beatToTimeMs: beat => beat * 1000 }, scope: { kind: 'FULL' }, sessionDomainId: 'test', inputSource });
     const before = session.snapshot();
     expect(() => session.publish({ publicationId: 'foreign', sessionDomainId: 'test', analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1100,
-      observations: [{ observationId: 'o', pitch: 'C4', performanceTimeMs: 100, confidence: 1, source: inputSource === 'MIDI' ? 'ACOUSTIC' : 'MIDI' }] })).toThrow('OBSERVATION_SOURCE_MISMATCH');
+      observations: [{ observationId: 'o', pianoKey: 60, performanceTimeMs: 100, confidence: 1, source: inputSource === 'MIDI' ? 'ACOUSTIC' : 'MIDI' }] })).toThrow('OBSERVATION_SOURCE_MISMATCH');
     expect(session.snapshot()).toEqual(before);
     expect(() => session.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 1100 })).toThrow('OBSERVATION_SOURCE_MISMATCH');
     expect(session.completedEvaluation()).toEqual({ status: 'UNAVAILABLE', inputSource,
@@ -79,7 +79,7 @@ it.each(['assignmentPolicyId'] as const)('%s is retained on COMPLETE and UNAVAIL
 it.each(['invalid observation', 'inconsistent group onset'])('completed evaluation delegates %s to the assignment boundary without repair', corruption => {
   const session = createSession();
   session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100,
-    observations: [{ observationId: 'c', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: 'ACOUSTIC' }] });
+    observations: [{ observationId: 'c', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: 'ACOUSTIC' }] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
   const result = session.completedEvaluation(); if (result.status !== 'COMPLETE') throw new Error('incomplete');
   const parsed = JSON.parse(JSON.stringify(result)) as typeof result;
@@ -120,7 +120,7 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s completed evaluation has only exact
 it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed evaluation independently rejects foreign observation sources without mutation', inputSource => {
   const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: { kind: 'FULL' }, timeline: { beatToTimeMs: beat => beat * 1000 } });
   session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100,
-    observations: [{ observationId: 'c', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' }] });
+    observations: [{ observationId: 'c', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' }] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
   const result = session.completedEvaluation(); if (result.status !== 'COMPLETE') throw Error('incomplete');
   const parsed = JSON.parse(JSON.stringify(result));

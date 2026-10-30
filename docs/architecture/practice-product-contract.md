@@ -1,5 +1,15 @@
 # Practice Product Contract
 
+## Revision-Wide Score Admission
+
+Practice-ready validity belongs to the entire pinned score revision. The only current
+artifact is schema2 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
+consume that same valid artifact; source or scope never repairs an invalid revision.
+Setup loads it through the shared revision/source query before explicit environment
+Prepare; direct Practice entry disables Device Lease/session resources and returns
+invalid scores to pinned Setup. Device readiness remains independent. See the
+[canonical contract](practice-piano-key-contract.md) for owners, error codes and versions.
+
 ## Execution and Inputs
 
 Practice execution is browser-local. The backend provides canonical score, source
@@ -279,25 +289,24 @@ Artifact validation and access stay in `artifact.ts`; scope and count-in policy 
 their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
 Practice targets represent physical piano strikes, not notation multiplicity. At one
-onset each physical pitch has exactly one strike target and one attack target, and
-the unique target pitches equal the group's unique pitch set. Same-pitch notation
+onset each physical piano key has exactly one strike target and one attack target, and
+the unique target piano keys equal the group's unique piano-key set. Same-key notation
 across voices/staves is aggregated under that target, retaining every note identity,
 render identity and voice/staff metadata for rendering and annotations. Each target
-has nonempty, same-pitch notation and an exact render-ID aggregate; strike targets
+has nonempty, same-key notation and an exact render-ID aggregate; strike targets
 partition the group's flat expected notes by `expectedNoteId` without missing or
 duplicate ownership. Nested notation render identities must be nonempty and unique
 before aggregate comparison. Group render IDs exactly represent its expected notes;
 step render IDs exactly represent all attack and continuation notes. `stepNoteId`
 is nonempty and unique across the entire step, including continuation. Different
 notation notes never share a render identity or semantic note identity. Frontend
-artifact and backend source/catalog boundaries reject
+artifact and backend artifact boundaries reject
 malformed duplicate physical targets or inconsistent notation without repair.
 Continuation is separate: a tied C4 continuation may coexist with a new C4 attack
-in another voice. Artifact schema remains 1; valid generator output and identity do
-not change. STEP pitch-set comparison and Continuous strike projection consume this
+in another voice. Artifact schema2 uses numeric pianoKey/pianoKeys throughout. STEP key-set comparison and Continuous strike projection consume this
 shared physical contract without redefining multiplicity.
 
-`step/domain/` owns pitch evidence, exact target comparison, target progression and STEP snapshots.
+`step/domain/` owns piano-key evidence, exact target comparison, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
 and Continuous snapshots. Its `evaluation/` separates immutable evidence,
 source-blind assignment/finality and narrow target feedback. The evaluation
@@ -333,165 +342,50 @@ cycles to enforce these boundaries.
 
 ## STEP_BY_STEP
 
-STEP is a paced learning/recognition mode, not a performance-report mode.
-`StepPracticeController` owns input resources, metronome, cancellation and cleanup.
-React subscribes to snapshots and sends commands. STEP has no performance clock
-or Pause/Resume lifecycle. Elapsed presentation time does not drive progression.
+STEP is paced learning, not a performance report. The shared schema2 artifact is
+validated revision-wide before scope selection. StepPracticeRuntime owns progression;
+StepPracticeController owns inputs, metronome, cancellation and resource cleanup.
+There is no STEP Performance Clock or Pause/Resume lifecycle.
 
-`StepPracticeRuntime` owns one target and one bounded attempt:
+`StepPianoKeyEvidence` contains1..128 raw numeric attack keys, finite confidence and
+same-session capture end. Admission checks ownership/state, capture time, confidence,
+Array/nonempty/raw128, then own dense indices and the kernel piano-key predicate,
+before Set+numeric-sort normalization, exact structural comparison and retention.
+Raw129 rejects before indexed reads. Malformed evidence leaves ANALYZING/active
+ownership retryable. Extra non-index properties are irrelevant; there is no complete
+hostile-getter/proxy protection claim. Raw128 is not derived from the88-key domain.
 
-```text
-READY -> CAPTURING -> ANALYZING -> POST_VERDICT -> READY / scope completion
-```
+Both sources compare all normalized observed attack keys with attack targets.
+Equal cardinality and every equal member yields MATCH; subsets, supersets and other
+sets yield MISMATCH. Continuation is excluded. Confidence is metadata, never a
+verdict threshold. No target-aware source filtering or evidence loss is permitted.
+The current snapshot is schema9/runtime `step-piano-key-learning-v12`.
+There is no string-language admission, selected-target compatibility loop,
+STEP_TARGET_INVALID mapping, schema8 reader or speculative hydration/migration.
 
-Input owners publish score-blind `StepPitchEvidence`: 1–128 pitch entries in the current STEP domain language,
-finite confidence in `[0,1]`, and a same-session capture end at or after attempt
-start. Silence opens no attempt and produces no synthetic outcome or timeout.
-Confidence remains evidence metadata, without a secondary confidence threshold.
-Before normalization, the runtime requires an own array entry at every index and
-the existing primitive-string pitch syntax. Sparse or inherited-only entries fail
-STEP_ATTEMPT_EVIDENCE_INVALID while the attempt remains ANALYZING and retryable.
-The raw128 gate precedes indexed reads. Extra non-index array properties are ignored;
-ordinary own accessors keep normal indexed-access behavior, without a hostile-object
-protection claim.
+READY → CAPTURING → ANALYZING → POST_VERDICT owns exactly one attempt. Explicit rearm
+commits MATCH once and completes at scope end; MISMATCH retains the answered target.
+Skip remains a separate READY-only progression action. No attempt history, statistics
+or learner report is fabricated. Completion offers Try Again and Section Practice.
 
-Both MIDI and microphone compare normalized observed attack pitches with normalized
-expected attack pitches. Exact equality yields MATCH. Every other nonempty evidence
-set yields MISMATCH, including subsets, supersets and unrelated pitches. Continuation
-pitches are excluded. The immutable record retains all evidence and either MATCH or
-MISMATCH; runtime schema 8 (`step-exact-pitch-learning-v11`) defines this contract.
-Equality compares normalized cardinality and each string directly. Delimiter-containing
-artifact pitches remain opaque single members: `C4\u001fE4` is not the two-member
-set C4/E4. This v9 verdict correction preserves artifact/evidence admission and
-Set+sort normalization. The subsequent v10 correction rejects malformed sparse
-arrays without changing pitch language/raw128; schema8 retains the session/record shape.
+MIDI owns a fixed first-NOTE_ON half-open H35 gesture, numeric wire identity and
+score-blind21..108 Practice filtering. NOTE_OFF never adds evidence. Acoustic H50
+assembly consumes validated immutable source observations and aggregates midiPitch,
+sealing on processed physical coverage. Silence opens no attempt or synthetic verdict.
+Native source/event time remains distinct from availability/knowledge time.
 
-Runtime v11 validates selected target compatibility before learner interaction:
-whole-artifact structural assertion → inclusive scope resolution → every selected
-attack step's compatibility → ordinary session initialization. An attack set must
-be nonempty, contain only current D280 strings, and have at most the existing raw
-evidence maximum128 distinct pitches. The asserted unique attack-target count is
-used directly; continuation pitches are outside this theorem. Domain/runtime.ts
-owns the one D280 predicate and raw maximum reused by targets and evidence. No
-MIDI128/acoustic88 universe or numeric qualification is implied.
+Eligibility is exclusive after the prior retirement boundary. Busy/stale input cannot
+bind to a new target, regardless of callback order. Microphone rearm and input arm
+share one physical boundary synchronously; no extra cooldown is added. Unfinished
+capture is cancelled on input loss; POST_VERDICT truth is retained. Late worker/timer
+callbacks cannot resurrect a retired owner. Analysis and infrastructure interventions
+remain terminal and distinct; End releases resources through current ownership.
+Natural completion wins over late failures and cleanup errors remain visible.
+Borrowed microphone root tracks are not stopped by an attempt; owned clones,
+capture, context and inference leases are released. No manual STEP Start is added.
 
-Only incompatible selected scopes throw STEP_TARGET_INVALID. Shared artifact
-schema1/admission/content identities stay unchanged; an unused incompatible step
-does not block a good selected section. E#4 remains directly compatible even though
-current canonical sources cannot emit it. A selected C10, empty or129-distinct
-target cannot be matched by legal current evidence and now fails before interaction.
-The old delimiter-containing selected target likewise fails compatibility early;
-the underlying exact structural comparison remains unchanged.
-
-The application projects this domain error to existing STEP_SCORE_UNAVAILABLE for
-both sources, returning IDLE with no session/completion. MIDI has not bound/started
-resources. Microphone uses existing cleanup for already-acquired inference/input/
-AudioContext while retaining borrowed root ownership; its acquisition ordering is
-unchanged. No artifact rewrite, hydration/migration, Result6/provenance change or
-acoustic identity advance accompanies this STEP runtime-only semantic version change.
-Selected attack-set work is subsequently bounded; prior/global artifact validation,
-continuation/notation size, step count, allocations and total heap are not.
-
-POST_VERDICT holds only the current pending result. Explicit rearm clears it:
-MATCH advances exactly once; MISMATCH remains on the same target. Skip is a separate
-READY-only progression action. No full attempt/skip history, attempt counts,
-accuracy statistics or learner performance report belongs to STEP. Its performance
-evaluation is always null. Completion offers Try Again and Section Practice / Adjust
-Section. Review navigation belongs to Continuous performance; STEP completion
-cannot supply a report action.
-
-Microphone READY instructions ask the learner to play the highlighted target and
-wait for the result before playing again. CAPTURING/ANALYZING asks them to wait while
-the answer is checked. These states reflect actual published evidence, without a
-physical-onset busy detector. MIDI uses shorter input instructions. MISMATCH copy
-says “Not matched yet. Try again.” rather than claiming wrong or extra physical notes.
-
-Attempt identity binds session, step, target generation, input source and capture
-start. Input eligibility is exclusive: `attemptStart > inputEligibleAfter`.
-Readiness, reconnection, Skip and rearm maintain a finite, same-session, monotonic
-boundary. One active attempt is allowed; busy input is discarded. Late publications
-cannot become a new target's input.
-
-MIDI input owns a first-NOTE_ON-anchored, half-open 35ms gesture. It closes the whole
-gesture before evaluation. Native event timestamps pass through `PracticeTimebase`;
-callback arrival time is not attack time. Velocity-zero NOTE_ON is NOTE_OFF. Held
-notes require a new NOTE_ON for a repeated target.
-
-Microphone input composes the shared acoustic foundation with a score-blind H50
-attempt assembler. H50 groups source observations within one 50ms gesture and seals
-it using processed source coverage. Physical capture chronology supplies retirement
-boundaries independently of analysis progress. After a verdict, domain rearm and
-input arm run synchronously at that physical boundary. Skip blocks the idle
-assembler, changes the target and rearms at the same boundary.
-
-STEP retains only active H50 observations, one bounded source-publication chronology
-summary and the physical retirement/processed watermarks. It has no session-long
-observation identity/fingerprint ledger or historical identity limit. H50 remains
-anchor-inclusive and right-edge-exclusive, and cannot seal across a source-region gap.
-The persistent microphone, inference lease, capture graph and source runtime are
-not restarted per target.
-
-Physical input captured while an answer is busy is retired, never queued or deferred
-to the next target. The physical frontier may be ahead of the analysis frontier;
-domain rearm followed synchronously by microphone arm shares that capture watermark.
-Only a source event strictly after it can open another attempt, including when a
-publication arrives late. Retirement prevents already captured or delayed evidence
-from crossing attempt boundaries. It does not assert that future acoustic observations
-after the watermark represent a fresh physical key attack. Sustain/resonance may
-require evidence-based onset/activity/release policy; no cooldown or silence gate
-is part of this contract.
-
-Newly owned analysis may arrive behind the physical retirement watermark and is
-discarded without queuing. An event behind an already owned analysis frontier is
-instead a source-contract violation and fails closed, even while input is BLOCKED.
-Exactly-once source delivery plus strict physical eligibility prevents one retired
-gesture from satisfying consecutive identical targets without retaining its IDs.
-
-
-The Device Lease owns the microphone root; the controller borrows it and owns the
-attempt AudioContext. The input owns its analysis clone, capture bridge, assembler and
-source-analysis graph. Abandon/dispose await attempt resource release; restart constructs a fresh controller after
-cleanup. MIDI disconnection cancels unfinished input and retains the same target
-and MIDIAccess owner; reconnection establishes a fresh eligibility boundary.
-An admitted ACTIVE STEP microphone terminal infrastructure failure latches the
-application-only `StepInfrastructureIntervention = { kind: 'TERMINAL_INFRASTRUCTURE_FAILURE' }`.
-Root track loss, terminal AudioContext interruption/closure, capture failure and invalid
-source mapping/chronology stop input and immediately release unusable attempt resources.
-Controller/domain stay ACTIVE with unchanged session, current target and progress,
-input unavailable and completionReason null, behind an End-only blocking dialog.
-The separate analysis and infrastructure interventions are mutually exclusive: the
-first terminal owner is latched before cleanup and cannot be replaced by later callbacks.
-Cleanup failure also retains this owner and target truth; it never ends the session.
-Only explicit End or page teardown ends the retained session as `STOPPED_BY_USER`.
-No fault becomes a learner verdict, Skip or natural completion. PREPARING infrastructure
-failures retain admission/error semantics without an intervention or admitted session.
-An admitted ACTIVE STEP microphone terminal analysis failure instead latches the
-application-only `StepAnalysisIntervention = { kind: 'TERMINAL_ANALYSIS_FAILURE' }`.
-Fault detection is not session end: controller and domain remain ACTIVE with the same
-session/target/progress. `runtime.setInputUnavailable()` prevents input and Skip,
-cancels unfinished CAPTURING/ANALYZING attempts without a verdict and preserves any
-finalized POST_VERDICT record, currentIndex and targetGeneration. No rearm, advance,
-retirement boundary, automatic retry or inference reacquisition follows failure.
-
-The blocking STEP analysis dialog has exactly one action, End. Escape/outside click
-cannot dismiss it. Only explicit End (the normal abandon path) or page unmount ends
-the retained runtime/application owner; neither creates natural completion or Result.
-Page End latches manual-end/auto-arm identity before abandonment, preventing an effect
-from restarting. Cleanup immediately releases failed capture/source runtime/inference,
-listeners, attempt AudioContext and metronome, but retains runtime truth until End.
-Borrowed microphone roots and the outer Device Lease are not stopped or released by
-this attempt cleanup. Cleanup and subsequent End/unmount share idempotent releases;
-stale callbacks cannot revive the owner. Analysis resource cleanup failure retains the
-analysis intervention and ACTIVE session/target truth, with input unavailable and an
-application cleanup error. System cleanup failure never produces `STOPPED_BY_USER`;
-only explicit End or page teardown ends that retained failed STEP session.
-PREPARING failures, temporary mute
-recovery and physical source/AudioContext/capture infrastructure classification remain
-unchanged. Final STEP scope completion never arms another physical/acoustic attempt:
-domain rearm commits the final verdict, then the controller completes naturally before
-any input arm. Non-final MATCH arms the next target; MISMATCH rearms the current target.
-Normal completion wins late failure. STEP domain/version/attempt schema
-contains no application intervention field.
+See the [STEP owner README](../../apps/customer-web/src/lib/practice/step/README.md)
+and [raw-work audit](practice-step-pitch-evidence-bounds.md).
 
 ## CONTINUOUS_PLAY
 
@@ -622,9 +516,9 @@ observation finalization. These causal checks compare coordinates only within th
 own domain and reject corrupt artifacts without repair.
 Completed assignment validation is current-schema only and checks exact retained
 shapes, observation/provenance values and one-observation ownership. Matched evidence
-must have the target pitch, exact timing offset and local assignment-window eligibility.
+must have the target key, exact timing offset and local assignment-window eligibility.
 Every child strike shares its parent group's canonical onset. Each observation is
-owned exactly once by an exact same-pitch strike match or an unattributed relation;
+owned exactly once by an exact same-key strike match or an unattributed relation;
 non-target evidence is never substituted into a target slot. This boundary never
 reruns an optimizer or reassigns evidence, and never repairs, migrates or normalizes
 caller data.
@@ -673,7 +567,7 @@ The independent numeric policies keep their semantic owners: STEP MIDI 35ms grou
 one chord gesture; acoustic H50/50ms groups bounded evidence; Continuous ±250ms is
 assignment eligibility; MIDI 250ms grace delays coverage publication. Equal numeric
 values do not make these policies interchangeable or device-latency calibration.
-Same-pitch cohort coverage has a derived 3W safety invariant: the direct cohort
+Same-key cohort coverage has a derived 3W safety invariant: the direct cohort
 extends at most 2W from its anchor, then requires W more coverage. W is the current
 assignment window, not an independent frontier tuning parameter. Acoustic 170ms
 future context remains model lookahead, never an event timestamp subtraction.
@@ -697,7 +591,7 @@ MIDI coverage progression is explicit: session/clock snapshots and evaluation re
 never publish evidence or finalize assignment. The application heartbeat calls
 `advanceToNow()` before sampling presentation; its frequency is not evidence policy.
 The assignment finalizer exposes its next useful analysis frontier using the same
-direct same-pitch target/claimant dependencies as live finalization. The score-blind MIDI
+direct same-key target/claimant dependencies as live finalization. The score-blind MIDI
 owner combines that need with pending NOTE_ON maturity. Frontier F becomes eligible
 at Performance Time F + 250ms. Coincident needs produce one publication.
 
@@ -725,8 +619,8 @@ observations.
 
 ### Source-blind assignment
 
-Same-pitch assignment uses the unchanged inclusive +/-250ms eligibility window.
-`CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4` defines three objectives:
+Same-key assignment uses the unchanged inclusive +/-250ms eligibility window.
+`CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5` defines three objectives:
 maximize cardinality, minimize total absolute timing error, then choose the
 lexicographically earliest chronological non-crossing pair sequence.
 
@@ -737,7 +631,7 @@ Different-onset target colors never depend on opaque target identity. At 1000/13
 with one event at 1150ms, the earlier unresolved target wins, regardless of IDs.
 This FIFO convention is deterministic product policy, not learner-accuracy evidence.
 
-The domain-specific same-pitch solver uses scalar suffix cardinality/cost tables
+The domain-specific same-key solver uses scalar suffix cardinality/cost tables
 and chronological reconstruction, with O(targets * events) space/time per cohort.
 No DP cell retains a growing pair list; costs use structured comparison, without
 epsilon or artificial numeric weighting. The generic residual-graph/Bellman-Ford
@@ -752,32 +646,32 @@ It is not timing-tolerance validation and does not claim improved learner accura
 Note duration / notation end is not an attack acceptance deadline. Beat/IOI-relative
 acceptance, midpoint ownership and device/learner qualification are not adopted.
 
-Canonical chord strikes share one onset. Direct same-pitch cohorts are literal
+Canonical chord strikes share one onset. Direct same-key cohorts are literal
 interval neighbors within 2W, not recursively expanded graph components. A strike
 waits for its direct cohort's latest expected onset plus W; the maximum additional
 coverage is mathematically 3W. There are no independent group/residual timing
 parameters. A group finalizes once all child strikes are finalized, with the maximum
 of their required frontiers. Unattributed evidence waits only for its possible
-same-pitch target claimants; unrelated pitches never extend a group's decision.
+same-key target claimants; unrelated pitches never extend a group's decision.
 
 Raw strikes are PENDING, MATCHED, UNMATCHED or NOT_REACHED. MATCHED retains the
-same-pitch observation and signed timing offset. UNMATCHED means no same-pitch
+same-key observation and signed timing offset. UNMATCHED means no same-key
 observation was allocated with healthy completed coverage. Groups carry strike
 assignments and finality, without target substitution slots.
 
 Every accepted observation is retained and has exactly one completed relation:
-STRIKE_MATCH names its exact-pitch target, or UNATTRIBUTED has no target owner.
+STRIKE_MATCH names its exact-key target, or UNATTRIBUTED has no target owner.
 For target C4+D4 and observed C4+E4, C4 is MATCHED, D4 is UNMATCHED, C4's observation
 is STRIKE_MATCH and E4 is UNATTRIBUTED. No D4-to-E4 ownership is invented. Completed
-validation is strict current-shape only, checks local pitch/window/offset semantics,
+validation is strict current-shape only, checks local key/window/offset semantics,
 exact ledger/owner agreement and finality causality without rerunning assignment.
-Natural completion has no pending targets or unresolved same-pitch reservations.
+Natural completion has no pending targets or unresolved same-key reservations.
 
 ### Continuous evaluation scale
 
 Continuous retains all accepted evidence required by the completed result, including
-provenance and extra/unattributed observations. Internal time/pitch indexes, explicit
-unowned working sets and local ordered same-pitch matching restrict ordinary assignment
+provenance and extra/unattributed observations. Internal time/key indexes, explicit
+unowned working sets and local ordered same-key matching restrict ordinary assignment
 work to semantically relevant local data without discarding accepted evidence.
 Receipts retain exact scalar/header identity and canonical observation IDs; replay
 compares the retained observations exactly, without retaining duplicate full payload
@@ -818,7 +712,7 @@ performance verdict. Groups organize score targets and assignment/finality; they
 not classify learner outcomes.
 
 MATCHED means the current assignment policy found a unique accepted observation
-with the exact target pitch inside its legal time window. UNMATCHED means healthy
+with the exact target key inside its legal time window. UNMATCHED means healthy
 completed assignment coverage found no matching accepted observation. Neither is
 an absolute claim about the physical world.
 
@@ -905,7 +799,7 @@ Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-Result validation accepts schema 6 exact fields only. Schemas 2/3/4/5, V3 assignment policy, retired
+Result validation accepts schema 7 exact fields only. Schemas 2/3/4/5, V3 assignment policy, retired
 interpretation fields/policies, extra unknown fields and a metrics field are rejected without migration, normalization, compatibility or repair.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
 or active duration. Score annotations, playhead and share-score rendering require
@@ -914,7 +808,7 @@ confirmed artifact identity independently of recording replay.
 ## Evaluation / Evidence Provenance
 
 Completed evaluation and diagnostic full snapshots retain assignmentPolicyId.
-`CONTINUOUS_EXACT_PITCH_ORDERED_ASSIGNMENT_FINALITY_V4` covers same-pitch
+`CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5` covers same-key
 +/-250ms eligibility, maximum cardinality then minimum absolute timing error,
 chronological non-crossing ties, exact match/unattributed ownership, direct-cohort target frontiers,
 child-dependent group finality and terminal clamps. Finalization availability uses
@@ -923,7 +817,7 @@ independent interpretation algorithm or interpretation policy identity. Validati
 checks exact assignment truth and source consistency without repair or reassignment.
 
 MIDI evidence declares
-`MIDI_NOTE_ON_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V2`: physical NOTE_ON facts,
+`MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3`: physical NOTE_ON facts,
 session-time capture, one observation per NOTE_ON, 250ms publication-coverage grace
 and exact terminal coverage. V2 corrects availability to Session Time; native NOTE_ON
 event mapping and 250ms coverage behavior remain unchanged. The evidence owner supplies this identity.

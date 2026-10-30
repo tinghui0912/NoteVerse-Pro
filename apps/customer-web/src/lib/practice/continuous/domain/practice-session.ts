@@ -140,7 +140,7 @@ export class ContinuousPracticeSession {
     if (performanceTimeMs === null) {
       return false;
     }
-    this.clockEvidence!.observe(attack.pitch, performanceTimeMs, attack.confidence, beforeSnapshot.performanceTimeMs);
+    this.clockEvidence!.observe(attack.pianoKey, performanceTimeMs, attack.confidence, beforeSnapshot.performanceTimeMs);
     return true;
   }
 

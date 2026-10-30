@@ -1,3 +1,4 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -27,7 +28,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-32484', sessionDomainId: session.timebase.domainId,
       analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-32484:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-32484:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     });
@@ -48,7 +49,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-33169', sessionDomainId: ready.timebase.domainId,
       analyzedThroughPerformanceMs: 0, availabilitySessionTimeMs: 0,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-33169:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-33169:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: ready.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/requires captured performance evidence time/);
@@ -69,7 +70,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-33821', sessionDomainId: countIn.timebase.domainId,
       analyzedThroughPerformanceMs: 0, availabilitySessionTimeMs: 0,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-33821:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-33821:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: countIn.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/requires captured performance evidence time/);
@@ -94,7 +95,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-34573', sessionDomainId: session.timebase.domainId,
       analyzedThroughPerformanceMs: 2000, availabilitySessionTimeMs: 2000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-34573:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-34573:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/beyond captured performance time/);
@@ -120,7 +121,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-35374', sessionDomainId: paused.timebase.domainId,
       analyzedThroughPerformanceMs: 1001, availabilitySessionTimeMs: 1001,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-35374:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-35374:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: paused.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/beyond captured performance time/);
@@ -143,7 +144,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-36075', sessionDomainId: stopped.timebase.domainId,
       analyzedThroughPerformanceMs: 1001, availabilitySessionTimeMs: 1001,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-36075:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-36075:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: stopped.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/beyond captured performance time/);
@@ -172,7 +173,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-36999', sessionDomainId: range.timebase.domainId,
       analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs, availabilitySessionTimeMs: range.snapshot().nowMs,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-36999:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-36999:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: range.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).not.toThrow();
@@ -196,7 +197,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-37656', sessionDomainId: session.timebase.domainId,
       analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-37656:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-37656:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     });
@@ -205,7 +206,7 @@ describe('Continuous analysis publication admission', () => {
       publicationId: 'publication-37877', sessionDomainId: session.timebase.domainId,
       analyzedThroughPerformanceMs: 100, availabilitySessionTimeMs: 100,
       observations: ([]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-37877:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-37877:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/PUBLICATION_AFTER_COMPLETION/);
@@ -244,11 +245,11 @@ describe('Continuous analysis publication admission', () => {
       analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([{
         captureTime: sessionA.timebase.atSessionMs(100),
-        pitch: 'C4',
+        pianoKey: 60,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       }]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-38978:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-38978:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: sessionB.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/different session domain/);
@@ -276,11 +277,11 @@ describe('Continuous analysis publication admission', () => {
       analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1000,
       observations: ([{
         captureTime: { domainId: 'wrong-domain', ms: 100 },
-        pitch: 'C4',
+        pianoKey: 60,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       }]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-39883:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-39883:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/different session domain/);
@@ -308,11 +309,11 @@ describe('Continuous analysis publication admission', () => {
       analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY, availabilitySessionTimeMs: Number.POSITIVE_INFINITY,
       observations: ([{
         captureTime: session.timebase.atSessionMs(100),
-        pitch: 'C4',
+        pianoKey: 60,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       }]).map((attack: AnalysisAttackFixture, index: number) => ({
-        observationId: 'publication-42062:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+        observationId: 'publication-42062:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
         performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
       })),
     })).toThrow(/analysis frontier/);
@@ -321,7 +322,7 @@ describe('Continuous analysis publication admission', () => {
   });
 });
 
-type AnalysisAttackFixture = { captureTime: SessionTime; pitch: string; confidence: number; source: 'ACOUSTIC' };
+type AnalysisAttackFixture = { captureTime: SessionTime; pianoKey: PracticePianoKey; confidence: number; source: 'ACOUSTIC' };
 
 it('rejects a mixed valid/invalid observation batch atomically', () => {
   const clock = new ManualClock(0);
@@ -344,24 +345,24 @@ it('rejects a mixed valid/invalid observation batch atomically', () => {
     observations: ([
       {
         captureTime: session.timebase.atSessionMs(100),
-        pitch: 'C4',
+        pianoKey: 60,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       },
       {
         captureTime: session.timebase.atSessionMs(200),
-        pitch: 'E4',
+        pianoKey: 64,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       },
       {
         captureTime: { domainId: 'wrong-domain', ms: 300 },
-        pitch: 'G4',
+        pianoKey: 67,
         confidence: 1,
         source: 'ACOUSTIC' as const,
       },
     ]).map((attack: AnalysisAttackFixture, index: number) => ({
-      observationId: 'publication-40802:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+      observationId: 'publication-40802:' + index, pianoKey: attack.pianoKey, confidence: attack.confidence, source: attack.source,
       performanceTimeMs: attack.captureTime.domainId === 'wrong-domain' ? 1001 : 100,
     })),
   })).toThrow(/INVALID_PUBLICATION/);

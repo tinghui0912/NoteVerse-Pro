@@ -1,3 +1,4 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
@@ -47,7 +48,7 @@ describe('explicit semantic MIDI progression', () => {
   });
   it('publishes an attack at its inclusive maturity exactly once, not when sampled', () => {
     const { clock, session, publications } = deadlineSession();
-    clock.set(100); session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']));
+    clock.set(100); session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, [60]));
     clock.set(349); session.advanceToNow();
     expect(publications).toHaveLength(0); expect(session.evaluationSnapshot.assignment.observations).toHaveLength(0);
     clock.set(350); session.snapshot(); expect(publications).toHaveLength(0);
@@ -68,7 +69,7 @@ describe('explicit semantic MIDI progression', () => {
   });
   it('freezes an unmatured attack through Pause and Resume Count-In, then maps canonical session availability', () => {
     const { clock, session, publications } = deadlineSession(artifact, 1);
-    clock.set(1500); session.observeMidiAttack(midiAttack(session.timebase.domainId, 1500, ['G4']));
+    clock.set(1500); session.observeMidiAttack(midiAttack(session.timebase.domainId, 1500, [67]));
     clock.set(1600); expect(session.pause().performanceTimeMs).toBe(1100);
     const before = session.evaluationSnapshot, count = publications.length;
     clock.set(11600); session.advanceToNow(); expect(session.evaluationSnapshot).toEqual(before);
@@ -87,14 +88,14 @@ describe('explicit semantic MIDI progression', () => {
   function performance(calls: readonly number[], reason: 'SCOPE_COMPLETED' | 'STOPPED_BY_USER', firstDelivery = 620) {
     const h = deadlineSession(artifact, 1), { clock, session, publications } = h;
     const terminalCall = reason === 'SCOPE_COMPLETED' ? 15100 : 14500;
-    const attacks = [{ delivery: firstDelivery, capture: 600, pitch: 'C4' }, { delivery: 1500, capture: 1500, pitch: 'G4' },
-      { delivery: 13650, capture: 13650, pitch: 'B4' }, { delivery: 14000, capture: 14000, pitch: 'D5' }];
+    const attacks = [{ delivery: firstDelivery, capture: 600, pianoKey: 60 }, { delivery: 1500, capture: 1500, pianoKey: 67 },
+      { delivery: 13650, capture: 13650, pianoKey: 71 }, { delivery: 14000, capture: 14000, pianoKey: 74 }];
     const times = new Set([...calls.filter(t => t <= terminalCall), ...attacks.map(a => a.delivery), 1600, 11600, terminalCall]);
     let callCount = 0;
     for (const t of [...times].sort((a, b) => a - b)) {
       clock.set(t);
       if (calls.includes(t)) { session.advanceToNow(); callCount++; }
-      for (const a of attacks.filter(a => a.delivery === t)) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, a.capture, [a.pitch]))).toBe(true);
+      for (const a of attacks.filter(a => a.delivery === t)) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, a.capture, [a.pianoKey]))).toBe(true);
       if (t === 1600) session.pause();
       if (t === 11600) session.resume();
       if (t === terminalCall) {
@@ -153,7 +154,7 @@ describe('explicit semantic MIDI progression', () => {
       const { clock, session, publications } = deadlineSession();
       if (dense) for (let t = 0; t <= delivery; t += 10) { clock.set(t); session.advanceToNow(); }
       clock.set(delivery);
-      const attack = midiAttack(session.timebase.domainId, 750, ['C4']);
+      const attack = midiAttack(session.timebase.domainId, 750, [60]);
       if (delivery === 999) expect(session.observeMidiAttack(attack)).toBe(true);
       else expect(() => session.observeMidiAttack(attack)).toThrow('MIDI_EVIDENCE_AFTER_COVERAGE');
       clock.set(1100); session.advanceToNow();
@@ -166,8 +167,8 @@ describe('explicit semantic MIDI progression', () => {
       const { clock, session, publications } = deadlineSession();
       if (dense) for (let t = 0; t <= delivery; t += 10) { clock.set(t); session.advanceToNow(); }
       clock.set(delivery);
-      if (delivery < 350) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']))).toBe(true);
-      else expect(() => session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, ['C4']))).toThrow('MIDI_EVIDENCE_AFTER_COVERAGE');
+      if (delivery < 350) expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, [60]))).toBe(true);
+      else expect(() => session.observeMidiAttack(midiAttack(session.timebase.domainId, 100, [60]))).toThrow('MIDI_EVIDENCE_AFTER_COVERAGE');
       clock.set(400); session.advanceToNow();
       return { publications, assignment: session.evaluationSnapshot.assignment };
     });
@@ -195,8 +196,8 @@ function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): Practice
 function sessionTime(domainId: string, ms: number, sampleIndex?: number): SessionTime {
   return sampleIndex === undefined ? { domainId, ms } : { domainId, ms, sampleIndex };
 }
-function midiAttack(domainId: string, ms: number, pitches: string[]) {
-  return { captureTime: sessionTime(domainId, ms), pitch: pitches[0] ?? 'C4', confidence: 1 };
+function midiAttack(domainId: string, ms: number, pianoKeys: PracticePianoKey[]) {
+  return { captureTime: sessionTime(domainId, ms), pianoKey: pianoKeys[0] ?? 60, confidence: 1 };
 }
 
 describe('Continuous session composition and record ownership', () => {
@@ -208,14 +209,14 @@ describe('Continuous session composition and record ownership', () => {
     const session = new ContinuousPracticeSession({ artifact, scope: { kind: 'FULL' }, clock, localSessionId: 'timing',
       inputSource: 'MIDI', countInBeats: 4, createClockEvidence: () => evidence });
     const start = session.start();
-    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(false);
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), [60]))).toBe(false);
     clock.set(start.countInTotalMs + 1000); expect(session.pause().performanceTimeMs).toBe(1000);
     clock.advance(5000); const resumed = session.resume();
     expect(resumed.countInKind).toBe('RESUME');
-    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(false);
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), [60]))).toBe(false);
     expect(session.advanceToNow().performanceTimeMs).toBe(1000);
     clock.advance(resumed.countInRemainingMs - 100); session.advanceToNow();
-    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), ['C4']))).toBe(true);
+    clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), [60]))).toBe(true);
     clock.advance(300); const snapshot = session.advanceToNow();
     const publication = publications.find(p => p?.observations.length)!;
     expect(publication?.observations[0].performanceTimeMs).toBe(1100);
@@ -232,7 +233,7 @@ describe('Continuous session composition and record ownership', () => {
     expectTypeOf<Pick<Midi, 'inputSource'>>().not.toExtend<Pick<Midi, 'inputSource' | 'createClockEvidence'>>();
     expectTypeOf<Microphone['createClockEvidence']>().toEqualTypeOf<undefined>();
     expectTypeOf<keyof Parameters<ContinuousPracticeSession['observeMidiAttack']>[0]>()
-      .toEqualTypeOf<'captureTime' | 'pitch' | 'confidence'>();
+      .toEqualTypeOf<'captureTime' | 'pianoKey' | 'confidence'>();
   });
 
   it('fails closed on an untyped MIDI configuration with no evidence owner', () => {
@@ -315,7 +316,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     session.start();
     const before = session.advanceToNow();
-    expect(session.observeMidiAttack(midiAttack('continuous-clock-separate', 0, ['C4']))).toBe(true);
+    expect(session.observeMidiAttack(midiAttack('continuous-clock-separate', 0, [60]))).toBe(true);
     expect(session.advanceToNow().performanceTimeMs).toBe(before.performanceTimeMs);
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     clock.advance(1_500);
@@ -337,10 +338,10 @@ describe('Continuous clock and evaluation composition', () => {
     });
     session.start();
     let now = 0;
-    for (const [time, pitch] of [[0, 'C4'], [2000, 'F#4'], [3000, 'A4'], [3900, 'F#4'], [4500, 'D5']] as const) {
+    for (const [time, pianoKey] of [[0, 60], [2000, 66], [3000, 69], [3900, 66], [4500, 74]] as const) {
       clock.advance(time - now); now = time;
       const before = session.clock.snapshot();
-      session.observeMidiAttack(midiAttack(session.timebase.domainId, time, [pitch]));
+      session.observeMidiAttack(midiAttack(session.timebase.domainId, time, [pianoKey]));
       expect(session.clock.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
     }
     clock.advance(2500); session.advanceToNow();
@@ -398,7 +399,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     session.start();
     extraClock.advance(150);
-    expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 150, ['F#4']))).toBe(true);
+    expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 150, [66]))).toBe(true);
     expect(session.evaluationSnapshot.assignment.unattributedObservations).toHaveLength(0);
     extraClock.advance(500);
     session.advanceToNow();
@@ -490,7 +491,7 @@ describe('Continuous clock and evaluation composition', () => {
     });
     manual.start();
     manualClock.advance(100);
-    expect(manual.observeMidiAttack(midiAttack(manual.timebase.domainId, 0, ['C4']))).toBe(true);
+    expect(manual.observeMidiAttack(midiAttack(manual.timebase.domainId, 0, [60]))).toBe(true);
     manual.end('STOPPED_BY_USER');
 
     const evaluation = manual.completedEvaluation();
@@ -544,7 +545,7 @@ describe('Continuous clock and evaluation composition', () => {
       });
 
       expect(session.start()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 0 });
-      expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 0, ['C4']))).toBe(true);
+      expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 0, [60]))).toBe(true);
       offlineClock.advance(500);
       expect(session.advanceToNow()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 500 });
       session.pause();
@@ -604,7 +605,7 @@ describe('Continuous clock and evaluation composition', () => {
       inputSource: 'MIDI'
     });
     // Before start: state is READY
-    const evidence = midiAttack(runtime.timebase.domainId, 100, ['C4']);
+    const evidence = midiAttack(runtime.timebase.domainId, 100, [60]);
     expect(runtime.observeMidiAttack(evidence)).toBe(false);
 
     // Start with count-in: state is COUNT_IN
@@ -617,22 +618,22 @@ describe('Continuous clock and evaluation composition', () => {
     clock.advance(countInTotalMs + 10);
     expect(runtime.advanceToNow().state).toBe('RUNNING');
     clock.advance(90);
-    const runningEvidence = midiAttack(runtime.timebase.domainId, countInTotalMs + 100, ['C4']);
+    const runningEvidence = midiAttack(runtime.timebase.domainId, countInTotalMs + 100, [60]);
     expect(runtime.observeMidiAttack(runningEvidence)).toBe(true);
 
     // Pause: state is PAUSED
     runtime.pause();
     expect(runtime.advanceToNow().state).toBe('PAUSED');
-    expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBe(false);
+    expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, countInTotalMs + 200, [60]))).toBe(false);
     runtime.resume();
     clock.advance(500);
-    const lateRunningEvidence = midiAttack(runtime.timebase.domainId, countInTotalMs + 250, ['C4']);
+    const lateRunningEvidence = midiAttack(runtime.timebase.domainId, countInTotalMs + 250, [60]);
 
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.advanceToNow().state).toBe('ENDED');
     expect(runtime.observeMidiAttack(lateRunningEvidence)).toBe(false);
-    expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
+    expect(runtime.observeMidiAttack(midiAttack(runtime.timebase.domainId, clock.nowMs() + 100, [60]))).toBe(false);
   });
 
   it("uses native MIDI capture time rather than callback availability", () => {
@@ -653,7 +654,7 @@ describe('Continuous clock and evaluation composition', () => {
     performanceClock.advance(100);
     const evaluated = performance.observeMidiAttack({
       captureTime: midiTimebase.midiEventToSessionTime(0),
-      pitch: 'C4',
+      pianoKey: 60,
       confidence: 1,
 
 
@@ -685,7 +686,7 @@ describe('Continuous clock and evaluation composition', () => {
       scope: { kind: 'FULL' },
       clock: new ManualClock(),
       inputSource: 'MICROPHONE'
-    })).toThrow(/at least one expected group/);
+    })).toThrow(/PracticeScoreArtifact/);
 
   });
 
@@ -779,7 +780,7 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
     session.start();
     clock.advance(100);
     session.observeMidiAttack({
-      pitch: 'C4', confidence: 1, captureTime: session.timebase.atSessionMs(0),
+      pianoKey: 60, confidence: 1, captureTime: session.timebase.atSessionMs(0),
     });
     session.end();
     session.advanceToNow();

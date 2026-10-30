@@ -32,9 +32,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('usePracticeScoreArtifact', () => {
   beforeEach(() => {
     apiMocks.getPracticeScoreArtifact.mockReset();
-    apiMocks.getPracticeScoreArtifact.mockResolvedValue({
-      data: canonicalArtifactJson,
-    });
+    apiMocks.getPracticeScoreArtifact.mockImplementation(async (scoreId, revisionId) => ({ data: { ...canonicalArtifactJson, scoreId, revisionId } }));
   });
 
   it('loads and validates the PracticeScoreArtifact through the API client', async () => {
@@ -59,4 +57,11 @@ describe('usePracticeScoreArtifact', () => {
 
     expect(apiMocks.getPracticeScoreArtifact).not.toHaveBeenCalled();
   });
+});
+
+it('rejects a structurally valid artifact belonging to a different pinned revision', async () => {
+  apiMocks.getPracticeScoreArtifact.mockResolvedValue({ data: { ...canonicalArtifactJson, scoreId: 'score-1', revisionId: 'other' } });
+  const { result } = renderHook(() => usePracticeScoreArtifact('score-1', 'revision-1'), { wrapper });
+  await waitFor(() => expect(result.current.isError).toBe(true));
+  expect(result.current.error?.message).toContain('revision identity mismatch'); expect(result.current.data).toBeUndefined();
 });

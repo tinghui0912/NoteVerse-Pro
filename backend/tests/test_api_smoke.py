@@ -179,19 +179,13 @@ def test_main_api_serves_practice_source_routes(client: TestClient) -> None:
             user_id: int,
             revision_uuid: str,
         ) -> dict[str, object]:
-            return {
-                "schemaVersion": 1,
-                "scoreId": score_uuid,
-                "revisionId": revision_uuid,
-                "artifactId": f"practice-score-artifact:{score_uuid}:{revision_uuid}",
-                "playableEvents": [],
-                "expectedPracticeGroups": [],
-                "practiceAttackSteps": [],
-                "meterSegments": [],
-                "scoreTempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
-                "firstPlayableBeat": None,
-                "scoreEndBeat": 0.0,
-            }
+            import json, os
+            from pathlib import Path
+            root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
+            artifact = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
+            artifact.update(scoreId=score_uuid, revisionId=revision_uuid)
+            return artifact
+
 
     async def fake_get_db():
         yield object()
@@ -224,6 +218,7 @@ def test_main_openapi_includes_practice_source_routes(client: TestClient) -> Non
 
     assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content" in paths
     assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact" in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets" not in paths
     assert "/api/v1/practice/sessions" not in paths
 
 

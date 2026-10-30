@@ -1,10 +1,11 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './midi-evidence-identity';
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;
 
-/** MIDI identity is a session-local capture sequence, not a pitch/time collision key. */
+/** MIDI identity is a session-local capture sequence, not a pianoKey/time collision key. */
 export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort {
   readonly evidencePolicyId = CONTINUOUS_MIDI_EVIDENCE_POLICY_ID;
   private observationSequence = 0;
@@ -14,13 +15,13 @@ export class ContinuousMidiEvidence implements ContinuousClockDrivenEvidencePort
 
   constructor(private readonly sessionDomainId: string) {}
 
-  observe(pitch: string, performanceTimeMs: number, confidence: number, deliveryPerformanceTimeMs: number): void {
+  observe(pianoKey: PracticePianoKey, performanceTimeMs: number, confidence: number, deliveryPerformanceTimeMs: number): void {
     // A deadline closes before a delivery at the same instant, even if no refresh ran.
     if (performanceTimeMs <= this.frontier || deliveryPerformanceTimeMs >= performanceTimeMs + DEFAULT_MIDI_COVERAGE_GRACE_MS) {
       throw new Error('MIDI_EVIDENCE_AFTER_COVERAGE');
     }
     this.pending.push({ observationId: `${this.sessionDomainId}:midi:${this.observationSequence++}`,
-      pitch, performanceTimeMs, confidence, source: 'MIDI' });
+      pianoKey, performanceTimeMs, confidence, source: 'MIDI' });
   }
 
   nextDeadline(requiredAnalysisFrontierMs: number | null) {

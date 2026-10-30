@@ -1,9 +1,9 @@
 import {describe,expect,it} from 'vitest';
-import {matchOrderedSamePitchEvidence} from './same-pitch-matching';
+import {matchOrderedSameKeyEvidence} from './same-key-matching';
 import {CONTINUOUS_ASSIGNMENT_WINDOW_MS as W} from './finalization-policy';
 
-const target=(time:number,i:number)=>({strikeId:`target-${100-i}`,pitch:'C4',expectedPerformanceTimeMs:time,scoreOrder:i});
-const event=(time:number,i:number)=>({observationId:`event-${100-i}`,pitch:'C4',performanceTimeMs:time});
+const target=(time:number,i:number)=>({strikeId:`target-${100-i}`,pianoKey:60,expectedPerformanceTimeMs:time,scoreOrder:i});
+const event=(time:number,i:number)=>({observationId:`event-${100-i}`,pianoKey:60,performanceTimeMs:time});
 type Pair=readonly[number,number];
 const pairsBefore=(a:readonly Pair[],b:readonly Pair[])=>{
   for(let k=0;k<a.length;k++)for(let axis=0;axis<2;axis++)if(a[k][axis]!==b[k][axis])return a[k][axis]<b[k][axis];
@@ -30,11 +30,11 @@ function check(ts:readonly number[],os:readonly number[]) {
   const targets=ts.map(target),observations=os.map(event);
   const canonicalEvents=[...observations].sort((a,b)=>a.performanceTimeMs-b.performanceTimeMs||a.observationId.localeCompare(b.observationId));
   const before=structuredClone({targets,observations});
-  const result=matchOrderedSamePitchEvidence(targets,observations),expected=exhaustive(ts,canonicalEvents.map(o=>o.performanceTimeMs));
+  const result=matchOrderedSameKeyEvidence(targets,observations),expected=exhaustive(ts,canonicalEvents.map(o=>o.performanceTimeMs));
   const pairs=result.map(m=>[targets.findIndex(t=>t.strikeId===m.strikeId),canonicalEvents.findIndex(o=>o.observationId===m.observationId)] as const);
   expect(result.length).toBe(expected.cardinality);expect(result.reduce((n,m)=>n+Math.abs(m.timingOffsetMs),0)).toBe(expected.cost);
   expect(pairs).toEqual(expected.orderedPairs);expect(pairs.every((p,k)=>k===0||pairs[k-1][0]<p[0]&&pairs[k-1][1]<p[1])).toBe(true);
-  expect(matchOrderedSamePitchEvidence([...targets].reverse(),[...observations].reverse())).toEqual(result);
+  expect(matchOrderedSameKeyEvidence([...targets].reverse(),[...observations].reverse())).toEqual(result);
   expect({targets,observations}).toEqual(before);expect(targets.every(t=>!Object.isFrozen(t))).toBe(true);
   expect(observations.every(o=>!Object.isFrozen(o))).toBe(true);expect(Object.isFrozen(result)).toBe(true);
 }
@@ -57,37 +57,37 @@ describe('Continuous ordered common-radius objectives and canonical ties',()=>{
   });
   it.each([['a','z'],['z','a']])('earlier unresolved midpoint target wins regardless of IDs %s/%s',(a,b)=>{
     const ts=[{...target(1000,0),strikeId:a},{...target(1300,1),strikeId:b}];
-    for(const id of ['a-event','z-event'])expect(matchOrderedSamePitchEvidence([...ts].reverse(),[{...event(1150,0),observationId:id}]))
+    for(const id of ['a-event','z-event'])expect(matchOrderedSameKeyEvidence([...ts].reverse(),[{...event(1150,0),observationId:id}]))
       .toEqual([{strikeId:a,observationId:id,timingOffsetMs:150}]);
   });
   it('uses chronological non-crossing pairs for indistinguishable equal-time observations',()=>{
     const ts=[target(0,0),target(W/2,1)],os=[{...event(W/2,0),observationId:'z'},{...event(W/2,1),observationId:'a'}];
-    expect(matchOrderedSamePitchEvidence(ts,os)).toEqual([
+    expect(matchOrderedSameKeyEvidence(ts,os)).toEqual([
       {strikeId:ts[0].strikeId,observationId:'a',timingOffsetMs:W/2},
       {strikeId:ts[1].strikeId,observationId:'z',timingOffsetMs:0},
     ]);
   });
   it('uses canonical score order only for genuinely identical target times, then IDs as a final fallback',()=>{
     const a={...target(1000,2),strikeId:'a'},z={...target(1000,1),strikeId:'z'};
-    expect(matchOrderedSamePitchEvidence([a,z],[event(1000,0)])[0].strikeId).toBe('z');
-    expect(matchOrderedSamePitchEvidence([a,{...z,scoreOrder:2}],[event(1000,0)])[0].strikeId).toBe('a');
+    expect(matchOrderedSameKeyEvidence([a,z],[event(1000,0)])[0].strikeId).toBe('z');
+    expect(matchOrderedSameKeyEvidence([a,{...z,scoreOrder:2}],[event(1000,0)])[0].strikeId).toBe('a');
   });
   it.each([[[1000,1250],[1100,1110]],[[1000,1250],[800,1100]]])('retains both overlapping matches and defeats nearest greedy: %j / %j',(ts,os)=>{
-    check(ts,os);expect(matchOrderedSamePitchEvidence(ts.map(target),os.map(event))).toHaveLength(2);
+    check(ts,os);expect(matchOrderedSameKeyEvidence(ts.map(target),os.map(event))).toHaveLength(2);
   });
   it.each([-1,1])('keeps inclusive W eligibility and rejects W+1 on side %s',sign=>{
-    expect(matchOrderedSamePitchEvidence([target(1000,0)],[event(1000+sign*W,0)])).toHaveLength(1);
-    expect(matchOrderedSamePitchEvidence([target(1000,0)],[event(1000+sign*(W+1),0)])).toHaveLength(0);
+    expect(matchOrderedSameKeyEvidence([target(1000,0)],[event(1000+sign*W,0)])).toHaveLength(1);
+    expect(matchOrderedSameKeyEvidence([target(1000,0)],[event(1000+sign*(W+1),0)])).toHaveLength(0);
   });
   it('uses the policy predicate rather than a rounded-outward interval endpoint',()=>{
-    const t=2**60;expect(matchOrderedSamePitchEvidence([target(t,0)],[event(t+256,0)])).toHaveLength(0);
+    const t=2**60;expect(matchOrderedSameKeyEvidence([target(t,0)],[event(t+256,0)])).toHaveLength(0);
   });
-  it.each(['target pitch','event pitch','target duplicate','event duplicate','target time','event time','score order','target id','event id'])('rejects malformed %s without mutating inputs',kind=>{
+  it.each(['target pianoKey','event pianoKey','target duplicate','event duplicate','target time','event time','score order','target id','event id'])('rejects malformed %s without mutating inputs',kind=>{
     const ts=[target(1000,0)],os=[event(1000,0)];
-    if(kind==='target pitch')ts.push({...target(1200,1),pitch:'D4'});if(kind==='event pitch')os[0].pitch='D4';
+    if(kind==='target pianoKey')ts.push({...target(1200,1),pianoKey:62});if(kind==='event pianoKey')os[0].pianoKey=62;
     if(kind==='target duplicate')ts.push({...ts[0]});if(kind==='event duplicate')os.push({...os[0]});
     if(kind==='target time')ts[0].expectedPerformanceTimeMs=NaN;if(kind==='event time')os[0].performanceTimeMs=-1;
     if(kind==='score order')ts[0].scoreOrder=-1;if(kind==='target id')ts[0].strikeId='';if(kind==='event id')os[0].observationId='';
-    const before=structuredClone({ts,os});expect(()=>matchOrderedSamePitchEvidence(ts,os)).toThrow('INVALID_PUBLICATION');expect({ts,os}).toEqual(before);
+    const before=structuredClone({ts,os});expect(()=>matchOrderedSameKeyEvidence(ts,os)).toThrow('INVALID_PUBLICATION');expect({ts,os}).toEqual(before);
   });
 });

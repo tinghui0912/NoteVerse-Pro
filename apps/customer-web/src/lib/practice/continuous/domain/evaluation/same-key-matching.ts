@@ -4,25 +4,25 @@ import { compareContinuousId } from './observation-store';
 import { withinContinuousWindow } from './finalization-policy';
 import { ContinuousEvaluationError } from './evaluation-error';
 
-type OrderedTarget = Pick<ContinuousExpectedStrike, 'strikeId' | 'pitch' | 'expectedPerformanceTimeMs'> & Readonly<{ scoreOrder: number }>;
-type SamePitchObservation = Pick<ContinuousObservation, 'observationId' | 'pitch' | 'performanceTimeMs'>;
-type SamePitchMatch = Readonly<{ strikeId: string; observationId: string; timingOffsetMs: number }>;
+type OrderedTarget = Pick<ContinuousExpectedStrike, 'strikeId' | 'pianoKey' | 'expectedPerformanceTimeMs'> & Readonly<{ scoreOrder: number }>;
+type SameKeyObservation = Pick<ContinuousObservation, 'observationId' | 'pianoKey' | 'performanceTimeMs'>;
+type SameKeyMatch = Readonly<{ strikeId: string; observationId: string; timingOffsetMs: number }>;
 
 /** Max cardinality, min absolute error, then lexicographically earliest chronological non-crossing pairs.
  * Scalar suffix objectives use O(targets * observations) storage. Reconstruction visits each candidate
  * at most once; no growing pair arrays, artificial cost encoding or capacity/timing limit is used.
  */
-export function matchOrderedSamePitchEvidence(targets: readonly OrderedTarget[], observations: readonly SamePitchObservation[]): readonly SamePitchMatch[] {
-  const pitch = targets[0]?.pitch ?? observations[0]?.pitch;
+export function matchOrderedSameKeyEvidence(targets: readonly OrderedTarget[], observations: readonly SameKeyObservation[]): readonly SameKeyMatch[] {
+  const pianoKey = targets[0]?.pianoKey ?? observations[0]?.pianoKey;
   const targetIds = new Set<string>(), observationIds = new Set<string>();
   for (const target of targets) {
-    if (!target.strikeId || !target.pitch || target.pitch !== pitch || targetIds.has(target.strikeId)
+    if (!target.strikeId || !target.pianoKey || target.pianoKey !== pianoKey || targetIds.has(target.strikeId)
       || !Number.isFinite(target.expectedPerformanceTimeMs) || target.expectedPerformanceTimeMs < 0
       || !Number.isSafeInteger(target.scoreOrder) || target.scoreOrder < 0) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     targetIds.add(target.strikeId);
   }
   for (const observation of observations) {
-    if (!observation.observationId || !observation.pitch || observation.pitch !== pitch || observationIds.has(observation.observationId)
+    if (!observation.observationId || !observation.pianoKey || observation.pianoKey !== pianoKey || observationIds.has(observation.observationId)
       || !Number.isFinite(observation.performanceTimeMs) || observation.performanceTimeMs < 0) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     observationIds.add(observation.observationId);
   }
@@ -44,7 +44,7 @@ export function matchOrderedSamePitchEvidence(targets: readonly OrderedTarget[],
     }
     counts[i][j]=count;costs[i][j]=cost;
   }
-  const matches: SamePitchMatch[]=[];
+  const matches: SameKeyMatch[]=[];
   let targetStart=0,observationStart=0,remaining=counts[0][0],remainingCost=costs[0][0];
   while(remaining>0) {
     let found=false;

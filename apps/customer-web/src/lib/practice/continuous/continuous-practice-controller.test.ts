@@ -557,7 +557,7 @@ describe('Continuous application owner', () => {
     await f.feed(controller.snapshot().transport!.countInRemainingMs + 5000); await controller.abandon();
     expect(controller.snapshot().session).toBe('COMPLETE');
     const completion = controller.snapshot().completed!;
-    expect(completion.result).toMatchObject({ schemaVersion: 6, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
+    expect(completion.result).toMatchObject({ schemaVersion: 7, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
       assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completedContinuousTargetFeedback(completion.result.evaluation)).toEqual({ targets: [] });
     expect(completion.recording.status).toBe('READY'); expect(complete).toHaveBeenCalledOnce();
@@ -877,13 +877,13 @@ it('resume countdown freezes recording/evaluation, rejects countdown MIDI, and r
   const resume = owner.snapshot().transport!;
   expect(resume).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: 300 });
   f.clock.advance(resume.countInRemainingMs - 1); owner.refresh();
-  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), pitch: 'C4', confidence: 1 });
+  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
   expect(owner.snapshot().transport?.performanceTimeMs).toBe(300);
   expect(owner.snapshot().evaluation).toEqual(ledger); expect(owner.snapshot().recording).toMatchObject({ state: 'PAUSED', elapsedMs: 300, indicatorVisible: true });
   f.clock.advance(1); owner.refresh();
   expect(owner.snapshot().transport).toMatchObject({ state: 'RUNNING', performanceTimeMs: 300 });
   expect(Reflect.get(owner, 'recorder')).toBe(recorder); expect(owner.snapshot().recording?.state).toBe('RECORDING');
-  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), pitch: 'C4', confidence: 1 });
+  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
   f.clock.advance(901); owner.refresh(); await owner.abandon();
   const completion = owner.snapshot().completed!; expect(completion.result.evaluation.status).toBe('COMPLETE');
   if (completion.result.evaluation.status !== 'COMPLETE' || completion.recording.status !== 'READY') throw new Error('Expected complete result and recording');
@@ -1159,7 +1159,7 @@ it('R14 silent INFER after tailReady settles natural FINALIZING with healthy rec
     expect(engine.snapshot().state).toBe('FAILED'); expect(service.terminate).toHaveBeenCalledOnce();
     expect(controller.snapshot()).toMatchObject({ session: 'COMPLETE', analysisIntervention: null, resourceIntervention: null });
     const completed = controller.snapshot().completed!;
-    expect(completed.result).toMatchObject({ schemaVersion: 6, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
+    expect(completed.result).toMatchObject({ schemaVersion: 7, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completed.result.evidenceProvenance).toEqual(microphoneEvidenceProvenance(48000));
     expect(completedContinuousTargetFeedback(completed.result.evaluation)).toEqual({ targets: [] });
     expect(completed.recording.status).toBe('READY'); expect(callback).toHaveBeenCalledOnce();

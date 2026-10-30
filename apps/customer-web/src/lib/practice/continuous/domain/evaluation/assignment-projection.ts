@@ -1,3 +1,4 @@
+import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { CompletedContinuousAssignment, CompletedContinuousAssignmentResult, FinalizedContinuousGroupAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
@@ -61,7 +62,7 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
     const groupStrikes: readonly FinalizedContinuousStrikeAssignment[] = group.strikes;
     for (const strike of groupStrikes) {
       if (strike && !Array.isArray(strike.renderNoteIds)) throw new Error('Continuous assignment strike renderNoteIds are required.');
-      const fields = ['strikeId', 'groupId', 'pitch', 'expectedPerformanceTimeMs', 'renderNoteIds', 'state', 'finality'];
+      const fields = ['strikeId', 'groupId', 'pianoKey', 'expectedPerformanceTimeMs', 'renderNoteIds', 'state', 'finality'];
       if (!hasRetainedFields(strike, strike?.state === 'MATCHED' ? [...fields, 'match'] : fields)
         || !['MATCHED', 'UNMATCHED', 'NOT_REACHED'].includes(strike.state) || !strike.finality) {
         throw new Error('Continuous assignment strike must be final.');
@@ -69,7 +70,7 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
       for (const id of strike.renderNoteIds) {
         if (!isRetainedIdentity(id)) throw new Error('Continuous assignment strike renderNoteIds are corrupt.');
       }
-      if (!isRetainedIdentity(strike.strikeId) || !isRetainedIdentity(strike.groupId) || !isRetainedIdentity(strike.pitch)
+      if (!isRetainedIdentity(strike.strikeId) || !isRetainedIdentity(strike.groupId) || !isPracticePianoKey(strike.pianoKey)
         || !Number.isFinite(strike.expectedPerformanceTimeMs) || strike.expectedPerformanceTimeMs < 0
         || strike.expectedPerformanceTimeMs !== group.performanceTimeMs
         || strikes.has(strike.strikeId) || strike.groupId !== group.groupId) {
@@ -85,7 +86,7 @@ export function assertCompletedAssignment(assignment: CompletedContinuousAssignm
         if (!hasRetainedFields(strike.match, ['observation', 'timingOffsetMs'])
           || !Number.isFinite(strike.match.timingOffsetMs)) throw new Error('Continuous assignment matched strike metadata is required.');
         assertRetainedObservation(strike.match.observation, completion.performanceTimeMs);
-        if (strike.match.observation.pitch !== strike.pitch
+        if (strike.match.observation.pianoKey !== strike.pianoKey
           || strike.match.timingOffsetMs !== strike.match.observation.performanceTimeMs - strike.expectedPerformanceTimeMs
           || !withinContinuousWindow(strike.expectedPerformanceTimeMs, strike.match.observation.performanceTimeMs)) {
           throw new Error('Continuous assignment matched strike semantics are corrupt.');
@@ -144,10 +145,10 @@ function isRetainedIdentity(value: unknown): value is string {
 }
 
 function assertRetainedObservation(value: ContinuousObservation, terminalPerformanceMs: number): void {
-  const fields = ['observationId', 'pitch', 'performanceTimeMs', 'confidence', 'source'];
+  const fields = ['observationId', 'pianoKey', 'performanceTimeMs', 'confidence', 'source'];
   const hasProvenance = value && Object.prototype.hasOwnProperty.call(value, 'provenance');
   if (hasProvenance) fields.push('provenance');
-  if (!hasRetainedFields(value, fields) || !isRetainedIdentity(value.observationId) || !isRetainedIdentity(value.pitch)
+  if (!hasRetainedFields(value, fields) || !isRetainedIdentity(value.observationId) || !isPracticePianoKey(value.pianoKey)
     || !Number.isFinite(value.performanceTimeMs) || value.performanceTimeMs < 0 || value.performanceTimeMs > terminalPerformanceMs
     || !Number.isFinite(value.confidence) || value.confidence < 0 || value.confidence > 1
     || !['MIDI', 'ACOUSTIC'].includes(value.source)) {
@@ -182,7 +183,7 @@ function relationKey(relation: CompletedContinuousAssignment['observationAssignm
 }
 
 function sameObservation(a: ContinuousObservation, b: ContinuousObservation): boolean {
-  return a.observationId === b.observationId && a.pitch === b.pitch
+  return a.observationId === b.observationId && a.pianoKey === b.pianoKey
     && a.performanceTimeMs === b.performanceTimeMs && a.confidence === b.confidence && a.source === b.source
     && Boolean(a.provenance) === Boolean(b.provenance)
     && a.provenance?.sourceDomainId === b.provenance?.sourceDomainId

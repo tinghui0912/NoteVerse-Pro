@@ -1043,34 +1043,6 @@ export type ApiResponsePracticeScoreArtifactRead = {
 };
 
 /**
- * APIResponse[PracticeTargetCatalogRead]
- */
-export type ApiResponsePracticeTargetCatalogRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeTargetCatalogRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[ProfileRead]
  */
 export type ApiResponseProfileRead = {
@@ -3426,36 +3398,6 @@ export type PracticeAcousticAccessRead = {
 };
 
 /**
- * PracticeAttackTargetRead
- */
-export type PracticeAttackTargetRead = {
-    /**
-     * Attack Id
-     */
-    attack_id: string;
-    /**
-     * Event Ids
-     */
-    event_ids?: Array<string>;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Notes
-     */
-    notes?: Array<PracticeStepNoteRead>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Render Note Ids
-     */
-    render_note_ids?: Array<string>;
-};
-
-/**
  * PracticeReadyScoreContentRead
  */
 export type PracticeReadyScoreContentRead = {
@@ -3512,7 +3454,7 @@ export type PracticeScoreArtifactRead = {
     /**
      * Schemaversion
      */
-    schemaVersion: 1;
+    schemaVersion: 2;
     /**
      * Scoreendbeat
      */
@@ -3590,9 +3532,9 @@ export type PracticeScoreAttackTargetRead = {
      */
     notes: Array<PracticeScoreStepNoteRead>;
     /**
-     * Pitch
+     * Pianokey
      */
-    pitch: string;
+    pianoKey: number;
     /**
      * Rendernoteids
      */
@@ -3624,9 +3566,9 @@ export type PracticeScoreEventRead = {
      */
     onsetBeat: number;
     /**
-     * Pitches
+     * Pianokeys
      */
-    pitches: Array<string>;
+    pianoKeys: Array<number>;
     /**
      * Playable
      */
@@ -3678,9 +3620,9 @@ export type PracticeScoreExpectedGroupRead = {
      */
     onsetBeat: number;
     /**
-     * Pitches
+     * Pianokeys
      */
-    pitches: Array<string>;
+    pianoKeys: Array<number>;
     /**
      * Rendernoteids
      */
@@ -3716,9 +3658,9 @@ export type PracticeScoreExpectedNoteRead = {
      */
     measureNumbers: Array<string>;
     /**
-     * Pitch
+     * Pianokey
      */
-    pitch: string;
+    pianoKey: number;
     /**
      * Rendernoteid
      */
@@ -3742,9 +3684,9 @@ export type PracticeScoreExpectedStrikeTargetRead = {
      */
     measureNumbers: Array<string>;
     /**
-     * Pitch
+     * Pianokey
      */
-    pitch: string;
+    pianoKey: number;
     /**
      * Rendernoteids
      */
@@ -3798,9 +3740,9 @@ export type PracticeScoreStepNoteRead = {
      */
     measureNumbers: Array<string>;
     /**
-     * Pitch
+     * Pianokey
      */
-    pitch: string;
+    pianoKey: number;
     /**
      * Rendernoteid
      */
@@ -3831,112 +3773,6 @@ export type PracticeScoreTempoSegmentRead = {
      * Startbeat
      */
     startBeat: number;
-};
-
-/**
- * PracticeStepNoteRead
- */
-export type PracticeStepNoteRead = {
-    /**
-     * Event Id
-     */
-    event_id: string;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Render Note Id
-     */
-    render_note_id: string;
-    /**
-     * Staff Ids
-     */
-    staff_ids?: Array<string>;
-    /**
-     * Step Note Id
-     */
-    step_note_id: string;
-    /**
-     * Voice Ids
-     */
-    voice_ids?: Array<string>;
-};
-
-/**
- * PracticeTargetCatalogRead
- */
-export type PracticeTargetCatalogRead = {
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Targets
-     */
-    targets?: Array<PracticeTargetRead>;
-};
-
-/**
- * PracticeTargetRead
- */
-export type PracticeTargetRead = {
-    /**
-     * Attack Targets
-     */
-    attack_targets?: Array<PracticeAttackTargetRead>;
-    /**
-     * Continuation
-     */
-    continuation?: Array<PracticeStepNoteRead>;
-    /**
-     * Event Ids
-     */
-    event_ids?: Array<string>;
-    /**
-     * Group Id
-     */
-    group_id: string;
-    /**
-     * Index
-     */
-    index: number;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Onset Beat
-     */
-    onset_beat: number;
-    /**
-     * Pitches
-     */
-    pitches?: Array<string>;
-    /**
-     * Render Note Ids
-     */
-    render_note_ids?: Array<string>;
-    /**
-     * Staff Ids
-     */
-    staff_ids?: Array<string>;
-    /**
-     * Step Id
-     */
-    step_id: string;
-    /**
-     * Voice Ids
-     */
-    voice_ids?: Array<string>;
 };
 
 /**
@@ -6790,40 +6626,6 @@ export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevis
 };
 
 export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponse = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses];
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-        /**
-         * Revision Id
-         */
-        revision_id: string;
-    };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets';
-};
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetError = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors];
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeTargetCatalogRead;
-};
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponse = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses];
 
 export type GetPublicScoreApiV1PublicationsSlugGetData = {
     body?: never;

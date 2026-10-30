@@ -1,4 +1,6 @@
-import { matchOrderedSamePitchEvidence } from '@/lib/practice/continuous/domain/evaluation/same-pitch-matching';
+import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import { matchOrderedSameKeyEvidence } from '@/lib/practice/continuous/domain/evaluation/same-key-matching';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS, directObservationClaimants, directStrikeCohort, directStrikeFrontier, withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { compareContinuousId, ContinuousEvidenceStore, observationsInRange, type PreparedContinuousEvidence } from '@/lib/practice/continuous/domain/evaluation/observation-store';
 import { completeContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
@@ -36,7 +38,7 @@ export class ContinuousAssignmentFinalizer {
   private readonly owners = new Map<string, ContinuousObservationAssignment>();
   private readonly unattributedObservations: UnattributedContinuousObservation[] = [];
   private readonly unowned = new Map<string, ContinuousObservation>();
-  private readonly strikesByPitch = new Map<string, ContinuousExpectedStrike[]>();
+  private readonly strikesByKey = new Map<PracticePianoKey, ContinuousExpectedStrike[]>();
   private readonly groupById = new Map<string, Group>();
   private readonly strikeOrder = new Map<string, number>();
   private readonly frontierOrder: readonly ContinuousExpectedStrike[];
@@ -53,12 +55,12 @@ export class ContinuousAssignmentFinalizer {
     const grouped = new Map<string, ContinuousExpectedStrike[]>();
     const ids = new Set<string>();
     for (const [order, strike] of this.strikes.entries()) {
-      if (!strike.strikeId || ids.has(strike.strikeId) || !strike.groupId || !strike.pitch
+      if (!strike.strikeId || ids.has(strike.strikeId) || !strike.groupId || !isPracticePianoKey(strike.pianoKey)
         || !Number.isFinite(strike.expectedPerformanceTimeMs) || strike.expectedPerformanceTimeMs < 0
         || !Array.isArray(strike.renderNoteIds)) throw new ContinuousEvaluationError('INVALID_EXPECTED_GROUP');
       this.strikeOrder.set(strike.strikeId, order);
-      const bucket = this.strikesByPitch.get(strike.pitch) ?? [];
-      bucket.push(strike); this.strikesByPitch.set(strike.pitch, bucket);
+      const bucket = this.strikesByKey.get(strike.pianoKey) ?? [];
+      bucket.push(strike); this.strikesByKey.set(strike.pianoKey, bucket);
       ids.add(strike.strikeId);
       const group = grouped.get(strike.groupId) ?? [];
       if (group.some(other => other.expectedPerformanceTimeMs !== strike.expectedPerformanceTimeMs)) {
@@ -72,7 +74,7 @@ export class ContinuousAssignmentFinalizer {
     })).sort((a, b) => a.time - b.time || compareContinuousId(a.groupId, b.groupId));
     for (const group of this.groups) this.groupById.set(group.groupId, group);
     for (const strike of this.strikes) this.strikeFrontiers.set(strike.strikeId, directStrikeFrontier(strike,
-      this.strikeRange(strike.pitch, strike.expectedPerformanceTimeMs - 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS,
+      this.strikeRange(strike.pianoKey, strike.expectedPerformanceTimeMs - 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS,
         strike.expectedPerformanceTimeMs + 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS)));
     this.frontierOrder = [...this.strikes].sort((a, b) => this.frontier(a) - this.frontier(b)
       || this.strikeOrder.get(a.strikeId)! - this.strikeOrder.get(b.strikeId)!);
@@ -196,17 +198,17 @@ export class ContinuousAssignmentFinalizer {
     return requested && this.analyzedThrough >= requested.performanceTimeMs ? requested.performanceTimeMs : Infinity;
   }
   private frontier(strike: ContinuousExpectedStrike): number { return this.strikeFrontiers.get(strike.strikeId)!; }
-  private strikeRange(pitch: string, start: number, end: number): readonly ContinuousExpectedStrike[] {
-    return assignmentTimeRange(this.strikesByPitch.get(pitch) ?? [], start, end, strike => strike.expectedPerformanceTimeMs);
+  private strikeRange(pianoKey: PracticePianoKey, start: number, end: number): readonly ContinuousExpectedStrike[] {
+    return assignmentTimeRange(this.strikesByKey.get(pianoKey) ?? [], start, end, strike => strike.expectedPerformanceTimeMs);
   }
   private claimants(observation: ContinuousObservation) {
-    return directObservationClaimants(observation, this.strikeRange(observation.pitch,
+    return directObservationClaimants(observation, this.strikeRange(observation.pianoKey,
       observation.performanceTimeMs - CONTINUOUS_ASSIGNMENT_WINDOW_MS, observation.performanceTimeMs + CONTINUOUS_ASSIGNMENT_WINDOW_MS));
   }
-  private observationRange(start: number, end: number, pitch?: string): readonly ContinuousObservation[] {
+  private observationRange(start: number, end: number, pianoKey?: PracticePianoKey): readonly ContinuousObservation[] {
     const prepared = this.transaction?.evidence;
-    const incoming = !prepared ? [] : observationsInRange(pitch === undefined ? prepared.byTime : prepared.byPitch.get(pitch) ?? [], start, end);
-    return [...this.evidence.inRange(start, end, pitch), ...incoming];
+    const incoming = !prepared ? [] : observationsInRange(pianoKey === undefined ? prepared.byTime : prepared.byKey.get(pianoKey) ?? [], start, end);
+    return [...this.evidence.inRange(start, end, pianoKey), ...incoming];
   }
   private isUnowned(id: string): boolean { return !this.owners.has(id) && !this.transaction?.owners.has(id); }
   private unownedObservations(): ContinuousObservation[] {
@@ -242,14 +244,14 @@ export class ContinuousAssignmentFinalizer {
     }
     eligible.sort((a, b) => this.strikeOrder.get(a.strikeId)! - this.strikeOrder.get(b.strikeId)!);
     for (const anchor of eligible) {
-      const cohort = directStrikeCohort(anchor, this.strikeRange(anchor.pitch,
+      const cohort = directStrikeCohort(anchor, this.strikeRange(anchor.pianoKey,
         anchor.expectedPerformanceTimeMs - 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS, anchor.expectedPerformanceTimeMs + 2 * CONTINUOUS_ASSIGNMENT_WINDOW_MS))
         .filter(strike => !this.hasStrike(strike.strikeId));
       const observations = this.observationRange(cohort.reduce((min, s) => Math.min(min, s.expectedPerformanceTimeMs), Infinity) - CONTINUOUS_ASSIGNMENT_WINDOW_MS,
-        cohort.reduce((max, s) => Math.max(max, s.expectedPerformanceTimeMs), -Infinity) + CONTINUOUS_ASSIGNMENT_WINDOW_MS, anchor.pitch)
+        cohort.reduce((max, s) => Math.max(max, s.expectedPerformanceTimeMs), -Infinity) + CONTINUOUS_ASSIGNMENT_WINDOW_MS, anchor.pianoKey)
         .filter(o => this.isUnowned(o.observationId) && cohort.some(s => withinContinuousWindow(s.expectedPerformanceTimeMs, o.performanceTimeMs)));
-      const matches = matchOrderedSamePitchEvidence(cohort.map(strike => ({
-        strikeId: strike.strikeId, pitch: strike.pitch, expectedPerformanceTimeMs: strike.expectedPerformanceTimeMs,
+      const matches = matchOrderedSameKeyEvidence(cohort.map(strike => ({
+        strikeId: strike.strikeId, pianoKey: strike.pianoKey, expectedPerformanceTimeMs: strike.expectedPerformanceTimeMs,
         scoreOrder: this.strikeOrder.get(strike.strikeId)!,
       })), observations);
       const pair = matches.find(match => match.strikeId === anchor.strikeId);

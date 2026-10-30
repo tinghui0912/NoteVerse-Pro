@@ -1,9 +1,10 @@
+import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { sourcePublication, type SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import { planWindow } from '../acoustic/runtime/window-planner';
 import { ACOUSTIC_MODEL } from '../acoustic/model/model-contract';
 import { ACOUSTIC_RESOURCES } from '../acoustic/runtime/resource-policy';
-import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
+import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
@@ -25,14 +26,14 @@ it.each(['', 'a', 'a'.repeat(192), 'a'.repeat(193), '🎵'.repeat(96), '🎵'.re
     }
   });
 
-const event = (sample: number, pitch = 'C4', confidence = .8) => ({ targetSample: sample / 3, pitch,
-  midiPitch: ({ C4: 60, C5: 72, E4: 64, G4: 67 } as Record<string, number>)[pitch], confidence, onsetScore: .8, frameScore: .8 });
+const event = (sample: number, pianoKey = 60, confidence = .8) => ({ targetSample: sample / 3, pitch: pianoMidiPitchToName(pianoKey),
+  midiPitch: pianoKey, confidence, onsetScore: .8, frameScore: .8 });
 function publication(job: number, events: ReturnType<typeof event>[] = [], availabilityRuntimeMs = 0) {
   const window = planWindow({ index: 0, sourceStart: start, originTarget: start / 3, nextWindow: job, queuedEndTarget: 0 }, job)!;
   return sourcePublication('source', 48000, 0, window, { events, inferenceMs: 0, decodeMs: 0, actualSessionRunCount: job + 1 }, availabilityRuntimeMs);
 }
 function setup(open = vi.fn((): number | null => 1)) {
-  const completed: { identity: number; evidence: StepPitchEvidence }[] = [];
+  const completed: { identity: number; evidence: StepPianoKeyEvidence }[] = [];
   const assembler = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000,
     localSessionId: 'session', sourceAnchorSample: 0, sessionAnchorTime: { domainId: 'session', ms: 0 },
     sink: { open, complete: (identity, evidence) => { completed.push({ identity, evidence }); } } });
@@ -40,9 +41,9 @@ function setup(open = vi.fn((): number | null => 1)) {
 }
 
 describe('score-blind H50 ownership over the canonical source stream', () => {
-  it('a malformed first pitch/MIDI pair fails READY before sink.open or observation retention', () => {
+  it('a malformed first pianoKey/MIDI pair fails READY before sink.open or observation retention', () => {
     const s = setup(), valid = publication(0, [event(start + 3)]);
-    const forged = { ...valid, observations: [{ ...valid.observations[0], pitch: 'E4' }] };
+    const forged = { ...valid, observations: [{ ...valid.observations[0], pianoKey: 64 }] };
     expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
     expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
     expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0, processedThroughSourceSample: null });
@@ -53,14 +54,14 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     const s = setup(), first = publication(0, [event(end - 3)]), second = publication(1, [event(end)]);
     expect(s.assembler.accept(first)).toBeNull(); expect(s.open).toHaveBeenCalledOnce();
     expect(s.assembler.snapshot()).toMatchObject({ phase: 'CAPTURING', activeObservationCount: 1 });
-    const forged = { ...second, observations: [{ ...second.observations[0], pitch: 'E4' }] };
+    const forged = { ...second, observations: [{ ...second.observations[0], pianoKey: 64 }] };
     expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
     expect(s.assembler.snapshot()).toMatchObject({ phase: 'FAILED', activeObservationCount: 0, processedThroughSourceSample: first.ownedThroughSourceSample });
     expect(s.completed).toEqual([]); expect(s.open).toHaveBeenCalledOnce();
     expect(() => s.assembler.accept(second)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
     expect(s.completed).toEqual([]);
   });
-  it('the historical280-spelling forgery is rejected upstream and cannot produce StepPitchEvidence', () => {
+  it('the historical280-spelling forgery is rejected upstream and cannot produce StepPianoKeyEvidence', () => {
     const spellings = [...'ABCDEFG'].flatMap(letter => ['', '#'].flatMap(sharp => ['', '-'].flatMap(sign =>
       Array.from({ length: 10 }, (_, octave) => `${letter}${sharp}${sign}${octave}`))));
     expect(new Set(spellings).size).toBe(280);
@@ -83,13 +84,13 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     expect(s.open).toHaveBeenCalledExactlyOnceWith({ domainId: 'session', ms: (start + 6) / 48000 * 1000, sampleIndex: start + 6 });
     expect(sealed?.observations.map(o => o.sourceEventSample)).toEqual([start + 6]);
   });
-  it('preserves inclusive anchor, exclusive H50 edge, exact pitch set and minimum confidence', () => {
+  it('preserves inclusive anchor, exclusive H50 edge, exact pianoKey set and minimum confidence', () => {
     const s = setup();
-    const sealed = s.assembler.accept(publication(0, [event(start + 2403, 'G4', .1), event(start + 2400, 'E4', .4),
-      event(start + 3, 'C5', .7), event(start + 3, 'C4', .9)]));
+    const sealed = s.assembler.accept(publication(0, [event(start + 2403, 67, .1), event(start + 2400, 64, .4),
+      event(start + 3, 72, .7), event(start + 3, 60, .9)]));
     expect(STEP_ACOUSTIC_GESTURE_MS).toBe(50);
-    expect(sealed?.observations.map(o => o.pitch)).toEqual(['C4', 'C5', 'E4']);
-    expect(sealed?.evidence).toMatchObject({ observedAttackPitches: ['C4', 'C5', 'E4'], confidence: .4,
+    expect(sealed?.observations.map(o => o.midiPitch)).toEqual([60, 72, 64]);
+    expect(sealed?.evidence).toMatchObject({ observedAttackKeys: [60, 64, 72], confidence: .4,
       captureEndSessionTime: { domainId: 'session', ms: (start + 2403) / 48000 * 1000, sampleIndex: start + 2403 } });
     expect(s.completed).toHaveLength(1); expect(s.assembler.snapshot().phase).toBe('BLOCKED');
   });
@@ -97,7 +98,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     vi.useFakeTimers();
     try {
       expect(STEP_ACOUSTIC_GESTURE_MS).toBeLessThan(ACOUSTIC_MODEL.ownedMs);
-      const first = publication(0, [event(end - 3)]), second = publication(1, [event(end, 'E4', .3)], 999999);
+      const first = publication(0, [event(end - 3)]), second = publication(1, [event(end, 64, .3)], 999999);
       expect(first.window.ownedEndTarget - first.window.ownedStartTarget).toBe(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
       expect(second.window.ownedStartTarget).toBe(first.window.ownedEndTarget);
       expect([first.window.windowIndex, second.window.windowIndex]).toEqual([0, 1]);
@@ -129,7 +130,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     const partialEnd = end + gestureSamples + 300;
     const window = planWindow({ index: 0, sourceStart: start, originTarget: start / 3, nextWindow: 1,
       queuedEndTarget: end / 3, endTarget: partialEnd / 3 }, 1)!;
-    const partial = sourcePublication('source', 48000, 0, window, { events: [event(end, 'E4')],
+    const partial = sourcePublication('source', 48000, 0, window, { events: [event(end, 64)],
       inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
     expect(window.ownedEndTarget - window.ownedStartTarget).toBeLessThan(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
     expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
@@ -145,7 +146,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     const window = planWindow({ index: 0, sourceStart: start, originTarget: start / 3, nextWindow: 1,
       queuedEndTarget: end / 3, endTarget: partialEnd / 3 }, 1)!;
     expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
-    expect(s.assembler.accept(sourcePublication('source', 48000, 0, window, { events: [event(end, 'E4')],
+    expect(s.assembler.accept(sourcePublication('source', 48000, 0, window, { events: [event(end, 64)],
       inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1))).toBeNull();
     expect(s.assembler.snapshot()).toMatchObject({ phase: 'CAPTURING', activeObservationCount: 2 });
     const next = kind === 'same-region' ? publication(2) : sourcePublication('source', 48000, 0,
@@ -157,7 +158,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
   });
   it('retired delayed analysis is new source chronology but cannot open the next gesture', () => {
     const s = setup(); s.assembler.accept(publication(0, [event(start + 3)]));
-    s.assembler.accept(publication(1, [event(end + 3, 'E4')]));
+    s.assembler.accept(publication(1, [event(end + 3, 64)]));
     s.assembler.acceptInputAfter(150000); // physical capture is ahead of analysis (115200)
     expect(s.assembler.accept(publication(2, [event(120000), event(140001)], 999999))).toBeNull();
     expect(s.open).toHaveBeenCalledTimes(1); expect(s.completed).toHaveLength(1);
@@ -171,7 +172,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     expect(s.assembler.snapshot()).toMatchObject({ phase: 'BLOCKED', processedThroughSourceSample: end + 28800, activeObservationCount: 0 });
   });
   it('one publication cannot collect a second gesture or extend H50', () => {
-    const s = setup(); const sealed = s.assembler.accept(publication(0, [event(start + 3), event(start + 3000, 'E4')]));
+    const s = setup(); const sealed = s.assembler.accept(publication(0, [event(start + 3), event(start + 3000, 64)]));
     expect(sealed?.endSourceSample).toBe(start + 2403); expect(sealed?.observations).toHaveLength(1);
     expect(s.completed).toHaveLength(1);
     expect(() => s.assembler.acceptInputAfter(end - 1)).toThrow('STEP_ACOUSTIC_RETIREMENT_INVALID');
@@ -267,7 +268,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     for (let job = 0; job < 6000; job++) {
       const anchor = start + job * 28800 + 3;
       if (job % 2 === 0) a.acceptInputAfter(anchor - 3);
-      a.accept(publication(job, [event(anchor), event(anchor + 3, 'E4')]));
+      a.accept(publication(job, [event(anchor), event(anchor + 3, 64)]));
       expect(a.snapshot().activeObservationCount).toBe(0);
       expect(Object.keys(a.snapshot())).toEqual(shape);
       // Inspect the complete owned graph, including the source sequence summary.
@@ -283,8 +284,8 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
 it('identical targets use physical retirement and new chronology, not a session identity ledger', () => {
   const base = fixture as PracticeScoreArtifact;
   const artifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pitches: ['C4'], strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4' }] })),
-    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pitch: 'C4' }] })) };
+    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pianoKeys: [60], strikeTargets: [{ ...g.strikeTargets[0], pianoKey: 60 }] })),
+    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pianoKey: 60 }] })) };
   const domainId = 'same-target', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
   const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: new ManualClock(), localSessionId: domainId });
   const records: unknown[] = [];
@@ -306,7 +307,7 @@ it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('busy %s refuses an
   const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: new ManualClock(), localSessionId: 'busy' });
   const first = runtime.openAttempt({ domainId: 'busy', ms: .001 })!;
   if (phase !== 'CAPTURING') runtime.analyzeAttempt(first);
-  if (phase === 'POST_VERDICT') runtime.completeAttempt(first, { observedAttackPitches: ['A0'], confidence: .8, captureEndSessionTime: { domainId: 'busy', ms: .002 } });
+  if (phase === 'POST_VERDICT') runtime.completeAttempt(first, { observedAttackKeys: [21], confidence: .8, captureEndSessionTime: { domainId: 'busy', ms: .002 } });
   const complete = vi.fn();
   const a = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000, localSessionId: 'busy', sourceAnchorSample: 0,
     sessionAnchorTime: { domainId: 'busy', ms: 0 }, sink: { open: t => runtime.openAttempt(t), complete } });

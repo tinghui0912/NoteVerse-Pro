@@ -7,12 +7,12 @@ import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib
 export function evaluationScaleWorkload(size: number) {
   const strikes: ContinuousExpectedStrike[] = Array.from({ length: size }, (_, i) => ({
     strikeId: `s${String(i).padStart(6, '0')}`, groupId: `g${Math.floor(i / 2)}`,
-    pitch: i % 2 === 0 ? 'C4' : i % 4 === 1 ? 'E4' : 'G4', renderNoteIds: [`n${i}`],
+    pianoKey: i % 2 === 0 ? 60 : i % 4 === 1 ? 64 : 67, renderNoteIds: [`n${i}`],
     expectedPerformanceTimeMs: 1000 + Math.floor(i / 4) * 1600 + (i % 4 >= 2 ? 400 : 0),
   }));
   const last = strikes[strikes.length - 1].expectedPerformanceTimeMs;
   const observations: ContinuousObservation[] = strikes.map((strike, i) => ({
-    observationId: `o${String(i).padStart(6, '0')}`, pitch: i % 5 === 0 ? 'B7' : i % 5 === 1 ? 'F#4' : strike.pitch,
+    observationId: `o${String(i).padStart(6, '0')}`, pianoKey: i % 5 === 0 ? 107 : i % 5 === 1 ? 66 : strike.pianoKey,
     performanceTimeMs: i % 5 === 0 ? last + 1000 + i : strike.expectedPerformanceTimeMs,
     confidence: .9, source: 'MIDI' as const,
   })).sort((a, b) => a.performanceTimeMs - b.performanceTimeMs || a.observationId.localeCompare(b.observationId));

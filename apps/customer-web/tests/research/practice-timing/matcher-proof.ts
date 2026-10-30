@@ -1,4 +1,4 @@
-import { matchOrderedSamePitchEvidence } from '@/lib/practice/continuous/domain/evaluation/same-pitch-matching';
+import { matchOrderedSameKeyEvidence } from '@/lib/practice/continuous/domain/evaluation/same-key-matching';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS as W } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { sequences, exhaustiveSolution, genericSolution, orderedSolution, nearestTargetGreedy, crossing } from './ordered-solvers';
 import { candidatePolicies, legal } from './candidate-policies';
@@ -9,9 +9,9 @@ const samePairs=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export function matcherProof() {
   const values=Array.from({length:6},(_,i)=>i*W/2);
   const targets=sequences(values,3,false),events=sequences(values,3,true);
-  const currentPairs=(ts:readonly number[],os:readonly number[])=>matchOrderedSamePitchEvidence(
-    ts.map((time,i)=>({strikeId:`t${i}`,pitch:'C4',expectedPerformanceTimeMs:time,scoreOrder:i})),
-    os.map((time,i)=>({observationId:`o${i}`,pitch:'C4',performanceTimeMs:time})))
+  const currentPairs=(ts:readonly number[],os:readonly number[])=>matchOrderedSameKeyEvidence(
+    ts.map((time,i)=>({strikeId:`t${i}`,pianoKey:60,expectedPerformanceTimeMs:time,scoreOrder:i})),
+    os.map((time,i)=>({observationId:`o${i}`,pianoKey:60,performanceTimeMs:time})))
       .map(m=>[Number(m.strikeId.slice(1)),Number(m.observationId.slice(1))]);
   let currentOrderedPairDifferences=0;
   let graphs=0,nonCrossingFailures=0,objectiveMismatches=0,exactOwnershipDifferences=0,targetSetDifferences=0,crossingGenericOptima=0;

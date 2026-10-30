@@ -1,13 +1,14 @@
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { describe, expect, it, vi } from 'vitest';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation, ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS as W, directStrikeFrontier } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 
-const strike = (strikeId: string, time = 1000, pitch = 'C4', groupId = strikeId): ContinuousExpectedStrike =>
-  ({ strikeId, groupId, pitch, expectedPerformanceTimeMs: time, renderNoteIds: [] });
-const observation = (observationId: string, time = 1000, pitch = 'C4'): ContinuousObservation =>
-  ({ observationId, pitch, performanceTimeMs: time, confidence: 0.8, source: 'ACOUSTIC' });
+const strike = (strikeId: string, time = 1000, pianoKey = 60, groupId = strikeId): ContinuousExpectedStrike =>
+  ({ strikeId, groupId, pianoKey, expectedPerformanceTimeMs: time, renderNoteIds: [] });
+const observation = (observationId: string, time = 1000, pianoKey = 60): ContinuousObservation =>
+  ({ observationId, pianoKey, performanceTimeMs: time, confidence: 0.8, source: 'ACOUSTIC' });
 const pub = (publicationId: string, frontier: number, observations: readonly ContinuousObservation[] = [], availability = frontier + 100): ContinuousEvidencePublication =>
   ({ publicationId, sessionDomainId: 'session', analyzedThroughPerformanceMs: frontier, availabilitySessionTimeMs: availability, observations });
 const ledger = (strikes: readonly ContinuousExpectedStrike[] = [strike('a')]) => new ContinuousAssignmentFinalizer('session', strikes);
@@ -16,11 +17,11 @@ const finish = (l: ContinuousAssignmentFinalizer, time = 4000, reason: 'SCOPE_CO
   l.publish(pub('end-coverage', time));
   return l.complete({ reason, performanceTimeMs: time, availabilitySessionTimeMs: time + 100 });
 };
-const reservation = () => [strike('g'), strike('claim', 1400, 'D4'), strike('next', 1800, 'D4'), strike('other', 2200, 'D4')];
+const reservation = () => [strike('g'), strike('claim', 1400, 62), strike('next', 1800, 62), strike('other', 2200, 62)];
 
 describe('bounded source-blind Continuous assignment', () => {
-  it('reads useful frontiers without publishing and reserves evidence for its pending same-pitch claimant', () => {
-    const expected = [strike('g', 1000, 'C4'), strike('a', 1250, 'D4'), strike('b', 1750, 'D4')];
+  it('reads useful frontiers without publishing and reserves evidence for its pending same-pianoKey claimant', () => {
+    const expected = [strike('g', 1000, 60), strike('a', 1250, 62), strike('b', 1750, 62)];
     const firstFrontier = directStrikeFrontier(expected[0], expected);
     const claimantFrontier = directStrikeFrontier(expected[1], expected);
     const l = ledger(expected);
@@ -28,7 +29,7 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(l.nextRequiredAnalysisFrontier()).toBe(firstFrontier);
     expect(l.nextRequiredAnalysisFrontier()).toBe(firstFrontier);
     expect(l.snapshot()).toEqual(before);
-    l.publish(pub('observation', 1000, [observation('d', 1000, 'D4')]));
+    l.publish(pub('observation', 1000, [observation('d', 1000, 62)]));
     expect(l.nextRequiredAnalysisFrontier()).toBe(firstFrontier);
     l.publish(pub('first-need', firstFrontier));
     expect(group(l, 'g').state).toBe('FINALIZED');
@@ -60,9 +61,9 @@ describe('bounded source-blind Continuous assignment', () => {
   it.each([
     ['matched', [strike('a')], [observation('o')], ['MATCHED'], 0],
     ['unmatched', [strike('a')], [], ['UNMATCHED'], 0],
-    ['non-target', [strike('a')], [observation('o', 1000, 'D4')], ['UNMATCHED'], 1],
-    ['partial match', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o')], ['MATCHED', 'UNMATCHED'], 0],
-    ['full match', [strike('a', 1000, 'C4', 'a'), strike('b', 1000, 'E4', 'a')], [observation('o'), observation('p', 1000, 'E4')], ['MATCHED', 'MATCHED'], 0],
+    ['non-target', [strike('a')], [observation('o', 1000, 62)], ['UNMATCHED'], 1],
+    ['partial match', [strike('a', 1000, 60, 'a'), strike('b', 1000, 64, 'a')], [observation('o')], ['MATCHED', 'UNMATCHED'], 0],
+    ['full match', [strike('a', 1000, 60, 'a'), strike('b', 1000, 64, 'a')], [observation('o'), observation('p', 1000, 64)], ['MATCHED', 'MATCHED'], 0],
   ] as const)('%s has explicit assignment and unowned facts', (_name, expected, observations, states, unattributedCount) => {
     const l = ledger(expected); l.publish(pub('p', Math.max(...expected.map(s => directStrikeFrontier(s, expected))), observations));
     expect(group(l).state).toBe('FINALIZED');
@@ -70,7 +71,7 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(l.snapshot().unattributedObservations).toHaveLength(unattributedCount);
   });
   it('unattributed without legal claims', () => { const l = ledger([]); l.publish(pub('p', 1000, [observation('o', 900)])); expect(l.snapshot().unattributedObservations[0].observation.observationId).toBe('o'); });
-  it('repeated same pitch has distinct owners', () => {
+  it('repeated same pianoKey has distinct owners', () => {
     const l = ledger([strike('a'), strike('b', 1200)]); l.publish(pub('p', 1450, [observation('x'), observation('y', 1200)]));
     expect(l.snapshot().observationAssignments.map(o => o.kind === 'STRIKE_MATCH' ? o.strikeId : null)).toEqual(['a', 'b']);
   });
@@ -79,29 +80,29 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(group(l).strikes.every(strike => strike.state === 'MATCHED')).toBe(true); expect(group(l, 'b').strikes[0].state).toBe('PENDING');
   });
   it('protects a reservation later consumed by its direct correct claimant', () => {
-    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4')])); expect(group(l, 'g').state).toBe('FINALIZED');
+    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 62)])); expect(group(l, 'g').state).toBe('FINALIZED');
     expect(l.snapshot().observationAssignments).toHaveLength(0); l.publish(pub('q', 2050));
     expect(group(l, 'g').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(l.snapshot().observationAssignments[0]).toEqual({ kind: 'STRIKE_MATCH', observationId: 'r', strikeId: 'claim' });
   });
   it('keeps a non-target observation unattributed when its direct claimant uses better evidence', () => {
-    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
+    const l = ledger(reservation()); l.publish(pub('p', 1700, [observation('r', 1200, 62), observation('b', 1410, 62)]));
     expect(group(l, 'g').state).toBe('FINALIZED'); l.publish(pub('q', 2050));
     expect(l.snapshot().unattributedObservations.map(row => row.observation.observationId)).toEqual(['r']);
     expect(group(l, 'g').finality?.requiredAnalysisFrontierMs).toBe(directStrikeFrontier(strike('g'), reservation()));
     expect(group(l, 'next').strikes[0].state).toBe('PENDING');
   });
   it.each([10, 100, 150])('a %i-strike chain never extends the first group beyond its direct bound', count => {
-    const expected = [strike('g'), ...Array.from({ length: count }, (_, i) => strike(`s${i.toString().padStart(3, '0')}`, 1400 + i * 200, 'D4'))];
+    const expected = [strike('g'), ...Array.from({ length: count }, (_, i) => strike(`s${i.toString().padStart(3, '0')}`, 1400 + i * 200, 62))];
     const l = ledger(expected);
-    l.publish(pub('p', 1700, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')])); l.publish(pub('q', 2050));
+    l.publish(pub('p', 1700, [observation('r', 1200, 62), observation('b', 1410, 62)])); l.publish(pub('q', 2050));
     expect(group(l, 'g').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(group(l, 'g').finality?.unclampedRequiredFrontierMs).toBe(directStrikeFrontier(expected[0], expected));
   });
   it.each([1000 - W, 1000 + W])('inclusive endpoint %i matches', time => { const l = ledger(); l.publish(pub('p', 1000 + W, [observation('o', time)])); expect(group(l).strikes.every(strike => strike.state === 'MATCHED')).toBe(true); });
   it.each([[1000 + 2 * W, 1000 + 3 * W], [1000 + 2 * W + 0.001, 1000 + W]])('direct cohort boundary %f gives derived frontier %f', (time, frontier) => {
     const l = ledger([strike('a'), strike('b', time)]); l.publish(pub('p', frontier)); expect(group(l).finality?.unclampedRequiredFrontierMs).toBe(frontier);
   });
-  it('derives chord group finality from the maximum child same-pitch frontier', () => {
-    const expected = [strike('c', 1000, 'C4', 'chord'), strike('d', 1000, 'D4', 'chord'), strike('next-d', 1400, 'D4')];
+  it('derives chord group finality from the maximum child same-pianoKey frontier', () => {
+    const expected = [strike('c', 1000, 60, 'chord'), strike('d', 1000, 62, 'chord'), strike('next-d', 1400, 62)];
     const childFrontiers = expected.slice(0, 2).map(child => directStrikeFrontier(child, expected));
     expect(childFrontiers[0]).not.toBe(childFrontiers[1]);
     const l = ledger(expected);
@@ -113,12 +114,12 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(chord.finality?.unclampedRequiredFrontierMs).toBe(Math.max(...childFrontiers));
   });
   it('one non-target observation has exactly one unattributed owner', () => {
-    const l = ledger([strike('a'), strike('b', 1100)]); l.publish(pub('p', 1900, [observation('o', 1050, 'D4')])); finish(l);
+    const l = ledger([strike('a'), strike('b', 1100)]); l.publish(pub('p', 1900, [observation('o', 1050, 62)])); finish(l);
     expect(l.snapshot().observationAssignments).toHaveLength(1); expect(l.snapshot().unattributedObservations).toHaveLength(1);
     expect(l.snapshot().observationAssignments[0]).toEqual({ kind: 'UNATTRIBUTED', observationId: 'o' });
   });
   it('MATCHED cannot also be unattributed', () => {
-    const l = ledger([strike('a', 1000, 'D4'), strike('b')]); l.publish(pub('p', 1500, [observation('o', 1000, 'D4')])); finish(l);
+    const l = ledger([strike('a', 1000, 62), strike('b')]); l.publish(pub('p', 1500, [observation('o', 1000, 62)])); finish(l);
     expect(l.snapshot().observationAssignments).toEqual([{ kind: 'STRIKE_MATCH', observationId: 'o', strikeId: 'a' }]);
   });
   it('finalized snapshots are immutable and not rewritten by later coverage', () => {
@@ -126,7 +127,7 @@ describe('bounded source-blind Continuous assignment', () => {
     l.publish(pub('q', 1500)); expect(group(l)).toBe(saved);
   });
   it('duplicate publication is idempotent even under observation permutation', () => {
-    const l = ledger(); const p = pub('p', 1250, [observation('o'), observation('x', 1000, 'E4')]);
+    const l = ledger(); const p = pub('p', 1250, [observation('o'), observation('x', 1000, 64)]);
     l.publish(p); const before = l.snapshot(); l.publish({ ...p, observations: [...p.observations].reverse() }); expect(l.snapshot()).toEqual(before);
   });
   it('mutated publication fails closed', () => { const l = ledger(); l.publish(pub('p', 1250)); expect(() => l.publish(pub('p', 1260))).toThrow('PUBLICATION_MUTATED'); });
@@ -138,7 +139,7 @@ describe('bounded source-blind Continuous assignment', () => {
   it('evidence beyond frontier fails closed', () => { expect(() => ledger().publish(pub('p', 900, [observation('o')]))).toThrow('INVALID_PUBLICATION'); });
   it('wrong session fails closed', () => { expect(() => ledger().publish({ ...pub('p', 1250), sessionDomainId: 'other' })).toThrow('SESSION_DOMAIN_MISMATCH'); });
   it('terminal closes reservations and disallows new publications', () => {
-    const l = ledger(reservation()); l.publish(pub('p', 1500, [observation('r', 1200, 'D4'), observation('b', 1410, 'D4')]));
+    const l = ledger(reservation()); l.publish(pub('p', 1500, [observation('r', 1200, 62), observation('b', 1410, 62)]));
     const completion = { reason: 'SCOPE_COMPLETED', performanceTimeMs: 1500, availabilitySessionTimeMs: 1600 } as const;
     l.complete(completion); expect(l.snapshot().reservedObservationIds).toEqual([]);
     expect(l.completedAssignment().status).toBe('COMPLETE'); const before = l.snapshot(); l.complete(completion); expect(l.snapshot()).toEqual(before);
@@ -149,14 +150,14 @@ describe('bounded source-blind Continuous assignment', () => {
     expect(group(l, 'closed').strikes.every(strike => strike.state === 'UNMATCHED')).toBe(true); expect(group(l, 'future').strikes.some(strike => strike.state === 'NOT_REACHED')).toBe(true);
   });
   it('all expected strikes share canonical group time or construction fails', () => {
-    expect(() => ledger([strike('a', 1000, 'C4', 'g'), strike('b', 1001, 'E4', 'g')])).toThrow('canonical onset');
+    expect(() => ledger([strike('a', 1000, 60, 'g'), strike('b', 1001, 64, 'g')])).toThrow('canonical onset');
   });
   it('completion cannot extend coverage beyond the stopped performance boundary', () => {
     const l = ledger(); l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1000, availabilitySessionTimeMs: 1000 });
     expect(() => l.publish(pub('beyond', 1001))).toThrow('PUBLICATION_AFTER_COMPLETION');
   });
   it('manual partial chord retains committed match metadata without calling the chord complete', () => {
-    const l = ledger([strike('a', 1000, 'C4', 'chord'), strike('b', 1000, 'E4', 'chord')]);
+    const l = ledger([strike('a', 1000, 60, 'chord'), strike('b', 1000, 64, 'chord')]);
     l.publish(pub('p', 1100, [observation('o')]));
     l.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 1100, availabilitySessionTimeMs: 1200 });
     expect(group(l, 'chord').strikes.some(strike => strike.state === 'NOT_REACHED')).toBe(true);
@@ -178,8 +179,8 @@ describe('bounded source-blind Continuous assignment', () => {
   });
   it('deterministic generated sets preserve ownership, derived finality frontiers, and permutation invariance', () => {
     for (let seed = 0; seed < 25; seed += 1) {
-      const expected = Array.from({ length: 12 }, (_, i) => strike(`s${i}`, 500 + i * 170, ['C4', 'D4', 'E4'][(i + seed) % 3]));
-      const observations = expected.filter((_, i) => (i + seed) % 4 !== 0).map((s, i) => observation(`o${i}`, s.expectedPerformanceTimeMs + ((i * 73 + seed) % 201) - 100, s.pitch));
+      const expected = Array.from({ length: 12 }, (_, i) => strike(`s${i}`, 500 + i * 170, [60, 62, 64][(i + seed) % 3]));
+      const observations = expected.filter((_, i) => (i + seed) % 4 !== 0).map((s, i) => observation(`o${i}`, s.expectedPerformanceTimeMs + ((i * 73 + seed) % 201) - 100, s.pianoKey));
       const run = (rows: readonly ContinuousObservation[]) => { const l = ledger(expected); l.publish(pub('p', 3000, rows)); finish(l); return l.snapshot(); };
       const result = run(observations); expect(run([...observations].reverse())).toEqual(result);
       expect(new Set(result.observationAssignments.map(o => o.observationId)).size).toBe(result.observationAssignments.length);
@@ -199,42 +200,42 @@ describe('bounded source-blind Continuous assignment', () => {
 });
 
 
-describe('deterministic exact-pitch observation ownership', () => {
-  it.each([[], ['C4'], ['E4'], ['E4','F4'], ['C4','D4'], ['C4','D4','E4'], ['C4','E4','F4']])('retains target and non-target facts for %j', (...pitches: string[]) => {
-    const run = (rows: readonly string[], targets: readonly string[]) => {
-      const f = ledger(targets.map(pitch => strike(pitch, 1000, pitch, 'g')));
-      f.publish(pub('p', 4000, rows.map(pitch => observation(pitch, 1000, pitch)), 4100));
+describe('deterministic exact-pianoKey observation ownership', () => {
+  it.each([[], [60], [64], [64,65], [60,62], [60,62,64], [60,64,65]])('retains target and non-target facts for %j', (...pianoKeys: PracticePianoKey[]) => {
+    const run = (rows: readonly number[], targets: readonly number[]) => {
+      const f = ledger(targets.map(pianoKey => strike(String(pianoKey), 1000, pianoKey, 'g')));
+      f.publish(pub('p', 4000, rows.map(pianoKey => observation(String(pianoKey), 1000, pianoKey)), 4100));
       f.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 4000, availabilitySessionTimeMs: 4100 }); return f.snapshot();
     };
-    const snapshot = run(pitches, ['C4','D4']);
-    expect(run([...pitches].reverse(), ['D4','C4'])).toEqual(snapshot);
-    expect(snapshot.groups[0].strikes.filter(strike => strike.state === 'MATCHED').map(strike => strike.pitch)).toEqual(['C4','D4'].filter(pitch => pitches.includes(pitch)));
-    expect(snapshot.unattributedObservations.map(row => row.observation.pitch)).toEqual(pitches.filter(pitch => !['C4','D4'].includes(pitch)));
-    expect(snapshot.observationAssignments).toHaveLength(pitches.length); expect(new Set(snapshot.observationAssignments.map(row => row.observationId)).size).toBe(pitches.length);
+    const snapshot = run(pianoKeys, [60,62]);
+    expect(run([...pianoKeys].reverse(), [62,60])).toEqual(snapshot);
+    expect(snapshot.groups[0].strikes.filter(strike => strike.state === 'MATCHED').map(strike => strike.pianoKey)).toEqual([60,62].filter(pianoKey => pianoKeys.includes(pianoKey)));
+    expect(snapshot.unattributedObservations.map(row => row.observation.pianoKey)).toEqual(pianoKeys.filter(pianoKey => ![60,62].includes(pianoKey)));
+    expect(snapshot.observationAssignments).toHaveLength(pianoKeys.length); expect(new Set(snapshot.observationAssignments.map(row => row.observationId)).size).toBe(pianoKeys.length);
     expect(snapshot.reservedObservationIds).toEqual([]);
     expect(snapshot.groups[0].finality?.unclampedRequiredFrontierMs).toBe(1000 + W);
     expect(snapshot.unattributedObservations.every(row => row.finality.unclampedRequiredFrontierMs === 1000)).toBe(true);
   });
   it('keeps a non-target event position without inventing a target timing offset', () => {
-    const f = ledger(); f.publish(pub('p', 2000, [observation('non-target', 877, 'E4')]));
+    const f = ledger(); f.publish(pub('p', 2000, [observation('non-target', 877, 64)]));
     expect(f.snapshot().unattributedObservations[0].observation.performanceTimeMs).toBe(877);
     expect(f.snapshot().unattributedObservations[0]).not.toHaveProperty('timingOffsetMs');
   });
 });
 
-it.each(['publication', 'completion'] as const)('invalid same-pitch input discards the whole %s assignment plan', operation => {
-  const l = ledger([strike('early', 1000, 'D4'), strike('late', 1000, 'C4')]);
-  const observations = [observation('early-o', 1000, 'D4'), observation('late-o', 1000, 'C4')];
+it.each(['publication', 'completion'] as const)('invalid same-pianoKey input discards the whole %s assignment plan', operation => {
+  const l = ledger([strike('early', 1000, 62), strike('late', 1000, 60)]);
+  const observations = [observation('early-o', 1000, 62), observation('late-o', 1000, 60)];
   if (operation === 'publication') l.publish(pub('initial', 0));
   else l.publish(pub('evidence', 1000, observations));
   const before = l.snapshot(), retained = l.retentionSnapshot();
-  type EvidenceQuery = { observationRange(start:number,end:number,pitch?:string): ContinuousObservation[] };
+  type EvidenceQuery = { observationRange(start:number,end:number,pianoKey?:number): ContinuousObservation[] };
   const query = l as unknown as EvidenceQuery, read = query.observationRange.bind(l);
   let queries = 0;
   // Corrupt the second cohort's owned query result after an earlier claim was staged.
-  const spy = vi.spyOn(query, 'observationRange').mockImplementation((start,end,pitch) => {
-    const rows=read(start,end,pitch);queries++;
-    return pitch==='C4' ? rows.map(o=>({...o,pitch:'foreign-pitch'})) : rows;
+  const spy = vi.spyOn(query, 'observationRange').mockImplementation((start,end,pianoKey) => {
+    const rows=read(start,end,pianoKey);queries++;
+    return pianoKey===60 ? rows.map(o=>({...o,pianoKey:108})) : rows;
   });
   let failure: unknown;
   try {
@@ -264,7 +265,7 @@ it('invalid publication preserves already-retained ownership, both axes and comp
 it('indexes narrow candidates but the policy predicate still owns floating-point window eligibility', () => {
   const t = 2 ** 60; // ULP 256: t + 250 rounds to t + 256, which is outside the actual +/-250 predicate.
   const l = ledger([strike('a', t)]);
-  l.publish(pub('p', t + 2048, [observation('outside', t + 256, 'C4')]));
+  l.publish(pub('p', t + 2048, [observation('outside', t + 256, 60)]));
   expect(group(l).strikes[0].state).toBe('UNMATCHED');
   expect(l.snapshot().unattributedObservations.map(o => o.observation.observationId)).toEqual(['outside']);
 });

@@ -9,6 +9,7 @@ accepted current decisions and their rationale.
 - [Backend Settings Ownership](runtime/settings-ownership.md)
 - [Import Processing](runtime/import-processing.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
+- [Canonical Practice Piano-Key Contract](practice-piano-key-contract.md)
 - [Practice Product Contract](practice-product-contract.md)
 - [Practice Foundation Release Gate](practice-foundation-release-gate.md)
 - [External Dependencies](integrations/external-dependencies.md)

@@ -3,6 +3,7 @@ import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import type {
   ContinuousMetronomeSyncPoint,
+  MetronomeMeterSource,
   MetronomePlanningCursor,
   MetronomePulse,
 } from './metronome-pulse-planner';
@@ -34,7 +35,7 @@ export interface MetronomeControllerOptions {
 }
 
 export class MetronomeController {
-  private artifact: PracticeScoreArtifact;
+  private timing: MetronomeMeterSource & Readonly<{ scoreEndBeat: number }>;
   private tempoPlan: ResolvedPracticeTempoPlan;
   private timeline: PracticeTempoTimeline;
   private meterSegments: readonly MeterSegment[];
@@ -74,7 +75,7 @@ export class MetronomeController {
     this.onScheduledPulse = options.onScheduledPulse;
 
     if (options.artifact) {
-      this.artifact = options.artifact;
+      this.timing = options.artifact;
       this.meterSegments = options.artifact.meterSegments;
       this.scopeEndBeat = options.scopeEndBeat ?? options.artifact.scoreEndBeat;
     } else {
@@ -90,22 +91,10 @@ export class MetronomeController {
       ];
       this.meterSegments = meterSegments;
       this.scopeEndBeat = options.scopeEndBeat ?? 1000;
-      this.artifact = {
-        schemaVersion: 1,
-        scoreId: 'inline',
-        revisionId: 'inline',
-        artifactId: 'inline',
-        playableEvents: [],
-        expectedPracticeGroups: [],
-        practiceAttackSteps: [],
-        meterSegments: [...meterSegments],
-        scoreTempoSegments: [...options.tempoPlan.segments],
-        firstPlayableBeat: 0,
-        scoreEndBeat: this.scopeEndBeat,
-      };
+      this.timing = { meterSegments: [...meterSegments], scoreEndBeat: this.scopeEndBeat };
     }
 
-    this.timeline = new PracticeTempoTimeline(this.tempoPlan, this.artifact.scoreEndBeat);
+    this.timeline = new PracticeTempoTimeline(this.tempoPlan, this.timing.scoreEndBeat);
     this.isEnabled = options.enabled ?? false;
     if (options.audioContext !== undefined) {
       this.audioContext = options.audioContext;
@@ -145,7 +134,7 @@ export class MetronomeController {
     const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
     this.cursor = MetronomePulsePlanner.createStepCursor(
       targetOnsetBeat,
-      this.artifact,
+      this.timing,
       this.timeline,
       nowMs + 50
     );
@@ -156,7 +145,7 @@ export class MetronomeController {
     const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
     this.cursor = MetronomePulsePlanner.createContinuousCursor(
       syncPoint,
-      this.artifact,
+      this.timing,
       this.timeline,
       nowMs
     );
@@ -171,20 +160,20 @@ export class MetronomeController {
       return;
     }
     this.tempoPlan = tempoPlan;
-    this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndBeat);
+    this.timeline = new PracticeTempoTimeline(tempoPlan, this.timing.scoreEndBeat);
     const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
     if (this.cursor) {
       if (this.cursor.phase === 'STEP') {
         this.cursor = MetronomePulsePlanner.createStepCursor(
           this.cursor.targetOnsetBeat,
-          this.artifact,
+          this.timing,
           this.timeline,
           nowMs
         );
       } else if (this.cursor.phase === 'RUNNING') {
         this.cursor = MetronomePulsePlanner.createContinuousCursor(
           { state: 'RUNNING', musicalBeat: this.cursor.currentBeat },
-          this.artifact,
+          this.timing,
           this.timeline,
           nowMs
         );
@@ -194,8 +183,8 @@ export class MetronomeController {
 
   setMeterSegments(meterSegments: readonly MeterSegment[]): void {
     this.meterSegments = meterSegments;
-    this.artifact = {
-      ...this.artifact,
+    this.timing = {
+      ...this.timing,
       meterSegments: [...meterSegments],
     };
   }
@@ -231,12 +220,12 @@ export class MetronomeController {
 
     if (this.metronomeMode === 'STEP') {
       const onsetBeat = typeof initialContext === 'number' ? initialContext : this.scopeStartBeat;
-      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.artifact, this.timeline, baseTimeMs);
+      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.timing, this.timeline, baseTimeMs);
     } else {
       if (typeof initialContext === 'object' && initialContext !== null && 'state' in initialContext) {
         this.cursor = MetronomePulsePlanner.createContinuousCursor(
           initialContext,
-          this.artifact,
+          this.timing,
           this.timeline,
           nowMs
         );
@@ -253,7 +242,7 @@ export class MetronomeController {
               countInRemainingMs: countInTotalMs,
               countInPulses: this.countInPulses,
             },
-            this.artifact,
+            this.timing,
             this.timeline,
             baseTimeMs
           );
@@ -263,7 +252,7 @@ export class MetronomeController {
               state: 'RUNNING',
               musicalBeat: initialBeat,
             },
-            this.artifact,
+            this.timing,
             this.timeline,
             baseTimeMs
           );
@@ -301,12 +290,12 @@ export class MetronomeController {
       const onsetBeat = typeof syncPoint === 'number'
         ? syncPoint
         : (this.cursor?.phase === 'STEP' ? this.cursor.targetOnsetBeat : this.scopeStartBeat);
-      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.artifact, this.timeline, baseTimeMs);
+      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.timing, this.timeline, baseTimeMs);
     } else {
       if (typeof syncPoint === 'object' && syncPoint !== null && 'state' in syncPoint) {
         this.cursor = MetronomePulsePlanner.createContinuousCursor(
           syncPoint,
-          this.artifact,
+          this.timing,
           this.timeline,
           nowMs
         );
@@ -316,7 +305,7 @@ export class MetronomeController {
           : (this.cursor?.phase === 'RUNNING' ? this.cursor.currentBeat : this.scopeStartBeat);
         this.cursor = MetronomePulsePlanner.createContinuousCursor(
           { state: 'RUNNING', musicalBeat: beat },
-          this.artifact,
+          this.timing,
           this.timeline,
           baseTimeMs
         );
@@ -355,7 +344,7 @@ export class MetronomeController {
   }
 
   isDownbeat(beat: number): boolean {
-    const meter = meterAtBeat(this.artifact, beat);
+    const meter = meterAtBeat(this.timing, beat);
     return isDownbeat(meter, beat);
   }
 
@@ -376,7 +365,7 @@ export class MetronomeController {
       this.cursor,
       horizonMs,
       {
-        artifact: this.artifact,
+        artifact: this.timing,
         timeline: this.timeline,
         scopeEndBeat: this.scopeEndBeat,
       }

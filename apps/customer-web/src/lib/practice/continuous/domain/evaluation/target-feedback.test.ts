@@ -9,17 +9,17 @@ import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from './finalization-policy';
 
 it('MIDI and microphone produce identical immutable settled target feedback without evidence payloads', () => {
   const results = (['MIDI', 'MICROPHONE'] as const).map(inputSource => {
-    const finalizer = new ContinuousAssignmentFinalizer('targets', ['C4','D4'].map(pitch => ({
-      strikeId: pitch, groupId: 'chord', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch],
+    const finalizer = new ContinuousAssignmentFinalizer('targets', [60,62].map(pianoKey => ({
+      strikeId: String(pianoKey), groupId: 'chord', pianoKey, expectedPerformanceTimeMs: 1000, renderNoteIds: [String(pianoKey)],
     })));
     finalizer.publish({ publicationId: 'p', sessionDomainId: 'targets', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100,
-      observations: ['C4','E4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence: 1,
+      observations: [60,64].map(pianoKey => ({ observationId: String(pianoKey), pianoKey, performanceTimeMs: 1000, confidence: 1,
         source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const })) });
     const before = finalizer.snapshot(), feedback = projectContinuousTargetFeedback(finalizer.targetStates());
     expect(Object.keys(feedback).sort()).toEqual(['targets']);
     expect(feedback).toEqual({ targets: [
-      { strikeId: 'C4', renderNoteIds: ['C4'], state: 'MATCHED' },
-      { strikeId: 'D4', renderNoteIds: ['D4'], state: 'UNMATCHED' },
+      { strikeId: '60', renderNoteIds: ['60'], state: 'MATCHED' },
+      { strikeId: '62', renderNoteIds: ['62'], state: 'UNMATCHED' },
     ] });
     for (const target of feedback.targets) {
       expect(Object.keys(target).sort()).toEqual(['renderNoteIds','state','strikeId']);
@@ -30,7 +30,7 @@ it('MIDI and microphone produce identical immutable settled target feedback with
     finalizer.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 3000, availabilitySessionTimeMs: 3100 });
     const result = finalizer.completedAssignment(); if (result.status !== 'COMPLETE') throw Error('incomplete');
     expect(result.assignment.observations).toHaveLength(2);
-    expect(result.assignment.unattributedObservations.map(row => row.observation.pitch)).toEqual(['E4']);
+    expect(result.assignment.unattributedObservations.map(row => row.observation.pianoKey)).toEqual([64]);
     const parsed = JSON.parse(JSON.stringify({ status: 'COMPLETE', inputSource,
       assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, assignment: result.assignment }));
     const parsedBefore = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
@@ -57,10 +57,10 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s progression and live reads do not m
 });
 
 it.each([0, .01, .49, .99, 1])('does not re-threshold accepted acoustic evidence at confidence %s', confidence => {
-  const f = new ContinuousAssignmentFinalizer('confidence', ['C4','D4'].map(pitch => ({
-    strikeId: pitch, groupId: 'chord', pitch, expectedPerformanceTimeMs: 1000, renderNoteIds: [pitch],
+  const f = new ContinuousAssignmentFinalizer('confidence', [60,62].map(pianoKey => ({
+    strikeId: String(pianoKey), groupId: 'chord', pianoKey, expectedPerformanceTimeMs: 1000, renderNoteIds: [String(pianoKey)],
   })));
   f.publish({ publicationId: 'p', sessionDomainId: 'confidence', analyzedThroughPerformanceMs: 3000, availabilitySessionTimeMs: 3100,
-    observations: ['C4','D4'].map(pitch => ({ observationId: pitch, pitch, performanceTimeMs: 1000, confidence, source: 'ACOUSTIC' })) });
+    observations: [60,62].map(pianoKey => ({ observationId: String(pianoKey), pianoKey, performanceTimeMs: 1000, confidence, source: 'ACOUSTIC' })) });
   expect(projectContinuousTargetFeedback(f.targetStates()).targets.map(target => target.state)).toEqual(['MATCHED','MATCHED']);
 });

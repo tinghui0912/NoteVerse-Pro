@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   BrowserMidiController,
   MidiNoConnectedInputError,
-  midiNoteToPitch,
   isMidiNoteNumber,
   parseMidiMessage,
 } from './browser-midi-controller';
@@ -22,19 +21,13 @@ describe('browser MIDI controller', () => {
         { domainId: 'native-event', ms: 500 }, { domainId: 'native-event', ms: 500 }]);
     } finally { controller.dispose(); arrival.mockRestore(); }
   });
-  it('converts MIDI note numbers to scientific pitch notation', () => {
-    expect(midiNoteToPitch(60)).toBe('C4');
-    expect(midiNoteToPitch(69)).toBe('A4');
-    expect(midiNoteToPitch(21)).toBe('A0');
-    expect(midiNoteToPitch(108)).toBe('C8');
-  });
 
   it('parses note_on and note_off messages correctly', () => {
     // Note on: channel 0, pitch 60, velocity 100
     expect(parseMidiMessage(new Uint8Array([0x90, 60, 100]))).toEqual({
       type: 'NOTE_ON',
       noteNumber: 60,
-      pitch: 'C4',
+
       velocity: 100,
     });
 
@@ -42,7 +35,7 @@ describe('browser MIDI controller', () => {
     expect(parseMidiMessage(new Uint8Array([0x90, 60, 0]))).toEqual({
       type: 'NOTE_OFF',
       noteNumber: 60,
-      pitch: 'C4',
+
       velocity: 0,
     });
 
@@ -50,7 +43,7 @@ describe('browser MIDI controller', () => {
     expect(parseMidiMessage(new Uint8Array([0x80, 60, 64]))).toEqual({
       type: 'NOTE_OFF',
       noteNumber: 60,
-      pitch: 'C4',
+
       velocity: 0,
     });
   });
@@ -98,6 +91,6 @@ it.each([
     const withinWireRange = noteNumber <= 127;
     expect(isMidiNoteNumber(noteNumber)).toBe(withinWireRange);
     expect(parseMidiMessage(new Uint8Array([status, noteNumber, velocity]))).toEqual(withinWireRange
-      ? { type, noteNumber, pitch: midiNoteToPitch(noteNumber), velocity: type === 'NOTE_ON' ? velocity : 0 } : null);
+      ? { type, noteNumber, velocity: type === 'NOTE_ON' ? velocity : 0 } : null);
   }
 });

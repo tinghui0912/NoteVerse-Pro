@@ -1,26 +1,17 @@
 import type { PracticeTimebase, SessionTime } from '@/lib/practice/kernel/timebase';
 export type MidiAttackFact = Readonly<{
   sessionTime: SessionTime;
-  pitch: string;
+  noteNumber: number;
   confidence: 1;
 }>;
-
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
 export function isMidiNoteNumber(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= 127;
 }
 
-export function midiNoteToPitch(midiNote: number): string {
-  const octave = Math.floor(midiNote / 12) - 1;
-  const noteIndex = ((midiNote % 12) + 12) % 12;
-  return `${NOTE_NAMES[noteIndex]}${octave}`;
-}
-
 export type ParsedMidiMessage = {
   type: 'NOTE_ON' | 'NOTE_OFF';
   noteNumber: number;
-  pitch: string;
   velocity: number;
 };
 
@@ -37,7 +28,6 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
     return {
       type: 'NOTE_ON',
       noteNumber,
-      pitch: midiNoteToPitch(noteNumber),
       velocity,
     };
   }
@@ -45,7 +35,6 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
     return {
       type: 'NOTE_OFF',
       noteNumber,
-      pitch: midiNoteToPitch(noteNumber),
       velocity: 0,
     };
   }
@@ -59,7 +48,6 @@ export type BrowserMidiControllerOptions = {
   onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
-    pitch: string;
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
@@ -88,7 +76,6 @@ export class BrowserMidiController {
   private readonly onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
-    pitch: string;
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
@@ -179,15 +166,15 @@ export class BrowserMidiController {
     });
 
     if (parsed.type === 'NOTE_ON') {
-      this.handleNoteOn(parsed.pitch, sessionTime);
+      this.handleNoteOn(parsed.noteNumber, sessionTime);
     }
   }
 
-  private handleNoteOn(pitch: string, sessionTime: SessionTime): void {
+  private handleNoteOn(noteNumber: number, sessionTime: SessionTime): void {
     // A physical NOTE_ON fact; mode-specific consumers own grouping/evaluation.
     this.onAttack?.({
       sessionTime,
-      pitch,
+      noteNumber,
       confidence: 1,
     });
 

@@ -32,20 +32,20 @@ describe('production timing policy characterization', () => {
     const duration = timeline.beatToTimeMs(5) - timeline.beatToTimeMs(4);
     expect(duration).toBeCloseTo(60_000 / bpm, 8);
     for (const spacing of spacingGrid) {
-      const strikes = expectedPattern(timeline, [['C4'], ['C4']], spacing);
+      const strikes = expectedPattern(timeline, [[60], [60]], spacing);
       expect(strikes[1].expectedPerformanceTimeMs - strikes[0].expectedPerformanceTimeMs).toBeCloseTo(duration * spacing, 8);
     }
   });
   it.each([-251, -250, 250, 251])('keeps the inclusive direct boundary at offset %i', offsetMs => {
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4']], 1);
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60]], 1);
     const c = characterizeCase({ caseId: 'boundary', family: 'ISOLATED_NOTE', variant: 'CONTROL', bpm: 120,
       spacingBeats: 1, timeline, strikes, probes: [{ intendedStrikeId: strikes[0].strikeId, offsetMs }] });
     const legal = Math.abs(offsetMs) <= CONTINUOUS_ASSIGNMENT_WINDOW_MS;
     expect(c.observations[0].claimantCount).toBe(legal ? 1 : 0);
     expect(c.observations[0].assignmentKind).toBe(legal ? 'STRIKE_MATCH' : 'UNATTRIBUTED');
   });
-  it.each([0, 1])('exposes both repeated-pitch intended identities, legal claimants and neighbor sensitivity: %i', index => {
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4'], ['C4']], 0.5);
+  it.each([0, 1])('exposes both repeated-pianoKey intended identities, legal claimants and neighbor sensitivity: %i', index => {
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60], [60]], 0.5);
     const c = characterizeCase({ caseId: 'neighbor', family: 'REPEATED', variant: 'PROBE', bpm: 120,
       spacingBeats: 0.5, timeline, strikes, probes: [{ intendedStrikeId: strikes[index].strikeId, offsetMs: index === 0 ? 200 : -200 }] });
     expect(c.observations[0]).toMatchObject({ claimantCount: 2, claimantBucket: '2+', neighborMisassignment: true,
@@ -55,36 +55,36 @@ describe('production timing policy characterization', () => {
   it('marks an exact equal-distance tie and preserves chronological target tie despite input order', () => {
     const c = tieCase();
     expect(c.tag).toBe('TIE_CASE');
-    expect(c.observations[0]).toMatchObject({ assignedStrikeId: 'g0:C4', claimantCount: 2, timingOffsetMs: CONTINUOUS_ASSIGNMENT_WINDOW_MS });
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4'], ['C4']], 1).reverse();
+    expect(c.observations[0]).toMatchObject({ assignedStrikeId: 'g0:60', claimantCount: 2, timingOffsetMs: CONTINUOUS_ASSIGNMENT_WINDOW_MS });
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60], [60]], 1).reverse();
     const reversed = characterizeCase({ caseId: c.caseId, family: c.family, variant: c.variant, bpm: 120, spacingBeats: 1,
-      timeline, strikes, tag: 'TIE_CASE', probes: [{ intendedStrikeId: 'g1:C4', offsetMs: -CONTINUOUS_ASSIGNMENT_WINDOW_MS }] });
+      timeline, strikes, tag: 'TIE_CASE', probes: [{ intendedStrikeId: 'g1:60', offsetMs: -CONTINUOUS_ASSIGNMENT_WINDOW_MS }] });
     expect(reversed).toEqual(c);
   });
   it.each([1, 1.01])('derives cohort overlap from twice the production window: spacing %s beats', spacingBeats => {
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4'], ['C4']], spacingBeats);
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60], [60]], spacingBeats);
     const c = characterizeCase({ caseId: 'cohort', family: 'REPEATED', variant: 'CONTROL', bpm: 120,
       spacingBeats, timeline, strikes, probes: [] });
     expect(c.overlappingSamePitchGapCount).toBe(spacingBeats === 1 ? 1 : 0);
   });
   it('characterizes maximum cardinality before timing cost using the real finalizer', () => {
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4'], ['C4']], 0.5);
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60], [60]], 0.5);
     const c = characterizeCase({ caseId: 'cardinality', family: 'REPEATED', variant: 'CONTROL', bpm: 120, spacingBeats: 0.5,
-      timeline, strikes, probes: [{ intendedStrikeId: 'g0:C4', offsetMs: 100 }, { intendedStrikeId: 'g1:C4', offsetMs: -450 }] });
+      timeline, strikes, probes: [{ intendedStrikeId: 'g0:60', offsetMs: 100 }, { intendedStrikeId: 'g1:60', offsetMs: -450 }] });
     expect(c.matchedCount).toBe(2);
-    expect(c.observations.map(o => o.assignedStrikeId)).toEqual(['g1:C4', 'g0:C4']);
+    expect(c.observations.map(o => o.assignedStrikeId)).toEqual(['g1:60', 'g0:60']);
   });
   it('selects minimum total absolute timing error within maximum-cardinality matching', () => {
-    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [['C4'], ['C4']], 0.5);
+    const timeline = fixedTimeline(120), strikes = expectedPattern(timeline, [[60], [60]], 0.5);
     const c = characterizeCase({ caseId: 'cost', family: 'REPEATED', variant: 'CONTROL', bpm: 120, spacingBeats: 0.5,
-      timeline, strikes, probes: [{ intendedStrikeId: 'g0:C4', offsetMs: 10 }, { intendedStrikeId: 'g1:C4', offsetMs: -10 }] });
-    expect(c.observations.map(o => o.assignedStrikeId)).toEqual(['g0:C4', 'g1:C4']);
+      timeline, strikes, probes: [{ intendedStrikeId: 'g0:60', offsetMs: 10 }, { intendedStrikeId: 'g1:60', offsetMs: -10 }] });
+    expect(c.observations.map(o => o.assignedStrikeId)).toEqual(['g0:60', 'g1:60']);
     expect(c.observations.map(o => o.timingOffsetMs)).toEqual([10, -10]);
   });
-  it.each(tempoGrid)('retains exact-pitch chord support and non-target evidence at %i BPM', bpm => {
-    const timeline = fixedTimeline(bpm), strikes = expectedPattern(timeline, [['C4', 'E4', 'G4']], 1);
+  it.each(tempoGrid)('retains exact-pianoKey chord support and non-target evidence at %i BPM', bpm => {
+    const timeline = fixedTimeline(bpm), strikes = expectedPattern(timeline, [[60, 64, 67]], 1);
     const c = characterizeCase({ caseId: 'non-target', family: 'CHORD', variant: 'CONTROL', bpm, spacingBeats: 1,
-      timeline, strikes, probes: strikes.map(s => ({ intendedStrikeId: s.strikeId, offsetMs: 0, pitch: s.pitch === 'G4' ? 'A4' : s.pitch })) });
+      timeline, strikes, probes: strikes.map(s => ({ intendedStrikeId: s.strikeId, offsetMs: 0, pianoKey: s.pianoKey === 67 ? 69 : s.pianoKey })) });
     expect(c).toMatchObject({ matchedCount: 2, unmatchedCount: 1 });
     expect(c.observations[2]).toMatchObject({ assignmentKind: 'UNATTRIBUTED', assignedStrikeId: null, claimantCount: 0, timingOffsetMs: null });
   });

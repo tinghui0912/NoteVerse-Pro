@@ -1,18 +1,14 @@
+import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
-import { normalizePitchSet, pitchSetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPitchEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepTarget } from '@/lib/practice/step/domain/attempt';
+import { normalizePianoKeySet, pianoKeySetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPianoKeyEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepTarget } from '@/lib/practice/step/domain/attempt';
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
-import { attackPitchesForStep, continuationPitchesForStep, groupForStep } from './target';
+import { attackKeysForStep, continuationKeysForStep, groupForStep } from './target';
 
-const STEP_MAX_RAW_ATTACK_PITCH_ENTRIES = 128;
-const STEP_DOMAIN_PITCH = /^[A-G]#?-?\d$/;
-
-function isStepDomainPitch(value: unknown): value is string {
-  return typeof value === 'string' && STEP_DOMAIN_PITCH.test(value);
-}
+const STEP_MAX_RAW_ATTACK_KEY_ENTRIES = 128;
 
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
@@ -46,12 +42,6 @@ export class StepPracticeRuntime {
   constructor(private readonly options: StepPracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
     this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
-    for (let index = this.resolvedScope.startIndex; index <= this.resolvedScope.endIndex; index++) {
-      const targets = this.artifact.practiceAttackSteps[index].attackTargets;
-      // Artifact assertion already establishes distinct attack pitches.
-      if (targets.length < 1 || targets.length > STEP_MAX_RAW_ATTACK_PITCH_ENTRIES
-        || targets.some(target => !isStepDomainPitch(target.pitch))) throw new StepDomainError('STEP_TARGET_INVALID');
-    }
     this.inputSource = options.inputSource;
     this.currentIndex = this.resolvedScope.startIndex;
     this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
@@ -64,7 +54,7 @@ export class StepPracticeRuntime {
     const step = this.artifact.practiceAttackSteps[this.currentIndex];
     if (!step || this.completed || this.status !== 'ACTIVE') return null;
     return Object.freeze({ stepId: step.stepId, targetGeneration: this.generation, inputEligibleAfter: this.boundary,
-      attackPitches: Object.freeze(attackPitchesForStep(step)), continuationPitches: Object.freeze(continuationPitchesForStep(step)) });
+      attackKeys: Object.freeze(attackKeysForStep(step)), continuationKeys: Object.freeze(continuationKeysForStep(step)) });
   }
   openAttempt(start: SessionTime): StepAttemptIdentity | null {
     const target = this.currentTarget();
@@ -82,26 +72,26 @@ export class StepPracticeRuntime {
     if (!this.owns(identity) || this.attemptState !== 'CAPTURING') return false;
     this.attemptState = 'ANALYZING'; return true;
   }
-  completeAttempt(identity: StepAttemptIdentity, evidence: StepPitchEvidence): StepAttemptCompletion {
+  completeAttempt(identity: StepAttemptIdentity, evidence: StepPianoKeyEvidence): StepAttemptCompletion {
     if (!this.owns(identity) || this.attemptState !== 'ANALYZING') return Object.freeze({ kind: 'REJECTED', reason: 'STALE_ATTEMPT' });
     this.validateTime(evidence.captureEndSessionTime);
     if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     if (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
-      || !Array.isArray(evidence.observedAttackPitches) || evidence.observedAttackPitches.length < 1
-      || evidence.observedAttackPitches.length > STEP_MAX_RAW_ATTACK_PITCH_ENTRIES) {
+      || !Array.isArray(evidence.observedAttackKeys) || evidence.observedAttackKeys.length < 1
+      || evidence.observedAttackKeys.length > STEP_MAX_RAW_ATTACK_KEY_ENTRIES) {
       throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
-    const observed = evidence.observedAttackPitches;
+    const observed = evidence.observedAttackKeys;
     for (let index = 0; index < observed.length; index++) {
       if (!Object.hasOwn(observed, index)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
-      const pitch: unknown = observed[index];
-      if (!isStepDomainPitch(pitch)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+      const pianoKey: unknown = observed[index];
+      if (!isPracticePianoKey(pianoKey)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
     }
-    const normalized = normalizePitchSet(evidence.observedAttackPitches);
-    const pitches = Object.freeze([normalized[0], ...normalized.slice(1)] as const);
-    const expected = this.currentTarget()!.attackPitches;
-    const verdict = pitchSetsEqual(pitches, expected) ? 'MATCH' : 'MISMATCH';
-    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
+    const normalized = normalizePianoKeySet(evidence.observedAttackKeys);
+    const pianoKeys = Object.freeze([normalized[0], ...normalized.slice(1)] as const);
+    const expected = this.currentTarget()!.attackKeys;
+    const verdict = pianoKeySetsEqual(pianoKeys, expected) ? 'MATCH' : 'MISMATCH';
+    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackKeys: pianoKeys,
       confidence: evidence.confidence, captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }) });
     this.active = null; this.attemptState = 'POST_VERDICT';
     this.pendingPostVerdict = record;

@@ -1,12 +1,12 @@
 import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
-import type { StepPitchEvidence } from '@/lib/practice/step/domain/attempt';
+import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import { isAcousticDomainIdentity, SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 
 export const STEP_ACOUSTIC_GESTURE_MS = 50;
 
 export type StepAcousticAttemptSink<Identity> = Readonly<{
   open(time: SessionTime): Identity | null;
-  complete(identity: Identity, evidence: StepPitchEvidence): void;
+  complete(identity: Identity, evidence: StepPianoKeyEvidence): void;
 }>;
 export type StepAcousticAssemblerOptions<Identity> = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: 44100 | 48000; localSessionId: string;
@@ -14,7 +14,7 @@ export type StepAcousticAssemblerOptions<Identity> = Readonly<{
 }>;
 export type SealedStepAcousticGesture = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: number; anchorSourceSample: number; endSourceSample: number;
-  observations: readonly SourceAcousticObservation[]; evidence: StepPitchEvidence;
+  observations: readonly SourceAcousticObservation[]; evidence: StepPianoKeyEvidence;
 }>;
 type Active<Identity> = {
   identity: Identity; anchor: number; end: number; observations: Map<string, SourceAcousticObservation>;
@@ -91,10 +91,10 @@ export class StepAcousticAttemptAssembler<Identity> {
       if (this.frontier < active.end) return null;
       if (!active.observations.size) this.fail('STEP_ACOUSTIC_EMPTY_GESTURE');
       const bounded = Object.freeze([...active.observations.values()].sort(order));
-      const [firstPitch, ...otherPitches] = [...new Set(bounded.map(o => o.pitch))].sort();
-      if (firstPitch === undefined) this.fail('STEP_ACOUSTIC_EMPTY_GESTURE');
-      const evidence: StepPitchEvidence = Object.freeze({
-        observedAttackPitches: Object.freeze([firstPitch, ...otherPitches] as const),
+      const [firstKey, ...otherKeys] = [...new Set(bounded.map(o => o.midiPitch))].sort((a, b) => a - b);
+      if (firstKey === undefined) this.fail('STEP_ACOUSTIC_EMPTY_GESTURE');
+      const evidence: StepPianoKeyEvidence = Object.freeze({
+        observedAttackKeys: Object.freeze([firstKey, ...otherKeys] as const),
         confidence: Math.min(...bounded.map(o => o.confidence)),
         captureEndSessionTime: Object.freeze(this.timebase.sampleIndexToSessionTime(active.end)) });
       const sealed = Object.freeze({ sourceDomainId: this.sourceDomainId, sourceSampleRateHz: this.sourceRate,

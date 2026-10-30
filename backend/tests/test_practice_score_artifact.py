@@ -36,23 +36,23 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
         score_tempo_segments=(PracticeTempoSegment(0.0, 120.0), PracticeTempoSegment(3.0, 90.0)),
     )
 
-    assert artifact["schemaVersion"] == 1
-    assert artifact["artifactId"] == "practice-score-artifact:ec2262af8d689ffb"
+    assert artifact["schemaVersion"] == 2
+    assert artifact["artifactId"] == "practice-score-artifact:7b0516d2970f8726"
     assert artifact["scoreTempoSegments"] == [
         {"startBeat": 0.0, "bpm": 120.0},
         {"startBeat": 3.0, "bpm": 90.0},
     ]
     assert artifact["scoreId"] == "canonical-local-core-score"
     assert artifact["revisionId"] == "canonical-local-core-revision"
-    assert [group["pitches"] for group in artifact["expectedPracticeGroups"]] == [
-        ["C4"],
-        ["C4"],
-        ["G4"],
-        ["A4", "C5"],
-        ["D5"],
+    assert [group["pianoKeys"] for group in artifact["expectedPracticeGroups"]] == [
+        [60],
+        [60],
+        [67],
+        [69, 72],
+        [74],
     ]
     assert artifact["expectedPracticeGroups"][2]["canonicalEndBeat"] == 4.5
-    assert artifact["practiceAttackSteps"][3]["continuation"][0]["pitch"] == "G4"
+    assert artifact["practiceAttackSteps"][3]["continuation"][0]["pianoKey"] == 67
     assert artifact["meterSegments"] == [
         {
             "startBeat": 0.0,
@@ -71,25 +71,13 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
             "source": "MUSICXML",
         },
     ]
-def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
-    artifact = practice_score_artifact_from_timeline(
-        PracticeScoreTimeline(
-            events=(),
-            entry_groups=(),
-            first_playable_event_id=None,
-            first_playable_beat=None,
-            end_beat=0.0,
-            meter_segments=(),
-        ),
-        score_id="empty-score",
-        revision_id="empty-revision",
-        score_tempo_segments=(),
-    )
-
-    assert artifact["schemaVersion"] == 1
-    assert artifact["scoreTempoSegments"] == []
-    assert artifact["firstPlayableBeat"] is None
-    assert artifact["expectedPracticeGroups"] == []
+def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
+    import pytest
+    from app.processing.practice_score.piano_key import PracticeScoreInvalidError
+    timeline = PracticeScoreTimeline(events=(), entry_groups=(), first_playable_event_id=None,
+                                    first_playable_beat=None, end_beat=0.)
+    with pytest.raises(PracticeScoreInvalidError):
+        practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
 
 
 def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
@@ -319,32 +307,12 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         )
 
 
-def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
-    import pytest
+def test_practice_score_artifact_read_schema2_only() -> None:
+    import json, os, pytest
     from pydantic import ValidationError
     from app.modules.practice.source_schemas import PracticeScoreArtifactRead
-
-    base_payload = {
-        "scoreId": "s-1",
-        "revisionId": "r-1",
-        "artifactId": "practice-score-artifact:abc",
-        "firstPlayableBeat": None,
-        "scoreEndBeat": 10.0,
-        "scoreTempoSegments": [],
-        "meterSegments": [],
-        "playableEvents": [],
-        "expectedPracticeGroups": [],
-        "practiceAttackSteps": [],
-    }
-
-    # schemaVersion 1 must succeed
-    valid = PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 1})
-    assert valid.schemaVersion == 1
-
-    # schemaVersion 2 must be rejected
+    root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
+    value = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
+    assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 2
     with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 2})
-
-    # schemaVersion 3 must be rejected
-    with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 3})
+        PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 1})

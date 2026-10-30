@@ -89,6 +89,7 @@ class NotificationErrorCode:
 
 
 class PracticeErrorCode:
+    PRACTICE_SCORE_INVALID = "practice_score_invalid"
     PRACTICE_SOURCE_FAILED = "practice_source_failed"
     PRACTICE_SCOPE_INVALID = "practice_scope_invalid"
     NO_PRACTICE_ACCESS = "no_practice_access"

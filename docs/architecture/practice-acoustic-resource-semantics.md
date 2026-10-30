@@ -1,5 +1,19 @@
 # Practice Acoustic Resource and Liveness Semantics
 
+## Round57 current contract
+
+The [canonical piano-key contract](practice-piano-key-contract.md) supersedes the
+historical STEP string-language/selected-scope discussion below. Artifact2 is
+revision-wide Practice-ready with physical keys21..108, independently of source,
+mode and scope. STEP9/v12 and Result7 replace prior development shapes without
+compatibility readers. Raw128 remains unqualified and is not derived from88.
+The selected acoustic source bytes, canonical core and adapter composite identities
+are unchanged; only non-attested Practice projections consume midiPitch numerically.
+Source pitch-name metadata still belongs to the independent acoustic contract.
+Timing/resource values and evidence-provenance shape are unchanged. Earlier named
+rounds below describe their audited baseline, not a second current product contract.
+
+
 Round 23 characterizes approved baseline
 `51a8616753e01451673cf53c5ba58adcf3476861`. It complements the
 [parameter provenance ledger](practice-acoustic-parameter-provenance.md) without
@@ -248,7 +262,7 @@ Result schema6 or provenance shape changes.
 
 ### Round55 — resolved-scope compatibility, unchanged raw-work qualification
 
-The [STEP implementation state](practice-step-domain-pitch-contract.md#round55-current-state--selected-scope-target-compatibility-enforced)
+The [STEP implementation state](practice-piano-key-contract.md#round55-current-state--selected-scope-target-compatibility-enforced)
 enforces Round54's theorem in the STEP constructor after whole-artifact assertion
 and inclusive scope resolution, before ordinary session initialization. Selected
 attack sets must be nonempty D280 with distinct count<=the existing raw evidence
@@ -281,7 +295,7 @@ unimplemented guard and then-future bucket are historical.
 
 ### Round54 — target/evidence compatibility follows from the existing contract
 
-The [STEP domain audit](practice-step-domain-pitch-contract.md#round54-historical-audit--step-targetevidence-satisfiability)
+The [STEP domain audit](practice-piano-key-contract.md#round54-historical-audit--step-targetevidence-satisfiability)
 proves that an artifact-admitted normalized distinct attack set T has legal direct
 matching evidence exactly when T is nonempty, lies in D280, and has at most128
 members. Legal evidence is an ordinary dense1..128-entry D280 array; normalization
@@ -355,7 +369,7 @@ not learner, device, memory-headroom or recognition qualification.
 
 ### Round52 — historical dense own-entry evidence correction
 
-The [domain companion](practice-step-domain-pitch-contract.md) records a narrow
+The [domain companion](practice-piano-key-contract.md) records a narrow
 direct-array shape correction. completeAttempt checks every index after its existing
 raw128 gate, requiring an own property and a primitive string matching the unchanged
 domain regex. Missing/inherited-only entries now fail STEP_ATTEMPT_EVIDENCE_INVALID;
@@ -380,7 +394,7 @@ S09/S10/S15 states remain unchanged; no learner/device/resource qualification fo
 
 ### Round51 — historical exact STEP set comparison correction
 
-The [domain companion](practice-step-domain-pitch-contract.md) records the implemented
+The [domain companion](practice-piano-key-contract.md) records the implemented
 Round50 recommendation. pitchSetsEqual compares the lengths/elements of normalized
 arrays directly, with unchanged normalizePitchSet Set+sort behavior. No serialization
 delimiter, hash or canonicalization is used. Different sets C4<U+001F>E4 versus
@@ -404,7 +418,7 @@ S09/S10/S15 remain unchanged. No workload, learner, recognition or timing qualif
 
 ### Round50 — historical domain pitch-language/raw-work audit
 
-The [domain contract audit](practice-step-domain-pitch-contract.md) distinguishes
+The [domain contract audit](practice-piano-key-contract.md) distinguishes
 backend physical-name generation, API/browser structural consistency, canonical
 MIDI128/acoustic88 source identities, domain D280 syntax, exact-string normalization
 and raw-entry work admission. Browser/API artifacts can consistently admit strings

@@ -18,7 +18,7 @@ describe('session-level evidence identity', () => {
         sourceSampleRateHz: rate, sourceAdapterIdentitySha256: sourceIdentity(rate).identitySha256 });
       const parsed: unknown = JSON.parse(JSON.stringify(result));
       expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
-      expect(result.schemaVersion).toBe(6);
+      expect(result.schemaVersion).toBe(7);
       expect(ACOUSTIC_ANALYSIS_IDENTITY.identityName).toBe(acousticCoreIdentity.identityName);
       expect(Object.isFrozen(ACOUSTIC_ANALYSIS_IDENTITY)).toBe(true);
     }
@@ -71,7 +71,7 @@ describe('session-level evidence identity', () => {
       parsed.evidenceProvenance.acousticCoreIdentitySha256 = '0fb6c699928908462d377145882f6ad01544e3385b865b9a8a23192e7faee644';
       parsed.evidenceProvenance.sourceAdapterIdentitySha256 = adapter;
       expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
-      expect(() => assertContinuousPerformanceResult(current)).not.toThrow(); expect(current.schemaVersion).toBe(6);
+      expect(() => assertContinuousPerformanceResult(current)).not.toThrow(); expect(current.schemaVersion).toBe(7);
       expect(Object.keys(parsed.evidenceProvenance)).toEqual(Object.keys(current.evidenceProvenance));
     }
   });

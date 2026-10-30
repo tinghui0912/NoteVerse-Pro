@@ -18,22 +18,22 @@ it.each([[99, 1001], [101, 999], [-1, 1001], [101, -1], [Infinity, 1001], [101, 
   expect(() => store.accept(publication('invalid', frontier, available), false)).toThrow('INVALID_PUBLICATION');
 });
 
-const obs = (observationId: string, time: number, pitch = 'C4') => ({ observationId, pitch, performanceTimeMs: time, confidence: 1, source: 'MIDI' as const });
+const obs = (observationId: string, time: number, pianoKey = 60) => ({ observationId, pianoKey, performanceTimeMs: time, confidence: 1, source: 'MIDI' as const });
 const retainedState = (store: ContinuousEvidenceStore) => ({ frontier: store.analyzedThrough, availability: store.availableSessionTimeMs,
   observations: store.values(), observationCount: store.observationCount, publicationCount: store.publicationCount });
 
-it('time/pitch indexes preserve inclusive endpoints and the full canonical retained order across publications', () => {
+it('time/pianoKey indexes preserve inclusive endpoints and the full canonical retained order across publications', () => {
   const store = new ContinuousEvidenceStore('axes');
-  store.accept({ ...publication('first', 20, 25), observations: [obs('b', 10), obs('a', 20, 'D4')] }, false);
+  store.accept({ ...publication('first', 20, 25), observations: [obs('b', 10), obs('a', 20, 62)] }, false);
   const earlier = store.values();
-  store.accept({ ...publication('next', 40, 45), observations: [obs('d', 40), obs('c', 30, 'E4')] }, false);
+  store.accept({ ...publication('next', 40, 45), observations: [obs('d', 40), obs('c', 30, 64)] }, false);
   expect(store.values().map(o => o.observationId)).toEqual(['a', 'b', 'c', 'd']);
   expect(earlier.map(o => o.observationId)).toEqual(['a', 'b']);
   expect(store.inRange(10, 30).map(o => o.observationId)).toEqual(['b', 'a', 'c']);
-  expect(store.inRange(10, 40, 'C4').map(o => o.observationId)).toEqual(['b', 'd']);
-  expect(store.inRange(20, 20, 'D4').map(o => o.observationId)).toEqual(['a']);
-  expect(store.inRange(10, 40, 'F4')).toEqual([]);
-  expect(store.observation('c')).toEqual(obs('c', 30, 'E4'));
+  expect(store.inRange(10, 40, 60).map(o => o.observationId)).toEqual(['b', 'd']);
+  expect(store.inRange(20, 20, 62).map(o => o.observationId)).toEqual(['a']);
+  expect(store.inRange(10, 40, 65)).toEqual([]);
+  expect(store.observation('c')).toEqual(obs('c', 30, 64));
   expect(Object.isFrozen(store.values())).toBe(true); expect(store.values().every(Object.isFrozen)).toBe(true);
   const query = store.inRange(10, 40) as ReturnType<typeof obs>[];
   query.pop(); expect(store.observationCount).toBe(4); expect(store.values()).toHaveLength(4);
@@ -52,7 +52,7 @@ it('compact receipts compare exact header, membership and retained provenance wi
     { ...obs('b', 20), provenance: { sourceDomainId: 'source', sourceSampleRateHz: 48000, sourceEventSample: 4 } }] };
   store.accept(value, false); const before = retainedState(store);
   const mutations: ((v: typeof value) => void)[] = [
-    v => { v.observations[0].provenance.sourceEventSample++; }, v => { v.observations[0].pitch = 'D4'; },
+    v => { v.observations[0].provenance.sourceEventSample++; }, v => { v.observations[0].pianoKey = 62; },
     v => { v.observations[0].confidence = .5; }, v => { v.observations[0].performanceTimeMs++; },
     v => { v.availabilitySessionTimeMs++; }, v => { v.analyzedThroughPerformanceMs++; },
     v => { v.sessionDomainId = 'foreign'; }, v => { v.observations.pop(); },

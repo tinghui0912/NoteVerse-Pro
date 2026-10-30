@@ -1,3 +1,5 @@
+import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { ContinuousEvaluationError } from './evaluation-error';
 import { immutableContinuousValue } from './immutable-value';
 import type { ContinuousEvidencePublication, ContinuousObservation } from './evidence-types';
@@ -14,7 +16,7 @@ function canonical(value: unknown): string {
 type PublicationReceipt = Readonly<{ sessionDomainId: string; analyzedThroughPerformanceMs: number;
   availabilitySessionTimeMs: number; headerIdentity: string; observationIds: readonly string[] }>;
 export type PreparedContinuousEvidence = Readonly<{ publication: ContinuousEvidencePublication;
-  byTime: readonly ContinuousObservation[]; byPitch: ReadonlyMap<string, readonly ContinuousObservation[]>; receipt: PublicationReceipt }>;
+  byTime: readonly ContinuousObservation[]; byKey: ReadonlyMap<PracticePianoKey, readonly ContinuousObservation[]>; receipt: PublicationReceipt }>;
 
 /** Evidence retention and local indexes, without score/assignment knowledge. */
 export class ContinuousEvidenceStore {
@@ -22,7 +24,7 @@ export class ContinuousEvidenceStore {
   private readonly observations = new Map<string, ContinuousObservation>();
   private readonly retained: ContinuousObservation[] = [];
   private readonly byTime: ContinuousObservation[] = [];
-  private readonly byPitch = new Map<string, ContinuousObservation[]>();
+  private readonly byKey = new Map<PracticePianoKey, ContinuousObservation[]>();
   private frontier = -Infinity;
   private availability = -Infinity;
 
@@ -35,8 +37,8 @@ export class ContinuousEvidenceStore {
   get publicationCount(): number { return this.publications.size; }
   observation(id: string): ContinuousObservation | undefined { return this.observations.get(id); }
   values(): readonly ContinuousObservation[] { return Object.freeze([...this.retained]); }
-  inRange(start: number, end: number, pitch?: string): readonly ContinuousObservation[] {
-    return observationsInRange(pitch === undefined ? this.byTime : this.byPitch.get(pitch) ?? [], start, end);
+  inRange(start: number, end: number, pianoKey?: PracticePianoKey): readonly ContinuousObservation[] {
+    return observationsInRange(pianoKey === undefined ? this.byTime : this.byKey.get(pianoKey) ?? [], start, end);
   }
   accept(input: ContinuousEvidencePublication, closed: boolean): ContinuousEvidencePublication | null {
     const prepared = this.prepare(input, closed);
@@ -66,7 +68,7 @@ export class ContinuousEvidenceStore {
       || !Number.isFinite(availability) || availability < 0 || availability < this.availability) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
     const incoming = new Set<string>();
     for (const observation of input.observations) {
-      if (!observation.observationId || !observation.pitch || !Number.isFinite(observation.performanceTimeMs)
+      if (!observation.observationId || !isPracticePianoKey(observation.pianoKey) || !Number.isFinite(observation.performanceTimeMs)
         || observation.performanceTimeMs < 0 || observation.performanceTimeMs > frontier
         || !Number.isFinite(observation.confidence) || observation.confidence < 0 || observation.confidence > 1
         || !['MIDI', 'ACOUSTIC'].includes(observation.source)) throw new ContinuousEvaluationError('INVALID_PUBLICATION');
@@ -82,23 +84,23 @@ export class ContinuousEvidenceStore {
     const publication = immutableContinuousValue(structuredClone({ ...input, observations: [...input.observations]
       .sort((a, b) => compareContinuousId(a.observationId, b.observationId)) }));
     const byTime = [...publication.observations].sort((a, b) => a.performanceTimeMs - b.performanceTimeMs || compareContinuousId(a.observationId, b.observationId));
-    const byPitch = new Map<string, ContinuousObservation[]>();
-    for (const o of byTime) { const bucket = byPitch.get(o.pitch) ?? []; bucket.push(o); byPitch.set(o.pitch, bucket); }
+    const byKey = new Map<PracticePianoKey, ContinuousObservation[]>();
+    for (const o of byTime) { const bucket = byKey.get(o.pianoKey) ?? []; bucket.push(o); byKey.set(o.pianoKey, bucket); }
     const receipt = Object.freeze({ sessionDomainId: publication.sessionDomainId,
       analyzedThroughPerformanceMs: publication.analyzedThroughPerformanceMs, availabilitySessionTimeMs: publication.availabilitySessionTimeMs,
       headerIdentity: canonical({ ...publication, observations: undefined }),
       observationIds: Object.freeze(publication.observations.map(o => o.observationId)) });
-    return { publication, byTime, byPitch, receipt };
+    return { publication, byTime, byKey, receipt };
   }
   /** Called only after the entire assignment plan has succeeded. */
   retain(prepared: PreparedContinuousEvidence): void {
-    const { publication, byTime, byPitch } = prepared;
+    const { publication, byTime, byKey } = prepared;
     for (const o of publication.observations) { this.observations.set(o.observationId, o); this.retained.push(o); }
     for (const observation of byTime) this.byTime.push(observation);
-    for (const [pitch, batch] of byPitch) {
-      const bucket = this.byPitch.get(pitch) ?? [];
+    for (const [pianoKey, batch] of byKey) {
+      const bucket = this.byKey.get(pianoKey) ?? [];
       for (const observation of batch) bucket.push(observation);
-      this.byPitch.set(pitch, bucket);
+      this.byKey.set(pianoKey, bucket);
     }
     this.publications.set(publication.publicationId, prepared.receipt);
     this.frontier = publication.analyzedThroughPerformanceMs; this.availability = publication.availabilitySessionTimeMs;

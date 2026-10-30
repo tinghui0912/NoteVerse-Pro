@@ -13,10 +13,13 @@ import { browserMicrophoneCapture } from '@/lib/practice/acoustic/source/browser
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 
+const admission = vi.hoisted(() => ({ invalid: false }));
+vi.mock('@/hooks/practice/use-practice-source', () => ({ usePracticeSource: () => ({ revisionId: 'revision-id', invalid: admission.invalid,
+  artifact: admission.invalid ? null : {}, artifactQuery: { isError: admission.invalid } }) }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }),
   useSearchParams: () => new URLSearchParams('practiceRevisionId=revision-id'), useRouter: () => navigation }));
-afterEach(() => { localStorage.clear(); navigation.replace.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { admission.invalid = false; localStorage.clear(); navigation.replace.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 function setup() {
   const platform = { modelUrl: vi.fn(), createEngine: vi.fn(),
     probe: vi.fn(async (requirements: readonly string[], ready: (key: never) => void) => requirements.forEach(key => ready(key as never))) };
@@ -123,4 +126,21 @@ it('direct Setup render with already READY shared evidence has only Prepare and 
   await act(async()=>{fireEvent.click(screen.getByRole('button',{name:messages.setupPrepare}));});
   expect(probe).toHaveBeenCalledTimes(2);
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
+});
+
+it('invalid revision blocks every mode/input configuration before any environment or device preparation', async () => {
+  admission.invalid = true; const r = setup();
+  const midi = vi.fn(), media = vi.fn(); vi.stubGlobal('navigator', { requestMIDIAccess: midi, mediaDevices: { getUserMedia: media } });
+  expect(screen.getByRole('alert')).toHaveTextContent('This score cannot be used for Practice.');
+  for (const mode of ['Step-by-step', 'Continuous play']) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(mode) }));
+    for (const input of ['MIDI keyboard', 'Microphone']) {
+      fireEvent.click(screen.getByRole('button', { name: input }));
+      const prepare = screen.getByRole('button', { name: 'Prepare practice' });
+      expect(prepare).toBeDisabled(); fireEvent.click(prepare);
+    }
+  }
+  await act(async () => {});
+  expect(r.platform.probe).not.toHaveBeenCalled(); expect(r.platform.createEngine).not.toHaveBeenCalled();
+  expect(midi).not.toHaveBeenCalled(); expect(media).not.toHaveBeenCalled(); expect(navigation.replace).not.toHaveBeenCalled();
 });

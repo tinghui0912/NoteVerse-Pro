@@ -17,7 +17,7 @@ import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 function stepRecord(verdict: 'MATCH' | 'MISMATCH'): StepAttemptRecord {
   const evidence = { attemptId: 'attempt', localSessionId: 'step', stepId: 'target', targetGeneration: 1,
     inputSource: 'MICROPHONE' as const, attemptStartSessionTime: { domainId: 'step', ms: 100 },
-    observedAttackPitches: ['C4','E4','G4'] as const, confidence: .8, captureEndSessionTime: { domainId: 'step', ms: 150 } };
+    observedAttackKeys: [60,64,67] as const, confidence: .8, captureEndSessionTime: { domainId: 'step', ms: 150 } };
   return { ...evidence, verdict };
 }
 
