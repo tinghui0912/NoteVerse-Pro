@@ -1,3 +1,6 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, it } from 'vitest';
 import canonical from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
@@ -6,7 +9,7 @@ import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view
 import { resolvePracticeScope } from './scope';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
 import { ManualClock } from './timebase';
-import { buildContinuousExpectedStrikes } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
+import { buildContinuousExpectedStrikesFromTimeline } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
 const fixture = canonical as PracticeScoreArtifact;
 function unison(): PracticeScoreArtifact {
   const value = structuredClone(fixture), upper = value.notes[0];
@@ -16,7 +19,8 @@ function unison(): PracticeScoreArtifact {
   return value;
 }
 function strikes(artifact: PracticeScoreArtifact) {
-  return buildContinuousExpectedStrikes({ artifact, tempoSelection: { mode: 'SCORE' }, scope: { kind: 'FULL' } });
+  const plan = continuousSessionPlan(artifact);
+  return buildContinuousExpectedStrikesFromTimeline(artifact, new PracticeTempoTimeline(plan.tempoPlan, artifact.scoreEndBeat), plan.scope);
 }
 describe('one canonical Practice note graph and moment sequence', () => {
   it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
@@ -34,7 +38,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
     const attack = value.moments[0].attacks[0];
     expect(attack.noteIds).toHaveLength(2);
     expect(notesForIds(value, attack.noteIds).map(n => n.renderNoteId)).toEqual(['n1','lower-render']);
-    const runtime = new StepPracticeRuntime({ artifact: value, scope: { kind: 'FULL' }, inputSource: 'MIDI', clock: new ManualClock(), localSessionId: 'unison' });
+    const runtime = new StepPracticeRuntime({ ...stepSessionPlan(value, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock(), localSessionId: 'unison' });
     expect(runtime.currentTarget()).toMatchObject({ stepId: value.moments[0].groupId, attackKeys: [60] });
     const time = (ms: number) => ({ domainId: 'unison', ms });
     const id = runtime.openAttempt(time(1))!; runtime.analyzeAttempt(id);
@@ -57,7 +61,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
     expect(strikes(tied).filter(s => s.groupId === moment.groupId).map(s => s.pianoKey)).toEqual([69,72]);
     // The canonical graph still resolves all continuation render facts for cursor consumers.
     expect(continuation.map(n => n.renderNoteId)).toEqual(['n4']);
-    const runtime = new StepPracticeRuntime({ artifact: tied, scope: { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId }, inputSource: 'MICROPHONE', clock: new ManualClock() });
+    const runtime = new StepPracticeRuntime({ ...stepSessionPlan(tied, { scope: { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId }, inputSource: 'MICROPHONE' }), clock: new ManualClock() });
     expect(runtime.currentTarget()).toMatchObject({ attackKeys: [69,72], continuationKeys: [67] });
   });
   it('FULL and RANGE use the same valid graph and canonical group identity', () => {
@@ -107,5 +111,5 @@ it.each(corruptions)('rejects %s without coercion, repair or mutation', (_label,
 it.each([20,109,60.5,NaN,Infinity,true,'60','C4'])('rejects a later unselected invalid key %s revision-wide', key => {
   const value = structuredClone(fixture); Object.assign(value.notes.at(-1)!, { pianoKey: key });
   expect(() => assertPracticeScoreArtifact(value)).toThrow();
-  for (const inputSource of ['MIDI','MICROPHONE'] as const) expect(() => new StepPracticeRuntime({ artifact: value, scope: { kind: 'RANGE', startGroupId: value.moments[0].groupId, endGroupId: value.moments[0].groupId }, inputSource, clock: new ManualClock() })).toThrow();
+  for (const inputSource of ['MIDI','MICROPHONE'] as const) expect(() => new StepPracticeRuntime({ ...stepSessionPlan(value, { scope: { kind: 'RANGE', startGroupId: value.moments[0].groupId, endGroupId: value.moments[0].groupId }, inputSource: inputSource }), clock: new ManualClock() })).toThrow();
 });

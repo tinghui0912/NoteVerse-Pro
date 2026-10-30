@@ -1,5 +1,5 @@
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
-import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { RuntimeVersionIdentity } from '@/lib/practice/kernel/timebase';
 
 export type PracticeMode = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
@@ -17,8 +17,9 @@ export type LocalPracticeSessionBase = {
   artifactId: string;
   mode: PracticeMode;
   inputSource: PracticeInputSource;
-  practiceScope: PracticeScope;
-  tempoSelection: PracticeTempoSelection;
+  sourceId: string;
+  scope: Readonly<ResolvedPracticeScope>;
+  tempoPlan: ResolvedPracticeTempoPlan;
   metronomeEnabled: boolean;
   completionReason: LocalPracticeCompletionReason | null;
   version: RuntimeVersionIdentity;

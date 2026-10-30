@@ -10,7 +10,7 @@ import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/eval
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 
 type ContinuousEvaluationClock = {
   beatToTimeMs(beat: number): number;
@@ -19,7 +19,7 @@ type ContinuousEvaluationClock = {
 export type ContinuousEvaluationSessionOptions = {
   artifact: PracticeScoreArtifact;
   timeline: ContinuousEvaluationClock;
-  scope: PracticeScope;
+  scope: Readonly<ResolvedPracticeScope>;
   sessionDomainId: string;
   inputSource: PracticeInputSource;
 };
@@ -31,9 +31,8 @@ export class ContinuousEvaluationSession {
 
   constructor(options: ContinuousEvaluationSessionOptions) {
     this.inputSource = options.inputSource;
-    const scope = resolvePracticeScope(options.artifact, options.scope);
     this.finalizer = new ContinuousAssignmentFinalizer(options.sessionDomainId,
-      buildContinuousExpectedStrikesFromTimeline(options.artifact, options.timeline, scope));
+      buildContinuousExpectedStrikesFromTimeline(options.artifact, options.timeline, options.scope));
   }
 
   publish(publication: ContinuousEvidencePublication): void {

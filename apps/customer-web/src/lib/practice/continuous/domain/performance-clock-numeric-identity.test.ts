@@ -1,3 +1,4 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { PerformanceClockRuntime } from '@/lib/practice/continuous/domain/performance-clock';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -23,12 +24,7 @@ function setup(origin = 0, countInBeats = 0, scoreEndBeat = 1000000, clock = new
   base.moments.at(-1)!.canonicalEndBeat = scoreEndBeat;
   const artifact: PracticeScoreArtifact = { ...base,
     scoreEndBeat, scoreTempoSegments: [{ startBeat: 0, bpm: 120 }] };
-  const runtime = new PerformanceClockRuntime({ artifact,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats,
-      timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }),
-      tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
+  const runtime = new PerformanceClockRuntime({ artifact, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInBeats, timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }), tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
   return { clock, runtime };
 }
 

@@ -1,3 +1,4 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
@@ -306,11 +307,7 @@ it('real assignment finalizer retains source-blind ownership from the model-agno
 });
 
 it('sink calls ContinuousPracticeSession.publishAnalysis; analysis delay/failure never changes playhead or pause ownership', async () => {
-  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ artifact: canonicalArtifact as PracticeScoreArtifact,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-      inputSource: 'MICROPHONE' });
+  const clock = new ManualClock(0), session = new ContinuousPracticeSession({ ...continuousSessionPlan(canonicalArtifact as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock, countInBeats: 0 });
   session.start(); clock.advance(1200);
   const before = session.clock.snapshot();
   const port: AcousticInferencePort = { run: async input => result(input), dispose: async () => {} };
@@ -372,8 +369,7 @@ it('MIDI and acoustic publish the same independent session-availability / perfor
 
 it('analysis delay changes only knowledge finalization, never event timing, assignment or metrics', () => {
   const evaluate = (available: number) => {
-    const session = new ContinuousEvaluationSession({ artifact: canonicalArtifact as PracticeScoreArtifact, inputSource: 'MICROPHONE',
-      scope: { kind: 'FULL' }, sessionDomainId: 'delayed', timeline: { beatToTimeMs: beat => beat * 500 } });
+    const session = new ContinuousEvaluationSession({ artifact: canonicalArtifact as PracticeScoreArtifact, inputSource: 'MICROPHONE', scope: continuousSessionPlan(canonicalArtifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'delayed', timeline: { beatToTimeMs: beat => beat * 500 } });
     const window = { jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: 32000, ownedEndTarget: 41600, startSample: 15200, endSample: 44320 };
     const publication = projectContinuousEvidence(sourcePublication('source', 48000, 0, window,
       { events: [{ midiPitch: 60, pitch: 'C4', confidence: .42, onsetScore: .8, frameScore: .8, targetSample: 33600 }],

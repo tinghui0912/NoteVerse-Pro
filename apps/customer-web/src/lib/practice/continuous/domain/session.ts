@@ -1,5 +1,4 @@
 import type { LocalPracticeSessionBase } from '@/lib/practice/kernel/session';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
 export type ContinuousPracticeLifecycle =
   | 'READY'
@@ -13,9 +12,6 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
   performance: {
     state: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
     stateBeforePause: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
-    resolvedTempoPlan: ResolvedPracticeTempoPlan;
-    scopeStartBeat: number;
-    scopeTerminalBeat: number;
     activeElapsedMs: number;
     countInMs: number;
     countInBeats: number;

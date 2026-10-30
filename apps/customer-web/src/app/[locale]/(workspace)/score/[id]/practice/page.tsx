@@ -30,7 +30,8 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
+import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
 import { projectPracticeMomentViews, type PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import {
   evaluatePracticeInputCapabilities,
@@ -118,11 +119,18 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const range = usePracticeRangeSelection(expectedGroups, workspace.scope, workspace.setScope);
   const { practiceScope, selectedRangeRenderNoteIds } = range;
 
-  const resolvedScope = useMemo(() => {
-    if (!artifact || expectedGroups.length === 0) return null;
-    if (!practiceScope) return null;
-    return resolvePracticeScope(artifact, practiceScope);
-  }, [artifact, expectedGroups.length, practiceScope]);
+  const [planPracticeSession] = useState(createPracticeSessionPlanner);
+  const configuration = workspace.configuration;
+  const executionIntent = useMemo<PracticeExecutionIntent | null>(() => {
+    if (!configuration || !practiceScope) return null;
+    return Object.freeze({ mode: configuration.mode, inputSource: configuration.inputSource,
+      recordingMode: configuration.recordingMode, scope: Object.freeze({ ...practiceScope }),
+      tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeExecutionIntent;
+  }, [configuration, practiceScope, tempoSelection, metronomeEnabled]);
+  const plan = useMemo(() => artifact && source.sourceId && executionIntent
+    ? planPracticeSession({ sourceId: source.sourceId, artifact }, executionIntent) : null,
+    [artifact, source.sourceId, executionIntent, planPracticeSession]);
+  const resolvedScope = plan?.scope ?? null;
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
@@ -134,13 +142,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   // Local Practice orchestration
   const localPractice = useLocalPractice({
-    artifact,
-    mode: practiceMode,
-    inputSource,
-    scope: practiceScope,
-    tempoSelection,
-    metronomeEnabled,
-    recordingMode: recordingMode ?? undefined,
+    plan,
     getDevices: device.borrow, observeDevices: device.observe,
     acquireInference: workspace.environment.acquireInference,
     onNaturalCompletion: snapshot => {
@@ -173,7 +175,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const canPreparePractice =
     canEnterPractice &&
     Boolean(selectedRevisionId && xmlContent && artifact) &&
-    Boolean(practiceScope) &&
+    Boolean(plan) &&
     !range.isIncomplete &&
     workspace.ready && devicesReady &&
     !isResourceLoading &&

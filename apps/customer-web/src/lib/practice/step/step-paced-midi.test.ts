@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import { afterEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -15,7 +16,7 @@ it('real Browser MIDI preserves POST_VERDICT MIDIMessageEvent.timeStamp delivere
     timer: { schedule: fn => { tasks.push(fn); return fn; }, cancel: () => {} },
     createMidi: options => new BrowserMidiController(options),
     createMetronome: () => ({ start() {}, destroy() {}, setEnabled() {}, setStepContext() {} }) };
-  const owner = new StepPracticeController({ devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MIDI', platform });
+  const owner = new StepPracticeController({ plan: stepSessionPlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, platform });
   const note = (timeStamp: number) => device.send([0x90, 60, 90], timeStamp);
   try {
     await owner.start(); clock.set(200); note(200);

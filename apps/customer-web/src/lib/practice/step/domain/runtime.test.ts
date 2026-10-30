@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
 import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -19,10 +20,7 @@ describe('STEP runtime target and session contracts', () => {
       events: [],
       moments: [],
     });
-    expect(() => new StepPracticeRuntime({
-      inputSource: 'MIDI', artifact: empty, scope: { kind: 'FULL' },
-      clock: new ManualClock()
-    })).toThrow(/PracticeScoreArtifact/);
+    expect(() => new StepPracticeRuntime({ ...stepSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock() })).toThrow(/PracticeScoreArtifact/);
 
   });
 
@@ -31,13 +29,7 @@ describe('STEP runtime target and session contracts', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(100);
 
-    const stepRuntime = new StepPracticeRuntime({
-      inputSource: 'MIDI',
-      artifact: art,
-      clock,
-      scope: { kind: 'FULL' },
-      metronomeEnabled: false,
-    });
+    const stepRuntime = new StepPracticeRuntime({ ...stepSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MIDI', metronomeEnabled: false }), clock, metronomeEnabled: false });
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(false);
     expect(stepRuntime.currentOnsetBeat).toBe(0);
 
@@ -52,13 +44,7 @@ describe('STEP runtime target and session contracts', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(0);
 
-    const stepA = new StepPracticeRuntime({
-      inputSource: 'MIDI',
-      artifact: art,
-      clock,
-      scope: { kind: 'FULL' },
-      metronomeEnabled: false,
-    });
+    const stepA = new StepPracticeRuntime({ ...stepSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MIDI', metronomeEnabled: false }), clock, metronomeEnabled: false });
     expect(stepA.snapshot().metronomeEnabled).toBe(false);
     stepA.setMetronomeEnabled(true);
     expect(stepA.snapshot().metronomeEnabled).toBe(true);
@@ -67,13 +53,7 @@ describe('STEP runtime target and session contracts', () => {
     expect(finalStepA.runtimeStatus).toBe('ENDED');
     expect(finalStepA.metronomeEnabled).toBe(true);
 
-    const stepB = new StepPracticeRuntime({
-      inputSource: 'MIDI',
-      artifact: art,
-      clock,
-      scope: { kind: 'FULL' },
-      metronomeEnabled: true,
-    });
+    const stepB = new StepPracticeRuntime({ ...stepSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MIDI', metronomeEnabled: true }), clock, metronomeEnabled: true });
     expect(stepB.snapshot().metronomeEnabled).toBe(true);
     stepB.setMetronomeEnabled(false);
     stepB.end();
@@ -87,12 +67,7 @@ describe('STEP runtime target and session contracts', () => {
   it("starts on the first target after a leading rest", () => {
     // StepPracticeRuntime initialized without explicit scope (full piece):
     const clock = new ManualClock(0);
-    const stepRuntime = new StepPracticeRuntime({
-      inputSource: 'MIDI',
-      artifact: leadingRestArtifact,
-      scope: { kind: 'FULL' },
-      clock,
-    });
+    const stepRuntime = new StepPracticeRuntime({ ...stepSessionPlan(leadingRestArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock });
     expect(stepRuntime.currentOnsetBeat).toBe(2.0);
     expect(stepRuntime.currentTarget()?.stepId).toBe('g-rest-1');
 
@@ -103,7 +78,7 @@ describe('STEP runtime target and session contracts', () => {
 
 it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current learning interaction and attempt schema', inputSource => {
   const localSessionId = 'snapshot-contract', time = (ms: number) => ({ domainId: localSessionId, ms });
-  const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId, scope: { kind: 'FULL' }, clock: new ManualClock(0) });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource }), localSessionId, clock: new ManualClock(0) });
   const identity = runtime.openAttempt(time(100))!;
   runtime.analyzeAttempt(identity);
   runtime.completeAttempt(identity, { observedAttackKeys: [60], confidence: inputSource === 'MIDI' ? 1 : .12, captureEndSessionTime: time(150) });
@@ -117,7 +92,7 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current l
 });
 
 it('STEP snapshots contain only current learning interaction state', () => {
-  const runtime = new StepPracticeRuntime({ artifact, inputSource: 'MIDI', scope: { kind: 'FULL' }, clock: new ManualClock(0) });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock(0) });
   expect(Object.keys(runtime.snapshot().step).sort()).toEqual([
     'currentIndex', 'targetGeneration', 'inputEligibleAfter', 'inputAvailable', 'completed',
     'attemptState', 'activeAttempt', 'pendingPostVerdict', 'canAcceptAttempt',

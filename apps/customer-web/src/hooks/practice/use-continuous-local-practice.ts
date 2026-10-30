@@ -4,26 +4,27 @@ import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 import type { UseLocalPracticeOptions } from './use-local-practice';
 import type { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
-export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tempoPlan: ResolvedPracticeTempoPlan | null,
+export function useContinuousLocalPractice(options: UseLocalPracticeOptions,
   resources: PracticeResourceCoordinator, onSessionStart: () => void) {
-  const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
+  const plan = options.plan?.mode === 'CONTINUOUS_PLAY' ? options.plan : null;
+  const artifact = plan?.artifact;
+  const key = JSON.stringify([options.plan?.mode, plan?.sourceId, plan?.inputSource, plan?.recordingMode, plan?.scope, plan?.tempoPlan]);
   const generation = useRef(0);
   const starting = useRef(false);
   const preparation = useRef<Promise<void> | null>(null);
   const controller = useRef<ContinuousPracticeController | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
-  const [binding, setBinding] = useState({ identity: { key, artifact: options.artifact },
+  const [binding, setBinding] = useState({ identity: { key, artifact: artifact },
     snapshot: null as ContinuousControllerSnapshot | null, error: null as string | null, pending: false });
   // Reset presentation when ownership changes, including a return to an earlier input/key.
   // This conditional render adjustment avoids an effect publishing the previous owner's state.
-  if (binding.identity.key !== key || binding.identity.artifact !== options.artifact) {
-    setBinding({ identity: { key, artifact: options.artifact }, snapshot: null, error: null, pending: false });
+  if (binding.identity.key !== key || binding.identity.artifact !== artifact) {
+    setBinding({ identity: { key, artifact: artifact }, snapshot: null, error: null, pending: false });
   }
   const { identity, snapshot, error } = binding;
   const setSnapshot = useCallback((value: ContinuousControllerSnapshot | null) => setBinding(current =>
@@ -39,14 +40,14 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     const pending = preparation.current; preparation.current = null;
     return resources.trackRelease(old?.dispose(), pending);
   }, [resources]);
-  useEffect(() => () => { void dispose(); }, [key, options.artifact, dispose]);
-  useEffect(() => { controller.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
+  useEffect(() => () => { void dispose(); }, [key, artifact, dispose]);
+  useEffect(() => { controller.current?.setMetronomeEnabled(plan?.metronomeInitiallyEnabled ?? false); }, [plan?.metronomeInitiallyEnabled]);
   useEffect(() => {
-    if (options.mode !== 'CONTINUOUS_PLAY') return;
+    if (options.plan?.mode !== 'CONTINUOUS_PLAY') return;
     let frame: number;
     const draw = () => { controller.current?.refresh(); frame = requestAnimationFrame(draw); };
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
-  }, [options.mode]);
+  }, [options.plan?.mode]);
   const start = useCallback(async () => {
     if (starting.current) return;
     if (controller.current && !['FAILED_BEFORE_START', 'FAILED', 'DISPOSED'].includes(controller.current.snapshot().session)) return;
@@ -58,13 +59,11 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     try {
       await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
-      if (!options.artifact || !options.scope) throw new Error('Score artifact is not available yet.');
+      if (!plan) throw new Error('Score artifact is not available yet.');
       const devices = options.getDevices();
       if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       onSessionStart();
-      const current = new ContinuousPracticeController({ devices, observeDevices: options.observeDevices, startupTimings, artifact: options.artifact, scope: options.scope,
-        inputSource: options.inputSource, tempoSelection: options.tempoSelection, metronomeEnabled: options.metronomeEnabled,
-        recordingMode: options.recordingMode,
+      const current = new ContinuousPracticeController({ devices, observeDevices: options.observeDevices, startupTimings, plan,
         onNaturalCompletion: value => {
           if (operation === generation.current && controller.current === current && value.completionReason === 'SCOPE_COMPLETED') completion.current?.(value);
         } }, browserContinuousPlatform(options.acquireInference));
@@ -75,7 +74,7 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
       if (operation === generation.current) setSnapshot(current.snapshot());
     } catch (failure) { if (operation === generation.current) setError((failure as Error).message); }
     finally { if (operation === generation.current) { starting.current = false; setBinding(current => current.identity === identity ? { ...current, pending: false } : current); } }
-  }, [options, identity, dispose, resources, setSnapshot, setError, onSessionStart]);
+  }, [options, plan, identity, dispose, resources, setSnapshot, setError, onSessionStart]);
   const restart = useCallback(async () => {
     const released = dispose(), operation = generation.current;
     await released;
@@ -108,6 +107,6 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions, tem
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
     recordingIndicator: snapshot?.recording?.indicatorVisible ? Math.floor(snapshot.recording.elapsedMs / 1000) : null,
     completionReason: transport?.completionReason ?? null, lastSnapshot: snapshot?.sessionSnapshot ?? null,
-    resolvedTempoPlan: tempoPlan, isFinalizingRecording: snapshot?.session === 'FINALIZING', isFinalizingPerformance: snapshot?.session === 'FINALIZING',
+    resolvedTempoPlan: plan?.tempoPlan ?? null, isFinalizingRecording: snapshot?.session === 'FINALIZING', isFinalizingPerformance: snapshot?.session === 'FINALIZING',
     setMetronomeEnabled, start, pause, resume, abandon, restart };
 }

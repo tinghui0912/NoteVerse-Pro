@@ -2,7 +2,7 @@ import { assertCompletedEvaluation } from '@/lib/practice/continuous/domain/eval
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
@@ -18,12 +18,12 @@ export type ContinuousPerformanceResult = Readonly<{
 }>;
 
 type ResultCreation = Readonly<{
-  localSessionId: string; artifact: PracticeScoreArtifact; scope: PracticeScope; tempoPlan: ResolvedPracticeTempoPlan;
+  localSessionId: string; artifact: PracticeScoreArtifact; scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
   inputSource: PracticeInputSource; activeElapsedMs: number; evaluation: CompletedContinuousEvaluation;
   evidenceProvenance: ContinuousEvidenceProvenance; completedAt: string;
 }>;
 export function createContinuousPerformanceResult(options: ResultCreation): ContinuousPerformanceResult {
-  const scope = resolvePracticeScope(options.artifact, options.scope);
+  const scope = options.scope;
   const expected = options.artifact.moments.slice(scope.startIndex, scope.endIndex + 1).flatMap(group => group.attacks);
   if (options.evaluation.status === 'COMPLETE') {
     assertNaturalResultCompletion(options.evaluation);

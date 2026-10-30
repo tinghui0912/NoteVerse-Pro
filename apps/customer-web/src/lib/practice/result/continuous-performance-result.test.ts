@@ -1,3 +1,4 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -10,17 +11,14 @@ const clone = () => JSON.parse(JSON.stringify(canonicalContinuousResultFixture()
 
 function resultWithRetainedEvidence() {
   const base = canonicalContinuousResultFixture();
-  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: { kind: 'FULL' },
-    sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
   evaluator.publish({ publicationId: 'evidence', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000,
     observations: [{ observationId: 'matched', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: 'MIDI',
       provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourceEventSample: 0 } },
     { observationId: 'non-target', pianoKey: 71, performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
     { observationId: 'unattributed', pianoKey: 76, performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
   evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-  return createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
-    inputSource: 'MIDI', scope: { kind: 'FULL' }, tempoPlan: base.tempoPlan, activeElapsedMs: 10000,
-    evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+  return createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
 }
 
 describe('parsed Result delegates retained local truth validation', () => {
@@ -78,15 +76,12 @@ describe('immutable Continuous product result', () => {
     const base = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(base)); parsed.evaluation.assignment.completion.reason = 'STOPPED_BY_USER';
     expect(() => assertContinuousPerformanceResult(parsed)).toThrow('natural scope completion');
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: { kind: 'FULL' },
-      sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
     evaluator.publish({ publicationId: 'coverage', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000, observations: [] });
     evaluator.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 10000, availabilitySessionTimeMs: 3000 });
     const evaluation = evaluator.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
-    expect(() => createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
-      inputSource, scope: { kind: 'FULL' }, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation,
-      evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
+    expect(() => createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
   });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
@@ -129,16 +124,14 @@ describe('immutable Continuous product result', () => {
   });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s result retains assigned observations and capture provenance through JSON', inputSource => {
     const base = canonicalContinuousResultFixture(inputSource), localSessionId = 'evidence-result';
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: { kind: 'FULL' },
-      sessionDomainId: localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
     const observation = { observationId: 'observed-C4', pianoKey: 60, performanceTimeMs: 0, confidence: .42,
       source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
       ...(inputSource === 'MICROPHONE' ? { provenance: { sourceDomainId: 'capture', sourceEventSample: 2400, sourceSampleRateHz: 48000 } } : {}) };
     evaluator.publish({ publicationId: 'evidence', sessionDomainId: localSessionId, observations: [observation],
       analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000 });
     evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: { kind: 'FULL' },
-      tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
     const parsed = JSON.parse(JSON.stringify(result)); assertContinuousPerformanceResult(parsed);
     expect(parsed.evaluation.status).toBe('COMPLETE');
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
@@ -161,10 +154,7 @@ describe('immutable Continuous product result', () => {
   it('unavailable range retains its original canonical scope', () => {
     const base = canonicalContinuousResultFixture('MICROPHONE', 48000, false);
     const group = artifact.moments[3];
-    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
-      scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId }, inputSource: base.inputSource,
-      tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation,
-      evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId } }).scope, inputSource: base.inputSource, tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
     expect(result.evaluation.status).toBe('UNAVAILABLE'); expect(result).not.toHaveProperty('metrics');
     expect(result.scope).toMatchObject({ kind: 'RANGE', startIndex: 3, endIndex: 3 });
   });

@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -8,8 +9,7 @@ import { ManualClock } from '@/lib/practice/kernel/timebase';
 function setup() {
   const artifact = fixture as PracticeScoreArtifact, clock = new ManualClock(100), domainId = 'local-instance';
   const last = artifact.moments.at(-1)!.groupId;
-  const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: domainId, inputSource: 'MIDI',
-    metadataClock: { nowEpochMs: () => 12345 }, scope: { kind: 'RANGE', startGroupId: last, endGroupId: last } });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: last, endGroupId: last }, inputSource: 'MIDI' }), clock, localSessionId: domainId, metadataClock: { nowEpochMs: () => 12345 } });
   const time = (ms: number) => ({ domainId, ms });
   const begin = () => runtime.openAttempt(time(200))!;
   const finish = (identity: StepAttemptIdentity) => {

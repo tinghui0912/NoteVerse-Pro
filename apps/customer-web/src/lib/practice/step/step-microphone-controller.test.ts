@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { borrowedDevices } from '../__fixtures__/device-roots';
@@ -79,7 +80,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ devices: borrowedDevices(stream as unknown as MediaStream), artifact: selectedArtifact, scope, inputSource: 'MICROPHONE', platform, onNaturalCompletion: completion });
+  const controller = new StepPracticeController({ plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: 'MICROPHONE' }), devices: borrowedDevices(stream as unknown as MediaStream), platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -168,7 +169,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
         expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: false,
           analysisIntervention: null, infrastructureIntervention: intervention,
           sessionSnapshot: { localSessionId: prior.localSessionId, runtimeStatus: 'ACTIVE', completionReason: null,
-            practiceScope: prior.practiceScope, tempoSelection: prior.tempoSelection, metronomeEnabled: prior.metronomeEnabled,
+            sourceId: prior.sourceId, scope: prior.scope, tempoPlan: prior.tempoPlan, metronomeEnabled: prior.metronomeEnabled,
             step: { currentIndex: prior.step.currentIndex, targetGeneration: prior.step.targetGeneration,
               inputAvailable: false, activeAttempt: null } } });
         expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.moments[prior.step.currentIndex]);

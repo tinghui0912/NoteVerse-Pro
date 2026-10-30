@@ -1,3 +1,4 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
@@ -27,6 +28,8 @@ import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { PerformanceRecorder } from '../recording/performance-recorder';
 import { continuousCompletionStore } from './completion-store';
 import { ContinuousMidiEvidence } from './input/midi-evidence';
+import * as scopeContract from '../kernel/scope';
+import * as tempoContract from '../kernel/tempo';
 
 function track(kind = 'audio') {
   const events = new EventTarget();
@@ -101,8 +104,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128) {
     const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
       ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
     };
-    controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource, countInBeats,
-      tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
+    controller = new ContinuousPracticeController({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
     return controller;
   }
   return { create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
@@ -117,6 +119,30 @@ beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers
   }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
+  it('live metronome control preserves the executed scope, tempo, owner and transport', async () => {
+    const f = environment(), controller = f.create('MIDI');
+    const resolveScope = vi.spyOn(scopeContract, 'resolvePracticeScope');
+    const resolveTempo = vi.spyOn(tempoContract, 'resolvePracticeTempoPlan');
+    try {
+      await controller.start();
+      f.clock.set(50); controller.refresh();
+      expect(controller.snapshot().session).toBe('ACTIVE');
+      const session: ContinuousPracticeSession = Reflect.get(controller, 'session');
+      const before = session.snapshotSession(), transport = controller.snapshot().transport;
+      controller.setMetronomeEnabled(true);
+      const after = session.snapshotSession();
+      expect(Reflect.get(controller, 'session')).toBe(session);
+      expect(after.localSessionId).toBe(before.localSessionId);
+      expect(after.scope).toBe(before.scope); expect(after.tempoPlan).toBe(before.tempoPlan);
+      expect(after.metronomeEnabled).toBe(true);
+      expect(controller.snapshot().transport).toEqual(transport);
+      expect(f.platform.createMidi).toHaveBeenCalledOnce();
+      expect(f.platform.createMetronome).toHaveBeenCalledOnce();
+      expect(f.meter.destroy).not.toHaveBeenCalled();
+      expect(f.meter.setEnabled).toHaveBeenLastCalledWith(true);
+      expect(resolveScope).not.toHaveBeenCalled(); expect(resolveTempo).not.toHaveBeenCalled();
+    } finally { await controller.dispose(); resolveScope.mockRestore(); resolveTempo.mockRestore(); }
+  });
   it('controller snapshots never publish MIDI evidence; explicit refresh catches semantic needs up once', async () => {
     const cover = vi.spyOn(ContinuousMidiEvidence.prototype, 'cover');
     const f = environment(), controller = f.create('MIDI');

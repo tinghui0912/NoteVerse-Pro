@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -8,9 +9,8 @@ function setup(final = false) {
   const clock = new ManualClock(0), domainId = 'paced';
   const time = (ms: number) => ({ domainId, ms });
   const artifact = fixture as PracticeScoreArtifact;
-  const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: domainId, inputSource: 'MICROPHONE',
-    scope: final ? { kind: 'RANGE', startGroupId: artifact.moments.at(-1)!.groupId,
-      endGroupId: artifact.moments.at(-1)!.groupId } : { kind: 'FULL' } });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: final ? { kind: 'RANGE', startGroupId: artifact.moments.at(-1)!.groupId,
+      endGroupId: artifact.moments.at(-1)!.groupId } : { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock, localSessionId: domainId });
   const start = () => runtime.openAttempt(time(100))!;
   const finish = (verdict: 'MATCH' | 'MISMATCH' = 'MATCH') => {
     const id = start(); runtime.analyzeAttempt(id);

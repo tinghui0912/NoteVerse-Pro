@@ -3,20 +3,19 @@ import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/do
 import type { ContinuousTargetFeedback } from './evaluation/target-feedback';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import { PerformanceClockRuntime, PerformanceTimeline, type PerformanceClockRuntimeOptions, type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import { PerformanceClockRuntime, type PerformanceClockRuntimeOptions, type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import { createLocalSessionId, type LocalPracticeCompletionReason, type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type RuntimeVersionIdentity, type SessionTime } from '@/lib/practice/kernel/timebase';
 import type { ContinuousClockDrivenEvidencePort, ContinuousMidiAttack } from './clock-evidence-port';
 
-type ContinuousSessionConfiguration = Omit<PerformanceClockRuntimeOptions, 'timebase' | 'tempoPlan'> & {
+type ContinuousSessionConfiguration = Omit<PerformanceClockRuntimeOptions, 'timebase'> & {
   timebase?: PracticeTimebase;
-  tempoPlan?: ResolvedPracticeTempoPlan;
+  sourceId: string;
   metadataClock?: DurableClock;
   localSessionId?: string;
   version?: RuntimeVersionIdentity;
-  tempoSelection?: PracticeTempoSelection;
   metronomeEnabled?: boolean;
 };
 
@@ -47,7 +46,7 @@ export class ContinuousPracticeSession {
   private readonly version: RuntimeVersionIdentity;
   private readonly createdAtMs: number;
   private readonly tempoPlan: ResolvedPracticeTempoPlan;
-  private readonly tempoSelection: PracticeTempoSelection;
+  private readonly sourceId: string;
   private metronomeEnabled: boolean;
 
   constructor(options: ContinuousPracticeSessionOptions) {
@@ -58,18 +57,15 @@ export class ContinuousPracticeSession {
       throw new Error('Microphone sessions do not accept MIDI evidence ownership.');
     }
     this.artifact = options.artifact;
-    this.tempoPlan = options.tempoPlan
-      ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
-    this.tempoSelection = options.tempoSelection ?? this.tempoPlan.selection;
+    this.tempoPlan = options.tempoPlan;
+    this.sourceId = options.sourceId;
     this.localSessionId = options.localSessionId ?? createLocalSessionId();
     const timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
     this.clock = new PerformanceClockRuntime({
       artifact: options.artifact, scope: options.scope, tempoPlan: this.tempoPlan,
       clock: options.clock, timebase, countInBeats: options.countInBeats,
     });
-    this.practiceScope = options.scope.kind === 'RANGE' ? {
-      kind: 'RANGE', startGroupId: options.scope.startGroupId, endGroupId: options.scope.endGroupId,
-    } : { kind: 'FULL' };
+    this.practiceScope = options.scope;
     this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
     this.version = options.version ?? { schemaVersion: 1, runtimeVersion: 'local-practice-core-v1' };
     this.createdAtMs = this.metadataClock.nowEpochMs();
@@ -83,7 +79,7 @@ export class ContinuousPracticeSession {
     }
     this.evaluator = new ContinuousEvaluationSession({
       artifact: options.artifact,
-      timeline: new PerformanceTimeline(options.artifact, this.tempoPlan.segments),
+      timeline: new PracticeTempoTimeline(this.tempoPlan, options.artifact.scoreEndBeat),
       scope: options.scope,
       sessionDomainId: this.clock.timebase.domainId,
       inputSource: this.inputSource,
@@ -177,15 +173,17 @@ export class ContinuousPracticeSession {
       artifactId: this.artifact.artifactId,
       mode: 'CONTINUOUS_PLAY',
       inputSource: this.inputSource,
-      practiceScope: { ...this.practiceScope },
-      tempoSelection: this.tempoSelection,
+      sourceId: this.sourceId, scope: this.practiceScope,
+      tempoPlan: this.tempoPlan,
       metronomeEnabled: this.metronomeEnabled,
       lifecycleState: timing.state === 'ENDED' ? 'ENDED' : timing.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
       completionReason: this.clock.terminationReason,
       version: this.version,
       createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
-      performance: { ...timing, resolvedTempoPlan: this.tempoPlan },
+      performance: { state: timing.state, stateBeforePause: timing.stateBeforePause,
+        activeElapsedMs: timing.activeElapsedMs, countInMs: timing.countInMs,
+        countInBeats: timing.countInBeats, countInPulses: timing.countInPulses },
     };
   }
 

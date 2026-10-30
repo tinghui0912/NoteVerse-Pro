@@ -1,3 +1,6 @@
+import * as scopeContract from '@/lib/practice/kernel/scope';
+import * as tempoContract from '@/lib/practice/kernel/tempo';
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
@@ -29,7 +32,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.moments[index].groupId,
     endGroupId: selectedArtifact.moments.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ devices: borrowedDevices(), artifact: selectedArtifact, scope, inputSource, platform, onNaturalCompletion: completion });
+  const create = () => new StepPracticeController({ plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: inputSource }), devices: borrowedDevices(), platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
@@ -300,4 +303,25 @@ it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP End 
   expect(fresh.snapshot().sessionSnapshot!.localSessionId).not.toBe(oldSession);
   expect(fresh.snapshot()).toMatchObject({ state: 'ACTIVE', pendingPostVerdict: null, stepInteractionPhase: 'READY' });
   await fresh.abandon();
+});
+
+it('executes planned metronome geometry and preserves an active gesture across a live toggle', async () => {
+  const s = setup();
+  const scope = vi.spyOn(scopeContract, 'resolvePracticeScope'), tempo = vi.spyOn(tempoContract, 'resolvePracticeTempoPlan');
+  try {
+    await s.controller.start(); s.clock.advance(1); s.note(60);
+    const before = s.controller.snapshot().sessionSnapshot!;
+    s.controller.setMetronomeEnabled(true);
+    const after = s.controller.snapshot().sessionSnapshot!;
+    expect(after.localSessionId).toBe(before.localSessionId);
+    expect(after.step.activeAttempt).toBe(before.step.activeAttempt);
+    expect(after.step.currentIndex).toBe(before.step.currentIndex);
+    expect(after.scope).toBe(before.scope); expect(after.tempoPlan).toBe(before.tempoPlan);
+    expect(after.metronomeEnabled).toBe(true);
+    const options = (s.platform.createMetronome as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(options.tempoPlan).toBe(before.tempoPlan);
+    expect(options.scopeStartBeat).toBe(before.scope.startBeat);
+    expect(options.scopeEndBeat).toBe(before.scope.terminalBeat);
+    expect(scope).not.toHaveBeenCalled(); expect(tempo).not.toHaveBeenCalled();
+  } finally { await s.controller.dispose(); scope.mockRestore(); tempo.mockRestore(); }
 });

@@ -17,7 +17,7 @@ export interface ResolvedPracticeTempoSegment {
 }
 
 export interface ResolvedPracticeTempoPlan {
-  readonly selection: PracticeTempoSelection;
+  readonly selection: Readonly<PracticeTempoSelection>;
   readonly segments: readonly ResolvedPracticeTempoSegment[];
 }
 

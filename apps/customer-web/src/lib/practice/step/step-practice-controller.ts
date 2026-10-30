@@ -4,10 +4,7 @@ import { StepPracticeRuntime, groupForCurrentStep } from '@/lib/practice/step/do
 import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import { createLocalSessionId } from '@/lib/practice/kernel/session';
 import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
-import { type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { StepPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
 import type { BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
 import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
@@ -23,8 +20,7 @@ import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/infe
 export type StepControllerOptions = Readonly<{
   devices: PracticeDeviceRoots;
   startupTimings?: PracticeStartupTimings;
-  artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
-  tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
+  plan: StepPracticeSessionPlan;
   onNaturalCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
 }>;
 /** Local browser application/resource ownership, not the domain runtime status. */
@@ -61,7 +57,7 @@ export class StepPracticeController {
   private finalSnapshot: LocalStepSessionSnapshot | null = null;
   constructor(private readonly options: StepControllerOptions) {
     this.startup = options.startupTimings ?? new PracticeStartupTimings();
-    this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.metronomeEnabled ?? false;
+    this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.plan.metronomeInitiallyEnabled;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
@@ -88,14 +84,14 @@ export class StepPracticeController {
     if (generation !== this.generation) return;
     try {
       const localSessionId = createLocalSessionId('step');
-      if (this.options.inputSource === 'MICROPHONE') {
+      if (this.options.plan.inputSource === 'MICROPHONE') {
         await this.prepareMicrophone(localSessionId, generation);
         if (generation !== this.generation) return;
       } else {
         const timebase = new PracticeTimebase({ domainId: localSessionId });
         this.timebase = timebase;
         this.retirement = new MidiStepRetirementPolicy(this.platform.clock, timebase);
-        const runtime = new StepPracticeRuntime({ ...this.options, clock: this.platform.clock, timebase, localSessionId });
+        const runtime = new StepPracticeRuntime({ ...this.options.plan, metronomeEnabled: this.enabled, clock: this.platform.clock, timebase, localSessionId });
         runtime.setInputUnavailable();
         this.runtime = runtime;
         this.createMetronome();
@@ -112,7 +108,7 @@ export class StepPracticeController {
       this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
-      this.error = stepApplicationError(error, this.options.inputSource);
+      this.error = stepApplicationError(error, this.options.plan.inputSource);
       this.state = 'ENDED'; this.runtime?.end();
       await this.cleanup();
       if (generation !== this.generation) return;
@@ -152,7 +148,7 @@ export class StepPracticeController {
     const starting = microphone.start({ context, stream, localSessionId, sourceDomainId: `${localSessionId}:capture` }, this.abort.signal);
     void starting.catch(() => {});
     // start() attaches the shared AudioContext clock before any asynchronous acoustic preparation.
-    const runtime = new StepPracticeRuntime({ ...this.options, localSessionId, clock: microphone.clock });
+    const runtime = new StepPracticeRuntime({ ...this.options.plan, metronomeEnabled: this.enabled, localSessionId, clock: microphone.clock });
     this.runtime = runtime; runtime.setInputUnavailable(); this.createMetronome(context);
     const boundary = await starting;
     if (generation !== this.generation) return;
@@ -160,9 +156,9 @@ export class StepPracticeController {
     microphone.arm(boundary);
   }
   private createMetronome(audioContext?: AudioContext): void {
-    const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
-    this.metronome = this.platform.createMetronome({ artifact: this.options.artifact,
-      tempoPlan: resolvePracticeTempoPlan(this.options.artifact, this.options.tempoSelection ?? { mode: 'SCORE' }),
+    const scope = this.options.plan.scope;
+    this.metronome = this.platform.createMetronome({ artifact: this.options.plan.artifact,
+      tempoPlan: this.options.plan.tempoPlan,
       mode: 'STEP', scopeStartBeat: scope.startBeat, scopeEndBeat: scope.terminalBeat, enabled: this.enabled,
       ...(audioContext ? { audioContext } : {}) });
   }
@@ -280,9 +276,9 @@ export class StepPracticeController {
   }
   private failAttempt(error: unknown): void {
     if (this.analysisIntervention || this.infrastructureIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
-    const code = this.options.inputSource === 'MICROPHONE'
+    const code = this.options.plan.inputSource === 'MICROPHONE'
       ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING') : 'STEP_ATTEMPT_FAILED';
-    if (this.state === 'ACTIVE' && this.runtime && this.options.inputSource === 'MICROPHONE'
+    if (this.state === 'ACTIVE' && this.runtime && this.options.plan.inputSource === 'MICROPHONE'
       && (code === 'STEP_ACOUSTIC_RUNTIME_FAILED' || code === 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED')) {
       // Latch before domain/cleanup callbacks can reenter. Resource release is not session end.
       if (code === 'STEP_ACOUSTIC_RUNTIME_FAILED') this.analysisIntervention = Object.freeze({ kind: 'TERMINAL_ANALYSIS_FAILURE' });

@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -7,8 +8,7 @@ import { ManualClock } from '@/lib/practice/kernel/timebase';
 function harness() {
   const clock = new ManualClock(0), domainId = 'watermark';
   const time = (ms: number) => ({ domainId, ms });
-  const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact,
-    scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', localSessionId: domainId, clock });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), localSessionId: domainId, clock });
   const finish = (kind: 'MATCH' | 'MISMATCH') => {
     const identity = runtime.openAttempt(time(100))!;
     expect(runtime.openAttempt(time(110))).toBeNull();

@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
@@ -281,7 +282,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
 it('identical targets use physical retirement and new chronology, not a session identity ledger', () => {
   const artifact = artifactWithKeys([[60], [60]]);
   const domainId = 'same-target', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
-  const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: new ManualClock(), localSessionId: domainId });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: new ManualClock(), localSessionId: domainId });
   const records: unknown[] = [];
   const a = new StepAcousticAttemptAssembler({ sourceDomainId: 'source', sourceSampleRateHz: 48000, localSessionId: domainId,
     sourceAnchorSample: 0, sessionAnchorTime: time(0), sink: { open: t => runtime.openAttempt(t), complete: (id, evidence) => {
@@ -298,7 +299,7 @@ it('identical targets use physical retirement and new chronology, not a session 
 });
 
 it.each(['CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('busy %s refuses another acoustic gesture without queuing', phase => {
-  const runtime = new StepPracticeRuntime({ artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: new ManualClock(), localSessionId: 'busy' });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: new ManualClock(), localSessionId: 'busy' });
   const first = runtime.openAttempt({ domainId: 'busy', ms: .001 })!;
   if (phase !== 'CAPTURING') runtime.analyzeAttempt(first);
   if (phase === 'POST_VERDICT') runtime.completeAttempt(first, { observedAttackKeys: [21], confidence: .8, captureEndSessionTime: { domainId: 'busy', ms: .002 } });

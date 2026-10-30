@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -79,8 +80,7 @@ async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:
   const signal = new AbortController();
   const starting = input.start({ context: context as unknown as AudioContext, stream: root as unknown as MediaStream,
     localSessionId: 'v25', sourceDomainId }, signal.signal);
-  const runtime: StepPracticeRuntime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: input.clock,
-    localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
+  const runtime: StepPracticeRuntime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: input.clock, localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
   runtime.setInputUnavailable();
   const initial = await starting;
   traces.push(() => ({ rate, initialBoundary: initial, finalInput: input.snapshot(), finalDomain: runtime.snapshot(), records,

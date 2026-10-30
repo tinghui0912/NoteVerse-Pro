@@ -1,3 +1,7 @@
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
+import * as scopeContract from '@/lib/practice/kernel/scope';
+import * as tempoContract from '@/lib/practice/kernel/tempo';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
@@ -14,9 +18,7 @@ import { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-const options: UseLocalPracticeOptions = { getDevices: () => borrowedDevices(),
-  artifact, mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', scope: { kind: 'FULL' },
-};
+const options: UseLocalPracticeOptions = { plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() };
 
 function deferred() {
   let resolve!: () => void;
@@ -55,7 +57,7 @@ it('owns one controller, subscription, RAF and commands, and releases the subscr
   const finish = vi.spyOn(ContinuousPracticeController.prototype, 'abandon').mockResolvedValue();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, barrier, () => continuousCompletionStore.clearCompletion()));
   await act(async () => { await result.current.start(); await result.current.start(); });
   expect(owner.start).toHaveBeenCalledOnce(); expect(owner.subscribe).toHaveBeenCalledOnce();
   expect(owner.subscribe.mock.contexts[0]).toBe(owner.start.mock.contexts[0]);
@@ -81,7 +83,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   owner.start.mockReturnValueOnce(preparation.promise);
   owner.dispose.mockReturnValueOnce(release.promise);
   const barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, barrier, () => continuousCompletionStore.clearCompletion()),
     { initialProps: options });
   let starting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
@@ -89,7 +91,7 @@ it.each(['unmount', 'input change'] as const)('awaits late preparation after %s 
   await act(async () => { await result.current.start(); });
   expect(owner.start).toHaveBeenCalledOnce();
   if (invalidation === 'unmount') unmount();
-  else rerender({ ...options, inputSource: 'MICROPHONE' });
+  else rerender({ ...options, plan: continuousSessionPlan(artifact, { inputSource: 'MICROPHONE' }) });
   expect(owner.unsubscribe).toHaveBeenCalledOnce(); expect(owner.dispose).toHaveBeenCalledOnce();
   let released = false;
   const waiting = barrier.waitForRelease().then(() => { released = true; });
@@ -113,7 +115,7 @@ it('restart waits for disposal and preparation, then clears completed truth and 
   owner.dispose.mockReturnValueOnce(release.promise);
   const clear = vi.spyOn(continuousCompletionStore, 'clearCompletion');
   const barrier = new PracticeResourceCoordinator();
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice(options, barrier, () => continuousCompletionStore.clearCompletion()));
   let starting!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { starting = result.current.start(); });
   expect(clear).toHaveBeenCalledOnce(); clear.mockClear();
@@ -141,31 +143,38 @@ it('uses the latest completion callback and metronome option without replacing t
   const owner = ownerMocks(), first = vi.fn(), latest = vi.fn();
   const metronome = vi.spyOn(ContinuousPracticeController.prototype, 'setMetronomeEnabled').mockImplementation(() => {});
   const barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
-    { initialProps: { ...options, onNaturalCompletion: first, metronomeEnabled: false } });
+  const scope = vi.spyOn(scopeContract, 'resolvePracticeScope'), tempo = vi.spyOn(tempoContract, 'resolvePracticeTempoPlan');
+  const planPracticeSession = createPracticeSessionPlanner();
+  const intent = { mode: 'CONTINUOUS_PLAY' as const, inputSource: 'MIDI' as const, recordingMode: 'OFF' as const,
+    scope: { kind: 'FULL' as const }, tempoSelection: { mode: 'SCORE' as const }, metronomeEnabled: false };
+  const initial = planPracticeSession({ sourceId: 'hook-source', artifact }, intent);
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, barrier, () => continuousCompletionStore.clearCompletion()),
+    { initialProps: { ...options, plan: initial, onNaturalCompletion: first } });
   await act(async () => { await result.current.start(); });
   const controller = owner.start.mock.contexts[0] as ContinuousPracticeController;
   // Simulate the controller's completion notification at its existing callback boundary.
   const completion = Reflect.get(controller, 'options').onNaturalCompletion;
-  rerender({ ...options, onNaturalCompletion: latest, metronomeEnabled: true });
+  rerender({ ...options, plan: planPracticeSession({ sourceId: 'hook-source', artifact }, { ...intent, metronomeEnabled: true }), onNaturalCompletion: latest });
   const completed = { localSessionId: 'latest-completion', completionReason: 'SCOPE_COMPLETED' };
   act(() => completion(completed));
   expect(first).not.toHaveBeenCalled();
   expect(latest).toHaveBeenCalledExactlyOnceWith(completed);
   expect(owner.start).toHaveBeenCalledOnce(); expect(owner.dispose).not.toHaveBeenCalled();
   expect(metronome).toHaveBeenLastCalledWith(true);
+  expect(scope).toHaveBeenCalledOnce(); expect(tempo).toHaveBeenCalledOnce();
+  expect(Reflect.get(controller, 'options').plan).toBe(initial);
   unmount(); await barrier.waitForRelease();
 });
 
 it('does not restore a previous snapshot when an input identity is revisited', async () => {
   const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
-  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion()),
+  const { result, rerender, unmount } = renderHook(props => useContinuousLocalPractice(props, barrier, () => continuousCompletionStore.clearCompletion()),
     { initialProps: options });
   await act(async () => { await result.current.start(); });
   const stalePublish = owner.subscribe.mock.calls[0][0];
   act(() => owner.publish({ ...owner.snapshot(), inputError: 'PREVIOUS_OWNER' }));
   expect(result.current.inputError).toBe('PREVIOUS_OWNER');
-  rerender({ ...options, inputSource: 'MICROPHONE' });
+  rerender({ ...options, plan: continuousSessionPlan(artifact, { inputSource: 'MICROPHONE' }) });
   expect(result.current.inputState).toBe('IDLE');
   rerender(options);
   act(() => stalePublish());
@@ -179,7 +188,7 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
   let requestPublication = false, published = false;
   const clean = { inputState: 'IDLE', inputError: null, performanceClock: null, isFinalizingPerformance: false };
   const { result, rerender, unmount } = renderHook(props => {
-    const practice = useContinuousLocalPractice(props, tempoPlan, barrier, () => continuousCompletionStore.clearCompletion());
+    const practice = useContinuousLocalPractice(props, barrier, () => continuousCompletionStore.clearCompletion());
     // Layout runs after B's binding commits but before A's passive unsubscribe.
     // Keep the actual captured callback so cleanup cannot erase the queued publication.
     useLayoutEffect(() => {
@@ -195,10 +204,10 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
   await act(async () => { await result.current.start(); });
   act(() => owner.publish({ ...owner.snapshot(), session: 'FINALIZING', inputError: 'OWNER_A_ERROR' }));
   expect(result.current).toMatchObject({ inputError: 'OWNER_A_ERROR', isFinalizingPerformance: true });
-  const next: UseLocalPracticeOptions = change === 'input' ? { ...options, inputSource: 'MICROPHONE' }
-    : change === 'artifact' ? { ...options, artifact: { ...artifact } }
-    : { ...options, scope: { kind: 'RANGE', startGroupId: artifact.moments[0].groupId,
-      endGroupId: artifact.moments.at(-1)!.groupId } };
+  const next: UseLocalPracticeOptions = change === 'input' ? { ...options, plan: continuousSessionPlan(artifact, { inputSource: 'MICROPHONE' }) }
+    : change === 'artifact' ? { ...options, plan: continuousSessionPlan({ ...artifact }) }
+    : { ...options, plan: continuousSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: artifact.moments[0].groupId,
+      endGroupId: artifact.moments.at(-1)!.groupId } }) };
   requestPublication = true;
   rerender(next);
   expect(published).toBe(true);
@@ -210,7 +219,7 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
 it('exposes only analysis choice commands and keeps accepted degradation out of generic input errors', async () => {
   const owner = ownerMocks(), barrier = new PracticeResourceCoordinator();
   const choice = vi.spyOn(ContinuousPracticeController.prototype, 'continueWithoutAnalysis').mockResolvedValue();
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, inputSource: 'MICROPHONE' }, tempoPlan, barrier, () => {}));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, plan: continuousSessionPlan(artifact, { inputSource: 'MICROPHONE' }) }, barrier, () => {}));
   await act(async () => { await result.current.start(); });
   act(() => owner.publish({ ...owner.snapshot(), session: 'ACTIVE', analysis: 'INTERRUPTED', analysisError: 'ANALYSIS_FAILED',
     analysisIntervention: { pauseOrigin: 'USER' } }));
@@ -226,7 +235,7 @@ it('hard capture End returns to READY and an explicit Start creates a fresh cont
   const abandon = vi.spyOn(ContinuousPracticeController.prototype, 'abandon').mockImplementation(async () => {
     owner.publish({ ...owner.snapshot(), session: 'ABANDONED', resourceIntervention: null, completed: null });
   });
-  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, inputSource: 'MICROPHONE', onNaturalCompletion }, tempoPlan, barrier, () => {}));
+  const { result, unmount } = renderHook(() => useContinuousLocalPractice({ ...options, plan: continuousSessionPlan(artifact, { inputSource: 'MICROPHONE' }), onNaturalCompletion }, barrier, () => {}));
   await act(async () => { await result.current.start(); });
   const first = owner.start.mock.contexts[0];
   const transport = { state: 'PAUSED' as const, countInKind: null, nowMs: 4000, musicalBeat: 2, performanceTimeMs: 1250,

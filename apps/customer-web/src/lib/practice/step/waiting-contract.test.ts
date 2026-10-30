@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import {expect, expectTypeOf, it} from 'vitest';
 import type { LocalStepSessionSnapshot, StepRuntimeStatus } from '@/lib/practice/step/domain/session';
 import type { LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
@@ -18,7 +19,7 @@ it('controller and domain statuses are distinct; STEP runtime cannot represent a
 });
 it.each(['MATCH','MISMATCH'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {
   const clock=new ManualClock(100),domainId='capture-watermark',time=(ms:number)=>({domainId,ms});
-  const runtime=new StepPracticeRuntime({artifact:fixture as PracticeScoreArtifact,scope:{kind:'FULL'},clock,localSessionId:domainId,inputSource:'MICROPHONE'});
+  const runtime=new StepPracticeRuntime({ ...stepSessionPlan(fixture as PracticeScoreArtifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), clock, localSessionId:domainId });
   const old=runtime.openAttempt(time(200))!; runtime.analyzeAttempt(old);
   // Analysis covered only through 600, but physical capture continued through 1000.
   clock.set(1000);

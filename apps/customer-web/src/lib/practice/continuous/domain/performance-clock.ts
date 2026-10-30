@@ -1,8 +1,8 @@
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact, type TempoSegment } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { countInContractAt } from '@/lib/practice/kernel/count-in';
-import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import type { LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
-import { beatsToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan, type ResolvedPracticeTempoSegment } from '@/lib/practice/kernel/tempo';
+import { beatsToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
@@ -38,7 +38,7 @@ export type PerformanceTransportSnapshot = {
 export type PerformanceClockRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   tempoPlan: ResolvedPracticeTempoPlan;
-  scope: PracticeScope;
+  scope: Readonly<ResolvedPracticeScope>;
   clock: LocalClock;
   timebase: PracticeTimebase;
   countInBeats?: number;
@@ -52,7 +52,7 @@ type PerformanceScope = ResolvedPracticeScope & {
 export class PerformanceClockRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly timebase: PracticeTimebase;
-  private readonly timeline: PerformanceTimeline;
+  private readonly timeline: PracticeTempoTimeline;
   private readonly clock: LocalClock;
   private readonly scope: PerformanceScope;
   private readonly countInBeats: number;
@@ -74,8 +74,8 @@ export class PerformanceClockRuntime {
     if (!tempoPlan || !Array.isArray(tempoPlan.segments) || tempoPlan.segments.length === 0) {
       throw new Error('PerformanceClockRuntime requires a valid ResolvedPracticeTempoPlan with segments.');
     }
-    this.timeline = new PerformanceTimeline(this.artifact, tempoPlan.segments);
-    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.scope);
+    this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndBeat);
+    this.scope = performanceScopeCoordinates(this.timeline, options.scope);
     const countIn = countInContractAt(this.artifact, this.scope.startBeat);
     this.countInBeats = options.countInBeats ?? countIn.durationBeats;
     this.countInPulses = countIn.pulses;
@@ -374,31 +374,13 @@ type ClockSegment = {
   activeElapsedStartMs: number;
 };
 
-export class PerformanceTimeline extends PracticeTempoTimeline {
-  constructor(artifact: PracticeScoreArtifact, tempoSegments: readonly TempoSegment[]) {
-    super(
-      {
-        selection: { mode: 'SCORE' },
-        segments: tempoSegments.map((s) => ({
-          startBeat: s.startBeat,
-          bpm: s.bpm,
-          source: 'source' in s ? (s as ResolvedPracticeTempoSegment).source : 'MUSICXML',
-        })),
-      },
-      artifact.scoreEndBeat
-    );
-  }
-}
-
-function resolvePerformanceScope(
-  artifact: PracticeScoreArtifact,
-  timeline: PerformanceTimeline,
-  scope: PracticeScope
+function performanceScopeCoordinates(
+  timeline: PracticeTempoTimeline,
+  scope: Readonly<ResolvedPracticeScope>
 ): PerformanceScope {
-  const resolved = resolvePracticeScope(artifact, scope);
   return {
-    ...resolved,
-    nominalStartTimeMs: timeline.beatToTimeMs(resolved.startBeat),
-    nominalEndTimeMs: timeline.beatToTimeMs(resolved.terminalBeat),
+    ...scope,
+    nominalStartTimeMs: timeline.beatToTimeMs(scope.startBeat),
+    nominalEndTimeMs: timeline.beatToTimeMs(scope.terminalBeat),
   };
 }

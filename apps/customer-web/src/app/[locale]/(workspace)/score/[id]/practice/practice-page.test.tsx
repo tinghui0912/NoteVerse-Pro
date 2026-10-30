@@ -20,6 +20,7 @@ const fake = vi.hoisted(() => {
     profile: { mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } },
     scope: { kind: 'FULL' }, tempoSelection: { mode: 'SCORE' }, metronomeEnabled: false,
     setScope: vi.fn(), setTempoSelection: vi.fn(), setMetronomeEnabled: vi.fn(), updateProfile: vi.fn(),
+    get configuration() { return { mode: workspace.profile.mode, inputSource: workspace.profile.inputSource, recordingMode: workspace.profile.mode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode, liveFeedbackEnabled: workspace.profile.continuous.liveFeedbackEnabled }; },
     environment: { invalidate: vi.fn(), acquireInference: vi.fn() } };
   return { invalidScore: false, leaseEnabled: vi.fn(), localOptions: vi.fn(), local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
     device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), observe: vi.fn() },
@@ -32,7 +33,7 @@ vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDevice
 vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.localOptions(options); fake.natural = options.onNaturalCompletion; return fake.local; } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { capabilities: { can_practice: true }, head_revision_id: 'head-revision' } } }) }));
 vi.mock('@/hooks/practice/use-practice-revision-source', () => ({ usePracticeRevisionSource: () => ({
-  artifact: fake.invalidScore ? null : artifact, musicXml: fake.invalidScore ? null : '<score />',
+  sourceId: 'practice-source-fixture', artifact: fake.invalidScore ? null : artifact, musicXml: fake.invalidScore ? null : '<score />',
   sourceQuery: { isError: fake.invalidScore },
   invalid: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null,
 }) }));
@@ -119,7 +120,7 @@ it('direct invalid entry disables the device lease and routes to the pinned Setu
   fake.invalidScore = true;
   await act(async () => { render(<NextIntlClientProvider locale="en" messages={{ practice, common, errors }}><Suspense><PracticePage params={Promise.resolve({ id: 'score-id' })} /></Suspense></NextIntlClientProvider>); });
   expect(fake.leaseEnabled).toHaveBeenCalled(); expect(fake.leaseEnabled.mock.calls.every(([enabled]) => !enabled)).toBe(true);
-  expect(fake.localOptions.mock.calls.every(([options]) => options.artifact === null)).toBe(true);
+  expect(fake.localOptions.mock.calls.every(([options]) => options.plan === null)).toBe(true);
   expect(fake.router.replace).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
   expect(fake.local.start).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled();
   expect(fake.workspace.environment.acquireInference).not.toHaveBeenCalled();

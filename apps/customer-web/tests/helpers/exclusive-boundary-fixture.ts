@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import assert from 'node:assert/strict';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -11,8 +12,7 @@ type Verdict = 'MATCH' | 'MISMATCH';
 const artifact = fixture as PracticeScoreArtifact;
 function harness(chord = false) {
   const clock = new ManualClock(100), session = 'exclusive-boundary', callbacks: (() => void)[] = [];
-  const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: session, inputSource: 'MIDI',
-    scope: chord ? { kind:'RANGE',startGroupId:artifact.moments[3].groupId,endGroupId:artifact.moments[4].groupId } : {kind:'FULL'} });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: chord ? { kind:'RANGE',startGroupId:artifact.moments[3].groupId,endGroupId:artifact.moments[4].groupId } : {kind:'FULL'} }), clock, localSessionId: session });
   const finalized: StepAttemptRecord[] = [];
   const input = new StepMidiAttemptInput({ open: time => runtime.openAttempt(time),
     complete: (identity,evidence) => {

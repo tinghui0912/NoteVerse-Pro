@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
@@ -14,8 +15,7 @@ function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
 function setup(index = 0, id = 'step-test', inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI') {
   const clock = new ManualClock(100);
   const groupId = artifact.moments[index].groupId;
-  const runtime = new StepPracticeRuntime({ artifact, clock, inputSource, localSessionId: id,
-    scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.moments.at(-1)!.groupId } });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.moments.at(-1)!.groupId }, inputSource: inputSource }), clock, localSessionId: id });
   const time = (ms = clock.nowMs()) => ({ domainId: id, ms });
   const begin = () => { clock.advance(100); return runtime.openAttempt(time())!; };
   const finish = (identity: StepAttemptIdentity, pianoKeys: StepPianoKeyEvidence['observedAttackKeys']) => {

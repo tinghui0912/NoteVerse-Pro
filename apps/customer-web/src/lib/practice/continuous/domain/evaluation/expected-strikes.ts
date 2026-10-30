@@ -1,50 +1,10 @@
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import { assertPracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { PracticeTempoTimeline, resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 
 type ContinuousExpectedStrikeClock = {
   beatToTimeMs(beat: number): number;
 };
-
-export type BuildContinuousExpectedStrikesInput = {
-  artifact: PracticeScoreArtifact;
-  tempoSelection: PracticeTempoSelection;
-  scope: PracticeScope;
-};
-
-type ResolvedContinuousPracticeContract = {
-  artifact: PracticeScoreArtifact;
-  tempoPlan: ResolvedPracticeTempoPlan;
-  timeline: PracticeTempoTimeline;
-  scope: ResolvedPracticeScope;
-  scopeStartBeat: number;
-  scopeTerminalBeat: number;
-  naturalTerminalPerformanceTimeMs: number;
-  expectedStrikes: ContinuousExpectedStrike[];
-};
-
-function resolveContinuousPracticeContract(input: BuildContinuousExpectedStrikesInput): ResolvedContinuousPracticeContract {
-  assertPracticeScoreArtifact(input.artifact);
-  const tempoPlan = resolvePracticeTempoPlan(input.artifact, input.tempoSelection);
-  const timeline = new PracticeTempoTimeline(tempoPlan, input.artifact.scoreEndBeat);
-  const scope = resolvePracticeScope(input.artifact, input.scope);
-  const expectedStrikes = buildContinuousExpectedStrikesFromTimeline(input.artifact, timeline, scope);
-  return {
-    artifact: input.artifact,
-    tempoPlan,
-    timeline,
-    scope,
-    scopeStartBeat: scope.startBeat,
-    scopeTerminalBeat: scope.terminalBeat,
-    naturalTerminalPerformanceTimeMs: timeline.beatToTimeMs(scope.terminalBeat) - timeline.beatToTimeMs(scope.startBeat),
-    expectedStrikes,
-  };
-}
-
-export function buildContinuousExpectedStrikes(input: BuildContinuousExpectedStrikesInput): ContinuousExpectedStrike[] {
-  return resolveContinuousPracticeContract(input).expectedStrikes;
-}
 
 export function buildContinuousExpectedStrikesFromTimeline(
   artifact: PracticeScoreArtifact,

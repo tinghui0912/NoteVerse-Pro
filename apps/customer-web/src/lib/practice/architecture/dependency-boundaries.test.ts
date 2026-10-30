@@ -70,6 +70,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
+    || target.startsWith('kernel/') || edge.typeOnly && target === 'recording/recording-mode.ts'));
   if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
   if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
   if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
@@ -159,7 +161,7 @@ describe('Practice bounded domain dependencies', () => {
   it('keeps kernel and mode domains pure and independent', () => {
     for (const file of files) {
       const owner = domain(relative(file));
-      if (!owner && !relative(file).startsWith('result/')) continue;
+      if (!owner && !relative(file).startsWith('result/') && !relative(file).startsWith('planning/')) continue;
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const browserGlobals = new Set(['window', 'document', 'navigator', 'React', 'HTMLElement', 'HTMLMediaElement',
         'Blob', 'MediaStream', 'MediaRecorder', 'AudioContext', 'Worker', 'MIDIAccess', 'MIDIInput', 'fetch', 'WebSocket',
@@ -169,6 +171,24 @@ describe('Practice bounded domain dependencies', () => {
         ts.forEachChild(node, visit);
       };
       visit(source);
+    }
+  });
+
+  it('owns execution scope/tempo resolution in the pure planning boundary', () => {
+    const planner = imports(path.join(practiceRoot, 'planning/session-plan.ts'));
+    expect(planner.some(edge => edge.bindings.includes('resolvePracticeScope') && edge.target?.endsWith('/kernel/scope.ts'))).toBe(true);
+    expect(planner.some(edge => edge.bindings.includes('resolvePracticeTempoPlan') && edge.target?.endsWith('/kernel/tempo.ts'))).toBe(true);
+    const execution = ['step/domain/runtime.ts', 'step/step-practice-controller.ts',
+      'continuous/domain/practice-session.ts', 'continuous/domain/performance-clock.ts',
+      'continuous/domain/evaluation/session.ts', 'continuous/continuous-practice-controller.ts',
+      'result/continuous-performance-result.ts'];
+    for (const owner of execution) {
+      for (const edge of imports(path.join(practiceRoot, owner))) {
+        if (edge.target?.endsWith('/kernel/scope.ts')) expect(edge.typeOnly, owner).toBe(true);
+        if (edge.target?.endsWith('/kernel/tempo.ts')) {
+          expect(edge.bindings.every(binding => binding !== 'resolvePracticeTempoPlan'), owner).toBe(true);
+        }
+      }
     }
   });
 

@@ -1,3 +1,4 @@
+import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { describe, expect, it } from 'vitest';
 import type { PracticeInputSource } from '@/lib/practice/kernel/session';
@@ -8,8 +9,8 @@ import { ManualClock } from '@/lib/practice/kernel/timebase';
 function setup(inputSource: PracticeInputSource, expected: readonly number[] = [56, 64]) {
   const artifact = artifactWithKeys(Array.from({ length: 5 }, () => normalizePianoKeySet(expected)));
   const clock = new ManualClock(), domainId = 'exact-learning';
-  const options: StepPracticeRuntimeOptions = { artifact, inputSource, clock, localSessionId: domainId,
-    metadataClock: { nowEpochMs: () => 0 }, scope: { kind: 'FULL' } };
+  const options: StepPracticeRuntimeOptions = { ...stepSessionPlan(artifact, { inputSource }), clock, localSessionId: domainId,
+    metadataClock: { nowEpochMs: () => 0 } };
   const runtime = new StepPracticeRuntime(options);
   const time = (ms: number) => ({ domainId, ms });
   const finish = (observed: readonly number[], start = 100) => {
@@ -116,7 +117,7 @@ describe('STEP exact pianoKey-set learning verdict', () => {
 it.each(['MIDI', 'MICROPHONE'] as const)('%s compares physical piano endpoints and all88 keys without a scope-specific legality rule', inputSource => {
   const keys = Array.from({ length: 88 }, (_, i) => i + 21);
   const artifact = artifactWithKeys([[21, 108], keys]);
-  const runtime = new StepPracticeRuntime({ artifact, inputSource, localSessionId: 'piano-endpoints', clock: new ManualClock(), scope: { kind: 'FULL' } });
+  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource }), localSessionId: 'piano-endpoints', clock: new ManualClock() });
   const time = (ms: number) => ({ domainId: 'piano-endpoints', ms });
   expect(runtime.currentTarget()?.attackKeys).toEqual([21, 108]);
   const first = runtime.openAttempt(time(1))!; runtime.analyzeAttempt(first);

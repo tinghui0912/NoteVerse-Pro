@@ -12,11 +12,8 @@ import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
-import { createLocalSessionId, type PracticeInputSource } from '@/lib/practice/kernel/session';
-import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
-import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
+import { createLocalSessionId } from '@/lib/practice/kernel/session';
+import type { ContinuousPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
 import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
 import type { ContinuousAnalysisIntervention } from './analysis-intervention';
 import type { PracticeResourceIntervention } from './resource-intervention';
@@ -35,9 +32,8 @@ export type ContinuousControllerOptions = Readonly<{
   devices: PracticeDeviceRoots;
   observeDevices?: (listener: () => void) => () => void;
   startupTimings?: PracticeStartupTimings;
-  artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: PracticeInputSource;
-  tempoSelection?: PracticeTempoSelection; countInBeats?: number; metronomeEnabled?: boolean;
-  recordingMode?: PracticeRecordingMode;
+  plan: ContinuousPracticeSessionPlan;
+  countInBeats?: number;
   onNaturalCompletion?(snapshot: LocalPerformanceSessionSnapshot): void;
 }>;
 export type ContinuousControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'FINALIZING' | 'COMPLETE' | 'FAILED_BEFORE_START' | 'FAILED' | 'ABANDONED' | 'DISPOSED';
@@ -97,17 +93,15 @@ export class ContinuousPracticeController {
   private enabled: boolean;
   private readonly listeners = new Set<() => void>();
   private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
-  private readonly tempoPlan;
   private readonly startup: PracticeStartupTimings;
   constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform()) {
     this.startup = options.startupTimings ?? new PracticeStartupTimings();
-    this.tempoPlan = resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
-    this.enabled = options.metronomeEnabled ?? false;
+    this.enabled = options.plan.metronomeInitiallyEnabled;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot(): ContinuousControllerSnapshot {
     const runtimeState = this.microphone?.snapshot().runtime?.state;
-    const analysis = this.options.inputSource === 'MIDI' ? 'NOT_REQUIRED' : this.fatalFailure || this.state === 'FAILED' ? 'FAILED' : this.analysisIntervention ? 'INTERRUPTED' : this.analysisDisabled ? 'DISABLED' : this.analysisError ? 'FAILED'
+    const analysis = this.options.plan.inputSource === 'MIDI' ? 'NOT_REQUIRED' : this.fatalFailure || this.state === 'FAILED' ? 'FAILED' : this.analysisIntervention ? 'INTERRUPTED' : this.analysisDisabled ? 'DISABLED' : this.analysisError ? 'FAILED'
       : this.state === 'PREPARING' ? runtimeState === 'PREROLL' ? 'PREROLL' : 'PREPARING'
       : this.state === 'COMPLETE' ? 'COMPLETE' : this.state === 'FINALIZING' ? 'DRAINING'
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
@@ -129,7 +123,7 @@ export class ContinuousPracticeController {
   }
   private async prepareAndStart(): Promise<void> {
     try {
-      if (this.options.inputSource === 'MICROPHONE') {
+      if (this.options.plan.inputSource === 'MICROPHONE') {
         this.microphone = new ContinuousMicrophoneInput(this.platform, reason => this.analysisFailed(reason), this.startup);
         await this.startup.measure('acquireInferenceLease', () => this.microphone!.acquire(this.abort.signal)); this.checkAlive();
         this.rootStream = this.options.devices.inputMicrophone;
@@ -142,13 +136,13 @@ export class ContinuousPracticeController {
         this.evidenceProvenance = microphoneEvidenceProvenance(sourceRate(this.context.sampleRate));
       }
       this.session = new ContinuousPracticeSession({
-        ...(this.options.inputSource === 'MIDI'
+        ...(this.options.plan.inputSource === 'MIDI'
           ? { inputSource: 'MIDI' as const, createClockEvidence: (domainId: string) => {
               const evidence = new ContinuousMidiEvidence(domainId);
               this.evidenceProvenance = midiEvidenceProvenance(evidence.evidencePolicyId); return evidence;
             } }
-          : { inputSource: 'MICROPHONE' as const }), artifact: this.options.artifact, scope: this.options.scope,
-        tempoPlan: this.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
+          : { inputSource: 'MICROPHONE' as const }), artifact: this.options.plan.artifact, scope: this.options.plan.scope,
+        sourceId: this.options.plan.sourceId, tempoPlan: this.options.plan.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
         localSessionId: createLocalSessionId(), countInBeats: this.options.countInBeats, metronomeEnabled: this.enabled });
       const session = this.session;
       if (this.microphone) {
@@ -168,15 +162,15 @@ export class ContinuousPracticeController {
       }
       this.checkAlive();
       try {
-        this.recorder = this.platform.createRecorder(this.options.recordingMode ?? 'OFF');
-        await this.startup.measure('recorderAdmission', () => this.recorder!.prepare({ audioRoot: this.options.inputSource === 'MICROPHONE' ? this.rootStream : this.options.devices.recordingMicrophone,
+        this.recorder = this.platform.createRecorder(this.options.plan.recordingMode);
+        await this.startup.measure('recorderAdmission', () => this.recorder!.prepare({ audioRoot: this.options.plan.inputSource === 'MICROPHONE' ? this.rootStream : this.options.devices.recordingMicrophone,
           cameraStream: this.options.devices.camera }));
       } catch (error) { throw recordingPreparationError(error); }
       this.detachRecorder = this.recorder.onRuntimeFault(() => this.updateResourceIntervention());
       this.detachDevices = this.options.observeDevices?.(() => this.recorder?.observeDeviceHealth()) ?? null;
       this.checkAlive();
-      const scope = resolvePracticeScope(this.options.artifact, this.options.scope);
-      this.metronome = this.platform.createMetronome({ artifact: this.options.artifact, tempoPlan: this.tempoPlan, enabled: this.enabled,
+      const scope = this.options.plan.scope;
+      this.metronome = this.platform.createMetronome({ artifact: this.options.plan.artifact, tempoPlan: this.options.plan.tempoPlan, enabled: this.enabled,
         mode: 'CONTINUOUS', scopeStartBeat: scope.startBeat, scopeEndBeat: scope.terminalBeat,
         ...(this.context ? { audioContext: this.context } : {}) });
       this.transition(C => {
@@ -189,9 +183,9 @@ export class ContinuousPracticeController {
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
     } catch (error) {
       if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = error instanceof RecordingPreparationError
-        ? 'RECORDING_PREPARATION_FAILED' : this.options.inputSource === 'MICROPHONE' ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
+        ? 'RECORDING_PREPARATION_FAILED' : this.options.plan.inputSource === 'MICROPHONE' ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
         this.record('PREPARATION_FAILED', String(error));
-        if (this.options.inputSource === 'MICROPHONE' && !(error instanceof RecordingPreparationError)) this.analysisError ??= this.inputError.slice(0, 256);
+        if (this.options.plan.inputSource === 'MICROPHONE' && !(error instanceof RecordingPreparationError)) this.analysisError ??= this.inputError.slice(0, 256);
         this.state = 'FAILED_BEFORE_START'; }
       await this.cleanup(); if (this.cleanupFailure && !this.disposed) this.state = 'FAILED'; this.notify();
     }
@@ -346,7 +340,7 @@ export class ContinuousPracticeController {
       const hard = input?.recoverability === 'RESTART_REQUIRED' || currentRecording?.recoverability === 'RESTART_REQUIRED';
       const recovered = !hard && (!input || input.healthy) && this.inputError !== 'NO_CONNECTED_INPUT'
         && (!currentRecording || currentRecording.state === 'RECOVERED_WAITING_FOR_USER');
-      this.intervention = Object.freeze({ impact: inputRequired ? (this.options.recordingMode && this.options.recordingMode !== 'OFF' ? 'INPUT_AND_RECORDING' : 'INPUT_REQUIRED') : 'RECORDING_ONLY',
+      this.intervention = Object.freeze({ impact: inputRequired ? (this.options.plan.recordingMode && this.options.plan.recordingMode !== 'OFF' ? 'INPUT_AND_RECORDING' : 'INPUT_REQUIRED') : 'RECORDING_ONLY',
         reason: input?.reason ?? (this.inputError === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT' : currentRecording!.reason),
         recoverability: hard ? 'RESTART_REQUIRED' : 'SAME_PIPELINE_RECOVERABLE',
         state: recovered ? 'RECOVERED_WAITING_FOR_USER' : 'WAITING_FOR_USER', pauseOrigin });
@@ -385,11 +379,11 @@ export class ContinuousPracticeController {
         // After admission and Start, media degradation is independent of evaluation and completion.
         const recording = await this.recorder!.finalize(); this.checkAlive();
         const session = this.session!; this.finalSession = session.snapshotSession();
-        const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
+        const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.plan.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
           : session.completedEvaluation();
         if (!this.evidenceProvenance) throw new Error('CONTINUOUS_EVIDENCE_IDENTITY_UNAVAILABLE');
         this.completed = createNaturalContinuousCompletion({ session: this.finalSession,
-          artifact: this.options.artifact, scope: this.options.scope, tempoPlan: this.tempoPlan,
+          artifact: this.options.plan.artifact,
           evaluation, evidenceProvenance: this.evidenceProvenance, recording, completedAt: new Date().toISOString() });
         await this.cleanup(); this.checkAlive();
         this.state = 'COMPLETE'; continuousCompletionStore.setCompletion(this.completed); this.record('COMPLETE');

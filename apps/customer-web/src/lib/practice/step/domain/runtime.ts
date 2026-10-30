@@ -1,8 +1,8 @@
 import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
-import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type DurableClock, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 import { normalizePianoKeySet, pianoKeySetsEqual, STEP_RUNTIME_VERSION, StepDomainError, type StepPianoKeyEvidence, type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepTarget } from '@/lib/practice/step/domain/attempt';
 import { type LocalStepSessionSnapshot, type StepRuntimeStatus } from '@/lib/practice/step/domain/session';
@@ -11,9 +11,9 @@ import { attackKeysForStep, continuationKeysForStep, groupForStep } from './targ
 const STEP_MAX_RAW_ATTACK_KEY_ENTRIES = 128;
 
 export type StepPracticeRuntimeOptions = {
-  artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
+  sourceId: string; artifact: PracticeScoreArtifact; scope: Readonly<ResolvedPracticeScope>; inputSource: 'MICROPHONE' | 'MIDI';
   localSessionId?: string; clock: LocalClock; timebase?: PracticeTimebase; metadataClock?: DurableClock;
-  tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
+  tempoPlan: ResolvedPracticeTempoPlan; metronomeEnabled?: boolean;
 };
 export type StepAttemptCompletion = Readonly<{ kind: 'REJECTED'; reason: 'STALE_ATTEMPT' }>
   | Readonly<{ kind: 'FINALIZED'; record: StepAttemptRecord }>;
@@ -41,7 +41,7 @@ export class StepPracticeRuntime {
 
   constructor(private readonly options: StepPracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
-    this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
+    this.resolvedScope = options.scope;
     this.inputSource = options.inputSource;
     this.currentIndex = this.resolvedScope.startIndex;
     this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
@@ -145,7 +145,7 @@ export class StepPracticeRuntime {
   snapshot(): LocalStepSessionSnapshot {
     return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,
       artifactId: this.artifact.artifactId, mode: 'STEP_BY_STEP', inputSource: this.inputSource,
-      practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
+      sourceId: this.options.sourceId, scope: this.resolvedScope, tempoPlan: this.options.tempoPlan,
       metronomeEnabled: this.metronomeEnabled, runtimeStatus: this.status, completionReason: this.completionReason,
       version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
       step: Object.freeze({ currentIndex: this.currentIndex, targetGeneration: this.generation,

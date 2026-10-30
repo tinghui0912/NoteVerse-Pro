@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { midiEvidenceProvenance, microphoneEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { unavailableContinuousEvaluation } from './domain/evaluation/session';
@@ -14,14 +14,13 @@ const artifact = fixture as PracticeScoreArtifact;
 describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion composition', inputSource => {
   function setup() {
     const clock = new ManualClock(0);
-    const configuration = { artifact, scope: { kind: 'FULL' as const }, clock, countInBeats: 0 };
+    const configuration = { ...continuousSessionPlan(artifact), clock, countInBeats: 0 };
     const session = new ContinuousPracticeSession(inputSource === 'MIDI'
       ? { ...configuration, inputSource, createClockEvidence: id => new ContinuousMidiEvidence(id) }
       : { ...configuration, inputSource });
     session.start();
     const completion = () => createNaturalContinuousCompletion({
-      session: session.snapshotSession(), artifact, scope: configuration.scope,
-      tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }),
+      session: session.snapshotSession(), artifact,
       evaluation: unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),
       evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(48000),
       recording: { status: 'NOT_RECORDED' }, completedAt: '2026-10-26T00:00:00.000Z',

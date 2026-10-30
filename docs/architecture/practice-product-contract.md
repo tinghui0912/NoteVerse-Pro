@@ -287,6 +287,24 @@ and playhead. Evaluation and natural Result production operate independently of
 the feedback setting. ON/OFF does not restart a session or engine. Review always
 shows completed feedback; Share Video always uses its clean-score contract.
 
+## Session Planning
+
+Canonical Practice Source supplies sourceId and the parsed artifact. The page creates
+an immutable `PracticeExecutionIntent` from resolved configuration, committed scope,
+tempo choice and metronome state. A composition-local `planPracticeSession` owns
+source/artifact/intent validation and resolves scope and tempo into one immutable
+`PracticeSessionPlan`. STEP and Continuous controllers consume that plan; pure runtimes
+consume its narrow resolved projections. Live feedback is not execution intent.
+
+The plan captures the initial metronome flag. Live enable/disable stays a runtime
+command and preserves execution ownership, localSessionId and progression. Flag-only
+candidate changes reuse the current resolved scope/tempo. Resources belong to the
+existing readiness/device/application boundaries and are not included in the plan.
+
+Common local snapshots contain sourceId, resolved scope/tempo and current metronome
+state. Natural Continuous completion creates Result7 from those executed resolved
+values. See [session planning](practice-session-planning.md) for contracts and ownership.
+
 ## Domain Ownership
 
 `src/lib/practice/kernel/` owns the pure, cross-mode artifact contract, canonical
@@ -320,8 +338,9 @@ assignment states, while completed evaluation retains the full assignment. The t
 depend on one another. Consumers import concrete owner modules directly.
 
 The performance clock owns transport coordinates and accepts an established
-`PracticeTimebase`. `ContinuousPracticeSession` owns session identity, input source,
-durable timestamps, runtime metadata, metronome selection and session records.
+`PracticeTimebase`, resolved scope and resolved tempo. `ContinuousPracticeSession`
+owns session identity, input source, durable timestamps, runtime metadata, current
+metronome state and session records.
 Reading a session record does not drive a clock transition.
 
 Continuous session accepts the domain-owned `ContinuousClockDrivenEvidencePort`.
