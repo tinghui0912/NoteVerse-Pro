@@ -51,10 +51,10 @@ export class StepPracticeRuntime {
     this.metronomeEnabled = options.metronomeEnabled ?? false;
   }
   currentTarget(): StepTarget | null {
-    const step = this.artifact.practiceAttackSteps[this.currentIndex];
+    const step = this.artifact.moments[this.currentIndex];
     if (!step || this.completed || this.status !== 'ACTIVE') return null;
-    return Object.freeze({ stepId: step.stepId, targetGeneration: this.generation, inputEligibleAfter: this.boundary,
-      attackKeys: Object.freeze(attackKeysForStep(step)), continuationKeys: Object.freeze(continuationKeysForStep(step)) });
+    return Object.freeze({ stepId: step.groupId, targetGeneration: this.generation, inputEligibleAfter: this.boundary,
+      attackKeys: Object.freeze(attackKeysForStep(step)), continuationKeys: Object.freeze(continuationKeysForStep(this.artifact, step)) });
   }
   openAttempt(start: SessionTime): StepAttemptIdentity | null {
     const target = this.currentTarget();
@@ -155,7 +155,7 @@ export class StepPracticeRuntime {
   }
   setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
   get currentStepIndex(): number { return this.currentIndex; }
-  get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
+  get currentOnsetBeat(): number { return this.artifact.moments[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
   get isCompleted(): boolean { return this.completed; }
   get state(): StepRuntimeStatus { return this.status; }
   get canAcceptAttempt(): boolean {

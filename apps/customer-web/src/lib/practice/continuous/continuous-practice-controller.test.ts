@@ -1,3 +1,4 @@
+import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { continuousControllerView } from './continuous-presentation';
@@ -15,7 +16,6 @@ import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/mo
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { ManualClock } from '@/lib/practice/kernel/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
@@ -96,9 +96,11 @@ function environment(rate = 48000, root = stream(), blockSamples = 128) {
     await vi.advanceTimersByTimeAsync(10);
   }
   function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndBeat = 2.4, meterDenominator = 4) {
-    const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact, scoreEndBeat,
+    const base = artifactWithKeys([[60]]);
+    base.events[0].durationBeats = scoreEndBeat; base.moments[0].canonicalEndBeat = scoreEndBeat;
+    const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
       ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
-      expectedPracticeGroups: fixture.expectedPracticeGroups.slice(0, 1), practiceAttackSteps: fixture.practiceAttackSteps.slice(0, 1) };
+    };
     controller = new ContinuousPracticeController({ artifact, scope: { kind: 'FULL' }, inputSource, countInBeats,
       tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode, onNaturalCompletion, devices: borrowedDevices(root.media, root.media, cameraStream ?? null) }, platform);
     return controller;

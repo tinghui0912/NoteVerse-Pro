@@ -1,4 +1,5 @@
 'use client';
+import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { browserStepPlatform } from '@/lib/practice/step/step-platform';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -89,7 +90,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   return { analysisIntervention: snapshot?.analysisIntervention ?? null, infrastructureIntervention: snapshot?.infrastructureIntervention ?? null,
     mode: 'STEP_BY_STEP' as const, applicationState, lifecycle: applicationState,
     runtimeStatus: snapshot?.sessionSnapshot?.runtimeStatus ?? null,
-    inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup ?? null,
+    inputState, inputError, error: inputError, activeStepGroup: snapshot?.activeStepGroup && options.artifact ? projectPracticeMomentView(options.artifact, snapshot.activeStepGroup) : null,
     stepInteractionPhase: snapshot?.stepInteractionPhase ?? null,
     canAcceptAttempt: snapshot?.canAcceptAttempt ?? false,
     pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,

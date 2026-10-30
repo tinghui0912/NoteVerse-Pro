@@ -3,7 +3,7 @@
 ## Revision-Wide Score Admission
 
 Practice-ready validity belongs to the entire pinned score revision. The only current
-artifact is schema2 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
+artifact is schema3 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; source or scope never repairs an invalid revision.
 Setup loads it through the shared revision/source query before explicit environment
 Prepare; direct Practice entry disables Device Lease/session resources and returns
@@ -288,23 +288,22 @@ metadata. It depends on neither mode, acoustic implementation nor browser resour
 Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
 their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
-Practice targets represent physical piano strikes, not notation multiplicity. At one
-onset each physical piano key has exactly one strike target and one attack target, and
-the unique target piano keys equal the group's unique piano-key set. Same-key notation
-across voices/staves is aggregated under that target, retaining every note identity,
-render identity and voice/staff metadata for rendering and annotations. Each target
-has nonempty, same-key notation and an exact render-ID aggregate; strike targets
-partition the group's flat expected notes by `expectedNoteId` without missing or
-duplicate ownership. Nested notation render identities must be nonempty and unique
-before aggregate comparison. Group render IDs exactly represent its expected notes;
-step render IDs exactly represent all attack and continuation notes. `stepNoteId`
-is nonempty and unique across the entire step, including continuation. Different
-notation notes never share a render identity or semantic note identity. Frontend
-artifact and backend artifact boundaries reject
-malformed duplicate physical targets or inconsistent notation without repair.
-Continuation is separate: a tied C4 continuation may coexist with a new C4 attack
-in another voice. Artifact schema2 uses numeric pianoKey/pianoKeys throughout. STEP key-set comparison and Continuous strike projection consume this
-shared physical contract without redefining multiplicity.
+Artifact schema3 has one canonical notation ownership graph and one canonical
+Practice moment/physical-attack sequence. STEP and Continuous are projections, not
+independent serialized target truths. A note owns its event reference, pianoKey,
+render identity, measure/staff/voice and tie facts once. An event owns chronology.
+Each moment owns groupId, onset/end, physical attacks and continuation references.
+One onset/key attack retains every referenced unison notation identity across voices
+and staves. Continuations retain notation but create neither STEP attacks nor
+Continuous strikes. There are no expectedPracticeGroups/practiceAttackSteps arrays,
+ExpectedPracticeNote/PracticeStepNote copies or mirrored render/metadata aggregates.
+
+Scope uses the canonical moment groupId. STEP projects attack/continuation key sets;
+Continuous projects strike identity, performance time and render references from
+those same attacks. Read-only UI views materialize render IDs from canonical notes;
+they are not serialized target owners. Strict graph validation checks identities,
+references, complete physical membership, chronology and endpoints without repair.
+See [canonical moment artifact](practice-moment-artifact.md).
 
 `step/domain/` owns piano-key evidence, exact target comparison, target progression and STEP snapshots.
 `continuous/domain/` owns performance clock/timeline mapping, session composition
@@ -342,7 +341,7 @@ cycles to enforce these boundaries.
 
 ## STEP_BY_STEP
 
-STEP is paced learning, not a performance report. The shared schema2 artifact is
+STEP is paced learning, not a performance report. The shared schema3 artifact is
 validated revision-wide before scope selection. StepPracticeRuntime owns progression;
 StepPracticeController owns inputs, metronome, cancellation and resource cleanup.
 There is no STEP Performance Clock or Pause/Resume lifecycle.

@@ -26,8 +26,8 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
     schedule: (callback, delay) => { const task = { callback, delay, cancelled: false }; timers.push(task); return task; },
     cancel: handle => { (handle as typeof timers[number]).cancelled = true; },
   }, createMidi: vi.fn(value => { options = value; return midi; }), createMetronome: vi.fn(() => metronome) };
-  const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.expectedPracticeGroups[index].groupId,
-    endGroupId: selectedArtifact.expectedPracticeGroups.at(-1)!.groupId };
+  const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.moments[index].groupId,
+    endGroupId: selectedArtifact.moments.at(-1)!.groupId };
   const completion = vi.fn();
   const create = () => new StepPracticeController({ devices: borrowedDevices(), artifact: selectedArtifact, scope, inputSource, platform, onNaturalCompletion: completion });
   const controller = create();
@@ -191,7 +191,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
       trace.push({ phase: snapshot.stepInteractionPhase, index: snapshot.sessionSnapshot!.step.currentIndex, ready: snapshot.canAcceptAttempt });
       if (snapshot.stepInteractionPhase === 'POST_VERDICT') {
         expect(snapshot.pendingPostVerdict?.verdict).toBe('MATCH');
-        expect(snapshot.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
+        expect(snapshot.activeStepGroup?.groupId).toBe(artifact.moments[0].groupId);
         expect(s.metronome.setStepContext.mock.calls).toHaveLength(contexts);
         s.controller.skip();
         s.clock.set(900); // Represents time spent on finalized feedback, not a policy cooldown.
@@ -235,7 +235,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     s.controller.subscribe(() => {
       if (s.controller.snapshot().stepInteractionPhase === 'POST_VERDICT') {
         expect(s.completion).not.toHaveBeenCalled();
-        expect(s.controller.snapshot().activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[4].groupId);
+        expect(s.controller.snapshot().activeStepGroup?.groupId).toBe(artifact.moments[4].groupId);
       }
     });
     s.close(); await s.controller.abandon(); expect(s.completion).toHaveBeenCalledTimes(1);

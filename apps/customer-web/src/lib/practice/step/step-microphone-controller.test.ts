@@ -171,7 +171,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
             practiceScope: prior.practiceScope, tempoSelection: prior.tempoSelection, metronomeEnabled: prior.metronomeEnabled,
             step: { currentIndex: prior.step.currentIndex, targetGeneration: prior.step.targetGeneration,
               inputAvailable: false, activeAttempt: null } } });
-        expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.expectedPracticeGroups[prior.step.currentIndex]);
+        expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.moments[prior.step.currentIndex]);
         expect(r.controller.snapshot().pendingPostVerdict).toEqual(pending);
         const retained = r.controller.snapshot().sessionSnapshot!.step;
         r.controller.skip(); r.publish(r.publications[0]);
@@ -555,7 +555,7 @@ for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const
         inputAvailable: false, activeAttempt: null,
       } },
     });
-    expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.expectedPracticeGroups[prior.step.currentIndex]);
+    expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.moments[prior.step.currentIndex]);
     expect(r.controller.snapshot().pendingPostVerdict).toEqual(pending);
     expect(domainEnd).not.toHaveBeenCalled(); expect(r.completion).not.toHaveBeenCalled();
     const retained = r.controller.snapshot().sessionSnapshot;
@@ -637,7 +637,7 @@ it('explicit fresh owner after infrastructure End starts at configured scope wit
     sessionSnapshot: { runtimeStatus: 'ACTIVE', completionReason: null, step: { currentIndex: 0, targetGeneration: 1 } } });
   expect(fresh.controller.snapshot().sessionSnapshot!.localSessionId).not.toBe(prior.localSessionId);
   expect(fresh.context).not.toBe(first.context); expect(fresh.worker).not.toBe(first.worker);
-  expect(fresh.controller.snapshot().activeStepGroup).toEqual(artifact.expectedPracticeGroups[0]);
+  expect(fresh.controller.snapshot().activeStepGroup).toEqual(artifact.moments[0]);
   await fresh.controller.dispose(); expect(first.completion).not.toHaveBeenCalled(); expect(fresh.completion).not.toHaveBeenCalled();
 });
 

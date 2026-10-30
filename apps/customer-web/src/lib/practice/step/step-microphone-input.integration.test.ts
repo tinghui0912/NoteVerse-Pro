@@ -1,3 +1,4 @@
+import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { readFile, writeFile } from 'node:fs/promises';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,10 +7,8 @@ import type { SourceAcousticPublication } from '../acoustic/runtime/source-publi
 import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-types';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../acoustic/source/capture-transport-contract';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../acoustic/runtime/inference-types';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepMicrophonePlatform } from './step-microphone-platform';
 
@@ -26,10 +25,7 @@ afterAll(async () => {
 async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:capture') {
   const origin = rate * 7, context = Object.assign(new EventTarget(), { sampleRate: rate, currentTime: 7, state: 'running' });
   const rootStop = vi.fn(), cloneStop = vi.fn(), root = { getTracks: () => [{ stop: rootStop }], clone: vi.fn(() => ({ getTracks: () => [{ stop: cloneStop }] })) };
-  const base = fixture as PracticeScoreArtifact;
-  const artifact: PracticeScoreArtifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pianoKeys: [60], strikeTargets: [{ ...g.strikeTargets[0], pianoKey: 60 }] })),
-    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pianoKey: 60 }] })) };
+  const artifact = artifactWithKeys([[60], [60]]);
   const records: ReturnType<StepPracticeRuntime['completeAttempt']>[] = [], failures: Error[] = [];
   let source!: SourceAnalysisRuntime, publish!: SourceAnalysisOptions['onPublication'];
   let bridge!: CaptureConsumer, next = 0, sequence = 0, paused = false, failureListener: ((e: Error) => void) | undefined;

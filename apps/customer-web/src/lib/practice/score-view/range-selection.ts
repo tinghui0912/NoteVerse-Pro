@@ -1,4 +1,4 @@
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 
 export type PracticeRangeSelection =
@@ -31,22 +31,22 @@ export function selectedPracticeRangeSelection(
 }
 
 export function groupById(
-  groups: readonly ExpectedPracticeGroup[],
+  groups: readonly PracticeMomentView[],
   groupId: string
-): ExpectedPracticeGroup | null {
+): PracticeMomentView | null {
   return groups.find((group) => group.groupId === groupId) ?? null;
 }
 
 export function groupForRenderNoteId(
-  groups: readonly ExpectedPracticeGroup[],
+  groups: readonly PracticeMomentView[],
   renderNoteId: string
-): ExpectedPracticeGroup | null {
+): PracticeMomentView | null {
   return groups.find((group) => group.renderNoteIds.includes(renderNoteId)) ?? null;
 }
 
 export function selectPracticeRangeTarget(
   selection: PracticeRangeSelection,
-  groups: readonly ExpectedPracticeGroup[],
+  groups: readonly PracticeMomentView[],
   groupId: string
 ): PracticeRangeSelection {
   const clickedGroup = groupById(groups, groupId);
@@ -73,7 +73,7 @@ export function selectPracticeRangeTarget(
 
 export function transitionPracticeRangeSelection(
   current: PracticeRangeSelection,
-  expectedGroups: readonly ExpectedPracticeGroup[],
+  expectedGroups: readonly PracticeMomentView[],
   targetGroupId: string
 ): { nextSelection: PracticeRangeSelection; completed: boolean } {
   const baseSelection =
@@ -92,7 +92,7 @@ export function transitionPracticeRangeSelection(
 
 export function practiceScopeFromRangeSelection(
   selection: PracticeRangeSelection,
-  groups: readonly ExpectedPracticeGroup[]
+  groups: readonly PracticeMomentView[]
 ): PracticeScopeResolution {
   if (selection.kind === 'FULL_PIECE') {
     return { status: 'ready', scope: { kind: 'FULL' } };
@@ -120,8 +120,8 @@ export function practiceScopeFromRangeSelection(
 
 export function practiceGroupsInRangeSelection(
   selection: PracticeRangeSelection,
-  groups: readonly ExpectedPracticeGroup[]
-): ExpectedPracticeGroup[] {
+  groups: readonly PracticeMomentView[]
+): PracticeMomentView[] {
   if (
     selection.kind === 'FULL_PIECE' ||
     selection.kind === 'SELECTING_END'
@@ -145,10 +145,10 @@ export function practiceGroupsInRangeSelection(
 }
 
 function orderedPracticeGroups(
-  first: ExpectedPracticeGroup,
-  second: ExpectedPracticeGroup,
-  groups: readonly ExpectedPracticeGroup[]
-): [ExpectedPracticeGroup, ExpectedPracticeGroup] {
+  first: PracticeMomentView,
+  second: PracticeMomentView,
+  groups: readonly PracticeMomentView[]
+): [PracticeMomentView, PracticeMomentView] {
   const firstIndex = groups.indexOf(first);
   const secondIndex = groups.indexOf(second);
   return firstIndex <= secondIndex ? [first, second] : [second, first];

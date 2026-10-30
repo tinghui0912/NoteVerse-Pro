@@ -1,5 +1,5 @@
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 
 /**
@@ -51,9 +51,9 @@ export function resolvePracticeScopeCursorNoteIds(
     : resolvePracticeScope(artifact, scope);
   return Array.from(
     new Set(
-      artifact.expectedPracticeGroups
+      artifact.moments
         .slice(resolved.startIndex, resolved.endIndex + 1)
-        .flatMap((group) => group.renderNoteIds)
+        .flatMap(group => notesForIds(artifact, attackNoteIds(group)).map(note => note.renderNoteId))
         .filter(Boolean)
     )
   );

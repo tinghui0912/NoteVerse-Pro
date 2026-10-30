@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { StepPlayheadController } from './step-playhead-controller';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 function makeAdapter() {
@@ -50,32 +50,20 @@ describe('StepPlayheadController', () => {
     const container = makeContainer();
     const adapter = makeAdapter();
 
-    const group1: ExpectedPracticeGroup = {
+    const group1: PracticeMomentView = {
       groupId: 'g1',
       onsetBeat: 1,
       canonicalEndBeat: 2,
-      pianoKeys: [60],
       renderNoteIds: ['n1'],
       measureNumbers: ['1'],
-      eventIds: ['e1'],
-      expectedNotes: [],
-      strikeTargets: [],
-      staffIds: ['1'],
-      voiceIds: ['1'],
     };
 
-    const group2: ExpectedPracticeGroup = {
+    const group2: PracticeMomentView = {
       groupId: 'g2',
       onsetBeat: 2,
       canonicalEndBeat: 3,
-      pianoKeys: [62],
       renderNoteIds: ['n2'],
       measureNumbers: ['1'],
-      eventIds: ['e2'],
-      expectedNotes: [],
-      strikeTargets: [],
-      staffIds: ['1'],
-      voiceIds: ['1'],
     };
 
     controller.apply(container, adapter, group1);

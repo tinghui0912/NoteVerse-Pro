@@ -158,8 +158,8 @@ describe('Continuous analysis publication admission', () => {
       tempoPlan: defaultTempoPlan,
       scope: {
         kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[0].groupId,
-        endGroupId: artifact.expectedPracticeGroups[0].groupId,
+        startGroupId: artifact.moments[0].groupId,
+        endGroupId: artifact.moments[0].groupId,
       },
       clock: rangeClock,
       inputSource: 'MICROPHONE',

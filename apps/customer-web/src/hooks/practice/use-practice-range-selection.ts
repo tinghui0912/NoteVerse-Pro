@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import {
   fullPiecePracticeRangeSelection,
@@ -15,7 +15,7 @@ import {
 
 type SelectionPhase = 'idle' | 'selecting-start' | 'selecting-end' | 'selected';
 
-export function usePracticeRangeSelection(expectedGroups: readonly ExpectedPracticeGroup[], initialScope?: PracticeScope,
+export function usePracticeRangeSelection(expectedGroups: readonly PracticeMomentView[], initialScope?: PracticeScope,
   onScopeChange?: (scope: PracticeScope) => void) {
   const [selection, setSelection] = useState<PracticeRangeSelection>(
     initialScope?.kind === 'RANGE' ? { kind: 'RANGE', startGroupId: initialScope.startGroupId, endGroupId: initialScope.endGroupId } : fullPiecePracticeRangeSelection

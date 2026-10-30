@@ -13,9 +13,9 @@ function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
 }
 function setup(index = 0, id = 'step-test', inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI') {
   const clock = new ManualClock(100);
-  const groupId = artifact.expectedPracticeGroups[index].groupId;
+  const groupId = artifact.moments[index].groupId;
   const runtime = new StepPracticeRuntime({ artifact, clock, inputSource, localSessionId: id,
-    scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId } });
+    scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.moments.at(-1)!.groupId } });
   const time = (ms = clock.nowMs()) => ({ domainId: id, ms });
   const begin = () => { clock.advance(100); return runtime.openAttempt(time())!; };
   const finish = (identity: StepAttemptIdentity, pianoKeys: StepPianoKeyEvidence['observedAttackKeys']) => {

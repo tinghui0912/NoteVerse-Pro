@@ -41,96 +41,16 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const smokeArtifact: PracticeScoreArtifact = {
-  schemaVersion: 2,
-  artifactId: 'practice-score-artifact:smoke-test',
-  scoreId,
-  revisionId,
-  firstPlayableBeat: 0.0,
-  scoreEndBeat: 4.0,
-  playableEvents: [60, 62, 64].map((pianoKey, index) => ({ eventId: `e-${index}`, onsetBeat: index, durationBeats: 1,
-    pianoKeys: [pianoKey], renderNoteIds: [['select-start-note'], ['middle-note'], ['select-end-note']][index], measureNumbers: ['1'], staffIds: ['1'], voiceIds: ['1'],
-    tieTypes: [], playable: true, entryCandidate: true })),
-  scoreTempoSegments: [
-    { startBeat: 0.0, bpm: 100.0 },
-    { startBeat: 2.0, bpm: 90.0 },
-  ],
-  meterSegments: [
-    {
-      startBeat: 0.0,
-      numerator: 4,
-      denominator: 4,
-      measureDurationBeats: 4.0,
-      countInPulses: 4,
-      source: 'MUSICXML',
-    },
-  ],
-  expectedPracticeGroups: [
-    {
-      groupId: 'group-0',
-      onsetBeat: 0.0,
-      canonicalEndBeat: 1.0,
-      pianoKeys: [60],
-      renderNoteIds: ['select-start-note'],
-      measureNumbers: ['1'],
-      eventIds: ['e-0'],
-      expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pianoKey: 60, measureNumbers: ['1'], renderNoteId: 'select-start-note' }],
-      strikeTargets: [{ strikeId: 'strike-0', pianoKey: 60, eventIds: ['e-0'], expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pianoKey: 60, measureNumbers: ['1'], renderNoteId: 'select-start-note' }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
-      staffIds: ['1'],
-      voiceIds: ['1'],
-    },
-    {
-      groupId: 'group-1',
-      onsetBeat: 1.0,
-      canonicalEndBeat: 2.0,
-      pianoKeys: [62],
-      renderNoteIds: ['middle-note'],
-      measureNumbers: ['1'],
-      eventIds: ['e-1'],
-      expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pianoKey: 62, measureNumbers: ['1'], renderNoteId: 'middle-note' }],
-      strikeTargets: [{ strikeId: 'strike-1', pianoKey: 62, eventIds: ['e-1'], expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pianoKey: 62, measureNumbers: ['1'], renderNoteId: 'middle-note' }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
-      staffIds: ['1'],
-      voiceIds: ['1'],
-    },
-    {
-      groupId: 'group-2',
-      onsetBeat: 2.0,
-      canonicalEndBeat: 3.0,
-      pianoKeys: [64],
-      renderNoteIds: ['select-end-note'],
-      measureNumbers: ['1'],
-      eventIds: ['e-2'],
-      expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pianoKey: 64, measureNumbers: ['1'], renderNoteId: 'select-end-note' }],
-      strikeTargets: [{ strikeId: 'strike-2', pianoKey: 64, eventIds: ['e-2'], expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pianoKey: 64, measureNumbers: ['1'], renderNoteId: 'select-end-note' }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
-      staffIds: ['1'],
-      voiceIds: ['1'],
-    },
-  ],
-  practiceAttackSteps: [
-    {
-      stepId: 'step-0',
-      eventIds: ['e-0'], measureNumbers: ['1'], staffIds: ['1'], voiceIds: ['1'],
-      onsetBeat: 0.0,
-      attackTargets: [{ attackId: 'attack-0', pianoKey: 60, eventIds: ['e-0'], notes: [{ stepNoteId: 'note-0', eventId: 'e-0', pianoKey: 60, measureNumbers: ['1'], renderNoteId: 'select-start-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
-      renderNoteIds: ['select-start-note'],
-      continuation: [],
-    },
-    {
-      stepId: 'step-1',
-      eventIds: ['e-1'], measureNumbers: ['1'], staffIds: ['1'], voiceIds: ['1'],
-      onsetBeat: 1.0,
-      attackTargets: [{ attackId: 'attack-1', pianoKey: 62, eventIds: ['e-1'], notes: [{ stepNoteId: 'note-1', eventId: 'e-1', pianoKey: 62, measureNumbers: ['1'], renderNoteId: 'middle-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
-      renderNoteIds: ['middle-note'],
-      continuation: [],
-    },
-    {
-      stepId: 'step-2',
-      eventIds: ['e-2'], measureNumbers: ['1'], staffIds: ['1'], voiceIds: ['1'],
-      onsetBeat: 2.0,
-      attackTargets: [{ attackId: 'attack-2', pianoKey: 64, eventIds: ['e-2'], notes: [{ stepNoteId: 'note-2', eventId: 'e-2', pianoKey: 64, measureNumbers: ['1'], renderNoteId: 'select-end-note', staffIds: ['1'], voiceIds: ['1'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
-      renderNoteIds: ['select-end-note'],
-      continuation: [],
-    },
-  ],
+  schemaVersion: 3,
+  artifactId: 'practice-score-artifact:smoke-test', scoreId, revisionId,
+  firstPlayableBeat: 0, scoreEndBeat: 4,
+  notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
+    renderNoteId: ['select-start-note', 'middle-note', 'select-end-note'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
+  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetBeat: i, durationBeats: i === 2 ? 2 : 1 })),
+  moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetBeat: i, canonicalEndBeat: i === 2 ? 4 : i+1,
+    attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
+  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'MUSICXML' }],
+  scoreTempoSegments: [{ startBeat: 0, bpm: 100 }, { startBeat: 2, bpm: 90 }],
 };
 
 function apiResponse(data: unknown) {
@@ -622,19 +542,10 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const leadingRestArtifact = {
       ...smokeArtifact,
       scoreTempoSegments: [{ startBeat: 2.0, bpm: 90.0 }],
-      expectedPracticeGroups: [
-        {
-          ...smokeArtifact.expectedPracticeGroups[0],
-          onsetBeat: 2.0,
-          canonicalEndBeat: 3.0,
-        },
-      ],
-      practiceAttackSteps: [
-        {
-          ...smokeArtifact.practiceAttackSteps[0],
-          onsetBeat: 2.0,
-        },
-      ],
+      firstPlayableBeat: 2, scoreEndBeat: 3,
+      notes: smokeArtifact.notes.slice(0,1),
+      events: [{ ...smokeArtifact.events[0], onsetBeat: 2 }],
+      moments: [{ ...smokeArtifact.moments[0], onsetBeat: 2, canonicalEndBeat: 3 }],
     };
 
     await setupPracticeMocks(page, leadingRestArtifact);

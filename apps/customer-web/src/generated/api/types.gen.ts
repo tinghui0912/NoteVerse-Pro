@@ -3428,25 +3428,25 @@ export type PracticeScoreArtifactRead = {
      */
     artifactId: string;
     /**
-     * Expectedpracticegroups
+     * Events
      */
-    expectedPracticeGroups: Array<PracticeScoreExpectedGroupRead>;
+    events: Array<PracticeScoreEventRead>;
     /**
      * Firstplayablebeat
      */
-    firstPlayableBeat: number | null;
+    firstPlayableBeat: number;
     /**
      * Metersegments
      */
     meterSegments: Array<PracticeScoreMeterSegmentRead>;
     /**
-     * Playableevents
+     * Moments
      */
-    playableEvents: Array<PracticeScoreEventRead>;
+    moments: Array<PracticeScoreMomentRead>;
     /**
-     * Practiceattacksteps
+     * Notes
      */
-    practiceAttackSteps: Array<PracticeScoreAttackStepRead>;
+    notes: Array<PracticeScoreNoteRead>;
     /**
      * Revisionid
      */
@@ -3454,7 +3454,7 @@ export type PracticeScoreArtifactRead = {
     /**
      * Schemaversion
      */
-    schemaVersion: 2;
+    schemaVersion: 3;
     /**
      * Scoreendbeat
      */
@@ -3470,75 +3470,21 @@ export type PracticeScoreArtifactRead = {
 };
 
 /**
- * PracticeScoreAttackStepRead
+ * PracticeScoreAttackRead
  */
-export type PracticeScoreAttackStepRead = {
-    /**
-     * Attacktargets
-     */
-    attackTargets: Array<PracticeScoreAttackTargetRead>;
-    /**
-     * Continuation
-     */
-    continuation: Array<PracticeScoreStepNoteRead>;
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Onsetbeat
-     */
-    onsetBeat: number;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Stepid
-     */
-    stepId: string;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreAttackTargetRead
- */
-export type PracticeScoreAttackTargetRead = {
+export type PracticeScoreAttackRead = {
     /**
      * Attackid
      */
     attackId: string;
     /**
-     * Eventids
+     * Noteids
      */
-    eventIds: Array<string>;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Notes
-     */
-    notes: Array<PracticeScoreStepNoteRead>;
+    noteIds: Array<string>;
     /**
      * Pianokey
      */
     pianoKey: number;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
 };
 
 /**
@@ -3550,151 +3496,13 @@ export type PracticeScoreEventRead = {
      */
     durationBeats: number;
     /**
-     * Entrycandidate
-     */
-    entryCandidate: boolean;
-    /**
      * Eventid
      */
     eventId: string;
     /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
      * Onsetbeat
      */
     onsetBeat: number;
-    /**
-     * Pianokeys
-     */
-    pianoKeys: Array<number>;
-    /**
-     * Playable
-     */
-    playable: boolean;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Tietypes
-     */
-    tieTypes: Array<string>;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreExpectedGroupRead
- */
-export type PracticeScoreExpectedGroupRead = {
-    /**
-     * Canonicalendbeat
-     */
-    canonicalEndBeat: number;
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Expectednotes
-     */
-    expectedNotes: Array<PracticeScoreExpectedNoteRead>;
-    /**
-     * Groupid
-     */
-    groupId: string;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Onsetbeat
-     */
-    onsetBeat: number;
-    /**
-     * Pianokeys
-     */
-    pianoKeys: Array<number>;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Striketargets
-     */
-    strikeTargets: Array<PracticeScoreExpectedStrikeTargetRead>;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreExpectedNoteRead
- */
-export type PracticeScoreExpectedNoteRead = {
-    /**
-     * Eventid
-     */
-    eventId: string;
-    /**
-     * Expectednoteid
-     */
-    expectedNoteId: string;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Pianokey
-     */
-    pianoKey: number;
-    /**
-     * Rendernoteid
-     */
-    renderNoteId: string;
-};
-
-/**
- * PracticeScoreExpectedStrikeTargetRead
- */
-export type PracticeScoreExpectedStrikeTargetRead = {
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Expectednotes
-     */
-    expectedNotes: Array<PracticeScoreExpectedNoteRead>;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Pianokey
-     */
-    pianoKey: number;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Strikeid
-     */
-    strikeId: string;
 };
 
 /**
@@ -3728,17 +3536,47 @@ export type PracticeScoreMeterSegmentRead = {
 };
 
 /**
- * PracticeScoreStepNoteRead
+ * PracticeScoreMomentRead
  */
-export type PracticeScoreStepNoteRead = {
+export type PracticeScoreMomentRead = {
+    /**
+     * Attacks
+     */
+    attacks: Array<PracticeScoreAttackRead>;
+    /**
+     * Canonicalendbeat
+     */
+    canonicalEndBeat: number;
+    /**
+     * Continuationnoteids
+     */
+    continuationNoteIds: Array<string>;
+    /**
+     * Groupid
+     */
+    groupId: string;
+    /**
+     * Onsetbeat
+     */
+    onsetBeat: number;
+};
+
+/**
+ * PracticeScoreNoteRead
+ */
+export type PracticeScoreNoteRead = {
     /**
      * Eventid
      */
     eventId: string;
     /**
-     * Measurenumbers
+     * Measurenumber
      */
-    measureNumbers: Array<string>;
+    measureNumber: string;
+    /**
+     * Noteid
+     */
+    noteId: string;
     /**
      * Pianokey
      */
@@ -3748,17 +3586,17 @@ export type PracticeScoreStepNoteRead = {
      */
     renderNoteId: string;
     /**
-     * Staffids
+     * Staffid
      */
-    staffIds: Array<string>;
+    staffId: string;
     /**
-     * Stepnoteid
+     * Tietypes
      */
-    stepNoteId: string;
+    tieTypes: Array<'start' | 'stop'>;
     /**
-     * Voiceids
+     * Voiceid
      */
-    voiceIds: Array<string>;
+    voiceId: string;
 };
 
 /**

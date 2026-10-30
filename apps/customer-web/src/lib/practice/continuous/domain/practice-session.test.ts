@@ -1,3 +1,4 @@
+import { artifactWithKeys } from '../../__fixtures__/piano-key-artifact';
 import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
@@ -175,7 +176,9 @@ describe('explicit semantic MIDI progression', () => {
     expect(outcomes[0]).toEqual(outcomes[1]);
   });
   it('120 seconds of silence produces four target frontiers plus terminal, not 12,000 refresh publications', () => {
-    const score = { ...artifact, scoreEndBeat: 240 };
+    const score = structuredClone(artifact);
+    score.scoreEndBeat = 240; score.events.at(-1)!.durationBeats = 240 - score.events.at(-1)!.onsetBeat;
+    score.moments.at(-1)!.canonicalEndBeat = 240;
     const run = (step: number) => {
       const { clock, session, publications } = deadlineSession(score);
       let calls = 0;
@@ -310,7 +313,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     expect(session.advanceToNow().state).toBe('READY');
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)).toHaveLength(
-      artifact.expectedPracticeGroups.reduce((sum, group) => sum + group.strikeTargets.length, 0)
+      artifact.moments.reduce((sum, group) => sum + group.attacks.length, 0)
     );
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'PENDING')).toBe(true);
 
@@ -374,17 +377,11 @@ describe('Continuous clock and evaluation composition', () => {
   });
 
   it('retains an incompatible physical attack once as UNATTRIBUTED, never a target match', () => {
-    const twoGroupArtifact = {
-      ...artifact,
-      expectedPracticeGroups: artifact.expectedPracticeGroups.slice(0, 2).map((group, index) => ({
-        ...group,
-        onsetBeat: index === 0 ? 0 : 0.6,
-      })),
-      practiceAttackSteps: artifact.practiceAttackSteps.slice(0, 2).map((step, index) => ({
-        ...step,
-        onsetBeat: index === 0 ? 0 : 0.6,
-      })),
-    };
+    const twoGroupArtifact = artifactWithKeys([[60], [60]]);
+    twoGroupArtifact.events[1].onsetBeat = 0.6;
+    twoGroupArtifact.moments[1].onsetBeat = 0.6;
+    twoGroupArtifact.moments[1].canonicalEndBeat = 1.6;
+    twoGroupArtifact.scoreEndBeat = 1.6;
     const extraClock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       createClockEvidence: domainId => new ContinuousMidiEvidence(domainId),
@@ -597,8 +594,8 @@ describe('Continuous clock and evaluation composition', () => {
       tempoPlan,
       scope: {
         kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[0].groupId,
-        endGroupId: artifact.expectedPracticeGroups[0].groupId,
+        startGroupId: artifact.moments[0].groupId,
+        endGroupId: artifact.moments[0].groupId,
       },
       clock,
       countInBeats: 3,
@@ -674,11 +671,11 @@ describe('Continuous clock and evaluation composition', () => {
 
     const empty = cloneArtifact({
       artifactId: 'empty-artifact',
-      firstPlayableBeat: null,
+      firstPlayableBeat: 0,
       scoreEndBeat: 0,
-      playableEvents: [],
-      expectedPracticeGroups: [],
-      practiceAttackSteps: [],
+      notes: [],
+      events: [],
+      moments: [],
     });
     expect(() => new ContinuousPracticeSession({
       artifact: empty,

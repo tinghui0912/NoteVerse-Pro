@@ -31,7 +31,7 @@ export function resolvePracticeScope(
   scope: PracticeScope
 ): ResolvedPracticeScope {
   assertPracticeScoreArtifact(artifact);
-  if (artifact.expectedPracticeGroups.length === 0) {
+  if (artifact.moments.length === 0) {
     throw new Error('Practice scope requires at least one expected group.');
   }
 
@@ -39,13 +39,13 @@ export function resolvePracticeScope(
   const startIndex = isRange ? groupIndex(artifact, scope.startGroupId) : 0;
   const endIndex = isRange
     ? groupIndex(artifact, scope.endGroupId)
-    : artifact.expectedPracticeGroups.length - 1;
+    : artifact.moments.length - 1;
   if (endIndex < startIndex) {
     throw new Error('Practice scope end must not be before its start.');
   }
 
-  const startGroup = artifact.expectedPracticeGroups[startIndex];
-  const endGroup = artifact.expectedPracticeGroups[endIndex];
+  const startGroup = artifact.moments[startIndex];
+  const endGroup = artifact.moments[endIndex];
   if (scope.kind === 'RANGE') {
     return {
       kind: 'RANGE',
@@ -67,7 +67,7 @@ export function resolvePracticeScope(
 }
 
 export function entryGroupEndBeat(artifact: PracticeScoreArtifact, groupId: string): number {
-  const group = artifact.expectedPracticeGroups.find((candidate) => candidate.groupId === groupId);
+  const group = artifact.moments.find((candidate) => candidate.groupId === groupId);
   if (!group) {
     throw new Error(`Practice scope target not found: ${groupId}`);
   }
@@ -75,7 +75,7 @@ export function entryGroupEndBeat(artifact: PracticeScoreArtifact, groupId: stri
 }
 
 function groupIndex(artifact: PracticeScoreArtifact, groupId: string): number {
-  const index = artifact.expectedPracticeGroups.findIndex((group) => group.groupId === groupId);
+  const index = artifact.moments.findIndex((group) => group.groupId === groupId);
   if (index < 0) {
     throw new Error(`Practice scope target not found: ${groupId}`);
   }

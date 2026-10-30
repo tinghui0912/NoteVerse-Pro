@@ -121,6 +121,8 @@ class _FakePracticeSourceService:
 def _source_artifact_payload(score_id: str, revision_id: str, artifact_id: str):
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
     value = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
+    value["events"][-1]["durationBeats"] = 16 - value["events"][-1]["onsetBeat"]
+    value["moments"][-1]["canonicalEndBeat"] = 16
     value.update(scoreId=score_id, revisionId=revision_id, artifactId=artifact_id, scoreEndBeat=16,
                  scoreTempoSegments=[{"startBeat": 0, "bpm": 120}])
     return value
@@ -164,7 +166,7 @@ def _create_default_source_snapshot(
                 source_score_uuid,
                 source_revision_uuid,
                 artifact_id,
-                "2",
+                "3",
                 musicxml_sha,
                 artifact_sha,
             ]
@@ -186,7 +188,7 @@ def _create_default_source_snapshot(
         source_score_uuid=source_score_uuid,
         source_revision_uuid=source_revision_uuid,
         artifact_id=artifact_id,
-        artifact_schema_version=2,
+        artifact_schema_version=3,
         prepared_musicxml_object_key=musicxml_key,
         prepared_musicxml_sha256=musicxml_sha,
         prepared_musicxml_byte_size=len(musicxml_bytes),
@@ -2870,7 +2872,7 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
             source_score_uuid="score-uuid-10",
             source_revision_uuid=DEFAULT_TAKE_REVISION_ID,
             artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
-            artifact_schema_version=2,
+            artifact_schema_version=3,
             prepared_musicxml_object_key=musicxml_key,
             prepared_musicxml_sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
             prepared_musicxml_byte_size=len(b"<score-partwise />"),

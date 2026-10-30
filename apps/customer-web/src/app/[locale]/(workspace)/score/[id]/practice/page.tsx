@@ -32,7 +32,7 @@ import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denie
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
-import { type ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import { projectPracticeMomentViews, type PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import {
   evaluatePracticeInputCapabilities,
   getSelectedInputCapability,
@@ -115,9 +115,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   );
   const xmlContent = revisionQuery.data?.data?.content ?? null;
 
-  // Range interaction uses the artifact's expected groups.
-  const expectedGroups: readonly ExpectedPracticeGroup[] = useMemo(
-    () => artifact?.expectedPracticeGroups ?? [],
+  // Range interaction projects canonical moment notation references.
+  const expectedGroups: readonly PracticeMomentView[] = useMemo(
+    () => artifact ? projectPracticeMomentViews(artifact) : [],
     [artifact]
   );
 

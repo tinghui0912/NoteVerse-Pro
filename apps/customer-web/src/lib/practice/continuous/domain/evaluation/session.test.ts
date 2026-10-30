@@ -13,7 +13,7 @@ const createSession = () => new ContinuousEvaluationSession({
 describe('artifact-bound Continuous evaluation session', () => {
   it('constructs canonical same-time strikes from each expected group onset', () => {
     const strikes = buildContinuousExpectedStrikes({ artifact, scope: { kind: 'FULL' }, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } });
-    for (const group of artifact.expectedPracticeGroups) {
+    for (const group of artifact.moments) {
       const times = strikes.filter(strike => strike.groupId === group.groupId).map(strike => strike.expectedPerformanceTimeMs);
       expect(new Set(times).size).toBe(1);
       expect(times[0]).toBe(group.onsetBeat * 500);

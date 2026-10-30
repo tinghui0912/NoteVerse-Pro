@@ -39,8 +39,9 @@ canonicalization, subset acceptance or cross-attempt accumulation exists.
 ## Revision-wide target validity
 
 Backend validates every retained playable key21..108 and rejects an empty/no-target
-revision before schema2 production. Browser kernel defensively validates every
-artifact event/target/note, including unused sections. FULL/RANGE only select from
+revision before schema3 production. Browser kernel defensively validates every
+canonical note/event/moment graph, including unused sections. STEP and Continuous
+project the same physical attacks; no serialized mode-specific target copy exists. FULL/RANGE only select from
 an already-valid revision. The Round55 selected-scope string compatibility workaround
 and its target-owned error are deleted, not generalized. Product key validity is
 independent of source reachability, device permissions and environment qualification.

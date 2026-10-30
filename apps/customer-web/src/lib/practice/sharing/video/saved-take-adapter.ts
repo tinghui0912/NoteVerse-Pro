@@ -97,10 +97,10 @@ export function createShareVideoSessionFromSavedTake(
       if (!scopeStartGroupId || !scopeEndGroupId) {
         return { status: 'unsupported', reason: 'scope_identity_missing' };
       }
-      const startGroup = artifact.expectedPracticeGroups.find(
+      const startGroup = artifact.moments.find(
         (group) => group.groupId === scopeStartGroupId
       );
-      const endGroup = artifact.expectedPracticeGroups.find(
+      const endGroup = artifact.moments.find(
         (group) => group.groupId === scopeEndGroupId
       );
       if (!startGroup || !endGroup) {

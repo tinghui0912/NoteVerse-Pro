@@ -1,9 +1,9 @@
 # Practice Acoustic Evidence Identity Boundary
 
-## Round57 current contract
+## Round58 current contract
 
 The [canonical piano-key contract](practice-piano-key-contract.md) supersedes the
-historical STEP string-language/selected-scope discussion below. Artifact2 is
+historical STEP string-language/selected-scope discussion below. Artifact3 is
 revision-wide Practice-ready with physical keys21..108, independently of source,
 mode and scope. STEP9/v12 and Result7 replace prior development shapes without
 compatibility readers. Raw128 remains unqualified and is not derived from88.
@@ -12,6 +12,11 @@ are unchanged; only non-attested Practice projections consume midiPitch numerica
 Source pitch-name metadata still belongs to the independent acoustic contract.
 Timing/resource values and evidence-provenance shape are unchanged. Earlier named
 rounds below describe their audited baseline, not a second current product contract.
+Round58 normalizes only the [score artifact](practice-moment-artifact.md): one
+canonical notation graph and moment sequence replace duplicated mode target truths.
+STEP9/v12 and Result7 remain unchanged. No selected acoustic source bytes, core or
+composite values, model/FIR bytes or evidence-provenance fields change. Raw128/192
+and all timing/resource values remain unqualified exactly as before.
 
 
 Round 25 establishes this normative contract against approved baseline

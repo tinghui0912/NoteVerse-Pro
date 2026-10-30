@@ -6,12 +6,13 @@ import json
 from typing import Any, Sequence
 
 from app.processing.practice_score.score_timeline import (
-    PracticeScoreTimeline, assert_practice_timeline,
+    PracticeScoreTimeline,
+    assert_practice_timeline,
 )
 from app.processing.practice_score.tempo import PracticeTempoSegment
 
 
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3
 
 
 def practice_score_artifact_from_timeline(
@@ -29,15 +30,9 @@ def practice_score_artifact_from_timeline(
         "scoreId": score_id,
         "revisionId": revision_id,
         "artifactId": "",
-        "playableEvents": [_camel_dataclass(event) for event in timeline.events if event.playable],
-        "expectedPracticeGroups": [
-            {
-                **_camel_dataclass(group),
-                "canonicalEndBeat": timeline.entry_group_end_beat(group.group_id),
-            }
-            for group in timeline.expected_practice_groups
-        ],
-        "practiceAttackSteps": [_camel_dataclass(step) for step in timeline.practice_attack_steps],
+        "notes": [_camel_dataclass(note) for note in timeline.notes],
+        "events": [_camel_dataclass(event) for event in timeline.events],
+        "moments": [_camel_dataclass(moment) for moment in timeline.moments],
         "meterSegments": [_meter_segment(segment) for segment in timeline.meter_segments],
         "scoreTempoSegments": [_tempo_segment(segment) for segment in score_tempo_segments],
         "firstPlayableBeat": timeline.first_playable_beat,
@@ -54,16 +49,19 @@ def practice_score_artifact_json(
     revision_id: str,
     score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> str:
-    return json.dumps(
-        practice_score_artifact_from_timeline(
-            timeline,
-            score_id=score_id,
-            revision_id=revision_id,
-            score_tempo_segments=score_tempo_segments,
-        ),
-        indent=2,
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            practice_score_artifact_from_timeline(
+                timeline,
+                score_id=score_id,
+                revision_id=revision_id,
+                score_tempo_segments=score_tempo_segments,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def _artifact_id(payload: dict[str, Any]) -> str:
@@ -76,10 +74,7 @@ def _artifact_id(payload: dict[str, Any]) -> str:
 
 def _camel_dataclass(item: Any) -> Any:
     if is_dataclass(item) and not isinstance(item, type):
-        return {
-            _camel_key(key): _camel_dataclass(value)
-            for key, value in asdict(item).items()
-        }
+        return {_camel_key(key): _camel_dataclass(value) for key, value in asdict(item).items()}
     if isinstance(item, tuple):
         return [_camel_dataclass(value) for value in item]
     if isinstance(item, list):

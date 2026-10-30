@@ -13,11 +13,11 @@ describe('STEP runtime target and session contracts', () => {
 
     const empty = cloneArtifact({
       artifactId: 'empty-artifact',
-      firstPlayableBeat: null,
+      firstPlayableBeat: 0,
       scoreEndBeat: 0,
-      playableEvents: [],
-      expectedPracticeGroups: [],
-      practiceAttackSteps: [],
+      notes: [],
+      events: [],
+      moments: [],
     });
     expect(() => new StepPracticeRuntime({
       inputSource: 'MIDI', artifact: empty, scope: { kind: 'FULL' },
@@ -94,7 +94,7 @@ describe('STEP runtime target and session contracts', () => {
       clock,
     });
     expect(stepRuntime.currentOnsetBeat).toBe(2.0);
-    expect(stepRuntime.currentTarget()?.stepId).toBe('s-rest-1');
+    expect(stepRuntime.currentTarget()?.stepId).toBe('g-rest-1');
 
 
   });

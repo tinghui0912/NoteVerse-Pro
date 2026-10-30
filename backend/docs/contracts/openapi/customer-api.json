@@ -6788,23 +6788,16 @@
             "title": "Artifactid",
             "type": "string"
           },
-          "expectedPracticeGroups": {
+          "events": {
             "items": {
-              "$ref": "#/components/schemas/PracticeScoreExpectedGroupRead"
+              "$ref": "#/components/schemas/PracticeScoreEventRead"
             },
-            "title": "Expectedpracticegroups",
+            "title": "Events",
             "type": "array"
           },
           "firstPlayableBeat": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Firstplayablebeat"
+            "title": "Firstplayablebeat",
+            "type": "number"
           },
           "meterSegments": {
             "items": {
@@ -6813,18 +6806,18 @@
             "title": "Metersegments",
             "type": "array"
           },
-          "playableEvents": {
+          "moments": {
             "items": {
-              "$ref": "#/components/schemas/PracticeScoreEventRead"
+              "$ref": "#/components/schemas/PracticeScoreMomentRead"
             },
-            "title": "Playableevents",
+            "title": "Moments",
             "type": "array"
           },
-          "practiceAttackSteps": {
+          "notes": {
             "items": {
-              "$ref": "#/components/schemas/PracticeScoreAttackStepRead"
+              "$ref": "#/components/schemas/PracticeScoreNoteRead"
             },
-            "title": "Practiceattacksteps",
+            "title": "Notes",
             "type": "array"
           },
           "revisionId": {
@@ -6832,7 +6825,7 @@
             "type": "string"
           },
           "schemaVersion": {
-            "const": 2,
+            "const": 3,
             "title": "Schemaversion",
             "type": "integer"
           },
@@ -6857,9 +6850,9 @@
           "scoreId",
           "revisionId",
           "artifactId",
-          "playableEvents",
-          "expectedPracticeGroups",
-          "practiceAttackSteps",
+          "notes",
+          "events",
+          "moments",
           "meterSegments",
           "scoreTempoSegments",
           "firstPlayableBeat",
@@ -6868,107 +6861,18 @@
         "title": "PracticeScoreArtifactRead",
         "type": "object"
       },
-      "PracticeScoreAttackStepRead": {
-        "additionalProperties": false,
-        "properties": {
-          "attackTargets": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreAttackTargetRead"
-            },
-            "title": "Attacktargets",
-            "type": "array"
-          },
-          "continuation": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreStepNoteRead"
-            },
-            "title": "Continuation",
-            "type": "array"
-          },
-          "eventIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Eventids",
-            "type": "array"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "onsetBeat": {
-            "title": "Onsetbeat",
-            "type": "number"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "staffIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Staffids",
-            "type": "array"
-          },
-          "stepId": {
-            "title": "Stepid",
-            "type": "string"
-          },
-          "voiceIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Voiceids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "stepId",
-          "onsetBeat",
-          "eventIds",
-          "attackTargets",
-          "continuation",
-          "renderNoteIds",
-          "measureNumbers",
-          "staffIds",
-          "voiceIds"
-        ],
-        "title": "PracticeScoreAttackStepRead",
-        "type": "object"
-      },
-      "PracticeScoreAttackTargetRead": {
+      "PracticeScoreAttackRead": {
         "additionalProperties": false,
         "properties": {
           "attackId": {
             "title": "Attackid",
             "type": "string"
           },
-          "eventIds": {
+          "noteIds": {
             "items": {
               "type": "string"
             },
-            "title": "Eventids",
-            "type": "array"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "notes": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreStepNoteRead"
-            },
-            "title": "Notes",
+            "title": "Noteids",
             "type": "array"
           },
           "pianoKey": {
@@ -6976,24 +6880,14 @@
             "minimum": 21.0,
             "title": "Pianokey",
             "type": "integer"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
           }
         },
         "required": [
           "attackId",
           "pianoKey",
-          "notes",
-          "eventIds",
-          "renderNoteIds",
-          "measureNumbers"
+          "noteIds"
         ],
-        "title": "PracticeScoreAttackTargetRead",
+        "title": "PracticeScoreAttackRead",
         "type": "object"
       },
       "PracticeScoreEventRead": {
@@ -7003,263 +6897,21 @@
             "title": "Durationbeats",
             "type": "number"
           },
-          "entryCandidate": {
-            "title": "Entrycandidate",
-            "type": "boolean"
-          },
           "eventId": {
             "title": "Eventid",
             "type": "string"
           },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
           "onsetBeat": {
             "title": "Onsetbeat",
             "type": "number"
-          },
-          "pianoKeys": {
-            "items": {
-              "maximum": 108.0,
-              "minimum": 21.0,
-              "type": "integer"
-            },
-            "title": "Pianokeys",
-            "type": "array"
-          },
-          "playable": {
-            "title": "Playable",
-            "type": "boolean"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "staffIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Staffids",
-            "type": "array"
-          },
-          "tieTypes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Tietypes",
-            "type": "array"
-          },
-          "voiceIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Voiceids",
-            "type": "array"
           }
         },
         "required": [
           "eventId",
           "onsetBeat",
-          "durationBeats",
-          "pianoKeys",
-          "renderNoteIds",
-          "measureNumbers",
-          "staffIds",
-          "voiceIds",
-          "tieTypes",
-          "playable",
-          "entryCandidate"
+          "durationBeats"
         ],
         "title": "PracticeScoreEventRead",
-        "type": "object"
-      },
-      "PracticeScoreExpectedGroupRead": {
-        "additionalProperties": false,
-        "properties": {
-          "canonicalEndBeat": {
-            "title": "Canonicalendbeat",
-            "type": "number"
-          },
-          "eventIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Eventids",
-            "type": "array"
-          },
-          "expectedNotes": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreExpectedNoteRead"
-            },
-            "title": "Expectednotes",
-            "type": "array"
-          },
-          "groupId": {
-            "title": "Groupid",
-            "type": "string"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "onsetBeat": {
-            "title": "Onsetbeat",
-            "type": "number"
-          },
-          "pianoKeys": {
-            "items": {
-              "maximum": 108.0,
-              "minimum": 21.0,
-              "type": "integer"
-            },
-            "title": "Pianokeys",
-            "type": "array"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "staffIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Staffids",
-            "type": "array"
-          },
-          "strikeTargets": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreExpectedStrikeTargetRead"
-            },
-            "title": "Striketargets",
-            "type": "array"
-          },
-          "voiceIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Voiceids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "groupId",
-          "onsetBeat",
-          "eventIds",
-          "expectedNotes",
-          "strikeTargets",
-          "renderNoteIds",
-          "pianoKeys",
-          "measureNumbers",
-          "staffIds",
-          "voiceIds",
-          "canonicalEndBeat"
-        ],
-        "title": "PracticeScoreExpectedGroupRead",
-        "type": "object"
-      },
-      "PracticeScoreExpectedNoteRead": {
-        "additionalProperties": false,
-        "properties": {
-          "eventId": {
-            "title": "Eventid",
-            "type": "string"
-          },
-          "expectedNoteId": {
-            "title": "Expectednoteid",
-            "type": "string"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "pianoKey": {
-            "maximum": 108.0,
-            "minimum": 21.0,
-            "title": "Pianokey",
-            "type": "integer"
-          },
-          "renderNoteId": {
-            "title": "Rendernoteid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "expectedNoteId",
-          "eventId",
-          "pianoKey",
-          "renderNoteId",
-          "measureNumbers"
-        ],
-        "title": "PracticeScoreExpectedNoteRead",
-        "type": "object"
-      },
-      "PracticeScoreExpectedStrikeTargetRead": {
-        "additionalProperties": false,
-        "properties": {
-          "eventIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Eventids",
-            "type": "array"
-          },
-          "expectedNotes": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeScoreExpectedNoteRead"
-            },
-            "title": "Expectednotes",
-            "type": "array"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "pianoKey": {
-            "maximum": 108.0,
-            "minimum": 21.0,
-            "title": "Pianokey",
-            "type": "integer"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "strikeId": {
-            "title": "Strikeid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "strikeId",
-          "pianoKey",
-          "expectedNotes",
-          "eventIds",
-          "renderNoteIds",
-          "measureNumbers"
-        ],
-        "title": "PracticeScoreExpectedStrikeTargetRead",
         "type": "object"
       },
       "PracticeScoreMeterSegmentRead": {
@@ -7305,19 +6957,60 @@
         "title": "PracticeScoreMeterSegmentRead",
         "type": "object"
       },
-      "PracticeScoreStepNoteRead": {
+      "PracticeScoreMomentRead": {
+        "additionalProperties": false,
+        "properties": {
+          "attacks": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeScoreAttackRead"
+            },
+            "title": "Attacks",
+            "type": "array"
+          },
+          "canonicalEndBeat": {
+            "title": "Canonicalendbeat",
+            "type": "number"
+          },
+          "continuationNoteIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Continuationnoteids",
+            "type": "array"
+          },
+          "groupId": {
+            "title": "Groupid",
+            "type": "string"
+          },
+          "onsetBeat": {
+            "title": "Onsetbeat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "groupId",
+          "onsetBeat",
+          "canonicalEndBeat",
+          "attacks",
+          "continuationNoteIds"
+        ],
+        "title": "PracticeScoreMomentRead",
+        "type": "object"
+      },
+      "PracticeScoreNoteRead": {
         "additionalProperties": false,
         "properties": {
           "eventId": {
             "title": "Eventid",
             "type": "string"
           },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
+          "measureNumber": {
+            "title": "Measurenumber",
+            "type": "string"
+          },
+          "noteId": {
+            "title": "Noteid",
+            "type": "string"
           },
           "pianoKey": {
             "maximum": 108.0,
@@ -7329,35 +7022,37 @@
             "title": "Rendernoteid",
             "type": "string"
           },
-          "staffIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Staffids",
-            "type": "array"
-          },
-          "stepNoteId": {
-            "title": "Stepnoteid",
+          "staffId": {
+            "title": "Staffid",
             "type": "string"
           },
-          "voiceIds": {
+          "tieTypes": {
             "items": {
+              "enum": [
+                "start",
+                "stop"
+              ],
               "type": "string"
             },
-            "title": "Voiceids",
+            "title": "Tietypes",
             "type": "array"
+          },
+          "voiceId": {
+            "title": "Voiceid",
+            "type": "string"
           }
         },
         "required": [
-          "stepNoteId",
+          "noteId",
           "eventId",
           "pianoKey",
           "renderNoteId",
-          "measureNumbers",
-          "staffIds",
-          "voiceIds"
+          "measureNumber",
+          "staffId",
+          "voiceId",
+          "tieTypes"
         ],
-        "title": "PracticeScoreStepNoteRead",
+        "title": "PracticeScoreNoteRead",
         "type": "object"
       },
       "PracticeScoreTempoSegmentRead": {

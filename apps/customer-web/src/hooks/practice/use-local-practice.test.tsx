@@ -179,7 +179,7 @@ describe('useLocalPractice', () => {
     expect(result.current.stepInteractionPhase).toBe('READY');
     expect(result.current.inputState).toBe('RUNNING');
     expect(result.current.activeStepGroup?.groupId).toBe(
-      artifact.expectedPracticeGroups[0].groupId
+      artifact.moments[0].groupId
     );
   });
 
@@ -197,7 +197,7 @@ describe('useLocalPractice', () => {
       await result.current.start();
     });
 
-    expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
+    expect(result.current.activeStepGroup?.groupId).toBe(artifact.moments[0].groupId);
   });
 
   it('rejects STEP microphone Start when no prepared environment provides an inference lease', async () => {
@@ -299,7 +299,7 @@ describe('useLocalPractice', () => {
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
     expect(result.current.activeStepGroup?.groupId).toBe(
-      artifact.expectedPracticeGroups[0].groupId
+      artifact.moments[0].groupId
     );
 
     midiMock.connectedInputCount = 1;
@@ -353,14 +353,14 @@ describe('useLocalPractice', () => {
     });
 
     const firstGroup = result.current.activeStepGroup;
-    expect(firstGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
+    expect(firstGroup?.groupId).toBe(artifact.moments[0].groupId);
 
     act(() => {
       result.current.skip();
     });
 
     const secondGroup = result.current.activeStepGroup;
-    expect(secondGroup?.groupId).toBe(artifact.expectedPracticeGroups[1].groupId);
+    expect(secondGroup?.groupId).toBe(artifact.moments[1].groupId);
   });
 
   it('restarts a fresh session after completion', async () => {
@@ -387,7 +387,7 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
     expect(result.current.activeStepGroup?.groupId).toBe(
-      artifact.expectedPracticeGroups[0].groupId
+      artifact.moments[0].groupId
     );
   });
 

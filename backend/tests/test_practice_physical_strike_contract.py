@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from copy import deepcopy
 import json
 import os
@@ -7,95 +6,135 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-
 from app.modules.practice.source_schemas import PracticeScoreArtifactRead
 
 
-def _unison_artifact():
+def canonical():
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
-    path = root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
-    value = json.loads(path.read_text())
-    group, step = value["expectedPracticeGroups"][0], value["practiceAttackSteps"][0]
-    lower = dict(group["expectedNotes"][0], expectedNoteId="lower:C4", eventId="lower-event", renderNoteId="lower-render")
-    group["expectedNotes"].append(lower)
-    group["renderNoteIds"].append("lower-render")
-    group["eventIds"].append("lower-event")
-    group["staffIds"] = ["1", "2"]
-    group["voiceIds"] = ["1", "2"]
-    group["strikeTargets"][0]["expectedNotes"].append(deepcopy(lower))
-    group["strikeTargets"][0]["renderNoteIds"].append("lower-render")
-    group["strikeTargets"][0]["eventIds"].append("lower-event")
-    note = dict(step["attackTargets"][0]["notes"][0], stepNoteId="lower-step:C4", eventId="lower-event",
-                renderNoteId="lower-render", staffIds=["2"], voiceIds=["2"])
-    step["attackTargets"][0]["notes"].append(note)
-    step["attackTargets"][0]["renderNoteIds"].append("lower-render")
-    step["attackTargets"][0]["eventIds"].append("lower-event")
-    step["eventIds"].append("lower-event")
-    step["renderNoteIds"].append("lower-render")
-    step["staffIds"] = ["1", "2"]
-    step["voiceIds"] = ["1", "2"]
+    return json.loads(
+        (
+            root
+            / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
+        ).read_text()
+    )
+
+
+def unison():
+    value = canonical()
+    original = value["notes"][0]
+    value["notes"].insert(
+        1,
+        dict(
+            original,
+            noteId="lower-note",
+            renderNoteId="lower-render",
+            staffId="2",
+            voiceId="2",
+            eventId="lower-event",
+        ),
+    )
+    value["events"].insert(1, dict(value["events"][0], eventId="lower-event"))
+    value["moments"][0]["attacks"][0]["noteIds"].append("lower-note")
     return value
 
 
-def test_boundary_preserves_same_pitch_notation_and_continuation_overlap():
-    value = _unison_artifact()
-    step = value["practiceAttackSteps"][0]
-    step["continuation"].append(dict(step["attackTargets"][0]["notes"][0], stepNoteId="tie:C4", renderNoteId="tie-render"))
-    step["renderNoteIds"].append("tie-render")
-    before = deepcopy(value)
+def test_single_canonical_notation_graph_retains_unison_and_continuation():
+    value = unison()
     parsed = PracticeScoreArtifactRead.model_validate(value)
-    assert value == before
-    assert parsed.schemaVersion == 2
-    assert parsed.artifactId == "practice-score-artifact:7b0516d2970f8726"
-    assert len(parsed.expectedPracticeGroups[0].strikeTargets) == 1
-    assert len(parsed.expectedPracticeGroups[0].strikeTargets[0].expectedNotes) == 2
-    assert parsed.expectedPracticeGroups[0].strikeTargets[0].renderNoteIds == ["n1", "lower-render"]
-    assert parsed.expectedPracticeGroups[0].renderNoteIds == ["n1", "lower-render"]
-    assert parsed.practiceAttackSteps[0].renderNoteIds == ["n1", "lower-render", "tie-render"]
-    assert parsed.practiceAttackSteps[0].attackTargets[0].renderNoteIds == ["n1", "lower-render"]
-    assert len(parsed.practiceAttackSteps[0].attackTargets) == 1
-    assert len(parsed.practiceAttackSteps[0].attackTargets[0].notes) == 2
-    assert parsed.practiceAttackSteps[0].attackTargets[0].notes[1].voiceIds == ["2"]
-    assert parsed.practiceAttackSteps[0].continuation[0].pianoKey == 60
+    assert parsed.schemaVersion == 3
+    assert len(parsed.notes) == 8
+    attack = parsed.moments[0].attacks[0]
+    assert attack.pianoKey == 60
+    assert len(attack.noteIds) == 2
+    assert {n.renderNoteId for n in parsed.notes if n.noteId in attack.noteIds} == {
+        "n1",
+        "lower-render",
+    }
+    assert len(parsed.moments[3].continuationNoteIds) == 1
+    assert [a.pianoKey for a in parsed.moments[3].attacks] == [69, 72]
+    assert {"expectedPracticeGroups", "practiceAttackSteps", "playableEvents"}.isdisjoint(
+        parsed.model_dump()
+    )
 
 
-@pytest.mark.parametrize("kind", ["group-pitch", "strike-pitch", "attack-pitch", "strike-note-pitch", "attack-note-pitch",
-                                 "strike-empty", "attack-empty", "duplicate-note", "cross-owner", "missing-note",
-                                 "strike-render", "attack-render"])
-def test_artifact_boundary_rejects_corrupt_physical_targets_without_repair(kind):
-    value = _unison_artifact()
-    group, step = value["expectedPracticeGroups"][0], value["practiceAttackSteps"][0]
-    strike, attack = group["strikeTargets"][0], step["attackTargets"][0]
-    if kind == "group-pitch":
-        group["pianoKeys"].append(60)
-    elif kind == "strike-pitch":
-        group["strikeTargets"].append(dict(deepcopy(strike), strikeId="second-C4"))
-    elif kind == "attack-pitch":
-        step["attackTargets"].append(dict(deepcopy(attack), attackId="second-C4"))
-    elif kind == "strike-note-pitch":
-        strike["expectedNotes"][0]["pianoKey"] = 62
-    elif kind == "attack-note-pitch":
-        attack["notes"][0]["pianoKey"] = 62
-    elif kind == "strike-empty":
-        strike["expectedNotes"] = []
-    elif kind == "attack-empty":
-        attack["notes"] = []
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "dangling",
+        "duplicate-note",
+        "duplicate-render",
+        "wrong-key",
+        "double-owner",
+        "missing-reference",
+        "key20",
+        "key109",
+        "fractional",
+        "bool-key",
+        "string-key",
+        "duplicate-moment",
+        "chronology",
+        "endpoint",
+        "nan-endpoint",
+        "duplicate-reference",
+        "dangling-event",
+        "empty-moment",
+        "continuation-as-attack",
+        "missing-continuation",
+        "duplicate-continuation",
+        "schema2",
+        "mirrored-targets",
+    ],
+)
+def test_canonical_graph_rejects_corruption_without_repair(kind):
+    value = unison()
+    a = value["moments"][0]["attacks"][0]
+    if kind == "dangling":
+        a["noteIds"][0] = "missing"
     elif kind == "duplicate-note":
-        strike["expectedNotes"].append(deepcopy(strike["expectedNotes"][0]))
-    elif kind == "cross-owner":
-        chord = value["expectedPracticeGroups"][3]
-        chord["strikeTargets"][1]["expectedNotes"].append(deepcopy(chord["expectedNotes"][0]))
-        chord["strikeTargets"][1]["renderNoteIds"].append(chord["expectedNotes"][0]["renderNoteId"])
-    elif kind == "missing-note":
-        strike["expectedNotes"].pop()
-        strike["renderNoteIds"].pop()
-    elif kind == "strike-render":
-        strike["renderNoteIds"] = ["wrong"]
-    elif kind == "attack-render":
-        attack["renderNoteIds"] = ["wrong"]
-    before = deepcopy(value)
-    serialized = json.dumps(value)
+        value["notes"].append(deepcopy(value["notes"][0]))
+    elif kind == "duplicate-render":
+        value["notes"][1]["renderNoteId"] = value["notes"][0]["renderNoteId"]
+    elif kind == "wrong-key":
+        a["pianoKey"] = 62
+    elif kind == "double-owner":
+        value["moments"][0]["attacks"].append(dict(a, attackId="other", pianoKey=62))
+    elif kind == "missing-reference":
+        a["noteIds"].pop()
+    elif kind in {"key20", "key109", "fractional", "bool-key", "string-key"}:
+        value["notes"][-1]["pianoKey"] = {
+            "key20": 20,
+            "key109": 109,
+            "fractional": 60.5,
+            "bool-key": True,
+            "string-key": "60",
+        }[kind]
+    elif kind == "duplicate-moment":
+        value["moments"][1]["groupId"] = value["moments"][0]["groupId"]
+    elif kind == "chronology":
+        value["events"][0]["onsetBeat"] = 99
+    elif kind == "endpoint":
+        value["moments"][0]["canonicalEndBeat"] += 1
+    elif kind == "nan-endpoint":
+        value["moments"][0]["canonicalEndBeat"] = float("nan")
+    elif kind == "duplicate-reference":
+        a["noteIds"].append(a["noteIds"][0])
+    elif kind == "dangling-event":
+        value["notes"][0]["eventId"] = "missing"
+    elif kind == "empty-moment":
+        value["moments"][0]["attacks"] = []
+    elif kind == "continuation-as-attack":
+        value["moments"][3]["attacks"][0]["noteIds"].append(
+            value["moments"][3]["continuationNoteIds"][0]
+        )
+    elif kind == "missing-continuation":
+        value["moments"][3]["continuationNoteIds"] = []
+    elif kind == "duplicate-continuation":
+        value["moments"][3]["continuationNoteIds"] *= 2
+    elif kind == "schema2":
+        value["schemaVersion"] = 2
+    elif kind == "mirrored-targets":
+        value["expectedPracticeGroups"] = []
+    before = json.dumps(value, sort_keys=True)
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate(value)
-    assert value == before
-    assert json.dumps(value) == serialized
+    assert json.dumps(value, sort_keys=True) == before

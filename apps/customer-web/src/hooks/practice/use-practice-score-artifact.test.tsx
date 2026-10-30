@@ -49,7 +49,7 @@ describe('usePracticeScoreArtifact', () => {
       expect.any(AbortSignal)
     );
     expect(result.current.data?.artifactId).toBe(canonicalArtifactJson.artifactId);
-    expect(result.current.data?.expectedPracticeGroups).toHaveLength(5);
+    expect(result.current.data?.moments).toHaveLength(5);
   });
 
   it('does not request artifact until revision is available', () => {

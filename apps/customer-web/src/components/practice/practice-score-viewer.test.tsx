@@ -10,7 +10,7 @@ import { PracticeScoreViewer } from './practice-score-viewer';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import * as evaluationAnnotations from '@/lib/practice/score-view/evaluation-annotations';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 
 const renderEvents = vi.hoisted(() => ({ notify: () => {} }));
 
@@ -95,18 +95,12 @@ function renderViewer(props: Partial<PracticeScoreViewerProps> = {}) {
   );
 }
 
-const mockStepGroup: ExpectedPracticeGroup = {
+const mockStepGroup: PracticeMomentView = {
   groupId: 'entry-64',
   onsetBeat: 64,
   canonicalEndBeat: 66,
-  pianoKeys: [60],
   renderNoteIds: ['note-a'],
   measureNumbers: ['1'],
-  eventIds: [],
-  expectedNotes: [],
-  strikeTargets: [],
-  staffIds: [],
-  voiceIds: [],
 };
 
 describe('PracticeScoreViewer', () => {

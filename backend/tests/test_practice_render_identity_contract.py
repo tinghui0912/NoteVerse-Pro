@@ -45,13 +45,13 @@ def test_practice_ready_musicxml_ids_match_artifact_timeline_render_ids(tmp_path
     timeline = practice_score_timeline_from_musicxml(score_path)
 
     timeline_note_ids = [
-        note_id for target in timeline.expected_practice_groups for note_id in target.render_note_ids
+        note.render_note_id for note in timeline.notes if any(note.note_id in attack.note_ids for moment in timeline.moments for attack in moment.attacks)
     ]
 
     assert timeline_note_ids == prepared_note_ids
-    assert timeline.expected_practice_groups[0].render_note_ids == (
+    assert tuple(n.render_note_id for n in timeline.notes if n.note_id in {i for a in timeline.moments[0].attacks for i in a.note_ids}) == (
         "nv-p1-m1-note2",
         "nv-p1-m1-note3",
         "nv-p1-m1-note4",
     )
-    assert timeline.expected_practice_groups[1].render_note_ids == ("nv-p1-m2-note1",)
+    assert tuple(n.render_note_id for n in timeline.notes if n.note_id in {i for a in timeline.moments[1].attacks for i in a.note_ids}) == ("nv-p1-m2-note1",)

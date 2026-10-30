@@ -5,10 +5,18 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.processing.practice_score.piano_key import PracticePianoKey
+from app.processing.practice_score.score_timeline import (
+    PracticeScoreTimeline,
+    PracticeScoreNote,
+    PracticeScoreEvent,
+    PracticeMoment,
+    PracticeAttack,
+    assert_practice_timeline,
+)
 
 
 class StrictPracticeSourceModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
 class PracticeReadyScoreContentRead(StrictPracticeSourceModel):
@@ -18,123 +26,35 @@ class PracticeReadyScoreContentRead(StrictPracticeSourceModel):
     mime_type: str = "application/vnd.recordare.musicxml+xml"
 
 
+class PracticeScoreNoteRead(StrictPracticeSourceModel):
+    noteId: str
+    eventId: str
+    pianoKey: PracticePianoKey
+    renderNoteId: str
+    measureNumber: str
+    staffId: str
+    voiceId: str
+    tieTypes: list[Literal["start", "stop"]]
+
+
 class PracticeScoreEventRead(StrictPracticeSourceModel):
     eventId: str
     onsetBeat: float
     durationBeats: float
-    pianoKeys: list[PracticePianoKey]
-    renderNoteIds: list[str]
-    measureNumbers: list[str]
-    staffIds: list[str]
-    voiceIds: list[str]
-    tieTypes: list[str]
-    playable: bool
-    entryCandidate: bool
 
 
-class PracticeScoreExpectedNoteRead(StrictPracticeSourceModel):
-    expectedNoteId: str
-    eventId: str
-    pianoKey: PracticePianoKey
-    renderNoteId: str
-    measureNumbers: list[str]
-
-
-class PracticeScoreExpectedStrikeTargetRead(StrictPracticeSourceModel):
-    strikeId: str
-    pianoKey: PracticePianoKey
-    expectedNotes: list[PracticeScoreExpectedNoteRead]
-    eventIds: list[str]
-    renderNoteIds: list[str]
-    measureNumbers: list[str]
-
-    @model_validator(mode="after")
-    def physical_notation(self) -> Self:
-        _assert_target_notation(
-            self.pianoKey, [n.pianoKey for n in self.expectedNotes],
-            [n.renderNoteId for n in self.expectedNotes], self.renderNoteIds,
-        )
-        return self
-
-
-class PracticeScoreExpectedGroupRead(StrictPracticeSourceModel):
-    groupId: str
-    onsetBeat: float
-    eventIds: list[str]
-    expectedNotes: list[PracticeScoreExpectedNoteRead]
-    strikeTargets: list[PracticeScoreExpectedStrikeTargetRead]
-    renderNoteIds: list[str]
-    pianoKeys: list[PracticePianoKey]
-    measureNumbers: list[str]
-    staffIds: list[str]
-    voiceIds: list[str]
-    canonicalEndBeat: float
-
-    @model_validator(mode="after")
-    def physical_targets(self) -> Self:
-        if _physical_key_set([t.pianoKey for t in self.strikeTargets]) != _physical_key_set(self.pianoKeys):
-            raise ValueError("Practice group strike pianoKeys disagree with physical pianoKeys.")
-        _assert_unique_identities([n.expectedNoteId for n in self.expectedNotes], "expected-note")
-        _assert_exact_identity_aggregate([n.renderNoteId for n in self.expectedNotes], self.renderNoteIds)
-        expected = {n.expectedNoteId: n for n in self.expectedNotes}
-        if len(expected) != len(self.expectedNotes):
-            raise ValueError("Practice group has duplicate expected-note identity.")
-        owned: set[str] = set()
-        for target in self.strikeTargets:
-            for note in target.expectedNotes:
-                if note.expectedNoteId in owned or expected.get(note.expectedNoteId) != note:
-                    raise ValueError("Practice strike expected-note partition is corrupt.")
-                owned.add(note.expectedNoteId)
-        if owned != expected.keys():
-            raise ValueError("Practice strike expected-note partition is incomplete.")
-        return self
-
-
-class PracticeScoreStepNoteRead(StrictPracticeSourceModel):
-    stepNoteId: str
-    eventId: str
-    pianoKey: PracticePianoKey
-    renderNoteId: str
-    measureNumbers: list[str]
-    staffIds: list[str]
-    voiceIds: list[str]
-
-
-class PracticeScoreAttackTargetRead(StrictPracticeSourceModel):
+class PracticeScoreAttackRead(StrictPracticeSourceModel):
     attackId: str
     pianoKey: PracticePianoKey
-    notes: list[PracticeScoreStepNoteRead]
-    eventIds: list[str]
-    renderNoteIds: list[str]
-    measureNumbers: list[str]
-
-    @model_validator(mode="after")
-    def physical_notation(self) -> Self:
-        _assert_target_notation(
-            self.pianoKey, [n.pianoKey for n in self.notes],
-            [n.renderNoteId for n in self.notes], self.renderNoteIds,
-        )
-        return self
+    noteIds: list[str]
 
 
-class PracticeScoreAttackStepRead(StrictPracticeSourceModel):
-    stepId: str
+class PracticeScoreMomentRead(StrictPracticeSourceModel):
+    groupId: str
     onsetBeat: float
-    eventIds: list[str]
-    attackTargets: list[PracticeScoreAttackTargetRead]
-    continuation: list[PracticeScoreStepNoteRead]
-    renderNoteIds: list[str]
-    measureNumbers: list[str]
-    staffIds: list[str]
-    voiceIds: list[str]
-
-    @model_validator(mode="after")
-    def physical_targets(self) -> Self:
-        _physical_key_set([t.pianoKey for t in self.attackTargets])
-        notes = [n for target in self.attackTargets for n in target.notes] + self.continuation
-        _assert_unique_identities([n.stepNoteId for n in notes], "step-note")
-        _assert_exact_identity_aggregate([n.renderNoteId for n in notes], self.renderNoteIds)
-        return self
+    canonicalEndBeat: float
+    attacks: list[PracticeScoreAttackRead]
+    continuationNoteIds: list[str]
 
 
 class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
@@ -152,47 +72,71 @@ class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
 
 
 class PracticeScoreArtifactRead(StrictPracticeSourceModel):
-    schemaVersion: Literal[2]
+    schemaVersion: Literal[3]
     scoreId: str
     revisionId: str
     artifactId: str
-    playableEvents: list[PracticeScoreEventRead]
-    expectedPracticeGroups: list[PracticeScoreExpectedGroupRead]
-    practiceAttackSteps: list[PracticeScoreAttackStepRead]
+    notes: list[PracticeScoreNoteRead]
+    events: list[PracticeScoreEventRead]
+    moments: list[PracticeScoreMomentRead]
     meterSegments: list[PracticeScoreMeterSegmentRead]
     scoreTempoSegments: list[PracticeScoreTempoSegmentRead]
-    firstPlayableBeat: float | None
+    firstPlayableBeat: float
     scoreEndBeat: float
 
     @model_validator(mode="after")
-    def physical_targets(self) -> Self:
-        if not self.playableEvents or not self.expectedPracticeGroups or len(self.expectedPracticeGroups) != len(self.practiceAttackSteps):
-            raise ValueError("Practice artifact requires one attack step per expected group.")
-        for group, step in zip(self.expectedPracticeGroups, self.practiceAttackSteps, strict=True):
-            if _physical_key_set(group.pianoKeys) != _physical_key_set([t.pianoKey for t in step.attackTargets]):
-                raise ValueError("Practice artifact attack/group physical pianoKeys disagree.")
+    def canonical_ownership(self) -> Self:
+        # Transport validation reuses score-processing ownership, not another target model.
+        timeline = PracticeScoreTimeline(
+            notes=tuple(
+                PracticeScoreNote(
+                    n.noteId,
+                    n.eventId,
+                    n.pianoKey,
+                    n.renderNoteId,
+                    n.measureNumber,
+                    n.staffId,
+                    n.voiceId,
+                    tuple(n.tieTypes),
+                )
+                for n in self.notes
+            ),
+            events=tuple(
+                PracticeScoreEvent(e.eventId, e.onsetBeat, e.durationBeats) for e in self.events
+            ),
+            moments=tuple(
+                PracticeMoment(
+                    m.groupId,
+                    m.onsetBeat,
+                    m.canonicalEndBeat,
+                    tuple(
+                        PracticeAttack(a.attackId, a.pianoKey, tuple(a.noteIds)) for a in m.attacks
+                    ),
+                    tuple(m.continuationNoteIds),
+                )
+                for m in self.moments
+            ),
+            first_playable_beat=self.firstPlayableBeat,
+            end_beat=self.scoreEndBeat,
+        )
+        assert_practice_timeline(timeline)
+        if not self.scoreId or not self.revisionId or not self.artifactId:
+            raise ValueError("Missing Practice artifact identity.")
+        previous = -1.0
+        for tempo in self.scoreTempoSegments:
+            if tempo.startBeat < 0 or tempo.startBeat <= previous or tempo.bpm <= 0:
+                raise ValueError("Invalid score tempo chronology.")
+            previous = tempo.startBeat
+        previous = -1.0
+        for meter in self.meterSegments:
+            if (
+                meter.startBeat < 0
+                or meter.startBeat <= previous
+                or meter.numerator < 1
+                or meter.denominator < 1
+                or meter.measureDurationBeats <= 0
+                or meter.countInPulses < 0
+            ):
+                raise ValueError("Invalid meter contract.")
+            previous = meter.startBeat
         return self
-
-
-def _physical_key_set(pianoKeys: list[PracticePianoKey]) -> set[int]:
-    if not pianoKeys or len(set(pianoKeys)) != len(pianoKeys):
-        raise ValueError("Practice physical target pianoKeys must be nonempty and unique.")
-    return set(pianoKeys)
-
-
-def _assert_target_notation(pianoKey: PracticePianoKey, note_keys: list[PracticePianoKey], note_render_ids: list[str], render_ids: list[str]) -> None:
-    if not note_keys or any(note_key != pianoKey for note_key in note_keys):
-        raise ValueError("Practice target notation pianoKeys are corrupt.")
-    _assert_exact_identity_aggregate(note_render_ids, render_ids)
-
-
-def _assert_unique_identities(identities: list[str], owner: str) -> None:
-    if any(not identity for identity in identities) or len(set(identities)) != len(identities):
-        raise ValueError(f"Practice {owner} identities must be nonempty and unique.")
-
-
-def _assert_exact_identity_aggregate(nested: list[str], flat: list[str]) -> None:
-    _assert_unique_identities(nested, "render-note")
-    _assert_unique_identities(flat, "render-note")
-    if sorted(nested) != sorted(flat):
-        raise ValueError("Practice target render-note identities are corrupt.")

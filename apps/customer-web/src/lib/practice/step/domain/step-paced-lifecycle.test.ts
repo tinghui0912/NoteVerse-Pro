@@ -9,8 +9,8 @@ function setup(final = false) {
   const time = (ms: number) => ({ domainId, ms });
   const artifact = fixture as PracticeScoreArtifact;
   const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: domainId, inputSource: 'MICROPHONE',
-    scope: final ? { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId,
-      endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId } : { kind: 'FULL' } });
+    scope: final ? { kind: 'RANGE', startGroupId: artifact.moments.at(-1)!.groupId,
+      endGroupId: artifact.moments.at(-1)!.groupId } : { kind: 'FULL' } });
   const start = () => runtime.openAttempt(time(100))!;
   const finish = (verdict: 'MATCH' | 'MISMATCH' = 'MATCH') => {
     const id = start(); runtime.analyzeAttempt(id);

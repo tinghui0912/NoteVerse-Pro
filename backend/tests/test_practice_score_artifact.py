@@ -36,23 +36,23 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
         score_tempo_segments=(PracticeTempoSegment(0.0, 120.0), PracticeTempoSegment(3.0, 90.0)),
     )
 
-    assert artifact["schemaVersion"] == 2
-    assert artifact["artifactId"] == "practice-score-artifact:7b0516d2970f8726"
+    assert artifact["schemaVersion"] == 3
+    assert artifact["artifactId"] == "practice-score-artifact:c2f3275222932efa"
     assert artifact["scoreTempoSegments"] == [
         {"startBeat": 0.0, "bpm": 120.0},
         {"startBeat": 3.0, "bpm": 90.0},
     ]
     assert artifact["scoreId"] == "canonical-local-core-score"
     assert artifact["revisionId"] == "canonical-local-core-revision"
-    assert [group["pianoKeys"] for group in artifact["expectedPracticeGroups"]] == [
+    assert [[attack["pianoKey"] for attack in moment["attacks"]] for moment in artifact["moments"]] == [
         [60],
         [60],
         [67],
         [69, 72],
         [74],
     ]
-    assert artifact["expectedPracticeGroups"][2]["canonicalEndBeat"] == 4.5
-    assert artifact["practiceAttackSteps"][3]["continuation"][0]["pianoKey"] == 67
+    assert artifact["moments"][2]["canonicalEndBeat"] == 4.5
+    assert next(n for n in artifact["notes"] if n["noteId"] == artifact["moments"][3]["continuationNoteIds"][0])["pianoKey"] == 67
     assert artifact["meterSegments"] == [
         {
             "startBeat": 0.0,
@@ -74,7 +74,7 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
 def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     import pytest
     from app.processing.practice_score.piano_key import PracticeScoreInvalidError
-    timeline = PracticeScoreTimeline(events=(), entry_groups=(), first_playable_event_id=None,
+    timeline = PracticeScoreTimeline(notes=(), events=(), moments=(),
                                     first_playable_beat=None, end_beat=0.)
     with pytest.raises(PracticeScoreInvalidError):
         practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
@@ -292,8 +292,8 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
 
     timeline = PracticeScoreTimeline(
         events=(),
-        entry_groups=(),
-        first_playable_event_id=None,
+        notes=(),
+        moments=(),
         first_playable_beat=None,
         end_beat=0.0,
         meter_segments=(),
@@ -307,12 +307,14 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         )
 
 
-def test_practice_score_artifact_read_schema2_only() -> None:
-    import json, os, pytest
+def test_practice_score_artifact_read_schema3_only() -> None:
+    import json
+    import os
+    import pytest
     from pydantic import ValidationError
     from app.modules.practice.source_schemas import PracticeScoreArtifactRead
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
     value = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
-    assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 2
+    assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3
     with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 1})
+        PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 2})

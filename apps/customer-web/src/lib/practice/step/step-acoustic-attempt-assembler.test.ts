@@ -1,3 +1,4 @@
+import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { sourcePublication, type SourceAcousticPublication } from '../acoustic/runtime/source-publication';
@@ -282,10 +283,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
 });
 
 it('identical targets use physical retirement and new chronology, not a session identity ledger', () => {
-  const base = fixture as PracticeScoreArtifact;
-  const artifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pianoKeys: [60], strikeTargets: [{ ...g.strikeTargets[0], pianoKey: 60 }] })),
-    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pianoKey: 60 }] })) };
+  const artifact = artifactWithKeys([[60], [60]]);
   const domainId = 'same-target', time = (sample: number) => ({ domainId, ms: sample / 48000 * 1000, sampleIndex: sample });
   const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: new ManualClock(), localSessionId: domainId });
   const records: unknown[] = [];

@@ -19,7 +19,7 @@ import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapte
 import { syncRangeOverlay, clearRangeOverlay, isRangeBackgroundMutation } from '@/lib/practice/score-view/range-overlay';
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 import { cn } from '@/lib/utils';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeMode } from '@/lib/practice/kernel/session';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
@@ -34,7 +34,7 @@ type PracticeScoreViewerProps = {
   isLoadingXml: boolean;
   lifecycle: ContinuousPracticeLifecycle | StepControllerState;
   sessionMode: PracticeMode;
-  activeStepGroup?: ExpectedPracticeGroup | null;
+  activeStepGroup?: PracticeMomentView | null;
   performanceMusicalBeat?: number | null;
   performanceScope?: CursorScope | null;
   performanceEvaluation?: ContinuousTargetFeedback | null;

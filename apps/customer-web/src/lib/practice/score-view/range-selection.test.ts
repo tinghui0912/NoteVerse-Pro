@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import {
   fullPiecePracticeRangeSelection,
   practiceScopeFromRangeSelection,
@@ -10,45 +10,27 @@ import {
   transitionPracticeRangeSelection,
 } from './range-selection';
 
-const groups: ExpectedPracticeGroup[] = [
+const groups: PracticeMomentView[] = [
   {
     groupId: 'g1',
     onsetBeat: 1,
     canonicalEndBeat: 2,
-    pianoKeys: [60],
     renderNoteIds: ['n1'],
     measureNumbers: ['1'],
-    eventIds: ['e1'],
-    expectedNotes: [],
-    strikeTargets: [],
-    staffIds: ['1'],
-    voiceIds: ['1'],
   },
   {
     groupId: 'g2',
     onsetBeat: 2,
     canonicalEndBeat: 3,
-    pianoKeys: [64, 67],
     renderNoteIds: ['n2', 'n3'],
     measureNumbers: ['1'],
-    eventIds: ['e2', 'e3'],
-    expectedNotes: [],
-    strikeTargets: [],
-    staffIds: ['1'],
-    voiceIds: ['1'],
   },
   {
     groupId: 'g3',
     onsetBeat: 3,
     canonicalEndBeat: 4,
-    pianoKeys: [72],
     renderNoteIds: ['n4'],
     measureNumbers: ['2'],
-    eventIds: ['e4'],
-    expectedNotes: [],
-    strikeTargets: [],
-    staffIds: ['1'],
-    voiceIds: ['1'],
   },
 ];
 

@@ -122,7 +122,7 @@ it('STEP completion uses the latest callback after rerender without recreating i
   await act(async () => { await result.current.start(); });
   rerender({ onNaturalCompletion: latest });
   await act(async () => { if (result.current.mode !== 'STEP_BY_STEP') throw new Error('Expected STEP');
-    for (const _ of artifact.expectedPracticeGroups) { void _; result.current.skip(); }
+    for (const _ of artifact.moments) { void _; result.current.skip(); }
     await Promise.resolve(); });
   expect(first).not.toHaveBeenCalled(); expect(latest).toHaveBeenCalledOnce();
   expect(starts).toHaveBeenCalledOnce();

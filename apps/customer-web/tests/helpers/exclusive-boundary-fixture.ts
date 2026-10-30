@@ -12,7 +12,7 @@ const artifact = fixture as PracticeScoreArtifact;
 function harness(chord = false) {
   const clock = new ManualClock(100), session = 'exclusive-boundary', callbacks: (() => void)[] = [];
   const runtime = new StepPracticeRuntime({ artifact, clock, localSessionId: session, inputSource: 'MIDI',
-    scope: chord ? { kind:'RANGE',startGroupId:artifact.expectedPracticeGroups[3].groupId,endGroupId:artifact.expectedPracticeGroups[4].groupId } : {kind:'FULL'} });
+    scope: chord ? { kind:'RANGE',startGroupId:artifact.moments[3].groupId,endGroupId:artifact.moments[4].groupId } : {kind:'FULL'} });
   const finalized: StepAttemptRecord[] = [];
   const input = new StepMidiAttemptInput({ open: time => runtime.openAttempt(time),
     complete: (identity,evidence) => {

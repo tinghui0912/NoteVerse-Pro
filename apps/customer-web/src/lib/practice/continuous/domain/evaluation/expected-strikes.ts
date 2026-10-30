@@ -1,5 +1,5 @@
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { assertPracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { PracticeTempoTimeline, resolvePracticeTempoPlan, type PracticeTempoSelection, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
@@ -53,16 +53,16 @@ export function buildContinuousExpectedStrikesFromTimeline(
 ): ContinuousExpectedStrike[] {
   assertPracticeScoreArtifact(artifact);
   const scopeStartTimeMs = timeline.beatToTimeMs(scope.startBeat);
-  return artifact.expectedPracticeGroups
+  return artifact.moments
     .slice(scope.startIndex, scope.endIndex + 1)
     .flatMap((group) => {
       const performanceTimeMs = timeline.beatToTimeMs(group.onsetBeat) - scopeStartTimeMs;
-      return group.strikeTargets.map((strike) => ({
-        strikeId: strike.strikeId,
+      return group.attacks.map((strike) => ({
+        strikeId: strike.attackId,
         groupId: group.groupId,
         pianoKey: strike.pianoKey,
         expectedPerformanceTimeMs: performanceTimeMs,
-        renderNoteIds: strike.renderNoteIds,
+        renderNoteIds: notesForIds(artifact, strike.noteIds).map(note => note.renderNoteId),
       }));
     });
 }

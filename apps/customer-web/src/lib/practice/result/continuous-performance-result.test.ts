@@ -170,7 +170,7 @@ describe('immutable Continuous product result', () => {
   });
   it('unavailable range retains its original canonical scope', () => {
     const base = canonicalContinuousResultFixture('MICROPHONE', 48000, false);
-    const group = artifact.expectedPracticeGroups[3];
+    const group = artifact.moments[3];
     const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId,
       scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId }, inputSource: base.inputSource,
       tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation,

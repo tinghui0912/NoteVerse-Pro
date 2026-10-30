@@ -7,7 +7,7 @@ import {
   applyPlayheadCursor,
   clearPlayheadCursor,
 } from './playhead-cursor';
-import type { ExpectedPracticeGroup } from '@/lib/practice/kernel/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 type StepPlayheadState = {
@@ -51,7 +51,7 @@ export class StepPlayheadController {
   apply(
     container: HTMLElement,
     adapter: PracticeVerovioAdapter,
-    group: ExpectedPracticeGroup | null
+    group: PracticeMomentView | null
   ): void {
     const previousPage = this.state.activePage;
     this.clearDecorations(container);

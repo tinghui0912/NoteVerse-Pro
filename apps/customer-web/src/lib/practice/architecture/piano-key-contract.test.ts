@@ -30,9 +30,9 @@ describe('canonical Practice ownership', () => {
     expect(read('apps/customer-web/src/lib/practice/kernel/scope.ts')).not.toContain('isPracticePianoKey');
   });
   it('has one current artifact/Result reader and no independent target catalog architecture', () => {
-    expect(read('apps/customer-web/src/lib/practice/kernel/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2');
+    expect(read('apps/customer-web/src/lib/practice/kernel/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3');
     expect(read('apps/customer-web/src/lib/practice/result/continuous-performance-result.ts')).toContain('CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 7');
-    expect(read('backend/app/modules/practice/source_schemas.py')).toContain('schemaVersion: Literal[2]');
+    expect(read('backend/app/modules/practice/source_schemas.py')).toContain('schemaVersion: Literal[3]');
     expect(read('backend/app/modules/practice/source_router.py')).not.toContain('/targets');
     expect(read('backend/app/modules/practice/source_service.py')).not.toContain('list_practice_targets');
     expect(existsSync(path.join(root, 'backend/app/processing/practice_score/target_catalog.py'))).toBe(false);

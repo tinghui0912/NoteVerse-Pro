@@ -8,8 +8,9 @@ for input and has no Pause/Resume lifecycle.
 ## Domain and input contract
 
 The [canonical Practice contract](../../../../../../docs/architecture/practice-piano-key-contract.md)
-owns revision-wide schema2 validity and integer PracticePianoKey21..108. Scope selects
-progression only. Runtime asserts the artifact, resolves scope and initializes;
+owns revision-wide schema3 validity and integer PracticePianoKey21..108. Scope selects
+progression only. Canonical moments own targets; STEP projects attack keys and
+continuation keys from their note references. There is no serialized STEP sequence. Runtime asserts the artifact, resolves scope and initializes;
 there is no selected-scope string target language or target compatibility error.
 
 STEP schema9/runtime step-piano-key-learning-v12 receives StepPianoKeyEvidence:

@@ -21,8 +21,8 @@ def notes(keys):
 def test_piano_endpoints_are_practice_ready(key):
     timeline = PracticeScoreTimeline.from_note_array(notes([key]))
     artifact = practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
-    assert artifact["schemaVersion"] == 2
-    assert artifact["expectedPracticeGroups"][0]["pianoKeys"] == [key]
+    assert artifact["schemaVersion"] == 3
+    assert [a["pianoKey"] for a in artifact["moments"][0]["attacks"]] == [key]
 
 
 @pytest.mark.parametrize("keys", [[20], [109], [60, 20], [60, 109], []])

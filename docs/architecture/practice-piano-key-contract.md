@@ -24,19 +24,20 @@ clamped, transposed, filtered or repaired. Same-key multi-voice notation aggrega
 one physical target while retaining every note/render/staff/voice identity. Ties
 retain their existing continuation semantics.
 
-`practice_score_artifact.py` serializes that valid timeline as schema2, the only
-current transport. All event/note/strike/group/attack physical fields are
-`pianoKey`/`pianoKeys`. Artifact and nested target identities are deterministic from
-the schema2 payload. There is no schema1 reader, upgrade, alias or fallback.
+`practice_score_artifact.py` serializes that valid timeline as schema3, the only
+current transport. One canonical note/event graph and one moment/physical-attack
+sequence own target truth; STEP and Continuous only project it. Physical identity
+is `pianoKey`. Artifact and nested target identities are deterministic from
+the schema3 payload. There is no schema1/schema2 reader, upgrade, alias or fallback.
 `PracticeSourceService` maps only the specific deterministic contract error to422
 `practice_score_invalid`, logging the internal reason. Unexpected parser, storage,
 serialization or invariant failures remain503 `practice_source_failed`.
 
 Generated API DTOs describe transport. The browser kernel owns separate domain
-shapes and `parsePracticeScoreArtifact`/`assertPracticeScoreArtifact`: schema2,
+shapes and `parsePracticeScoreArtifact`/`assertPracticeScoreArtifact`: schema3,
 nonempty revision/groups/targets, valid keys throughout, unique physical targets,
-exact group/strike/attack agreement, note/event/render ownership and notation
-aggregates. Malformed data fails without coercion or repair. Independently callable
+complete attack/continuation reference membership, note/event/render ownership
+and exact chronological endpoints. Malformed data fails without coercion or repair. Independently callable
 mode/scope boundaries reuse that artifact owner; they do not define another domain.
 
 Metronome infrastructure consumes a minimal meter/timing projection; it no longer
@@ -44,8 +45,11 @@ fabricates an empty PracticeScoreArtifact to stand in for rhythm data.
 
 The unused `/practice/.../targets` route, service, target-catalog module, DTOs and
 catalog tests are deleted. Repository consumers use the canonical `/artifact` and
-stable-render-identity `/content` endpoints. Source snapshots record schema2 in
+stable-render-identity `/content` endpoints. Source snapshots record schema3 in
 existing numeric storage columns; no database migration or legacy reader is needed.
+
+See [canonical moment artifact](practice-moment-artifact.md) for the schema3 graph,
+projection and source-snapshot contract.
 
 ## Source adapters and evaluation
 
@@ -89,7 +93,7 @@ unchanged and acquire no qualification from this representation change.
 ## Route-family admission and resources
 
 `usePracticeSource` is shared by Setup and Practice: resolve exact revision, pin it
-in the URL, load/validate the immutable schema2 artifact through the shared TanStack
+in the URL, load/validate the immutable schema3 artifact through the shared TanStack
 Query key/cache. Setup then permits configuration and explicit fresh environment
 Prepare. Invalid-score copy is localized in English/Chinese, Prepare is unavailable,
 and changing mode/input/section cannot repair score validity. No permission probe,
@@ -109,7 +113,7 @@ qualification/possible workload redesign. It remains resource-safety, not a boun
 derived from88. S17 remains single owner/numeric unqualified; R01/R03/R04 and all
 resolved acoustic derivations retain their dispositions. Future DERIVE is None.
 
-Artifact2, STEP9/v12 and Result7 are clean development-contract replacements. No
+Artifact3, STEP9/v12 and Result7 are clean development-contract replacements. No
 production users exist and no hydration, migration, dual schema or retired identity
 acceptance is introduced. The [Round56 release gate](practice-foundation-release-gate.md)
 is historical evidence and is superseded by this explicit product decision, not a

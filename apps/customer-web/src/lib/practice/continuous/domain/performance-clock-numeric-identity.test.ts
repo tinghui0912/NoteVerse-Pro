@@ -18,7 +18,10 @@ class AdvancingReadClock extends ManualClock {
 }
 
 function setup(origin = 0, countInBeats = 0, scoreEndBeat = 1000000, clock = new ManualClock(origin)) {
-  const artifact: PracticeScoreArtifact = { ...fixture as PracticeScoreArtifact,
+  const base = structuredClone(fixture) as PracticeScoreArtifact;
+  base.events.at(-1)!.durationBeats = scoreEndBeat - base.events.at(-1)!.onsetBeat;
+  base.moments.at(-1)!.canonicalEndBeat = scoreEndBeat;
+  const artifact: PracticeScoreArtifact = { ...base,
     scoreEndBeat, scoreTempoSegments: [{ startBeat: 0, bpm: 120 }] };
   const runtime = new PerformanceClockRuntime({ artifact,
       scope: { kind: 'FULL' },

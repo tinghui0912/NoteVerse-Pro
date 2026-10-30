@@ -10,6 +10,7 @@ accepted current decisions and their rationale.
 - [Import Processing](runtime/import-processing.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
 - [Canonical Practice Piano-Key Contract](practice-piano-key-contract.md)
+- [Canonical Practice Moment Artifact](practice-moment-artifact.md)
 - [Practice Product Contract](practice-product-contract.md)
 - [Practice Foundation Release Gate](practice-foundation-release-gate.md)
 - [External Dependencies](integrations/external-dependencies.md)

@@ -197,8 +197,8 @@ it.each(['input', 'scope', 'artifact'] as const)('rejects the old subscription d
   expect(result.current).toMatchObject({ inputError: 'OWNER_A_ERROR', isFinalizingPerformance: true });
   const next: UseLocalPracticeOptions = change === 'input' ? { ...options, inputSource: 'MICROPHONE' }
     : change === 'artifact' ? { ...options, artifact: { ...artifact } }
-    : { ...options, scope: { kind: 'RANGE', startGroupId: artifact.expectedPracticeGroups[0].groupId,
-      endGroupId: artifact.expectedPracticeGroups.at(-1)!.groupId } };
+    : { ...options, scope: { kind: 'RANGE', startGroupId: artifact.moments[0].groupId,
+      endGroupId: artifact.moments.at(-1)!.groupId } };
   requestPublication = true;
   rerender(next);
   expect(published).toBe(true);

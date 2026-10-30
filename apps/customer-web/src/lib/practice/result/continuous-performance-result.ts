@@ -24,12 +24,12 @@ type ResultCreation = Readonly<{
 }>;
 export function createContinuousPerformanceResult(options: ResultCreation): ContinuousPerformanceResult {
   const scope = resolvePracticeScope(options.artifact, options.scope);
-  const expected = options.artifact.expectedPracticeGroups.slice(scope.startIndex, scope.endIndex + 1).flatMap(group => group.strikeTargets);
+  const expected = options.artifact.moments.slice(scope.startIndex, scope.endIndex + 1).flatMap(group => group.attacks);
   if (options.evaluation.status === 'COMPLETE') {
     assertNaturalResultCompletion(options.evaluation);
     const assigned = options.evaluation.assignment.groups.flatMap(group => group.strikes);
     const ids = new Set(assigned.map(strike => strike.strikeId));
-    if (assigned.length !== expected.length || expected.some(strike => !ids.has(strike.strikeId))) {
+    if (assigned.length !== expected.length || expected.some(strike => !ids.has(strike.attackId))) {
       throw new Error('Continuous result does not cover its canonical scoped targets.');
     }
   }
