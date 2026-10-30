@@ -148,3 +148,12 @@ after live score deletion while a durable take retains the snapshot.
 The [artifact contract](practice-moment-artifact.md) owns schema3 notation/moment
 semantics. Source representation ownership does not define evaluation, timing,
 resource budgets or recording evidence semantics.
+
+## Frontend Failure Contract
+
+The source query exposes `SourceFailure.INVALID_SCORE` for deterministic parser,
+identity or notation contract failures, and `SourceFailure.LOAD_FAILED` for transport
+or service failures. The original cause is retained for diagnostics and safe API-code
+formatting. Setup stops before qualification on either failure; load failure is retryable
+through Start Practice. Practice presents failure in place. The shared strict parser
+remains the full score admission authority. See [failure boundaries](practice-failures.md).

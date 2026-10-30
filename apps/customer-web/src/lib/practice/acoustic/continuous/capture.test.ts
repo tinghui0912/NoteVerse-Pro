@@ -29,7 +29,7 @@ it.each([CAPTURE_TRANSPORT_BLOCK_SAMPLES - 1, CAPTURE_TRANSPORT_BLOCK_SAMPLES + 
   const f = fixture();
   const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
     stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
-  const rejection = expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_TRANSPORT_BLOCK_VIOLATION');
+  const rejection = expect(pending).rejects.toMatchObject({ kind: 'CAPTURE', code: 'PIPELINE_INVALID' });
   await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
   (f.node.port.onmessage as (event: unknown) => void)({ data: { type: 'pcm-chunk', sequence: 0, samples: new Float32Array(size) } });
   await rejection;
@@ -67,13 +67,13 @@ it('cleanup during stabilization rejects readiness, releases once and does not r
     stream: f.stream as unknown as MediaStream, ownership: 'OWNED_ANALYSIS', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
   await vi.waitFor(() => expect(f.node.port.onmessage).toBeTypeOf('function'));
   f.bridge.abort(); // Simulates the owner cancelling its attached capture cleanup.
-  await expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_STOPPED_BEFORE_READY');
+  await expect(pending).rejects.toMatchObject({ kind: 'CAPTURE', code: 'CONNECTION_FAILED' });
   expect(f.bridge.abort).toHaveBeenCalledTimes(1); expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1);
 });
 it('partial initialization failure releases already-constructed worklet and analysis track', async () => {
   const f = fixture(); f.context.createMediaStreamSource = () => { throw new Error('source initialization failed'); };
   await expect(BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
-    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' })).rejects.toThrow('source initialization failed');
+    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' })).rejects.toMatchObject({ kind: 'CAPTURE', code: 'CONNECTION_FAILED' });
   expect(f.node.port.close).toHaveBeenCalledTimes(1); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
   expect(f.recordingTrack.stop).not.toHaveBeenCalled();
 });
@@ -82,14 +82,14 @@ it.each(['consumer', 'async-consumer', 'ACK'])('readiness rejects and cleans up 
   if (kind === 'consumer') f.bridge.receive.mockImplementation(() => { throw new Error('CONSUMER_FAILURE'); });
   if (kind === 'async-consumer') f.bridge.receive.mockReturnValue(Promise.resolve());
   if (kind === 'ACK') f.node.port.postMessage.mockImplementation(message => { if (message.type === 'ACK') throw new Error('PORT_FAILURE'); });
-  await expect(connected(f, 'OWNED_ANALYSIS')).rejects.toThrow(kind === 'consumer' ? 'CONSUMER_FAILURE' : kind === 'ACK' ? 'PORT_FAILURE' : 'ACOUSTIC_CAPTURE_ASYNC_CONSUMER');
+  await expect(connected(f, 'OWNED_ANALYSIS')).rejects.toMatchObject(kind === 'consumer' ? { message: 'CONSUMER_FAILURE' } : { kind: 'CAPTURE', code: kind === 'ACK' ? 'MESSAGE_ERROR' : 'PIPELINE_INVALID' });
   expect(f.bridge.abort).toHaveBeenCalledTimes(1); expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1);
 });
 it('pre-domain readiness timeout is bounded and does not close the borrowed session context', async () => {
   vi.useFakeTimers(); const f = fixture();
   const pending = BrowserAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
     stream: f.stream as unknown as MediaStream, ownership: 'OWNED_ANALYSIS', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
-  const rejected = expect(pending).rejects.toThrow('ACOUSTIC_CAPTURE_READINESS_TIMEOUT');
+  const rejected = expect(pending).rejects.toMatchObject({ kind: 'CAPTURE', code: 'READINESS_TIMEOUT' });
   await vi.advanceTimersByTimeAsync(10000); await rejected;
   expect(f.recordingTrack.stop).toHaveBeenCalledTimes(1); expect(f.context.state).toBe('running');
 });

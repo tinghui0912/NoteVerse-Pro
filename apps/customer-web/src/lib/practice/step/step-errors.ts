@@ -1,3 +1,4 @@
+import type { PracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
 
 export type StepApplicationErrorCode = 'STEP_SCORE_UNAVAILABLE'
   | 'PRACTICE_ENVIRONMENT_NOT_READY'
@@ -22,18 +23,20 @@ export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, stri
   STEP_ATTEMPT_FAILED: 'The attempt could not be completed.',
   STEP_RESOURCE_CLEANUP_FAILED: 'Practice resources could not be released.',
 });
-export function stepApplicationError(error: unknown, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI',
-  phase: 'PREPARING' | 'ACTIVE' = 'PREPARING'): StepApplicationErrorCode {
-  const message = error instanceof Error ? error.message : '';
-  if (Object.hasOwn(STEP_ERROR_MESSAGES, message)) return message as StepApplicationErrorCode;
-  if (inputSource === 'MICROPHONE') {
-    if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'NotAllowedError') {
-      return 'STEP_MICROPHONE_PERMISSION_DENIED';
-    }
-    if (/CONTEXT|CAPTURE|SOURCE_LOST|SAMPLE_RATE/.test(message)
-      || message === 'STEP_MICROPHONE_SOURCE_MAPPING_INVALID' || message === 'NONCHRONOLOGICAL_ACOUSTIC_SOURCE') return 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED';
-    return phase === 'ACTIVE' ? 'STEP_ACOUSTIC_RUNTIME_FAILED' : 'STEP_ACOUSTIC_PREPARATION_FAILED';
+/** Pure STEP consequence policy. Invariant/unknown failures use the caller's generic mode outcome. */
+export function projectStepFailure(failure: PracticeCausalFailure, phase: 'PREPARING' | 'ACTIVE'): StepApplicationErrorCode {
+  switch (failure.kind) {
+    case 'SOURCE': return 'STEP_SCORE_UNAVAILABLE';
+    case 'MIDI': return failure.code === 'PERMISSION_DENIED' ? 'STEP_MIDI_PERMISSION_DENIED'
+      : failure.code === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT' : 'STEP_MIDI_UNAVAILABLE';
+    case 'DEVICE': return failure.resource === 'MICROPHONE' && failure.code === 'PERMISSION_DENIED' ? 'STEP_MICROPHONE_PERMISSION_DENIED'
+      : phase === 'ACTIVE' ? 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED' : 'STEP_MICROPHONE_UNAVAILABLE';
+    case 'AUDIO_CONTEXT': case 'CAPTURE': return 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED';
+    case 'ACOUSTIC':
+      if (failure.code === 'ENVIRONMENT_NOT_READY') return 'PRACTICE_ENVIRONMENT_NOT_READY';
+      if (failure.code === 'SOURCE_RATE_UNSUPPORTED') return 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED';
+      return phase === 'ACTIVE' ? 'STEP_ACOUSTIC_RUNTIME_FAILED' : 'STEP_ACOUSTIC_PREPARATION_FAILED';
+    case 'INFERENCE': return phase === 'ACTIVE' ? 'STEP_ACOUSTIC_RUNTIME_FAILED' : 'STEP_ACOUSTIC_PREPARATION_FAILED';
+    case 'RECORDING': return 'STEP_ATTEMPT_FAILED';
   }
-  if (error instanceof Error && error.name === 'NotAllowedError') return 'STEP_MIDI_PERMISSION_DENIED';
-  return 'STEP_MIDI_UNAVAILABLE';
 }

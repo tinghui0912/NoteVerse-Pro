@@ -1,7 +1,7 @@
 import type { SourcePcmBlock } from '../runtime/source-analysis-runtime';
 import { SourceAnalysisRuntime } from '../runtime/source-analysis-runtime';
 import { isAcousticDomainIdentity } from '../runtime/source-publication';
-import { ACOUSTIC_MODEL, fail, onlyFields } from '../model/model-contract';
+import { ACOUSTIC_MODEL, AcousticAnalysisError, fail, onlyFields } from '../model/model-contract';
 import type { AcousticInferencePort } from '../runtime/inference-types';
 import { deliverPublication, projectContinuousEvidence, type AcousticPublicationSink, type PerformanceSegment } from './publication';
 
@@ -21,6 +21,7 @@ export class ContinuousAcousticProjection {
   private frontier = -Infinity;
   private availabilitySessionTimeMs = -Infinity;
   private delivering = false;
+  private failure: Error | null = null;
   private constructor(private readonly options: AcousticRuntimeOptions) {}
   static async create(options: AcousticRuntimeOptions): Promise<ContinuousAcousticProjection> {
     onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
@@ -28,7 +29,7 @@ export class ContinuousAcousticProjection {
     const owner = new ContinuousAcousticProjection(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }));
     owner.source = await SourceAnalysisRuntime.create({ sourceDomainId: options.sourceDomainId, sourceSampleRateHz: options.sourceSampleRateHz,
       coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityRuntimeMs: options.nowAvailabilityRuntimeMs,
-      onFailure: options.onFailure, onPublication: publication => {
+      onFailure: error => { owner.failure = error; options.onFailure?.(error); }, onPublication: publication => {
         const segment = owner.segments.get(publication.window.regionIndex);
         if (!segment) fail('UNKNOWN_ACOUSTIC_PERFORMANCE_SEGMENT');
         owner.deliver(projectContinuousEvidence(publication, segment, options.sessionDomainId));
@@ -93,7 +94,7 @@ export class ContinuousAcousticProjection {
   private guardReentry(): void { if (this.delivering) fail('ACOUSTIC_PUBLICATION_REENTRANCY'); }
   private guard(): void {
     this.guardReentry(); const s = this.source.snapshot();
-    if (s.state === 'FAILED') fail(s.failureCode!);
+    if (s.state === 'FAILED') throw this.failure ?? new AcousticAnalysisError('ACOUSTIC_INTERNAL_FAILURE', { cause: s.failureCode });
     if (s.state === 'SEALED' || s.state === 'DISPOSED') fail('ACOUSTIC_RUNTIME_CLOSED');
   }
   private deliver(publication: Parameters<AcousticPublicationSink>[0]): void {

@@ -1,3 +1,6 @@
+import { browserDevicePlatform } from '@/lib/practice/device/browser-device-platform';
+import { DeviceFailure, MidiFailure, AudioContextFailure } from '@/lib/practice/failure/causal-failure';
+import { createPracticeAudioContext, resumePracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import { browserMicrophoneCapture } from '@/lib/practice/acoustic/source/browser-microphone-platform';
 import { QualifiedSourceAdapter } from '@/lib/practice/acoustic/source/source-adapter';
 import { probeRecording } from '@/lib/practice/recording/recorder-capability';
@@ -11,23 +14,18 @@ export async function probePracticeRequirements(requirements: readonly PracticeQ
   let context: AudioContext | null = null, capture: { stop(): void } | null = null;
   try {
     if (needs('midi')) {
-      if (typeof navigator.requestMIDIAccess !== 'function') throw new Error('MIDI_UNSUPPORTED');
-      let access: MIDIAccess;
-      try { access = await navigator.requestMIDIAccess({ sysex: false }); }
-      catch (error) { throw new Error(error instanceof DOMException && error.name === 'NotAllowedError' ? 'MIDI_PERMISSION_DENIED' : 'MIDI_UNAVAILABLE'); }
+      const access = await browserDevicePlatform.acquireMidi();
       check();
-      if (![...access.inputs.values()].some(input => input.state === 'connected')) throw new Error('NO_CONNECTED_INPUT');
+      if (![...access.inputs.values()].some(input => input.state === 'connected')) throw new MidiFailure('NO_CONNECTED_INPUT');
       ready('midi');
     }
     if (needs('microphone')) {
-      try { microphone = await navigator.mediaDevices.getUserMedia({ video: false,
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
-      catch (error) { throw new Error(error instanceof DOMException && error.name === 'NotAllowedError' ? 'MICROPHONE_PERMISSION_DENIED' : 'MICROPHONE_UNAVAILABLE'); }
+      microphone = await browserDevicePlatform.acquireStream('inputMicrophone');
       check();
-      if (!microphone.getAudioTracks().some(track => track.readyState === 'live' && !track.muted)) throw new Error('MICROPHONE_UNAVAILABLE');
+      if (!microphone.getAudioTracks().some(track => track.readyState === 'live' && !track.muted)) throw new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
       if (needs('browserAudio')) {
-        context = new AudioContext(); await context.resume(); check();
-        if (context.state !== 'running') throw new Error('AUDIO_CONTEXT_INTERRUPTED');
+        context = createPracticeAudioContext(); await resumePracticeAudioContext(context); check();
+        if (context.state !== 'running') throw new AudioContextFailure(context.state === 'closed' ? 'CLOSED' : 'INTERRUPTED');
         const adapter = await QualifiedSourceAdapter.create(context.sampleRate, await browserMicrophoneCapture.coefficients(context.sampleRate)); check();
         capture = await browserMicrophoneCapture.connectCapture({ context, stream: microphone, ownership: 'BORROWED_SESSION_STREAM',
           workletUrl: browserMicrophoneCapture.workletUrl, bridge: {
@@ -39,10 +37,9 @@ export async function probePracticeRequirements(requirements: readonly PracticeQ
       ready('microphone');
     }
     if (needs('camera')) {
-      try { camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }); }
-      catch (error) { throw new Error(error instanceof DOMException && error.name === 'NotAllowedError' ? 'CAMERA_PERMISSION_DENIED' : 'CAMERA_UNAVAILABLE'); }
+      camera = await browserDevicePlatform.acquireStream('camera');
       check();
-      if (!camera.getVideoTracks().some(track => track.readyState === 'live')) throw new Error('CAMERA_UNAVAILABLE');
+      if (!camera.getVideoTracks().some(track => track.readyState === 'live')) throw new DeviceFailure('UNAVAILABLE', 'CAMERA');
       ready('camera');
     }
     if (needs('audioRecording') || needs('videoRecording')) {

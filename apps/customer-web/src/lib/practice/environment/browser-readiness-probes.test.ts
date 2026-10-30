@@ -29,7 +29,7 @@ it('unsupported source rate fails closed and still releases the microphone and c
   const { stream, stop } = microphone(), close = vi.fn(async () => {});
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: async () => stream } });
   vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 32000; resume = async () => {}; close = close; });
-  await expect(probePracticeRequirements(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification, vi.fn(), new AbortController().signal)).rejects.toThrow('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
+  await expect(probePracticeRequirements(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification, vi.fn(), new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'SOURCE_RATE_UNSUPPORTED' });
   expect(stop).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
 });
 it('MIDI needs real access and a connected input, without touching microphone capture', async () => {

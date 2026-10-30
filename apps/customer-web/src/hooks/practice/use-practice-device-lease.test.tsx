@@ -1,3 +1,4 @@
+import { DeviceFailure } from '@/lib/practice/failure/causal-failure';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
@@ -37,7 +38,7 @@ it('a late camera acquisition after page departure is stopped without restoring 
 });
 
 it('failed initial binding remains on the execution page without a reacquisition command', async () => {
-  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockRejectedValue(new DOMException('private detail', 'NotAllowedError'));
+  const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockRejectedValue(new DeviceFailure('PERMISSION_DENIED', 'MICROPHONE'));
   const { result, rerender, unmount } = renderHook(() => usePracticeDeviceLease(resources, true));
   await waitFor(() => expect(result.current.snapshot?.state).toBe('FAULTED'));
   rerender();

@@ -1,3 +1,5 @@
+import { acousticBoundaryFailure } from '@/lib/practice/acoustic/failure-boundary';
+import { AudioContextFailure, CaptureFailure } from '@/lib/practice/failure/causal-failure';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
@@ -173,7 +175,7 @@ export class StepMicrophoneInput<Identity> {
   private captured(): void {
     this.check();
     const c = this.connection!, capture = this.bridge!.snapshot(), origin = capture.audioContextOriginFrame;
-    if (origin === null || !Number.isSafeInteger(origin) || origin < 0) throw new Error('STEP_MICROPHONE_SOURCE_MAPPING_INVALID');
+    if (origin === null || !Number.isSafeInteger(origin) || origin < 0) throw new CaptureFailure('SOURCE_MAPPING_INVALID');
     if (!this.assembler) {
       const rate = capture.sourceSampleRateHz;
       this.timebase = new PracticeTimebase({ domainId: c.localSessionId, sampleRateHz: rate, anchorSampleIndex: 0,
@@ -219,13 +221,13 @@ export class StepMicrophoneInput<Identity> {
   }
 
   private readonly contextChanged = () => {
-    if (this.connection?.context.state !== 'running') this.fail(new Error('STEP_MICROPHONE_CONTEXT_INTERRUPTED'));
+    if (this.connection?.context.state !== 'running') this.fail(new AudioContextFailure(this.connection?.context.state === 'closed' ? 'CLOSED' : 'INTERRUPTED'));
   };
   private closed(): boolean { return this.state === 'FAILED' || this.state === 'DISPOSED'; }
   private check(): void { if (this.closed()) throw this.failure ?? new Error('STEP_MICROPHONE_DISPOSED'); }
   private fail(error: unknown): void {
     if (this.closed()) return;
-    this.failure = error instanceof Error ? error : new Error(String(error)); this.state = 'FAILED'; this.issued = null;
+    this.failure = acousticBoundaryFailure(error); this.state = 'FAILED'; this.issued = null;
     this.rejectReady(this.failure); void this.dispose();
     try { this.sink.failure(this.failure); } catch { /* Application notification cannot resurrect resources. */ }
   }

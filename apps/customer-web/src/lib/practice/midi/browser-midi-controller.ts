@@ -1,3 +1,4 @@
+import { MidiFailure } from '@/lib/practice/failure/causal-failure';
 import type { PracticeTimebase, SessionTime } from '@/lib/practice/kernel/timebase';
 export type MidiAttackFact = Readonly<{
   sessionTime: SessionTime;
@@ -77,7 +78,8 @@ export class BrowserMidiController {
 
   async start(): Promise<void> {
     if (this.isRunning) return;
-    this.isRunning = true; this.refreshInputs();
+    this.isRunning = true;
+    try { this.refreshInputs(); } catch (cause) { throw new MidiFailure('ACCESS_UNAVAILABLE', { cause }); }
   }
   refreshInputs(): void {
     if (!this.isRunning) return;

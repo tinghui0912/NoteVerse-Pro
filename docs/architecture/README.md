@@ -17,6 +17,7 @@ accepted current decisions and their rationale.
 - [Piano-Key Domain](practice-piano-key-contract.md)
 - [Practice Source](practice-source.md)
 - [Session and Resource Planning](practice-session-planning.md)
+- [Failure Boundaries](practice-failures.md)
 - [Canonical Moment Artifact](practice-moment-artifact.md)
 - [STEP Evidence Admission](practice-step-pitch-evidence-bounds.md)
 - [Acoustic Domain Identity Admission](practice-acoustic-domain-identity-bounds.md)

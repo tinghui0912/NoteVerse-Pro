@@ -1,3 +1,4 @@
+import { MidiFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import * as scopeContract from '@/lib/practice/kernel/scope';
 import * as tempoContract from '@/lib/practice/kernel/tempo';
@@ -70,7 +71,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
   });
   it('preparation failure returns to application IDLE without inventing a domain IDLE snapshot', async () => {
-    const s = setup(); s.midi.start.mockRejectedValueOnce(new Error('NO_CONNECTED_INPUT'));
+    const s = setup(); s.midi.start.mockRejectedValueOnce(new MidiFailure('NO_CONNECTED_INPUT'));
     await s.controller.start();
     expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', sessionSnapshot: null, error: 'NO_CONNECTED_INPUT', canAcceptAttempt: false });
     expect(s.completion).not.toHaveBeenCalled(); expect(s.midi.dispose).toHaveBeenCalledTimes(1);

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import messages from '../../../../../../../../messages/en/practice.json';
 import { PracticeWorkspaceProvider } from '@/contexts/practice-workspace-context';
+import { DeviceFailure } from '@/lib/practice/failure/causal-failure';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import { PRACTICE_PREFERENCES_KEY } from '@/lib/practice/configuration/preference-storage';
 import PracticeSetupPage from './page';
@@ -44,22 +45,24 @@ function tree(environment: PracticeEnvironment, client = new QueryClient({ defau
     <PracticeWorkspaceProvider createEnvironment={() => environment}>{showSetup ? <PracticeSetupPage /> : <p>Practice</p>}</PracticeWorkspaceProvider>
   </NextIntlClientProvider></QueryClientProvider>;
 }
-function setup() {
+async function setup() {
   const platform = { modelUrl: vi.fn(), createEngine: vi.fn(),
     probe: vi.fn(async (requirements: readonly string[], ready: (key: never) => void) => { admission.events.push('probe'); requirements.forEach(key => ready(key as never)); }) };
   const environment = new PracticeEnvironment(platform);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(tree(environment, client));
+  await act(async () => {});
   return { platform, environment, view, client };
 }
 it('requires explicit first-use selections and prepares MIDI without any acoustic prerequisite', async () => {
-  const r = setup();
+  const r = await setup();
   expect(screen.getByRole('button', { name: 'Start practice' })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Step-by-step/ })).toHaveAttribute('aria-pressed', 'false');
   fireEvent.click(screen.getByRole('button', { name: /Step-by-step/ }));
   fireEvent.click(screen.getByRole('button', { name: 'MIDI keyboard' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Start practice' })).toBeEnabled());
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Start practice' })); });
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id'));
   expect(r.platform.probe.mock.calls[0][0]).toEqual(['midi']); expect(r.platform.createEngine).not.toHaveBeenCalled();
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
   fireEvent.click(screen.getByRole('button', { name: /Continuous play/ }));
@@ -69,21 +72,21 @@ it('requires explicit first-use selections and prepares MIDI without any acousti
   expect(screen.getByRole('button', { name: 'Start practice' })).toBeEnabled();
 });
 it('requires explicit Continuous recording and keeps VIDEO intent when camera preparation fails', async () => {
-  const r = setup(); r.platform.probe.mockRejectedValueOnce(new Error('CAMERA_PERMISSION_DENIED'));
+  const r = await setup(); r.platform.probe.mockRejectedValueOnce(new DeviceFailure('PERMISSION_DENIED', 'CAMERA'));
   fireEvent.click(screen.getByRole('button', { name: /Continuous play/ }));
   fireEvent.click(screen.getByRole('button', { name: 'MIDI keyboard' }));
   await act(async () => {});
   expect(screen.getByRole('button', { name: 'Start practice' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Video' }));
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Start practice' })); });
-  expect(r.environment.snapshot().status).toBe('BLOCKED');
+  await waitFor(() => expect(r.environment.snapshot().status).toBe('BLOCKED'));
   expect(JSON.parse(localStorage.getItem(PRACTICE_PREFERENCES_KEY)!).continuous.recordingMode).toBe('VIDEO');
   expect(screen.getByRole('button', { name: 'Video' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('alert')).toHaveTextContent('Check browser permissions'); expect(navigation.replace).not.toHaveBeenCalled();
 });
 
 it('Setup owns readiness configuration and exposes no presentation-feedback control', async () => {
-  setup();
+  await setup();
   fireEvent.click(screen.getByRole('button', { name: /Continuous play/ }));
   for (const name of ['MIDI keyboard', 'Microphone', 'Audio', 'Video']) expect(screen.getByRole('button', { name })).toBeVisible();
   expect(screen.queryByRole('switch')).toBeNull(); expect(screen.queryByRole('checkbox')).toBeNull();
@@ -107,6 +110,7 @@ for (const input of ['MIDI', 'MICROPHONE'] as const) it(`${input}: Setup command
   const modelUrl = vi.fn(async()=>'/verified-model'), createEngine = vi.fn(()=>new AcousticEngine(()=>worker));
   const environment = new PracticeEnvironment({ modelUrl, createEngine, probe:probePracticeRequirements });
   render(tree(environment));
+  await act(async () => {});
   fireEvent.click(screen.getByRole('button',{name:/Step-by-step/}));
   fireEvent.click(screen.getByRole('button',{name: input==='MIDI'?'MIDI keyboard':'Microphone'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Start practice'})).toBeEnabled());
@@ -143,6 +147,7 @@ it('a fresh visit shows unprepared components even when the shared Environment i
   const environment = new PracticeEnvironment({modelUrl:vi.fn(), createEngine:vi.fn(), probe});
   await environment.requalify(['midi']); expect(probe).toHaveBeenCalledOnce();
   render(tree(environment));
+  await act(async () => {});
   await waitFor(()=>expect(screen.getByRole('button',{name:messages.setupStartPractice})).toBeEnabled());
   expect(environment.snapshot().status).toBe('READY'); expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.getByText('MIDI keyboard: Not prepared')).toBeVisible();
@@ -163,7 +168,7 @@ async function start() {
 }
 it('mount and configuration edits perform no Source admission, qualification or navigation', async () => {
   const open = vi.spyOn(PracticeDeviceLease.prototype, 'open'), step = vi.spyOn(StepPracticeController.prototype, 'start'), continuous = vi.spyOn(ContinuousPracticeController.prototype, 'start');
-  const r = setup(); selectMidi();
+  const r = await setup(); selectMidi();
   await waitFor(() => expect(startButton()).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: /Continuous play/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Video' }));
@@ -177,8 +182,11 @@ it('mount and configuration edits perform no Source admission, qualification or 
 });
 it('a fresh Source request and strict parse precede capability and Environment qualification on every click', async () => {
   const parse = vi.spyOn(artifactContract, 'parsePracticeScoreArtifact');
-  const r = setup(); selectMidi();
-  expect(admission.request).not.toHaveBeenCalled(); await start(); await start();
+  const r = await setup(); selectMidi();
+  expect(admission.request).not.toHaveBeenCalled(); await start();
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledTimes(1));
+  await start();
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledTimes(2));
   expect(admission.events).toEqual(['source', 'capability', 'probe', 'source', 'capability', 'probe']);
   expect(parse).toHaveBeenCalledTimes(2); expect(r.platform.probe).toHaveBeenCalledTimes(2);
   expect(admission.request).toHaveBeenNthCalledWith(1, 'score-id', 'revision-id', false, expect.any(AbortSignal));
@@ -187,7 +195,7 @@ it('a fresh Source request and strict parse precede capability and Environment q
 it.each(['parser', 'server'] as const)('%s invalid revision fails before capability or qualification', async kind => {
   if (kind === 'parser') admission.request.mockResolvedValue({ data: { ...envelope().data, artifact: { ...envelope().data.artifact, notes: [] } } });
   else admission.request.mockRejectedValue({ code: 'practice_score_invalid' });
-  const r = setup(); selectMidi(); await start();
+  const r = await setup(); selectMidi(); await start();
   expect(screen.getByRole('alert')).toHaveTextContent(messages.scoreInvalid); expect(startButton()).toBeDisabled();
   expect(admission.request).toHaveBeenCalledOnce(); expect(admission.events).toEqual([]);
   expect(r.platform.probe).not.toHaveBeenCalled(); expect(r.platform.createEngine).not.toHaveBeenCalled();
@@ -195,20 +203,20 @@ it.each(['parser', 'server'] as const)('%s invalid revision fails before capabil
 });
 it('a transient Source failure stays retryable through the same CTA and a fresh second request', async () => {
   admission.request.mockRejectedValueOnce(new Error('network'));
-  const r = setup(); selectMidi(); await start();
+  const r = await setup(); selectMidi(); await start();
   expect(screen.getByRole('alert')).toHaveTextContent(messages.scoreLoadFailed);
   expect(r.platform.probe).not.toHaveBeenCalled(); expect(navigation.replace).not.toHaveBeenCalled();
   await start(); expect(admission.request).toHaveBeenCalledTimes(2); expect(r.platform.probe).toHaveBeenCalledOnce();
 });
 it('unsupported current input capability blocks qualification and navigation after Score admission', async () => {
-  admission.supported = false; const r = setup(); selectMidi(); await start();
+  admission.supported = false; const r = await setup(); selectMidi(); await start();
   expect(admission.events).toEqual(['source', 'capability']); expect(screen.getByRole('alert')).toHaveTextContent(messages.setupFailure);
   expect(r.platform.probe).not.toHaveBeenCalled(); expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('locks configuration during Source admission and fences double clicks and unmounted completion', async () => {
   let resolve!: (value: ReturnType<typeof envelope>) => void;
   admission.request.mockImplementation(() => new Promise(r => { resolve = r; }));
-  const r = setup(); selectMidi(); await start();
+  const r = await setup(); selectMidi(); await start();
   expect(startButton()).toBeDisabled(); expect(screen.getByRole('button', { name: 'Microphone' })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Continuous play/ })).toBeDisabled();
   fireEvent.click(startButton()); expect(admission.request).toHaveBeenCalledOnce();
@@ -217,27 +225,28 @@ it('locks configuration during Source admission and fences double clicks and unm
 });
 it('locks through qualification and stale qualification completion cannot navigate', async () => {
   let release!: () => void;
-  const r = setup(); r.platform.probe.mockImplementation(() => new Promise<void>(resolve => { release = resolve; }));
+  const r = await setup(); r.platform.probe.mockImplementation(() => new Promise<void>(resolve => { release = resolve; }));
   selectMidi(); await start(); expect(startButton()).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Microphone' })).toBeDisabled();
+  await waitFor(() => expect(release).toBeTypeOf('function'));
   r.view.unmount(); await act(async () => { release(); });
   expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('pins a direct Setup URL without admitting Source', async () => {
-  admission.revision = null; const r = setup(); await act(async () => {});
+  admission.revision = null; const r = await setup(); await act(async () => {});
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=head-id', { scroll: false });
   expect(admission.request).not.toHaveBeenCalled(); expect(r.platform.probe).not.toHaveBeenCalled();
 });
 it('a different pinned revision clears deterministic invalid presentation', async () => {
   admission.request.mockResolvedValueOnce({ data: { ...envelope().data, artifact: { ...envelope().data.artifact, notes: [] } } });
-  const r = setup(); selectMidi(); await start(); expect(startButton()).toBeDisabled();
+  const r = await setup(); selectMidi(); await start(); expect(startButton()).toBeDisabled();
   admission.revision = 'another-revision'; r.view.rerender(tree(r.environment));
   await waitFor(() => expect(startButton()).toBeEnabled()); expect(screen.queryByRole('alert')).toBeNull();
   await start(); expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=another-revision');
 });
 
 it('returning to Setup with cached Source and warm READY evidence presents idle and still refetches', async () => {
-  const r = setup(); selectMidi(); await start();
+  const r = await setup(); selectMidi(); await start();
   expect(admission.request).toHaveBeenCalledOnce(); expect(r.environment.snapshot().status).toBe('READY');
   r.view.rerender(tree(r.environment, r.client, false));
   r.view.rerender(tree(r.environment, r.client));

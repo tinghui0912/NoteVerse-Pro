@@ -1,5 +1,6 @@
 'use client';
 
+import { SourceFailure } from '@/lib/practice/failure/causal-failure';
 import { useQuery } from '@tanstack/react-query';
 import type { PracticeSourceRead } from '@/generated/api/types.gen';
 import type { ApiResponse } from '@/lib/api-client';
@@ -10,10 +11,6 @@ import { parsePracticeScoreArtifact, PracticeScoreContractError } from '@/lib/pr
 
 type SourceIdentity = { scoreId: string; revisionId: string; artifactId?: string };
 
-export function isInvalidPracticeSource(error: unknown): boolean {
-  return error instanceof PracticeScoreContractError || Boolean(error && typeof error === 'object'
-    && 'code' in error && error.code === 'practice_score_invalid');
-}
 
 /** Maps one source envelope into the runtime artifact and optional presentation notation. */
 function parseSource(value: PracticeSourceRead | undefined, identity: SourceIdentity, loadNotation: boolean) {
@@ -43,8 +40,15 @@ function useSourceQuery(options: {
   const sourceQuery = useQuery({
     queryKey: [...options.queryKey, options.identity],
     queryFn: async ({ signal }) => {
-      const response = await options.request(signal);
-      return parseSource(response.data, options.identity, options.loadNotation);
+      try {
+        const response = await options.request(signal);
+        return parseSource(response.data, options.identity, options.loadNotation);
+      } catch (cause) {
+        if (cause instanceof SourceFailure) throw cause;
+        const invalid = cause instanceof PracticeScoreContractError || Boolean(cause && typeof cause === 'object'
+          && 'code' in cause && cause.code === 'practice_score_invalid');
+        throw new SourceFailure(invalid ? 'INVALID_SCORE' : 'LOAD_FAILED', { cause });
+      }
     },
     enabled: options.enabled,
     staleTime: Infinity,
@@ -58,9 +62,10 @@ function useSourceQuery(options: {
     musicXml: source?.musicXml ?? null,
     sourceQuery,
     error,
+    transportError: error instanceof SourceFailure && error.code === 'LOAD_FAILED' ? error.cause : null,
     isError: sourceQuery.isError,
     isLoading: options.enabled && sourceQuery.isLoading,
-    invalid: isInvalidPracticeSource(error),
+    invalid: error instanceof SourceFailure && error.code === 'INVALID_SCORE',
   };
 }
 

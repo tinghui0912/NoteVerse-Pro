@@ -149,3 +149,34 @@ it('real STEP explicitly starts without count-in, waits for input, and next Star
   controllerIds.push((vi.mocked(createMidi).mock.calls[1] as unknown as [{ timebase: { domainId: string } }])[0].timebase.domainId);
   expect(controllerIds[1]).not.toBe(controllerIds[0]); expect(continuous).not.toHaveBeenCalled(); await owner.dispose();
 });
+
+it.each(['STEP_BY_STEP','CONTINUOUS_PLAY'] as const)('%s unexpected adapter exception stays diagnostic and cannot enter the public view',async mode=>{
+  const r=rig(mode), cause=new Error('NO_CONNECTED_INPUT https://private/model stack');
+  vi.mocked(mode==='STEP_BY_STEP'?r.factories.step:r.factories.continuous).mockImplementationOnce(()=>{throw cause;});
+  await r.owner.start();
+  expect(r.owner.snapshot()).toMatchObject({lifecycle:'ERROR',inputError:mode==='STEP_BY_STEP'?'STEP_ATTEMPT_FAILED':'ANALYSIS_FAILED'});
+  expect(r.owner.engineeringSnapshot().failureCause).toBe(cause); await r.owner.dispose();
+});
+it.each(['STEP_BY_STEP','CONTINUOUS_PLAY'] as const)('%s cleanup rejects with an owned stable code regardless of exception text',async mode=>{
+  const r=rig(mode); await r.owner.start(); const cause=new Error('NotAllowedError: private cleanup URL');
+  vi.mocked(r.created[0].controller.dispose).mockRejectedValueOnce(cause); await r.owner.end();
+  expect(r.owner.snapshot()).toMatchObject({inputError:mode==='STEP_BY_STEP'?'STEP_RESOURCE_CLEANUP_FAILED':'RESOURCE_CLEANUP_FAILED',canStart:false});
+  expect(r.owner.engineeringSnapshot().failureCause).toBe(cause); await r.owner.start(); expect(r.created).toHaveLength(1); await r.owner.dispose();
+});
+
+it.each(['STEP_BY_STEP','CONTINUOUS_PLAY'] as const)('%s an unexpected controller Start rejection is terminal application state',async mode=>{
+  const r=rig(mode), cause=new Error('NotAllowedError https://private');
+  if (mode === 'STEP_BY_STEP') {
+    const factory = vi.mocked(r.factories.step), original = factory.getMockImplementation()!;
+    factory.mockImplementationOnce((options, acquire) => {
+      const controller = original(options, acquire); vi.mocked(controller.start).mockRejectedValueOnce(cause); return controller;
+    });
+  } else {
+    const factory = vi.mocked(r.factories.continuous), original = factory.getMockImplementation()!;
+    factory.mockImplementationOnce((options, acquire) => {
+      const controller = original(options, acquire); vi.mocked(controller.start).mockRejectedValueOnce(cause); return controller;
+    });
+  }
+  await r.owner.start(); expect(r.owner.snapshot()).toMatchObject({lifecycle:'ERROR',inputError:mode==='STEP_BY_STEP'?'STEP_ATTEMPT_FAILED':'ANALYSIS_FAILED',canStart:false});
+  expect(r.owner.engineeringSnapshot().failureCause).toBe(cause); await r.owner.end(); expect(r.created[0].controller.dispose).toHaveBeenCalledOnce(); await r.owner.dispose();
+});

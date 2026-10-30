@@ -96,3 +96,11 @@ it.each(['scoreId', 'revisionId', 'artifactId'])('rejects saved source %s mismat
   await waitFor(() => expect(result.current.invalid).toBe(true));
   expect(result.current.artifact).toBeNull(); expect(result.current.musicXml).toBeNull();
 });
+
+it('Source failures carry a closed invalid/load distinction and original transport cause', async () => {
+  const cause=Object.assign(new Error('private transport URL'),{code:'practice_source_failed',status:503}); api.source.mockRejectedValue(cause);
+  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false}),{wrapper:harness()});
+  await waitFor(()=>expect(result.current.isError).toBe(true));
+  expect(result.current.error).toMatchObject({kind:'SOURCE',code:'LOAD_FAILED',cause});
+  expect(result.current.transportError).toBe(cause); expect(result.current.invalid).toBe(false);
+});

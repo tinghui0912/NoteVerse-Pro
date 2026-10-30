@@ -1,3 +1,6 @@
+import { DeviceFailure, MidiFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
+import { projectStepFailure, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
+import { projectContinuousFailure, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { StepPracticeController, type StepControllerOptions } from '@/lib/practice/step/step-practice-controller';
 import { ContinuousPracticeController, type ContinuousControllerOptions } from '@/lib/practice/continuous/continuous-practice-controller';
 import { browserStepPlatform } from '@/lib/practice/step/step-platform';
@@ -33,11 +36,11 @@ type Owned = ({ mode: 'STEP_BY_STEP'; controller: StepController } | { mode: 'CO
   plan: PracticeSessionPlan; token: number; preparation: Promise<void>; detach: () => void; completed: boolean;
 };
 type CommonView = Readonly<{
-  lifecycle: PracticeExecutionLifecycle; inputState: LocalPracticeInputState; inputError: string | null;
+  lifecycle: PracticeExecutionLifecycle; inputState: LocalPracticeInputState;
   executedPlan: PracticeSessionPlan | null; canStart: boolean;
 }>;
 type StepView = CommonView & Readonly<{
-  mode: 'STEP_BY_STEP';
+  mode: 'STEP_BY_STEP'; inputError: StepApplicationErrorCode | null;
   activeStepGroup: ReturnType<typeof projectPracticeMomentView> | null;
   stepInteractionPhase: ReturnType<StepController['snapshot']>['stepInteractionPhase'];
   pendingPostVerdict: ReturnType<StepController['snapshot']>['pendingPostVerdict'];
@@ -47,7 +50,7 @@ type StepView = CommonView & Readonly<{
   performanceClock: null; performanceEvaluation: null; recordingIndicator: null;
 }>;
 type ContinuousView = CommonView & Readonly<{
-  mode: 'CONTINUOUS_PLAY'; activeStepGroup: null;
+  mode: 'CONTINUOUS_PLAY'; inputError: ContinuousErrorCode | null; activeStepGroup: null;
   performanceClock: ReturnType<ContinuousController['snapshot']>['transport'];
   performanceEvaluation: ReturnType<ContinuousController['snapshot']>['evaluation'];
   recordingIndicator: number | null;
@@ -58,6 +61,9 @@ export type PracticeExecutionView = StepView | ContinuousView;
 type Completion = LocalStepSessionSnapshot | LocalPerformanceSessionSnapshot;
 
 /** Owns one explicitly started attempt and serializes its complete release before another construction. */
+type ApplicationFailure = { mode: 'STEP_BY_STEP'; code: StepApplicationErrorCode } | { mode: 'CONTINUOUS_PLAY'; code: ContinuousErrorCode };
+export type PracticeExecutionErrorCode = StepApplicationErrorCode | ContinuousErrorCode;
+
 export class PracticeExecutionOwner {
   private candidate: PracticeSessionPlan | null = null;
   private admitted = false;
@@ -69,8 +75,9 @@ export class PracticeExecutionOwner {
   private pendingStart: Promise<void> | null = null;
   private pendingRetry: Promise<void> | null = null;
   private released: Promise<void> = Promise.resolve();
-  private releaseFailure: string | null = null;
-  private error: string | null = null;
+  private releaseFailure: ApplicationFailure | null = null;
+  private error: ApplicationFailure | null = null;
+  private failureCause: unknown = null;
   private completionListener: ((snapshot: Completion) => void) | undefined;
   private readonly listeners = new Set<() => void>();
   private view: PracticeExecutionView;
@@ -78,6 +85,7 @@ export class PracticeExecutionOwner {
     this.view = this.project();
   }
   snapshot = (): PracticeExecutionView => this.view;
+  engineeringSnapshot() { return { failureCause: this.failureCause }; }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   setCompletionListener(listener: ((snapshot: Completion) => void) | undefined): void { this.completionListener = listener; }
   setCandidate(plan: PracticeSessionPlan | null, admitted: boolean, composition: string): void {
@@ -100,9 +108,10 @@ export class PracticeExecutionOwner {
     try {
       await startupTimings.measure('waitPreviousRelease', () => this.released);
       if (!this.current(token)) return;
-      if (!this.admitted || this.releaseFailure) throw new Error(this.releaseFailure ?? 'PRACTICE_DEVICE_UNAVAILABLE');
+      if (this.releaseFailure) { this.error = this.releaseFailure; return; }
+      if (!this.admitted) throw plan.resources.input.kind === 'MIDI' ? new MidiFailure('ACCESS_UNAVAILABLE') : new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
       const devices = this.ports.borrowRoots();
-      if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
+      if (!devices) throw plan.resources.input.kind === 'MIDI' ? new MidiFailure('ACCESS_UNAVAILABLE') : new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
       // A new attempt invalidates the handoff; candidate editing and rendering do not.
       continuousCompletionStore.clearCompletion();
       const completed = (snapshot: Completion) => this.complete(token, snapshot);
@@ -117,7 +126,12 @@ export class PracticeExecutionOwner {
       await owned.preparation;
       if (this.current(token) && this.owned === owned) this.publish();
     } catch (failure) {
-      if (this.current(token)) this.error = (failure as Error).message;
+      if (this.current(token)) {
+        this.failureCause = failure;
+        this.error = plan.mode === 'STEP_BY_STEP'
+          ? { mode: plan.mode, code: isPracticeCausalFailure(failure) ? projectStepFailure(failure, 'PREPARING') : 'STEP_ATTEMPT_FAILED' }
+          : { mode: plan.mode, code: isPracticeCausalFailure(failure) ? projectContinuousFailure(failure, 'PREPARING') : 'ANALYSIS_FAILED' };
+      }
     } finally {
       if (this.current(token)) { this.startingPlan = null; this.pendingStart = null; this.publish(); }
     }
@@ -148,7 +162,12 @@ export class PracticeExecutionOwner {
         const failure = owned.mode === 'STEP_BY_STEP' ? (state as ReturnType<StepController['snapshot']>).error
           : (state as ReturnType<ContinuousController['snapshot']>).inputError;
         if (failure === 'STEP_RESOURCE_CLEANUP_FAILED' || failure === 'RESOURCE_CLEANUP_FAILED') throw new Error(failure);
-      }).catch(error => { this.releaseFailure = (error as Error).message; this.error = this.releaseFailure; this.publish(); });
+      }).catch(cause => {
+        this.failureCause = cause;
+        this.releaseFailure = owned.mode === 'STEP_BY_STEP' ? { mode: owned.mode, code: 'STEP_RESOURCE_CLEANUP_FAILED' }
+          : { mode: owned.mode, code: 'RESOURCE_CLEANUP_FAILED' };
+        this.error = this.releaseFailure; this.publish();
+      });
     } else if (starting) this.released = Promise.all([this.released, starting]).then(() => {});
     this.publish(); return this.released;
   }
@@ -179,8 +198,8 @@ export class PracticeExecutionOwner {
     const common = { executedPlan: owned?.plan ?? this.startingPlan, canStart: !owned && !this.startingPlan && this.admitted && Boolean(this.candidate) && !this.disposed && !this.releaseFailure,
     };
     if (owned?.mode === 'CONTINUOUS_PLAY') {
-      const snapshot = owned.controller.snapshot(), error = this.error ?? snapshot.inputError;
-      const lifecycle: PracticeExecutionLifecycle = owned.completed ? 'COMPLETED' : snapshot.session === 'FINALIZING' ? 'FINALIZING'
+      const snapshot = owned.controller.snapshot(), error = this.error?.mode === 'CONTINUOUS_PLAY' ? this.error.code : snapshot.inputError;
+      const lifecycle: PracticeExecutionLifecycle = owned.completed ? 'COMPLETED' : this.error?.mode === 'CONTINUOUS_PLAY' ? 'ERROR' : snapshot.session === 'FINALIZING' ? 'FINALIZING'
         : ['FAILED', 'FAILED_BEFORE_START'].includes(snapshot.session) ? 'ERROR'
         : this.startingPlan || snapshot.session === 'PREPARING' ? 'PREPARING' : snapshot.transport?.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE';
       return Object.freeze({ ...common, mode: 'CONTINUOUS_PLAY', lifecycle, inputError: error,
@@ -190,13 +209,15 @@ export class PracticeExecutionOwner {
         analysisIntervention: snapshot.analysisIntervention, resourceIntervention: snapshot.resourceIntervention });
     }
     const snapshot = owned?.mode === 'STEP_BY_STEP' ? owned.controller.snapshot() : null;
-    const error = this.error ?? this.releaseFailure ?? snapshot?.error ?? null;
+    const stepError = this.error?.mode === 'STEP_BY_STEP' ? this.error.code : this.releaseFailure ? 'STEP_RESOURCE_CLEANUP_FAILED' : snapshot?.error ?? null;
+    const continuousError = this.error?.mode === 'CONTINUOUS_PLAY' ? this.error.code : this.releaseFailure ? 'RESOURCE_CLEANUP_FAILED' : null;
+    const error = plan?.mode === 'CONTINUOUS_PLAY' ? continuousError : stepError;
     const lifecycle: PracticeExecutionLifecycle = owned?.completed ? 'COMPLETED' : this.startingPlan ? 'PREPARING' : error ? 'ERROR' : owned ? 'ACTIVE' : 'READY';
     const base = { ...common, lifecycle, inputError: error,
       inputState: (lifecycle === 'PREPARING' ? 'STARTING' : error ? 'ERROR' : lifecycle === 'ACTIVE' ? 'RUNNING' : 'IDLE') as LocalPracticeInputState };
-    if (plan?.mode === 'CONTINUOUS_PLAY') return Object.freeze({ ...base, mode: 'CONTINUOUS_PLAY', activeStepGroup: null,
+    if (plan?.mode === 'CONTINUOUS_PLAY') return Object.freeze({ ...base, mode: 'CONTINUOUS_PLAY', inputError: continuousError, activeStepGroup: null,
       performanceClock: null, performanceEvaluation: null, recordingIndicator: null, analysisIntervention: null, resourceIntervention: null });
-    return Object.freeze({ ...base, mode: 'STEP_BY_STEP', activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.artifact, snapshot.activeStepGroup) : null,
+    return Object.freeze({ ...base, mode: 'STEP_BY_STEP', inputError: stepError, activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.artifact, snapshot.activeStepGroup) : null,
       stepInteractionPhase: snapshot?.stepInteractionPhase ?? null, pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,
       canAcceptAttempt: snapshot?.canAcceptAttempt ?? false, analysisIntervention: snapshot?.analysisIntervention ?? null,
       infrastructureIntervention: snapshot?.infrastructureIntervention ?? null, performanceClock: null, performanceEvaluation: null, recordingIndicator: null });

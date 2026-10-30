@@ -93,3 +93,13 @@ covering policy and execution inputs. The current dependency and provenance test
 keep evidence identity separate from resource/transport/liveness implementations.
 Hash validation establishes drift resistance, not the reasonableness, optimality or
 qualification of any parameter. See the [parameter evidence](practice-acoustic-parameter-provenance.md).
+
+## Failure Representation
+
+The source executor preserves an Error cause directly and wraps a non-Error cause in
+`AcousticAnalysisError` with the closed `ACOUSTIC_INTERNAL_FAILURE` code. Adapter
+boundaries project known acoustic preparation and inference codes into typed causes.
+The selected-source bytes attest that executor behavior; core and adapter composite
+identities bind those bytes without changing model or FIR identities. Diagnostic source
+summaries carry no authority to classify application failures. See
+[failure boundaries](practice-failures.md).

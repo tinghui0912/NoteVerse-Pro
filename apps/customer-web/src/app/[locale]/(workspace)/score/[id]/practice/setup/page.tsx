@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
 import { usePracticeSource } from '@/hooks/practice/use-practice-source';
-import { isInvalidPracticeSource } from '@/hooks/practice/use-practice-revision-source';
+import { SourceFailure } from '@/lib/practice/failure/causal-failure';
 import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
@@ -51,7 +51,7 @@ export default function PracticeSetupPage() {
       const admitted = await source.sourceQuery.refetch();
       if (!active()) return;
       if (admitted.isError || !admitted.data) {
-        if (isInvalidPracticeSource(admitted.error)) setInvalidRevision(revisionId);
+        if (admitted.error instanceof SourceFailure && admitted.error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
         setPreparation({ ...captured, stage: 'BLOCKED', failure: 'SOURCE' });
         return;
       }
@@ -73,7 +73,7 @@ export default function PracticeSetupPage() {
       router.replace(practiceLocation(params.id, 'practice', revisionId));
     } catch (error) {
       if (active()) {
-        if (failure === 'SOURCE' && isInvalidPracticeSource(error)) setInvalidRevision(revisionId);
+        if (failure === 'SOURCE' && error instanceof SourceFailure && error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
         setPreparation({ ...captured, stage: 'BLOCKED', failure });
       }
     } finally {

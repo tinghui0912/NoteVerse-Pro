@@ -231,7 +231,7 @@ export default function HistoricalPerformanceSharePage() {
     );
   }
   if (
-    isPermanentResourceError(sourceQuery.error)
+    isPermanentResourceError(source.transportError)
   ) {
     return (
       <HistoricalTakeUnavailable

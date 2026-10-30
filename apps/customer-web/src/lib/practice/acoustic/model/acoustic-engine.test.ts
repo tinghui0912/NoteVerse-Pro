@@ -108,7 +108,7 @@ it('R14 END_SESSION silence fails retirement finitely and lets concurrent engine
     let disposed = false; const disposal = engine.dispose().then(() => { disposed = true; });
     await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(disposed).toBe(false); expect(failed).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1); await retirement; await disposal;
-    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0]).toMatchObject({ kind: 'INFERENCE', code: 'WORKER_TIMEOUT' });
     expect(states).toContain('FAILED'); expect(engine.snapshot().state).toBe('DISPOSED');
     await expect(engine.acquire()).rejects.toThrow('NOT_READY');
     expect(service.terminate).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
@@ -126,8 +126,8 @@ for (const rpc of ['LOAD', 'BEGIN_SESSION', 'INFER'] as const) it(`${rpc} silenc
     const failed = vi.fn(), observed = operation.catch(failed);
     await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(failed).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1); await observed;
-    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
-    expect(engine.snapshot()).toEqual({ state: 'FAILED', failure: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0]).toMatchObject({ kind: 'INFERENCE', code: 'WORKER_TIMEOUT' });
+    expect(engine.snapshot()).toEqual({ state: 'FAILED', failure: 'WORKER_TIMEOUT' });
     expect(failure).toHaveBeenCalledOnce(); expect(service.terminate).toHaveBeenCalledOnce(); expect(create).toHaveBeenCalledOnce();
     await expect(engine.acquire()).rejects.toThrow('NOT_READY'); await lease?.dispose();
     expect(engine.snapshot().state).toBe('FAILED'); expect(vi.getTimerCount()).toBe(0);
@@ -141,7 +141,7 @@ it('idle DISPOSE silence rejects engine cleanup rather than reporting normal suc
     const failed = vi.fn(), disposal = engine.dispose().catch(failed);
     await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(failed).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1); await disposal;
-    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(failed).toHaveBeenCalledOnce(); expect(failed.mock.calls[0][0]).toMatchObject({ kind: 'INFERENCE', code: 'WORKER_TIMEOUT' });
     expect(service.terminate).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0); expect(engine.snapshot().state).toBe('DISPOSED');
   } finally { await engine.dispose(); vi.useRealTimers(); }
 });

@@ -1,3 +1,5 @@
+import { AcousticFailure, DeviceFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
+import { resumePracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import type { PracticeAnalysisResourcePlan } from '@/lib/practice/planning/resource-plan';
 import type { PracticeRootHealthPort, PracticeRootHealthSnapshot, PracticeDeviceHealth, PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
@@ -8,7 +10,7 @@ import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/sessio
 import type { StepPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
 import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
-import { stepApplicationError, type StepApplicationErrorCode } from './step-errors';
+import { projectStepFailure, type StepApplicationErrorCode } from './step-errors';
 import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepAnalysisIntervention } from './step-analysis-intervention';
@@ -48,6 +50,7 @@ export class StepPracticeController {
   private state: StepControllerState = 'IDLE';
   private retirement: StepRetirementPolicy | null = null;
   private error: StepApplicationErrorCode | null = null;
+  private failureCause: unknown = null;
   private analysisIntervention: StepAnalysisIntervention | null = null;
   private infrastructureIntervention: StepInfrastructureIntervention | null = null;
   private readonly listeners = new Set<() => void>();
@@ -60,7 +63,7 @@ export class StepPracticeController {
     this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.plan.metronomeInitiallyEnabled;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-  engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
+  engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), failureCause: this.failureCause, sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
   snapshot() {
     const session = this.runtime?.snapshot() ?? this.finalSnapshot;
     return Object.freeze({ state: this.state, error: this.error, analysisIntervention: this.analysisIntervention,
@@ -104,7 +107,7 @@ export class StepPracticeController {
           runtime.acceptInputAfter(timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
           this.error = null;
         } else this.error = 'NO_CONNECTED_INPUT';
-      } else throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+      } else throw new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
       this.state = 'ACTIVE';
       let subscribed = false;
       this.detachRootHealth = this.options.rootHealth.subscribe(snapshot => { if (subscribed) this.rootHealthChanged(snapshot); });
@@ -113,7 +116,9 @@ export class StepPracticeController {
       this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
-      this.error = stepApplicationError(error, this.options.plan.inputSource);
+      this.failureCause = error;
+      this.error = isPracticeCausalFailure(error) ? projectStepFailure(error, 'PREPARING')
+        : this.options.plan.inputSource === 'MICROPHONE' ? 'STEP_ACOUSTIC_PREPARATION_FAILED' : 'STEP_MIDI_UNAVAILABLE';
       this.state = 'ENDED'; this.runtime?.end();
       await this.cleanup();
       if (generation !== this.generation) return;
@@ -122,17 +127,17 @@ export class StepPracticeController {
   }
   private async prepareMicrophone(localSessionId: string, generation: number, analysis: Extract<PracticeAnalysisResourcePlan, { kind: 'ACOUSTIC' }>): Promise<void> {
     const platform = this.platform.microphone;
-    if (!platform) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+    if (!platform) throw new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
     const inference = await this.startup.measure('acquireInferenceLease', () => platform.acquireInference(this.abort.signal));
     if (generation !== this.generation) { await inference.dispose(); return; }
     this.unboundInference = inference;
     const stream = this.options.devices[analysis.sourceRoot];
-    if (!stream || this.options.rootHealth.snapshot().health[analysis.sourceRoot] !== 'HEALTHY') throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+    if (!stream || this.options.rootHealth.snapshot().health[analysis.sourceRoot] !== 'HEALTHY') throw new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
     if (generation !== this.generation) return;
     const context = platform.createAudioContext(); this.context = context;
-    await this.startup.measure('audioContextResume', async () => { if (context.state !== 'running') await context.resume(); });
+    await this.startup.measure('audioContextResume', async () => { if (context.state !== 'running') await resumePracticeAudioContext(context); });
     if (generation !== this.generation) return;
-    if (![44100, 48000].includes(context.sampleRate)) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
+    if (![44100, 48000].includes(context.sampleRate)) throw new AcousticFailure('SOURCE_RATE_UNSUPPORTED');
     const microphone = new StepMicrophoneInput<StepAttemptIdentity>({ ...platform, acquireInference: async () => {
       const lease = this.unboundInference;
       if (!lease) throw new Error('PRACTICE_INFERENCE_LEASE_NOT_OWNED');
@@ -261,7 +266,7 @@ export class StepPracticeController {
   private microphoneHealthChanged(health: PracticeDeviceHealth): void {
     if (this.analysisIntervention || this.infrastructureIntervention || this.state !== 'ACTIVE') return;
     if (health === 'LOST') {
-      this.failAttempt(new Error('MICROPHONE_SOURCE_LOST')); return;
+      this.failAttempt(new DeviceFailure('SOURCE_LOST', 'MICROPHONE')); return;
     }
     try {
       if (health === 'INTERRUPTED') {
@@ -278,9 +283,11 @@ export class StepPracticeController {
     } catch (error) { this.failAttempt(error); }
   }
   private failAttempt(error: unknown): void {
+    this.failureCause = error;
     if (this.analysisIntervention || this.infrastructureIntervention || this.state === 'ENDED' || this.state === 'DISPOSED') return;
     const code = this.options.plan.inputSource === 'MICROPHONE'
-      ? stepApplicationError(error, 'MICROPHONE', this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING') : 'STEP_ATTEMPT_FAILED';
+      ? isPracticeCausalFailure(error) ? projectStepFailure(error, this.state === 'ACTIVE' ? 'ACTIVE' : 'PREPARING')
+        : this.state === 'ACTIVE' ? 'STEP_ACOUSTIC_RUNTIME_FAILED' : 'STEP_ACOUSTIC_PREPARATION_FAILED' : 'STEP_ATTEMPT_FAILED';
     if (this.state === 'ACTIVE' && this.runtime && this.options.plan.inputSource === 'MICROPHONE'
       && (code === 'STEP_ACOUSTIC_RUNTIME_FAILED' || code === 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED')) {
       // Latch before domain/cleanup callbacks can reenter. Resource release is not session end.

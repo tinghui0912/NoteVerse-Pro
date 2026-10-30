@@ -214,6 +214,16 @@ clones and MediaRecorder retain their pipeline-specific health owners. Recoverab
 incidents preserve session/target/performance identity and require their existing
 retirement or explicit continuation boundary. See [physical health contracts](practice-session-planning.md#physical-root-health-and-pipeline-health).
 
+## Failure Ownership
+
+External failures are normalized once by browser, media, worker and Source adapters
+into closed typed causal facts. STEP and Continuous application policies project those
+facts into their own stable error codes and interventions. Physical root health remains
+DeviceLease-owned; context/capture/inference/recorder failures describe pipeline health.
+Domain invariants fail closed under their domain owners. Presentation consumes stable
+application codes; raw causes and text are diagnostic only. Cleanup failures remain
+explicit and block execution replacement. See [failure boundaries](practice-failures.md).
+
 ## Practice Readiness
 
 `planning/resource-plan.ts` derives qualification, live roots and input/analysis/recording

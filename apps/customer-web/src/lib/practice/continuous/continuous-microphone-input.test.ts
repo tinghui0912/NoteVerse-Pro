@@ -135,7 +135,7 @@ for (const phase of ['preroll', 'tail'] as const) it(`${phase} deadline fails at
   try {
     await vi.advanceTimersByTimeAsync(timeout - 1); expect(failure).not.toHaveBeenCalled(); expect(r.listeners.size).toBe(1);
     await vi.advanceTimersByTimeAsync(1); await observed;
-    expect(failure).toHaveBeenCalledOnce(); expect(failure.mock.calls[0][0].message).toBe('CONTINUOUS_ANALYSIS_TIMEOUT'); r.cleanWait();
+    expect(failure).toHaveBeenCalledOnce(); expect(failure.mock.calls[0][0]).toMatchObject({ kind: 'INFERENCE', code: 'RUNTIME_FAILED' }); r.cleanWait();
     const count = r.publications.length; r.stale.forEach(listener => listener()); expect(failure).toHaveBeenCalledOnce(); expect(r.publications).toHaveLength(count);
     expect(r.publications.some(p => p.publicationId.endsWith(':terminal'))).toBe(false);
   } finally { await r.input.dispose(); }
@@ -178,7 +178,7 @@ for (const phase of ['preroll', 'tail'] as const) for (const event of ['abort', 
         : event === 'source' ? 'SOURCE_TEST_FAILURE' : 'CONTINUOUS_PREPARATION_CANCELLED');
       r.cleanWait();
       for (const call of add.mock.calls.filter(call => call[0] === 'abort')) expect(remove.mock.calls.some(removed => removed[0] === 'abort' && removed[1] === call[1])).toBe(true);
-      r.stale.forEach(listener => listener()); r.abort.abort(); r.input.fail('LATER_FAILURE');
+      r.stale.forEach(listener => listener()); r.abort.abort(); r.input.fail(new Error('LATER_FAILURE'));
       await vi.advanceTimersByTimeAsync(120000); expect(rejected).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
       if (event === 'worker' || event === 'source') expect(r.input.snapshot().failure).toBe(event === 'worker' ? 'ACOUSTIC_WORKER_RPC_TIMEOUT' : 'SOURCE_TEST_FAILURE');
     } finally { await r.input.dispose(); }

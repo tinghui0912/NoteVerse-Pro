@@ -141,13 +141,12 @@ describe('resolvePracticeStatusView', () => {
       resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
-        inputError: 'Model asset not configured',
+        inputError: 'STEP_ACOUSTIC_PREPARATION_FAILED',
         inputSource: 'MICROPHONE',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'micStartFailed',
-      customMessage: 'Model asset not configured',
+      customMessage: 'Microphone analysis could not be prepared.',
       isError: true,
       pending: false,
     });
@@ -156,13 +155,12 @@ describe('resolvePracticeStatusView', () => {
       resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
-        inputError: 'MIDI access denied',
+        inputError: 'STEP_MIDI_PERMISSION_DENIED',
         inputSource: 'MIDI',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'midiStartFailed',
-      customMessage: 'MIDI access denied',
+      customMessage: 'MIDI permission was denied.',
       isError: true,
       pending: false,
     });
@@ -187,7 +185,7 @@ describe('resolvePracticeStatusView', () => {
   it.each([
     ['STEP_MICROPHONE_PERMISSION_DENIED', 'Microphone permission was denied.'],
     ['STEP_ACOUSTIC_RUNTIME_FAILED', 'Microphone analysis failed. Start a new session.'],
-  ])('preserves the STEP application error %s', (inputError, customMessage) => {
+  ] as const)('preserves the STEP application error %s', (inputError, customMessage) => {
     expect(resolvePracticeStatusView({ lifecycle: 'COMPLETED', inputState: 'ERROR', inputError,
       inputSource: 'MICROPHONE', sessionMode: 'STEP_BY_STEP' })).toMatchObject({
       customMessage, isError: true, pending: false,
@@ -197,7 +195,7 @@ describe('resolvePracticeStatusView', () => {
   it.each([
     ['MICROPHONE_PERMISSION_DENIED', 'micPermissionDenied'],
     ['ANALYSIS_FAILED', 'micAnalysisFailed'],
-  ])('preserves the Continuous application error %s', (inputError, messageKey) => {
+  ] as const)('preserves the Continuous application error %s', (inputError, messageKey) => {
     expect(resolvePracticeStatusView({ lifecycle: 'ACTIVE', inputState: 'ERROR', inputError,
       inputSource: 'MICROPHONE', sessionMode: 'CONTINUOUS_PLAY' })).toMatchObject({
       messageKey, isError: true, pending: false,
@@ -292,14 +290,14 @@ describe('PracticeStatus rendering', () => {
         createElement(PracticeStatus, {
           lifecycle: 'READY',
           inputState: 'ERROR',
-          inputError: 'Device disconnected',
+          inputError: 'STEP_MICROPHONE_UNAVAILABLE',
           inputSource: 'MICROPHONE',
           sessionMode: 'STEP_BY_STEP',
         })
       )
     );
 
-    expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
+    expect(screen.getByText(/Microphone input is unavailable/)).toBeTruthy();
   });
 
   it('renders the browser prerequisite error before Continuous starts', () => {
@@ -399,4 +397,11 @@ it('attempt binding remains silent even for STEP; busy belongs to Start', () => 
     lifecycle: 'PREPARING', inputState: 'STARTING', sessionMode: 'STEP_BY_STEP',
   })));
   expect(screen.queryByRole('status')).toBeNull();
+});
+
+it('untrusted runtime text cannot become status copy', () => {
+  const view = resolvePracticeStatusView({ lifecycle: 'ERROR', sessionMode: 'CONTINUOUS_PLAY', inputState: 'ERROR',
+    // @ts-expect-error The public view accepts only application codes; exercise a malformed JS caller.
+    inputError: 'https://private.example/model.onnx native exception stack' });
+  expect(JSON.stringify(view)).not.toContain('private.example');
 });

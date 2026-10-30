@@ -1,3 +1,5 @@
+import { acousticBoundaryFailure } from '@/lib/practice/acoustic/failure-boundary';
+import { InferenceFailure } from '@/lib/practice/failure/causal-failure';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { ContinuousAcousticProjection } from '@/lib/practice/acoustic/continuous/continuous-projection';
@@ -12,12 +14,12 @@ export class ContinuousMicrophoneInput {
   private capture: { stop(): void } | null = null;
   private context: AudioContext | null = null;
   private disposed = false;
-  private failure: string | null = null;
+  private failure: Error | null = null;
   private publications = 0;
   private disposal: Promise<void> | null = null;
   private detachWorker: (() => void) | undefined;
   private readonly readinessWaits = new Set<() => void>();
-  constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (reason: string) => void, private readonly startup = new PracticeStartupTimings()) {}
+  constructor(private readonly platform: ContinuousPlatform, private readonly onFailure: (failure: Error) => void, private readonly startup = new PracticeStartupTimings()) {}
   async acquire(signal: AbortSignal): Promise<void> {
     this.worker = await this.platform.acquireInference(signal);
     if (this.disposed || signal.aborted) await this.worker.dispose();
@@ -33,7 +35,7 @@ export class ContinuousMicrophoneInput {
       // AudioContextPerformanceClock shares the established Continuous session coordinate.
       nowAvailabilityRuntimeMs: () => connection.clock.nowMs(),
       onPublication: publication => { if (this.disposed || this.failure) return; deliverPublication(connection.publish, publication); this.publications++; },
-      onFailure: error => this.recordFailure(error) });
+      onFailure: error => this.recordFailure(error) }).catch(cause => { throw acousticBoundaryFailure(cause); });
     if (this.disposed || signal.aborted) { await this.runtime.dispose(); this.check(signal); }
     this.check(signal);
     this.bridge = new ContinuousCaptureBridge(this.runtime, connection.context.sampleRate);
@@ -63,15 +65,15 @@ export class ContinuousMicrophoneInput {
     await this.wait(() => Boolean(this.runtime?.tailReady), signal, 60000);
     this.capture?.stop(); await this.runtime!.seal(); this.check(signal);
   }
-  fail(reason: string): void { this.recordFailure(new Error(reason)); }
+  fail(failure: Error): void { this.recordFailure(failure); }
   private recordFailure(error: Error): void {
     if (this.failure || this.disposed) return;
-    this.failure = error.message; this.runtime?.failAnalysis(error);
+    this.failure = acousticBoundaryFailure(error); this.runtime?.failAnalysis(error);
     for (const observe of this.readinessWaits) observe();
-    this.onFailure(error.message);
+    this.onFailure(this.failure);
   }
   snapshot() { return Object.freeze({ publications: this.publications,
-    failure: this.failure, runtime: this.runtime?.snapshot() ?? null, capture: this.bridge?.snapshot() ?? null }); }
+    failure: this.failure?.message ?? null, runtime: this.runtime?.snapshot() ?? null, capture: this.bridge?.snapshot() ?? null }); }
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.disposed = true;
@@ -82,7 +84,7 @@ export class ContinuousMicrophoneInput {
   }
   private check(signal?: AbortSignal): void {
     if (signal?.aborted || this.disposed) throw new Error('CONTINUOUS_PREPARATION_CANCELLED');
-    if (this.failure) throw new Error(this.failure);
+    if (this.failure) throw this.failure;
   }
   private async wait(ready: () => boolean, signal: AbortSignal, timeout: number): Promise<void> {
     this.check(signal); if (ready()) return;
@@ -106,7 +108,7 @@ export class ContinuousMicrophoneInput {
       observe(); // Snapshot -> subscribe -> recheck; no missed readiness/failure/cancellation.
       if (!settled) timer = setTimeout(() => {
         observe(); // Readiness committed before delayed timer delivery wins over timeout.
-        if (!settled) finish(new Error('CONTINUOUS_ANALYSIS_TIMEOUT'));
+        if (!settled) finish(new InferenceFailure('RUNTIME_FAILED'));
       }, timeout);
     });
     this.check(signal);

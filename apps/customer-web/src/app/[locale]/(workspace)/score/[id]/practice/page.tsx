@@ -170,7 +170,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const loadError = scoreQuery.error ?? source.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
   const loadErrorDescription = loadError
-    ? userFacingErrorMessage(errors, loadError, common('loadFailedDescription'))
+    ? userFacingErrorMessage(errors, scoreQuery.error ?? source.transportError, common('loadFailedDescription'))
     : resourceMissingAfterLoad
       ? common('loadFailedDescription')
       : null;

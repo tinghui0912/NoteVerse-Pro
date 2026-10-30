@@ -1,3 +1,4 @@
+import { DeviceFailure, AudioContextFailure } from '@/lib/practice/failure/causal-failure';
 import type { PracticeDeviceHealth } from '@/lib/practice/device/device-contract';
 export type MicrophoneResourceHealth = Readonly<{
   healthy: boolean;
@@ -13,7 +14,8 @@ export class ContinuousMicrophoneHealth {
   private previous: string;
   constructor(sourceHealth: PracticeDeviceHealth, private readonly context: AudioContext, private readonly changed: (health: MicrophoneResourceHealth) => void) {
     this.sourceHealth = sourceHealth;
-    if (!this.snapshot().healthy) throw new Error(this.snapshot().reason);
+    if (!this.snapshot().healthy) throw this.sourceHealth !== 'HEALTHY'
+      ? new DeviceFailure('SOURCE_LOST', 'MICROPHONE') : new AudioContextFailure(context.state === 'closed' ? 'CLOSED' : 'INTERRUPTED');
     this.previous = JSON.stringify(this.snapshot());
     context.addEventListener('statechange', this.observe);
   }

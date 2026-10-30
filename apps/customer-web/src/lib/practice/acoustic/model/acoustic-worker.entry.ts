@@ -1,3 +1,4 @@
+import { AcousticAnalysisError } from './model-contract';
 import { AcousticModelSession } from './model-inference';
 import { onlyFields } from './model-contract';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
@@ -19,5 +20,5 @@ self.onmessage = async (event: MessageEvent<{ id: number; type: string; modelUrl
     else if (message.type === 'DISPOSE') result = await inference.dispose();
     else throw new Error('INVALID_WORKER_REQUEST');
     self.postMessage({ id: message.id, result });
-  } catch (error) { self.postMessage({ id: message.id, error: error instanceof Error ? error.message : String(error) }); }
+  } catch (error) { self.postMessage({ id: message.id, error: error instanceof AcousticAnalysisError ? error.code : 'ACOUSTIC_WORKER_INTERNAL_FAILURE' }); }
 };

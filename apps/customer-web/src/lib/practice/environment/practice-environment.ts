@@ -1,3 +1,4 @@
+import { AcousticFailure, isPracticeCausalFailure, type PracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { getPracticeAcousticModelAccess } from '@/lib/api/practice-acoustic-model-asset';
@@ -11,7 +12,10 @@ export type EnvironmentPlatform = {
   probe: typeof probePracticeRequirements;
 };
 const browserPlatform: EnvironmentPlatform = {
-  modelUrl: async signal => (await getPracticeAcousticModelAccess(signal)).downloadUrl,
+  modelUrl: async signal => {
+    try { return (await getPracticeAcousticModelAccess(signal)).downloadUrl; }
+    catch (cause) { throw new AcousticFailure('MODEL_ASSET_UNAVAILABLE', { cause }); }
+  },
   createEngine: () => new AcousticEngine(), probe: probePracticeRequirements,
 };
 
@@ -52,7 +56,7 @@ export class PracticeEnvironment {
             this.engine = this.platform.createEngine();
             this.engine.subscribe(() => { if (!this.disposed) this.update({ ...this.readiness }); });
             this.engine.onFailure(error => {
-              if (this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY') this.invalidate(error.message);
+              if (this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY') this.invalidate(error);
             });
           }
           if (this.engine.snapshot().state === 'EMPTY') {
@@ -67,8 +71,7 @@ export class PracticeEnvironment {
         }
         check(); this.update({ ...this.readiness, status: 'READY', progress: null });
       } catch (error) {
-        if (!this.disposed && epoch === this.epoch) this.invalidate(error instanceof Error && /^[A-Z][A-Z0-9_]+$/.test(error.message)
-          ? error.message : 'PRACTICE_PREPARATION_FAILED');
+        if (!this.disposed && epoch === this.epoch) this.invalidate(error);
       } finally { this.pending = null; }
     })();
     return this.pending;
@@ -95,12 +98,12 @@ export class PracticeEnvironment {
   }
   acquireInference = async (signal: AbortSignal): Promise<AcousticInferencePort> => {
     if (this.disposed || this.readiness.status !== 'READY' || !this.readiness.components.acousticEngine
-      || this.engine?.snapshot().state !== 'READY_IDLE') throw new Error('PRACTICE_ENVIRONMENT_NOT_READY');
+      || this.engine?.snapshot().state !== 'READY_IDLE') throw new AcousticFailure('ENVIRONMENT_NOT_READY');
     return this.engine.acquire(signal);
   };
-  invalidate(reason: string): void {
+  private invalidate(cause: unknown): void {
     if (this.disposed) return;
-    this.update({ ...this.readiness, status: 'BLOCKED', reason,
+    this.update({ ...this.readiness, status: 'BLOCKED', reason: qualificationFailureCode(cause),
       components: Object.fromEntries(Object.entries(this.readiness.components).map(([key, state]) =>
         [key, state === 'CHECKING' || (key === 'acousticEngine' && this.engine?.snapshot().state === 'FAILED') ? 'BLOCKED' : state])) });
   }
@@ -117,4 +120,13 @@ export class PracticeEnvironment {
     this.readiness = Object.freeze({ ...value, components: Object.freeze({ ...value.components }) });
     for (const listener of this.listeners) listener();
   }
+}
+
+function qualificationFailureCode(cause: unknown): string {
+  if (!isPracticeCausalFailure(cause)) return 'PRACTICE_PREPARATION_FAILED';
+  const failure: PracticeCausalFailure = cause;
+  if (failure.kind === 'DEVICE') return `${failure.resource}_${failure.code === 'PERMISSION_DENIED' ? 'PERMISSION_DENIED' : 'UNAVAILABLE'}`;
+  if (failure.kind === 'MIDI') return failure.code === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT'
+    : failure.code === 'ACCESS_UNAVAILABLE' ? 'MIDI_UNAVAILABLE' : `MIDI_${failure.code}`;
+  return failure.code;
 }

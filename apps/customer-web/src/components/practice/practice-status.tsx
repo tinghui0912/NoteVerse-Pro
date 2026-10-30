@@ -10,7 +10,7 @@ import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
-import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
+import type { PracticeExecutionLifecycle, PracticeExecutionErrorCode } from '@/lib/practice/application/practice-execution-owner';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
@@ -57,7 +57,7 @@ export type PracticeStatusProps = {
   stepInteractionPhase?: StepAttemptState | null;
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
-  inputError?: string | null;
+  inputError?: PracticeExecutionErrorCode | null;
   resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
@@ -83,7 +83,7 @@ export function resolvePracticeStatusView({
   stepInteractionPhase?: StepAttemptState | null;
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
-  inputError?: string | null;
+  inputError?: PracticeExecutionErrorCode | null;
   resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
@@ -115,7 +115,6 @@ export function resolvePracticeStatusView({
     }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
-      customMessage: inputError ?? undefined,
       isError: true,
       pending: false,
       countInPulse: null,

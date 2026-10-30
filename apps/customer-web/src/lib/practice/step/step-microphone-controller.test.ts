@@ -1,3 +1,4 @@
+import { CaptureFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
@@ -97,7 +98,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
   return { health, finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
     starting: () => startSpy.mock.results.at(-1)!.value,
     untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
-    captureFailure: (error = new Error('CAPTURE_PIPELINE_FAILED')) => bridge.abort(error),
+    captureFailure: (error = new CaptureFailure('PIPELINE_INVALID')) => bridge.abort(error),
     corruptCapture: () => bridge.receive({ type: 'pcm-chunk', sequence: sequence + 1, sourceSampleRateHz: rate,
       sourceStartSampleIndex: next, sourceEndSampleIndex: next + 2048, audioContextStartFrame: origin + next,
       captureTimeSeconds: (origin + next) / rate, inputChannelCount: 1, samples: new Float32Array(2048) }),
@@ -658,7 +659,7 @@ it('ACTIVE STEP worker INFER silence retains target under terminal analysis inte
       infrastructureIntervention: null, canAcceptAttempt: false, sessionSnapshot: { localSessionId: before.localSessionId,
         runtimeStatus: 'ACTIVE', completionReason: null, step: { currentIndex: before.step.currentIndex,
           targetGeneration: before.step.targetGeneration, inputAvailable: false, activeAttempt: null } } });
-    expect(r.input().snapshot().failure).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(r.input().snapshot().failure).toBe('WORKER_TIMEOUT');
     expect(r.source().snapshot()).toMatchObject({ state: 'DISPOSED', outstanding: 0 }); expect(engine.snapshot().state).toBe('FAILED');
     expect(r.finalized).toHaveLength(0); expect(r.completion).not.toHaveBeenCalled();
     expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();

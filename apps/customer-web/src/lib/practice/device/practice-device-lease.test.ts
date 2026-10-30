@@ -1,3 +1,4 @@
+import { DeviceFailure } from '@/lib/practice/failure/causal-failure';
 import { describe, expect, it, vi } from 'vitest';
 import { PracticeDeviceLease } from './practice-device-lease';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
@@ -66,11 +67,11 @@ describe('page-scoped Practice Device Lease', () => {
     f.midi.connect(true); const next = new PracticeDeviceLease(planPracticeResources(configuration), f.platform); await next.open();
     expect(f.platform.acquireMidi).toHaveBeenCalledTimes(2); next.close();
   });
-  it.each(['NotAllowedError', 'NotFoundError', 'NotReadableError'])('root %s fails page binding closed without leaking browser details', async name => {
+  it.each(['PERMISSION_DENIED', 'NOT_FOUND', 'BUSY'] as const)('root %s fails page binding closed without leaking browser details', async name => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
-    f.platform.acquireStream.mockRejectedValueOnce(new DOMException('private browser details', name));
+    f.platform.acquireStream.mockRejectedValueOnce(new DeviceFailure(name, 'MICROPHONE', { cause: new Error('private browser detail') }));
     await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
-    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: name === 'NotAllowedError' ? 'PERMISSION_DENIED' : name === 'NotFoundError' ? 'NOT_FOUND' : 'BUSY' }, roots: { recordingMicrophone: null } });
+    expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: name }, roots: { recordingMicrophone: null } });
     f.owner.close();
   });
   it('page departure stops a late stream and never revives a closed owner', async () => {
@@ -84,7 +85,7 @@ describe('page-scoped Practice Device Lease', () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' });
     f.platform.acquireStream.mockImplementationOnce(async () => {
       const root = media(); f.acquired.push(root); return root.stream;
-    }).mockRejectedValueOnce(new DOMException('private detail', 'NotAllowedError'));
+    }).mockRejectedValueOnce(new DeviceFailure('PERMISSION_DENIED', 'CAMERA'));
     await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
     expect(f.acquired[0].track.stop).toHaveBeenCalledOnce();
     expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { inputMicrophone: null, camera: null },
@@ -96,7 +97,7 @@ describe('page-scoped Practice Device Lease', () => {
   });
   it('detaches and clears acquired MIDI when a later recording microphone open fails', async () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
-    f.platform.acquireStream.mockRejectedValueOnce(new DOMException('private', 'NotFoundError'));
+    f.platform.acquireStream.mockRejectedValueOnce(new DeviceFailure('NOT_FOUND', 'MICROPHONE'));
     await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
     expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { midi: null, recordingMicrophone: null },
       issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: 'NOT_FOUND' } });

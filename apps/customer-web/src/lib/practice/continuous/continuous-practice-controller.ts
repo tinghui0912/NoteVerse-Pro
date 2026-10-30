@@ -1,3 +1,5 @@
+import { DeviceFailure, MidiFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
+import { resumePracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import type { PracticeRootHealthPort, PracticeRootHealthSnapshot } from '@/lib/practice/device/device-contract';
 import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
@@ -6,7 +8,7 @@ import { ContinuousMicrophoneHealth, type MicrophoneResourceHealth } from './mic
 import type { ContinuousPracticeCompletion } from './completion';
 import { createNaturalContinuousCompletion } from './natural-completion';
 import { midiEvidenceProvenance, microphoneEvidenceProvenance, type ContinuousEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
-import { sourceRate } from '@/lib/practice/acoustic/model/model-contract';
+import { qualifiedAcousticSourceRate } from '@/lib/practice/acoustic/failure-boundary';
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
@@ -14,11 +16,11 @@ import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
 import { createLocalSessionId } from '@/lib/practice/kernel/session';
 import type { ContinuousPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
-import { recordingPreparationError, RecordingPreparationError } from '@/lib/practice/recording/recording-preparation-error';
+import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import type { ContinuousAnalysisIntervention } from './analysis-intervention';
 import type { PracticeResourceIntervention } from './resource-intervention';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
-import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
+import { projectContinuousFailure, ContinuousApplicationFailure, type ContinuousErrorCode } from './continuous-errors';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { ContinuousMidiInput } from './continuous-midi-input';
@@ -40,7 +42,7 @@ export type ContinuousControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'FINAL
 export type ContinuousControllerSnapshot = Readonly<{
   session: ContinuousControllerState; transport: PerformanceClockSnapshot | null;
   analysis: 'NOT_REQUIRED' | 'PREPARING' | 'PREROLL' | 'RUNNING' | 'PAUSED' | 'DRAINING' | 'COMPLETE' | 'INTERRUPTED' | 'DISABLED' | 'FAILED';
-  analysisError: string | null; inputError: string | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
+  analysisError: ContinuousErrorCode | null; inputError: ContinuousErrorCode | null; recording: ReturnType<ContinuousRecorderPort['snapshot']> | null;
   analysisIntervention: ContinuousAnalysisIntervention | null;
   resourceIntervention: PracticeResourceIntervention | null;
   evaluation: ContinuousTargetFeedback | null; completed: ContinuousPracticeCompletion | null;
@@ -63,8 +65,8 @@ export class ContinuousPracticeController {
   private timer: ReturnType<typeof setInterval> | null = null;
   private futureBegin: string | null = null;
   private futureTerminal: string | null = null;
-  private inputError: string | null = null;
-  private analysisError: string | null = null;
+  private inputError: ContinuousErrorCode | null = null;
+  private analysisError: ContinuousErrorCode | null = null;
   private analysisIntervention: ContinuousAnalysisIntervention | null = null;
   private analysisDisabled = false;
   private microphoneRelease: Promise<void> | null = null;
@@ -75,7 +77,7 @@ export class ContinuousPracticeController {
   private abandonment: Promise<void> | null = null;
   private preparing: Promise<void> | null = null;
   private cleanupPromise: Promise<void> | null = null;
-  private cleanupFailure: string | null = null;
+  private cleanupFailure: 'RESOURCE_CLEANUP_FAILED' | null = null;
   private fatalFailure: ContinuousErrorCode | null = null;
   private inputResources: ContinuousMicrophoneHealth | null = null;
   private inputIncident: MicrophoneResourceHealth | null = null;
@@ -128,13 +130,13 @@ export class ContinuousPracticeController {
         this.microphone = new ContinuousMicrophoneInput(this.platform, reason => this.analysisFailed(reason), this.startup);
         await this.startup.measure('acquireInferenceLease', () => this.microphone!.acquire(this.abort.signal)); this.checkAlive();
         this.rootStream = this.options.devices[resources.analysis.sourceRoot];
-        if (!this.rootStream || this.options.rootHealth.snapshot().health[resources.analysis.sourceRoot] !== 'HEALTHY') throw new Error('MICROPHONE_SOURCE_LOST');
+        if (!this.rootStream || this.options.rootHealth.snapshot().health[resources.analysis.sourceRoot] !== 'HEALTHY') throw new DeviceFailure('SOURCE_LOST', 'MICROPHONE');
         this.checkAlive();
-        this.context = this.platform.createAudioContext(); await this.startup.measure('audioContextResume', () => this.context!.resume()); this.checkAlive();
+        this.context = this.platform.createAudioContext(); await this.startup.measure('audioContextResume', () => resumePracticeAudioContext(this.context!)); this.checkAlive();
         this.inputResources = new ContinuousMicrophoneHealth(this.options.rootHealth.snapshot().health[resources.analysis.sourceRoot] ?? 'LOST', this.context, health => this.inputHealthChanged(health));
         this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
-        this.evidenceProvenance = microphoneEvidenceProvenance(sourceRate(this.context.sampleRate));
+        this.evidenceProvenance = microphoneEvidenceProvenance(qualifiedAcousticSourceRate(this.context.sampleRate));
       }
       this.session = new ContinuousPracticeSession({
         ...(this.options.plan.inputSource === 'MIDI'
@@ -153,7 +155,7 @@ export class ContinuousPracticeController {
         this.midi = new ContinuousMidiInput(this.platform, { access: this.options.devices[resources.input.root]!, timebase: session.timebase,
           observe: attack => { session.observeMidiAttack(attack); this.notify(); } });
         await this.startup.measure('midiBind', () => this.midi!.prepare());
-      } else throw new Error('MICROPHONE_SOURCE_LOST');
+      } else throw new DeviceFailure('SOURCE_LOST', 'MICROPHONE');
       this.checkAlive();
       try {
         const recording = resources.recording;
@@ -161,7 +163,7 @@ export class ContinuousPracticeController {
         await this.startup.measure('recorderAdmission', () => this.recorder!.prepare({
           audioRoot: recording.mode === 'OFF' ? null : this.options.devices[recording.audioRoot],
           cameraStream: recording.mode === 'VIDEO' ? this.options.devices[recording.videoRoot] : null }));
-      } catch (error) { throw recordingPreparationError(error); }
+      } catch (error) { throw error instanceof RecordingFailure ? error : new ContinuousApplicationFailure('RECORDING_PREPARATION_FAILED', { cause: error }); }
       this.detachRecorder = this.recorder.onRuntimeFault(() => this.updateResourceIntervention());
       let subscribed = false;
       this.detachRootHealth = this.options.rootHealth.subscribe(snapshot => { if (subscribed) this.rootHealthChanged(snapshot); });
@@ -173,7 +175,7 @@ export class ContinuousPracticeController {
         ...(this.context ? { audioContext: this.context } : {}) });
       this.transition(C => {
         this.assertMidiSourceHealthy();
-        try { this.recorder!.assertPrepared(); } catch (error) { throw recordingPreparationError(error); }
+        try { this.recorder!.assertPrepared(); } catch (error) { throw error instanceof RecordingFailure ? error : new ContinuousApplicationFailure('RECORDING_PREPARATION_FAILED', { cause: error }); }
         this.microphone?.assertBoundary(C);
         this.recorder!.activate(); this.transport = session.start(); this.state = 'ACTIVE';
         this.planRunning(C); this.metronome!.start(continuousMetronomeSyncPoint(this.transport));
@@ -181,10 +183,11 @@ export class ContinuousPracticeController {
       });
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
     } catch (error) {
-      if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = error instanceof RecordingPreparationError
-        ? 'RECORDING_PREPARATION_FAILED' : this.options.plan.inputSource === 'MICROPHONE' ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
+      if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = error instanceof ContinuousApplicationFailure ? error.code : error instanceof RecordingFailure
+        ? 'RECORDING_PREPARATION_FAILED' : isPracticeCausalFailure(error) ? projectContinuousFailure(error, 'PREPARING')
+          : this.options.plan.inputSource === 'MICROPHONE' ? 'MODEL_LOAD_FAILED' : 'MIDI_UNAVAILABLE';
         this.record('PREPARATION_FAILED', String(error));
-        if (this.options.plan.inputSource === 'MICROPHONE' && !(error instanceof RecordingPreparationError)) this.analysisError ??= this.inputError.slice(0, 256);
+        if (this.options.plan.inputSource === 'MICROPHONE' && this.inputError !== 'RECORDING_PREPARATION_FAILED') this.analysisError ??= this.inputError;
         this.state = 'FAILED_BEFORE_START'; }
       await this.cleanup(); if (this.cleanupFailure && !this.disposed) this.state = 'FAILED'; this.notify();
     }
@@ -210,7 +213,7 @@ export class ContinuousPracticeController {
   }
   resume(): void {
     if (this.analysisIntervention || this.intervention || this.inputResources && !this.inputResources.snapshot().healthy || this.state !== 'ACTIVE' || this.transport?.state !== 'PAUSED') return;
-    try { this.assertMidiSourceHealthy(); } catch (error) { this.inputError = (error as Error).message; this.notify(); return; }
+    try { this.assertMidiSourceHealthy(); } catch (error) { this.inputError = isPracticeCausalFailure(error) ? projectContinuousFailure(error, 'ACTIVE') : 'MIDI_UNAVAILABLE'; this.notify(); return; }
     this.inputError = null;
     this.transition(C => {
       const T = this.transport!.performanceTimeMs; this.transport = this.session!.resume();
@@ -285,7 +288,7 @@ export class ContinuousPracticeController {
   private boundary(type: 'BEGIN' | 'PAUSE' | 'TERMINAL', C: number, T: number): string | null {
     if (!this.microphone || this.analysisError) return null;
     try { return this.microphone.boundary(type, C, T); }
-    catch (error) { this.microphone.fail((error as Error).message); this.analysisFailed((error as Error).message);
+    catch (error) { this.microphone.fail(error instanceof Error ? error : new Error('Unexpected microphone boundary failure', { cause: error })); this.analysisFailed(error);
       if (this.state === 'PREPARING') throw error; return null; }
   }
   private transition(action: (C: number) => void): void {
@@ -308,7 +311,7 @@ export class ContinuousPracticeController {
   }
   private assertMidiSourceHealthy(): void {
     const input = this.options.plan.resources.input;
-    if (input.kind === 'MIDI' && this.options.rootHealth.snapshot().health[input.root] !== 'HEALTHY') throw new Error('NO_CONNECTED_INPUT');
+    if (input.kind === 'MIDI' && this.options.rootHealth.snapshot().health[input.root] !== 'HEALTHY') throw new MidiFailure('NO_CONNECTED_INPUT');
   }
   private rootHealthChanged(snapshot: PracticeRootHealthSnapshot): void {
     if (this.disposed || !['PREPARING', 'ACTIVE', 'FINALIZING'].includes(this.state)
@@ -395,7 +398,7 @@ export class ContinuousPracticeController {
       try {
         if (this.microphone && !this.analysisError) {
           try { await this.microphone.finish(this.abort.signal); }
-          catch (error) { if (this.disposed) return; this.analysisFailed((error as Error).message); }
+          catch (error) { if (this.disposed) return; this.analysisFailed(error); }
         }
         await stopped; this.checkAlive();
         // After admission and Start, media degradation is independent of evaluation and completion.
@@ -411,17 +414,17 @@ export class ContinuousPracticeController {
         this.state = 'COMPLETE'; this.record('COMPLETE');
         this.notify(); this.options.onNaturalCompletion?.(this.finalSession);
       } catch (error) {
-        if (!this.disposed) await this.failSession(continuousErrorCode(error, this.cleanupFailure ? 'RESOURCE_CLEANUP_FAILED' : 'RECORDER_UNAVAILABLE'), error);
+        if (!this.disposed) await this.failSession(this.cleanupFailure ? 'RESOURCE_CLEANUP_FAILED' : isPracticeCausalFailure(error) ? projectContinuousFailure(error, 'ACTIVE') : 'RECORDER_UNAVAILABLE', error);
       } finally { if (this.disposed) await this.cleanup(); }
     })();
     return this.completion;
   }
-  private analysisFailed(reason: string): void {
+  private analysisFailed(reason: unknown): void {
     if (this.analysisError || this.fatalFailure || this.disposed || !['PREPARING', 'ACTIVE', 'FINALIZING'].includes(this.state)) return;
     if (this.state === 'ACTIVE' && this.microphone?.snapshot().capture?.failed) {
       this.inputHealthChanged({ healthy: false, reason: 'CAPTURE_PIPELINE_INVALID', recoverability: 'RESTART_REQUIRED' }); return;
     }
-    this.analysisError = continuousErrorCode(reason, 'ANALYSIS_FAILED');
+    this.analysisError = isPracticeCausalFailure(reason) ? projectContinuousFailure(reason, this.state === 'PREPARING' ? 'PREPARING' : 'ACTIVE') : 'ANALYSIS_FAILED';
     if (this.state === 'ACTIVE') {
       this.analysisIntervention = Object.freeze({ pauseOrigin: this.intervention?.pauseOrigin
         ?? (this.transport?.state === 'PAUSED' ? 'USER' : 'INTERVENTION') });
@@ -435,7 +438,7 @@ export class ContinuousPracticeController {
       this.inputResources?.releaseAnalysisSource();
       void this.releaseMicrophone().catch(error => this.failSession('RESOURCE_CLEANUP_FAILED', error));
     }
-    this.record('ANALYSIS_FAILED', reason); this.notify();
+    this.record('ANALYSIS_FAILED', String(reason)); this.notify();
   }
   async continueWithoutAnalysis(): Promise<void> {
     const intervention = this.analysisIntervention;
@@ -460,13 +463,13 @@ export class ContinuousPracticeController {
     if (this.disposed || this.fatalFailure || ['COMPLETE', 'ABANDONED'].includes(this.state)) return;
     this.fatalFailure = code; this.inputError = code; this.analysisError = code;
     this.completed = null; this.finalSession = null; this.state = 'FAILED';
-    this.abort.abort(); this.microphone?.fail(code); this.record('SESSION_FAILED', String(cause)); this.notify();
+    this.abort.abort(); this.microphone?.fail(new Error(code, { cause })); this.record('SESSION_FAILED', String(cause)); this.notify();
     await this.cleanup(); this.notify();
   }
   private checkAlive(): void {
     if (this.disposed || this.state === 'ABANDONED' || this.abort.signal.aborted) throw new Error('CONTINUOUS_DISPOSED');
-    if (this.fatalFailure || this.cleanupFailure) throw new Error(this.fatalFailure ?? this.cleanupFailure!);
-    if (this.state === 'PREPARING' && this.analysisError) throw new Error(this.analysisError);
+    if (this.fatalFailure || this.cleanupFailure) throw new ContinuousApplicationFailure(this.fatalFailure ?? this.cleanupFailure!);
+    if (this.state === 'PREPARING' && this.analysisError) throw new ContinuousApplicationFailure(this.analysisError);
   }
   private cleanup(): Promise<void> {
     if (this.cleanupPromise) return this.cleanupPromise;

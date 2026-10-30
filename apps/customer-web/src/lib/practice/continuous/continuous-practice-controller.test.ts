@@ -1256,7 +1256,7 @@ it('R14 silent INFER after tailReady settles natural FINALIZING with healthy rec
     expect(controller.snapshot()).toMatchObject({ session: 'FINALIZING', analysisError: null, completed: null });
     expect(callback).not.toHaveBeenCalled(); expect(service.terminate).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(SILENCE); await controller.abandon(); // Joins the existing natural completion, never abandons its scope.
-    expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 0, failureCode: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(f.bridge().runtime.snapshot()).toMatchObject({ outstanding: 0, failureCode: 'WORKER_TIMEOUT' });
     expect(engine.snapshot().state).toBe('FAILED'); expect(service.terminate).toHaveBeenCalledOnce();
     expect(controller.snapshot()).toMatchObject({ session: 'COMPLETE', analysisIntervention: null, resourceIntervention: null });
     const completed = controller.snapshot().completed!;
@@ -1280,7 +1280,7 @@ it('ACTIVE worker INFER silence is analysis failure with same-session degradatio
     await vi.advanceTimersByTimeAsync(SILENCE);
     expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' }, evaluation: null,
       analysisIntervention: { pauseOrigin: 'INTERVENTION' }, resourceIntervention: null, completed: null });
-    expect(f.bridge().snapshot().failed).toBe(false); expect(f.bridge().runtime.snapshot().failureCode).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(f.bridge().snapshot().failed).toBe(false); expect(f.bridge().runtime.snapshot().failureCode).toBe('WORKER_TIMEOUT');
     const identity = controller.engineeringSnapshot().sessionId, time = controller.snapshot().transport!.performanceTimeMs;
     f.context.currentTime += .1; controller.refresh(); expect(controller.snapshot().transport!.performanceTimeMs).toBe(time);
     await controller.continueWithoutAnalysis();

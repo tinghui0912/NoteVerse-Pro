@@ -1,3 +1,5 @@
+import { AcousticFailure } from '@/lib/practice/failure/causal-failure';
+import { createPracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import { BrowserMidiController, type BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import { MetronomeController, type MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
 import type { LocalClock } from '@/lib/practice/kernel/timebase';
@@ -15,11 +17,11 @@ export interface StepPlatform {
     createAudioContext(): AudioContext;
   };
 }
-export function browserStepPlatform(acquireInference: StepMicrophonePlatform['acquireInference'] = async () => { throw new Error('PRACTICE_ENVIRONMENT_NOT_READY'); }): StepPlatform {
+export function browserStepPlatform(acquireInference: StepMicrophonePlatform['acquireInference'] = async () => { throw new AcousticFailure('ENVIRONMENT_NOT_READY'); }): StepPlatform {
   return { clock: { nowMs: () => performance.now() }, timer: {
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
   }, createMidi: options => new BrowserMidiController(options), createMetronome: options => new MetronomeController(options),
   microphone: { ...browserStepMicrophonePlatform(acquireInference),
-    createAudioContext: () => new AudioContext() } };
+    createAudioContext: createPracticeAudioContext } };
 }

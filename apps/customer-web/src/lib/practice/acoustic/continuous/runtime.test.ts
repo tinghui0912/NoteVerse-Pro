@@ -1,3 +1,4 @@
+import { InferenceFailure } from '@/lib/practice/failure/causal-failure';
 import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import canonicalArtifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
@@ -416,8 +417,8 @@ it('worker failure while paused closes capture independently of clock', async ()
   const stopCapture = vi.fn(); runtime.attachCaptureCleanup(stopCapture);
   bridge.schedule({ type: 'BEGIN', sourceSampleIndex: 96000, performanceTimeMs: 0 });
   feedTo(124800); runtime.endSegment(600); feedTo(134400); await runtime.drain();
-  const before = publications.length; failWorker(new Error('ACOUSTIC_WORKER_CRASH'));
-  expect(stopCapture).toHaveBeenCalledTimes(1); expect(() => feedTo(140000)).toThrow('ACOUSTIC_WORKER_CRASH');
+  const before = publications.length, cause = new InferenceFailure('WORKER_CRASH'); failWorker(cause);
+  expect(stopCapture).toHaveBeenCalledTimes(1); expect(() => feedTo(140000)).toThrow(cause);
   expect(publications).toHaveLength(before); await runtime.dispose();
 });
 

@@ -1,3 +1,4 @@
+import { DeviceFailure, AcousticFailure } from '../failure/causal-failure';
 import { expect, it, vi } from 'vitest';
 import { PracticeEnvironment } from './practice-environment';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
@@ -37,7 +38,7 @@ it('every explicit qualification reruns probes while healthy acoustic session le
   expect(r.worker.dispose).not.toHaveBeenCalled(); await r.environment.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
 });
 it('camera failure leaves VIDEO requirements blocked rather than turning them into a ready OFF set', async () => {
-  const r = rig(); r.platform.probe.mockRejectedValueOnce(new Error('CAMERA_PERMISSION_DENIED'));
+  const r = rig(); r.platform.probe.mockRejectedValueOnce(new DeviceFailure('PERMISSION_DENIED', 'CAMERA'));
   const requirements = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }).qualification;
   await r.environment.requalify(requirements);
   expect(r.environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'CAMERA_PERMISSION_DENIED' });
@@ -158,14 +159,14 @@ for (const replacementFails of [false, true]) it(`real failure during retirement
   if (replacementFails) {
     await vi.waitFor(() => expect(r.worker.load).toHaveBeenCalledTimes(2));
     expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null}); expect(states).not.toContain('BLOCKED');
-    load.reject(new Error('REPLACEMENT_LOAD_FAILED'));
+    load.reject(new AcousticFailure('MODEL_LOAD_FAILED'));
   }
   await retirement; await qualification;
   expect(detachments[0]).toHaveBeenCalledOnce();
   expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
   expect(r.platform.modelUrl).toHaveBeenCalledTimes(2); expect(r.worker.load).toHaveBeenCalledTimes(2);
   if (replacementFails) {
-    expect(r.environment.snapshot()).toMatchObject({status:'BLOCKED', reason:'REPLACEMENT_LOAD_FAILED'});
+    expect(r.environment.snapshot()).toMatchObject({status:'BLOCKED', reason:'MODEL_LOAD_FAILED'});
     expect(states.filter(state => state === 'BLOCKED')).toHaveLength(1);
   } else { expect(r.environment.matches(mic)).toBe(true); expect(states).not.toContain('BLOCKED'); }
   await r.environment.dispose();
@@ -202,7 +203,7 @@ it('silent worker LOAD leaves CHECKING finitely and requires explicit requalific
     await vi.advanceTimersByTimeAsync(SILENCE - 1);
     expect(environment.snapshot().status).toBe('CHECKING'); expect(platform.createEngine).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(1); await qualification;
-    expect(environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+    expect(environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'WORKER_TIMEOUT' });
     expect(engines[0].snapshot().state).toBe('FAILED'); expect(environment.matches(mic)).toBe(false);
     expect(platform.createEngine).toHaveBeenCalledOnce(); expect(old.service.terminate).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);

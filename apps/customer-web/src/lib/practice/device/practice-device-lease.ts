@@ -1,3 +1,4 @@
+import { DeviceFailure, MidiFailure } from '@/lib/practice/failure/causal-failure';
 import type { PracticeResourcePlan, PracticeLiveRoot } from '@/lib/practice/planning/resource-plan';
 import { type PracticeDeviceHealth,
   type PracticeRootHealthPort, type PracticeRootHealthSnapshot, type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
@@ -74,9 +75,9 @@ export class PracticeDeviceLease {
       } catch (error) {
         for (const resource of acquired) this.release(resource);
         if (!this.isClosed()) {
-          const name = typeof error === 'object' && error !== null && 'name' in error ? error.name : '';
-          this.issue ??= Object.freeze({ resource: opening, phase: 'OPEN', condition: name === 'NotAllowedError' ? 'PERMISSION_DENIED'
-            : name === 'NotFoundError' ? 'NOT_FOUND' : name === 'NotReadableError' ? 'BUSY' : 'UNAVAILABLE' });
+          const condition = error instanceof DeviceFailure ? error.code === 'SOURCE_LOST' ? 'UNAVAILABLE' : error.code
+            : error instanceof MidiFailure && error.code === 'PERMISSION_DENIED' ? 'PERMISSION_DENIED' : 'UNAVAILABLE';
+          this.issue ??= Object.freeze({ resource: opening, phase: 'OPEN', condition });
           this.state = 'FAULTED'; this.notify();
         }
         throw new Error('PRACTICE_DEVICE_UNAVAILABLE');

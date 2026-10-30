@@ -1,9 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { decodeAcousticOutputs, verifyAcousticModel, AcousticModelSession } from './model-inference';
 import { assertModelNames, checkedOutput } from './model-validation';
-import { AcousticModelWorker } from './worker-client';
+import { AcousticModelWorker, createAcousticModelWorker } from './worker-client';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from './worker-liveness-policy';
 import type { PianoRawOutputs } from './raw-output-contract';
+import { acousticBoundaryFailure } from '../failure-boundary';
 import { ACOUSTIC_MODEL } from './model-contract';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
 
@@ -13,7 +14,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 it('WebGPU absence rejects session creation without requesting a fallback provider', async () => {
   vi.stubGlobal('navigator', {});
   const provider = new AcousticModelSession();
-  await expect(provider.load('https://example.invalid/model.onnx')).rejects.toThrow('ACOUSTIC_WEBGPU_UNAVAILABLE');
+  await expect(provider.load('https://example.invalid/model.onnx').catch(cause => { throw acousticBoundaryFailure(cause); })).rejects.toMatchObject({kind:'ACOUSTIC',code:'WEBGPU_UNAVAILABLE'});
   await provider.dispose();
 });
 it('decoder uses explicit authoritative .30/.05 on adversarial raw outputs', () => {
@@ -54,7 +55,7 @@ for (const kind of ['error', 'messageerror']) it(`worker ${kind} rejects pending
   client.onFailure(listener);
   const pending = client.load('/exact-model');
   worker.dispatchEvent(new Event(kind));
-  await expect(pending).rejects.toThrow(kind === 'error' ? 'ACOUSTIC_WORKER_CRASH' : 'ACOUSTIC_WORKER_MESSAGE_ERROR');
+  await expect(pending).rejects.toMatchObject({ kind: 'INFERENCE', code: kind === 'error' ? 'WORKER_CRASH' : 'PROTOCOL_INVALID' });
   expect(worker.terminated).toBe(true); expect(listener).toHaveBeenCalledTimes(1);
 });
 it('worker enforces one active inference, sequential reuse and dispose/terminate', async () => {
@@ -105,7 +106,7 @@ for (const rpc of ['LOAD', 'BEGIN_SESSION', 'INFER', 'END_SESSION', 'DISPOSE'] a
         const result = await observed;
         if (outcome === 'response') { expect(result.error).toBeNull(); expect(failure).not.toHaveBeenCalled(); }
         else {
-          expect(result.error.message).toBe(outcome === 'error' ? 'ACOUSTIC_WORKER_CRASH' : 'ACOUSTIC_WORKER_MESSAGE_ERROR');
+          expect(result.error.code).toBe(outcome === 'error' ? 'WORKER_CRASH' : 'PROTOCOL_INVALID');
           expect(failure).toHaveBeenCalledOnce(); expect(worker.terminated).toBe(true);
         }
         expect(settled).toBe(true); expect(vi.getTimerCount()).toBe(0);
@@ -127,11 +128,11 @@ for (const rpc of ['LOAD', 'BEGIN_SESSION', 'INFER', 'END_SESSION', 'DISPOSE'] a
     await vi.advanceTimersByTimeAsync(SILENCE - 1);
     expect(rejected).not.toHaveBeenCalled(); expect(worker.terminated).toBe(false); expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(1); await observed;
-    expect(rejected).toHaveBeenCalledOnce(); expect(rejected.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
-    expect(failure).toHaveBeenCalledOnce(); expect(failure.mock.calls[0][0].message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+    expect(rejected).toHaveBeenCalledOnce(); expect(rejected.mock.calls[0][0].code).toBe('WORKER_TIMEOUT');
+    expect(failure).toHaveBeenCalledOnce(); expect(failure.mock.calls[0][0].code).toBe('WORKER_TIMEOUT');
     expect(worker.terminations).toBe(1); expect(vi.getTimerCount()).toBe(0);
     worker.answer(); worker.dispatchEvent(new Event('error')); worker.dispatchEvent(new Event('messageerror'));
-    client.terminate('OTHER_LATE_CAUSE'); await client.dispose(); await vi.advanceTimersByTimeAsync(SILENCE * 2);
+    client.terminate('ACOUSTIC_WORKER_CRASH'); await client.dispose(); await vi.advanceTimersByTimeAsync(SILENCE * 2);
     await expect(client.load('/model')).rejects.toThrow('ACOUSTIC_WORKER_NOT_EMPTY');
     await expect(client.run('lease', input)).rejects.toThrow('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');
     expect(worker.messages).toHaveLength(requests); expect(worker.terminations).toBe(1);
@@ -157,7 +158,7 @@ it('LOAD progress followed by silence times out from the last legal progress', a
   await vi.advanceTimersByTimeAsync(SILENCE - 1);
   worker.dispatchEvent(new MessageEvent('message', { data: { id: worker.messages[0].id, type: 'PROGRESS', progress: { bytesDownloaded: 1, totalBytes: null } } }));
   await vi.advanceTimersByTimeAsync(SILENCE - 1); expect(worker.terminated).toBe(false);
-  await vi.advanceTimersByTimeAsync(1); expect(await observed).toMatchObject({ message: 'ACOUSTIC_WORKER_RPC_TIMEOUT' });
+  await vi.advanceTimersByTimeAsync(1); expect(await observed).toMatchObject({ kind: 'INFERENCE', code: 'WORKER_TIMEOUT' });
   expect(progress).toHaveBeenCalledOnce(); expect(worker.terminations).toBe(1); expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -171,7 +172,7 @@ it('malformed matching LOAD messages cannot refresh or settle a pending request'
     worker.dispatchEvent(new MessageEvent('message', { data }));
   }
   expect(progress).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(1);
-  await vi.advanceTimersByTimeAsync(1); expect(await observed).toMatchObject({ message: 'ACOUSTIC_WORKER_RPC_TIMEOUT' }); expect(vi.getTimerCount()).toBe(0);
+  await vi.advanceTimersByTimeAsync(1); expect(await observed).toMatchObject({ kind: 'INFERENCE', code: 'WORKER_TIMEOUT' }); expect(vi.getTimerCount()).toBe(0);
 });
 
 it('non-LOAD progress cannot refresh INFER, and unmatched progress preserves the protocol failure', async () => {
@@ -180,11 +181,11 @@ it('non-LOAD progress cannot refresh INFER, and unmatched progress preserves the
   const run = client.run('lease', input).catch(error => error), id = worker.messages.at(-1)!.id;
   await vi.advanceTimersByTimeAsync(SILENCE - 1);
   worker.dispatchEvent(new MessageEvent('message', { data: { id, type: 'PROGRESS', progress: { bytesDownloaded: 1, totalBytes: 2 } } }));
-  await vi.advanceTimersByTimeAsync(1); expect((await run).message).toBe('ACOUSTIC_WORKER_RPC_TIMEOUT');
+  await vi.advanceTimersByTimeAsync(1); expect((await run).code).toBe('WORKER_TIMEOUT');
   const other = new TestWorker(), otherClient = new AcousticModelWorker(other as unknown as Worker);
   const pending = otherClient.load('/model').catch(error => error);
   other.dispatchEvent(new MessageEvent('message', { data: { id: 999, type: 'PROGRESS', progress: { bytesDownloaded: 1, totalBytes: 2 } } }));
-  expect(await pending).toMatchObject({ message: 'UNEXPECTED_WORKER_RESPONSE' }); expect(vi.getTimerCount()).toBe(0);
+  expect(await pending).toMatchObject({ kind: 'INFERENCE', code: 'PROTOCOL_INVALID' }); expect(vi.getTimerCount()).toBe(0);
 });
 
 it('explicit busy dispose remains immediate and clears the inference watchdog', async () => {
@@ -198,15 +199,31 @@ it('explicit busy dispose remains immediate and clears the inference watchdog', 
 
 it('synchronous postMessage throw rejects immediately without leaving a watchdog', async () => {
   vi.useFakeTimers(); const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker);
-  vi.spyOn(worker, 'postMessage').mockImplementation(() => { throw new Error('POST_FAILED'); });
-  await expect(client.load('/model')).rejects.toThrow('POST_FAILED');
+  const cause = new Error('private transport detail');
+  vi.spyOn(worker, 'postMessage').mockImplementation(() => { throw cause; });
+  await expect(client.load('/model')).rejects.toMatchObject({ kind: 'INFERENCE', code: 'PROTOCOL_INVALID', cause });
   expect(vi.getTimerCount()).toBe(0); expect(worker.terminations).toBe(1);
 });
 
 it('a terminal event between LOAD response and continuation cannot revive CLOSED client', async () => {
   vi.useFakeTimers(); const worker = new TestWorker(), client = new AcousticModelWorker(worker as unknown as Worker), failure = vi.fn(); client.onFailure(failure);
   const loading = client.load('/model'); worker.answer(); worker.dispatchEvent(new Event('error'));
-  await expect(loading).rejects.toThrow('ACOUSTIC_WORKER_CRASH');
+  await expect(loading).rejects.toMatchObject({ kind: 'INFERENCE', code: 'WORKER_CRASH' });
   await expect(client.beginSession('lease')).rejects.toThrow('ACOUSTIC_WORKER_CONCURRENCY_OR_STATE');
   expect(worker.terminations).toBe(1); expect(failure).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each(['UNKNOWN_WORKER_CODE', 'NotAllowedError: private url', 'ACOUSTIC_MODEL_LOAD_FAILED'])('worker error envelope normalizes %s before callers receive it', async code => {
+  const worker=new TestWorker(), client=new AcousticModelWorker(worker as unknown as Worker);
+  const pending=client.load('/model');
+  worker.dispatchEvent(new MessageEvent('message',{data:{id:worker.messages[0].id,error:code}}));
+  await expect(pending).rejects.toMatchObject(code==='ACOUSTIC_MODEL_LOAD_FAILED'
+    ? {kind:'ACOUSTIC',code:'MODEL_LOAD_FAILED'} : {kind:'INFERENCE',code:'PROTOCOL_INVALID'});
+  expect(worker.terminations).toBe(1);
+});
+
+it('Worker construction normalizes the browser failure and keeps its diagnostic cause', () => {
+  const cause = new Error('private worker URL');
+  vi.stubGlobal('Worker', class { constructor() { throw cause; } });
+  expect(createAcousticModelWorker).toThrow(expect.objectContaining({ kind: 'INFERENCE', code: 'RUNTIME_FAILED', cause }));
 });

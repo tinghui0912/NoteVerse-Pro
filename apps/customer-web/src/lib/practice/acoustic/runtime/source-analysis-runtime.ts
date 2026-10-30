@@ -113,7 +113,7 @@ export class SourceAnalysisRuntime {
   failAnalysis(error: unknown): void {
     if (this.delivering) fail('ACOUSTIC_PUBLICATION_REENTRANCY');
     if (this.failure || this.state === 'DISPOSED' || this.state === 'SEALED') return;
-    this.failure = error instanceof Error ? error : new AcousticAnalysisError(String(error));
+    this.failure = error instanceof Error ? error : new AcousticAnalysisError('ACOUSTIC_INTERNAL_FAILURE', { cause: error });
     this.state = 'FAILED'; this.regions.length = 0; this.active = null;
     try { this.cleanup?.(); } catch { /* Keep the first causal failure. */ }
     try { this.options.onFailure?.(this.failure); } catch { /* Failure stays terminal. */ }

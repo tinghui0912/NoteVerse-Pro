@@ -70,6 +70,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('failure/')) return Boolean(target?.startsWith('failure/'));
+  if (target?.startsWith('failure/')) return !domain(source) && !source.startsWith('planning/') && !source.startsWith('result/');
   if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'kernel/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
     || target.startsWith('kernel/') || edge.typeOnly && target === 'recording/recording-mode.ts'));
@@ -84,7 +86,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     || target.startsWith('kernel/') || target === 'recording/recording-mode.ts'));
   if (source.startsWith('readiness/')) return Boolean(target && (target.startsWith('readiness/') || edge.typeOnly && target === 'planning/resource-plan.ts'));
   if (source.startsWith('environment/')) return Boolean(target && (target.startsWith('environment/') || target.startsWith('acoustic/')
-    || target.startsWith('readiness/') || target === 'planning/resource-plan.ts' || ['recording/recorder-capability.ts', 'recording/recording-mode.ts'].includes(target)
+    || target.startsWith('readiness/') || target === 'planning/resource-plan.ts' || target === 'device/browser-device-platform.ts' || ['recording/recorder-capability.ts', 'recording/recording-mode.ts'].includes(target)
     || edge.target === normalize(path.join(sourceRoot, 'lib/api/practice-acoustic-model-asset.ts'))));
   if (['kernel/', 'step/', 'continuous/', 'acoustic/', 'result/', 'recording/'].some(owner => source.startsWith(owner))
     && target && presentationOwners.some(owner => target.startsWith(owner))) return false;
@@ -312,7 +314,8 @@ describe('Practice bounded domain dependencies', () => {
         const publicationContract = relative(file).startsWith('acoustic/continuous/') && edge.typeOnly
           && target === 'continuous/domain/evaluation/evidence-types.ts'
           && edge.bindings.length > 0 && edge.bindings.every(name => name === 'ContinuousEvidencePublication');
-        expect(acoustic || modelDelivery || publicationContract, `${relative(file)} -> ${edge.specifier}`).toBe(true);
+        const causalContract = target === 'failure/causal-failure.ts';
+        expect(acoustic || modelDelivery || publicationContract || causalContract, `${relative(file)} -> ${edge.specifier}`).toBe(true);
       }
     }
   });
@@ -929,7 +932,7 @@ it('Environment observes acoustic retirement without taking the attempt lease or
         if (guard && ts.isIfStatement(guard)) {
           failureGuardFound = true;
           expect(guard.expression.getText(source)).toBe("this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY'");
-          expect(guard.thenStatement.getText(source)).toContain('this.invalidate(error.message)');
+          expect(guard.thenStatement.getText(source)).toContain('this.invalidate(error)');
           expect(guard.elseStatement).toBeUndefined();
         }
       }

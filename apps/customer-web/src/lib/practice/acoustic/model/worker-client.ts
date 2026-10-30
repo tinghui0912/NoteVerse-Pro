@@ -1,4 +1,6 @@
-import { AcousticAnalysisError } from './model-contract';
+import { AcousticAnalysisError, isAcousticAnalysisErrorCode, type AcousticAnalysisErrorCode } from './model-contract';
+import { acousticBoundaryFailure } from '../failure-boundary';
+import { InferenceFailure } from '@/lib/practice/failure/causal-failure';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS } from './worker-liveness-policy';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
 import type { ModelAssetProgressCallback } from '../../../model-assets/types';
@@ -14,7 +16,7 @@ export class AcousticModelWorker {
   private sequence = 0;
   private state: 'EMPTY' | 'READY' | 'CLOSED' = 'EMPTY';
   private busy = false;
-  private terminalError: AcousticAnalysisError | null = null;
+  private terminalError: Error | null = null;
   private failureListener: ((error: Error) => void) | null = null;
   private progress: ModelAssetProgressCallback | undefined;
   private readonly pending = new Map<number, PendingRequest>();
@@ -35,7 +37,9 @@ export class AcousticModelWorker {
       const fields = Object.keys(message).sort().join();
       if (fields !== 'id,result' && !(fields === 'error,id' && typeof message.error === 'string')) return;
       this.clearWatchdog(pending); this.pending.delete(message.id);
-      if (fields === 'error,id') pending.reject(new AcousticAnalysisError(message.error));
+      if (fields === 'error,id') pending.reject(isAcousticAnalysisErrorCode(message.error)
+        ? acousticBoundaryFailure(new AcousticAnalysisError(message.error))
+        : new InferenceFailure('PROTOCOL_INVALID', { cause: message.error }));
       else pending.resolve(event.data.result);
     });
     worker.addEventListener('error', () => this.terminate('ACOUSTIC_WORKER_CRASH'));
@@ -75,10 +79,10 @@ export class AcousticModelWorker {
     if (this.busy) { this.terminate('ACOUSTIC_WORKER_DISPOSED'); return; }
     try { await this.send({ type: 'DISPOSE' }); } finally { this.terminate(); }
   }
-  terminate(code = 'ACOUSTIC_WORKER_TERMINATED'): void {
+  terminate(code: AcousticAnalysisErrorCode = 'ACOUSTIC_WORKER_TERMINATED'): void {
     if (this.state === 'CLOSED') return;
     this.state = 'CLOSED';
-    const error = new AcousticAnalysisError(code); this.terminalError = error;
+    const error = acousticBoundaryFailure(new AcousticAnalysisError(code)); this.terminalError = error;
     for (const pending of this.pending.values()) { this.clearWatchdog(pending); pending.reject(error); }
     this.pending.clear(); this.worker.terminate();
     if (code !== 'ACOUSTIC_WORKER_TERMINATED' && code !== 'ACOUSTIC_WORKER_DISPOSED') this.failureListener?.(error);
@@ -107,7 +111,7 @@ export class AcousticModelWorker {
       try { this.worker.postMessage({ ...message, id }); }
       catch (error) {
         if (this.pending.get(id) === pending) {
-          this.clearWatchdog(pending); this.pending.delete(id); reject(error);
+          this.clearWatchdog(pending); this.pending.delete(id); reject(new InferenceFailure('PROTOCOL_INVALID', { cause: error }));
         }
       }
     });
@@ -116,5 +120,6 @@ export class AcousticModelWorker {
 
 /** Internal construction, deliberately absent from the user input capability registry. */
 export function createAcousticModelWorker(): AcousticModelWorker {
-  return new AcousticModelWorker(new Worker(new URL('./acoustic-worker.entry.ts', import.meta.url), { type: 'module' }));
+  try { return new AcousticModelWorker(new Worker(new URL('./acoustic-worker.entry.ts', import.meta.url), { type: 'module' })); }
+  catch (cause) { throw new InferenceFailure('RUNTIME_FAILED', { cause }); }
 }

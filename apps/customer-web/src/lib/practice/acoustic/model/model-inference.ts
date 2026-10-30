@@ -2,7 +2,7 @@ import * as ort from 'onnxruntime-web/webgpu';
 import { createVerifiedModelAssetLoader } from '../../../model-assets/verified-model-asset-loader';
 import type { PianoRawOutputs } from './raw-output-contract';
 import { decodeRobustPiano } from './robust-piano-decoder';
-import { ACOUSTIC_MODEL as M, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
+import { ACOUSTIC_MODEL as M, AcousticAnalysisError, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
 import type { ModelAssetProgressCallback } from '../../../model-assets/types';
 import { assertModelNames, assertWindowGeometry, checkedOutput } from './model-validation';
@@ -37,10 +37,14 @@ export class AcousticModelSession {
       if (ort.env.versions.web !== M.ortVersion) fail('ORT_VERSION_MISMATCH');
       if (typeof navigator === 'undefined' || !navigator.gpu) fail('ACOUSTIC_WEBGPU_UNAVAILABLE');
       const manifest = practiceAcousticModelManifest(modelUrl), started = performance.now();
-      const loaded = await createVerifiedModelAssetLoader()(manifest.asset, progress);
+      const loaded = await createVerifiedModelAssetLoader()(manifest.asset, progress).catch(cause => {
+        throw new AcousticAnalysisError('ACOUSTIC_MODEL_ASSET_UNAVAILABLE', { cause });
+      });
       await verifyAcousticModel(loaded.bytes);
       const verifiedAt = performance.now();
-      session = await ort.InferenceSession.create(loaded.bytes, { executionProviders: [manifest.provider], graphOptimizationLevel: 'disabled' });
+      session = await ort.InferenceSession.create(loaded.bytes, { executionProviders: [manifest.provider], graphOptimizationLevel: 'disabled' }).catch(cause => {
+        throw new AcousticAnalysisError('ACOUSTIC_MODEL_LOAD_FAILED', { cause });
+      });
       this.loads++; assertModelNames(session.inputNames, session.outputNames);
       this.session = session; this.state = 'READY';
       return { ...loaded.diagnostics, assetId: manifest.asset.assetId, assetVersion: manifest.asset.assetVersion,
@@ -79,7 +83,9 @@ export class AcousticModelSession {
       let raw: PianoRawOutputs;
       try {
         this.runs++;
-        tensors = await this.session.run({ audio }, ['reg_onset_output', 'frame_output']);
+        tensors = await this.session.run({ audio }, ['reg_onset_output', 'frame_output']).catch(cause => {
+          throw new AcousticAnalysisError('ACOUSTIC_INFERENCE_FAILED', { cause });
+        });
         raw = { reg_onset_output: outputData(tensors.reg_onset_output), reg_onset_shape: [1, 183, 88],
           frame_output: outputData(tensors.frame_output), frame_shape: [1, 183, 88] };
       } finally { audio.dispose(); for (const tensor of Object.values(tensors ?? {})) tensor.dispose(); }

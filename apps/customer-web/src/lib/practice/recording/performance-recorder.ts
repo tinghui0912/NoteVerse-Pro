@@ -3,7 +3,8 @@ import type { RecordingActiveSegment } from './recording-timebase';
 
 import type { PracticeRecordingMode } from './recording-mode';
 import { recordingOptions } from './recorder-capability';
-import { RecordingPreparationError, recordingPreparationError } from './recording-preparation-error';
+import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
+import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures';
 import type { RecordingRuntimeFault, RecordingRuntimeInterruption, RecordingRuntimeFailureReason } from './recording-runtime-fault';
 
 type RecorderState =
@@ -29,8 +30,8 @@ function createContinuousVideoStream(
 ): MediaStream {
   const videoTracks = cameraStream?.getVideoTracks() ?? [];
   const audioTracks = audioStream?.getAudioTracks() ?? [];
-  if (videoTracks.length === 0 || videoTracks[0].readyState !== 'live') throw new RecordingPreparationError('RECORDING_VIDEO_UNAVAILABLE');
-  if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
+  if (videoTracks.length === 0 || videoTracks[0].readyState !== 'live') throw new RecordingFailure('RECORDING_VIDEO_UNAVAILABLE');
+  if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') throw new RecordingFailure('RECORDING_AUDIO_UNAVAILABLE');
   return new MediaStream([videoTracks[0], audioTracks[0]]);
 }
 
@@ -74,19 +75,19 @@ export class PerformanceRecorder {
       return;
     }
     try {
-      if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
+      if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
       const recorderOptions = recordingOptions(this.mode);
       if (this.mode === 'AUDIO') {
         const stream = await this.resolveAudioStream(options);
         this.assertTracks(stream, 'AUDIO');
-        if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
+        if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
         this.installRecorder(new MediaRecorder(stream, recorderOptions), stream, 'AUDIO');
       } else {
         const borrowed = createContinuousVideoStream(options.cameraStream, options.audioRoot);
         const stream = borrowed.clone();
         this.ownedStream = stream; this.sourceOwnership = 'OWNED_CLONE';
         this.assertTracks(stream, 'VIDEO');
-        if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
+        if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
         this.installRecorder(new MediaRecorder(stream, recorderOptions), stream, 'VIDEO');
       }
       this.admitted = true;
@@ -95,18 +96,18 @@ export class PerformanceRecorder {
       this.admitted = false;
       this.stopAndCleanup();
       this.state = 'PREPARATION_FAILED';
-      throw recordingPreparationError(error);
+      throw recordingBrowserFailure(error);
     }
   }
 
   /** Recheck admission immediately before transport starts, without reacquisition. */
   assertPrepared(): void {
     if (this.mode === 'OFF') return;
-    if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
+    if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
     if (!this.admitted || !this.recorder || this.recorder.state !== 'inactive' || this.state !== 'NOT_STARTED' || !this.ownedStream) {
-      throw new RecordingPreparationError('RECORDER_INIT_FAILED');
+      throw new RecordingFailure('RECORDER_INIT_FAILED');
     }
-    if ([...this.sourceHealth.values()].some(health => health !== 'HEALTHY')) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
+    if ([...this.sourceHealth.values()].some(health => health !== 'HEALTHY')) throw new RecordingFailure('RECORDER_INIT_FAILED');
     this.assertTracks(this.ownedStream, this.mode);
   }
 
@@ -256,15 +257,15 @@ export class PerformanceRecorder {
   }
 
   async finalize(): Promise<PerformanceRecording> {
-    if (this.disposed) throw new Error('RECORDING_DISCARDED');
-    if (this.mode !== 'OFF' && !this.admitted) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
-    if (this.fault) throw new Error('RECORDING_DECISION_REQUIRED');
+    if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
+    if (this.mode !== 'OFF' && !this.admitted) throw new RecordingFailure('RECORDER_INIT_FAILED');
+    if (this.fault) throw new RecordingFailure('RECORDING_DECISION_REQUIRED');
     let stopResult: RecorderStopResult | null = null;
     if (this.stopPromise) {
       stopResult = await this.stopPromise;
     }
 
-    if (this.disposed) throw new Error('RECORDING_DISCARDED');
+    if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
     if (this.mode === 'OFF') {
       return createPerformanceRecording({ status: 'NOT_RECORDED' });
     }
@@ -344,7 +345,7 @@ export class PerformanceRecorder {
   }
 
   private async resolveAudioStream(options: PrepareOptions): Promise<MediaStream> {
-    if (!options.audioRoot) throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
+    if (!options.audioRoot) throw new RecordingFailure('RECORDING_AUDIO_UNAVAILABLE');
     this.assertTracks(options.audioRoot, 'AUDIO');
     const clone = options.audioRoot.clone();
     this.ownedStream = clone; this.sourceOwnership = 'OWNED_CLONE'; return clone;
@@ -380,10 +381,10 @@ export class PerformanceRecorder {
 
   private assertTracks(stream: MediaStream, mode: 'AUDIO' | 'VIDEO'): void {
     const audio = stream.getAudioTracks();
-    if (!audio.length || audio.some(track => track.readyState !== 'live')) throw new RecordingPreparationError('RECORDING_AUDIO_UNAVAILABLE');
+    if (!audio.length || audio.some(track => track.readyState !== 'live')) throw new RecordingFailure('RECORDING_AUDIO_UNAVAILABLE');
     if (mode === 'VIDEO') {
       const video = stream.getVideoTracks();
-      if (!video.length || video.some(track => track.readyState !== 'live')) throw new RecordingPreparationError('RECORDING_VIDEO_UNAVAILABLE');
+      if (!video.length || video.some(track => track.readyState !== 'live')) throw new RecordingFailure('RECORDING_VIDEO_UNAVAILABLE');
     }
   }
 
