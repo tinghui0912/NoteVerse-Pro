@@ -111,5 +111,4 @@ it.each(corruptions)('rejects %s without coercion, repair or mutation', (_label,
 it.each([20,109,60.5,NaN,Infinity,true,'60','C4'])('rejects a later unselected invalid key %s revision-wide', key => {
   const value = structuredClone(fixture); Object.assign(value.notes.at(-1)!, { pianoKey: key });
   expect(() => assertPracticeScoreArtifact(value)).toThrow();
-  for (const inputSource of ['MIDI','MICROPHONE'] as const) expect(() => new StepPracticeRuntime({ ...stepSessionPlan(value, { scope: { kind: 'RANGE', startGroupId: value.moments[0].groupId, endGroupId: value.moments[0].groupId }, inputSource: inputSource }), clock: new ManualClock() })).toThrow();
 });

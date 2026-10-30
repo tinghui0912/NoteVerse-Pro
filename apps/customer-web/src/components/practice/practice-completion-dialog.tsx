@@ -18,7 +18,7 @@ type PracticeCompletionDialogProps = {
   outcome: PracticeCompletionOutcome;
   isLoading: boolean;
   onOpenChange: (open: boolean) => void;
-  onRestart: () => void;
+  onRetry: () => void;
   onAdjustSection?: () => void;
 } & (
   | { sessionMode: 'STEP_BY_STEP'; onViewSummary?: never }
@@ -31,7 +31,7 @@ export function PracticeCompletionDialog({
   sessionMode,
   isLoading,
   onOpenChange,
-  onRestart,
+  onRetry,
   onAdjustSection,
   onViewSummary,
 }: PracticeCompletionDialogProps) {
@@ -71,7 +71,7 @@ export function PracticeCompletionDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button type="button" variant="outline" onClick={onRestart} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onRetry} disabled={isLoading}>
               <Repeat className="mr-2 h-4 w-4" />
               {t('retryPractice')}
             </Button>

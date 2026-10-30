@@ -37,7 +37,7 @@ const IntlProvider = NextIntlClientProvider as ComponentType<{
 
 it.each([['en', practiceMessages], ['zh', zhPracticeMessages]] as const)('%s STEP preparation infrastructure copy is neutral', (locale, messages) => {
   const view = render(createElement(IntlProvider, { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
-    lifecycle: 'IDLE', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR', inputSource: 'MICROPHONE',
+    lifecycle: 'READY', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR', inputSource: 'MICROPHONE',
     inputError: 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED',
   })));
   expect(view.container).toHaveTextContent(messages.stepInfrastructureUnavailable);
@@ -188,7 +188,7 @@ describe('resolvePracticeStatusView', () => {
     ['STEP_MICROPHONE_PERMISSION_DENIED', 'Microphone permission was denied.'],
     ['STEP_ACOUSTIC_RUNTIME_FAILED', 'Microphone analysis failed. Start a new session.'],
   ])('preserves the STEP application error %s', (inputError, customMessage) => {
-    expect(resolvePracticeStatusView({ lifecycle: 'ENDED', inputState: 'ERROR', inputError,
+    expect(resolvePracticeStatusView({ lifecycle: 'COMPLETED', inputState: 'ERROR', inputError,
       inputSource: 'MICROPHONE', sessionMode: 'STEP_BY_STEP' })).toMatchObject({
       customMessage, isError: true, pending: false,
     });
@@ -377,7 +377,7 @@ describe('paced STEP learning feedback', () => {
     expect(result.messageKey).toBe({ READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing' }[phase]);
   });
   it('infrastructure failure takes priority over a pending learning outcome', () => {
-    const result = resolvePracticeStatusView({ lifecycle: 'ENDED', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR',
+    const result = resolvePracticeStatusView({ lifecycle: 'COMPLETED', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR',
       inputError: 'STEP_ACOUSTIC_RUNTIME_FAILED', inputSource: 'MICROPHONE', stepInteractionPhase: 'POST_VERDICT', pendingPostVerdict: stepRecord('MISMATCH') });
     expect(result).toMatchObject({ customMessage: 'Microphone analysis failed. Start a new session.', isError: true });
   });

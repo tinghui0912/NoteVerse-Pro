@@ -54,7 +54,7 @@ for (const [locale, messages] of [['en', en], ['zh', zh]] as const) {
     vi.stubGlobal('navigator', { userAgent: navigator.userAgent, maxTouchPoints: 0, mediaDevices: { getUserMedia } });
     function Status() {
       const device = usePracticeDeviceLease(planPracticeResources({ mode:'STEP_BY_STEP', inputSource:'MICROPHONE', recordingMode:'OFF' }), true);
-      return <PracticeStatus lifecycle="IDLE" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
+      return <PracticeStatus lifecycle="READY" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
         <PracticeDeviceStatusPopover resource="inputMicrophone" health={device.snapshot?.health.inputMicrophone ?? null} issue={device.snapshot?.issue ?? null} />
       } />;
     }
@@ -74,7 +74,7 @@ it('existing MIDIAccess statechange recovers naturally without requesting new ac
   vi.stubGlobal('navigator', { userAgent:navigator.userAgent, maxTouchPoints:0, requestMIDIAccess });
   function Status() {
     const device = usePracticeDeviceLease(planPracticeResources({mode:'STEP_BY_STEP', inputSource:'MIDI', recordingMode:'OFF'}), true);
-    return <PracticeStatus lifecycle="IDLE" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
+    return <PracticeStatus lifecycle="READY" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
       <PracticeDeviceStatusPopover resource="midi" health={device.snapshot?.health.midi ?? null} issue={device.snapshot?.issue ?? null} />
     } />;
   }

@@ -10,9 +10,8 @@ import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
-import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
 import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
@@ -54,7 +53,7 @@ export type PracticeStatusProps = {
   className?: string;
   deviceIssue?: PracticeDeviceIssue | null;
   deviceControls?: ReactNode;
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   stepInteractionPhase?: StepAttemptState | null;
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
@@ -80,7 +79,7 @@ export function resolvePracticeStatusView({
   stepInteractionPhase,
   pendingPostVerdict,
 }: {
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   stepInteractionPhase?: StepAttemptState | null;
   pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;

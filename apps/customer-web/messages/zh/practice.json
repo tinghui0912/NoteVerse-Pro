@@ -388,7 +388,6 @@
   "inputPaused": "输入已中断，练习已暂停",
   "startingAttempt": "启动中…",
   "practiceElapsedTime": "练习用时",
-  "continueLearning": "继续练习",
   "analysisStopped": "音符分析已停止",
   "analysisStoppedDescription": "练习已暂停。你可以在没有音符反馈的情况下继续，或结束本次练习。",
   "continueWithoutAnalysis": "在没有分析的情况下继续",

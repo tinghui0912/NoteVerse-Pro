@@ -1,5 +1,5 @@
 import { planPracticeResources, type PracticeResourcePlan } from './resource-plan';
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeTempoPlan, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { PracticeExecutionIntent } from './execution-intent';
@@ -31,7 +31,6 @@ export function createPracticeSessionPlanner() {
     intent: PracticeExecutionIntent,
   ): PracticeSessionPlan {
     if (typeof source.sourceId !== 'string' || !source.sourceId) throw new Error('Practice source identity required.');
-    assertPracticeScoreArtifact(source.artifact);
     const resources = planPracticeResources(intent);
     if (typeof intent.metronomeEnabled !== 'boolean'
       || !intent.scope || !['FULL', 'RANGE'].includes(intent.scope.kind)

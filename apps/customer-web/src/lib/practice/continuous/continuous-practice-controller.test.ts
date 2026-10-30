@@ -4,7 +4,6 @@ import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan'
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
-import { continuousControllerView } from './continuous-presentation';
 import { completedContinuousTargetFeedback } from './domain/evaluation/target-feedback';
 import { ContinuousAssignmentFinalizer } from './domain/evaluation/assignment-finalizer';
 import { PracticeDeviceLease } from '../device/practice-device-lease';
@@ -388,7 +387,7 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().session).toBe('COMPLETE');
     expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
     expect(controller.snapshot().completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: 'AUDIO_TRACK_ENDED' });
-    expect(continuousCompletionStore.getCompletion()).toEqual(controller.snapshot().completed);
+    expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(controller.snapshot().completed).not.toBeNull();
     await controller.dispose();
   });
 
@@ -548,8 +547,8 @@ describe('Continuous application owner', () => {
       const completed = controller.snapshot().completed;
       expect(completed?.result.evaluation.status).toBe('COMPLETE');
       expect(completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: outcome === 'FAILED' ? 'RECORDER_STOP_FAILED' : 'RECORDER_STOP_TIMEOUT' });
-      expect(store).toHaveBeenCalledExactlyOnceWith(completed);
-      expect(continuousCompletionStore.getCompletion()?.recording).toEqual(completed!.recording);
+      expect(store).not.toHaveBeenCalled();
+      expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(completed!.recording).toBeDefined();
     } finally {
       await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); continuousCompletionStore.clearCompletion();
     }
@@ -652,8 +651,8 @@ describe('Continuous application owner', () => {
     expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).not.toHaveBeenCalled();
     expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
     expect(f.root.copies[1].audio.stop).not.toHaveBeenCalled(); expect(controller.engineeringSnapshot().sessionId).toBe(identity);
-    expect(continuousControllerView(controller.snapshot()).inputError).toBeNull();
-    expect(continuousControllerView(controller.snapshot()).inputState).not.toBe('ERROR');
+    expect(controller.snapshot().inputError).toBeNull();
+    expect(controller.snapshot().session).toBe('ACTIVE');
     if (paused) { expect(controller.snapshot().transport!.state).toBe('PAUSED'); controller.resume(); }
     expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME' });
     await f.feed(controller.snapshot().transport!.countInRemainingMs + 5000); await controller.abandon();
@@ -893,7 +892,7 @@ it('the formally latched natural completion wins a later End and publishes exact
   expect(controller.snapshot().session).toBe('COMPLETE');
   expect(controller.snapshot().completed?.result).toBeDefined();
   expect(callback).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ completionReason: 'SCOPE_COMPLETED' }));
-  expect(store).toHaveBeenCalledTimes(1); await controller.dispose(); store.mockRestore();
+  expect(store).not.toHaveBeenCalled(); await controller.dispose(); store.mockRestore();
 });
 
 it('late acoustic inference after abandonment cannot publish completion or mutate the next owner', async () => {
@@ -1137,7 +1136,7 @@ it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before 
     const failedBridge = f.bridge(), oldSession = controller.engineeringSnapshot().sessionId;
     await controller.abandon();
     expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', completed: null, resourceIntervention: null });
-    expect(continuousControllerView(controller.snapshot()).lifecycle).toBe('READY');
+    expect(controller.snapshot().session).toBe('ABANDONED');
     expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
     expect(f.meter.destroy).toHaveBeenCalledOnce(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
     expect(f.root.audio.readyState).toBe('live'); expect(f.root.audio.stop).not.toHaveBeenCalled();

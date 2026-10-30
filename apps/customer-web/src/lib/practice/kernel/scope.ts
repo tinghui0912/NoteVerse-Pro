@@ -1,4 +1,4 @@
-import { assertPracticeScoreArtifact, roundBeat, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { roundBeat, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export type PracticeScope =
   | { kind: 'FULL' }
@@ -30,7 +30,6 @@ export function resolvePracticeScope(
   artifact: PracticeScoreArtifact,
   scope: PracticeScope
 ): ResolvedPracticeScope {
-  assertPracticeScoreArtifact(artifact);
   if (artifact.moments.length === 0) {
     throw new Error('Practice scope requires at least one expected group.');
   }

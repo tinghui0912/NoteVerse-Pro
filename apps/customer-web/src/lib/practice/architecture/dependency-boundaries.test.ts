@@ -70,6 +70,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'kernel/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
     || target.startsWith('kernel/') || edge.typeOnly && target === 'recording/recording-mode.ts'));
   if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
@@ -246,6 +247,34 @@ describe('Practice bounded domain dependencies', () => {
     expect(events('device/practice-device-lease.ts')).toContainEqual({ target: 'access', event: "'statechange'" });
   });
 
+  it('composes exactly one explicit execution owner behind the page bridge and consumes admitted score values', () => {
+    const ownerPath = path.join(practiceRoot, 'application/practice-execution-owner.ts');
+    const bridge = path.join(sourceRoot, 'hooks/practice/use-practice-execution.ts');
+    const page = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+    expect(imports(page).filter(edge => edge.target?.includes('/hooks/practice/') && edge.bindings.includes('usePracticeExecution'))).toHaveLength(1);
+    expect(imports(bridge).filter(edge => !edge.typeOnly && edge.target?.startsWith(normalize(practiceRoot)))).toMatchObject([
+      { target: normalize(ownerPath), bindings: ['PracticeExecutionOwner', 'PracticeExecutionPorts'] },
+    ]);
+    const constructions = new Map<string, Set<string>>();
+    for (const file of productionFiles(sourceRoot)) {
+      const ast = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+      const visit = (node: ts.Node) => {
+        if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && ['StepPracticeController', 'ContinuousPracticeController'].includes(node.expression.text)) {
+          const names = constructions.get(normalize(file)) ?? new Set<string>(); names.add(node.expression.text); constructions.set(normalize(file), names);
+        } ts.forEachChild(node, visit);
+      }; visit(ast);
+    }
+    expect([...constructions.keys()]).toEqual([normalize(ownerPath)]);
+    expect([...constructions.get(normalize(ownerPath))!].sort()).toEqual(['ContinuousPracticeController', 'StepPracticeController']);
+    for (const owner of ['planning/session-plan.ts', 'kernel/scope.ts', 'step/domain/runtime.ts', 'continuous/domain/performance-clock.ts',
+      'continuous/domain/evaluation/expected-strikes.ts', 'score-view/cursor-scope.ts']) {
+      const artifact = imports(path.join(practiceRoot, owner)).find(edge => edge.target?.endsWith('/kernel/artifact.ts'));
+      expect(artifact?.bindings.every(name => ['PracticeScoreArtifact', 'roundBeat', 'notesForIds', 'attackNoteIds'].includes(name))).toBe(true);
+    }
+    const source = imports(path.join(sourceRoot, 'hooks/practice/use-practice-revision-source.ts'));
+    expect(source.find(edge => edge.target?.endsWith('/kernel/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);
+  });
+
   it('enforces infrastructure and application direction on every production import', () => {
     for (const [file, edges] of graph) {
       for (const edge of edges) expect(dependencyAllowed(file, edge), `${relative(file)} -> ${edge.specifier}`).toBe(true);
@@ -331,14 +360,6 @@ describe('Practice bounded domain dependencies', () => {
   });
 
   it('keeps result, recording and STEP ownership separate, including hooks and boundary probes', () => {
-    for (const [file, edges] of sourceGraph) {
-      if (normalize(file) === normalize(path.join(sourceRoot, 'hooks/practice/use-step-local-practice.ts'))) {
-        for (const edge of edges) {
-          const target = edge.target ? relative(edge.target) : '';
-          expect(['result/', 'recording/', 'continuous/'].some(owner => target.startsWith(owner)), edge.specifier).toBe(false);
-        }
-      }
-    }
     for (const [owner, forbidden] of [
       ['result', ['recording/performance-recorder', 'step/domain/runtime']],
       ['recording', ['result/continuous-performance-result', 'continuous/domain/evaluation/target-feedback', 'step/domain/runtime']],
@@ -601,7 +622,7 @@ it('Practice owns only presentation preference writes; Setup owns mode, input an
 
 it('fresh attempt binding cannot reach cold Setup qualification', () => {
   const roots = ['step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts',
-    '../../hooks/practice/use-local-practice.ts'];
+    'application/practice-execution-owner.ts'];
   const visited = new Set<string>();
   const visit = (file: string) => {
     if (visited.has(file)) return; visited.add(file);
@@ -646,7 +667,7 @@ it('device acquisition belongs only to Device Lease or explicit Setup qualificat
 });
 
 it('STEP learning is subscription-driven without an elapsed timer or animation sampling loop', () => {
-  const hook = path.join(sourceRoot, 'hooks/practice/use-step-local-practice.ts');
+  const hook = path.join(sourceRoot, 'hooks/practice/use-practice-execution.ts');
   const ast = ts.createSourceFile(hook, readFileSync(hook, 'utf8'), ts.ScriptTarget.Latest, true);
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) expect(['requestAnimationFrame', 'setInterval'].includes(node.expression.text)).toBe(false);
@@ -757,8 +778,7 @@ it('keeps terminal Continuous analysis choice separate from resource faults, STE
     }
     if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(page) === 'AnalysisInterruptionDialog') {
       analysisShell = true; expect(node.getText(page)).not.toContain('analysisError');
-      expect(node.getText(page)).toContain('localPractice.continueWithoutAnalysis');
-      expect(node.getText(page)).not.toContain('onRestart');
+      expect(node.getText(page)).toContain('execution.continueWithoutAnalysis');
       expect(node.getText(page)).toContain('onEnd={handleEnd}');
     }
     ts.forEachChild(node, visit);
@@ -778,40 +798,24 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
     const source=ts.createSourceFile(rel,readFileSync(path.join(practiceRoot,rel),'utf8'),ts.ScriptTarget.Latest,true);
     const visit=(node:ts.Node)=>{if(ts.isIdentifier(node)&&['analysisIntervention','StepAnalysisIntervention','infrastructureIntervention','StepInfrastructureIntervention'].includes(node.text))failures.push(rel+': persisted intervention');ts.forEachChild(node,visit);};visit(source);
   }
-  const hookPath=path.join(sourceRoot,'hooks/practice/use-step-local-practice.ts');
-  const hook=ts.createSourceFile(hookPath,readFileSync(hookPath,'utf8'),ts.ScriptTarget.Latest,true);
-  let exposed=false;
-  const inspect=(node:ts.Node)=>{
-    if(ts.isReturnStatement(node)&&node.expression&&ts.isObjectLiteralExpression(node.expression)&&node.expression.getText(hook).includes("mode: 'STEP_BY_STEP'")){
-      exposed=true;const names=node.expression.properties.map(p=>p.name?.getText(hook));
-      expect(names).toContain('analysisIntervention');expect(names).toContain('infrastructureIntervention');expect(names.filter(n=>n&&['continueWithoutAnalysis','controller','runtime','microphone','owner'].includes(n))).toEqual([]);
-    }ts.forEachChild(node,inspect);
-  };inspect(hook);expect(exposed).toBe(true);
   for(const name of ['analysis-interruption-dialog.tsx','resource-interruption-dialog.tsx','step-analysis-interruption-dialog.tsx','step-infrastructure-interruption-dialog.tsx']){
-    const file=path.join(sourceRoot,'components/practice',name),source=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-    const visit=(node:ts.Node)=>{if(ts.isIdentifier(node)&&node.text==='onRestart')failures.push(name+': Restart action');ts.forEachChild(node,visit);};visit(source);
+    const file=path.join(sourceRoot,'components/practice',name);
+    expect(readFileSync(file,'utf8')).toContain('onEnd');
   }
   const pagePath=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const page=ts.createSourceFile(pagePath,readFileSync(pagePath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-  let stepDialog=false,infrastructureDialog=false,end=false,setupNavigation=false,initialAutoArm=false,completionRetry=false;
+  let stepDialog=false,infrastructureDialog=false,end=false,completionRetry=false;
   const visit=(node:ts.Node)=>{
-    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='goToPracticeSetup'){
-      setupNavigation=true;expect(node.getText(page)).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");expect(node.getText(page)).not.toMatch(/workspace\.|device\.|localPractice\./);
+    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='handleEnd') {
+      end=true; expect(node.getText(page)).toContain('await execution.end()');
     }
-    if(ts.isCallExpression(node)&&node.expression.getText(page)==='useEffect'&&node.getText(page).includes('stepAutoArm.current = stepKey')){
-      initialAutoArm=true;expect(node.getText(page)).toContain('stepManuallyEnded ||');expect(node.getText(page)).toContain('localPractice.restart()');
-    }
-    if(ts.isVariableDeclaration(node)&&node.name.getText(page)==='handleEnd'){
-      end=true;const text=node.getText(page);expect(text).toContain('stepAutoArm.current = stepKey');expect(text).toContain('setStepManuallyEnded(true)');expect(text).toContain('await localPractice.abandon()');
-    }
-    if(ts.isJsxSelfClosingElement(node)){
+    if(ts.isJsxSelfClosingElement(node)) {
       const tag=node.tagName.getText(page),text=node.getText(page);
-      if(tag==='StepInfrastructureInterruptionDialog'){infrastructureDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention");expect(text).toContain('onEnd={handleStepTerminalEnd}');}
-      if(tag==='StepAnalysisInterruptionDialog'){stepDialog=true;expect(node.parent.getText(page)).toContain("localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention");expect(text).toContain('onEnd={handleStepTerminalEnd}');}
-      if(['AnalysisInterruptionDialog','ResourceInterruptionDialog'].includes(tag))expect(text).not.toContain('onRestart');
-      if(tag==='PracticeCompletionDialog'){completionRetry=true;expect(text).toContain('onRestart={handleRestart}');}
+      if(tag==='StepInfrastructureInterruptionDialog'){infrastructureDialog=true;expect(text).toContain('onEnd={handleEnd}');}
+      if(tag==='StepAnalysisInterruptionDialog'){stepDialog=true;expect(text).toContain('onEnd={handleEnd}');}
+      if(tag==='PracticeCompletionDialog'){completionRetry=true;expect(text).toContain('onRetry={handleRetry}');}
     }ts.forEachChild(node,visit);
-  };visit(page);expect(stepDialog&&infrastructureDialog&&end&&setupNavigation&&initialAutoArm&&completionRetry).toBe(true);expect(failures).toEqual([]);
+  };visit(page);expect(stepDialog&&infrastructureDialog&&end&&completionRetry).toBe(true);expect(failures).toEqual([]);
 });
 
 
@@ -819,7 +823,7 @@ it('keeps execution device status informational and requalification exclusively 
   const components = path.join(sourceRoot, 'components/practice');
   const pagePath = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const page = ts.createSourceFile(pagePath, readFileSync(pagePath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let statusCount = 0, popoverCount = 0, navigation = false, topNavigation = false, settingsLink = false, requirements = false, terminalEnd = false, continueGuard = false, completionGuard = false;
+  let statusCount = 0, popoverCount = 0, navigation = false, topNavigation = false, settingsLink = false, requirements = false, end = false, stepControls = false, completionGuard = false;
   const visit = (node: ts.Node) => {
     if (ts.isIdentifier(node)) expect(['getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeDeviceLease']).not.toContain(node.text);
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'requiredDevices') {
@@ -829,21 +833,21 @@ it('keeps execution device status informational and requalification exclusively 
       navigation = true;
       const text = node.getText(page);
       expect(text).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");
-      expect(text).not.toMatch(/workspace\.|device\.|localPractice\./);
+      expect(text).not.toMatch(/workspace\.|device\.|execution\./);
     }
-    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleStepTerminalEnd') {
-      terminalEnd = true; expect(node.getText(page)).toContain('setStepRequiresSetup(true)'); expect(node.getText(page)).toContain('await localPractice.abandon()');
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleEnd') {
+      end = true; expect(node.getText(page)).toContain('await execution.end()');
     }
-    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleRestart') {
+    if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleRetry') {
       completionGuard = true; const text = node.getText(page);
-      expect(text).toContain('!workspace.ready || !devicesReady'); expect(text).toContain('goToPracticeSetup(); return;');
-      expect(text).toContain('await localPractice.restart()'); expect(text).not.toContain('device.');
+      expect(text).toContain('!canPreparePractice'); expect(text).toContain('goToPracticeSetup(); return;');
+      expect(text).toContain('await execution.retry()'); expect(text).not.toContain('device.');
     }
     if (ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(page), text = node.getText(page);
       if (tag === 'PracticeStatus') { statusCount++; expect(ts.isConditionalExpression(node.parent)).toBe(false); expect(text).toContain('deviceControls='); }
       if (tag === 'PracticeDeviceStatusPopover') { popoverCount++; expect(text).not.toMatch(/onReconnect|canReconnect/); }
-      if (tag === 'StepPracticeControls') { continueGuard = true; expect(text).toContain("stepManuallyEnded && !stepRequiresSetup && localPractice.lifecycle === 'IDLE' && !localPractice.inputError && canPreparePractice"); }
+      if (tag === 'StepPracticeControls') { stepControls = true; expect(text).toContain('lifecycle={execution.lifecycle}'); }
     }
     if (ts.isJsxElement(node) && node.openingElement.tagName.getText(page) === 'button') {
       const text = node.getText(page);
@@ -852,7 +856,7 @@ it('keeps execution device status informational and requalification exclusively 
     }
     ts.forEachChild(node, visit);
   }; visit(page);
-  expect({ statusCount, popoverCount, navigation, topNavigation, settingsLink, requirements, terminalEnd, continueGuard, completionGuard }).toEqual({ statusCount: 1, popoverCount: 1, navigation: true, topNavigation: true, settingsLink: true, requirements: true, terminalEnd: true, continueGuard: true, completionGuard: true });
+  expect({ statusCount, popoverCount, navigation, topNavigation, settingsLink, requirements, end, stepControls, completionGuard }).toEqual({ statusCount: 1, popoverCount: 1, navigation: true, topNavigation: true, settingsLink: true, requirements: true, end: true, stepControls: true, completionGuard: true });
   const popoverPath = path.join(components, 'practice-device-status-popover.tsx');
   expect(imports(popoverPath).every(edge => edge.typeOnly || !edge.specifier.includes('/lib/practice/'))).toBe(true);
   const popover = ts.createSourceFile(popoverPath, readFileSync(popoverPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

@@ -1,6 +1,3 @@
-import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
-import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
-import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 // @vitest-environment jsdom
 import { Suspense } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -10,122 +7,131 @@ import practice from '../../../../../../../messages/en/practice.json';
 import common from '../../../../../../../messages/en/common.json';
 import errors from '../../../../../../../messages/en/errors.json';
 import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
+import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
+import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
+import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
+import { ContinuousPracticeController } from '@/lib/practice/continuous/continuous-practice-controller';
+import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
 import PracticePage from './page';
-import type { PracticeResourceIntervention } from '@/lib/practice/continuous/resource-intervention';
 
-const fake = vi.hoisted(() => {
-  const local = { mode: 'STEP_BY_STEP', lifecycle: 'ACTIVE', inputState: 'READY', inputError: null,
-    analysisIntervention: null as { kind: string } | null, infrastructureIntervention: null as { kind: string } | null,
-    resourceIntervention: null as PracticeResourceIntervention | null,
-    activeStepGroup: { groupId: 'retained-target' }, isFinalizingPerformance: false, stepInteractionPhase: 'READY',
-    restart: vi.fn(async () => {}), start: vi.fn(), abandon: vi.fn(async () => {}), setMetronomeEnabled: vi.fn() };
-  const workspace = { ready: true, hydrated: true, readiness: { status: 'READY' },
-    profile: { mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } },
-    scope: { kind: 'FULL' }, tempoSelection: { mode: 'SCORE' }, metronomeEnabled: false,
-    setScope: vi.fn(), setTempoSelection: vi.fn(), setMetronomeEnabled: vi.fn(), updateProfile: vi.fn(),
-    get resourcePlan() { return this.configuration ? planPracticeResources(this.configuration) : null; },
-    get configuration() { return { mode: workspace.profile.mode, inputSource: workspace.profile.inputSource, recordingMode: workspace.profile.mode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode, liveFeedbackEnabled: workspace.profile.continuous.liveFeedbackEnabled } as PracticeConfiguration; },
-    environment: { invalidate: vi.fn(), acquireInference: vi.fn() } };
-  return { invalidScore: false, leaseEnabled: vi.fn(), localOptions: vi.fn(), local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
-    device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), get rootHealth() { return rootHealthFixture().port; } },
-    natural: (_snapshot: { completionReason: string }) => {} };
-});
-vi.mock('next/navigation', () => ({ useRouter: () => fake.router, usePathname: () => '/score/score-id/practice',
-  useSearchParams: () => new URLSearchParams('practiceRevisionId=pinned-revision') }));
-vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => fake.workspace }));
-vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: (_config: unknown, enabled: boolean) => { fake.leaseEnabled(enabled); return fake.device; } }));
-vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.localOptions(options); fake.natural = options.onNaturalCompletion; return fake.local; } }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { capabilities: { can_practice: true }, head_revision_id: 'head-revision' } } }) }));
-vi.mock('@/hooks/practice/use-practice-revision-source', () => ({ usePracticeRevisionSource: () => ({
-  sourceId: 'practice-source-fixture', artifact: fake.invalidScore ? null : artifact, musicXml: fake.invalidScore ? null : '<score />',
-  sourceQuery: { isError: fake.invalidScore },
-  invalid: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null,
+const fake = vi.hoisted(() => ({ invalid: false, requestError: false, missing: false,
+  step: vi.fn(), continuous: vi.fn(), leaseEnabled: vi.fn(), viewer: vi.fn(),
+  router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() } }));
+let health: ReturnType<typeof rootHealthFixture>;
+let mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
+let ready: boolean, deviceReady: boolean;
+const environment = { acquireInference: vi.fn(), invalidate: vi.fn() };
+const workspace = { get ready() { return ready; }, hydrated: true, readiness: { status: 'READY' },
+  get profile() { return { mode, inputSource: 'MIDI', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } }; },
+  get configuration(): PracticeConfiguration { return { mode, inputSource: 'MIDI', recordingMode: 'OFF', liveFeedbackEnabled: false }; },
+  get resourcePlan() { return planPracticeResources(this.configuration); }, scope: { kind: 'FULL' },
+  tempoSelection: { mode: 'SCORE' }, metronomeEnabled: false, setScope: vi.fn(), setTempoSelection: vi.fn(),
+  setMetronomeEnabled: vi.fn(), updateProfile: vi.fn(), environment };
+vi.mock('@/i18n/routing', () => ({ Link: ({ children }: { children: unknown }) => children }));
+vi.mock('next/navigation', () => ({ useRouter: () => fake.router }));
+vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => workspace }));
+vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: (_plan: unknown, enabled: boolean) => {
+  fake.leaseEnabled(enabled); return { snapshot: { state: deviceReady ? 'READY' : 'FAULTED', health: {}, roots: {}, issue: null },
+    rootHealth: health.port, borrow: () => deviceReady ? borrowedDevices() : null };
+} }));
+vi.mock('@/hooks/practice/use-practice-source', () => ({ usePracticeSource: () => ({
+  scoreQuery: { data: { data: { capabilities: { can_practice: true } } }, isLoading: false, error: null },
+  sourceQuery: { isLoading: false, error: null }, sourceId: fake.invalid || fake.missing ? null : 'source',
+  artifact: fake.invalid || fake.missing || fake.requestError ? null : artifact,
+  musicXml: fake.invalid ? null : '<score />', invalid: fake.invalid,
+  error: fake.requestError ? new Error('source request failed') : null, revisionId: 'pinned-revision', canPractice: true,
 }) }));
-vi.mock('@/hooks/practice/use-practice-range-selection', () => ({ usePracticeRangeSelection: () => ({ practiceScope: { kind: 'FULL' }, isIncomplete: false, isSelecting: false }) }));
+vi.mock('@/lib/practice/step/step-platform', () => ({ browserStepPlatform: (...args: unknown[]) => fake.step(...args) }));
+vi.mock('@/lib/practice/continuous/continuous-platform', () => ({ browserContinuousPlatform: (...args: unknown[]) => fake.continuous(...args) }));
 vi.mock('@/lib/practice/input-capability', () => ({ evaluatePracticeInputCapabilities: () => ({}), getSelectedInputCapability: () => ({ supported: true }) }));
-vi.mock('@/components/states', () => ({ ResourceLoadError: () => null }));
-vi.mock('@/components/score/workspace-access-denied', () => ({ WorkspaceAccessDenied: () => null }));
-vi.mock('@/components/practice/practice-readiness-gate', () => ({ PracticeReadinessGate: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('@/components/client-only', () => ({ ClientOnly: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('@/components/score/score-surface', () => ({ ScoreSurface: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('@/components/practice/practice-score-viewer', () => ({ PracticeScoreViewer: ({ sessionStatus }: { sessionStatus: React.ReactNode }) => sessionStatus }));
-
-beforeEach(() => { fake.invalidScore = false; fake.leaseEnabled.mockClear(); fake.localOptions.mockClear();
-  vi.clearAllMocks(); fake.local.mode = 'STEP_BY_STEP'; fake.local.lifecycle = 'ACTIVE';
-  fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; fake.local.resourceIntervention = null;
-  fake.workspace.ready = true; fake.workspace.readiness.status = 'READY'; fake.workspace.profile.mode = 'STEP_BY_STEP'; fake.device.snapshot.state = 'READY';
-  fake.workspace.environment.invalidate.mockReset();
-  fake.local.abandon.mockImplementation(async () => { fake.local.lifecycle = fake.local.mode === 'CONTINUOUS_PLAY' ? 'READY' : 'IDLE'; fake.local.analysisIntervention = null; fake.local.infrastructureIntervention = null; fake.local.resourceIntervention = null; });
+vi.mock('@/components/practice/practice-readiness-gate', () => ({ PracticeReadinessGate: ({ children }: { children: unknown }) => children }));
+vi.mock('@/components/client-only', () => ({ ClientOnly: ({ children }: { children: unknown }) => children }));
+vi.mock('@/components/practice/practice-score-viewer', () => ({ PracticeScoreViewer: (props: unknown) => { fake.viewer(props); return <div data-testid="score" />; } }));
+beforeEach(() => {
+  vi.restoreAllMocks(); vi.clearAllMocks(); mode = 'STEP_BY_STEP'; ready = true; deviceReady = true; health = rootHealthFixture();
+  fake.invalid = false; fake.requestError = false; fake.missing = false;
+  const clock = new ManualClock(), metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn(),
+    stop: vi.fn(), pause: vi.fn(), resume: vi.fn(), syncContinuous: vi.fn() };
+  const createMidi = vi.fn(() => ({ start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }));
+  fake.step.mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronome: () => metronome });
+  fake.continuous.mockReturnValue({ midiClock: clock, createMidi, createMetronome: () => metronome,
+    createRecorder: () => new PerformanceRecorder('OFF'), acquireInference: vi.fn(), createAudioContext: vi.fn() });
 });
 afterEach(cleanup);
+const pageTree = () => <NextIntlClientProvider locale="en" messages={{ practice, common, errors }}>
+  <Suspense><PracticePage params={Promise.resolve({ id: 'score-id' })} /></Suspense>
+</NextIntlClientProvider>;
 async function openPage() {
-  await act(async () => { render(<NextIntlClientProvider locale="en" messages={{ practice, common, errors }}><Suspense><PracticePage params={Promise.resolve({id:'score-id'})} /></Suspense></NextIntlClientProvider>); });
-  await screen.findByRole('button', { name: practice.practiceSetup, hidden: true });
-  fake.local.restart.mockClear();
+  let view!: ReturnType<typeof render>;
+  await act(async () => { view = render(pageTree()); });
+  await screen.findByRole('button', { name: practice.practiceSetup, hidden: true }); return view;
 }
-it('top Setup navigation preserves READY evidence and exact pinned revision without environment/device side effects', async () => {
-  await openPage();
-  fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
-  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
+it.each(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as const)('%s page is READY until explicit Start and End offers Start again', async selected => {
+  mode = selected; const step = vi.spyOn(StepPracticeController.prototype, 'start'), continuous = vi.spyOn(ContinuousPracticeController.prototype, 'start');
+  await openPage(); expect(screen.getByRole('button', { name: practice.start })).toBeEnabled();
+  expect(step).not.toHaveBeenCalled(); expect(continuous).not.toHaveBeenCalled(); expect(fake.continuous).not.toHaveBeenCalled(); expect(health.listenerCount()).toBe(0);
+  fireEvent.click(screen.getByRole('button', { name: practice.start }));
+  await waitFor(() => expect(screen.getByRole('button', { name: practice.finish })).toBeEnabled());
+  expect(step).toHaveBeenCalledTimes(selected === 'STEP_BY_STEP' ? 1 : 0); expect(continuous).toHaveBeenCalledTimes(selected === 'CONTINUOUS_PLAY' ? 1 : 0);
+  expect(health.listenerCount()).toBe(1);
+  fireEvent.click(screen.getByRole('button', { name: practice.finish }));
+  await waitFor(() => expect(screen.getByRole('button', { name: practice.start })).toBeEnabled());
+  expect(health.listenerCount()).toBe(0);
+  fireEvent.click(screen.getByRole('button', { name: practice.start })); await waitFor(() => expect(selected === 'STEP_BY_STEP' ? step : continuous).toHaveBeenCalledTimes(2));
+});
+it.each(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as const)('%s locks scope/range/tempo after Start while metronome remains a live command', async selected => {
+  mode = selected; await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.start }));
+  await waitFor(() => expect(health.listenerCount()).toBe(1));
+  expect(screen.getByRole('button', { name: practice.rangeSelectionStart })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: practice.tempoButton }));
+  expect(screen.getByRole('slider')).toBeDisabled();
+  expect(fake.viewer.mock.calls.at(-1)![0].onRenderNoteClick).toBeUndefined();
+});
+it.each(['analysisIntervention', 'infrastructureIntervention'] as const)('STEP %s End uses current admission, with no independent Setup latch', async field => {
+  const original = StepPracticeController.prototype.snapshot;
+  vi.spyOn(StepPracticeController.prototype, 'snapshot').mockImplementation(function (this: StepPracticeController) {
+    const snapshot = original.call(this);
+    return { ...snapshot, ...(snapshot.state === 'ACTIVE' ? { [field]: { kind: field === 'analysisIntervention' ? 'TERMINAL_ANALYSIS_FAILURE' : 'TERMINAL_INFRASTRUCTURE_FAILURE' } } : {}) } as ReturnType<typeof original>;
+  });
+  await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.start }));
+  const dialog = await screen.findByRole('alertdialog'); fireEvent.click(dialog.querySelector('button')!);
+  await waitFor(() => expect(screen.getByRole('button', { name: practice.start })).toBeEnabled());
+  expect(screen.queryByRole('alertdialog')).toBeNull(); expect(fake.router.push).not.toHaveBeenCalled();
+});
+it.each(['invalid', 'missing', 'requestError'] as const)('%s source fails closed without controller or DeviceLease execution', async field => {
+  fake[field] = true; await openPage(); expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);
+  expect(fake.step).not.toHaveBeenCalled(); expect(fake.continuous).not.toHaveBeenCalled(); expect(environment.acquireInference).not.toHaveBeenCalled();
+  expect(health.listenerCount()).toBe(0); if (field === 'invalid') expect(fake.router.replace).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
+});
+it('Setup navigation retains pinned revision and has no qualification/device side effects', async () => {
+  await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-  expect(fake.workspace.ready).toBe(true); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
-});
-it('Settings shares the pure Setup navigation', async () => {
-  await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.settingsButton }));
-  fireEvent.click(screen.getByRole('button', { name: practice.setupChangeConfiguration }));
-  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
-  expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-});
-for (const incident of ['analysisIntervention', 'infrastructureIntervention'] as const) it(`terminal ${incident} End never exposes Continue even with healthy roots`, async () => {
-  fake.local[incident] = {kind: incident === 'analysisIntervention' ? 'TERMINAL_ANALYSIS_FAILURE' : 'TERMINAL_INFRASTRUCTURE_FAILURE'};
-  await openPage();
-  await act(async () => { fireEvent.click(screen.getByRole('alertdialog').querySelector('button')!); });
-  expect(fake.local.abandon).toHaveBeenCalledOnce(); expect(fake.local.lifecycle).toBe('IDLE');
-  expect(fake.device.snapshot.state).toBe('READY'); expect(fake.workspace.ready).toBe(true);
-  expect(screen.queryByRole('button', {name:practice.continueLearning})).toBeNull();
-  expect(screen.getByRole('button', {name:practice.practiceSetup})).toBeVisible();
-  expect(fake.local.restart).not.toHaveBeenCalled();
-});
-it('ordinary healthy STEP End retains explicit Continue', async () => {
-  await openPage();
-  await act(async () => { fireEvent.click(screen.getByRole('button', {name:practice.finish})); });
-  expect(await screen.findByRole('button', {name:practice.continueLearning})).toBeEnabled();
-  expect(fake.local.abandon).toHaveBeenCalledOnce(); expect(fake.local.restart).not.toHaveBeenCalled();
-});
-for (const ready of [true, false]) it(`completion Try Again with devices ready=${ready} never renews devices`, async () => {
-  fake.local.mode = 'CONTINUOUS_PLAY'; fake.local.lifecycle = 'COMPLETED'; fake.workspace.profile.mode = 'CONTINUOUS_PLAY';
-  await openPage();
-  if (!ready) fake.device.snapshot.state = 'FAULTED';
-  await act(async () => { fake.natural({completionReason:'SCOPE_COMPLETED'}); });
-  fireEvent.click(screen.getByRole('button', {name:practice.retryPractice}));
-  await waitFor(() => ready ? expect(fake.local.restart).toHaveBeenCalledOnce() : expect(fake.router.push).toHaveBeenCalled());
-  expect(fake.workspace.environment.invalidate).not.toHaveBeenCalled();
-  expect(fake.workspace.ready).toBe(true);
+  expect(environment.invalidate).not.toHaveBeenCalled(); expect(fake.step).not.toHaveBeenCalled();
 });
 
-it('hard Continuous capture End restores healthy explicit Start without forcing Setup or restarting', async () => {
-  fake.local.mode = 'CONTINUOUS_PLAY'; fake.local.lifecycle = 'PAUSED'; fake.workspace.profile.mode = 'CONTINUOUS_PLAY';
-  fake.local.resourceIntervention = { reason: 'CAPTURE_PIPELINE_INVALID', impact: 'INPUT_REQUIRED', recoverability: 'RESTART_REQUIRED',
-    state: 'WAITING_FOR_USER', pauseOrigin: 'INTERVENTION' };
-  await openPage();
-  const dialog = screen.getByRole('alertdialog');
-  expect(dialog).toHaveAccessibleName(practice.captureProcessingStopped);
-  expect(dialog.textContent).not.toMatch(/disconnected|CAPTURE_BOUNDARY_LIMIT_EXCEEDED/);
-  expect(dialog.querySelectorAll('button')).toHaveLength(1);
-  await act(async () => { fireEvent.click(dialog.querySelector('button')!); });
-  expect(fake.local.abandon).toHaveBeenCalledOnce(); expect(screen.queryByRole('alertdialog')).toBeNull();
-  expect(fake.workspace.ready).toBe(true); expect(fake.device.snapshot.state).toBe('READY');
-  expect(fake.router.push).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled(); expect(fake.local.start).not.toHaveBeenCalled();
-  const start = screen.getByRole('button', { name: practice.start });
-  expect(start).toBeEnabled(); fireEvent.click(start); expect(fake.local.start).toHaveBeenCalledOnce();
+it('STEP PREPARING exposes End and locks scope/tempo without accepting another Start', async () => {
+  let release!: () => void;
+  fake.step.mockReturnValueOnce({ clock: new ManualClock(), timer: { schedule: vi.fn(), cancel: vi.fn() },
+    createMidi: () => ({ start: () => new Promise<void>(resolve => { release = resolve; }), refreshInputs: vi.fn(), dispose: vi.fn() }),
+    createMetronome: () => ({ start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() }) });
+  await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.start }));
+  await waitFor(() => expect(release).toBeTypeOf('function'));
+  expect(screen.getByRole('button', { name: practice.rangeSelectionStart })).toBeDisabled();
+  expect(screen.getByRole('button', { name: practice.finish })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: practice.tempoButton })); expect(screen.getByRole('slider')).toBeDisabled();
+  await act(async () => { release(); });
 });
 
-it('direct invalid entry disables the device lease and routes to the pinned Setup source gate without arming', async () => {
-  fake.invalidScore = true;
-  await act(async () => { render(<NextIntlClientProvider locale="en" messages={{ practice, common, errors }}><Suspense><PracticePage params={Promise.resolve({ id: 'score-id' })} /></Suspense></NextIntlClientProvider>); });
-  expect(fake.leaseEnabled).toHaveBeenCalled(); expect(fake.leaseEnabled.mock.calls.every(([enabled]) => !enabled)).toBe(true);
-  expect(fake.localOptions.mock.calls.every(([options]) => options.plan === null)).toBe(true);
-  expect(fake.router.replace).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-  expect(fake.local.start).not.toHaveBeenCalled(); expect(fake.local.restart).not.toHaveBeenCalled();
-  expect(fake.workspace.environment.acquireInference).not.toHaveBeenCalled();
+it.each([true, false])('natural STEP completion shows one dialog; Try Again with current admission=%s', async admitted => {
+  const start = vi.spyOn(StepPracticeController.prototype, 'start'); const view = await openPage();
+  fireEvent.click(screen.getByRole('button', { name: practice.start })); await waitFor(() => expect(health.listenerCount()).toBe(1));
+  for (const _moment of artifact.moments) fireEvent.click(screen.getByRole('button', { name: practice.skip }));
+  await screen.findByRole('dialog'); expect(start).toHaveBeenCalledOnce(); expect(health.listenerCount()).toBe(0);
+  deviceReady = admitted;
+  await act(async () => { view.rerender(pageTree()); });
+  fireEvent.click(screen.getByRole('button', { name: practice.retryPractice }));
+  await waitFor(() => admitted ? expect(start).toHaveBeenCalledTimes(2) : expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision'));
 });

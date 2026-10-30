@@ -564,7 +564,7 @@ describe('Continuous clock and evaluation composition', () => {
       events: [],
       moments: [],
     });
-    expect(() => new ContinuousPracticeSession({ ...continuousSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), clock: new ManualClock() })).toThrow(/PracticeScoreArtifact/);
+    expect(() => new ContinuousPracticeSession({ ...continuousSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), clock: new ManualClock() })).toThrow('Practice scope requires at least one expected group.');
 
   });
 

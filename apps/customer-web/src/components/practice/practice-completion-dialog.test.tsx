@@ -24,7 +24,7 @@ function renderDialog(
           : { sessionMode: 'CONTINUOUS_PLAY' as const, onViewSummary: vi.fn() })}
         isLoading={false}
         onOpenChange={vi.fn()}
-        onRestart={vi.fn()}
+        onRetry={vi.fn()}
         onAdjustSection={vi.fn()}
       />
     </NextIntlClientProvider>
@@ -83,7 +83,7 @@ describe('PracticeCompletionDialog', () => {
           sessionMode="CONTINUOUS_PLAY"
           isLoading
           onOpenChange={vi.fn()}
-          onRestart={vi.fn()}
+          onRetry={vi.fn()}
           onAdjustSection={vi.fn()}
           onViewSummary={vi.fn()}
         />

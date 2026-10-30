@@ -260,7 +260,7 @@ it('Start owns compact binding busy state and prevents a second click', () => {
 });
 it('STEP settings is a discoverable configuration navigation action without input editors', () => {
   const settings = vi.fn(); render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-    <StepPracticeControls lifecycle="IDLE" isLoading={false} isPreparingSession={false} canPrepareSession
+    <StepPracticeControls lifecycle="READY" isLoading={false} isPreparingSession={false} canPrepareSession
       rangeSelectionActive={false} canSelectRange onStart={vi.fn()} onEnd={vi.fn()} onToggleRangeSelection={vi.fn()} onOpenSettings={settings} />
   </NextIntlClientProvider>);
   fireEvent.click(screen.getByRole('button', { name: messages.settingsButton })); expect(settings).toHaveBeenCalledOnce();

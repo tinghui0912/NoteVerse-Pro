@@ -259,7 +259,7 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
     expect(props.performanceEvaluation).not.toBeNull();
     view.rerender(<PracticeScoreViewer {...props} showContinuousFeedback />);
     expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported');
-    view.rerender(<PracticeScoreViewer {...props} lifecycle="IDLE" sessionMode="STEP_BY_STEP" performanceEvaluation={null} />);
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="READY" sessionMode="STEP_BY_STEP" performanceEvaluation={null} />);
     expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
     expect(view.container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
   } finally {

@@ -19,7 +19,7 @@ admission. Live note feedback is presentation state and is absent from the inten
 
 `planning/session-plan.ts` owns semantic planning. `createPracticeSessionPlanner()`
 creates a composition-local `planPracticeSession(source, intent)` function. It checks
-source identity, canonical artifact validity and intent validity, then resolves scope
+source identity and intent validity on an admitted runtime artifact, then resolves scope
 and tempo. The frozen plan owns sourceId, the canonical artifact, mode/input/recording,
 resolved scope, resolved tempo, the canonical resource plan and the initial metronome flag. Score/revision/artifact
 IDs remain owned by the artifact. Scope and tempo projections and canonical notation
@@ -35,31 +35,65 @@ The Practice page constructs the intent from resolved configuration and committe
 workspace scope/tempo/metronome choices. The source query supplies sourceId and the
 parsed artifact. Page controls read the candidate plan's resolved projections.
 
-## Execution and Runtime State
+## Explicit Execution Ownership
 
-STEP and Continuous controller options require their mode-specific plan together
-with browser/resource ports. They receive no parallel raw scope or tempo selection.
-Pure domain components receive narrow resolved projections and do not plan intent.
+```text
+Pinned revision -> Canonical Practice Source -> strict artifact admission
+  -> PracticeExecutionIntent -> candidate PracticeSessionPlan -> READY
+  -> explicit Start -> PracticeExecutionOwner -> one selected controller
+                                       STEP / Continuous
+```
 
-STEP initializes target progression from the planned scope indexes. Its metronome
-uses the plan's artifact, start/terminal beats and tempo plan. Attack equality,
-continuation exclusion, rearm, mismatch and Skip keep their domain owners.
+`usePracticeExecution` bridges React presentation and the ordinary
+`application/practice-execution-owner.ts` owner. READY has no attempt controller,
+platform, inference lease, AudioContext, MIDI message binding, recorder, metronome,
+refresh loop or controller physical-health subscription. The page DeviceLease and
+workspace Environment have their independent retained lifetimes.
 
-Continuous session, evaluator and performance clock consume the same resolved scope
-and tempo. The clock derives transport-only time coordinates and count-in timing.
-It receives resolved tempo explicitly. Natural completion reads the executed session
-snapshot's scope and tempo; Result schema7 serializes that truth without planning
-again and without adding sourceId.
+The candidate plan is editable before Start. Scope, tempo and initial metronome
+choices update candidate data only. Start captures the exact immutable plan and
+constructs one selected controller. That executed plan controls the attempt's scope,
+tempo and presentation. Candidate rerenders cannot replace it. Scope/range/tempo
+editing is locked during preparation, active/paused execution and finalization.
+Metronome enable/disable remains a live command on the same session.
 
-Common local snapshots expose sourceId, resolved scope, resolved tempo and the current
-live metronome state alongside local session identity and runtime metadata. The
-Continuous performance section owns transport state and elapsed/count-in coordinates.
-Scope/tempo truth belongs to the common snapshot.
+Both STEP and Continuous require user Start. STEP starts learning input acceptance
+without count-in or a performance clock and may wait indefinitely for the first note.
+Continuous starts its count-in and canonical transport. End detaches presentation,
+fences callbacks, abandons/disposes the selected controller, and returns READY.
+Current source/environment/device/capability admission controls the next Start.
+Intervention End creates no independent readiness state.
 
-Runtime state is the mutable attempt/transport lifecycle after Start. The initial
-metronome flag is captured at admission. Active enable/disable uses the existing
-`setMetronomeEnabled` command. That live control does not replace an execution owner,
-change localSessionId, reset progress/transport or resolve scope/tempo.
+Natural scope completion notifies once and retains completed presentation. Retry is
+a deliberate command that fully releases the completed attempt and starts one fresh
+controller directly. It does not reacquire page roots or requalify the Environment.
+The owner clears the transient Continuous completion handoff only at genuine new
+attempt construction and publishes it only from the current natural completion.
+
+The owner holds one release chain. A new controller waits for old disposal and any
+late preparation to settle. Generation plus selected-controller identity fences
+snapshots and natural completion. Composition/route identity replacement retires the
+old owner; ordinary candidate edits do not. Cleanup failure remains visible and blocks
+replacement. The React bridge uses subscriptions, not mode-specific mounted hooks or
+an idle refresh loop.
+
+STEP and Continuous controllers retain their distinct domain and pipeline owners.
+They consume admitted plans, browser roots and the read-only root-health port.
+Pure runtime components consume resolved projections without full score traversal.
+Common local snapshots expose sourceId, resolved scope/tempo and current metronome
+state. Continuous natural Result7 uses the executed scope/tempo without re-resolution.
+
+## Score Admission
+
+`usePracticeRevisionSource` maps the untrusted source envelope through
+`parsePracticeScoreArtifact()` and verifies source/score/revision identity. The strict
+parser owns revision-wide score correctness. Setup prominently displays invalid-score
+state and disables preparation; mode/input/Section cannot repair the revision.
+Practice consumes that same admission result as a defensive route gate and creates no
+execution plan/controller for missing, invalid or failed source data. Revision pinning
+is retained. Planning validates intent, sourceId, scope/tempo selection and resource
+combinations; execution assumes the artifact was admitted. It does not introduce
+another full artifact validator.
 
 ## Resource Planning and Lifetimes
 
@@ -117,10 +151,9 @@ them on unmount. Its binding transaction, same-root observation and fail-closed
 admission are owned by the device boundary. DeviceLease is the sole physical health interpreter of the retained roots.
 Controllers consume its read-only port; pipeline health has separate owners.
 
-Both mode hooks are mounted by the local binding; the selected session plan determines
-execution. `PracticeResourceCoordinator` sequences release between execution owners.
 Resource planning defines requirements and bindings, not acquisition or Start/End
-lifecycle.
+lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
+construction.
 
 Artifact schema3, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema7,
 count-in policy, timing/recognition/resource values and acoustic identities are their

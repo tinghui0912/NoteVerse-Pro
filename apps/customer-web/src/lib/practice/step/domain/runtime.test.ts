@@ -20,7 +20,7 @@ describe('STEP runtime target and session contracts', () => {
       events: [],
       moments: [],
     });
-    expect(() => new StepPracticeRuntime({ ...stepSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock() })).toThrow(/PracticeScoreArtifact/);
+    expect(() => new StepPracticeRuntime({ ...stepSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock() })).toThrow('Practice scope requires at least one expected group.');
 
   });
 

@@ -3,7 +3,6 @@ import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract'
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { ContinuousMicrophoneHealth, type MicrophoneResourceHealth } from './microphone-resource-health';
-import { continuousCompletionStore } from './completion-store';
 import type { ContinuousPracticeCompletion } from './completion';
 import { createNaturalContinuousCompletion } from './natural-completion';
 import { midiEvidenceProvenance, microphoneEvidenceProvenance, type ContinuousEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
@@ -409,7 +408,7 @@ export class ContinuousPracticeController {
           artifact: this.options.plan.artifact,
           evaluation, evidenceProvenance: this.evidenceProvenance, recording, completedAt: new Date().toISOString() });
         await this.cleanup(); this.checkAlive();
-        this.state = 'COMPLETE'; continuousCompletionStore.setCompletion(this.completed); this.record('COMPLETE');
+        this.state = 'COMPLETE'; this.record('COMPLETE');
         this.notify(); this.options.onNaturalCompletion?.(this.finalSession);
       } catch (error) {
         if (!this.disposed) await this.failSession(continuousErrorCode(error, this.cleanupFailure ? 'RESOURCE_CLEANUP_FAILED' : 'RECORDER_UNAVAILABLE'), error);

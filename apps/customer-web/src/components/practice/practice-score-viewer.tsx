@@ -24,15 +24,14 @@ import type { PracticeMode } from '@/lib/practice/kernel/session';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
-import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
 
 type PracticeScoreViewerProps = {
   className?: string;
   sessionStatus?: ReactNode;
   xmlContent: string | null;
   isLoadingXml: boolean;
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   sessionMode: PracticeMode;
   activeStepGroup?: PracticeMomentView | null;
   performanceMusicalBeat?: number | null;

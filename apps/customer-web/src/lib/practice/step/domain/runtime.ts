@@ -1,5 +1,5 @@
 import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { createLocalSessionId, type LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
@@ -40,7 +40,7 @@ export class StepPracticeRuntime {
   private metronomeEnabled: boolean;
 
   constructor(private readonly options: StepPracticeRuntimeOptions) {
-    assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
+    this.artifact = options.artifact;
     this.resolvedScope = options.scope;
     this.inputSource = options.inputSource;
     this.currentIndex = this.resolvedScope.startIndex;

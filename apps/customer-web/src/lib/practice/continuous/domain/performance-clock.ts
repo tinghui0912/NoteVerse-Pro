@@ -1,4 +1,4 @@
-import { assertPracticeScoreArtifact, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { countInContractAt } from '@/lib/practice/kernel/count-in';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import type { LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
@@ -67,7 +67,6 @@ export class PerformanceClockRuntime {
   private clockSegments: ClockSegment[] = [];
 
   constructor(options: PerformanceClockRuntimeOptions) {
-    assertPracticeScoreArtifact(options.artifact);
     this.artifact = options.artifact;
     this.clock = options.clock;
     const tempoPlan = options.tempoPlan;

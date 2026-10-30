@@ -178,22 +178,22 @@ a new Device Lease. Leaving the entire Practice layout also closes the Environme
 Each Attempt has a fresh localSessionId, PracticeTimebase/source domain, AudioContext,
 capture chronology, inference token, evaluator/ledger, recorder and recording timebase.
 Attempt cleanup releases its capture, context, inference lease, recorder clones and
-listeners. A new attempt is not a new environment setup: Start, Try Again, Restart
-and Review Retry never repeat readiness probes, model access, model download or ONNX
-creation. One healthy workspace loads the model/ONNX session once. Try Again and
-Restart bind and start automatically, without a second Start click.
+listeners. Start and Retry use the existing Environment and DeviceLease without
+readiness probes, model downloads, ONNX creation or root reacquisition. Retry releases
+the completed attempt and starts a fresh attempt directly.
 
-Practice has no ready prose or global startup banner. Continuous Start alone shows a
-compact disabled busy state. Normal Continuous running has no status prose. Count-in,
-Pause, intervention and errors remain visible; STEP retains its teaching instructions.
-Settings links back to Setup, without inline mode/input/recording editors.
-Continuous settings also contains the presentation-only Live Feedback Switch.
+Both modes present Start when READY and admitted. READY has no execution controller
+or attempt-owned resources. Start shows compact preparation state; Continuous then
+owns count-in/transport while STEP immediately accepts learning input and waits for
+the learner without count-in or a performance clock. Ordinary End returns READY and
+presents Start again. Natural completion opens its completion dialog once; Try Again
+is an explicit Retry command.
 
-STEP first entry auto-arms after devices and score/scope/tempo are available. There is
-no initial Start or performance/recording timer. Ordinary healthy End discards the
-attempt and waits for Continue practice; Try Again starts a fresh attempt directly. Scope/tempo edits
-are blocked only during CAPTURING/ANALYZING; waiting and POST_VERDICT edits rebind a
-fresh attempt on the same Device Lease. Metronome toggling does not rebuild devices.
+Scope, Section and tempo are editable before Start and locked during PREPARING,
+ACTIVE, PAUSED and FINALIZING. Candidate edits create no controller. The executed plan
+is captured at Start and remains stable through later candidate rerenders. Metronome
+is a live command on the existing session. Settings links to Setup for mode/input/
+recording changes; Continuous feedback remains presentation-only.
 
 A recording indicator is shown only after an AUDIO/VIDEO recorder actually starts:
 a red dot and recording elapsed time. STEP and Continuous OFF show no timer. Pause,
@@ -309,7 +309,7 @@ shows completed feedback; Share Video always uses its clean-score contract.
 Canonical Practice Source supplies sourceId and the parsed artifact. The page creates
 an immutable `PracticeExecutionIntent` from resolved configuration, committed scope,
 tempo choice and metronome state. A composition-local `planPracticeSession` owns
-source/artifact/intent validation and resolves scope and tempo into one immutable
+sourceId/intent validation on the Source-admitted artifact and resolves scope and tempo into one immutable
 `PracticeSessionPlan`. STEP and Continuous controllers consume that plan; pure runtimes
 consume its narrow resolved projections. Live feedback is not execution intent.
 
@@ -376,11 +376,18 @@ Shared `metronome/` consumes its own minimal sync-point contract. Continuous
 application code projects clock snapshots into that contract. Neither shared
 infrastructure imports STEP or Continuous domain code.
 
-Application controllers compose domains, browser inputs and owned resources.
-Hooks/pages render snapshots and send commands. The acoustic foundation remains
-score-blind; only its Continuous projection references the evaluator's publication
-type contract. Static architecture tests scan production imports and dependency
-cycles to enforce these boundaries.
+`PracticeExecutionOwner` is the composition lifecycle owner. The page supplies an
+admitted candidate plan and narrow browser/admission ports through `usePracticeExecution`.
+Explicit Start constructs exactly one selected STEP or Continuous controller. End,
+Retry, release serialization and stale callback fencing belong to that owner.
+Controllers retain mode-specific domain evaluation and processing pipelines.
+
+Strict artifact parsing at the Practice Source projection is the score-level
+correctness authority. Setup consumes invalid-source state as its proactive UX gate;
+Practice consumes it defensively before plan/execution admission. Planners/controllers
+consume admitted runtime values and do not perform full artifact validation.
+The acoustic foundation remains score-blind. Static architecture checks enforce
+these dependency and ownership boundaries.
 
 ## STEP_BY_STEP
 
@@ -914,11 +921,10 @@ watermark before rearming, excluding delayed or partial evidence. STEP terminal
 root/context/capture failure instead retains the active session and target behind its
 End-only infrastructure intervention. Unusable resources are released immediately;
 only End or page teardown ends domain/application truth. The controller never stops
-or reacquires the borrowed root. STEP terminal infrastructure or analysis End latches
-a page-local requirement for Setup: no in-place Continue Practice remains, even if the
-outer root is still healthy. Returning to Setup has no environment side effects; its
-explicit Prepare performs fresh qualification before a fresh Practice entry/session. Ordinary healthy
-learner End still offers Continue Practice. Initial page-entry auto-arm remains distinct.
+or reacquires the borrowed root. End retires the STEP attempt and returns READY; the
+next Start uses current Source, Environment, DeviceLease and selected-capability
+admission. Past intervention state is not a readiness authority. Returning to Setup
+has no environment side effects; explicit Prepare performs qualification.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.
 Continuous required-input root ended, context closure and invalid capture offer End only. Required

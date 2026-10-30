@@ -1,5 +1,5 @@
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
-import { assertPracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 
 type ContinuousExpectedStrikeClock = {
@@ -11,7 +11,6 @@ export function buildContinuousExpectedStrikesFromTimeline(
   timeline: ContinuousExpectedStrikeClock,
   scope: ResolvedPracticeScope
 ): ContinuousExpectedStrike[] {
-  assertPracticeScoreArtifact(artifact);
   const scopeStartTimeMs = timeline.beatToTimeMs(scope.startBeat);
   return artifact.moments
     .slice(scope.startIndex, scope.endIndex + 1)

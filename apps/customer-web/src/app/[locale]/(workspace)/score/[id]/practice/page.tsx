@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { usePracticeSource } from '@/hooks/practice/use-practice-source';
-import { useLocalPractice } from '@/hooks/practice/use-local-practice';
+import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
 import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { PracticeReadinessGate } from '@/components/practice/practice-readiness-gate';
@@ -94,8 +94,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled, profile, updateProfile } = workspace;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
-  const [stepManuallyEnded, setStepManuallyEnded] = useState(false);
-  const [stepRequiresSetup, setStepRequiresSetup] = useState(false);
 
   // Score details and assets
   const source = usePracticeSource(id, { loadNotation: true });
@@ -108,6 +106,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   }, [source.invalid, source.revisionId, id, router]);
 
   const xmlContent = source.musicXml;
+  const sourceAdmitted = Boolean(artifact && source.sourceId && selectedRevisionId && xmlContent)
+    && !source.invalid && !source.error && !scoreQuery.error && canEnterPractice;
 
   // Range interaction projects canonical moment notation references.
   const expectedGroups: readonly PracticeMomentView[] = useMemo(
@@ -126,22 +126,25 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       recordingMode: configuration.recordingMode, scope: Object.freeze({ ...practiceScope }),
       tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeExecutionIntent;
   }, [configuration, practiceScope, tempoSelection, metronomeEnabled]);
-  const plan = useMemo(() => artifact && source.sourceId && executionIntent
+  const plan = useMemo(() => sourceAdmitted && artifact && source.sourceId && executionIntent
     ? planPracticeSession({ sourceId: source.sourceId, artifact }, executionIntent) : null,
-    [artifact, source.sourceId, executionIntent, planPracticeSession]);
-  const resolvedScope = plan?.scope ?? null;
+    [artifact, source.sourceId, executionIntent, planPracticeSession, sourceAdmitted]);
 
-  const scopeStartBeat = resolvedScope?.startBeat ?? 0;
-
-  const device = usePracticeDeviceLease(workspace.resourcePlan, Boolean(artifact) && workspace.ready);
+  const device = usePracticeDeviceLease(workspace.resourcePlan, sourceAdmitted && workspace.ready);
   const requiredDevices = workspace.resourcePlan?.liveRoots ?? [];
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
-  const stepAutoArm = useRef<string | null>(null);
 
+  const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
+  const selectedInputCapability = useMemo(
+    () => workspace.resourcePlan ? getSelectedInputCapability(workspace.resourcePlan, inputCapabilities) : undefined,
+    [inputCapabilities, workspace.resourcePlan]
+  );
+  const canPreparePractice = sourceAdmitted && Boolean(plan) && !range.isIncomplete && !range.isSelecting
+    && workspace.ready && devicesReady && selectedInputCapability?.supported === true;
   // Local Practice orchestration
-  const localPractice = useLocalPractice({
-    plan,
+  const execution = usePracticeExecution({
+    plan, admitted: canPreparePractice, compositionId: `${id}:${selectedRevisionId ?? ''}`,
     borrowRoots: device.borrow, rootHealth: device.rootHealth,
     acquireInference: workspace.environment.acquireInference,
     onNaturalCompletion: snapshot => {
@@ -149,15 +152,20 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       setIsCompletionDialogOpen(true);
     },
   });
-  const analysisIntervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.analysisIntervention : null;
-  const intervention = localPractice.mode === 'CONTINUOUS_PLAY' ? localPractice.resourceIntervention : null;
+  const displayPlan = execution.executedPlan ?? plan;
+  const scopeStartBeat = displayPlan?.scope.startBeat ?? 0;
+  const displayRangeRenderNoteIds = execution.executedPlan?.scope.kind === 'RANGE'
+    ? expectedGroups.slice(execution.executedPlan.scope.startIndex, execution.executedPlan.scope.endIndex + 1).flatMap(group => group.renderNoteIds)
+    : execution.executedPlan ? [] : selectedRangeRenderNoteIds;
+  const analysisIntervention = execution.mode === 'CONTINUOUS_PLAY' ? execution.analysisIntervention : null;
+  const intervention = execution.mode === 'CONTINUOUS_PLAY' ? execution.resourceIntervention : null;
 
   const handleMetronomeEnabledChange = useCallback(
     (enabled: boolean) => {
       setMetronomeEnabled(enabled);
-      localPractice.setMetronomeEnabled(enabled);
+      execution.setMetronomeEnabled(enabled);
     },
-    [localPractice, setMetronomeEnabled]
+    [execution, setMetronomeEnabled]
   );
 
   const isLoadingXml = scoreQuery.isLoading || sourceQuery.isLoading;
@@ -171,24 +179,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       ? common('loadFailedDescription')
       : null;
 
-  const canPreparePractice =
-    canEnterPractice &&
-    Boolean(selectedRevisionId && xmlContent && artifact) &&
-    Boolean(plan) &&
-    !range.isIncomplete &&
-    workspace.ready && devicesReady &&
-    !isResourceLoading &&
-    !loadError;
-
   const goToPracticeSetup = () => {
     setIsSettingsOpen(false);
     router.push(practiceLocation(id, 'setup', selectedRevisionId));
   };
-  const handleRestart = async () => {
+  const handleRetry = async () => {
     setIsCompletionDialogOpen(false);
-    if (!workspace.ready || !devicesReady) { goToPracticeSetup(); return; }
-    setStepManuallyEnded(false); setStepRequiresSetup(false);
-    await localPractice.restart();
+    if (!canPreparePractice) { goToPracticeSetup(); return; }
+    await execution.retry();
   };
 
   const handleViewSummary = useCallback(() => {
@@ -196,9 +194,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     router.push(`/score/${id}/practice/review`);
   }, [id, router]);
 
-  const handleAdjustSelectedSection = () => {
+  const handleAdjustSelectedSection = async () => {
     setIsCompletionDialogOpen(false);
-    range.beginSelection();
+    await execution.end(); range.beginSelection();
   };
 
   const completionOutcome: PracticeCompletionOutcome = useMemo(() => {
@@ -214,19 +212,16 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const isStepMode = practiceMode === 'STEP_BY_STEP';
   const isActive =
-    localPractice.inputState === 'STARTING' ||
-    localPractice.lifecycle === 'ACTIVE' ||
-    localPractice.lifecycle === 'PAUSED';
+    execution.inputState === 'STARTING' ||
+    execution.lifecycle === 'ACTIVE' ||
+    execution.lifecycle === 'PAUSED' || execution.lifecycle === 'FINALIZING'
+    || execution.lifecycle === 'ERROR' && Boolean(execution.executedPlan);
   useEffect(() => {
     if (!workspace.ready && workspace.readiness.status !== 'READY' && !isActive && !isCompletionDialogOpen) {
       router.replace(practiceLocation(id, 'setup', selectedRevisionId));
     }
   }, [workspace.ready, workspace.readiness.status, isActive, isCompletionDialogOpen, router, id, selectedRevisionId]);
-  const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
-  const selectedInputCapability = useMemo(
-    () => workspace.resourcePlan ? getSelectedInputCapability(workspace.resourcePlan, inputCapabilities) : undefined,
-    [inputCapabilities, workspace.resourcePlan]
-  );
+
 
 
   const rangeSelectionPrompt = useMemo(() => {
@@ -247,49 +242,32 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     return null;
   }, [range.phase, range.selectedMeasureRange, t]);
 
-  const stepBusy = localPractice.mode === 'STEP_BY_STEP' && ['CAPTURING', 'ANALYZING'].includes(localPractice.stepInteractionPhase ?? '');
-  const stepKey = JSON.stringify([selectedRevisionId, practiceScope, tempoSelection]);
-  const handleEnd = async () => { stepAutoArm.current = stepKey; setStepManuallyEnded(true); setStepRequiresSetup(false); await localPractice.abandon(); };
-  const handleStepTerminalEnd = async () => {
-    stepAutoArm.current = stepKey; setStepManuallyEnded(true); setStepRequiresSetup(true);
-    await localPractice.abandon();
-  };
-  useEffect(() => {
-    if (practiceMode !== 'STEP_BY_STEP') return;
-    if (range.isSelecting) {
-      if (stepAutoArm.current !== null) { stepAutoArm.current = null; void localPractice.abandon(); }
-      return;
-    }
-    if (stepRequiresSetup || stepManuallyEnded || !canPreparePractice || isCompletionDialogOpen || stepAutoArm.current === stepKey) return;
-    stepAutoArm.current = stepKey;
-    void localPractice.restart();
-  }, [practiceMode, stepRequiresSetup, stepManuallyEnded, canPreparePractice, range.isSelecting, isCompletionDialogOpen, stepKey, localPractice]);
-
+  const handleEnd = async () => { await execution.end(); };
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
-      isPreparingSession: localPractice.inputState === 'STARTING' || !device.snapshot || device.snapshot.state === 'OPENING',
-      canPrepareSession: canPreparePractice,
+      isPreparingSession: execution.inputState === 'STARTING' || !device.snapshot || device.snapshot.state === 'OPENING',
+      canPrepareSession: canPreparePractice && execution.canStart,
       selectedInputCapability,
       selectedInputSupported: selectedInputCapability?.supported,
       rangeSelectionActive: range.rangeSelectionActive,
-      canSelectRange: isStepMode ? !stepBusy : !isActive,
-      tempoSelection,
+      canSelectRange: !isActive,
+      tempoSelection: displayPlan?.tempoPlan.selection ?? tempoSelection,
       scoreTempoSegments: artifact?.scoreTempoSegments,
       scopeStartBeat,
-      tempoLocked: isStepMode ? stepBusy : isActive,
+      tempoLocked: isActive,
       onTempoSelectionChange: setTempoSelection,
       metronomeEnabled,
       onMetronomeEnabledChange: handleMetronomeEnabledChange,
-      onStart: () => { stepAutoArm.current = stepKey; setStepManuallyEnded(false); setStepRequiresSetup(false); void localPractice.start(); },
+      onStart: () => { void execution.start(); },
       onEnd: () => { void handleEnd(); },
       onOpenSettings: () => setIsSettingsOpen(true),
-      recordingSeconds: localPractice.recordingIndicator,
+      recordingSeconds: execution.recordingIndicator,
       onToggleRangeSelection: range.toggleSelection,
   };
-  const practiceControls = localPractice.mode === 'STEP_BY_STEP'
-    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle} showContinue={stepManuallyEnded && !stepRequiresSetup && localPractice.lifecycle === 'IDLE' && !localPractice.inputError && canPreparePractice} />
-    : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={localPractice.lifecycle}
-        onPause={() => void localPractice.pause()} onResume={() => void localPractice.resume()} />;
+  const practiceControls = execution.mode === 'STEP_BY_STEP'
+    ? <StepPracticeControls {...controlSurfaceProps} lifecycle={execution.lifecycle} />
+    : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={execution.lifecycle}
+        onPause={() => void execution.pause()} onResume={() => void execution.resume()} />;
 
   const practiceSessionStatus = (
     <PracticeStatus
@@ -298,17 +276,17 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       deviceControls={requiredDevices.map(resource => <PracticeDeviceStatusPopover key={resource} resource={resource}
         health={device.snapshot?.health[resource] ?? null}
         issue={device.snapshot?.issue?.resource === resource ? device.snapshot.issue : null} />)}
-      lifecycle={localPractice.lifecycle}
-      inputState={localPractice.inputState}
-      inputError={localPractice.inputError}
+      lifecycle={execution.lifecycle}
+      inputState={execution.inputState}
+      inputError={execution.inputError}
       resourceImpact={intervention?.impact ?? null}
       inputSource={inputSource}
       selectedInputCapability={selectedInputCapability}
       rangePrompt={rangeSelectionPrompt}
       sessionMode={practiceMode}
-      performanceClock={localPractice.performanceClock}
-      stepInteractionPhase={localPractice.mode === 'STEP_BY_STEP' ? localPractice.stepInteractionPhase : null}
-      pendingPostVerdict={localPractice.mode === 'STEP_BY_STEP' ? localPractice.pendingPostVerdict : null}
+      performanceClock={execution.performanceClock}
+      stepInteractionPhase={execution.mode === 'STEP_BY_STEP' ? execution.stepInteractionPhase : null}
+      pendingPostVerdict={execution.mode === 'STEP_BY_STEP' ? execution.pendingPostVerdict : null}
     />
   );
 
@@ -362,39 +340,39 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                     sessionStatus={practiceSessionStatus}
                     xmlContent={xmlContent}
                     isLoadingXml={isLoadingXml}
-                    lifecycle={localPractice.lifecycle}
+                    lifecycle={execution.lifecycle}
                     sessionMode={practiceMode}
-                    activeStepGroup={localPractice.activeStepGroup}
-                    performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
-                    performanceEvaluation={localPractice.performanceEvaluation}
+                    activeStepGroup={execution.activeStepGroup}
+                    performanceMusicalBeat={execution.performanceClock?.musicalBeat ?? null}
+                    performanceEvaluation={execution.performanceEvaluation}
                     showContinuousFeedback={profile.continuous.liveFeedbackEnabled}
                     performanceScope={
-                      localPractice.performanceClock
+                      execution.performanceClock
                         ? range.hasRangeSelection
                           ? {
                               kind: 'RANGE' as const,
-                              startBeat: localPractice.performanceClock.scopeStartBeat,
-                              terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
-                              allowedNoteIds: selectedRangeRenderNoteIds,
+                              startBeat: execution.performanceClock.scopeStartBeat,
+                              terminalBeat: execution.performanceClock.scopeTerminalBeat,
+                              allowedNoteIds: displayRangeRenderNoteIds,
                             }
                           : {
                               kind: 'FULL' as const,
-                              startBeat: localPractice.performanceClock.scopeStartBeat,
-                              terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
+                              startBeat: execution.performanceClock.scopeStartBeat,
+                              terminalBeat: execution.performanceClock.scopeTerminalBeat,
                             }
                         : null
                     }
-                    selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}
-                    onRenderNoteClick={range.isSelecting ? range.selectRenderNote : undefined}
+                    selectedRangeRenderNoteIds={displayRangeRenderNoteIds}
+                    onRenderNoteClick={!isActive && range.isSelecting ? range.selectRenderNote : undefined}
                   />
                 </ClientOnly>
 
-                {localPractice.mode === 'STEP_BY_STEP' && isActive ? (
+                {execution.mode === 'STEP_BY_STEP' && isActive ? (
                   <div className="pointer-events-none absolute bottom-24 right-6 z-30">
                     <PracticeSkipControl
                       visible={true}
-                      disabled={!localPractice.canAcceptAttempt}
-                      onSkip={localPractice.skip}
+                      disabled={!execution.canAcceptAttempt}
+                      onSkip={execution.skip}
                     />
                   </div>
                 ) : null}
@@ -418,19 +396,19 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
               <SheetDescription className="sr-only">{t('settingsSubtitle')}</SheetDescription>
               {!isStepMode && <PracticeFeedbackSettings enabled={profile.continuous.liveFeedbackEnabled}
                 onChange={enabled => updateProfile({ ...profile, continuous: { ...profile.continuous, liveFeedbackEnabled: enabled } })} />}
-              <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isStepMode ? stepBusy : isActive}
+              <button type="button" className="m-5 rounded px-2 py-1 text-sm text-slate-600 underline disabled:opacity-50" disabled={isActive}
                 onClick={goToPracticeSetup}>{t('setupChangeConfiguration')}</button>
             </SheetContent>
           </Sheet>}
 
-          {localPractice.mode === 'STEP_BY_STEP' && localPractice.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleStepTerminalEnd} />}
-          {localPractice.mode === 'STEP_BY_STEP' && localPractice.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleStepTerminalEnd} />}
-          {localPractice.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
-            onContinueWithoutAnalysis={localPractice.continueWithoutAnalysis}
+          {execution.mode === 'STEP_BY_STEP' && execution.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleEnd} />}
+          {execution.mode === 'STEP_BY_STEP' && execution.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleEnd} />}
+          {execution.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
+            onContinueWithoutAnalysis={execution.continueWithoutAnalysis}
             onEnd={handleEnd} />}
-          {localPractice.mode === 'CONTINUOUS_PLAY' && !analysisIntervention && intervention && <ResourceInterruptionDialog
-            intervention={intervention} onContinueWithout={localPractice.continueWithoutRecording}
-            onContinue={() => { localPractice.continueAfterRecovery(); }}
+          {execution.mode === 'CONTINUOUS_PLAY' && !analysisIntervention && intervention && <ResourceInterruptionDialog
+            intervention={intervention} onContinueWithout={execution.continueWithoutRecording}
+            onContinue={() => { execution.continueAfterRecovery(); }}
             onEnd={handleEnd} />}
           <PracticeCompletionDialog
             open={isCompletionDialogOpen}
@@ -438,9 +416,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             {...(practiceMode === 'STEP_BY_STEP'
               ? { sessionMode: 'STEP_BY_STEP' as const }
               : { sessionMode: 'CONTINUOUS_PLAY' as const, onViewSummary: handleViewSummary })}
-            isLoading={localPractice.isFinalizingPerformance}
+            isLoading={execution.lifecycle === 'FINALIZING'}
             onOpenChange={setIsCompletionDialogOpen}
-            onRestart={handleRestart}
+            onRetry={handleRetry}
             onAdjustSection={range.isRangeScopeReady ? handleAdjustSelectedSection : undefined}
           />
         </>

@@ -80,6 +80,21 @@ to that query owner. `usePracticeSnapshotSource` uses the same envelope parser f
 saved takes and additionally validates the take's artifact identity. Practice domains
 remain independent of API clients and generated transport DTOs.
 
+## Browser Score Admission and Execution
+
+The source projection's strict `parsePracticeScoreArtifact()` call owns revision-wide
+score correctness. It returns the runtime artifact or invalid-source state. Setup
+prominently surfaces invalid state and disables Prepare without qualification. Practice
+uses the same admitted source as a defensive route gate; absent/failed/invalid source
+data cannot create an executed plan or controller. Score revision pinning remains
+part of the source query identity.
+
+Planning consumes the admitted artifact, checks its own intent/sourceId/scope/tempo
+inputs and produces a candidate plan. Explicit Start captures that plan in the single
+PracticeExecutionOwner. Mode controllers and pure execution projections consume
+resolved truth without re-traversing the full artifact contract. See
+[session planning and execution](practice-session-planning.md).
+
 ## Durable Materialization and Admission
 
 `PracticeSourceRepository` consumes a complete bundle. It owns fingerprint lookup,

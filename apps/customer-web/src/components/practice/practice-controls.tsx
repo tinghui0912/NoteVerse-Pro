@@ -11,15 +11,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/continuous/domain/session';
-import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
 import type { TempoSegment } from '@/lib/practice/kernel/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlSurfaceProps {
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -36,8 +35,6 @@ interface PracticeControlSurfaceProps {
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
   recordingSeconds?: number | null;
-  stepLearning?: boolean;
-  showContinue?: boolean;
   onStart: () => void;
   transportControl?: React.ReactNode;
   onEnd: () => void;
@@ -45,12 +42,12 @@ interface PracticeControlSurfaceProps {
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState; showContinue?: boolean }) {
-  return <PracticeControlSurface {...props} stepLearning />;
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: PracticeExecutionLifecycle }) {
+  return <PracticeControlSurface {...props} />;
 }
 
 export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: PracticeExecutionLifecycle;
   onPause(): void; onResume(): void;
 }) {
   const t = useTranslations('practice');
@@ -81,8 +78,6 @@ function PracticeControlSurface({
   metronomeEnabled = false,
   onMetronomeEnabledChange,
   recordingSeconds = null,
-  stepLearning = false,
-  showContinue = false,
   onStart,
   transportControl,
   onEnd,
@@ -90,12 +85,13 @@ function PracticeControlSurface({
   onToggleRangeSelection,
 }: PracticeControlSurfaceProps) {
   const t = useTranslations('practice');
-  const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
+  const isActive = ['PREPARING', 'ACTIVE', 'PAUSED', 'FINALIZING'].includes(lifecycle);
+  const canEnd = isActive || lifecycle === 'ERROR';
   const isSelectedInputReady = selectedInputCapability
     ? selectedInputCapability.supported
     : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
-    (lifecycle === 'READY' || lifecycle === 'IDLE' || lifecycle === 'ENDED') &&
+    (lifecycle === 'READY' || lifecycle === 'ERROR') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
@@ -105,7 +101,7 @@ function PracticeControlSurface({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex shrink-0 items-center gap-2">
-        {isActive ? transportControl : stepLearning && !showContinue ? (isPreparingSession ? <LoaderCircle aria-label={t('startingAttempt')} className="h-4 w-4 animate-spin" /> : null) : (
+        {isActive ? (lifecycle === 'PREPARING' ? <LoaderCircle aria-label={t('startingAttempt')} className="h-4 w-4 animate-spin" /> : transportControl) : (
           <Button
             type="button"
             onClick={onStart}
@@ -115,19 +111,19 @@ function PracticeControlSurface({
             className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
           >
             <span aria-hidden="true">{isPreparingSession ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}</span>
-            {t(isPreparingSession ? 'startingAttempt' : stepLearning ? 'continueLearning' : 'start')}
+            {t(isPreparingSession ? 'startingAttempt' : 'start')}
           </Button>
         )}
         <Button
           type="button"
           onClick={() => {
-            if (isActive) {
+            if (canEnd) {
               onEnd();
             }
           }}
           variant="destructive"
           size="lg"
-          disabled={!isActive}
+          disabled={!canEnd}
           className={actionButtonClass}
         >
           <Square className="mr-2 h-4 w-4" /> {t('finish')}

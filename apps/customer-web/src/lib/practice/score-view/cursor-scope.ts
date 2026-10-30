@@ -1,5 +1,5 @@
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { assertPracticeScoreArtifact, attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
 
 /**
@@ -45,7 +45,6 @@ export function resolvePracticeScopeCursorNoteIds(
   artifact: PracticeScoreArtifact,
   scope: ResolvedPracticeScope | PracticeScope
 ): string[] {
-  assertPracticeScoreArtifact(artifact);
   const resolved = 'startIndex' in scope
     ? scope
     : resolvePracticeScope(artifact, scope);

@@ -41,8 +41,7 @@ it('resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM', () => {
 it.each(['', null, 123])('rejects invalid source id %s', sourceId => {
   expect(() => createPracticeSessionPlanner()({ ...source(), sourceId } as never, intent)).toThrow();
 });
-it('rejects invalid artifact, scope, tempo, mode and recording combinations without repair', () => {
-  expect(() => createPracticeSessionPlanner()({ ...source(), artifact: { ...fixture, schemaVersion: 999 } } as never, intent)).toThrow();
+it('rejects invalid scope, tempo, mode and recording choices without repair', () => {
   for (const fields of [{ scope: { kind: 'RANGE', startGroupId: 'missing', endGroupId: 'missing' } },
     { scope: { kind: 'OTHER' } }, { tempoSelection: { mode: 'OTHER' } },
     { tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 300 } }, { recordingMode: 'AUDIO' }, { mode: 'OTHER' }]) {

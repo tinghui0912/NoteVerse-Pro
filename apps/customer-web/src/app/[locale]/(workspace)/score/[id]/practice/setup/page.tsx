@@ -23,18 +23,18 @@ export default function PracticeSetupPage() {
     {source.invalid ? <p role="alert">{t('scoreInvalid')}</p>
       : source.sourceQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
       : !source.artifact ? <p role="status">{t('scoreLoading')}</p> : null}
-    <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsMode')}</legend>
+    <fieldset disabled={checking || source.invalid} className="space-y-2"><legend>{t('settingsMode')}</legend>
       {(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as PracticeMode[]).map(mode => <button key={mode} type="button"
         className="mr-3 rounded border p-3 aria-pressed:bg-orange-100" aria-pressed={profile.mode === mode}
         onClick={() => updateProfile({ ...profile, mode })}>{t(mode === 'STEP_BY_STEP' ? 'settingStepByStep' : 'settingContinuousPlay')}</button>)}
     </fieldset>
-    <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsInput')}</legend>
+    <fieldset disabled={checking || source.invalid} className="space-y-2"><legend>{t('settingsInput')}</legend>
       {(['MICROPHONE', 'MIDI'] as PracticeInputSource[]).map(inputSource => <button key={inputSource} type="button"
         className="mr-3 rounded border p-3 aria-pressed:bg-orange-100" aria-pressed={profile.inputSource === inputSource}
         onClick={() => updateProfile({ ...profile, inputSource })}>{t(inputSource === 'MICROPHONE' ? 'settingMicrophone' : 'settingMidi')}</button>)}
     </fieldset>
     {profile.mode === 'CONTINUOUS_PLAY' && <>
-      <fieldset disabled={checking} className="space-y-2"><legend>{t('setupRecording')}</legend>
+      <fieldset disabled={checking || source.invalid} className="space-y-2"><legend>{t('setupRecording')}</legend>
         {(['OFF', 'AUDIO', 'VIDEO'] as PracticeRecordingMode[]).map(recordingMode => <button key={recordingMode} type="button"
           className="mr-3 rounded border p-3 aria-pressed:bg-orange-100" aria-pressed={profile.continuous.recordingMode === recordingMode}
           onClick={() => updateProfile({ ...profile, continuous: { ...profile.continuous, recordingMode } })}>
@@ -50,9 +50,9 @@ export default function PracticeSetupPage() {
       {currentReadiness && readiness.status === 'BLOCKED' && <><p role="alert">{t('setupFailure')}</p><details><summary>{t('setupTechnicalDetails')}</summary><code>{readiness.reason}</code></details></>}
     </section>
     <button type="button" className="rounded bg-orange-600 px-5 py-3 text-white disabled:opacity-50"
-      disabled={!source.artifact || !workspace.configuration || checking || !workspace.hydrated}
+      disabled={source.invalid || !source.artifact || !workspace.configuration || checking || !workspace.hydrated}
       aria-busy={checking}
-      onClick={() => { if (!source.artifact) return; void workspace.requalify().then(() => {
+      onClick={() => { if (source.invalid || !source.artifact) return; void workspace.requalify().then(() => {
         if (workspace.resourcePlan?.qualification && workspace.environment.matches(workspace.resourcePlan?.qualification)) enter();
       }); }}>{t('setupPrepare')}</button>
   </main>;
