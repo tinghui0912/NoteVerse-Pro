@@ -98,8 +98,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [stepRequiresSetup, setStepRequiresSetup] = useState(false);
 
   // Score details and assets
-  const source = usePracticeSource(id, { loadContent: true });
-  const { scoreQuery, artifactQuery, artifact } = source;
+  const source = usePracticeSource(id, { loadNotation: true });
+  const { scoreQuery, sourceQuery, artifact } = source;
   const canEnterPractice = source.canPractice;
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
   const selectedRevisionId = source.revisionId ?? undefined;
@@ -107,8 +107,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     if (source.invalid) router.replace(practiceLocation(id, 'setup', source.revisionId));
   }, [source.invalid, source.revisionId, id, router]);
 
-  const revisionQuery = source.contentQuery;
-  const xmlContent = source.content;
+  const xmlContent = source.musicXml;
 
   // Range interaction projects canonical moment notation references.
   const expectedGroups: readonly PracticeMomentView[] = useMemo(
@@ -160,9 +159,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     [localPractice, setMetronomeEnabled]
   );
 
-  const isLoadingXml = scoreQuery.isLoading || revisionQuery.isLoading || artifactQuery.isLoading;
+  const isLoadingXml = scoreQuery.isLoading || sourceQuery.isLoading;
   const isResourceLoading =
-    scoreQuery.isLoading || (Boolean(selectedRevisionId) && (revisionQuery.isLoading || artifactQuery.isLoading));
+    scoreQuery.isLoading || (Boolean(selectedRevisionId) && sourceQuery.isLoading);
   const loadError = scoreQuery.error ?? source.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
   const loadErrorDescription = loadError

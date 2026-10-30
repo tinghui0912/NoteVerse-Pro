@@ -76,7 +76,8 @@ def test_bundle_identity_is_deterministic_and_covers_both_representations():
 
 
 @pytest.mark.asyncio
-async def test_live_representations_share_source_identity_and_authorized_revision():
+@pytest.mark.parametrize("include_notation", [False, True])
+async def test_source_request_builds_one_authorized_bundle(include_notation):
     access_policy = Mock()
     access_policy.authorize = AsyncMock(
         return_value=SimpleNamespace(
@@ -93,21 +94,31 @@ async def test_live_representations_share_source_identity_and_authorized_revisio
     service = PracticeSourceService(
         access_policy=access_policy, asset_repository=assets, storage=storage
     )
-    content = await service.get_content(AsyncMock(), "score-1", 1, "revision-1")
-    artifact = await service.get_artifact(AsyncMock(), "score-1", 1, "revision-1")
-    assert content.source_id == artifact.source_id
-    assert content.score_id == artifact.artifact.scoreId == "score-1"
-    assert content.revision_id == artifact.artifact.revisionId == "revision-1"
-    assert len(access_policy.authorize.await_args_list) == 2  # one resolution per request
+    with patch.object(service.builder, "build", wraps=service.builder.build) as build:
+        source = await service.read_source(
+            AsyncMock(), "score-1", 1, "revision-1", include_notation=include_notation
+        )
+    build.assert_called_once()
+    access_policy.authorize.assert_awaited_once()
+    assert source.artifact.scoreId == "score-1"
+    assert source.artifact.revisionId == "revision-1"
+    assert (source.notation is not None) == include_notation
+    if source.notation:
+        ids = {
+            note.attrib["id"]
+            for note in ET.fromstring(source.notation.musicxml).iter("note")
+            if "id" in note.attrib
+        }
+        assert {note.renderNoteId for note in source.artifact.notes} <= ids
 
     access_policy.authorize.reset_mock()
     service.repository.materialize = AsyncMock(
         return_value=PracticeSourceSnapshotRef(
             303,
-            content.source_id,
+            source.source_id,
             "score-1",
             "revision-1",
-            artifact.artifact.artifactId,
+            source.artifact.artifactId,
         )
     )
     pinned = await service.pin_source(
@@ -115,12 +126,30 @@ async def test_live_representations_share_source_identity_and_authorized_revisio
         user_id=1,
         score_id="score-1",
         revision_id="revision-1",
-        expected_artifact_id=artifact.artifact.artifactId,
+        expected_artifact_id=source.artifact.artifactId,
     )
     access_policy.authorize.assert_awaited_once()
     assert (pinned.score_db_id, pinned.revision_db_id, pinned.score_title) == (101, 201, "Score")
-    assert pinned.snapshot.source_id == content.source_id
-    assert (
-        service.repository.materialize.await_args.args[1].prepared_musicxml.content
-        == content.content
+    assert pinned.snapshot.source_id == source.source_id
+    pinned_bundle = service.repository.materialize.await_args.args[1]
+    assert pinned_bundle.source_id == source.source_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_notation", [False, True])
+async def test_snapshot_request_reads_one_verified_bundle(include_notation):
+    bundle = PracticeSourceBuilder().build(
+        score_id="s", revision_id="r", canonical_musicxml=FIXTURE.read_bytes()
     )
+    repository = Mock()
+    repository.read_bundle = AsyncMock(return_value=bundle)
+    service = PracticeSourceService(repository=repository)
+    db = AsyncMock()
+    source = await service.read_snapshot(db, 42, include_notation=include_notation)
+    repository.read_bundle.assert_awaited_once_with(db, 42)
+    assert source.source_id == bundle.source_id
+    assert source.artifact.artifactId == bundle.artifact.artifact_id
+    if include_notation:
+        assert source.notation.musicxml == bundle.prepared_musicxml.content
+    else:
+        assert source.notation is None

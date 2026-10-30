@@ -19,14 +19,6 @@ class StrictPracticeSourceModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
-class PracticeSourceContentRead(StrictPracticeSourceModel):
-    source_id: str
-    score_id: str
-    revision_id: str
-    content: str
-    mime_type: str = "application/vnd.recordare.musicxml+xml"
-
-
 class PracticeScoreNoteRead(StrictPracticeSourceModel):
     noteId: str
     eventId: str
@@ -143,6 +135,14 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
         return self
 
 
-class PracticeSourceArtifactRead(StrictPracticeSourceModel):
+class PracticeSourceNotationRead(StrictPracticeSourceModel):
+    musicxml: str
+    mime_type: Literal["application/vnd.recordare.musicxml+xml"] = (
+        "application/vnd.recordare.musicxml+xml"
+    )
+
+
+class PracticeSourceRead(StrictPracticeSourceModel):
     source_id: str
     artifact: PracticeScoreArtifactRead
+    notation: PracticeSourceNotationRead | None

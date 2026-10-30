@@ -32,8 +32,8 @@ vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDevice
 vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.localOptions(options); fake.natural = options.onNaturalCompletion; return fake.local; } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { capabilities: { can_practice: true }, head_revision_id: 'head-revision' } } }) }));
 vi.mock('@/hooks/practice/use-practice-revision-source', () => ({ usePracticeRevisionSource: () => ({
-  artifact: fake.invalidScore ? null : artifact, content: fake.invalidScore ? null : '<score />',
-  artifactQuery: { isError: fake.invalidScore }, contentQuery: {},
+  artifact: fake.invalidScore ? null : artifact, musicXml: fake.invalidScore ? null : '<score />',
+  sourceQuery: { isError: fake.invalidScore },
   invalid: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null,
 }) }));
 vi.mock('@/hooks/practice/use-practice-range-selection', () => ({ usePracticeRangeSelection: () => ({ practiceScope: { kind: 'FULL' }, isIncomplete: false, isSelecting: false }) }));

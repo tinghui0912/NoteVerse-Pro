@@ -110,9 +110,9 @@ export default function PracticeReviewPage({
   const selectedRevisionId = result?.revisionId ?? undefined;
 
   const source = usePracticeRevisionSource(id, selectedRevisionId, {
-    loadContent: true, enabled: isValidCompletion && Boolean(id),
+    loadNotation: true, enabled: isValidCompletion && Boolean(id),
   });
-  const xmlContent = source.content;
+  const xmlContent = source.musicXml;
   const isLoadingXml = source.isLoading;
   const artifact = source.artifact;
   const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, xmlAvailable: Boolean(xmlContent), scoreId: id }),

@@ -1,7 +1,7 @@
 # Practice Source
 
-Practice Source is the authorized, deterministic representation of one immutable score revision.
-It supplies artifact and notation representations with a common identity.
+Practice Source combines a semantic artifact, optional prepared-MusicXML notation,
+and one source identity for an authorized immutable score revision.
 
 ## Ownership
 
@@ -10,7 +10,7 @@ ScoreRevision canonical MusicXML
   -> PracticeSourceService: authorize and resolve revision
   -> PracticeSourceBuilder: prepare notation and construct bundle
   -> immutable PracticeSourceBundle
-       -> live artifact / content representations
+       -> source response: artifact + optional notation + source_id
        -> PracticeSourceRepository -> PracticeSourceSnapshot
 ```
 
@@ -41,56 +41,86 @@ prepared_musicxml_sha256 | canonical_artifact_sha256
 
 The durable `source_fingerprint` is this same identity. Equal revision/source inputs
 produce equal representation bytes and source IDs. A representation checksum change
-changes the source ID. HTTP envelopes project the bundle value; their formatting is
-not the canonical representation checksum input.
+changes the source ID. Including notation in the response does not change the bundle
+identity. HTTP formatting is not the canonical representation checksum input.
 
-## Live Representations
+## Source Resource and Browser Consumers
 
-Authenticated routes under `/practice/scores/{score_id}/revisions/{revision_id}` are:
+The authenticated live route is:
 
-- `GET /source/artifact`: `{ source_id, artifact }`.
-- `GET /source/content`: `{ source_id, score_id, revision_id, content, mime_type }`.
+```text
+GET /practice/scores/{score_id}/revisions/{revision_id}/source
+    ?include_notation=false
+```
 
-Both requests use the same service and builder. Separate requests independently
-construct deterministic bundles; there is no source cache lifecycle. Setup requests
-only the artifact. Practice and Review request both representations.
+One request authorizes and resolves one revision and builds one bundle. The response is:
 
-`usePracticeRevisionSource` owns transport mapping, runtime artifact parsing,
-score/revision validation and source-ID agreement. It exposes requested representations
-only as a coherent source. `usePracticeSource` adapts score-route access and revision
-pinning to that query owner. `usePracticeSnapshotSource` uses the same representation
-boundary for saved takes. Practice domains consume validated artifacts and remain
-independent of API clients and generated DTOs.
+```text
+{
+  source_id,
+  artifact,
+  notation: null | {
+    musicxml,
+    mime_type: "application/vnd.recordare.musicxml+xml"
+  }
+}
+```
 
-## Durable Materialization
+`include_notation=false` returns `notation=null`. Setup uses that option.
+`include_notation=true` includes the exact prepared Practice MusicXML. Practice and
+Review request notation for browser presentation consumers such as Verovio.
+Notation is a rendering representation, not an evaluation/domain input. STEP and
+Continuous consume the validated semantic artifact.
+
+`usePracticeRevisionSource` owns one network query, maps the generated source DTO,
+parses the artifact once and validates requested score/revision identity. Its cache
+identity includes the notation option. It exposes `sourceId`, `artifact`, `musicXml`
+and `sourceQuery`. `usePracticeSource` adapts score-route access and revision pinning
+to that query owner. `usePracticeSnapshotSource` uses the same envelope parser for
+saved takes and additionally validates the take's artifact identity. Practice domains
+remain independent of API clients and generated transport DTOs.
+
+## Durable Materialization and Admission
 
 `PracticeSourceRepository` consumes a complete bundle. It owns fingerprint lookup,
 object keys, the CREATING lease, exact representation writes/read-back, concurrent
 creation admission and the READY transition. Reads verify checksums, byte sizes,
 artifact structure, score/revision/artifact identity, canonical artifact bytes and
-bundle fingerprint before exposing representations.
+bundle fingerprint before exposing the source.
+
+The database owns lifecycle admission. READY queries filter by READY in SQL and
+populate current row attributes. Verified reads use that eligible row under a lock
+throughout verification. Fingerprint reuse and unique-create collisions use the same
+READY admission. The final creation query locks only a CREATING row with a non-null,
+unexpired lease and populates its current attributes. Cached ORM state cannot admit
+a DELETING row or restore an ineligible creator to READY.
 
 `PracticeSourceSnapshot` is a durable materialization of the immutable bundle. Its
-existing table and foreign keys model that relationship directly. Storage identity is
+table and foreign keys model that relationship directly. Storage identity is
 independent of the continued existence of the live Score row.
 
 Practice Source retention owns reference checks, deletion outbox and worker policy.
-PerformanceTake rows and active upload authorizations retain snapshots. A creating
-or deleting snapshot cannot be admitted as ready; races and storage failures fail
-closed. Outbox retries preserve durable cleanup ownership.
+PerformanceTake rows and active upload authorizations retain snapshots. Ineligible
+state, races and storage failures fail closed. Outbox retries preserve durable cleanup
+ownership. PostgreSQL tests use independent sessions and controlled synchronization
+to exercise cached state, lease expiry and simultaneous fingerprint creation.
 
 ## Performance Take
 
 PerformanceTake authorizes access to the take, identifies its source snapshot and
-calls the public Practice Source service for verified reads. Upload authorization
-pins an authorized source through that service and consumes the returned score,
-revision, artifact and snapshot identities. Media upload/finalization and take
-ownership belong to PerformanceTake; source construction, hashing, object writes,
-representation validation and retention belong to Practice Source.
+calls the public Practice Source service. Upload authorization pins a source through
+that service and consumes the returned score, revision, artifact and snapshot
+identities. Media upload/finalization and take ownership belong to PerformanceTake;
+source construction, hashing, object writes, validation and retention belong to
+Practice Source.
 
-Saved-take `/practice-source/artifact` and `/practice-source/content` routes expose
-the same source-ID representation concept as live revisions. Snapshot reads remain
-available after live score deletion while a durable take retains the snapshot.
+```text
+GET /performance-takes/{take_id}/practice-source?include_notation=true
+```
+
+The saved-source route returns the same envelope and verifies one snapshot bundle
+per request. Saved-take presentation requests notation. Snapshot reads remain available
+after live score deletion while a durable take retains the snapshot.
 
 The [artifact contract](practice-moment-artifact.md) owns schema3 notation/moment
 semantics. Source representation ownership does not define evaluation, timing,

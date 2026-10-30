@@ -11,7 +11,7 @@ import { requirementFingerprint } from '@/lib/practice/readiness/requirements';
 export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
   const params = useParams<{ id: string }>(), router = useRouter();
-  const source = usePracticeSource(params.id);
+  const source = usePracticeSource(params.id, { loadNotation: false });
   const { profile, updateProfile, readiness } = workspace;
   const checking = readiness.status === 'CHECKING';
   const currentRequirements = workspace.requirements ?? [];
@@ -21,7 +21,7 @@ export default function PracticeSetupPage() {
     <h1 className="text-2xl font-semibold">{t('setupTitle')}</h1>
     <p>{t('setupDescription')}</p>
     {source.invalid ? <p role="alert">{t('scoreInvalid')}</p>
-      : source.artifactQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
+      : source.sourceQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
       : !source.artifact ? <p role="status">{t('scoreLoading')}</p> : null}
     <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsMode')}</legend>
       {(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as PracticeMode[]).map(mode => <button key={mode} type="button"

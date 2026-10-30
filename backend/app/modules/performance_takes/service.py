@@ -49,8 +49,7 @@ from app.modules.performance_takes.schemas import (
     RecordingTimebase,
 )
 from app.modules.practice.source.schemas import (
-    PracticeSourceContentRead,
-    PracticeSourceArtifactRead,
+    PracticeSourceRead,
 )
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.source.domain import PracticeSourceSnapshotRef
@@ -1504,30 +1503,19 @@ class PerformanceTakeService:
             take.media_mime_type,
         )
 
-    async def get_practice_source_content(
+    async def get_practice_source(
         self,
         db: AsyncSession,
         user_id: int,
         take_id: str,
-    ) -> PracticeSourceContentRead:
+        *,
+        include_notation: bool = False,
+    ) -> PracticeSourceRead:
         take = await self.repository.get_by_uuid(db, user_id, take_id)
         if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
-        return await self.practice_source_service.get_snapshot_content(
-            db, take.source_snapshot_id
-        )
-
-    async def get_practice_source_artifact(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        take_id: str,
-    ) -> PracticeSourceArtifactRead:
-        take = await self.repository.get_by_uuid(db, user_id, take_id)
-        if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
-            raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
-        return await self.practice_source_service.get_snapshot_artifact(
-            db, take.source_snapshot_id
+        return await self.practice_source_service.read_snapshot(
+            db, take.source_snapshot_id, include_notation=include_notation
         )
 
     async def delete_take(

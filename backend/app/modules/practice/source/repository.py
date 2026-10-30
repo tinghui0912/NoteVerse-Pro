@@ -55,22 +55,9 @@ class PracticeSourceRepository:
             bundle.prepared_musicxml.sha256,
             bundle.artifact.representation.sha256,
         )
-        existing = (
-            await db.execute(
-                select(PracticeSourceSnapshot).where(
-                    PracticeSourceSnapshot.source_fingerprint == fingerprint
-                )
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            if existing.status != PracticeSourceSnapshotStatus.READY.value:
-                raise ValidationException(
-                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                    field="source_snapshot",
-                    details={"reason": "source_snapshot_not_ready"},
-                )
-            await self.read_bundle(db, existing.id)
-            return self._reference(existing)
+        existing_id = await self._id_for_fingerprint(db, fingerprint)
+        if existing_id is not None:
+            return await self._reuse_ready(db, existing_id)
 
         musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
         artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
@@ -95,22 +82,9 @@ class PracticeSourceRepository:
                 db.add(snapshot)
                 await db.flush()
         except IntegrityError:
-            existing = (
-                await db.execute(
-                    select(PracticeSourceSnapshot).where(
-                        PracticeSourceSnapshot.source_fingerprint == fingerprint
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing is not None:
-                if existing.status != PracticeSourceSnapshotStatus.READY.value:
-                    raise ValidationException(
-                        ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                        field="source_snapshot",
-                        details={"reason": "source_snapshot_not_ready"},
-                    )
-                await self.read_bundle(db, existing.id)
-                return self._reference(existing)
+            existing_id = await self._id_for_fingerprint(db, fingerprint)
+            if existing_id is not None:
+                return await self._reuse_ready(db, existing_id)
             raise
         await db.commit()
         await db.refresh(snapshot)
@@ -140,24 +114,22 @@ class PracticeSourceRepository:
                 details={"reason": "source_snapshot_storage_write_failed"},
             ) from error
 
+        now = utc_now_naive()
         locked_snapshot = (
             await db.execute(
                 select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == snapshot.id)
+                .where(
+                    PracticeSourceSnapshot.id == snapshot.id,
+                    PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.CREATING.value,
+                    PracticeSourceSnapshot.creation_expires_at.is_not(None),
+                    PracticeSourceSnapshot.creation_expires_at > now,
+                )
                 .with_for_update()
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
-        now = utc_now_naive()
-        if (
-            locked_snapshot is None
-            or locked_snapshot.status != PracticeSourceSnapshotStatus.CREATING.value
-            or locked_snapshot.creation_expires_at is None
-            or locked_snapshot.creation_expires_at <= now
-        ):
-            if locked_snapshot is not None:
-                await practice_source_snapshot_delete_service.enqueue_if_unreferenced_async(
-                    db, locked_snapshot.id, storage_backend=self.storage.backend_name
-                )
+        if locked_snapshot is None:
+            await self.enqueue_if_unreferenced(db, snapshot.id)
             await db.commit()
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
@@ -173,32 +145,59 @@ class PracticeSourceRepository:
         await self.read_bundle(db, snapshot.id)
         return self._reference(snapshot)
 
-    async def find_ready(
+    async def _id_for_fingerprint(self, db: AsyncSession, fingerprint: str) -> int | None:
+        return (
+            await db.execute(
+                select(PracticeSourceSnapshot.id).where(
+                    PracticeSourceSnapshot.source_fingerprint == fingerprint
+                )
+            )
+        ).scalar_one_or_none()
+
+    async def _reuse_ready(self, db: AsyncSession, snapshot_id: int) -> PracticeSourceSnapshotRef:
+        row = await self._require_ready_row(db, snapshot_id, lock=True)
+        await self._read_verified_bundle(row)
+        return self._reference(row)
+
+    async def _ready_row(
         self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshotRef | None:
+    ) -> PracticeSourceSnapshot | None:
         if snapshot_id is None:
             return None
-        stmt = select(PracticeSourceSnapshot).where(PracticeSourceSnapshot.id == snapshot_id)
+        stmt = (
+            select(PracticeSourceSnapshot)
+            .where(
+                PracticeSourceSnapshot.id == snapshot_id,
+                PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.READY.value,
+            )
+            .execution_options(populate_existing=True)
+        )
         if lock:
             stmt = stmt.with_for_update()
-        row = (await db.execute(stmt)).scalar_one_or_none()
-        return (
-            self._reference(row)
-            if row and row.status == PracticeSourceSnapshotStatus.READY.value
-            else None
-        )
+        return (await db.execute(stmt)).scalar_one_or_none()
 
-    async def require_ready(
+    async def _require_ready_row(
         self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshotRef:
-        ref = await self.find_ready(db, snapshot_id, lock=lock)
-        if ref is None:
+    ) -> PracticeSourceSnapshot:
+        row = await self._ready_row(db, snapshot_id, lock=lock)
+        if row is None:
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE if lock else ErrorCode.VALIDATION_ERROR,
                 field="source_snapshot" if lock else "source_snapshot_id",
                 details={"reason": "source_snapshot_not_ready"},
             )
-        return ref
+        return row
+
+    async def find_ready(
+        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceSnapshotRef | None:
+        row = await self._ready_row(db, snapshot_id, lock=lock)
+        return self._reference(row) if row is not None else None
+
+    async def require_ready(
+        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceSnapshotRef:
+        return self._reference(await self._require_ready_row(db, snapshot_id, lock=lock))
 
     async def list_ready(
         self, db: AsyncSession, ids: set[int]
@@ -208,10 +207,12 @@ class PracticeSourceRepository:
         rows = (
             (
                 await db.execute(
-                    select(PracticeSourceSnapshot).where(
+                    select(PracticeSourceSnapshot)
+                    .where(
                         PracticeSourceSnapshot.id.in_(ids),
                         PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.READY.value,
                     )
+                    .execution_options(populate_existing=True)
                 )
             )
             .scalars()
@@ -225,9 +226,10 @@ class PracticeSourceRepository:
         )
 
     async def read_bundle(self, db: AsyncSession, snapshot_id: int | None) -> PracticeSourceBundle:
-        await self.require_ready(db, snapshot_id)
-        row = await db.get(PracticeSourceSnapshot, snapshot_id)
-        assert row is not None
+        row = await self._require_ready_row(db, snapshot_id, lock=True)
+        return await self._read_verified_bundle(row)
+
+    async def _read_verified_bundle(self, row: PracticeSourceSnapshot) -> PracticeSourceBundle:
         xml = PracticeSourceRepresentation(
             await asyncio.to_thread(self.storage.read_bytes, row.prepared_musicxml_object_key),
             "application/vnd.recordare.musicxml+xml",

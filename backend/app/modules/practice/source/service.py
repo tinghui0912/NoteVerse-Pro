@@ -25,8 +25,8 @@ from .domain import (
 )
 from .repository import PracticeSourceRepository
 from .schemas import (
-    PracticeSourceArtifactRead,
-    PracticeSourceContentRead,
+    PracticeSourceRead,
+    PracticeSourceNotationRead,
     PracticeScoreArtifactRead,
 )
 
@@ -103,35 +103,26 @@ class PracticeSourceService:
         return access, Path(path)
 
     @staticmethod
-    def artifact_read(bundle: PracticeSourceBundle) -> PracticeSourceArtifactRead:
-        return PracticeSourceArtifactRead(
+    def source_read(bundle: PracticeSourceBundle, *, include_notation: bool) -> PracticeSourceRead:
+        return PracticeSourceRead(
             source_id=bundle.source_id,
             artifact=PracticeScoreArtifactRead.model_validate(bundle.artifact.value),
+            notation=PracticeSourceNotationRead(musicxml=bundle.prepared_musicxml.content)
+            if include_notation
+            else None,
         )
 
-    @staticmethod
-    def content_read(bundle: PracticeSourceBundle) -> PracticeSourceContentRead:
-        return PracticeSourceContentRead(
-            source_id=bundle.source_id,
-            score_id=bundle.score_id,
-            revision_id=bundle.revision_id,
-            content=bundle.prepared_musicxml.content,
-            mime_type=bundle.prepared_musicxml.mime_type,
-        )
-
-    async def get_artifact(
-        self, db: AsyncSession, score_uuid: str, user_id: int, revision_uuid: str
-    ) -> PracticeSourceArtifactRead:
-        return self.artifact_read(
-            (await self.get_source(db, score_uuid, user_id, revision_uuid)).bundle
-        )
-
-    async def get_content(
-        self, db: AsyncSession, score_uuid: str, user_id: int, revision_uuid: str
-    ) -> PracticeSourceContentRead:
-        return self.content_read(
-            (await self.get_source(db, score_uuid, user_id, revision_uuid)).bundle
-        )
+    async def read_source(
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        revision_uuid: str,
+        *,
+        include_notation: bool = False,
+    ) -> PracticeSourceRead:
+        authorized = await self.get_source(db, score_uuid, user_id, revision_uuid)
+        return self.source_read(authorized.bundle, include_notation=include_notation)
 
     async def pin_source(
         self,
@@ -185,12 +176,12 @@ class PracticeSourceService:
     async def release_snapshot(self, db: AsyncSession, snapshot_id: int | None) -> None:
         await self.repository.enqueue_if_unreferenced(db, snapshot_id)
 
-    async def get_snapshot_content(
-        self, db: AsyncSession, snapshot_id: int | None
-    ) -> PracticeSourceContentRead:
-        return self.content_read(await self.repository.read_bundle(db, snapshot_id))
-
-    async def get_snapshot_artifact(
-        self, db: AsyncSession, snapshot_id: int | None
-    ) -> PracticeSourceArtifactRead:
-        return self.artifact_read(await self.repository.read_bundle(db, snapshot_id))
+    async def read_snapshot(
+        self,
+        db: AsyncSession,
+        snapshot_id: int | None,
+        *,
+        include_notation: bool = False,
+    ) -> PracticeSourceRead:
+        bundle = await self.repository.read_bundle(db, snapshot_id)
+        return self.source_read(bundle, include_notation=include_notation)

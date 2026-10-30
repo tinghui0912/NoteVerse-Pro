@@ -81,9 +81,9 @@ export default function HistoricalPerformanceSharePage() {
   const source = usePracticeSnapshotSource(takeId, {
     scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
     artifactId: take?.source_artifact_id ?? '',
-  }, isBaseEligible);
-  const artifactQuery = source.artifactQuery;
-  const revisionQuery = source.contentQuery;
+  }, { loadNotation: true, enabled: isBaseEligible });
+  const sourceQuery = source.sourceQuery;
+  const artifact = source.artifact;
 
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -129,15 +129,15 @@ export default function HistoricalPerformanceSharePage() {
 
   useEffect(() => () => adapter.dispose(), [adapter]);
 
-  const exactIdentityMatches = Boolean(source.artifact && source.content);
+  const isSourceReady = Boolean(source.artifact && source.musicXml);
   const sessionEligibility = useMemo(() => {
-    if (!take || !mediaBlob || !artifactQuery.data || !exactIdentityMatches) return null;
+    if (!take || !mediaBlob || !artifact || !isSourceReady) return null;
     return createShareVideoSessionFromSavedTake(
       take,
       mediaBlob,
-      artifactQuery.data
+      artifact
     );
-  }, [artifactQuery.data, exactIdentityMatches, mediaBlob, take]);
+  }, [artifact, isSourceReady, mediaBlob, take]);
   const session =
     sessionEligibility?.status === 'supported'
       ? sessionEligibility.session
@@ -154,7 +154,7 @@ export default function HistoricalPerformanceSharePage() {
     };
   }, [session]);
 
-  const xmlContent = source.content;
+  const xmlContent = source.musicXml;
   if (takeQuery.isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -231,8 +231,7 @@ export default function HistoricalPerformanceSharePage() {
     );
   }
   if (
-    isPermanentResourceError(revisionQuery.error) ||
-    isPermanentResourceError(artifactQuery.error)
+    isPermanentResourceError(sourceQuery.error)
   ) {
     return (
       <HistoricalTakeUnavailable
@@ -258,14 +257,13 @@ export default function HistoricalPerformanceSharePage() {
         backLabel={t('historicalShareBack')}
         retryLabel={t('historicalShareRetry')}
         onRetry={() => {
-          if (revisionQuery.isError) void revisionQuery.refetch();
-          if (artifactQuery.isError) void artifactQuery.refetch();
+          void sourceQuery.refetch();
         }}
         onBack={() => router.push('/my-performances')}
       />
     );
   }
-  if (!session || !replay || !exactIdentityMatches || !xmlContent || !artifactQuery.data) {
+  if (!session || !replay || !isSourceReady || !xmlContent || !artifact) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <PageHeader title={t('historicalShareTitle')} />
@@ -355,8 +353,8 @@ export default function HistoricalPerformanceSharePage() {
         session={session}
         scoreContainer={scoreContainer}
         adapter={adapter}
-        scoreEndBeat={artifactQuery.data.scoreEndBeat}
-        isScoreIdentityConfirmed={exactIdentityMatches}
+        scoreEndBeat={artifact.scoreEndBeat}
+        isScoreIdentityConfirmed={isSourceReady}
         xmlContent={xmlContent}
         mediaTimeMs={mediaTimeMs}
         isReplayPlaying={isReplayPlaying}

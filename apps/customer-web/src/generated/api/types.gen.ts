@@ -987,9 +987,9 @@ export type ApiResponsePracticeAcousticAccessRead = {
 };
 
 /**
- * APIResponse[PracticeSourceArtifactRead]
+ * APIResponse[PracticeSourceRead]
  */
-export type ApiResponsePracticeSourceArtifactRead = {
+export type ApiResponsePracticeSourceRead = {
     /**
      * Code
      *
@@ -999,35 +999,7 @@ export type ApiResponsePracticeSourceArtifactRead = {
     /**
      * Response payload
      */
-    data?: PracticeSourceArtifactRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeSourceContentRead]
- */
-export type ApiResponsePracticeSourceContentRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeSourceContentRead | null;
+    data?: PracticeSourceRead | null;
     /**
      * Message
      *
@@ -3592,36 +3564,25 @@ export type PracticeScoreTempoSegmentRead = {
 };
 
 /**
- * PracticeSourceArtifactRead
+ * PracticeSourceNotationRead
  */
-export type PracticeSourceArtifactRead = {
-    artifact: PracticeScoreArtifactRead;
-    /**
-     * Source Id
-     */
-    source_id: string;
-};
-
-/**
- * PracticeSourceContentRead
- */
-export type PracticeSourceContentRead = {
-    /**
-     * Content
-     */
-    content: string;
+export type PracticeSourceNotationRead = {
     /**
      * Mime Type
      */
-    mime_type?: string;
+    mime_type?: 'application/vnd.recordare.musicxml+xml';
     /**
-     * Revision Id
+     * Musicxml
      */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
+    musicxml: string;
+};
+
+/**
+ * PracticeSourceRead
+ */
+export type PracticeSourceRead = {
+    artifact: PracticeScoreArtifactRead;
+    notation: PracticeSourceNotationRead | null;
     /**
      * Source Id
      */
@@ -6352,7 +6313,7 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
 
 export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetData = {
+export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetData = {
     body?: never;
     path: {
         /**
@@ -6360,59 +6321,34 @@ export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSour
          */
         take_id: string;
     };
-    query?: never;
-    url: '/api/v1/performance-takes/{take_id}/practice-source/artifact';
-};
-
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetError = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors];
-
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeSourceArtifactRead;
-};
-
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponse = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses];
-
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetData = {
-    body?: never;
-    path: {
+    query?: {
         /**
-         * Take Id
+         * Include Notation
          */
-        take_id: string;
+        include_notation?: boolean;
     };
-    query?: never;
-    url: '/api/v1/performance-takes/{take_id}/practice-source/content';
+    url: '/api/v1/performance-takes/{take_id}/practice-source';
 };
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors = {
+export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetError = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors];
+export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetError = GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors[keyof GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors];
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses = {
+export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeSourceContentRead;
+    200: ApiResponsePracticeSourceRead;
 };
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponse = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses];
+export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponse = GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses[keyof GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses];
 
-export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetData = {
+export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetData = {
     body?: never;
     path: {
         /**
@@ -6424,61 +6360,32 @@ export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSource
          */
         revision_id: string;
     };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/artifact';
-};
-
-export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetError = GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors[keyof GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors];
-
-export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeSourceArtifactRead;
-};
-
-export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponse = GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses[keyof GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses];
-
-export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetData = {
-    body?: never;
-    path: {
+    query?: {
         /**
-         * Score Id
+         * Include Notation
          */
-        score_id: string;
-        /**
-         * Revision Id
-         */
-        revision_id: string;
+        include_notation?: boolean;
     };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/content';
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source';
 };
 
-export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors = {
+export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetError = GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors[keyof GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors];
+export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetError = ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors[keyof ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors];
 
-export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses = {
+export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeSourceContentRead;
+    200: ApiResponsePracticeSourceRead;
 };
 
-export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponse = GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses[keyof GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses];
+export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponse = ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses[keyof ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses];
 
 export type GetPublicScoreApiV1PublicationsSlugGetData = {
     body?: never;

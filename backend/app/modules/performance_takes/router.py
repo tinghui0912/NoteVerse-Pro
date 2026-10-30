@@ -20,8 +20,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadAuthorizationRequest,
 )
 from app.modules.practice.source.schemas import (
-    PracticeSourceContentRead,
-    PracticeSourceArtifactRead,
+    PracticeSourceRead,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.shared.responses import APIResponse, success_response
@@ -145,32 +144,18 @@ async def stream_take_media(
 
 
 @router.get(
-    "/{take_id}/practice-source/content",
-    response_model=APIResponse[PracticeSourceContentRead],
+    "/{take_id}/practice-source",
+    response_model=APIResponse[PracticeSourceRead],
 )
-async def get_take_practice_source_content(
+async def get_take_practice_source(
     take_id: str,
+    include_notation: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source_content(db, user_id, take_id)
-    return success_response(data=data)
-
-
-@router.get(
-    "/{take_id}/practice-source/artifact",
-    response_model=APIResponse[PracticeSourceArtifactRead],
-)
-async def get_take_practice_source_artifact(
-    take_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source_artifact(db, user_id, take_id)
+    data = await service.get_practice_source(db, user_id, take_id, include_notation=include_notation)
     return success_response(data=data)
 
 

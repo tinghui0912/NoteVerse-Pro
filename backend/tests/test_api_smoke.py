@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from collections.abc import Iterator
 from types import SimpleNamespace
 
@@ -156,37 +158,23 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
     assert public_response.content == audio_bytes
 
 
-def test_main_api_serves_practice_source_routes(client: TestClient) -> None:
-    class FakePracticeSourceService:
-        async def get_content(
-            self,
-            db,
-            score_uuid: str,
-            user_id: int,
-            revision_uuid: str,
-        ) -> dict[str, object]:
-            return {
-                "source_id": "source-1",
-                "score_id": score_uuid,
-                "revision_id": revision_uuid,
-                "content": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
-                "mime_type": "application/vnd.recordare.musicxml+xml",
-            }
+@pytest.mark.parametrize("include_notation", [False, True])
+def test_main_api_serves_one_practice_source(client: TestClient, include_notation) -> None:
+    calls = []
 
-        async def get_artifact(
-            self,
-            db,
-            score_uuid: str,
-            user_id: int,
-            revision_uuid: str,
-        ) -> dict[str, object]:
-            import json, os
+    class FakePracticeSourceService:
+        async def read_source(self, db, score_uuid, user_id, revision_uuid, *, include_notation=False):
+            import json
+            import os
             from pathlib import Path
+            calls.append((score_uuid, revision_uuid, include_notation))
             root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
             artifact = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
             artifact.update(scoreId=score_uuid, revisionId=revision_uuid)
-            return {"source_id": "source-1", "artifact": artifact}
-
+            return {"source_id": "source-1", "artifact": artifact, "notation": {
+                "musicxml": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
+                "mime_type": "application/vnd.recordare.musicxml+xml",
+            } if include_notation else None}
 
     async def fake_get_db():
         yield object()
@@ -195,31 +183,27 @@ def test_main_api_serves_practice_source_routes(client: TestClient) -> None:
     app.dependency_overrides[get_db] = fake_get_db
     app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
     try:
-        content_response = client.get(
-            "/api/v1/practice/scores/score-1/revisions/revision-1/source/content"
-        )
-        artifact_response = client.get(
-            "/api/v1/practice/scores/score-1/revisions/revision-1/source/artifact"
-        )
+        response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/source", params={"include_notation": include_notation})
     finally:
         app.dependency_overrides.pop(get_practice_source_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
-
-    assert content_response.status_code == 200
-    assert content_response.json()["data"]["revision_id"] == "revision-1"
-    assert 'id="nv-p1-m1-note1"' in content_response.json()["data"]["content"]
-    assert content_response.json()["data"]["source_id"] == artifact_response.json()["data"]["source_id"]
-    assert artifact_response.status_code == 200
-    assert artifact_response.json()["data"]["artifact"]["scoreId"] == "score-1"
+    assert response.status_code == 200
+    source = response.json()["data"]
+    assert source["source_id"] == "source-1"
+    assert source["artifact"]["scoreId"] == "score-1"
+    assert source["artifact"]["revisionId"] == "revision-1"
+    assert (source["notation"] is not None) == include_notation
+    if include_notation:
+        assert 'id="nv-p1-m1-note1"' in source["notation"]["musicxml"]
+    assert calls == [("score-1", "revision-1", include_notation)]
 
 
 def test_main_openapi_includes_practice_source_routes(client: TestClient) -> None:
     schema = client.get("/api/v1/openapi.json").json()
     paths = schema["paths"]
 
-    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/content" in paths
-    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/artifact" in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source" in paths
     assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets" not in paths
     assert "/api/v1/practice/sessions" not in paths
 
@@ -229,8 +213,7 @@ def test_protected_endpoints_require_authentication(client: TestClient) -> None:
         "/api/v1/import-jobs/test-job",
         "/api/v1/scores/test-score",
         "/api/v1/me/profile",
-        "/api/v1/practice/scores/score-1/revisions/revision-1/source/content",
-        "/api/v1/practice/scores/score-1/revisions/revision-1/source/artifact",
+        "/api/v1/practice/scores/score-1/revisions/revision-1/source",
     ]
 
     for path in protected_paths:

@@ -279,7 +279,7 @@ def test_source_snapshot_checksum_corruption_is_rejected(test_env, representatio
     key = getattr(row, f"{representation}_object_key")
     storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
     with pytest.raises(ValidationException) as caught:
-        _run_async(PracticeSourceService(storage=storage).get_snapshot_artifact(AsyncSessionAdapter(session), row.id))
+        _run_async(PracticeSourceService(storage=storage).read_snapshot(AsyncSessionAdapter(session), row.id))
     assert caught.value.details["reason"] == f"{representation}_checksum_mismatch"
 
 
@@ -292,7 +292,7 @@ def test_source_snapshot_artifact_identity_corruption_is_rejected(test_env):
     row.artifact_byte_size = changed.byte_size
     session.commit()
     with pytest.raises(ValidationException) as caught:
-        _run_async(PracticeSourceService(storage=storage).get_snapshot_content(AsyncSessionAdapter(session), row.id))
+        _run_async(PracticeSourceService(storage=storage).read_snapshot(AsyncSessionAdapter(session), row.id))
     assert caught.value.details["reason"] == "artifact_identity_mismatch"
 
 
@@ -756,18 +756,19 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert storage.read_bytes(snapshot.artifact_object_key) == expected_bundle.artifact.representation.data
         assert snapshot.source_fingerprint == expected_bundle.source_id
 
-        res_source_content = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
-        assert res_source_content.status_code == 200, res_source_content.text
-        assert res_source_content.json()["data"]["revision_id"] == "revision-uuid-100"
-        assert "<score-partwise" in res_source_content.json()["data"]["content"]
-
-        res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
-        assert res_source_artifact.status_code == 200, res_source_artifact.text
-        artifact_data = res_source_artifact.json()["data"]
-        assert artifact_data["source_id"] == res_source_content.json()["data"]["source_id"] == snapshot.source_fingerprint
-        assert artifact_data["artifact"]["scoreId"] == "score-uuid-10"
-        assert artifact_data["artifact"]["revisionId"] == "revision-uuid-100"
-        assert artifact_data["artifact"]["artifactId"] == "art-1"
+        with patch.object(take_svc.practice_source_service.repository, "read_bundle", wraps=take_svc.practice_source_service.repository.read_bundle) as read_bundle:
+            res_source = client.get(f"/api/v1/performance-takes/{take_id}/practice-source?include_notation=true")
+        assert read_bundle.call_count == 1
+        assert res_source.status_code == 200, res_source.text
+        source_data = res_source.json()["data"]
+        assert source_data["source_id"] == snapshot.source_fingerprint
+        assert "<score-partwise" in source_data["notation"]["musicxml"]
+        assert source_data["artifact"]["scoreId"] == "score-uuid-10"
+        assert source_data["artifact"]["revisionId"] == "revision-uuid-100"
+        assert source_data["artifact"]["artifactId"] == "art-1"
+        artifact_only = client.get(f"/api/v1/performance-takes/{take_id}/practice-source").json()["data"]
+        assert artifact_only["source_id"] == source_data["source_id"]
+        assert artifact_only["notation"] is None
         final_object_key = take_row.media_object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
@@ -1257,12 +1258,11 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         res_play_hard = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_hard.status_code == 200
         assert "download_url" in res_play_hard.json()["data"]
-        res_source_content_hard = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
-        assert res_source_content_hard.status_code == 200, res_source_content_hard.text
-        assert res_source_content_hard.json()["data"]["revision_id"] == "revision-uuid-100"
-        res_source_artifact_hard = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
-        assert res_source_artifact_hard.status_code == 200, res_source_artifact_hard.text
-        assert res_source_artifact_hard.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        source = client.get(f"/api/v1/performance-takes/{take_id}/practice-source?include_notation=true")
+        assert source.status_code == 200, source.text
+        assert source.json()["data"]["artifact"]["revisionId"] == DEFAULT_TAKE_REVISION_ID
+        assert source.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert "<score-partwise" in source.json()["data"]["notation"]["musicxml"]
 
         # Deleting take returns 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -2550,12 +2550,11 @@ def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
         assert storage.exists(snapshot.prepared_musicxml_object_key)
         assert storage.exists(snapshot.artifact_object_key)
 
-        res_source_content = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
-        assert res_source_content.status_code == 200, res_source_content.text
-        assert res_source_content.json()["data"]["revision_id"] == "revision-uuid-100"
-        res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
-        assert res_source_artifact.status_code == 200, res_source_artifact.text
-        assert res_source_artifact.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        source = client.get(f"/api/v1/performance-takes/{take_id}/practice-source?include_notation=true")
+        assert source.status_code == 200, source.text
+        assert source.json()["data"]["artifact"]["revisionId"] == DEFAULT_TAKE_REVISION_ID
+        assert source.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert "<score-partwise" in source.json()["data"]["notation"]["musicxml"]
 
         # List takes exposes the durable historical source, but no live score link.
         res_list = client.get("/api/v1/performance-takes")

@@ -191,7 +191,7 @@ let currentMockArtifact = createMockArtifact();
 vi.mock('@/hooks/practice/use-practice-revision-source', () => ({
   usePracticeRevisionSource: vi.fn(() => ({
     artifact: currentMockArtifact,
-    content: currentMockScoreState === 'unavailable' ? null : '<score-partwise></score-partwise>',
+    musicXml: currentMockScoreState === 'unavailable' ? null : '<score-partwise></score-partwise>',
     isLoading: currentMockScoreState === 'loading',
   })),
 }));

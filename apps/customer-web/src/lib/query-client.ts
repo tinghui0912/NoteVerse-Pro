@@ -86,10 +86,8 @@ export const queryKeys = {
     },
     practice: {
         all: ['practice'] as const,
-        artifact: (scoreId: string, revisionId: string) =>
-            ['practice', 'artifact', { scoreId, revisionId }] as const,
-        readyContent: (scoreId: string, revisionId: string) =>
-            ['practice', 'ready-content', { scoreId, revisionId }] as const,
+        source: (scoreId: string, revisionId: string, includeNotation: boolean) =>
+            ['practice', 'source', { scoreId, revisionId, includeNotation }] as const,
     },
     storageUsage: {
         all: ['storage-usage'] as const,
@@ -102,9 +100,7 @@ export const queryKeys = {
             ['performance-takes', 'list', params ?? {}] as const,
         detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
         playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,
-        practiceSourceContent: (takeId: string) =>
-            ['performance-takes', 'practice-source-content', { takeId }] as const,
-        practiceSourceArtifact: (takeId: string) =>
-            ['performance-takes', 'practice-source-artifact', { takeId }] as const,
+        practiceSource: (takeId: string, includeNotation: boolean) =>
+            ['performance-takes', 'practice-source', { takeId, includeNotation }] as const,
     },
 } as const;

@@ -15,7 +15,7 @@ import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 
 const admission = vi.hoisted(() => ({ invalid: false }));
 vi.mock('@/hooks/practice/use-practice-source', () => ({ usePracticeSource: () => ({ revisionId: 'revision-id', invalid: admission.invalid,
-  artifact: admission.invalid ? null : {}, artifactQuery: { isError: admission.invalid } }) }));
+  artifact: admission.invalid ? null : {}, sourceQuery: { isError: admission.invalid } }) }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }),
   useSearchParams: () => new URLSearchParams('practiceRevisionId=revision-id'), useRouter: () => navigation }));

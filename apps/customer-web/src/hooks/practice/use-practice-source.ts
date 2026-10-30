@@ -5,7 +5,7 @@ import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeRevisionSource } from './use-practice-revision-source';
 
 /** Shared route-family source identity. A pinned artifact is the revision-wide admission contract. */
-export function usePracticeSource(scoreId: string, { loadContent = false }: { loadContent?: boolean } = {}) {
+export function usePracticeSource(scoreId: string, { loadNotation = false }: { loadNotation?: boolean } = {}) {
   const router = useRouter(), pathname = usePathname(), query = useSearchParams();
   const scoreQuery = useScoreDetail(scoreId);
   const requested = query.get('practiceRevisionId');
@@ -17,6 +17,6 @@ export function usePracticeSource(scoreId: string, { loadContent = false }: { lo
     pinned.set('practiceRevisionId', revisionId);
     router.replace(`${pathname}?${pinned.toString()}`, { scroll: false });
   }, [requested, revisionId, query, pathname, router]);
-  const source = usePracticeRevisionSource(scoreId, revisionId, { loadContent, enabled: canPractice && Boolean(requested) });
+  const source = usePracticeRevisionSource(scoreId, revisionId, { loadNotation, enabled: canPractice && Boolean(requested) });
   return { ...source, scoreQuery, revisionId, canPractice };
 }

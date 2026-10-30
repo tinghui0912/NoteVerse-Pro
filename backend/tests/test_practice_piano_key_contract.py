@@ -42,6 +42,6 @@ async def test_score_invalidity_is_distinct_from_infrastructure(error, exception
     service._authorized_musicxml_path = AsyncMock(return_value=(access, Path("score.musicxml")))
     with patch.object(Path, "read_bytes", return_value=b"xml"), patch.object(service.builder, "build", side_effect=error):
         with pytest.raises(exception) as caught:
-            await service.get_artifact(AsyncMock(), "s", 1, "r")
+            await service.read_source(AsyncMock(), "s", 1, "r")
     assert caught.value.code == code
     assert caught.value.status_code == status

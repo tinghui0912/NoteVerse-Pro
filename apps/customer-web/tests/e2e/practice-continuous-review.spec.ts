@@ -261,19 +261,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     })
   );
 
-  // Mock Practice Content
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/content`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        source_id: "source-1",
-        score_id: scoreId,
-        revision_id: revisionId,
-        content: sampleMusicXml,
-      }),
-    })
-  );
 
   // Mock Score Detail for 0 fallback
   await page.route('**/api/v1/scores/0', (route) =>
@@ -414,12 +401,14 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     }
   );
 
-  // Mock PracticeScoreArtifact
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/artifact`, (route) =>
+  // One Practice Source envelope supplies the artifact and requested notation.
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`, route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({ source_id: "source-1", artifact: testArtifact }),
+      body: apiResponse({ source_id: 'source-1', artifact: testArtifact, notation:
+        new URL(route.request().url()).searchParams.get('include_notation') === 'true'
+          ? { musicxml: sampleMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
     })
   );
 }

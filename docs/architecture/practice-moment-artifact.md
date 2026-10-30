@@ -62,9 +62,8 @@ and prepared MusicXML. Pydantic transport models reuse its canonical graph invar
 The customer OpenAPI schema and generated browser DTOs describe schemaVersion3.
 Committed backend/browser fixture tests verify deterministic payload agreement.
 
-[Practice Source](practice-source.md) supplies the domain artifact through
-`/source/artifact` and stable-render MusicXML through `/source/content`. Both carry
-the same source_id. Artifact content determines artifactId. PracticeSourceSnapshot
+[Practice Source](practice-source.md) supplies the domain artifact and optional
+prepared-MusicXML notation in one `/source` envelope with one source_id. Artifact content determines artifactId. PracticeSourceSnapshot
 materializes schemaVersion3, exact score/revision/artifact IDs, prepared XML/artifact
 checksums and immutable object contents. PerformanceTake references that durable source.
 

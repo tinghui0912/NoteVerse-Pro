@@ -14,10 +14,11 @@ invalid scores to pinned Setup. Device readiness remains independent. See the
 
 Practice execution is browser-local. The backend Practice Source service authorizes
 one revision and builds an immutable source bundle containing schema3 artifact and
-prepared notation representations. The live `/source/artifact` and `/source/content`
-responses carry the same `source_id`; the revision-source hook validates their
-identity and exposes coherent representations. Setup loads only the artifact.
-Practice and Review load artifact and notation. [Practice Source](practice-source.md)
+prepared notation representations. One `/source` request returns `source_id`, the
+artifact, and optional prepared-MusicXML notation. The revision-source hook owns one
+query and runtime artifact parsing. Setup requests `include_notation=false` and
+receives no MusicXML. Practice and Review request `include_notation=true` for Verovio
+presentation; notation is not an evaluation/domain input. [Practice Source](practice-source.md)
 owns deterministic construction, snapshot persistence and retention.
 The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
