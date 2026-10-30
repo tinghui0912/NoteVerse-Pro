@@ -37,11 +37,7 @@ class PerformanceTakeDeletionStatus(str, enum.Enum):
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "client_request_id",
-            name="uq_performance_takes_user_client_request_id",
-        ),
+        UniqueConstraint("upload_reservation_id", name="uq_performance_takes_upload_reservation"),
         Index("ix_performance_takes_user_created", "user_id", "created_at"),
         Index("ix_performance_takes_user_deletion_status", "user_id", "deletion_status"),
     )
@@ -50,9 +46,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
-    take_uuid: str = Field(
-        sa_column=Column(String(36), unique=True, index=True, nullable=False)
-    )
+    take_uuid: str = Field(sa_column=Column(String(36), unique=True, index=True, nullable=False))
     user_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
@@ -81,8 +75,12 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     score_title_snapshot: str = Field(
         sa_column=Column(String(255), nullable=False),
     )
-    client_request_id: str = Field(
-        sa_column=Column(String(128), index=True, nullable=False)
+    upload_reservation_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type,
+            ForeignKey("performance_take_upload_reservations.id", ondelete="RESTRICT"),
+            nullable=False,
+        )
     )
     media_kind: PerformanceTakeMediaKind = Field(
         sa_column=Column(
@@ -90,30 +88,18 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    media_mime_type: str = Field(
-        sa_column=Column(String(64), nullable=False)
-    )
-    media_byte_size: int = Field(
-        sa_column=Column(BigInteger, nullable=False)
-    )
+    media_mime_type: str = Field(sa_column=Column(String(64), nullable=False))
+    media_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     media_object_key: str = Field(
         sa_column=Column(String(768), unique=True, index=True, nullable=False)
     )
-    storage_backend: str = Field(
-        sa_column=Column(String(32), nullable=False)
-    )
-    duration_ms: int = Field(
-        sa_column=Column(Integer, nullable=False)
-    )
+    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+    duration_ms: int = Field(sa_column=Column(Integer, nullable=False))
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
-    scope_start_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
-    scope_terminal_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
+    scope_start_beat: float = Field(sa_column=Column(Float, nullable=False))
+    scope_terminal_beat: float = Field(sa_column=Column(Float, nullable=False))
     scope_start_group_id: Optional[str] = Field(
         default=None,
         sa_column=Column(String(128), nullable=True),

@@ -11,65 +11,69 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.performance_takes.dependencies import get_performance_take_service
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeCreateRequest,
     PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
-    PerformanceTakeUploadAuthorizationRead,
-    PerformanceTakeUploadAuthorizationRequest,
+    PerformanceTakeUploadReservationRead,
+    PerformanceTakeUploadReservationRequest,
 )
 from app.modules.practice.source.schemas import (
     PracticeSourceRead,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.shared.responses import APIResponse, success_response
+from app.core.exceptions import ValidationException
+from app.shared.error_codes import ErrorCode
 
 router = APIRouter()
 
 
 @router.post(
-    "/upload-authorizations",
-    response_model=APIResponse[PerformanceTakeUploadAuthorizationRead],
+    "/upload-reservations",
+    response_model=APIResponse[PerformanceTakeUploadReservationRead],
 )
-async def authorize_take_upload(
-    request: PerformanceTakeUploadAuthorizationRequest,
+async def reserve_take_upload(
+    request: PerformanceTakeUploadReservationRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.authorize_upload(db, user_id, request)
+    data = await service.reserve_upload(db, user_id, request)
     return success_response(data=data)
 
 
 @router.delete(
-    "/upload-authorizations/{reservation_id}",
+    "/upload-reservations/{reservation_id}",
     response_model=APIResponse[dict[str, bool]],
 )
-async def cancel_take_upload_authorization(
+async def cancel_take_upload_reservation(
     reservation_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    await service.cancel_upload_authorization(db, user_id, reservation_id)
+    await service.cancel_upload_reservation(db, user_id, reservation_id)
     return success_response(data={"cancelled": True})
 
 
 @router.post(
-    "",
+    "/upload-reservations/{reservation_id}/finalize",
     response_model=APIResponse[PerformanceTakeRead],
 )
 async def finalize_take(
-    request: PerformanceTakeCreateRequest,
+    reservation_id: str,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
+    if await http_request.body():
+        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="body")
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.finalize_take(db, user_id, request)
+    data = await service.finalize_take(db, user_id, reservation_id)
     return success_response(data=data)
 
 
@@ -86,9 +90,7 @@ async def list_takes(
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.list_takes(
-        db, user_id, score_id=score_id, limit=limit, offset=offset
-    )
+    data = await service.list_takes(db, user_id, score_id=score_id, limit=limit, offset=offset)
     return success_response(data=data)
 
 
@@ -155,7 +157,9 @@ async def get_take_practice_source(
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source(db, user_id, take_id, include_notation=include_notation)
+    data = await service.get_practice_source(
+        db, user_id, take_id, include_notation=include_notation
+    )
     return success_response(data=data)
 
 

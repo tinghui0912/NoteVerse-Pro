@@ -80,7 +80,7 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
 
 
 def execute_performance_take_deletion_maintenance() -> dict[str, int]:
-    """Recover stale performance take deletions, dispatch due records, and clean expired authorizations."""
+    """Recover stale performance take deletions, dispatch due records, and clean expired reservations."""
 
     def scan() -> dict[str, int]:
         with get_worker_db() as db:
@@ -89,14 +89,14 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
         cleanup_errors = 0
         try:
             with get_worker_db() as db:
-                cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+                cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
                     db, file_storage, storage_usage_service
                 )
                 db.commit()
         except Exception:
             cleanup_errors = 1
             cleaned = 0
-            logger.exception("performance_take_deletion.cleanup_expired_authorizations_failed")
+            logger.exception("performance_take_deletion.cleanup_expired_reservations_failed")
 
         from app.worker.dispatch.performance_take_deletion import (
             dispatch_performance_take_deletion,
@@ -120,7 +120,7 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
             "dispatched": dispatched,
             "snapshot_due": len(snapshot_due),
             "snapshot_dispatched": snapshot_dispatched,
-            "cleaned_authorizations": cleaned,
+            "cleaned_reservations": cleaned,
             "cleanup_errors": cleanup_errors,
         }
 

@@ -24,30 +24,30 @@ from app.utils.timezone import utc_now_naive
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class PerformanceTakeUploadAuthorizationStatus(str, enum.Enum):
-    AUTHORIZED = "AUTHORIZED"
+class PerformanceTakeUploadReservationStatus(str, enum.Enum):
+    RESERVED = "RESERVED"
     FINALIZING = "FINALIZING"
-    ARCHIVED = "ARCHIVED"
+    COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
     EXPIRED = "EXPIRED"
 
 
-class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "performance_take_upload_authorizations"
+class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "performance_take_upload_reservations"
     __table_args__ = (
         UniqueConstraint(
             "user_id",
             "client_request_id",
-            name="uq_take_upload_auth_user_client_request_id",
+            name="uq_take_upload_reservation_user_client_request_id",
         ),
-        Index("ix_take_upload_auth_status_expires", "status", "expires_at"),
+        Index("ix_take_upload_reservation_status_expires", "status", "expires_at"),
     )
 
     id: Optional[int] = Field(
         default=None,
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
-    auth_uuid: str = Field(
+    reservation_uuid: str = Field(
         default_factory=lambda: str(uuid4()),
         sa_column=Column(String(36), unique=True, index=True, nullable=False),
     )
@@ -68,12 +68,8 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
             nullable=True,
         ),
     )
-    client_request_id: str = Field(
-        sa_column=Column(String(128), index=True, nullable=False)
-    )
-    take_uuid: str = Field(
-        sa_column=Column(String(36), index=True, nullable=False)
-    )
+    client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
+    take_uuid: str = Field(sa_column=Column(String(36), index=True, nullable=False))
     score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -107,12 +103,8 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
-    scope_start_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
-    scope_terminal_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
+    scope_start_beat: float = Field(sa_column=Column(Float, nullable=False))
+    scope_terminal_beat: float = Field(sa_column=Column(Float, nullable=False))
     scope_start_group_id: Optional[str] = Field(
         default=None,
         sa_column=Column(String(128), nullable=True),
@@ -127,33 +119,19 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
-    duration_ms: int = Field(
-        sa_column=Column(Integer, nullable=False)
-    )
+    duration_ms: int = Field(sa_column=Column(Integer, nullable=False))
     media_kind: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
-    media_mime_type: str = Field(
-        sa_column=Column(String(64), nullable=False)
+    media_mime_type: str = Field(sa_column=Column(String(64), nullable=False))
+    media_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
+    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+    staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
+    final_object_key: Optional[str] = Field(
+        default=None, sa_column=Column(String(768), nullable=True)
     )
-    media_byte_size: int = Field(
-        sa_column=Column(BigInteger, nullable=False)
-    )
-    storage_backend: str = Field(
-        sa_column=Column(String(32), nullable=False)
-    )
-    staging_object_key: str = Field(
-        sa_column=Column(String(768), nullable=False)
-    )
-    final_object_key: str = Field(
-        sa_column=Column(String(768), nullable=False)
-    )
-    reservation_id: str = Field(
-        sa_column=Column(String(36), index=True, nullable=False)
-    )
-    expires_at: datetime = Field(
-        sa_column=Column(DateTime, nullable=False)
-    )
+    storage_reservation_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
     last_put_url_expires_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime, nullable=True),
@@ -187,11 +165,11 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         sa_column=Column(DateTime, nullable=True),
     )
     status: str = Field(
-        default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+        default=PerformanceTakeUploadReservationStatus.RESERVED.value,
         sa_column=Column(
             String(24),
             nullable=False,
-            default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+            default=PerformanceTakeUploadReservationStatus.RESERVED.value,
         ),
     )
     created_at: datetime = Field(

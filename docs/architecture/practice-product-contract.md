@@ -1058,6 +1058,45 @@ persist evaluation, metrics or provenance, and does not extend the report lifeti
 My Performances is a saved media archive with playback/download/share actions,
 without learner report statistics or saved learner-report navigation.
 
+## PerformanceTake Upload Reservation
+
+```text
+completed local recording -> immutable upload reservation -> direct binary upload
+                         -> finalize(reservationId) -> durable PerformanceTake
+```
+
+`POST /performance-takes/upload-reservations` captures client_request_id, source,
+media, scope, tempo plan and recording timebase once. Source contains score/revision/
+artifact identity; media contains kind, canonical MIME, byte size and duration. The
+reservation pins the exact Practice Source snapshot and score title. Client-request
+idempotency belongs to this boundary: equal normalized metadata returns the same
+reservation/take identities; different metadata conflicts. RESERVED replay can refresh
+the signed upload target. FINALIZING replay provides state, and COMPLETED replay returns
+the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
+
+`POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
+It consumes persisted reservation metadata and the pinned source. Live score deletion,
+access changes or head-revision changes do not invalidate an admitted reservation.
+`DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
+reservation. Both routes use the user-scoped public upload UUID, independently of the
+backend-internal `storage_reservation_id` quota handle. Object keys remain server-owned.
+
+Reservation states are RESERVED, FINALIZING, COMPLETED, CANCELLED and EXPIRED.
+A unique, non-null Take foreign key establishes one reservation to at most one Take.
+The Take owns its durable media/metadata snapshot and source reference. Reservation
+completion releases its temporary source retention. Playback/listing read the Take's
+metadata directly. The reservation is the sole owner of client_request_id.
+
+Finalization verifies staging existence, size, MIME/container and full SHA-256, copies
+to a token-owned candidate, and verifies candidate size and SHA-256 equality. A finite
+finalizing lease guards concurrent execution; expired takeover records the prior
+candidate as an orphan. Unknown-outcome grace, reference-aware orphan deletion, late
+staging cleanup and database-disconnect recovery preserve safe retries. Take creation,
+reservation completion and quota commit are one transaction. Cancellation/expiry
+release the internal quota hold. Finalize retry returns the same Take and commits no
+additional quota. Final object ownership and immutable metadata do not depend on a
+second client payload.
+
 ## Clean Share-Video Score
 
 Review annotations remain ephemeral presentation of result.evaluation, with the

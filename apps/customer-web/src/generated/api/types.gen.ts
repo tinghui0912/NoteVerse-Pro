@@ -931,9 +931,9 @@ export type ApiResponsePerformanceTakeRead = {
 };
 
 /**
- * APIResponse[PerformanceTakeUploadAuthorizationRead]
+ * APIResponse[PerformanceTakeUploadReservationRead]
  */
-export type ApiResponsePerformanceTakeUploadAuthorizationRead = {
+export type ApiResponsePerformanceTakeUploadReservationRead = {
     /**
      * Code
      *
@@ -943,7 +943,7 @@ export type ApiResponsePerformanceTakeUploadAuthorizationRead = {
     /**
      * Response payload
      */
-    data?: PerformanceTakeUploadAuthorizationRead | null;
+    data?: PerformanceTakeUploadReservationRead | null;
     /**
      * Message
      *
@@ -2967,74 +2967,6 @@ export type PendingInviteRead = {
 };
 
 /**
- * PerformanceTakeCreateRequest
- */
-export type PerformanceTakeCreateRequest = {
-    /**
-     * Artifact Id
-     */
-    artifact_id: string;
-    /**
-     * Client Request Id
-     */
-    client_request_id: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind?: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
-    recording_timebase: RecordingTimebase;
-    /**
-     * Reservation Id
-     */
-    reservation_id: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Scope End Group Id
-     */
-    scope_end_group_id?: string | null;
-    /**
-     * Scope Start Beat
-     */
-    scope_start_beat: number;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Terminal Beat
-     */
-    scope_terminal_beat: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Take Id
-     */
-    take_id: string;
-    tempo_plan: PerformanceTakeTempoPlan;
-};
-
-/**
  * PerformanceTakeDeleteResponse
  */
 export type PerformanceTakeDeleteResponse = {
@@ -3046,6 +2978,24 @@ export type PerformanceTakeDeleteResponse = {
      * Take Id
      */
     take_id: string;
+};
+
+/**
+ * PerformanceTakeFullScope
+ */
+export type PerformanceTakeFullScope = {
+    /**
+     * Kind
+     */
+    kind: 'FULL';
+    /**
+     * Start Beat
+     */
+    start_beat: number;
+    /**
+     * Terminal Beat
+     */
+    terminal_beat: number;
 };
 
 /**
@@ -3072,6 +3022,28 @@ export type PerformanceTakeListResponse = {
      * Total
      */
     total: number;
+};
+
+/**
+ * PerformanceTakeMediaMetadata
+ */
+export type PerformanceTakeMediaMetadata = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Kind
+     */
+    kind: 'AUDIO' | 'VIDEO';
+    /**
+     * Mime Type
+     */
+    mime_type: string;
 };
 
 /**
@@ -3110,6 +3082,32 @@ export type PerformanceTakePlaybackRead = {
      * Take Id
      */
     take_id: string;
+};
+
+/**
+ * PerformanceTakeRangeScope
+ */
+export type PerformanceTakeRangeScope = {
+    /**
+     * End Group Id
+     */
+    end_group_id: string;
+    /**
+     * Kind
+     */
+    kind: 'RANGE';
+    /**
+     * Start Beat
+     */
+    start_beat: number;
+    /**
+     * Start Group Id
+     */
+    start_group_id: string;
+    /**
+     * Terminal Beat
+     */
+    terminal_beat: number;
 };
 
 /**
@@ -3193,6 +3191,24 @@ export type PerformanceTakeRead = {
 };
 
 /**
+ * PerformanceTakeSourceIdentity
+ */
+export type PerformanceTakeSourceIdentity = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+};
+
+/**
  * PerformanceTakeTempoPlan
  */
 export type PerformanceTakeTempoPlan = {
@@ -3229,104 +3245,88 @@ export type PerformanceTakeTempoPlanSegment = {
 };
 
 /**
- * PerformanceTakeUploadAuthorizationRead
+ * PerformanceTakeUploadMetadata
  */
-export type PerformanceTakeUploadAuthorizationRead = {
+export type PerformanceTakeUploadMetadata = {
+    media: PerformanceTakeMediaMetadata;
+    recording_timebase: RecordingTimebase;
     /**
-     * Expires In
+     * Scope
      */
-    expires_in?: number;
-    /**
-     * Object Key
-     */
-    object_key?: string | null;
+    scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeFullScope) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeRangeScope);
+    source: PerformanceTakeSourceIdentity;
+    tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PerformanceTakeUploadReservationRead
+ */
+export type PerformanceTakeUploadReservationRead = {
+    metadata: PerformanceTakeUploadMetadata;
     /**
      * Reservation Id
      */
-    reservation_id?: string | null;
+    reservation_id: string;
     /**
      * Status
      */
-    status?: string;
+    status: 'RESERVED' | 'FINALIZING' | 'COMPLETED';
     take?: PerformanceTakeRead | null;
     /**
      * Take Id
      */
     take_id: string;
-    /**
-     * Upload Headers
-     */
-    upload_headers?: {
-        [key: string]: string;
-    };
-    /**
-     * Upload Method
-     */
-    upload_method?: string | null;
-    /**
-     * Upload Url
-     */
-    upload_url?: string | null;
+    upload_target?: PerformanceTakeUploadTarget | null;
 };
 
 /**
- * PerformanceTakeUploadAuthorizationRequest
+ * PerformanceTakeUploadReservationRequest
  */
-export type PerformanceTakeUploadAuthorizationRequest = {
-    /**
-     * Artifact Id
-     */
-    artifact_id: string;
+export type PerformanceTakeUploadReservationRequest = {
     /**
      * Client Request Id
      */
     client_request_id: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind?: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
+    media: PerformanceTakeMediaMetadata;
     recording_timebase: RecordingTimebase;
     /**
-     * Revision Id
+     * Scope
      */
-    revision_id: string;
-    /**
-     * Scope End Group Id
-     */
-    scope_end_group_id?: string | null;
-    /**
-     * Scope Start Beat
-     */
-    scope_start_beat: number;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Terminal Beat
-     */
-    scope_terminal_beat: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
+    scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeFullScope) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeRangeScope);
+    source: PerformanceTakeSourceIdentity;
     tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PerformanceTakeUploadTarget
+ */
+export type PerformanceTakeUploadTarget = {
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Headers
+     */
+    headers: {
+        [key: string]: string;
+    };
+    /**
+     * Method
+     */
+    method: string;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -6115,57 +6115,32 @@ export type ListTakesApiV1PerformanceTakesGetResponses = {
 
 export type ListTakesApiV1PerformanceTakesGetResponse = ListTakesApiV1PerformanceTakesGetResponses[keyof ListTakesApiV1PerformanceTakesGetResponses];
 
-export type FinalizeTakeApiV1PerformanceTakesPostData = {
-    body: PerformanceTakeCreateRequest;
+export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostData = {
+    body: PerformanceTakeUploadReservationRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/performance-takes';
+    url: '/api/v1/performance-takes/upload-reservations';
 };
 
-export type FinalizeTakeApiV1PerformanceTakesPostErrors = {
+export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FinalizeTakeApiV1PerformanceTakesPostError = FinalizeTakeApiV1PerformanceTakesPostErrors[keyof FinalizeTakeApiV1PerformanceTakesPostErrors];
+export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostError = ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors[keyof ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors];
 
-export type FinalizeTakeApiV1PerformanceTakesPostResponses = {
+export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeRead;
+    200: ApiResponsePerformanceTakeUploadReservationRead;
 };
 
-export type FinalizeTakeApiV1PerformanceTakesPostResponse = FinalizeTakeApiV1PerformanceTakesPostResponses[keyof FinalizeTakeApiV1PerformanceTakesPostResponses];
+export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponse = ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses[keyof ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses];
 
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostData = {
-    body: PerformanceTakeUploadAuthorizationRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/performance-takes/upload-authorizations';
-};
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostError = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors];
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePerformanceTakeUploadAuthorizationRead;
-};
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponse = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses];
-
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteData = {
+export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -6174,26 +6149,56 @@ export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizatio
         reservation_id: string;
     };
     query?: never;
-    url: '/api/v1/performance-takes/upload-authorizations/{reservation_id}';
+    url: '/api/v1/performance-takes/upload-reservations/{reservation_id}';
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors = {
+export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteError = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors];
+export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteError = CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors[keyof CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors];
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses = {
+export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseDictStrBool;
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses];
+export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponse = CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses[keyof CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses];
+
+export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostData = {
+    body?: never;
+    path: {
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/upload-reservations/{reservation_id}/finalize';
+};
+
+export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostError = FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors[keyof FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors];
+
+export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakeRead;
+};
+
+export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponse = FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses[keyof FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses];
 
 export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
     body?: never;

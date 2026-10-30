@@ -77,85 +77,59 @@ class RecordingTimebase(StrictPerformanceTakeModel):
         return self
 
 
-def _validate_scope_identity(
-    scope_type: str,
-    start_group_id: Optional[str],
-    end_group_id: Optional[str],
-) -> None:
-    if scope_type == "RANGE":
-        if not start_group_id or not end_group_id:
-            raise ValueError("RANGE scope requires start and end group ids")
-        return
-    if start_group_id is not None or end_group_id is not None:
-        raise ValueError("FULL scope must not include group ids")
-
-
-class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
+class PerformanceTakeSourceIdentity(StrictPerformanceTakeModel):
     score_id: str = Field(min_length=1, max_length=64)
-    client_request_id: str = Field(min_length=1, max_length=128)
-    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
-    media_byte_size: int = Field(gt=0)
-    media_mime_type: str = Field(min_length=1, max_length=64)
-    duration_ms: int = Field(ge=0)
-    scope_type: str = Field(pattern="^(FULL|RANGE)$")
-    scope_start_beat: float = Field(ge=0.0)
-    scope_terminal_beat: float = Field(gt=0.0)
-    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
+
+
+class PerformanceTakeMediaMetadata(StrictPerformanceTakeModel):
+    kind: Literal["AUDIO", "VIDEO"]
+    byte_size: int = Field(gt=0)
+    mime_type: str = Field(min_length=1, max_length=64)
+    duration_ms: int = Field(ge=0)
+
+
+class PerformanceTakeFullScope(StrictPerformanceTakeModel):
+    kind: Literal["FULL"]
+    start_beat: float = Field(ge=0)
+    terminal_beat: float = Field(gt=0)
+
+
+class PerformanceTakeRangeScope(StrictPerformanceTakeModel):
+    kind: Literal["RANGE"]
+    start_beat: float = Field(ge=0)
+    terminal_beat: float = Field(gt=0)
+    start_group_id: str = Field(min_length=1, max_length=128)
+    end_group_id: str = Field(min_length=1, max_length=128)
+
+
+class PerformanceTakeUploadMetadata(StrictPerformanceTakeModel):
+    source: PerformanceTakeSourceIdentity
+    media: PerformanceTakeMediaMetadata
+    scope: PerformanceTakeFullScope | PerformanceTakeRangeScope = Field(discriminator="kind")
     tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
 
-    @model_validator(mode="after")
-    def validate_scope_identity(self) -> "PerformanceTakeUploadAuthorizationRequest":
-        _validate_scope_identity(
-            self.scope_type,
-            self.scope_start_group_id,
-            self.scope_end_group_id,
-        )
-        return self
+
+class PerformanceTakeUploadReservationRequest(PerformanceTakeUploadMetadata):
+    client_request_id: str = Field(min_length=1, max_length=128)
 
 
-class PerformanceTakeUploadAuthorizationRead(StrictPerformanceTakeModel):
+class PerformanceTakeUploadTarget(StrictPerformanceTakeModel):
+    url: str
+    method: str
+    headers: dict[str, str]
+    expires_in: int
+
+
+class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
+    reservation_id: str
     take_id: str
-    status: str = "AUTHORIZED"
-    upload_url: Optional[str] = None
-    upload_method: Optional[str] = None
-    upload_headers: dict[str, str] = Field(default_factory=dict)
-    object_key: Optional[str] = None
-    reservation_id: Optional[str] = None
-    expires_in: int = 0
+    status: Literal["RESERVED", "FINALIZING", "COMPLETED"]
+    metadata: PerformanceTakeUploadMetadata
+    upload_target: PerformanceTakeUploadTarget | None = None
     take: Optional["PerformanceTakeRead"] = None
-
-
-class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
-    take_id: str = Field(min_length=1, max_length=36)
-    client_request_id: str = Field(min_length=1, max_length=128)
-    reservation_id: str = Field(min_length=1, max_length=128)
-    score_id: str = Field(min_length=1, max_length=64)
-    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
-    media_byte_size: int = Field(gt=0)
-    media_mime_type: str = Field(min_length=1, max_length=64)
-    duration_ms: int = Field(ge=0)
-    scope_type: str = Field(pattern="^(FULL|RANGE)$")
-    scope_start_beat: float = Field(ge=0.0)
-    scope_terminal_beat: float = Field(gt=0.0)
-    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    revision_id: str = Field(min_length=1, max_length=64)
-    artifact_id: str = Field(min_length=1, max_length=128)
-    tempo_plan: PerformanceTakeTempoPlan
-    recording_timebase: RecordingTimebase
-
-    @model_validator(mode="after")
-    def validate_scope_identity(self) -> "PerformanceTakeCreateRequest":
-        _validate_scope_identity(
-            self.scope_type,
-            self.scope_start_group_id,
-            self.scope_end_group_id,
-        )
-        return self
 
 
 class PerformanceTakeRead(StrictPerformanceTakeModel):

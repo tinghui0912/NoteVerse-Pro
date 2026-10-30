@@ -1,12 +1,11 @@
 import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
 import type {
-  PerformanceTakeCreateRequest,
   PerformanceTakeDeleteResponse,
   PerformanceTakeListResponse,
   PerformanceTakePlaybackRead,
   PerformanceTakeRead,
-  PerformanceTakeUploadAuthorizationRead,
-  PerformanceTakeUploadAuthorizationRequest,
+  PerformanceTakeUploadReservationRead,
+  PerformanceTakeUploadReservationRequest,
   PracticeSourceRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
@@ -15,33 +14,34 @@ import type {
 const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
 export type {
-  PerformanceTakeCreateRequest,
   PerformanceTakeDeleteResponse,
   PerformanceTakeListResponse,
   PerformanceTakePlaybackRead,
   PerformanceTakeRead,
-  PerformanceTakeUploadAuthorizationRead,
-  PerformanceTakeUploadAuthorizationRequest,
+  PerformanceTakeUploadReservationRead,
+  PerformanceTakeUploadReservationRequest,
   PracticeSourceRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 };
 
 export const performanceTakesApi = {
-  authorizeUpload: (request: PerformanceTakeUploadAuthorizationRequest, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<PerformanceTakeUploadAuthorizationRead>>(
-      '/performance-takes/upload-authorizations',
+  reserveUpload: (request: PerformanceTakeUploadReservationRequest, signal?: AbortSignal) =>
+    apiClient.post<ApiResponse<PerformanceTakeUploadReservationRead>>(
+      '/performance-takes/upload-reservations',
       request,
       { signal }
     ),
 
-  cancelUploadAuthorization: (reservationId: string) =>
+  cancelUploadReservation: (reservationId: string) =>
     apiClient.delete<ApiResponse<{ cancelled: boolean }>>(
-      `/performance-takes/upload-authorizations/${reservationId}`
+      `/performance-takes/upload-reservations/${reservationId}`
     ),
 
-  finalizeTake: (request: PerformanceTakeCreateRequest, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<PerformanceTakeRead>>('/performance-takes', request, { signal }),
+  finalizeTake: (reservationId: string, signal?: AbortSignal) =>
+    apiClient.post<ApiResponse<PerformanceTakeRead>>(
+      `/performance-takes/upload-reservations/${reservationId}/finalize`, undefined, { signal }
+    ),
 
   listTakes: (params?: { score_id?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<PerformanceTakeListResponse>>('/performance-takes', params, { signal }),

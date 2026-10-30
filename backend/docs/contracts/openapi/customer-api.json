@@ -1942,7 +1942,7 @@
         "title": "APIResponse[PerformanceTakeRead]",
         "type": "object"
       },
-      "APIResponse_PerformanceTakeUploadAuthorizationRead_": {
+      "APIResponse_PerformanceTakeUploadReservationRead_": {
         "examples": [
           {
             "data": {
@@ -1969,7 +1969,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PerformanceTakeUploadAuthorizationRead"
+                "$ref": "#/components/schemas/PerformanceTakeUploadReservationRead"
               },
               {
                 "type": "null"
@@ -1998,7 +1998,7 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[PerformanceTakeUploadAuthorizationRead]",
+        "title": "APIResponse[PerformanceTakeUploadReservationRead]",
         "type": "object"
       },
       "APIResponse_PracticeAcousticAccessRead_": {
@@ -6015,134 +6015,6 @@
         "title": "PendingInviteRead",
         "type": "object"
       },
-      "PerformanceTakeCreateRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "artifact_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "client_request_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Client Request Id",
-            "type": "string"
-          },
-          "duration_ms": {
-            "minimum": 0.0,
-            "title": "Duration Ms",
-            "type": "integer"
-          },
-          "media_byte_size": {
-            "exclusiveMinimum": 0.0,
-            "title": "Media Byte Size",
-            "type": "integer"
-          },
-          "media_kind": {
-            "default": "AUDIO",
-            "pattern": "^(AUDIO|VIDEO)$",
-            "title": "Media Kind",
-            "type": "string"
-          },
-          "media_mime_type": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Media Mime Type",
-            "type": "string"
-          },
-          "recording_timebase": {
-            "$ref": "#/components/schemas/RecordingTimebase"
-          },
-          "reservation_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Reservation Id",
-            "type": "string"
-          },
-          "revision_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "scope_end_group_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope End Group Id"
-          },
-          "scope_start_beat": {
-            "minimum": 0.0,
-            "title": "Scope Start Beat",
-            "type": "number"
-          },
-          "scope_start_group_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope Start Group Id"
-          },
-          "scope_terminal_beat": {
-            "exclusiveMinimum": 0.0,
-            "title": "Scope Terminal Beat",
-            "type": "number"
-          },
-          "scope_type": {
-            "pattern": "^(FULL|RANGE)$",
-            "title": "Scope Type",
-            "type": "string"
-          },
-          "score_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Score Id",
-            "type": "string"
-          },
-          "take_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Take Id",
-            "type": "string"
-          },
-          "tempo_plan": {
-            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
-          }
-        },
-        "required": [
-          "take_id",
-          "client_request_id",
-          "reservation_id",
-          "score_id",
-          "media_byte_size",
-          "media_mime_type",
-          "duration_ms",
-          "scope_type",
-          "scope_start_beat",
-          "scope_terminal_beat",
-          "revision_id",
-          "artifact_id",
-          "tempo_plan",
-          "recording_timebase"
-        ],
-        "title": "PerformanceTakeCreateRequest",
-        "type": "object"
-      },
       "PerformanceTakeDeleteResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6160,6 +6032,33 @@
           "take_id"
         ],
         "title": "PerformanceTakeDeleteResponse",
+        "type": "object"
+      },
+      "PerformanceTakeFullScope": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "FULL",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start_beat": {
+            "minimum": 0.0,
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Terminal Beat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "start_beat",
+          "terminal_beat"
+        ],
+        "title": "PerformanceTakeFullScope",
         "type": "object"
       },
       "PerformanceTakeListResponse": {
@@ -6197,6 +6096,43 @@
           "total"
         ],
         "title": "PerformanceTakeListResponse",
+        "type": "object"
+      },
+      "PerformanceTakeMediaMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "AUDIO",
+              "VIDEO"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mime_type": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Mime Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "byte_size",
+          "mime_type",
+          "duration_ms"
+        ],
+        "title": "PerformanceTakeMediaMetadata",
         "type": "object"
       },
       "PerformanceTakePlaybackRead": {
@@ -6246,6 +6182,47 @@
           "expires_in"
         ],
         "title": "PerformanceTakePlaybackRead",
+        "type": "object"
+      },
+      "PerformanceTakeRangeScope": {
+        "additionalProperties": false,
+        "properties": {
+          "end_group_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "End Group Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "RANGE",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start_beat": {
+            "minimum": 0.0,
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "start_group_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Start Group Id",
+            "type": "string"
+          },
+          "terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Terminal Beat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "start_beat",
+          "terminal_beat",
+          "start_group_id",
+          "end_group_id"
+        ],
+        "title": "PerformanceTakeRangeScope",
         "type": "object"
       },
       "PerformanceTakeRead": {
@@ -6375,6 +6352,36 @@
         "title": "PerformanceTakeRead",
         "type": "object"
       },
+      "PerformanceTakeSourceIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "artifact_id"
+        ],
+        "title": "PerformanceTakeSourceIdentity",
+        "type": "object"
+      },
       "PerformanceTakeTempoPlan": {
         "additionalProperties": false,
         "properties": {
@@ -6439,38 +6446,66 @@
         "title": "PerformanceTakeTempoPlanSegment",
         "type": "object"
       },
-      "PerformanceTakeUploadAuthorizationRead": {
+      "PerformanceTakeUploadMetadata": {
         "additionalProperties": false,
         "properties": {
-          "expires_in": {
-            "default": 0,
-            "title": "Expires In",
-            "type": "integer"
+          "media": {
+            "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
           },
-          "object_key": {
-            "anyOf": [
+          "recording_timebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
+          "scope": {
+            "discriminator": {
+              "mapping": {
+                "FULL": "#/components/schemas/PerformanceTakeFullScope",
+                "RANGE": "#/components/schemas/PerformanceTakeRangeScope"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PerformanceTakeFullScope"
               },
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PerformanceTakeRangeScope"
               }
             ],
-            "title": "Object Key"
+            "title": "Scope"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
+          },
+          "tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
+          }
+        },
+        "required": [
+          "source",
+          "media",
+          "scope",
+          "tempo_plan",
+          "recording_timebase"
+        ],
+        "title": "PerformanceTakeUploadMetadata",
+        "type": "object"
+      },
+      "PerformanceTakeUploadReservationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "$ref": "#/components/schemas/PerformanceTakeUploadMetadata"
           },
           "reservation_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reservation Id"
+            "title": "Reservation Id",
+            "type": "string"
           },
           "status": {
-            "default": "AUTHORIZED",
+            "enum": [
+              "RESERVED",
+              "FINALIZING",
+              "COMPLETED"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -6488,154 +6523,107 @@
             "title": "Take Id",
             "type": "string"
           },
-          "upload_headers": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Upload Headers",
-            "type": "object"
-          },
-          "upload_method": {
+          "upload_target": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PerformanceTakeUploadTarget"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Upload Method"
-          },
-          "upload_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Upload Url"
+            ]
           }
         },
         "required": [
-          "take_id"
+          "reservation_id",
+          "take_id",
+          "status",
+          "metadata"
         ],
-        "title": "PerformanceTakeUploadAuthorizationRead",
+        "title": "PerformanceTakeUploadReservationRead",
         "type": "object"
       },
-      "PerformanceTakeUploadAuthorizationRequest": {
+      "PerformanceTakeUploadReservationRequest": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Artifact Id",
-            "type": "string"
-          },
           "client_request_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Client Request Id",
             "type": "string"
           },
-          "duration_ms": {
-            "minimum": 0.0,
-            "title": "Duration Ms",
-            "type": "integer"
-          },
-          "media_byte_size": {
-            "exclusiveMinimum": 0.0,
-            "title": "Media Byte Size",
-            "type": "integer"
-          },
-          "media_kind": {
-            "default": "AUDIO",
-            "pattern": "^(AUDIO|VIDEO)$",
-            "title": "Media Kind",
-            "type": "string"
-          },
-          "media_mime_type": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Media Mime Type",
-            "type": "string"
+          "media": {
+            "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
           },
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
-          "revision_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "scope_end_group_id": {
-            "anyOf": [
+          "scope": {
+            "discriminator": {
+              "mapping": {
+                "FULL": "#/components/schemas/PerformanceTakeFullScope",
+                "RANGE": "#/components/schemas/PerformanceTakeRangeScope"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
               {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
+                "$ref": "#/components/schemas/PerformanceTakeFullScope"
               },
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PerformanceTakeRangeScope"
               }
             ],
-            "title": "Scope End Group Id"
+            "title": "Scope"
           },
-          "scope_start_beat": {
-            "minimum": 0.0,
-            "title": "Scope Start Beat",
-            "type": "number"
-          },
-          "scope_start_group_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope Start Group Id"
-          },
-          "scope_terminal_beat": {
-            "exclusiveMinimum": 0.0,
-            "title": "Scope Terminal Beat",
-            "type": "number"
-          },
-          "scope_type": {
-            "pattern": "^(FULL|RANGE)$",
-            "title": "Scope Type",
-            "type": "string"
-          },
-          "score_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Score Id",
-            "type": "string"
+          "source": {
+            "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
           },
           "tempo_plan": {
             "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           }
         },
         "required": [
-          "score_id",
-          "client_request_id",
-          "media_byte_size",
-          "media_mime_type",
-          "duration_ms",
-          "scope_type",
-          "scope_start_beat",
-          "scope_terminal_beat",
-          "revision_id",
-          "artifact_id",
+          "source",
+          "media",
+          "scope",
           "tempo_plan",
-          "recording_timebase"
+          "recording_timebase",
+          "client_request_id"
         ],
-        "title": "PerformanceTakeUploadAuthorizationRequest",
+        "title": "PerformanceTakeUploadReservationRequest",
+        "type": "object"
+      },
+      "PerformanceTakeUploadTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "object"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "method",
+          "headers",
+          "expires_in"
+        ],
+        "title": "PerformanceTakeUploadTarget",
         "type": "object"
       },
       "PracticeAcousticAccessRead": {
@@ -12014,9 +12002,11 @@
         "tags": [
           "Performance Takes"
         ]
-      },
+      }
+    },
+    "/api/v1/performance-takes/upload-reservations": {
       "post": {
-        "operationId": "finalize_take_api_v1_performance_takes_post",
+        "operationId": "reserve_take_upload_api_v1_performance_takes_upload_reservations_post",
         "parameters": [
           {
             "in": "cookie",
@@ -12039,7 +12029,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PerformanceTakeCreateRequest"
+                "$ref": "#/components/schemas/PerformanceTakeUploadReservationRequest"
               }
             }
           },
@@ -12050,7 +12040,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeUploadReservationRead_"
                 }
               }
             },
@@ -12067,74 +12057,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Finalize Take",
+        "summary": "Reserve Take Upload",
         "tags": [
           "Performance Takes"
         ]
       }
     },
-    "/api/v1/performance-takes/upload-authorizations": {
-      "post": {
-        "operationId": "authorize_take_upload_api_v1_performance_takes_upload_authorizations_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PerformanceTakeUploadAuthorizationRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeUploadAuthorizationRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Authorize Take Upload",
-        "tags": [
-          "Performance Takes"
-        ]
-      }
-    },
-    "/api/v1/performance-takes/upload-authorizations/{reservation_id}": {
+    "/api/v1/performance-takes/upload-reservations/{reservation_id}": {
       "delete": {
-        "operationId": "cancel_take_upload_authorization_api_v1_performance_takes_upload_authorizations__reservation_id__delete",
+        "operationId": "cancel_take_upload_reservation_api_v1_performance_takes_upload_reservations__reservation_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -12184,7 +12115,65 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Cancel Take Upload Authorization",
+        "summary": "Cancel Take Upload Reservation",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/upload-reservations/{reservation_id}/finalize": {
+      "post": {
+        "operationId": "finalize_take_api_v1_performance_takes_upload_reservations__reservation_id__finalize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finalize Take",
         "tags": [
           "Performance Takes"
         ]

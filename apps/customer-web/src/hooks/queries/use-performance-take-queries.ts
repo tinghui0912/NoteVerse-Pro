@@ -7,8 +7,7 @@ import {
   uploadMediaToSignedUrl,
   type RecordingTimebase,
   type PerformanceTakeTempoPlan,
-  type PerformanceTakeCreateRequest,
-  type PerformanceTakeUploadAuthorizationRequest,
+  type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
 import { queryKeys } from '@/lib/query-client';
 
@@ -81,99 +80,59 @@ export function useSavePerformanceTake() {
 
   return useMutation({
     mutationFn: async (input: SavePerformanceTakeInput) => {
-      // 1. Authorize upload
-      const authReq: PerformanceTakeUploadAuthorizationRequest = {
-        score_id: input.scoreId,
-        revision_id: input.revisionId,
-        artifact_id: input.artifactId,
+      const request: PerformanceTakeUploadReservationRequest = {
         client_request_id: input.clientRequestId,
-        media_kind: input.mediaKind,
-        media_byte_size: input.mediaBlob.size,
-        media_mime_type: input.mimeType,
-        duration_ms: input.durationMs,
-        scope_type: input.scope.kind,
-        scope_start_beat: input.scope.startBeat,
-        scope_terminal_beat: input.scope.terminalBeat,
-        scope_start_group_id:
-          input.scope.kind === 'RANGE' ? input.scope.startGroupId : null,
-        scope_end_group_id:
-          input.scope.kind === 'RANGE' ? input.scope.endGroupId : null,
+        source: {
+          score_id: input.scoreId,
+          revision_id: input.revisionId,
+          artifact_id: input.artifactId,
+        },
+        media: {
+          kind: input.mediaKind,
+          byte_size: input.mediaBlob.size,
+          mime_type: input.mimeType,
+          duration_ms: input.durationMs,
+        },
+        scope: input.scope.kind === 'RANGE'
+          ? {
+              kind: 'RANGE',
+              start_beat: input.scope.startBeat,
+              terminal_beat: input.scope.terminalBeat,
+              start_group_id: input.scope.startGroupId,
+              end_group_id: input.scope.endGroupId,
+            }
+          : {
+              kind: 'FULL',
+              start_beat: input.scope.startBeat,
+              terminal_beat: input.scope.terminalBeat,
+            },
         tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
       };
-
-      const authRes = await performanceTakesApi.authorizeUpload(authReq);
-      const authData = authRes.data;
-      if (!authData) {
-        throw new Error('Failed to authorize performance take upload');
+      const response = await performanceTakesApi.reserveUpload(request);
+      const reservation = response.data;
+      if (!reservation) throw new Error('Upload reservation is unavailable');
+      if (reservation.status === 'COMPLETED') {
+        if (!reservation.take) throw new Error('Completed reservation has no saved take');
+        return reservation.take;
       }
-      if (authData.status === 'ARCHIVED') {
-        if (!authData.take) {
-          throw new Error('Performance take was archived but no saved take was returned');
-        }
-        return authData.take;
-      }
-
-      const finalizeReq: PerformanceTakeCreateRequest = {
-        take_id: authData.take_id,
-        client_request_id: input.clientRequestId,
-        reservation_id: authData.reservation_id ?? '',
-        score_id: input.scoreId,
-        media_kind: input.mediaKind,
-        revision_id: input.revisionId,
-        artifact_id: input.artifactId,
-        media_byte_size: input.mediaBlob.size,
-        media_mime_type: input.mimeType,
-        duration_ms: input.durationMs,
-        scope_type: input.scope.kind,
-        scope_start_beat: input.scope.startBeat,
-        scope_terminal_beat: input.scope.terminalBeat,
-        scope_start_group_id:
-          input.scope.kind === 'RANGE' ? input.scope.startGroupId : null,
-        scope_end_group_id:
-          input.scope.kind === 'RANGE' ? input.scope.endGroupId : null,
-        tempo_plan: input.tempoPlan,
-        recording_timebase: input.recordingTimebase,
-      };
-
-      if (authData.status === 'FINALIZING') {
-        if (!authData.reservation_id) {
-          throw new Error('Performance take finalizing state is missing reservation');
-        }
-        const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
-        return finalizeRes.data;
-      }
-
-      if (!authData.upload_url || !authData.upload_method || !authData.reservation_id) {
-        throw new Error('Performance take upload authorization is incomplete');
-      }
-
-      // 2. Direct upload binary to signed URL
-      try {
-        await uploadMediaToSignedUrl(
-          authData.upload_url,
-          authData.upload_method,
-          authData.upload_headers ?? {},
-          input.mediaBlob
-        );
-      } catch (uploadErr) {
+      if (reservation.status === 'RESERVED') {
+        const target = reservation.upload_target;
+        if (!target) throw new Error('Reserved upload has no upload target');
         try {
-          await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
-        } catch {
-          // ignore cancel error
+          await uploadMediaToSignedUrl(target.url, target.method, target.headers, input.mediaBlob);
+        } catch (error) {
+          try {
+            await performanceTakesApi.cancelUploadReservation(reservation.reservation_id);
+          } catch {
+            // Reservation expiry processing retains cleanup ownership.
+          }
+          throw error;
         }
-        throw uploadErr;
       }
-
-      try {
-        const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
-        return finalizeRes.data;
-      } catch (finalizeErr) {
-        // Finalize may still be running after a timeout, disconnect, or masked
-        // recoverable 4xx such as FINALIZING. Keep the authorization so the
-        // same client_request_id can be retried safely.
-        throw finalizeErr;
-      }
+      // Unknown finalize outcomes retain the reservation for an idempotent retry.
+      const finalized = await performanceTakesApi.finalizeTake(reservation.reservation_id);
+      return finalized.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.performanceTakes.all });

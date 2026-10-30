@@ -9,6 +9,7 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type PerformanceTakeRead,
+  type PerformanceTakeUploadReservationRead,
   type RecordingTimebase,
   type PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
@@ -16,8 +17,8 @@ import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-que
 
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: {
-    authorizeUpload: vi.fn(),
-    cancelUploadAuthorization: vi.fn(),
+    reserveUpload: vi.fn(),
+    cancelUploadReservation: vi.fn(),
     finalizeTake: vi.fn(),
     listTakes: vi.fn(),
     getTake: vi.fn(),
@@ -87,133 +88,71 @@ const savedTake: PerformanceTakeRead = {
   created_at: '2026-09-21T00:00:00Z',
 };
 
+
+function reservation(status: PerformanceTakeUploadReservationRead['status'] = 'RESERVED'): PerformanceTakeUploadReservationRead {
+  const input = createInput();
+  return {
+    reservation_id: 'upload-reservation-1', take_id: savedTake.take_id, status,
+    metadata: {
+      source: { score_id: input.scoreId, revision_id: input.revisionId, artifact_id: input.artifactId },
+      media: { kind: input.mediaKind, byte_size: input.mediaBlob.size, mime_type: input.mimeType, duration_ms: input.durationMs },
+      scope: { kind: 'FULL', start_beat: 0, terminal_beat: 4 }, tempo_plan: tempoPlan, recording_timebase: recordingTimebase,
+    },
+    upload_target: status === 'RESERVED' ? { url: '/uploads/staging.wav', method: 'PUT', headers: { 'content-type': 'audio/wav' }, expires_in: 3600 } : null,
+    take: status === 'COMPLETED' ? savedTake : null,
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({ data: reservation() } as never);
+  vi.mocked(uploadMediaToSignedUrl).mockResolvedValue();
+  vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({ data: savedTake } as never);
+});
+
+async function save() {
+  const { result } = renderHook(() => useSavePerformanceTake(), { wrapper: createWrapper() });
+  let response;
+  await act(async () => { response = await result.current.mutateAsync(createInput()); });
+  return response;
+}
+
 describe('useSavePerformanceTake', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('sends metadata once to reserve, uploads to the target, and finalizes only its public identity', async () => {
+    expect(await save()).toEqual(savedTake);
+    expect(performanceTakesApi.reserveUpload).toHaveBeenCalledExactlyOnceWith({ client_request_id: 'request-1', ...reservation().metadata });
+    expect(uploadMediaToSignedUrl).toHaveBeenCalledExactlyOnceWith('/uploads/staging.wav', 'PUT', { 'content-type': 'audio/wav' }, createInput().mediaBlob);
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
+    expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
   });
-
-  it('returns an archived take without uploading again', async () => {
-    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
-      data: {
-        take_id: savedTake.take_id,
-        status: 'ARCHIVED',
-        upload_headers: {},
-        take: savedTake,
-      },
-    } as never);
-
-    const { result } = renderHook(() => useSavePerformanceTake(), {
-      wrapper: createWrapper(),
-    });
-
-    let response: PerformanceTakeRead | undefined;
-    await act(async () => {
-      response = await result.current.mutateAsync(createInput());
-    });
-
-    expect(response).toEqual(savedTake);
-    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+  it('returns COMPLETED without another upload or finalize', async () => {
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({ data: reservation('COMPLETED') } as never);
+    expect(await save()).toEqual(savedTake);
+    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled(); expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
+  });
+  it('retries FINALIZING by identity without uploading', async () => {
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({ data: reservation('FINALIZING') } as never);
+    expect(await save()).toEqual(savedTake); expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
+  });
+  it('cancels the public reservation after a failed binary upload', async () => {
+    vi.mocked(uploadMediaToSignedUrl).mockRejectedValue(new Error('upload failed'));
+    await expect(save()).rejects.toThrow('upload failed');
+    expect(performanceTakesApi.cancelUploadReservation).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
-    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });
-
-  it('does not cancel the authorization when finalize result is unknown', async () => {
-    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
-      data: {
-        take_id: 'take-1',
-        status: 'AUTHORIZED',
-        upload_url: '/uploads/staging.wav',
-        upload_method: 'PUT',
-        upload_headers: {},
-        object_key: 'staging/performance-takes/1/take-1/recording.wav',
-        reservation_id: 'reservation-1',
-        expires_in: 3600,
-      },
-    } as never);
-    vi.mocked(uploadMediaToSignedUrl).mockResolvedValue(undefined);
-    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue(new Error('network lost'));
-
-    const { result } = renderHook(() => useSavePerformanceTake(), {
-      wrapper: createWrapper(),
-    });
-
-    await expect(
-      act(async () => {
-        await result.current.mutateAsync(createInput());
-      })
-    ).rejects.toThrow('network lost');
-
-    expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
-    expect(performanceTakesApi.authorizeUpload).toHaveBeenCalledWith(
-      expect.not.objectContaining({ evaluation: expect.anything() })
-    );
-    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
-      expect.not.objectContaining({ evaluation: expect.anything() })
-    );
-    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  it.each([new Error('network lost'), { response: { status: 422 } }])('retains reservation on unknown/recoverable finalize outcome', async error => {
+    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue(error);
+    await expect(save()).rejects.toBe(error); expect(uploadMediaToSignedUrl).toHaveBeenCalledOnce();
+    expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
   });
-
-  it('retries finalize without uploading again when authorization is finalizing', async () => {
-    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
-      data: {
-        take_id: 'take-1',
-        status: 'FINALIZING',
-        upload_headers: {},
-        reservation_id: 'reservation-1',
-        expires_in: 0,
-      },
-    } as never);
-    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: savedTake,
-    } as never);
-
-    const { result } = renderHook(() => useSavePerformanceTake(), {
-      wrapper: createWrapper(),
-    });
-
-    let response: PerformanceTakeRead | undefined;
-    await act(async () => {
-      response = await result.current.mutateAsync(createInput());
-    });
-
-    expect(response).toEqual(savedTake);
-    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
-    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledTimes(1);
-    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
-      expect.not.objectContaining({ evaluation: expect.anything() })
-    );
-    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
-  });
-
-  it('does not cancel after a masked finalize 4xx because save may still be recoverable', async () => {
-    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
-      data: {
-        take_id: 'take-1',
-        status: 'AUTHORIZED',
-        upload_url: '/uploads/staging.wav',
-        upload_method: 'PUT',
-        upload_headers: {},
-        object_key: 'staging/performance-takes/1/take-1/recording.wav',
-        reservation_id: 'reservation-1',
-        expires_in: 3600,
-      },
-    } as never);
-    vi.mocked(uploadMediaToSignedUrl).mockResolvedValue(undefined);
-    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue({
-      response: { status: 422 },
-    });
-
-    const { result } = renderHook(() => useSavePerformanceTake(), {
-      wrapper: createWrapper(),
-    });
-
-    await expect(
-      act(async () => {
-        await result.current.mutateAsync(createInput());
-      })
-    ).rejects.toBeTruthy();
-
-    expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
-    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  it('reserves RANGE VIDEO metadata once', async () => {
+    const input = { ...createInput(), mediaKind: 'VIDEO' as const, scope: { kind: 'RANGE' as const, startBeat: 1, terminalBeat: 3, startGroupId: 'g1', endGroupId: 'g3' } };
+    const { result } = renderHook(() => useSavePerformanceTake(), { wrapper: createWrapper() });
+    await act(async () => { await result.current.mutateAsync(input); });
+    expect(performanceTakesApi.reserveUpload).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      media: expect.objectContaining({ kind: 'VIDEO' }), scope: { kind: 'RANGE', start_beat: 1, terminal_beat: 3, start_group_id: 'g1', end_group_id: 'g3' },
+    }));
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
   });
 });

@@ -1,3 +1,4 @@
+import type { PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
 import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
@@ -294,35 +295,34 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // Mock Performance Takes Routes
-  const takesDatabase: Array<{
-    take_id: string;
-    score_id: number;
-    revision_id: number | null;
-    artifact_id: string | null;
-    media_kind: string;
-    media_mime_type: string;
-    media_byte_size: number;
-    duration_ms: number;
-    scope_start_beat: number;
-    scope_terminal_beat: number;
-    created_at: string;
-  }> = [];
-
-  await page.route('**/api/v1/performance-takes/upload-authorizations', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({
-        take_id: 'take-e2e-1',
-        upload_url: '/api/v1/performance-takes/mock-upload/take-e2e-1',
-        upload_method: 'PUT',
-        upload_headers: { 'content-type': 'audio/webm' },
-        object_key: 'performance-takes/1/take-e2e-1/recording.webm',
-        reservation_id: 'res-e2e-1',
-        expires_in: 3600,
-      }),
-    })
-  );
+  const takesDatabase: PerformanceTakeRead[] = [];
+  let reservedRequest: PerformanceTakeUploadReservationRequest;
+  await page.route('**/api/v1/performance-takes/upload-reservations', route => {
+    reservedRequest = route.request().postDataJSON();
+    const { source, media, scope, tempo_plan, recording_timebase } = reservedRequest;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
+      reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
+      metadata: { source, media, scope, tempo_plan, recording_timebase },
+      upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
+        headers: { 'content-type': media.mime_type }, expires_in: 3600 },
+    }) });
+  });
+  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize', route => {
+    expect(route.request().postData()).toBeNull();
+    const { source, media, scope, tempo_plan, recording_timebase } = reservedRequest;
+    const take: PerformanceTakeRead = {
+      take_id: 'take-e2e-1', source_score_id: source.score_id, source_revision_id: source.revision_id,
+      source_artifact_id: source.artifact_id, score_title_snapshot: 'Continuous Review Score',
+      media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
+      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_beat: scope.start_beat,
+      scope_terminal_beat: scope.terminal_beat,
+      scope_start_group_id: scope.kind === 'RANGE' ? scope.start_group_id : null,
+      scope_end_group_id: scope.kind === 'RANGE' ? scope.end_group_id : null,
+      tempo_plan, recording_timebase, created_at: '2026-09-20T12:00:00Z',
+    };
+    takesDatabase.push(take);
+    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });
+  });
 
   await page.route('**/api/v1/performance-takes/mock-upload/*', (route) =>
     route.fulfill({ status: 200 })
@@ -361,29 +361,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   await page.route(
     (url) => url.pathname === '/api/v1/performance-takes',
     (route) => {
-      if (route.request().method() === 'POST') {
-        const postData = route.request().postDataJSON();
-        const newTake = {
-          take_id: 'take-e2e-1',
-          score_id: postData.score_id,
-          score_title: 'Continuous Review Score',
-          revision_id: postData.revision_id ?? null,
-          artifact_id: postData.artifact_id ?? null,
-          media_kind: 'AUDIO',
-          media_mime_type: 'audio/webm',
-          media_byte_size: 1024,
-          duration_ms: 3000,
-          scope_start_beat: 0,
-          scope_terminal_beat: 0,
-          created_at: '2026-09-20T12:00:00Z',
-        };
-        takesDatabase.push(newTake);
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: apiResponse(newTake),
-        });
-      }
       if (route.request().method() === 'GET') {
         return route.fulfill({
           status: 200,
@@ -981,9 +958,9 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
   test('CONTINUOUS_PLAY + Audio: Save recording, direct upload, view in My Performances, and delete', async ({
     page,
   }) => {
-    const mediaWrites: { url: string; body: Record<string, unknown> }[] = [];
+    const mediaWrites: { url: string; body: Record<string, unknown> | null }[] = [];
     page.on('request', request => {
-      if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postDataJSON() });
+      if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postData() ? request.postDataJSON() : null });
     });
     await setupContinuousPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
@@ -1026,7 +1003,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByRole('button', { name: '已保存' })).toBeVisible({ timeout: 10_000 });
 
     expect(mediaWrites).toHaveLength(2);
-    for (const { body } of mediaWrites) for (const key of ['evaluation', 'metrics', 'assignment', 'interpretation', 'provenance', 'result']) expect(body).not.toHaveProperty(key);
+    expect(mediaWrites[0].body).toHaveProperty('source');
+    expect(mediaWrites[1].body).toBeNull();
 
     // Click "查看我的演奏" button
     const viewMyPerformancesBtn = page.getByRole('button', { name: '查看我的演奏' }).first();

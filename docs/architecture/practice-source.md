@@ -115,7 +115,7 @@ table and foreign keys model that relationship directly. Storage identity is
 independent of the continued existence of the live Score row.
 
 Practice Source retention owns reference checks, deletion outbox and worker policy.
-PerformanceTake rows and active upload authorizations retain snapshots. Ineligible
+PerformanceTake rows and active upload reservations retain snapshots. Ineligible
 state, races and storage failures fail closed. Outbox retries preserve durable cleanup
 ownership. PostgreSQL tests use independent sessions and controlled synchronization
 to exercise cached state, lease expiry and simultaneous fingerprint creation.
@@ -123,11 +123,14 @@ to exercise cached state, lease expiry and simultaneous fingerprint creation.
 ## Performance Take
 
 PerformanceTake authorizes access to the take, identifies its source snapshot and
-calls the public Practice Source service. Upload authorization pins a source through
+calls the public Practice Source service. An immutable upload reservation pins a source through
 that service and consumes the returned score, revision, artifact and snapshot
 identities. Media upload/finalization and take ownership belong to PerformanceTake;
 source construction, hashing, object writes, validation and retention belong to
-Practice Source.
+Practice Source. Reservation creation supplies source and save metadata once. Finalize
+identifies the public upload reservation and consumes its pinned source without live-score
+admission. A completed Take retains the snapshot; the reservation releases its temporary
+reference. Its upload UUID is distinct from the internal storage-quota reservation handle.
 
 ```text
 GET /performance-takes/{take_id}/practice-source?include_notation=true

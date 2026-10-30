@@ -336,7 +336,7 @@ describe('Continuous application owner', () => {
     expect(next.context).not.toBe(first.context); await fresh.dispose();
   });
   it('MIDI natural completion owns one evaluation without acoustic dependencies', async () => {
-    const authorize = vi.spyOn(performanceTakesApi, 'authorizeUpload');
+    const authorize = vi.spyOn(performanceTakesApi, 'reserveUpload');
     const finalize = vi.spyOn(performanceTakesApi, 'finalizeTake');
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(1201); controller.refresh(); await controller.abandon();

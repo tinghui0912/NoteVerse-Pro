@@ -87,9 +87,9 @@ from .practice_source_snapshot_delete_outbox import (
     PracticeSourceSnapshotDeleteOutbox,
     PracticeSourceSnapshotDeleteOutboxStatus,
 )
-from .performance_take_upload_authorization import (
-    PerformanceTakeUploadAuthorization,
-    PerformanceTakeUploadAuthorizationStatus,
+from .performance_take_upload_reservation import (
+    PerformanceTakeUploadReservation,
+    PerformanceTakeUploadReservationStatus,
 )
 from .performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
@@ -177,8 +177,8 @@ __all__ = [
     "PracticeSourceSnapshotStatus",
     "PracticeSourceSnapshotDeleteOutbox",
     "PracticeSourceSnapshotDeleteOutboxStatus",
-    "PerformanceTakeUploadAuthorization",
-    "PerformanceTakeUploadAuthorizationStatus",
+    "PerformanceTakeUploadReservation",
+    "PerformanceTakeUploadReservationStatus",
     "PerformanceTakeDeleteOutbox",
     "PerformanceTakeDeleteOutboxStatus",
 ]

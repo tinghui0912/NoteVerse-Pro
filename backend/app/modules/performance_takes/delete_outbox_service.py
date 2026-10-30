@@ -13,8 +13,8 @@ from app.db.models import (
     PerformanceTake,
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
-    PerformanceTakeUploadAuthorization,
-    PerformanceTakeUploadAuthorizationStatus,
+    PerformanceTakeUploadReservation,
+    PerformanceTakeUploadReservationStatus,
 )
 from app.modules.async_operations.delivery_policy import (
     delivery_lease_expired,
@@ -103,11 +103,11 @@ class PerformanceTakeDeletePayload:
 
 
 @dataclass(frozen=True)
-class AuthorizationCleanupTarget:
-    authorization_id: int
-    status: PerformanceTakeUploadAuthorizationStatus
+class ReservationCleanupTarget:
+    reservation_row_id: int
+    status: PerformanceTakeUploadReservationStatus
     staging_object_key: str
-    final_object_key: str
+    final_object_key: str | None
     orphan_final_objects: tuple[dict[str, str | None], ...]
     delete_final_without_take: bool
     can_finalize_staging_cleanup: bool
@@ -115,7 +115,7 @@ class AuthorizationCleanupTarget:
 
 
 @dataclass(frozen=True)
-class AuthorizationCleanupResult:
+class ReservationCleanupResult:
     staging_absent_confirmed: bool = False
     staging_deleted: bool = False
     final_absent_confirmed: bool = False
@@ -143,6 +143,7 @@ class PerformanceTakeDeleteOutboxService:
             select(PerformanceTakeDeleteOutbox)
             .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
         if outbox is None or _status_value(outbox.status) in {
             PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
@@ -243,7 +244,10 @@ class PerformanceTakeDeleteOutboxService:
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.DISPATCHED.value:
+        if (
+            outbox is None
+            or _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.DISPATCHED.value
+        ):
             return
         outbox.status = PerformanceTakeDeleteOutboxStatus.PENDING.value
         outbox.dispatched_at = None
@@ -300,7 +304,7 @@ class PerformanceTakeDeleteOutboxService:
         )
         return list(due.scalars())
 
-    def cleanup_expired_authorizations(
+    def cleanup_expired_reservations(
         self,
         db: Session,
         storage: FileStorage,
@@ -309,62 +313,48 @@ class PerformanceTakeDeleteOutboxService:
         now = utc_now_naive()
         cleanup_candidate_ids = list(
             db.execute(
-                select(PerformanceTakeUploadAuthorization.id)
+                select(PerformanceTakeUploadReservation.id)
                 .where(
                     or_(
-                        (
-                            PerformanceTakeUploadAuthorization.expires_at <= now
-                        )
-                        & PerformanceTakeUploadAuthorization.status.in_(
+                        (PerformanceTakeUploadReservation.expires_at <= now)
+                        & PerformanceTakeUploadReservation.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+                                PerformanceTakeUploadReservationStatus.RESERVED.value,
                             ]
                         ),
                         (
-                            PerformanceTakeUploadAuthorization.status
-                            == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
+                            PerformanceTakeUploadReservation.status
+                            == PerformanceTakeUploadReservationStatus.FINALIZING.value
                         )
-                        & (
-                            PerformanceTakeUploadAuthorization.finalizing_expires_at
-                            <= now
-                        ),
-                        (
-                            PerformanceTakeUploadAuthorization.staging_cleanup_completed_at
-                            .is_(None)
-                        )
-                        & (
-                            PerformanceTakeUploadAuthorization.staging_cleanup_after
-                            <= now
-                        )
-                        & PerformanceTakeUploadAuthorization.status.in_(
+                        & (PerformanceTakeUploadReservation.finalizing_expires_at <= now),
+                        (PerformanceTakeUploadReservation.staging_cleanup_completed_at.is_(None))
+                        & (PerformanceTakeUploadReservation.staging_cleanup_after <= now)
+                        & PerformanceTakeUploadReservation.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
-                                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+                                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                                PerformanceTakeUploadReservationStatus.EXPIRED.value,
+                                PerformanceTakeUploadReservationStatus.COMPLETED.value,
                             ]
                         ),
-                        (
-                            PerformanceTakeUploadAuthorization.final_cleanup_completed_at
-                            .is_(None)
-                        )
-                        & PerformanceTakeUploadAuthorization.status.in_(
+                        (PerformanceTakeUploadReservation.final_cleanup_completed_at.is_(None))
+                        & PerformanceTakeUploadReservation.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                                PerformanceTakeUploadReservationStatus.EXPIRED.value,
                             ]
                         ),
-                        PerformanceTakeUploadAuthorization.orphan_final_object_keys.is_not(None),
+                        PerformanceTakeUploadReservation.orphan_final_object_keys.is_not(None),
                     ),
                 )
-                .order_by(PerformanceTakeUploadAuthorization.created_at)
+                .order_by(PerformanceTakeUploadReservation.created_at)
             ).scalars()
         )
 
         cleaned_count = 0
-        for auth_id in cleanup_candidate_ids:
-            target, cleaned_auth = self._prepare_authorization_cleanup(
+        for reservation_id in cleanup_candidate_ids:
+            target, cleaned_reservation = self._prepare_reservation_cleanup(
                 db,
-                auth_id,
+                reservation_id,
                 storage_usage_service,
                 now=now,
             )
@@ -372,175 +362,182 @@ class PerformanceTakeDeleteOutboxService:
             if target is None:
                 continue
 
-            cleanup_result = self._delete_authorization_cleanup_objects(storage, target)
+            cleanup_result = self._delete_reservation_cleanup_objects(storage, target)
             if cleanup_result.staging_absent_confirmed and target.can_finalize_staging_cleanup:
                 with db.begin():
-                    self._mark_authorization_staging_cleanup_completed(
+                    self._mark_reservation_staging_cleanup_completed(
                         db,
-                        target.authorization_id,
+                        target.reservation_row_id,
                         now=utc_now_naive(),
                     )
             if cleanup_result.final_absent_confirmed and target.can_finalize_final_cleanup:
                 with db.begin():
-                    self._mark_authorization_final_cleanup_completed(
+                    self._mark_reservation_final_cleanup_completed(
                         db,
-                        target.authorization_id,
+                        target.reservation_row_id,
                         now=utc_now_naive(),
                     )
             if cleanup_result.absent_orphan_final_object_keys:
                 with db.begin():
-                    self._remove_authorization_orphan_final_keys(
+                    self._remove_reservation_orphan_final_keys(
                         db,
-                        target.authorization_id,
+                        target.reservation_row_id,
                         cleanup_result.absent_orphan_final_object_keys,
                     )
-            if cleaned_auth or cleanup_result.touched_storage:
+            if cleaned_reservation or cleanup_result.touched_storage:
                 cleaned_count += 1
 
         return cleaned_count
 
-    def _prepare_authorization_cleanup(
+    def _prepare_reservation_cleanup(
         self,
         db: Session,
-        authorization_id: int,
+        reservation_row_id: int,
         storage_usage_service: StorageUsageService,
         *,
         now,
-    ) -> tuple[AuthorizationCleanupTarget | None, bool]:
-        auth = db.execute(
-            select(PerformanceTakeUploadAuthorization)
+    ) -> tuple[ReservationCleanupTarget | None, bool]:
+        reservation = db.execute(
+            select(PerformanceTakeUploadReservation)
             .where(
-                PerformanceTakeUploadAuthorization.id == authorization_id,
+                PerformanceTakeUploadReservation.id == reservation_row_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if auth is None:
+        if reservation is None:
             return None, False
 
-        cleaned_auth = False
+        cleaned_reservation = False
         take = db.execute(
             select(PerformanceTake).where(
-                PerformanceTake.user_id == auth.user_id,
-                PerformanceTake.client_request_id == auth.client_request_id,
+                PerformanceTake.user_id == reservation.user_id,
+                PerformanceTake.upload_reservation_id == reservation.id,
             )
         ).scalar_one_or_none()
 
         if (
-            _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
+            _status_value(reservation.status)
+            == PerformanceTakeUploadReservationStatus.RESERVED.value
             and take is not None
         ):
-            auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
-            auth.staging_cleanup_after = max(
+            reservation.status = PerformanceTakeUploadReservationStatus.COMPLETED.value
+            reservation.staging_cleanup_after = max(
                 value
                 for value in [
-                    auth.staging_cleanup_after,
-                    auth.last_put_url_expires_at,
+                    reservation.staging_cleanup_after,
+                    reservation.last_put_url_expires_at,
                     now,
                 ]
                 if value is not None
             )
-            auth.updated_at = now
+            reservation.updated_at = now
 
-        if _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
-            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
-            auth.staging_cleanup_after = max(
+        if (
+            _status_value(reservation.status)
+            == PerformanceTakeUploadReservationStatus.RESERVED.value
+        ):
+            reservation.status = PerformanceTakeUploadReservationStatus.EXPIRED.value
+            reservation.staging_cleanup_after = max(
                 value
                 for value in [
-                    auth.staging_cleanup_after,
-                    auth.last_put_url_expires_at,
+                    reservation.staging_cleanup_after,
+                    reservation.last_put_url_expires_at,
                     now,
                 ]
                 if value is not None
             )
-            auth.updated_at = now
+            reservation.updated_at = now
             storage_usage_service.release_reservation_sync(
-                db, auth.reservation_id, auto_commit=False
+                db, reservation.storage_reservation_id, auto_commit=False
             )
-            cleaned_auth = True
-        elif _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value:
-            if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
+            cleaned_reservation = True
+        elif (
+            _status_value(reservation.status)
+            == PerformanceTakeUploadReservationStatus.FINALIZING.value
+        ):
+            if reservation.finalizing_expires_at and reservation.finalizing_expires_at > now:
                 return None, False
-            if auth.finalizing_object_key:
-                orphan_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
+            if reservation.finalizing_object_key:
+                orphan_entries = _load_orphan_final_entries(reservation.orphan_final_object_keys)
                 orphan_keys = {entry.get("key") for entry in orphan_entries}
-                if auth.finalizing_object_key not in orphan_keys:
+                if reservation.finalizing_object_key not in orphan_keys:
                     orphan_entries.append(
                         {
-                            "key": auth.finalizing_object_key,
-                            "remove_after": (
-                                now
-                                + timedelta(seconds=30 * 60)
-                            ).isoformat(),
+                            "key": reservation.finalizing_object_key,
+                            "remove_after": (now + timedelta(seconds=30 * 60)).isoformat(),
                         }
                     )
-                    auth.orphan_final_object_keys = _dump_orphan_final_entries(orphan_entries)
-                    auth.final_cleanup_completed_at = None
+                    reservation.orphan_final_object_keys = _dump_orphan_final_entries(
+                        orphan_entries
+                    )
+                    reservation.final_cleanup_completed_at = None
             if take is not None:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
-                auth.finalizing_token = None
-                auth.finalizing_expires_at = None
-                auth.finalizing_object_key = None
-                auth.staging_cleanup_after = max(
+                reservation.status = PerformanceTakeUploadReservationStatus.COMPLETED.value
+                reservation.finalizing_token = None
+                reservation.finalizing_expires_at = None
+                reservation.finalizing_object_key = None
+                reservation.staging_cleanup_after = max(
                     value
                     for value in [
-                        auth.staging_cleanup_after,
-                        auth.last_put_url_expires_at,
+                        reservation.staging_cleanup_after,
+                        reservation.last_put_url_expires_at,
                         now,
                     ]
                     if value is not None
                 )
-                auth.updated_at = now
-                cleaned_auth = True
-            elif auth.expires_at <= now:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
-                auth.finalizing_token = None
-                auth.finalizing_expires_at = None
-                auth.finalizing_object_key = None
-                auth.staging_cleanup_after = max(
+                reservation.updated_at = now
+                cleaned_reservation = True
+            elif reservation.expires_at <= now:
+                reservation.status = PerformanceTakeUploadReservationStatus.EXPIRED.value
+                reservation.finalizing_token = None
+                reservation.finalizing_expires_at = None
+                reservation.finalizing_object_key = None
+                reservation.staging_cleanup_after = max(
                     value
                     for value in [
-                        auth.staging_cleanup_after,
-                        auth.last_put_url_expires_at,
+                        reservation.staging_cleanup_after,
+                        reservation.last_put_url_expires_at,
                         now,
                     ]
                     if value is not None
                 )
-                auth.updated_at = now
+                reservation.updated_at = now
                 storage_usage_service.release_reservation_sync(
-                    db, auth.reservation_id, auto_commit=False
+                    db, reservation.storage_reservation_id, auto_commit=False
                 )
-                cleaned_auth = True
+                cleaned_reservation = True
             else:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
-                auth.finalizing_token = None
-                auth.finalizing_expires_at = None
-                auth.finalizing_object_key = None
-                auth.updated_at = now
+                reservation.status = PerformanceTakeUploadReservationStatus.RESERVED.value
+                reservation.finalizing_token = None
+                reservation.finalizing_expires_at = None
+                reservation.finalizing_object_key = None
+                reservation.updated_at = now
                 return None, True
 
         can_cleanup_staging = (
-            auth.staging_cleanup_completed_at is None
-            and auth.staging_cleanup_after is not None
-            and auth.staging_cleanup_after <= now
-            and _status_value(auth.status)
+            reservation.staging_cleanup_completed_at is None
+            and reservation.staging_cleanup_after is not None
+            and reservation.staging_cleanup_after <= now
+            and _status_value(reservation.status)
             in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                PerformanceTakeUploadReservationStatus.EXPIRED.value,
+                PerformanceTakeUploadReservationStatus.COMPLETED.value,
             }
         )
         can_cleanup_final = (
-            auth.final_cleanup_completed_at is None
+            reservation.final_cleanup_completed_at is None
             and take is None
-            and _status_value(auth.status)
+            and _status_value(reservation.status)
             in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                PerformanceTakeUploadReservationStatus.EXPIRED.value,
             }
         )
         orphan_final_entries = tuple(
             entry
-            for entry in _load_orphan_final_entries(auth.orphan_final_object_keys)
+            for entry in _load_orphan_final_entries(reservation.orphan_final_object_keys)
             if not db.execute(
                 select(PerformanceTake.id).where(
                     PerformanceTake.media_object_key == entry.get("key")
@@ -549,71 +546,68 @@ class PerformanceTakeDeleteOutboxService:
         )
 
         if (
-            _status_value(auth.status)
+            _status_value(reservation.status)
             in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                PerformanceTakeUploadReservationStatus.EXPIRED.value,
+                PerformanceTakeUploadReservationStatus.COMPLETED.value,
             }
-            and auth.source_snapshot_id is not None
+            and reservation.source_snapshot_id is not None
         ):
-            source_snapshot_id = auth.source_snapshot_id
-            auth.source_snapshot_id = None
-            auth.updated_at = now
+            source_snapshot_id = reservation.source_snapshot_id
+            reservation.source_snapshot_id = None
+            reservation.updated_at = now
             practice_source_snapshot_delete_service.enqueue_if_unreferenced(
                 db,
                 source_snapshot_id,
-                storage_backend=auth.storage_backend,
+                storage_backend=reservation.storage_backend,
             )
-            cleaned_auth = True
+            cleaned_reservation = True
 
         return (
-            AuthorizationCleanupTarget(
-                authorization_id=auth.id,
-                status=auth.status,
-                staging_object_key=auth.staging_object_key,
-                final_object_key=auth.final_object_key,
+            ReservationCleanupTarget(
+                reservation_row_id=reservation.id,
+                status=reservation.status,
+                staging_object_key=reservation.staging_object_key,
+                final_object_key=reservation.final_object_key,
                 orphan_final_objects=orphan_final_entries,
                 delete_final_without_take=(
                     take is None
-                    and _status_value(auth.status)
+                    and _status_value(reservation.status)
                     in {
-                        PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                        PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                        PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                        PerformanceTakeUploadReservationStatus.EXPIRED.value,
                     }
                 ),
                 can_finalize_staging_cleanup=can_cleanup_staging,
                 can_finalize_final_cleanup=can_cleanup_final,
             ),
-            cleaned_auth,
+            cleaned_reservation,
         )
 
     @staticmethod
-    def _delete_authorization_cleanup_objects(
+    def _delete_reservation_cleanup_objects(
         storage: FileStorage,
-        target: AuthorizationCleanupTarget,
-    ) -> AuthorizationCleanupResult:
+        target: ReservationCleanupTarget,
+    ) -> ReservationCleanupResult:
         try:
             staging_deleted = False
             staging_absent_confirmed = False
             final_deleted = False
             final_absent_confirmed = False
             absent_orphan_keys: list[str] = []
-            if (
-                storage is not None
-                and target.can_finalize_staging_cleanup
-            ):
+            if storage is not None and target.can_finalize_staging_cleanup:
                 if storage.exists(target.staging_object_key):
                     staging_deleted = bool(storage.delete(target.staging_object_key))
                 staging_absent_confirmed = not storage.exists(target.staging_object_key)
 
-            if (
-                storage is not None
-                and target.can_finalize_final_cleanup
-            ):
-                if storage.exists(target.final_object_key):
-                    final_deleted = bool(storage.delete(target.final_object_key))
-                final_absent_confirmed = not storage.exists(target.final_object_key)
+            if storage is not None and target.can_finalize_final_cleanup:
+                if target.final_object_key is None:
+                    final_absent_confirmed = True
+                else:
+                    if storage.exists(target.final_object_key):
+                        final_deleted = bool(storage.delete(target.final_object_key))
+                    final_absent_confirmed = not storage.exists(target.final_object_key)
 
             now = utc_now_naive()
             if storage is not None and target.orphan_final_objects:
@@ -626,13 +620,11 @@ class PerformanceTakeDeleteOutboxService:
                         if not storage.exists(orphan_key):
                             absent_orphan_keys.append(orphan_key)
                     else:
-                        remove_after = _parse_orphan_remove_after(
-                            orphan_entry.get("remove_after")
-                        )
+                        remove_after = _parse_orphan_remove_after(orphan_entry.get("remove_after"))
                         if remove_after is None or remove_after <= now:
                             absent_orphan_keys.append(orphan_key)
 
-            return AuthorizationCleanupResult(
+            return ReservationCleanupResult(
                 staging_absent_confirmed=staging_absent_confirmed,
                 staging_deleted=staging_deleted,
                 final_absent_confirmed=final_absent_confirmed,
@@ -641,84 +633,85 @@ class PerformanceTakeDeleteOutboxService:
             )
         except Exception:
             logger.bind(
-                resource_id=target.authorization_id,
+                resource_id=target.reservation_row_id,
                 status=target.status,
             ).opt(exception=True).error(
-                "performance_take_upload_authorization.cleanup_object_delete_failed"
+                "performance_take_upload_reservation.cleanup_object_delete_failed"
             )
-            return AuthorizationCleanupResult()
+            return ReservationCleanupResult()
 
     @staticmethod
-    def _mark_authorization_staging_cleanup_completed(
+    def _mark_reservation_staging_cleanup_completed(
         db: Session,
-        authorization_id: int,
+        reservation_row_id: int,
         *,
         now,
     ) -> bool:
-        auth = db.execute(
-            select(PerformanceTakeUploadAuthorization)
-            .where(PerformanceTakeUploadAuthorization.id == authorization_id)
+        reservation = db.execute(
+            select(PerformanceTakeUploadReservation)
+            .where(PerformanceTakeUploadReservation.id == reservation_row_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if auth is None:
+        if reservation is None:
             return False
         if (
-            auth.staging_cleanup_completed_at is not None
-            or auth.staging_cleanup_after is None
-            or auth.staging_cleanup_after > now
-            or _status_value(auth.status)
+            reservation.staging_cleanup_completed_at is not None
+            or reservation.staging_cleanup_after is None
+            or reservation.staging_cleanup_after > now
+            or _status_value(reservation.status)
             not in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+                PerformanceTakeUploadReservationStatus.CANCELLED.value,
+                PerformanceTakeUploadReservationStatus.EXPIRED.value,
+                PerformanceTakeUploadReservationStatus.COMPLETED.value,
             }
         ):
             return False
-        auth.staging_cleanup_completed_at = now
-        auth.updated_at = now
+        reservation.staging_cleanup_completed_at = now
+        reservation.updated_at = now
         return True
 
     @staticmethod
-    def _mark_authorization_final_cleanup_completed(
+    def _mark_reservation_final_cleanup_completed(
         db: Session,
-        authorization_id: int,
+        reservation_row_id: int,
         *,
         now,
     ) -> bool:
-        auth = db.execute(
-            select(PerformanceTakeUploadAuthorization)
-            .where(PerformanceTakeUploadAuthorization.id == authorization_id)
+        reservation = db.execute(
+            select(PerformanceTakeUploadReservation)
+            .where(PerformanceTakeUploadReservation.id == reservation_row_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if auth is None:
+        if reservation is None:
             return False
-        if (
-            auth.final_cleanup_completed_at is not None
-            or _status_value(auth.status)
-            not in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
-            }
-        ):
+        if reservation.final_cleanup_completed_at is not None or _status_value(
+            reservation.status
+        ) not in {
+            PerformanceTakeUploadReservationStatus.CANCELLED.value,
+            PerformanceTakeUploadReservationStatus.EXPIRED.value,
+        }:
             return False
-        auth.final_cleanup_completed_at = now
-        auth.updated_at = now
+        reservation.final_cleanup_completed_at = now
+        reservation.updated_at = now
         return True
 
     @staticmethod
-    def _remove_authorization_orphan_final_keys(
+    def _remove_reservation_orphan_final_keys(
         db: Session,
-        authorization_id: int,
+        reservation_row_id: int,
         absent_keys: tuple[str, ...],
     ) -> bool:
-        auth = db.execute(
-            select(PerformanceTakeUploadAuthorization)
-            .where(PerformanceTakeUploadAuthorization.id == authorization_id)
+        reservation = db.execute(
+            select(PerformanceTakeUploadReservation)
+            .where(PerformanceTakeUploadReservation.id == reservation_row_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if auth is None:
+        if reservation is None:
             return False
-        current_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
+        current_entries = _load_orphan_final_entries(reservation.orphan_final_object_keys)
         removable_keys = set(absent_keys)
         referenced_keys = set(
             db.execute(
@@ -739,8 +732,8 @@ class PerformanceTakeDeleteOutboxService:
             remaining_entries.append(entry)
         if len(remaining_entries) == len(current_entries):
             return False
-        auth.orphan_final_object_keys = _dump_orphan_final_entries(remaining_entries)
-        auth.updated_at = utc_now_naive()
+        reservation.orphan_final_object_keys = _dump_orphan_final_entries(remaining_entries)
+        reservation.updated_at = utc_now_naive()
         return True
 
     @staticmethod
@@ -754,7 +747,7 @@ class PerformanceTakeDeleteOutboxService:
             PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid
         )
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
 
     @staticmethod
@@ -765,8 +758,9 @@ class PerformanceTakeDeleteOutboxService:
                 PerformanceTakeDeleteOutboxStatus.PENDING.value,
                 PerformanceTakeDeleteOutboxStatus.FAILED.value,
             }
-            and outbox.attempt_count
-            < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
+            and outbox.attempt_count < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
             and outbox.next_attempt_at <= utc_now_naive()
         )
+
+
 performance_take_delete_outbox_service = PerformanceTakeDeleteOutboxService()

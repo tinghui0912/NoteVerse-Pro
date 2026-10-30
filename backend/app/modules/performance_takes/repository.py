@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.performance_take import PerformanceTake
-from app.db.models.performance_take_upload_authorization import PerformanceTakeUploadAuthorization
+from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.db.models.performance_take_delete_outbox import PerformanceTakeDeleteOutbox
 
 
@@ -43,15 +43,19 @@ class PerformanceTakeRepository:
         result = await db.execute(statement)
         return result.scalars().first()
 
-    async def get_by_client_request_id(
+    async def get_by_reservation(
         self,
         db: AsyncSession,
         user_id: int,
-        client_request_id: str,
+        reservation_id: int,
     ) -> Optional[PerformanceTake]:
-        statement = select(PerformanceTake).where(
-            PerformanceTake.user_id == user_id,
-            PerformanceTake.client_request_id == client_request_id,
+        statement = (
+            select(PerformanceTake)
+            .where(
+                PerformanceTake.user_id == user_id,
+                PerformanceTake.upload_reservation_id == reservation_id,
+            )
+            .execution_options(populate_existing=True)
         )
         result = await db.execute(statement)
         return result.scalars().first()
@@ -94,50 +98,73 @@ class PerformanceTakeRepository:
         if auto_commit:
             await db.commit()
 
-    # Authorization methods
-    async def create_authorization(
+    # Reservation methods
+    async def create_reservation(
         self,
         db: AsyncSession,
-        auth: PerformanceTakeUploadAuthorization,
+        reservation: PerformanceTakeUploadReservation,
         *,
         auto_commit: bool = True,
-    ) -> PerformanceTakeUploadAuthorization:
-        db.add(auth)
+    ) -> PerformanceTakeUploadReservation:
+        db.add(reservation)
         if auto_commit:
             await db.commit()
-            await db.refresh(auth)
+            await db.refresh(reservation)
         else:
             await db.flush()
-        return auth
+        return reservation
 
-    async def get_authorization_by_client_request_id(
+    async def get_reservation_by_client_request_id(
         self,
         db: AsyncSession,
         user_id: int,
         client_request_id: str,
         *,
         lock: bool = False,
-    ) -> Optional[PerformanceTakeUploadAuthorization]:
-        statement = select(PerformanceTakeUploadAuthorization).where(
-            PerformanceTakeUploadAuthorization.user_id == user_id,
-            PerformanceTakeUploadAuthorization.client_request_id == client_request_id,
+    ) -> Optional[PerformanceTakeUploadReservation]:
+        statement = select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.user_id == user_id,
+            PerformanceTakeUploadReservation.client_request_id == client_request_id,
         )
+        statement = statement.execution_options(populate_existing=True)
         if lock:
             statement = statement.with_for_update()
         result = await db.execute(statement)
         return result.scalars().first()
 
-    async def get_authorization_by_take_uuid(
+    async def get_reservation_by_take_uuid(
         self,
         db: AsyncSession,
         user_id: int,
         take_uuid: str,
         *,
         lock: bool = False,
-    ) -> Optional[PerformanceTakeUploadAuthorization]:
-        statement = select(PerformanceTakeUploadAuthorization).where(
-            PerformanceTakeUploadAuthorization.user_id == user_id,
-            PerformanceTakeUploadAuthorization.take_uuid == take_uuid,
+    ) -> Optional[PerformanceTakeUploadReservation]:
+        statement = select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.user_id == user_id,
+            PerformanceTakeUploadReservation.take_uuid == take_uuid,
+        )
+        statement = statement.execution_options(populate_existing=True)
+        if lock:
+            statement = statement.with_for_update()
+        result = await db.execute(statement)
+        return result.scalars().first()
+
+    async def get_reservation_by_uuid(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        reservation_uuid: str,
+        *,
+        lock: bool = False,
+    ) -> Optional[PerformanceTakeUploadReservation]:
+        statement = (
+            select(PerformanceTakeUploadReservation)
+            .where(
+                PerformanceTakeUploadReservation.user_id == user_id,
+                PerformanceTakeUploadReservation.reservation_uuid == reservation_uuid,
+            )
+            .execution_options(populate_existing=True)
         )
         if lock:
             statement = statement.with_for_update()

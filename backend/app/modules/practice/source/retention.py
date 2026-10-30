@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.models import (
     PerformanceTake,
-    PerformanceTakeUploadAuthorization,
-    PerformanceTakeUploadAuthorizationStatus,
+    PerformanceTakeUploadReservation,
+    PerformanceTakeUploadReservationStatus,
     PracticeSourceSnapshot,
     PracticeSourceSnapshotStatus,
     PracticeSourceSnapshotDeleteOutbox,
@@ -29,10 +29,10 @@ def _status_value(status: object) -> str:
     return str(value)
 
 
-TERMINAL_AUTH_STATUSES = {
-    PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
-    PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
-    PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+TERMINAL_RESERVATION_STATUSES = {
+    PerformanceTakeUploadReservationStatus.COMPLETED.value,
+    PerformanceTakeUploadReservationStatus.CANCELLED.value,
+    PerformanceTakeUploadReservationStatus.EXPIRED.value,
 }
 
 
@@ -64,13 +64,13 @@ class PracticeSourceSnapshotDeleteService:
                 PerformanceTake.source_snapshot_id == snapshot_id
             )
         ).scalar_one()
-        auth_refs = db.execute(
-            select(func.count(PerformanceTakeUploadAuthorization.id)).where(
-                PerformanceTakeUploadAuthorization.source_snapshot_id == snapshot_id,
-                PerformanceTakeUploadAuthorization.status.notin_(list(TERMINAL_AUTH_STATUSES)),
+        reservation_refs = db.execute(
+            select(func.count(PerformanceTakeUploadReservation.id)).where(
+                PerformanceTakeUploadReservation.source_snapshot_id == snapshot_id,
+                PerformanceTakeUploadReservation.status.notin_(list(TERMINAL_RESERVATION_STATUSES)),
             )
         ).scalar_one()
-        return int(take_refs) + int(auth_refs)
+        return int(take_refs) + int(reservation_refs)
 
     def enqueue_if_unreferenced(
         self,
