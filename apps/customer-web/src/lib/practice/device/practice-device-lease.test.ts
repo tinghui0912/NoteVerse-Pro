@@ -104,3 +104,43 @@ describe('page-scoped Practice Device Lease', () => {
     expect(changed).not.toHaveBeenCalled(); f.owner.close();
   });
 });
+
+it.each(['inputMicrophone', 'recordingMicrophone', 'camera'] as const)('%s physical facts come from one retained lease observer', async resource => {
+  const plan = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: resource === 'inputMicrophone' ? 'MICROPHONE' : 'MIDI', recordingMode: resource === 'camera' ? 'VIDEO' : resource === 'recordingMicrophone' ? 'AUDIO' : 'OFF' });
+  const root = media(resource === 'camera'), midi = midiDeviceFixture();
+  const acquire = vi.fn(async (name: string) => name === resource ? root.stream : media(name === 'camera').stream);
+  const lease = new PracticeDeviceLease(plan, { acquireStream: acquire, acquireMidi: async () => midi.access });
+  await lease.open(); const port = lease.rootHealth, changes = vi.fn();
+  expect(Object.keys(port).sort()).toEqual(['snapshot', 'subscribe']);
+  const unsubscribe = port.subscribe(changes);
+  expect(changes).toHaveBeenCalledOnce();
+  const original = lease.snapshot().roots[resource];
+  for (const [event, expected] of [['mute', 'INTERRUPTED'], ['unmute', 'HEALTHY'], ['ended', 'LOST']] as const) {
+    if (event === 'ended') root.track.readyState = 'ended'; else root.track.muted = event === 'mute';
+    root.track.dispatchEvent(new Event(event));
+    expect(port.snapshot().health[resource]).toBe(expected);
+    expect(lease.snapshot().roots[resource]).toBe(original);
+    expect(Object.isFrozen(port.snapshot())).toBe(true); expect(Object.isFrozen(port.snapshot().health)).toBe(true);
+  }
+  expect(changes).toHaveBeenCalledTimes(4); expect(acquire).toHaveBeenCalledTimes(plan.liveRoots.filter(key => key !== 'midi').length);
+  unsubscribe(); root.track.dispatchEvent(new Event('mute')); expect(changes).toHaveBeenCalledTimes(4);
+  lease.close(); root.track.dispatchEvent(new Event('unmute')); expect(changes).toHaveBeenCalledTimes(4);
+});
+it('MIDI same-root recovery is synchronous and subscription delivers current facts after a prior read', async () => {
+  const f = rig({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }); await f.owner.open();
+  const port = f.owner.rootHealth, initial = port.snapshot(); f.midi.connect(false);
+  const received = vi.fn(), unsubscribe = port.subscribe(received);
+  expect(initial.health.midi).toBe('HEALTHY'); expect(received.mock.calls[0][0].health.midi).toBe('LOST');
+  f.midi.connect(true); expect(received.mock.calls[1][0].health.midi).toBe('HEALTHY');
+  expect(f.owner.snapshot().roots.midi).toBe(f.midi.access); expect(f.platform.acquireMidi).toHaveBeenCalledOnce();
+  f.owner.close(); const calls = received.mock.calls.length; f.midi.connect(false);
+  expect(received).toHaveBeenCalledTimes(calls); unsubscribe();
+});
+
+it('publishes MIDI access membership events even when aggregate physical health stays healthy', async () => {
+  const f = rig({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }); await f.owner.open();
+  const observed = vi.fn(), unsubscribe = f.owner.rootHealth.subscribe(observed);
+  f.midi.access.dispatchEvent(new Event('statechange'));
+  expect(observed.mock.calls.map(([snapshot]) => snapshot.health.midi)).toEqual(['HEALTHY', 'HEALTHY']);
+  expect(f.platform.acquireMidi).toHaveBeenCalledOnce(); unsubscribe(); f.owner.close();
+});

@@ -45,7 +45,7 @@ export class PerformanceRecorder {
   private readonly mode: PracticeRecordingMode;
   private recorder: MediaRecorder | null = null;
   private readonly chunks: Blob[] = [];
-  private borrowedRoots: readonly MediaStreamTrack[] = [];
+  private readonly sourceHealth = new Map<'AUDIO' | 'VIDEO', 'HEALTHY' | 'INTERRUPTED' | 'LOST'>();
   private ownedStream: MediaStream | null = null;
   private sourceOwnership: 'NONE' | 'OWNED_CLONE' = 'NONE';
   private disposed = false;
@@ -76,7 +76,6 @@ export class PerformanceRecorder {
     try {
       if (this.disposed) throw new RecordingPreparationError('RECORDING_PREPARATION_CANCELLED');
       const recorderOptions = recordingOptions(this.mode);
-      this.borrowedRoots = [...(options.audioRoot?.getAudioTracks() ?? []), ...(this.mode === 'VIDEO' ? options.cameraStream?.getVideoTracks() ?? [] : [])];
       if (this.mode === 'AUDIO') {
         const stream = await this.resolveAudioStream(options);
         this.assertTracks(stream, 'AUDIO');
@@ -107,7 +106,7 @@ export class PerformanceRecorder {
     if (!this.admitted || !this.recorder || this.recorder.state !== 'inactive' || this.state !== 'NOT_STARTED' || !this.ownedStream) {
       throw new RecordingPreparationError('RECORDER_INIT_FAILED');
     }
-    if (this.borrowedRoots.some(track => track.readyState !== 'live' || track.muted)) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
+    if ([...this.sourceHealth.values()].some(health => health !== 'HEALTHY')) throw new RecordingPreparationError('RECORDER_INIT_FAILED');
     this.assertTracks(this.ownedStream, this.mode);
   }
 
@@ -117,16 +116,28 @@ export class PerformanceRecorder {
   activate(): void { this.assertPrepared(); this.runtimeActive = this.mode !== 'OFF'; }
   runtimeFault(): RecordingRuntimeInterruption | null { return this.fault; }
   /** Device Lease health events are facts; this owner decides recorder continuity. */
-  observeDeviceHealth(): void {
-    if (!this.runtimeActive || this.disposed || this.acceptedLoss) return;
-    const failed = this.borrowedRoots.find(track => track.readyState !== 'live') ?? this.borrowedRoots.find(track => track.muted);
-    if (failed) this.interrupt(failed.kind === 'video' ? failed.readyState === 'live' ? 'VIDEO_TRACK_MUTED' : 'VIDEO_TRACK_ENDED'
-      : failed.readyState === 'live' ? 'AUDIO_TRACK_MUTED' : 'AUDIO_TRACK_ENDED', failed.readyState === 'live' ? 'SAME_PIPELINE_RECOVERABLE' : 'RESTART_REQUIRED');
-    else this.observeRecovery();
+  observeSourceHealth(sources: Readonly<{
+    audio: 'HEALTHY' | 'INTERRUPTED' | 'LOST';
+    video?: 'HEALTHY' | 'INTERRUPTED' | 'LOST';
+  }>): void {
+    if (this.disposed || this.acceptedLoss || this.mode === 'OFF') return;
+    this.sourceHealth.set('AUDIO', sources.audio);
+    if (this.mode === 'VIDEO') this.sourceHealth.set('VIDEO', sources.video ?? 'LOST');
+    if (!this.runtimeActive) return;
+    const failed = [...this.sourceHealth].find(([, health]) => health === 'LOST')
+      ?? [...this.sourceHealth].find(([, health]) => health === 'INTERRUPTED');
+    if (!failed) this.observeRecovery();
+    else {
+      const [kind, health] = failed;
+      this.interrupt(kind === 'VIDEO'
+        ? health === 'LOST' ? 'VIDEO_TRACK_ENDED' : 'VIDEO_TRACK_MUTED'
+        : health === 'LOST' ? 'AUDIO_TRACK_ENDED' : 'AUDIO_TRACK_MUTED',
+        health === 'LOST' ? 'RESTART_REQUIRED' : 'SAME_PIPELINE_RECOVERABLE');
+    }
   }
   private samePipelineHealthy(): boolean {
     if (this.disposed || !this.fault || this.fault.recoverability !== 'SAME_PIPELINE_RECOVERABLE' || !this.ownedStream || !this.recorder) return false;
-    if (this.borrowedRoots.some(track => track.readyState !== 'live' || track.muted)) return false;
+    if ([...this.sourceHealth.values()].some(health => health !== 'HEALTHY')) return false;
     if (!this.ownedStream.getTracks().every(track => track.readyState === 'live' && !track.muted)
       || !['paused', 'recording', ...(!this.mediaStarted ? ['inactive'] : [])].includes(this.recorder.state)) return false;
     return true;
@@ -323,7 +334,7 @@ export class PerformanceRecorder {
   private releaseStream(): void {
     this.detachTracks.splice(0).forEach(detach => detach());
     const stream = this.ownedStream;
-    this.ownedStream = null; this.borrowedRoots = [];
+    this.ownedStream = null; this.sourceHealth.clear();
     this.sourceOwnership = 'NONE';
     if (stream) {
       for (const track of stream.getTracks()) {

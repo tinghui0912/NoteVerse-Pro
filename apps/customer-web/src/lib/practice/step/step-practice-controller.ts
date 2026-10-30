@@ -1,12 +1,11 @@
 import type { PracticeAnalysisResourcePlan } from '@/lib/practice/planning/resource-plan';
-import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
+import type { PracticeRootHealthPort, PracticeRootHealthSnapshot, PracticeDeviceHealth, PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import { StepPracticeRuntime, groupForCurrentStep } from '@/lib/practice/step/domain/runtime';
 import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import { createLocalSessionId } from '@/lib/practice/kernel/session';
 import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
 import type { StepPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
-import type { BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
 import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
 import { stepApplicationError, type StepApplicationErrorCode } from './step-errors';
@@ -20,6 +19,7 @@ import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/infe
 
 export type StepControllerOptions = Readonly<{
   devices: PracticeDeviceRoots;
+  rootHealth: PracticeRootHealthPort;
   startupTimings?: PracticeStartupTimings;
   plan: StepPracticeSessionPlan;
   onNaturalCompletion?(snapshot: LocalStepSessionSnapshot): void; platform?: StepPlatform;
@@ -38,9 +38,8 @@ export class StepPracticeController {
   private input: StepMidiAttemptInput | null = null;
   private microphone: StepMicrophoneInput<StepAttemptIdentity> | null = null;
   private unboundInference: AcousticInferencePort | null = null;
-  private stream: MediaStream | null = null;
   private context: AudioContext | null = null;
-  private detachInfrastructure: (() => void) | null = null;
+  private detachRootHealth: (() => void) | null = null;
   private readonly abort = new AbortController();
   private preparation: Promise<void> | null = null;
   private cleanupTask: Promise<void> | null = null;
@@ -53,7 +52,7 @@ export class StepPracticeController {
   private infrastructureIntervention: StepInfrastructureIntervention | null = null;
   private readonly listeners = new Set<() => void>();
   private generation = 0;
-  private suppressInputState = false;
+  private suppressRootHealth = false;
   private enabled: boolean;
   private finalSnapshot: LocalStepSessionSnapshot | null = null;
   constructor(private readonly options: StepControllerOptions) {
@@ -98,15 +97,19 @@ export class StepPracticeController {
         this.runtime = runtime;
         this.createMetronome();
         this.input = new StepMidiAttemptInput({ ...this.attemptSink(runtime), failure: error => this.failAttempt(error) }, this.platform.timer);
-        this.midi = this.platform.createMidi({ access: this.options.devices[resources.input.root]!, timebase, onMidiNote: note => this.input?.note(note), onStateChange: state => this.inputState(state) });
+        this.midi = this.platform.createMidi({ access: this.options.devices[resources.input.root]!, timebase, onMidiNote: note => this.input?.note(note) });
         await this.startup.measure('midiBind', () => this.midi!.start());
         if (generation !== this.generation) return;
-        if (this.midi.getState().connectedInputCount > 0) {
+        if (this.options.rootHealth.snapshot().health[resources.input.root] === 'HEALTHY') {
           runtime.acceptInputAfter(timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
           this.error = null;
         } else this.error = 'NO_CONNECTED_INPUT';
       } else throw new Error('STEP_MICROPHONE_UNAVAILABLE');
-      this.state = 'ACTIVE'; this.updateTarget();
+      this.state = 'ACTIVE';
+      let subscribed = false;
+      this.detachRootHealth = this.options.rootHealth.subscribe(snapshot => { if (subscribed) this.rootHealthChanged(snapshot); });
+      subscribed = true; this.rootHealthChanged(this.options.rootHealth.snapshot());
+      this.updateTarget();
       this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
@@ -124,19 +127,12 @@ export class StepPracticeController {
     if (generation !== this.generation) { await inference.dispose(); return; }
     this.unboundInference = inference;
     const stream = this.options.devices[analysis.sourceRoot];
-    if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) throw new Error('STEP_MICROPHONE_UNAVAILABLE');
+    if (!stream || this.options.rootHealth.snapshot().health[analysis.sourceRoot] !== 'HEALTHY') throw new Error('STEP_MICROPHONE_UNAVAILABLE');
     if (generation !== this.generation) return;
-    this.stream = stream;
     const context = platform.createAudioContext(); this.context = context;
     await this.startup.measure('audioContextResume', async () => { if (context.state !== 'running') await context.resume(); });
     if (generation !== this.generation) return;
     if (![44100, 48000].includes(context.sampleRate)) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
-    const tracks = stream.getAudioTracks();
-    const changed = () => this.microphoneHealthChanged();
-    for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.addEventListener(event, changed);
-    this.detachInfrastructure = () => {
-      for (const track of tracks) for (const event of ['mute', 'unmute', 'ended']) track.removeEventListener(event, changed);
-    };
     const microphone = new StepMicrophoneInput<StepAttemptIdentity>({ ...platform, acquireInference: async () => {
       const lease = this.unboundInference;
       if (!lease) throw new Error('PRACTICE_INFERENCE_LEASE_NOT_OWNED');
@@ -241,9 +237,15 @@ export class StepPracticeController {
     if (matched) this.updateTarget();
     this.emit();
   }
-  private inputState(state: BrowserMidiState): void {
-    if (this.suppressInputState || this.state === 'DISPOSED' || this.state === 'ENDED') return;
-    if (state.connectedInputCount > 0) {
+  private rootHealthChanged(snapshot: PracticeRootHealthSnapshot): void {
+    if (this.state !== 'ACTIVE' || this.suppressRootHealth) return;
+    if (this.options.plan.resources.input.kind === 'MIDI') {
+      this.midi?.refreshInputs(); this.midiHealthChanged(snapshot.health.midi ?? 'LOST');
+    } else this.microphoneHealthChanged(snapshot.health.inputMicrophone ?? 'LOST');
+  }
+  private midiHealthChanged(health: PracticeDeviceHealth): void {
+    if (this.suppressRootHealth || this.state === 'DISPOSED' || this.state === 'ENDED') return;
+    if (health === 'HEALTHY') {
       if (this.state === 'ACTIVE' && this.error === 'NO_CONNECTED_INPUT' && this.runtime && this.timebase) {
         this.runtime.acceptInputAfter(this.timebase.runtimeToSessionTime(this.platform.clock.nowMs()));
         this.error = null;
@@ -256,14 +258,13 @@ export class StepPracticeController {
       this.error = 'NO_CONNECTED_INPUT'; this.emit();
     }
   }
-  private microphoneHealthChanged(): void {
+  private microphoneHealthChanged(health: PracticeDeviceHealth): void {
     if (this.analysisIntervention || this.infrastructureIntervention || this.state !== 'ACTIVE') return;
-    const tracks = this.stream?.getAudioTracks();
-    if (!tracks?.length || tracks.some(track => track.readyState !== 'live')) {
+    if (health === 'LOST') {
       this.failAttempt(new Error('MICROPHONE_SOURCE_LOST')); return;
     }
     try {
-      if (tracks.some(track => track.muted)) {
+      if (health === 'INTERRUPTED') {
         if (this.error === 'STEP_MICROPHONE_INTERRUPTED') return;
         this.runtime?.setInputUnavailable(); this.microphone?.suspendInput();
         this.error = 'STEP_MICROPHONE_INTERRUPTED'; this.emit();
@@ -294,11 +295,11 @@ export class StepPracticeController {
   }
   private cleanup(): Promise<void> {
     if (this.cleanupTask) return this.cleanupTask;
-    this.suppressInputState = true;
-    try { this.detachInfrastructure?.(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-    this.detachInfrastructure = null;
+    this.suppressRootHealth = true;
+    try { this.detachRootHealth?.(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
+    this.detachRootHealth = null;
     const microphone = this.microphone, context = this.context;
-    this.microphone = null; this.stream = null; this.context = null;
+    this.microphone = null; this.context = null;
     const midi = this.midi, metronome = this.metronome; this.midi = null; this.metronome = null;
     this.input?.cancel(); this.input = null;
     try { midi?.dispose(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
@@ -313,7 +314,7 @@ export class StepPracticeController {
       catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
       this.emit();
     })();
-    this.suppressInputState = false;
+    this.suppressRootHealth = false;
     return this.cleanupTask;
   }
   private emit(): void { for (const listener of [...this.listeners]) listener(); }

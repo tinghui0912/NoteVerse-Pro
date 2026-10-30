@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
 import * as scopeContract from '@/lib/practice/kernel/scope';
@@ -18,7 +19,7 @@ import { PracticeResourceCoordinator } from './practice-resource-coordinator';
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-const options: UseLocalPracticeOptions = { plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() };
+const options: UseLocalPracticeOptions = { rootHealth: rootHealthFixture().port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() };
 
 function deferred() {
   let resolve!: () => void;

@@ -1,6 +1,6 @@
 import type { PracticeResourcePlan, PracticeLiveRoot } from '@/lib/practice/planning/resource-plan';
 import { type PracticeDeviceHealth,
-  type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
+  type PracticeRootHealthPort, type PracticeRootHealthSnapshot, type PracticeDeviceRoots, type PracticeDeviceIssue } from './device-contract';
 import { browserDevicePlatform, type PracticeDevicePlatform } from './browser-device-platform';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 
@@ -12,6 +12,14 @@ export class PracticeDeviceLease {
   private state: 'NEW' | 'OPENING' | 'READY' | 'FAULTED' | 'CLOSED' = 'NEW';
   private issue: PracticeDeviceIssue | null = null;
   private readonly required: readonly PracticeLiveRoot[];
+  private readonly healthListeners = new Set<(snapshot: PracticeRootHealthSnapshot) => void>();
+  readonly rootHealth: PracticeRootHealthPort = Object.freeze({
+    snapshot: () => Object.freeze({ health: this.snapshot().health }),
+    subscribe: (listener: (snapshot: PracticeRootHealthSnapshot) => void) => {
+      this.healthListeners.add(listener); listener(this.rootHealth.snapshot());
+      return () => { this.healthListeners.delete(listener); };
+    },
+  });
   private readonly listeners = new Set<() => void>();
   private readonly detach = new Map<PracticeLiveRoot, () => void>();
   private pending: Promise<void> | null = null;
@@ -80,7 +88,7 @@ export class PracticeDeviceLease {
     if (this.isClosed()) return;
     this.state = 'CLOSED';
     for (const resource of this.required) this.release(resource);
-    this.notify(); this.listeners.clear();
+    this.notify(); this.listeners.clear(); this.healthListeners.clear();
   }
   private isClosed(): boolean { return this.state === 'CLOSED'; }
   private release(resource: PracticeLiveRoot): void {
@@ -104,5 +112,9 @@ export class PracticeDeviceLease {
       condition: this.health(resource) === 'INTERRUPTED' ? 'INTERRUPTED' : 'LOST' }) : null);
     this.state = this.issue ? 'FAULTED' : 'READY'; this.notify();
   }
-  private notify(): void { for (const listener of this.listeners) listener(); }
+  private notify(): void {
+    const health = this.rootHealth.snapshot();
+    for (const listener of [...this.healthListeners]) listener(health);
+    for (const listener of this.listeners) listener();
+  }
 }

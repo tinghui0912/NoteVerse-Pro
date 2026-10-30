@@ -215,6 +215,37 @@ describe('Practice bounded domain dependencies', () => {
     expect(controller).toContain('this.options.devices[resources.input.root]');
   });
 
+  it('projects device physical facts through a read-only health port into independent pipelines', () => {
+    const events = (owner: string) => {
+      const file = path.join(practiceRoot, owner), source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+      const found: { target: string; event: string }[] = [];
+      const visit = (node: ts.Node) => {
+        if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'addEventListener') {
+          found.push({ target: node.expression.expression.getText(source), event: node.arguments[0].getText(source) });
+        }
+        ts.forEachChild(node, visit);
+      }; visit(source); return found;
+    };
+    for (const owner of ['step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts']) {
+      const text = readFileSync(path.join(practiceRoot, owner), 'utf8');
+      expect(text).toContain('rootHealth: PracticeRootHealthPort'); expect(text).toContain('this.options.rootHealth.subscribe');
+      expect(text).toContain('this.rootHealthChanged(this.options.rootHealth.snapshot())');
+      expect(events(owner)).toEqual([]);
+    }
+    expect(events('midi/browser-midi-controller.ts')).toEqual([{ target: 'input', event: "'midimessage'" }]);
+    expect(events('continuous/microphone-resource-health.ts')).toEqual([{ target: 'context', event: "'statechange'" }]);
+    const pipeline = readFileSync(path.join(practiceRoot, 'continuous/microphone-resource-health.ts'), 'utf8');
+    expect(pipeline).toContain('observeSourceHealth(health: PracticeDeviceHealth)');
+    const recorder = readFileSync(path.join(practiceRoot, 'recording/performance-recorder.ts'), 'utf8');
+    expect(recorder).toContain('observeSourceHealth(sources: Readonly<');
+    expect(recorder).toContain('this.ownedStream.getTracks()');
+    expect(events('recording/performance-recorder.ts').every(event => event.target === 'track')).toBe(true);
+    const device = readFileSync(path.join(practiceRoot, 'device/practice-device-lease.ts'), 'utf8');
+    expect(device).toContain('readonly rootHealth: PracticeRootHealthPort');
+    expect(device).toContain('listener(this.rootHealth.snapshot())');
+    expect(events('device/practice-device-lease.ts')).toContainEqual({ target: 'access', event: "'statechange'" });
+  });
+
   it('enforces infrastructure and application direction on every production import', () => {
     for (const [file, edges] of graph) {
       for (const edge of edges) expect(dependencyAllowed(file, edge), `${relative(file)} -> ${edge.specifier}`).toBe(true);

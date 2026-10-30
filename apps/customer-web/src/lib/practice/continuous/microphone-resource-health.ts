@@ -1,29 +1,33 @@
+import type { PracticeDeviceHealth } from '@/lib/practice/device/device-contract';
 export type MicrophoneResourceHealth = Readonly<{
   healthy: boolean;
   reason: 'MICROPHONE_SOURCE_LOST' | 'AUDIO_CONTEXT_INTERRUPTED' | 'CAPTURE_PIPELINE_INVALID';
   recoverability: 'SAME_PIPELINE_RECOVERABLE' | 'RESTART_REQUIRED';
 }>;
 
-/** Watches borrowed analysis source and canonical clock health; never reacquires or resumes them. */
-export class ContinuousMicrophoneResources {
-  private tracks: MediaStreamTrack[] | null;
+/** Combines supplied physical-source facts with the owned canonical clock pipeline. */
+export class ContinuousMicrophoneHealth {
+  private sourceHealth: PracticeDeviceHealth | null;
   private hard = false;
   private disposed = false;
   private previous: string;
-  constructor(stream: MediaStream, private readonly context: AudioContext, private readonly changed: (health: MicrophoneResourceHealth) => void) {
-    this.tracks = stream.getAudioTracks();
+  constructor(sourceHealth: PracticeDeviceHealth, private readonly context: AudioContext, private readonly changed: (health: MicrophoneResourceHealth) => void) {
+    this.sourceHealth = sourceHealth;
     if (!this.snapshot().healthy) throw new Error(this.snapshot().reason);
     this.previous = JSON.stringify(this.snapshot());
-    for (const track of this.tracks ?? []) for (const event of ['mute', 'unmute', 'ended']) track.addEventListener(event, this.observe);
     context.addEventListener('statechange', this.observe);
   }
   snapshot(): MicrophoneResourceHealth {
     this.hard ||= this.context.state === 'closed';
-    const sourceLost = this.tracks !== null && (!this.tracks.length || this.tracks.some(track => track.readyState !== 'live' || track.muted));
-    const sourceEnded = this.tracks !== null && (!this.tracks.length || this.tracks.some(track => track.readyState !== 'live'));
+    const sourceLost = this.sourceHealth !== null && this.sourceHealth !== 'HEALTHY';
+    const sourceEnded = this.sourceHealth === 'LOST';
     return Object.freeze({ healthy: !this.hard && !sourceLost && this.context.state === 'running',
       reason: sourceLost ? 'MICROPHONE_SOURCE_LOST' : 'AUDIO_CONTEXT_INTERRUPTED',
       recoverability: this.hard || sourceEnded ? 'RESTART_REQUIRED' : 'SAME_PIPELINE_RECOVERABLE' });
+  }
+  observeSourceHealth(health: PracticeDeviceHealth): void {
+    if (this.sourceHealth === null || this.disposed) return;
+    this.sourceHealth = health; this.observe();
   }
   private readonly observe = () => {
     if (this.disposed) return;
@@ -32,12 +36,10 @@ export class ContinuousMicrophoneResources {
   };
   /** One-way release of analysis-source observation; the performance clock remains watched. */
   releaseAnalysisSource(): void {
-    for (const track of this.tracks ?? []) for (const event of ['mute', 'unmute', 'ended']) track.removeEventListener(event, this.observe);
-    this.tracks = null; this.observe();
+    this.sourceHealth = null; this.observe();
   }
   dispose(): void {
     this.disposed = true;
-    for (const track of this.tracks ?? []) for (const event of ['mute', 'unmute', 'ended']) track.removeEventListener(event, this.observe);
     this.context.removeEventListener('statechange', this.observe);
   }
 }

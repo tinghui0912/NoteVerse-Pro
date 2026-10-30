@@ -79,7 +79,10 @@ Practice Attempt (one fresh play-through)
 
 `device/` acquires the required browser roots quietly on Practice page entry,
 observes mute/unmute/ended and MIDI statechange events without polling, and owns
-all root-track disposal. Required device health is represented by compact status
+all root-track disposal and physical-health interpretation. Its read-only
+`PracticeRootHealthPort` supplies immutable normalized facts to execution owners.
+Subscription delivers current facts synchronously; controllers recheck after registering
+their cleanup. Active execution receives events directly, independently of page rendering. Required device health is represented by compact status
 icons within the stable `PracticeStatus` surface, without extra healthy-state prose.
 
 Fault ownership follows the same three lifetimes. Environment invalidates only its
@@ -201,6 +204,14 @@ Bounded engineering-only diagnostics distinguish deviceLeaseOpen from per-attemp
 waitPreviousRelease, acquireInferenceLease, audioContextResume, firLoad, captureConnect,
 acousticPreroll, midiBind and recorderAdmission. They never enter Result, metrics,
 PerformanceTake or backend data and have no learner-facing debug UI.
+
+Physical root health is distinct from processing pipeline health. DeviceLease alone
+interprets borrowed microphone/camera tracks and MIDIAccess connectedness. STEP and
+Continuous consume normalized facts for their planned roots. MIDI adapters bind
+messages through `refreshInputs()`; AudioContext, capture, inference, owned recording
+clones and MediaRecorder retain their pipeline-specific health owners. Recoverable
+incidents preserve session/target/performance identity and require their existing
+retirement or explicit continuation boundary. See [physical health contracts](practice-session-planning.md#physical-root-health-and-pipeline-health).
 
 ## Practice Readiness
 
@@ -883,8 +894,8 @@ chronology and exposes a dedicated recording intervention. Performance time and
 finality cannot advance beyond that pause boundary while the user decides.
 
 A temporary muted recording track is recoverable only while every required track
-remains live, becomes unmuted, and the same MediaRecorder remains usable. Original
-track unmute/ended and recorder events update health passively. There is no manual
+remains live, becomes unmuted, and the same MediaRecorder remains usable. DeviceLease physical-source facts and owned-clone/MediaRecorder events update
+recorder continuity passively. There is no manual
 Check Device action. Recovery only exposes Continue; it never resumes automatically.
 Ended tracks, recorder errors, pause/resume/start failures and unusable pipelines
 allow explicit continuation without recording only when performance is safe; otherwise End is required. No new recorder or stream
@@ -940,8 +951,9 @@ binds the configured assignment and evidence provenance. Healthy media finalizes
 Review retains replay/save/share and its unavailable notice without target colors.
 
 Acoustic analysis release neither closes the controller AudioContext nor stops the
-borrowed root stream, metronome or recorder. Source-track health observation is
-irreversibly released with analysis; AudioContext health observation stays active
+borrowed root stream, metronome or recorder. Analysis-source health consumption is
+irreversibly released with analysis; DeviceLease continues observing retained physical
+roots. AudioContext health observation stays active
 because that context still owns canonical performance time. Recording track health
 continues to belong to the recorder. No failure dialog offers Restart or an alias.
 Normal healthy completion Try Again and same-resource automatic recovery keep their

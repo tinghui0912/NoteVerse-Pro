@@ -60,10 +60,10 @@ export function useContinuousLocalPractice(options: UseLocalPracticeOptions,
       await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
       if (!plan) throw new Error('Score artifact is not available yet.');
-      const devices = options.getDevices();
+      const devices = options.borrowRoots();
       if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       onSessionStart();
-      const current = new ContinuousPracticeController({ devices, observeDevices: options.observeDevices, startupTimings, plan,
+      const current = new ContinuousPracticeController({ devices, rootHealth: options.rootHealth, startupTimings, plan,
         onNaturalCompletion: value => {
           if (operation === generation.current && controller.current === current && value.completionReason === 'SCOPE_COMPLETED') completion.current?.(value);
         } }, browserContinuousPlatform(options.acquireInference));

@@ -114,8 +114,8 @@ AudioContext. They do not provide live execution roots.
 The exact Practice page gives that same resource plan to `usePracticeDeviceLease`.
 The lease consumes `liveRoots`, retains acquired roots, observes them and releases
 them on unmount. Its binding transaction, same-root observation and fail-closed
-admission are owned by the device boundary. Controller pipeline/analysis/recorder
-health remains with its current execution owners.
+admission are owned by the device boundary. DeviceLease is the sole physical health interpreter of the retained roots.
+Controllers consume its read-only port; pipeline health has separate owners.
 
 Both mode hooks are mounted by the local binding; the selected session plan determines
 execution. `PracticeResourceCoordinator` sequences release between execution owners.
@@ -126,3 +126,61 @@ Artifact schema3, STEP schema9/runtime `step-piano-key-learning-v12`, Result sch
 count-in policy, timing/recognition/resource values and acoustic identities are their
 current contracts. See the [product contract](practice-product-contract.md) and
 [Practice Source](practice-source.md).
+
+## Physical Root Health and Pipeline Health
+
+```text
+PracticeResourcePlan.liveRoots
+  -> PracticeDeviceLease
+       -> retained roots and physical root health
+       -> PracticeRootHealthPort
+            -> STEP application owner
+            -> Continuous application owner
+                 -> AudioContext / capture / analysis / recorder pipelines
+```
+
+`PracticeRootHealthPort` exposes immutable root-keyed HEALTHY, INTERRUPTED and LOST
+facts through `snapshot()` and `subscribe(listener)`. Subscription registers the
+listener and synchronously delivers current facts. Controllers assign their detach
+function, then recheck the current snapshot before admission. This closes the
+snapshot/subscription gap without polling or relying on React rendering. Only the
+active execution owner subscribes; cleanup detaches the subscription.
+
+DeviceLease observes borrowed media-track mute/unmute/ended and retained MIDIAccess
+statechange. A required live unmuted media track is HEALTHY, a muted live track is
+INTERRUPTED, and a missing/ended track is LOST. MIDI is HEALTHY with at least one
+connected input and LOST otherwise. Same-access MIDI reconnects refresh message
+routing. Health notifications also permit refreshing routing when connected input
+membership changes while the MIDI root remains HEALTHY. No execution consumer
+reacquires roots.
+
+Physical root health is distinct from processing pipeline health:
+
+| Fact | Owner |
+| --- | --- |
+| Borrowed microphone/camera mute or end | DeviceLease |
+| Retained MIDIAccess connectedness | DeviceLease |
+| MIDIInput message listener binding and NOTE_ON/OFF parsing | BrowserMidiController |
+| AudioContext state | Execution pipeline |
+| Capture bridge validity / worker or model failure | Acoustic pipeline |
+| Owned recording clone tracks / MediaRecorder state and errors | Recorder pipeline |
+
+STEP microphone interruption suspends unfinished acoustic evidence and preserves the
+session and target. HEALTHY recovery uses the canonical physical retirement boundary;
+LOST causes the infrastructure intervention. STEP MIDI loss cancels the gesture and
+makes input unavailable. Same-access recovery refreshes routing and advances the
+retirement watermark on the same session and target.
+
+Continuous combines normalized microphone facts with AudioContext health in
+`ContinuousMicrophoneHealth`. Source interruption is recoverable on the same pipeline;
+source loss is restart-required. Suspended/interrupted context is recoverable and
+closed context is restart-required. Capture invalidity remains a separate hard
+pipeline fact. MIDI loss pauses the canonical transport and reports NO_CONNECTED_INPUT;
+recovery preserves position and requires explicit intervention/user continuation.
+
+The application maps planned recording roots to AUDIO/VIDEO source-health facts.
+`PerformanceRecorder` consumes those facts without retaining borrowed-track health
+observers. It independently watches its owned clone tracks and MediaRecorder. Both
+physical and pipeline incidents preserve their audio/video mute/ended meanings,
+strongest recoverability and the single canonical pause. DeviceLease never interprets
+context, capture, analysis or recorder failures as physical root loss.

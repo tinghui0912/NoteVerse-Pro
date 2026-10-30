@@ -90,6 +90,51 @@ describe('PerformanceRecorder', () => {
     });
   });
 
+  it('consumes physical audio facts without subscribing to the borrowed track, while retaining clone health', async () => {
+    const physical = createTrack(), root = createStream([physical]), listen = vi.spyOn(physical, 'addEventListener');
+    const recorder = new PerformanceRecorder('AUDIO'); await recorder.prepare({ audioRoot: root });
+    recorder.observeSourceHealth({ audio: 'HEALTHY' }); recorder.activate(); recorder.startIfReady(0);
+    expect(listen).not.toHaveBeenCalled(); expect(recordingTrack()).not.toBe(physical);
+    physical.mute(); expect(recorder.runtimeFault()).toBeNull();
+    recorder.observeSourceHealth({ audio: 'INTERRUPTED' }); recorder.pause(10);
+    expect(recorder.runtimeFault()).toEqual({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE', state: 'WAITING_FOR_USER' });
+    physical.unmute(); recorder.observeSourceHealth({ audio: 'HEALTHY' });
+    expect(recorder.runtimeFault()?.state).toBe('RECOVERED_WAITING_FOR_USER'); expect(recorder.recoverRuntime()).toBe(true); recorder.resume(10);
+    recordingTrack().end(); expect(recorder.runtimeFault()).toMatchObject({ reason: 'AUDIO_TRACK_ENDED', recoverability: 'RESTART_REQUIRED' });
+    recorder.stopAndCleanup(); expect(physical.stop).not.toHaveBeenCalled();
+  });
+  it('applies the complete physical snapshot before publishing recording recovery', async () => {
+    const root = createStream(), camera = createStream([createTrack('video')]);
+    vi.stubGlobal('MediaStream', class { constructor(private tracks: MediaStreamTrack[]) {} getTracks() { return this.tracks; }
+      getAudioTracks() { return this.tracks.filter(track => track.kind === 'audio'); } getVideoTracks() { return this.tracks.filter(track => track.kind === 'video'); }
+      clone() { return createStream(this.tracks.map(track => createTrack(track.kind as 'audio' | 'video'))); }
+    });
+    try {
+      const recorder = new PerformanceRecorder('VIDEO'), faults = vi.fn();
+      await recorder.prepare({ audioRoot: root, cameraStream: camera }); recorder.onRuntimeFault(faults);
+      recorder.activate(); recorder.startIfReady(0);
+      recorder.observeSourceHealth({ audio: 'INTERRUPTED', video: 'HEALTHY' }); recorder.pause(1);
+      recorder.observeSourceHealth({ audio: 'HEALTHY', video: 'LOST' });
+      expect(faults.mock.calls.every(([fact]) => fact.state === 'WAITING_FOR_USER')).toBe(true);
+      expect(recorder.runtimeFault()?.recoverability).toBe('RESTART_REQUIRED'); recorder.stopAndCleanup();
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it.each(['AUDIO', 'VIDEO'] as const)('%s physical loss preserves source-specific hard failure meaning', async kind => {
+    const root = createStream(), camera = createStream([createTrack('video')]);
+    vi.stubGlobal('MediaStream', class { constructor(private tracks: MediaStreamTrack[]) {} getTracks() { return this.tracks; }
+      getAudioTracks() { return this.tracks.filter(track => track.kind === 'audio'); } getVideoTracks() { return this.tracks.filter(track => track.kind === 'video'); }
+      clone() { return createStream(this.tracks.map(track => createTrack(track.kind as 'audio' | 'video'))); }
+    });
+    try {
+      const recorder = new PerformanceRecorder('VIDEO'); await recorder.prepare({ audioRoot: root, cameraStream: camera });
+      recorder.activate(); recorder.startIfReady(0); recorder.observeSourceHealth({ audio: kind === 'AUDIO' ? 'INTERRUPTED' : 'HEALTHY', video: kind === 'VIDEO' ? 'INTERRUPTED' : 'HEALTHY' }); recorder.pause(1);
+      expect(recorder.runtimeFault()?.reason).toBe(kind === 'AUDIO' ? 'AUDIO_TRACK_MUTED' : 'VIDEO_TRACK_MUTED');
+      recorder.observeSourceHealth({ audio: 'HEALTHY', video: 'HEALTHY' }); expect(recorder.runtimeFault()?.state).toBe('RECOVERED_WAITING_FOR_USER');
+      expect(recorder.recoverRuntime()).toBe(true); recorder.resume(1); recorder.observeSourceHealth({ audio: kind === 'AUDIO' ? 'LOST' : 'HEALTHY', video: kind === 'VIDEO' ? 'LOST' : 'HEALTHY' });
+      expect(recorder.runtimeFault()).toMatchObject({ reason: kind === 'AUDIO' ? 'AUDIO_TRACK_ENDED' : 'VIDEO_TRACK_ENDED', recoverability: 'RESTART_REQUIRED' });
+      recorder.stopAndCleanup();
+    } finally { vi.unstubAllGlobals(); }
+  });
   it('publishes one recoverable mute incident and recovers only the same healthy pipeline', async () => {
     const track = createTrack(), media = createStream([track]);
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn(async () => media) } });

@@ -10,37 +10,34 @@ describe('Continuous physical MIDI input projection', () => {
     let options!: BrowserMidiControllerOptions;
     const port = {
       start: vi.fn(async () => { }), dispose: vi.fn(),
-      getState: () => ({ connectedInputCount: 1, isRunning: true, isSupported: true, hasPermission: true }),
+      refreshInputs: vi.fn(),
     };
     const platform = {
       createMidi: (value: BrowserMidiControllerOptions) => { options = value; return port; },
     } satisfies Pick<ContinuousPlatform, 'createMidi'>;
     const observe = vi.fn();
-    const onState = vi.fn();
     const timebase = new PracticeTimebase({ domainId: 'physical-midi' });
-    new ContinuousMidiInput(platform, { access: midiDeviceFixture().access, timebase, observe, onState });
+    new ContinuousMidiInput(platform, { access: midiDeviceFixture().access, timebase, observe });
     const sessionTime = timebase.atSessionMs(112);
     options.onAttack!({ sessionTime, noteNumber: 64, confidence: 1 });
     expect(options.timebase).toBe(timebase);
-    expect(options.onStateChange).toBe(onState);
+
     expect(observe).toHaveBeenCalledExactlyOnceWith({ captureTime: sessionTime, pianoKey: 64, confidence: 1 });
     for (const noteNumber of [20, 21, 108, 109]) expect(() => options.onAttack!({ sessionTime, noteNumber, confidence: 1 })).not.toThrow();
     expect(observe.mock.calls.map(([fact]) => fact.pianoKey)).toEqual([64, 21, 108]);
   });
 
-  it('retains preparation, disconnect rejection and resource release ownership', async () => {
-    const state = { connectedInputCount: 1, isRunning: true, isSupported: true, hasPermission: true };
-    const port = { start: vi.fn(async () => { }), dispose: vi.fn(), getState: () => state };
+  it('binds, refreshes and releases message routing', async () => {
+    const port = { start: vi.fn(async () => { }), dispose: vi.fn(), refreshInputs: vi.fn() };
     const platform = { createMidi: () => port } satisfies Pick<ContinuousPlatform, 'createMidi'>;
     const input = new ContinuousMidiInput(platform, {
       access: midiDeviceFixture().access,
-      timebase: new PracticeTimebase({ domainId: 'midi-resource' }), observe: vi.fn(), onState: vi.fn(),
+      timebase: new PracticeTimebase({ domainId: 'midi-resource' }), observe: vi.fn(),
     });
     await input.prepare();
     expect(port.start).toHaveBeenCalledOnce();
-    input.assertConnected();
-    state.connectedInputCount = 0;
-    expect(() => input.assertConnected()).toThrow('NO_CONNECTED_INPUT');
+    input.refreshInputs();
+    expect(port.refreshInputs).toHaveBeenCalledOnce();
     input.dispose();
     expect(port.dispose).toHaveBeenCalledOnce();
   });

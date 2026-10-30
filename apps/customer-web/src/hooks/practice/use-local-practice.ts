@@ -1,5 +1,5 @@
 'use client';
-import type { PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
+import type { PracticeRootHealthPort, PracticeDeviceRoots } from '@/lib/practice/device/device-contract';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 
 import { useCallback, useState } from 'react';
@@ -16,7 +16,7 @@ type LocalPracticeSessionSnapshot = LocalStepSessionSnapshot | LocalPerformanceS
 
 export type UseLocalPracticeOptions = {
   plan: PracticeSessionPlan | null;
-  getDevices: () => PracticeDeviceRoots | null; observeDevices?: (listener: () => void) => () => void;
+  borrowRoots: () => PracticeDeviceRoots | null; rootHealth: PracticeRootHealthPort;
   acquireInference?: (signal: AbortSignal) => Promise<AcousticInferencePort>;
   onNaturalCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };

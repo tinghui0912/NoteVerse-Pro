@@ -18,13 +18,13 @@ it('page binds once across rerenders and hard loss; only unmount releases retain
   const acquire = vi.spyOn(browserDevicePlatform, 'acquireStream').mockResolvedValueOnce(input.media).mockResolvedValueOnce(camera.media);
   const { result, rerender, unmount } = renderHook(() => usePracticeDeviceLease(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'VIDEO' }), true), { wrapper: StrictMode });
   await waitFor(() => expect(result.current.snapshot?.state).toBe('READY'));
-  const roots = result.current.borrow(); rerender(); expect(result.current.borrow()).toEqual(roots); expect(acquire).toHaveBeenCalledTimes(2);
+  const roots = result.current.borrow(), port = result.current.rootHealth; rerender(); expect(result.current.rootHealth).toBe(port); expect(result.current.borrow()).toEqual(roots); expect(acquire).toHaveBeenCalledTimes(2);
   act(() => { camera.track.readyState = 'ended'; camera.track.dispatchEvent(new Event('ended')); });
   expect(result.current.borrow()).toBeNull();
   rerender();
   expect(result.current.snapshot?.state).toBe('FAULTED'); expect(result.current.borrow()).toBeNull();
   expect(input.track.stop).not.toHaveBeenCalled(); expect(acquire).toHaveBeenCalledTimes(2);
-  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'observe', 'snapshot']);
+  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'rootHealth', 'snapshot']);
   unmount(); expect(input.track.stop).toHaveBeenCalledOnce(); expect(camera.track.stop).toHaveBeenCalledOnce();
 });
 it('a late camera acquisition after page departure is stopped without restoring the preview', async () => {
@@ -43,5 +43,5 @@ it('failed initial binding remains on the execution page without a reacquisition
   rerender();
   expect(result.current.snapshot?.issue).toMatchObject({ phase: 'OPEN', condition: 'PERMISSION_DENIED' });
   expect(result.current.borrow()).toBeNull(); expect(acquire).toHaveBeenCalledOnce();
-  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'observe', 'snapshot']); unmount();
+  expect(Object.keys(result.current).sort()).toEqual(['borrow', 'rootHealth', 'snapshot']); unmount();
 });

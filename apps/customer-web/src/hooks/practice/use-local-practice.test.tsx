@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan, continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
@@ -19,27 +20,16 @@ const recorderEvents = vi.hoisted(() => ({
   events: [] as string[],
 }));
 
+let health: ReturnType<typeof rootHealthFixture>;
 const midiMock = vi.hoisted(() => ({
   connectedInputCount: 1,
   emitAttackDuringStart: false,
-  onStateChange: null as ((state: {
-    isSupported: boolean;
-    hasPermission: boolean | null;
-    connectedInputCount: number;
-    isRunning: boolean;
-  }) => void) | null,
 }));
 
 vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
   return {
     BrowserMidiController: class MockMidiController {
       constructor(options?: {
-        onStateChange?: (state: {
-          isSupported: boolean;
-          hasPermission: boolean | null;
-          connectedInputCount: number;
-          isRunning: boolean;
-        }) => void;
         onAttack?: (attack: {
           sessionTime: { domainId: string; ms: number };
           pianoKey: number;
@@ -50,7 +40,6 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           runtimeToSessionTime: (runtimeMs: number) => { domainId: string; ms: number };
         };
       }) {
-        midiMock.onStateChange = options?.onStateChange ?? null;
         this.options = options ?? {};
       }
       private readonly options: {
@@ -66,7 +55,6 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
       };
       async start() {
         if (midiMock.connectedInputCount === 0) {
-          midiMock.onStateChange?.(this.getState());
           throw new Error('NO_CONNECTED_INPUT');
         }
         if (midiMock.emitAttackDuringStart && this.options.timebase) {
@@ -76,18 +64,10 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
             confidence: 1,
           });
         }
-        midiMock.onStateChange?.(this.getState());
       }
       stop() {}
       dispose() {}
-      getState() {
-        return {
-          isSupported: true,
-          hasPermission: true,
-          connectedInputCount: midiMock.connectedInputCount,
-          isRunning: true,
-        };
-      }
+      refreshInputs() {}
     },
   };
 });
@@ -99,7 +79,7 @@ describe('useLocalPractice', () => {
     recorderEvents.events = [];
     midiMock.connectedInputCount = 1;
     midiMock.emitAttackDuringStart = false;
-    midiMock.onStateChange = null;
+    health = rootHealthFixture();
     continuousCompletionStore.clearCompletion();
     class MockMediaRecorder {
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
@@ -141,7 +121,7 @@ describe('useLocalPractice', () => {
 
   it('initializes in IDLE session lifecycle without attempt readiness', () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), borrowRoots: () => borrowedDevices() })
     );
 
     expect(result.current.lifecycle).toBe('IDLE');
@@ -156,7 +136,7 @@ describe('useLocalPractice', () => {
 
   it('starts STEP practice and transitions to ACTIVE lifecycle and RUNNING inputState', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -176,7 +156,7 @@ describe('useLocalPractice', () => {
 
   it('starts STEP with a current group without sending target knowledge to MIDI', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -188,7 +168,7 @@ describe('useLocalPractice', () => {
 
   it('rejects STEP microphone Start when no prepared environment provides an inference lease', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -204,7 +184,7 @@ describe('useLocalPractice', () => {
     midiMock.connectedInputCount = 0;
 
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -217,14 +197,14 @@ describe('useLocalPractice', () => {
   });
 
   it('STEP exposes waiting commands, never transport commands', () => {
-    const { result } = renderHook(() => useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() }));
+    const { result } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() }));
     expect(result.current).not.toHaveProperty('pause');
     expect(result.current).not.toHaveProperty('resume');
     expect(result.current.mode).toBe('STEP_BY_STEP');
   });
 
   it('STEP learning never creates a performance evaluation or report', async () => {
-    const { result } = renderHook(() => useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() }));
+    const { result } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() }));
     expect(result.current.performanceEvaluation).toBeNull();
     await act(async () => { await result.current.start(); });
     expect(result.current.performanceEvaluation).toBeNull();
@@ -233,10 +213,21 @@ describe('useLocalPractice', () => {
     expect(continuousCompletionStore.getCompletion()).toBeNull();
   });
 
+  it('subscribes physical health only for the active execution owner and detaches on unmount', async () => {
+    const { result, rerender, unmount } = renderHook(({ continuous }) => useLocalPractice({ rootHealth: health.port,
+      plan: continuous ? continuousSessionPlan(artifact) : stepSessionPlan(artifact), borrowRoots: () => borrowedDevices() }),
+      { initialProps: { continuous: false } });
+    expect(health.listenerCount()).toBe(0);
+    await act(async () => { await result.current.start(); }); expect(health.listenerCount()).toBe(1);
+    rerender({ continuous: true }); expect(health.listenerCount()).toBe(0);
+    await act(async () => { await result.current.start(); }); expect(health.listenerCount()).toBe(1);
+    unmount(); expect(health.listenerCount()).toBe(0);
+  });
+
   it('starting a new STEP owner invalidates the previous Continuous handoff, without clearing on render', async () => {
     continuousCompletionStore.setCompletion({ result: canonicalContinuousResultFixture(), recording: { status: 'NOT_RECORDED' } });
     const saved = continuousCompletionStore.getCompletion();
-    const { result, rerender } = renderHook(() => useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() }));
+    const { result, rerender } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() }));
     expect(continuousCompletionStore.getCompletion()).toBe(saved);
     rerender(); expect(continuousCompletionStore.getCompletion()).toBe(saved);
     await act(async () => { await result.current.start(); });
@@ -248,7 +239,7 @@ describe('useLocalPractice', () => {
 
   it('handles MIDI disconnect by remaining ACTIVE and ERROR while preserving progress', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -258,12 +249,7 @@ describe('useLocalPractice', () => {
 
     act(() => {
       midiMock.connectedInputCount = 0;
-      midiMock.onStateChange?.({
-        isSupported: true,
-        hasPermission: true,
-        connectedInputCount: 0,
-        isRunning: true,
-      });
+      health.set('midi', 'LOST');
     });
 
     expect(result.current.lifecycle).toBe('ACTIVE');
@@ -275,7 +261,7 @@ describe('useLocalPractice', () => {
 
     midiMock.connectedInputCount = 1;
     await act(async () => {
-      midiMock.onStateChange?.({ isSupported: true, hasPermission: true, connectedInputCount: 1, isRunning: true });
+      health.set('midi', 'HEALTHY');
     });
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
@@ -284,7 +270,7 @@ describe('useLocalPractice', () => {
 
   it('abandons on user End and returns to the pre-start state', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -306,7 +292,7 @@ describe('useLocalPractice', () => {
 
   it('skips steps and updates current group', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -326,7 +312,7 @@ describe('useLocalPractice', () => {
 
   it('restarts a fresh session after completion', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -349,7 +335,7 @@ describe('useLocalPractice', () => {
 
   it('starts CONTINUOUS practice with custom tempo and exposes resolvedTempoPlan', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true }), borrowRoots: () => borrowedDevices() })
     );
 
     expect(result.current.resolvedTempoPlan).toEqual({
@@ -384,7 +370,7 @@ describe('useLocalPractice', () => {
   it('creates Continuous runtime before MIDI start without accepting pre-performance NOTE_ON evidence', async () => {
     midiMock.emitAttackDuringStart = true;
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -405,7 +391,7 @@ describe('useLocalPractice', () => {
     });
 
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', recordingMode: 'OFF' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', recordingMode: 'OFF' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -426,7 +412,7 @@ describe('useLocalPractice', () => {
 
   it('pauses continuous MIDI when every input disconnects and waits for explicit resume', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -437,12 +423,7 @@ describe('useLocalPractice', () => {
 
     act(() => {
       midiMock.connectedInputCount = 0;
-      midiMock.onStateChange?.({
-        isSupported: true,
-        hasPermission: true,
-        connectedInputCount: 0,
-        isRunning: true,
-      });
+      health.set('midi', 'LOST');
     });
 
     expect(result.current.lifecycle).toBe('PAUSED');
@@ -451,18 +432,14 @@ describe('useLocalPractice', () => {
 
     act(() => {
       midiMock.connectedInputCount = 1;
-      midiMock.onStateChange?.({
-        isSupported: true,
-        hasPermission: true,
-        connectedInputCount: 1,
-        isRunning: true,
-      });
+      health.set('midi', 'HEALTHY');
     });
 
     expect(result.current.lifecycle).toBe('PAUSED');
     expect(result.current.inputState).toBe('IDLE');
 
     await act(async () => {
+      expect(result.current.continueAfterRecovery()).toBe(true);
       await result.current.resume();
     });
 
@@ -471,7 +448,7 @@ describe('useLocalPractice', () => {
 
   it('does not double-pause continuous MIDI when already paused before disconnect', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -486,18 +463,8 @@ describe('useLocalPractice', () => {
     expect(() => {
       act(() => {
         midiMock.connectedInputCount = 0;
-        midiMock.onStateChange?.({
-          isSupported: true,
-          hasPermission: true,
-          connectedInputCount: 0,
-          isRunning: true,
-        });
-        midiMock.onStateChange?.({
-          isSupported: true,
-          hasPermission: true,
-          connectedInputCount: 0,
-          isRunning: true,
-        });
+        health.set('midi', 'LOST');
+        health.set('midi', 'LOST');
       });
     }).not.toThrow();
 
@@ -508,7 +475,7 @@ describe('useLocalPractice', () => {
 
   it('keeps continuous MIDI paused after reconnect until explicit resume', async () => {
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices() })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices() })
     );
 
     await act(async () => {
@@ -520,28 +487,19 @@ describe('useLocalPractice', () => {
 
     act(() => {
       midiMock.connectedInputCount = 0;
-      midiMock.onStateChange?.({
-        isSupported: true,
-        hasPermission: true,
-        connectedInputCount: 0,
-        isRunning: true,
-      });
+      health.set('midi', 'LOST');
     });
 
     act(() => {
       midiMock.connectedInputCount = 1;
-      midiMock.onStateChange?.({
-        isSupported: true,
-        hasPermission: true,
-        connectedInputCount: 1,
-        isRunning: true,
-      });
+      health.set('midi', 'HEALTHY');
     });
 
     expect(result.current.lifecycle).toBe('PAUSED');
     expect(result.current.inputState).toBe('IDLE');
 
     await act(async () => {
+      expect(result.current.continueAfterRecovery()).toBe(true);
       await result.current.resume();
     });
 
@@ -551,7 +509,7 @@ describe('useLocalPractice', () => {
   it('serializes duplicate CONTINUOUS abandonment requests without a completion', async () => {
     const onNaturalCompletion = vi.fn();
     const { result } = renderHook(() =>
-      useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), getDevices: () => borrowedDevices(), onNaturalCompletion })
+      useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), borrowRoots: () => borrowedDevices(), onNaturalCompletion })
     );
 
     await act(async () => {
@@ -583,7 +541,7 @@ describe('useLocalPractice', () => {
     vi.spyOn(ContinuousPracticeController.prototype, 'snapshot').mockImplementation(() => snapshot);
     const start = vi.spyOn(ContinuousPracticeController.prototype, 'start').mockResolvedValue();
     const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose').mockResolvedValue();
-    const { result, unmount } = renderHook(() => useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), getDevices: () => borrowedDevices() }));
+    const { result, unmount } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), borrowRoots: () => borrowedDevices() }));
     await act(async () => { await result.current.start(); });
     expect(start).toHaveBeenCalledOnce();
     expect(start.mock.contexts[0]).toBeInstanceOf(ContinuousPracticeController);
@@ -622,7 +580,7 @@ describe('useLocalPractice', () => {
 
       const start = vi.spyOn(ContinuousPracticeController.prototype, 'start');
       const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose');
-      const { result, unmount } = renderHook(() => useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), getDevices: () => borrowedDevices() }));
+      const { result, unmount } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), borrowRoots: () => borrowedDevices() }));
       await act(async () => { await result.current.start(); });
       expect(start).toHaveBeenCalledOnce();
       expect(worker.load).toHaveBeenCalledOnce();
@@ -651,7 +609,7 @@ describe('useLocalPractice', () => {
     vi.spyOn(continuousPlatformModule, 'browserContinuousPlatform').mockReturnValue(platform);
     const context = vi.spyOn(platform, 'createAudioContext');
     const dispose = vi.spyOn(ContinuousPracticeController.prototype, 'dispose');
-    const { result, unmount } = renderHook(() => useLocalPractice({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), getDevices: () => borrowedDevices() }));
+    const { result, unmount } = renderHook(() => useLocalPractice({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), borrowRoots: () => borrowedDevices() }));
     let started!: Promise<void>;
     await act(async () => { started = result.current.start(); });
     expect(result.current.inputState).toBe('STARTING');

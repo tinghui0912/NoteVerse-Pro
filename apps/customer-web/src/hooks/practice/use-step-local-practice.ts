@@ -48,10 +48,10 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions,
     try {
       await startupTimings.measure('waitPreviousRelease', () => released);
       if (operation !== generation.current) return;
-      const devices = options.getDevices();
+      const devices = options.borrowRoots();
       if (!devices) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
       onSessionStart();
-      const controller = new StepPracticeController({ devices, startupTimings, plan,
+      const controller = new StepPracticeController({ devices, rootHealth: options.rootHealth, startupTimings, plan,
         platform: browserStepPlatform(options.acquireInference),
         onNaturalCompletion: result => {
           if (operation === generation.current && owner.current === controller && result.completionReason === 'SCOPE_COMPLETED') completion.current?.(result);

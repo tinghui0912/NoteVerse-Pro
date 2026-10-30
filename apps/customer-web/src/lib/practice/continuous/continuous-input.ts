@@ -4,13 +4,13 @@ import type { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capt
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import type { MetronomeController, MetronomeControllerOptions } from '@/lib/practice/metronome/metronome-controller';
-import type { BrowserMidiControllerOptions, BrowserMidiState } from '@/lib/practice/midi/browser-midi-controller';
+import type { BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import type { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
 import type { ContinuousMidiAttack } from './domain/clock-evidence-port';
 
-export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; getState(): BrowserMidiState }>;
-export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'observeDeviceHealth' | 'assertPrepared' | 'activate' | 'onRuntimeFault' | 'runtimeFault'
+export type ContinuousMidiPort = Readonly<{ start(): Promise<void>; dispose(): void; refreshInputs(): void }>;
+export type ContinuousRecorderPort = Pick<PerformanceRecorder, 'prepare' | 'observeSourceHealth' | 'assertPrepared' | 'activate' | 'onRuntimeFault' | 'runtimeFault'
   | 'recoverRuntime' | 'continueWithoutRecording' | 'startIfReady' | 'pause' | 'resume' | 'freeze' | 'finalize' | 'stopAndCleanup' | 'snapshot'>;
 export type ContinuousMetronomePort = Pick<MetronomeController, 'start' | 'pause' | 'resume' | 'stop' | 'destroy' | 'setEnabled' | 'syncContinuous'>;
 /** Platform boundaries are injectable for deterministic tests, never alternate evaluation policies. */
@@ -30,5 +30,4 @@ export type MicrophoneConnection = Readonly<{
   clock: LocalClock; publish(publication: ContinuousEvidencePublication): void;
 }>;
 export type MidiConnection = Readonly<{ access: MIDIAccess; timebase: PracticeTimebase;
-  observe(attack: ContinuousMidiAttack): void;
-  onState: NonNullable<BrowserMidiControllerOptions['onStateChange']> }>;
+  observe(attack: ContinuousMidiAttack): void }>;

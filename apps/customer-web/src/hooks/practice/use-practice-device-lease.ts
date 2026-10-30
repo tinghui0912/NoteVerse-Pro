@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { PracticeDeviceLease } from '@/lib/practice/device/practice-device-lease';
+import type { PracticeRootHealthPort, PracticeRootHealthSnapshot } from '@/lib/practice/device/device-contract';
 import type { PracticeResourcePlan } from '@/lib/practice/planning/resource-plan';
 
 /** Mounted only on the exact execution route, never the shared Practice layout. */
@@ -15,8 +16,17 @@ export function usePracticeDeviceLease(resources: PracticeResourcePlan | null, e
     queueMicrotask(() => { if (lease.current === owner) void owner.open().catch(() => {}); });
     return () => { lease.current = null; unsubscribe(); owner.close(); };
   }, [enabled, resources]);
-  const observe = useCallback((listener: () => void) => lease.current?.subscribe(listener) ?? (() => {}), []);
+  const healthSnapshot = useCallback((): PracticeRootHealthSnapshot =>
+    lease.current?.rootHealth.snapshot() ?? Object.freeze({ health: Object.freeze({}) }), []);
+  const subscribeHealth = useCallback<PracticeRootHealthPort['subscribe']>(listener => {
+    const owner = lease.current;
+    if (!owner) throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
+    return owner.rootHealth.subscribe(listener);
+  }, []);
+  const rootHealth = useMemo<PracticeRootHealthPort>(() => ({
+    snapshot: healthSnapshot, subscribe: subscribeHealth,
+  }), [healthSnapshot, subscribeHealth]);
   const borrow = useCallback(() => { const current = lease.current?.snapshot();
     return current?.state === 'READY' && Object.values(current.health).every(health => health === 'HEALTHY') ? current.roots : null; }, []);
-  return { snapshot, observe, borrow };
+  return { snapshot, rootHealth, borrow };
 }

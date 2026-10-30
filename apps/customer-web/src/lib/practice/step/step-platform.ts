@@ -4,7 +4,7 @@ import type { LocalClock } from '@/lib/practice/kernel/timebase';
 import type { StepGestureTimer } from './step-midi-attempt-input';
 import { browserStepMicrophonePlatform, type StepMicrophonePlatform } from './step-microphone-platform';
 
-export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'dispose' | 'getState'>;
+export type StepMidiPort = Pick<BrowserMidiController, 'start' | 'refreshInputs' | 'dispose'>;
 export type StepMetronomePort = Pick<MetronomeController, 'start' | 'destroy' | 'setEnabled' | 'setStepContext'>;
 export interface StepPlatform {
   clock: LocalClock;

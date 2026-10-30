@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import * as scopeContract from '@/lib/practice/kernel/scope';
 import * as tempoContract from '@/lib/practice/kernel/tempo';
 import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
@@ -19,11 +20,11 @@ const artifact = fixture as PracticeScoreArtifact;
 function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed = false, selectedArtifact = artifact) {
   const clock = new ManualClock(100), timers: { callback(): void; delay: number; cancelled: boolean }[] = [];
   let options: BrowserMidiControllerOptions;
-  let connected = 1, running = false;
+  const health = rootHealthFixture();
   let resolveStart: () => void = () => {};
-  const midi = { start: vi.fn(async () => { if (delayed) await new Promise<void>(resolve => { resolveStart = resolve; }); running = true; }),
-    stop: vi.fn(() => { running = false; }), dispose: vi.fn(() => { running = false; }),
-    getState: () => ({ isSupported: true, hasPermission: true, connectedInputCount: connected, isRunning: running }) };
+  const midi = { start: vi.fn(async () => { if (delayed) await new Promise<void>(resolve => { resolveStart = resolve; }); }),
+    dispose: vi.fn(),
+    refreshInputs: vi.fn() };
   const metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
   const platform: StepPlatform = { clock, timer: {
     schedule: (callback, delay) => { const task = { callback, delay, cancelled: false }; timers.push(task); return task; },
@@ -32,7 +33,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.moments[index].groupId,
     endGroupId: selectedArtifact.moments.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: inputSource }), devices: borrowedDevices(), platform, onNaturalCompletion: completion });
+  const create = () => new StepPracticeController({ rootHealth: health.port, plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: inputSource }), devices: borrowedDevices(), platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
@@ -45,9 +46,9 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
     options.onMidiNote?.({ ...parsed, sessionTime: options.timebase.atSessionMs(ms) });
   };
   const close = () => { const task = timers.at(-1)!; clock.advance(35); if (!task.cancelled) task.callback(); };
-  const disconnect = () => { connected = 0; options.onStateChange?.(midi.getState()); };
-  const reconnect = () => { connected = 1; options.onStateChange?.(midi.getState()); };
-  return { finalized, controller, create, platform, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
+  const disconnect = () => { health.set('midi', 'LOST'); };
+  const reconnect = () => { health.set('midi', 'HEALTHY'); };
+  return { health, finalized, controller, create, platform, clock, timers, midi, metronome, completion, note, close, disconnect, reconnect,
     resolveStart: () => resolveStart(), options: () => options };
 }
 describe('STEP application owner / bounded MIDI gesture', () => {
@@ -161,7 +162,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     const next = s.controller.snapshot().sessionSnapshot!.step.activeAttempt!;
     expect(next.targetGeneration).toBe(first.targetGeneration);
     expect(next.stepId).toBe(first.stepId); expect(next.attemptId).not.toBe(first.attemptId);
-    expect(s.midi.stop).not.toHaveBeenCalled(); expect(s.midi.start).toHaveBeenCalledTimes(1);
+    expect(s.midi.dispose).not.toHaveBeenCalled(); expect(s.midi.start).toHaveBeenCalledTimes(1);
     s.timers[0].callback(); expect(s.finalized).toHaveLength(0);
     s.close(); expect(s.controller.snapshot().sessionSnapshot?.step.currentIndex).toBe(1); s.controller.dispose();
   });

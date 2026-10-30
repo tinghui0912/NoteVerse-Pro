@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan, continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 // @vitest-environment jsdom
@@ -17,6 +18,7 @@ afterEach(() => vi.restoreAllMocks());
 const artifact = artifactJson as PracticeScoreArtifact;
 
 function pendingMicrophone() {
+  const health = rootHealthFixture();
   let releaseLease!: () => void;
   const stop = vi.fn(), track = { stop, readyState: 'live' }, stream = { getTracks: () => [track], getAudioTracks: () => [track] };
   const context = Object.assign(new EventTarget(), { state: 'running', sampleRate: 48000, currentTime: 0,
@@ -27,8 +29,7 @@ function pendingMicrophone() {
     .mockResolvedValue(nextInference);
   const connect = vi.fn(), midiStart = vi.fn(async () => {});
   const platform: stepPlatform.StepPlatform = { clock: new ManualClock(), timer: { schedule: vi.fn(), cancel: vi.fn() },
-    createMidi: vi.fn(() => ({ start: midiStart, dispose: vi.fn(), getState: () => ({
-      isSupported: true, isRunning: true, hasPermission: true, connectedInputCount: 1 }) })),
+    createMidi: vi.fn(() => ({ start: midiStart, dispose: vi.fn(), refreshInputs: vi.fn() })),
     createMetronome: () => ({ start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() }),
     microphone: {
       createAudioContext: () => context as unknown as AudioContext,
@@ -36,8 +37,8 @@ function pendingMicrophone() {
       connectCapture: connect, workletUrl: 'fake://not-started' } };
   const factory = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue(platform);
   const options = (mode: PracticeMode = 'STEP_BY_STEP', inputSource: PracticeInputSource = 'MICROPHONE') =>
-    ({ getDevices: () => borrowedDevices(stream as unknown as MediaStream), plan: mode === 'STEP_BY_STEP' ? stepSessionPlan(artifact, { inputSource }) : continuousSessionPlan(artifact, { inputSource }) });
-  return { platform, factory, options, inference, nextInference, acquireInference, stop, track, context, connect, midiStart, release: () => releaseLease() };
+    ({ rootHealth: health.port, borrowRoots: () => borrowedDevices(stream as unknown as MediaStream), plan: mode === 'STEP_BY_STEP' ? stepSessionPlan(artifact, { inputSource }) : continuousSessionPlan(artifact, { inputSource }) });
+  return { health, platform, factory, options, inference, nextInference, acquireInference, stop, track, context, connect, midiStart, release: () => releaseLease() };
 }
 
 it('STEP Start is single-owner during preparation; unmount awaits late preparation without connecting capture', async () => {
@@ -85,7 +86,7 @@ it('restart waits for disposal, uses a fresh STEP identity and surfaces a fresh 
   let first!: Promise<void>, restarting!: Promise<void>;
   await act(async () => { first = result.current.start(); });
   const firstId = identity.mock.results[0].value;
-  r.track.readyState = 'ended';
+  r.track.readyState = 'ended'; r.health.set('inputMicrophone', 'LOST');
   await act(async () => { restarting = result.current.restart(); });
   expect(starts).toHaveBeenCalledOnce();
   await act(async () => { r.release(); await first; await restarting; });
@@ -131,10 +132,11 @@ it('STEP completion uses the latest callback after rerender without recreating i
 });
 
 for (const kind of ['analysis', 'infrastructure'] as const) it.each(['End','unmount'] as const)(`STEP ${kind} intervention keeps target/input truth and the hook %s path retires ownership`,async ending=>{
+  const health = rootHealthFixture();
   const {StepPracticeRuntime,groupForCurrentStep}=await import('@/lib/practice/step/domain/runtime');
   const runtime=new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), clock:new ManualClock(100), localSessionId:'hook-interrupted' });
   runtime.setInputUnavailable();
-  const baseOwner=new StepPracticeController({ plan: stepSessionPlan(artifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), devices:borrowedDevices() });
+  const baseOwner=new StepPracticeController({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), devices:borrowedDevices() });
   let snapshot={...baseOwner.snapshot(),state:'ACTIVE' as 'ACTIVE'|'DISPOSED',analysisIntervention:kind==='analysis'?{kind:'TERMINAL_ANALYSIS_FAILURE' as const}:null,
     infrastructureIntervention:kind==='infrastructure'?{kind:'TERMINAL_INFRASTRUCTURE_FAILURE' as const}:null,
     sessionSnapshot:runtime.snapshot(),activeStepGroup:groupForCurrentStep(runtime)};
@@ -145,7 +147,7 @@ for (const kind of ['analysis', 'infrastructure'] as const) it.each(['End','unmo
   let disposed=false;const domainEnd=vi.spyOn(runtime,'end');
   const dispose=vi.spyOn(StepPracticeController.prototype,'dispose').mockImplementation(async()=>{if(disposed)return;disposed=true;runtime.end();snapshot={...snapshot,state:'DISPOSED',analysisIntervention:null,infrastructureIntervention:null,sessionSnapshot:runtime.snapshot()};listeners.forEach(f=>f());});
   vi.spyOn(StepPracticeController.prototype,'abandon').mockImplementation(async function(this:StepPracticeController){await this.dispose();});
-  const completion=vi.fn();const {result,unmount}=renderHook(()=>useLocalPractice({ plan: stepSessionPlan(artifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), getDevices:()=>borrowedDevices(), onNaturalCompletion:completion }));
+  const completion=vi.fn();const {result,unmount}=renderHook(()=>useLocalPractice({ rootHealth: health.port, plan: stepSessionPlan(artifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), borrowRoots:()=>borrowedDevices(), onNaturalCompletion:completion }));
   await act(async()=>{await result.current.start();});
   const stale=[...listeners][0];expect(result.current).toMatchObject({lifecycle:'ACTIVE',runtimeStatus:'ACTIVE',inputState:'RUNNING',inputError:null,analysisIntervention:kind==='analysis'?{kind:'TERMINAL_ANALYSIS_FAILURE'}:null,infrastructureIntervention:kind==='infrastructure'?{kind:'TERMINAL_INFRASTRUCTURE_FAILURE'}:null,canAcceptAttempt:false});
   expect(result.current.activeStepGroup).not.toBeNull();expect(result.current).not.toHaveProperty('continueWithoutAnalysis');expect(result.current).not.toHaveProperty('controller');

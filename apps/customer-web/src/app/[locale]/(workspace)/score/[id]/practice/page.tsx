@@ -142,7 +142,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   // Local Practice orchestration
   const localPractice = useLocalPractice({
     plan,
-    getDevices: device.borrow, observeDevices: device.observe,
+    borrowRoots: device.borrow, rootHealth: device.rootHealth,
     acquireInference: workspace.environment.acquireInference,
     onNaturalCompletion: snapshot => {
       if (snapshot.completionReason !== 'SCOPE_COMPLETED') return;

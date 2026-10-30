@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 // @vitest-environment jsdom
@@ -26,7 +27,7 @@ const fake = vi.hoisted(() => {
     get configuration() { return { mode: workspace.profile.mode, inputSource: workspace.profile.inputSource, recordingMode: workspace.profile.mode === 'STEP_BY_STEP' ? 'OFF' : workspace.profile.continuous.recordingMode, liveFeedbackEnabled: workspace.profile.continuous.liveFeedbackEnabled } as PracticeConfiguration; },
     environment: { invalidate: vi.fn(), acquireInference: vi.fn() } };
   return { invalidScore: false, leaseEnabled: vi.fn(), localOptions: vi.fn(), local, workspace, router: { push: vi.fn(), replace: vi.fn(), back: vi.fn() },
-    device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), observe: vi.fn() },
+    device: { snapshot: { state: 'READY', issue: null, health: { inputMicrophone: 'HEALTHY' }, roots: {} }, borrow: vi.fn(), get rootHealth() { return rootHealthFixture().port; } },
     natural: (_snapshot: { completionReason: string }) => {} };
 });
 vi.mock('next/navigation', () => ({ useRouter: () => fake.router, usePathname: () => '/score/score-id/practice',

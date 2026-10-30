@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
@@ -26,6 +27,7 @@ const artifact = artifactWithKeys([[60], [60], [60]]);
 /** Real STEP/source/assembler/chronology, deterministic PCM/inference ports. No model or device qualification. */
 function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: PracticeScope = { kind: 'FULL' }) {
   const origin = rate * 7;
+  const health = rootHealthFixture();
   const track = Object.assign(new EventTarget(), { readyState: 'live', muted: false, stop: vi.fn() });
   const cloneStop = vi.fn();
   const stream = { getTracks: () => [track], getAudioTracks: () => [track], clone: vi.fn(() => ({ stop: cloneStop })) };
@@ -80,7 +82,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: 'MICROPHONE' }), devices: borrowedDevices(stream as unknown as MediaStream), platform, onNaturalCompletion: completion });
+  const controller = new StepPracticeController({ rootHealth: health.port, plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: 'MICROPHONE' }), devices: borrowedDevices(stream as unknown as MediaStream), platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -92,7 +94,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
     for (let i = 0; i < 100 && finalized.length < count; i++) await feed();
     expect(finalized).toHaveLength(count);
   };
-  return { finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
+  return { health, finalized, controller, platform, worker, stream, track, cloneStop, context, metronome, completion, feed, input, publications,
     starting: () => startSpy.mock.results.at(-1)!.value,
     untilFinalized, publish: (p: SourceAcousticPublication) => publish(p), source: () => source,
     captureFailure: (error = new Error('CAPTURE_PIPELINE_FAILED')) => bridge.abort(error),
@@ -118,12 +120,12 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       expect(r.controller.snapshot().stepInteractionPhase).toBe(phase);
     }
     r.pause(); await r.feed(20);
-    r.track.muted = true; r.track.dispatchEvent(new Event('mute'));
+    r.track.muted = true; r.track.dispatchEvent(new Event('mute')); r.health.set('inputMicrophone', 'INTERRUPTED');
     expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: 'STEP_MICROPHONE_INTERRUPTED', canAcceptAttempt: false,
       sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, activeAttempt: null, inputAvailable: false } } });
     await r.feed(3);
     const watermark = r.input().snapshot().capture!.capturedThroughSourceSample;
-    r.track.muted = false; r.track.dispatchEvent(new Event('unmute'));
+    r.track.muted = false; r.track.dispatchEvent(new Event('unmute')); r.health.set('inputMicrophone', 'HEALTHY');
     expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: true,
       sessionSnapshot: { localSessionId: prior.localSessionId, step: { currentIndex: 1, inputEligibleAfter: { sampleIndex: watermark } } } });
     r.offset(8000); await r.resume();
@@ -145,7 +147,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
         const domainEnd = vi.spyOn(StepPracticeRuntime.prototype, 'end');
         let pending: StepAttemptRecord | null = null;
         const fail = () => {
-          if (fault === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); }
+          if (fault === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST'); }
           else if (fault === 'context') { r.context.state = 'closed'; r.context.dispatchEvent(new Event('statechange')); }
           else r.captureFailure();
         };
@@ -218,7 +220,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       if(phase==='READY'||phase==='CAPTURING')staleFailure(new Error('WORKER_CRASH'));
       const intervention=r.controller.snapshot().analysisIntervention;
       expect(intervention).toEqual({kind:'TERMINAL_ANALYSIS_FAILURE'});staleFailure(new Error('REPEATED_FAILURE'));
-      r.captureFailure(); r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended'));
+      r.captureFailure(); r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST');
       expect(r.controller.snapshot().infrastructureIntervention).toBeNull();
       await r.controller.start(); // An existing owner cannot be auto-started or silently reacquired.
       expect(r.controller.snapshot().analysisIntervention).toBe(intervention);
@@ -405,7 +407,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const r = rig(rate); await r.controller.start();
     const finalizedBeforeFailure = [...r.finalized];
     if (kind === 'context') { r.context.state = 'suspended'; r.context.dispatchEvent(new Event('statechange')); }
-    if (kind === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); }
+    if (kind === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST'); }
     if (kind === 'worker') r.workerFailure();
     if (kind === 'analysis') r.source().failAnalysis(new Error('ANALYSIS_FAILURE'));
     expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: false });
@@ -416,7 +418,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
     expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
-    r.track.dispatchEvent(new Event('ended')); r.context.dispatchEvent(new Event('statechange'));
+    r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST'); r.context.dispatchEvent(new Event('statechange'));
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
   });
 });
@@ -432,7 +434,7 @@ it('failed lease acquisition opens no microphone, context or capture', async () 
 });
 
 it('a lost borrowed root releases its inference lease before constructing a context or capture', async () => {
-  const r = rig(); r.track.readyState = 'ended';
+  const r = rig(); r.track.readyState = 'ended'; r.health.set('inputMicrophone', 'LOST');
   await r.controller.start(); expect(r.controller.snapshot()).toMatchObject({ state: 'IDLE', error: 'STEP_MICROPHONE_UNAVAILABLE' });
   await r.controller.dispose();
   expect(r.platform.microphone!.createAudioContext).not.toHaveBeenCalled(); expect(r.worker.dispose).toHaveBeenCalledOnce();
@@ -583,7 +585,7 @@ for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const
 it('natural completion wins late worker/capture failure and cannot open an intervention',async()=>{
   const r=rig();await r.controller.start();const stale=r.staleFailure()!;
   await expect(r.untilFinalized(3)).rejects.toThrow('ACOUSTIC_RUNTIME_CLOSED');await r.controller.abandon();stale(new Error('AFTER_COMPLETION'));r.publish(r.publications[0]);
-  r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended'));
+  r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST');
   r.context.dispatchEvent(new Event('statechange')); r.captureFailure();
   expect(r.controller.snapshot()).toMatchObject({state:'ENDED',analysisIntervention:null,infrastructureIntervention:null,lastSnapshot:{completionReason:'SCOPE_COMPLETED'}});
   expect(r.completion).toHaveBeenCalledOnce();await r.controller.dispose();
@@ -631,7 +633,7 @@ it('invalid physical capture chronology latches infrastructure rather than analy
 it('explicit fresh owner after infrastructure End starts at configured scope with fresh session/context/inference', async () => {
   const first = rig(); await first.controller.start(); await first.untilFinalized(1);
   const prior = first.controller.snapshot().sessionSnapshot!;
-  first.track.readyState = 'ended'; first.track.dispatchEvent(new Event('ended'));
+  first.track.readyState = 'ended'; first.track.dispatchEvent(new Event('ended')); first.health.set('inputMicrophone', 'LOST');
   await first.controller.abandon();
   const fresh = rig(); await fresh.controller.start();
   expect(fresh.controller.snapshot()).toMatchObject({ state: 'ACTIVE', infrastructureIntervention: null,
@@ -665,4 +667,17 @@ it('ACTIVE STEP worker INFER silence retains target under terminal analysis inte
     await r.controller.abandon(); expect(r.controller.snapshot().sessionSnapshot?.completionReason).toBe('STOPPED_BY_USER');
     expect(r.completion).not.toHaveBeenCalled();
   } finally { await r.controller.dispose(); await engine.dispose(); vi.useRealTimers(); }
+});
+
+it('owns a physical-health subscription without observing borrowed track events and detaches on disposal', async () => {
+  const r = rig(), listen = vi.spyOn(r.track, 'addEventListener');
+  await r.controller.start(); const before = r.controller.snapshot().sessionSnapshot!;
+  expect(listen).not.toHaveBeenCalled(); expect(r.health.listenerCount()).toBe(1);
+  r.track.muted = true; r.track.dispatchEvent(new Event('mute'));
+  expect(r.controller.snapshot().error).toBeNull();
+  r.health.set('inputMicrophone', 'INTERRUPTED');
+  expect(r.controller.snapshot()).toMatchObject({ error: 'STEP_MICROPHONE_INTERRUPTED', sessionSnapshot: { localSessionId: before.localSessionId } });
+  await r.controller.dispose(); expect(r.health.listenerCount()).toBe(0);
+  const retired = r.controller.snapshot(); r.health.set('inputMicrophone', 'HEALTHY');
+  expect(r.controller.snapshot()).toEqual(retired);
 });

@@ -3,7 +3,6 @@ import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import { describe, expect, it, vi } from 'vitest';
 import {
   BrowserMidiController,
-  MidiNoConnectedInputError,
   isMidiNoteNumber,
   parseMidiMessage,
 } from './browser-midi-controller';
@@ -48,11 +47,10 @@ describe('browser MIDI controller', () => {
     });
   });
 
-  it('rejects a borrowed access without connected devices', async () => {
+  it('starts an empty routing set without classifying physical health', async () => {
     const device = midiDeviceFixture(false);
     const controller = new BrowserMidiController({ access: device.access, timebase: new PracticeTimebase({ domainId: 'empty' }) });
-    await expect(controller.start()).rejects.toThrow(MidiNoConnectedInputError);
-    expect(controller.getState()).toMatchObject({ isRunning: false, connectedInputCount: 0, hasPermission: true });
+    await controller.start(); controller.refreshInputs();
     controller.dispose();
   });
   it('binds borrowed MIDI without acquiring it and publishes physical NOTE_ON/OFF facts', async () => {
@@ -69,14 +67,16 @@ describe('browser MIDI controller', () => {
       device.send([0x90, 60, 80], 130); expect(attack).toHaveBeenCalledTimes(2);
     } finally { controller.dispose(); vi.unstubAllGlobals(); }
   });
-  it('disconnect/reconnect preserves Device Lease listeners and never overwrites DOM slots', async () => {
-    const device = midiDeviceFixture(), health = vi.fn(), slot = vi.fn(), states = vi.fn();
-    device.access.addEventListener('statechange', health); device.access.onstatechange = slot;
-    const controller = new BrowserMidiController({ access: device.access, timebase: new PracticeTimebase({ domainId: 'binding' }), onStateChange: states });
-    await controller.start(); device.connect(false); expect(controller.getState().connectedInputCount).toBe(0);
-    device.connect(true); expect(controller.getState().connectedInputCount).toBe(1);
-    expect(device.access.onstatechange).toBe(slot); controller.dispose();
-    device.connect(false); expect(health).toHaveBeenCalledTimes(3); expect(states).toHaveBeenCalledTimes(4);
+  it('refreshes message routing on command while the access owner observes connection events', async () => {
+    const device = midiDeviceFixture(), health = vi.fn(), attack = vi.fn();
+    device.access.addEventListener('statechange', health);
+    const listen = vi.spyOn(device.access, 'addEventListener');
+    const controller = new BrowserMidiController({ access: device.access, timebase: new PracticeTimebase({ domainId: 'binding' }), onAttack: attack });
+    await controller.start(); expect(listen).not.toHaveBeenCalled();
+    device.connect(false); controller.refreshInputs(); device.send([0x90, 60, 80], 1); expect(attack).not.toHaveBeenCalled();
+    device.connect(true); controller.refreshInputs(); device.send([0x90, 60, 80], 2); expect(attack).toHaveBeenCalledOnce();
+    controller.dispose(); device.connect(false); controller.refreshInputs();
+    device.send([0x90, 60, 80], 3); expect(attack).toHaveBeenCalledOnce(); expect(health).toHaveBeenCalledTimes(3);
   });
 });
 

@@ -1,3 +1,4 @@
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
@@ -56,7 +57,7 @@ class Recorder {
   stop() { this.state = 'inactive'; this.onstop?.(); }
 }
 function environment(rate = 48000, root = stream(), blockSamples = 128, recordingRoot = root.media) {
-  const clock = new ManualClock(0);
+  const clock = new ManualClock(0), health = rootHealthFixture();
   let frame = 0, sequence = 0, bridge: ContinuousCaptureBridge | undefined, captureStopped = false;
   let fail: ((error: Error) => void) | undefined;
   let runs = 0, midiOptions: BrowserMidiControllerOptions | undefined;
@@ -84,7 +85,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
       await feed(1800); return { stop };
     },
     createMidi: vi.fn(options => { midiOptions = options; return { start: async () => {}, dispose: vi.fn(),
-      getState: () => ({ connectedInputCount: 1, isRunning: true, isSupported: true, hasPermission: true }) }; }),
+      refreshInputs: vi.fn() }; }),
     createRecorder: vi.fn(mode => new PerformanceRecorder(mode)), createMetronome: vi.fn(() => meter),
   };
   let controller: ContinuousPracticeController | undefined;
@@ -105,10 +106,10 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
       ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
     };
-    controller = new ContinuousPracticeController({ plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
+    controller = new ContinuousPracticeController({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
     return controller;
   }
-  return { create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
+  return { health, create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
     bridge: () => bridge!, midiOptions: () => midiOptions! };
 }
 
@@ -120,6 +121,52 @@ beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers
   }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
+  it('MIDI physical loss and recovery retain session/evaluation and require explicit recovery', async () => {
+    const f = environment(), controller = f.create('MIDI'); await controller.start();
+    f.clock.set(50); controller.refresh(); const before = controller.engineeringSnapshot().sessionId;
+    const position = controller.snapshot().transport!.performanceTimeMs;
+    f.health.set('midi', 'LOST');
+    expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', inputError: 'NO_CONNECTED_INPUT', transport: { state: 'PAUSED' },
+      resourceIntervention: { impact: 'INPUT_REQUIRED', state: 'WAITING_FOR_USER' }, completed: null });
+    f.clock.advance(100); f.health.set('midi', 'HEALTHY');
+    expect(controller.snapshot()).toMatchObject({ inputError: null, transport: { state: 'PAUSED', performanceTimeMs: position },
+      resourceIntervention: { state: 'RECOVERED_WAITING_FOR_USER' } });
+    expect(controller.engineeringSnapshot().sessionId).toBe(before);
+    expect(controller.continueAfterRecovery()).toBe(true); expect(controller.snapshot().transport?.state).not.toBe('PAUSED');
+    expect(f.platform.createMidi).toHaveBeenCalledOnce();
+    await controller.dispose(); expect(f.health.listenerCount()).toBe(0);
+  });
+  it('rejects physical MIDI loss between binding and Start with the input failure owner', async () => {
+    const f = environment(), controller = f.create('MIDI');
+    vi.mocked(f.platform.createMetronome).mockImplementationOnce(() => {
+      f.health.set('midi', 'LOST'); return f.meter;
+    });
+    await controller.start();
+    expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', inputError: 'NO_CONNECTED_INPUT', completed: null });
+    expect(f.health.listenerCount()).toBe(0); await controller.dispose();
+  });
+  it('real DeviceLease alone observes recording-only microphone and camera roots', async () => {
+    const microphone = stream(), camera = stream(true), midi = borrowedDevices().midi!;
+    const physicalTrack = microphone.media.getAudioTracks()[0], listen = vi.spyOn(physicalTrack, 'addEventListener');
+    const lease = new PracticeDeviceLease(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }), {
+      acquireMidi: async () => midi, acquireStream: async name => name === 'camera' ? camera.media : microphone.media,
+    });
+    await lease.open(); const f = environment();
+    const controller = new ContinuousPracticeController({ devices: lease.snapshot().roots, rootHealth: lease.rootHealth,
+      plan: continuousSessionPlan(artifactWithKeys([[60]]), { recordingMode: 'VIDEO' }), countInBeats: 0 }, f.platform);
+    try {
+      await controller.start(); expect(listen.mock.calls.map(([event]) => event)).toEqual(['mute', 'unmute', 'ended']);
+      microphone.audio.muted = true; microphone.audio.dispatchEvent(new Event('mute'));
+      expect(Reflect.get(controller, 'recorder').runtimeFault()).toMatchObject({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE' });
+      microphone.audio.muted = false; microphone.audio.dispatchEvent(new Event('unmute'));
+      expect(controller.snapshot().resourceIntervention?.state).toBe('RECOVERED_WAITING_FOR_USER');
+      expect(controller.continueAfterRecovery()).toBe(true);
+      // The video physical track is distinct from the unused audio track on the camera fixture.
+      const video = camera.media.getVideoTracks()[0]; Object.assign(video, { muted: true }); video.dispatchEvent(new Event('mute'));
+      expect(Reflect.get(controller, 'recorder').runtimeFault()?.reason).toBe('VIDEO_TRACK_MUTED');
+      expect(f.platform.acquireInference).not.toHaveBeenCalled();
+    } finally { await controller.dispose(); lease.close(); }
+  });
   it.each([
     ['MICROPHONE', 'AUDIO', 'inputMicrophone'],
     ['MICROPHONE', 'VIDEO', 'inputMicrophone'],
@@ -193,7 +240,7 @@ describe('Continuous application owner', () => {
     it(`root ${event} with ${mode} requires input, never recording-only degradation`, async () => {
       const f = environment(), camera = mode === 'VIDEO' ? stream(true).media : undefined;
       const controller = f.create('MICROPHONE', 0, mode, vi.fn(), camera); await controller.start(); await f.feed(100);
-      if (event === 'mute') { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); } else f.root.audio.stop();
+      if (event === 'mute') { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); f.health.set('inputMicrophone', 'INTERRUPTED'); } else { f.root.audio.stop(); f.health.set('inputMicrophone', 'LOST'); }
       const paused = controller.snapshot(); expect(paused.session).toBe('ACTIVE'); expect(paused.transport?.state).toBe('PAUSED');
       expect(paused.resourceIntervention).toMatchObject({ impact: mode === 'OFF' ? 'INPUT_REQUIRED' : 'INPUT_AND_RECORDING',
         recoverability: event === 'mute' ? 'SAME_PIPELINE_RECOVERABLE' : 'RESTART_REQUIRED', state: 'WAITING_FOR_USER' });
@@ -201,7 +248,7 @@ describe('Continuous application owner', () => {
       controller.continueWithoutRecording(); expect(controller.snapshot().resourceIntervention).not.toBeNull();
       await f.feed(200); expect(controller.snapshot().transport?.performanceTimeMs).toBe(paused.transport?.performanceTimeMs);
       if (event === 'mute') {
-        f.root.audio.muted = false; f.root.audio.dispatchEvent(new Event('unmute'));
+        f.root.audio.muted = false; f.root.audio.dispatchEvent(new Event('unmute')); f.health.set('inputMicrophone', 'HEALTHY');
         expect(controller.snapshot().resourceIntervention?.state).toBe('RECOVERED_WAITING_FOR_USER');
         expect(controller.snapshot().transport?.state).toBe('PAUSED'); expect(controller.continueAfterRecovery()).toBe(true);
         expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME' });
@@ -230,12 +277,12 @@ describe('Continuous application owner', () => {
   for (const first of ['input', 'recording'] as const) it(`dual fault (${first} first) has one input-required intervention and one pause`, async () => {
     const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
     const clone = f.root.copies.at(-1)!;
-    const input = () => { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); };
+    const input = () => { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); f.health.set('inputMicrophone', 'INTERRUPTED'); };
     const recording = () => { clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute')); };
     if (first === 'input') { input(); recording(); } else { recording(); input(); }
     expect(f.meter.pause).toHaveBeenCalledOnce(); expect(controller.snapshot().resourceIntervention?.impact).toBe('INPUT_AND_RECORDING');
     controller.continueWithoutRecording(); expect(controller.snapshot().transport?.state).toBe('PAUSED');
-    f.root.audio.muted = false; f.root.audio.dispatchEvent(new Event('unmute'));
+    f.root.audio.muted = false; f.root.audio.dispatchEvent(new Event('unmute')); f.health.set('inputMicrophone', 'HEALTHY');
     expect(controller.snapshot().resourceIntervention?.state).toBe('WAITING_FOR_USER');
     clone.audio.muted = false; clone.audio.dispatchEvent(new Event('unmute'));
     expect(controller.snapshot().resourceIntervention?.state).toBe('RECOVERED_WAITING_FOR_USER');
@@ -255,7 +302,7 @@ describe('Continuous application owner', () => {
   });
   it('required input loss during unfinished natural tail cannot publish trustworthy completed truth', async () => {
     const f = environment(), controller = f.create(); await controller.start(); await f.feed(100);
-    f.context.currentTime += 1.2; controller.refresh(); const finishing = controller.abandon(); f.root.audio.stop();
+    f.context.currentTime += 1.2; controller.refresh(); const finishing = controller.abandon(); f.root.audio.stop(); f.health.set('inputMicrophone', 'LOST');
     await finishing; expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().completed).toBeNull(); await controller.dispose();
   });
   for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize-throw', 'recorder-finalize', 'recorder-cleanup']) {
@@ -284,7 +331,7 @@ describe('Continuous application owner', () => {
   }
   it('fresh controller after fatal source loss uses fresh owned resources', async () => {
     const first = environment(), failed = first.create(); await failed.start();
-    first.root.audio.stop(); await first.feed(5); await failed.dispose();
+    first.root.audio.stop(); first.health.set('inputMicrophone', 'LOST'); await first.feed(5); await failed.dispose();
     const next = environment(), fresh = next.create(); await fresh.start(); await next.feed(1600);
     expect(fresh.snapshot().session).toBe('COMPLETE'); expect(next.worker).not.toBe(first.worker);
     expect(next.context).not.toBe(first.context); await fresh.dispose();
@@ -1152,7 +1199,7 @@ for (const incident of ['input', 'analysis'] as const) for (const first of ['inp
     const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause'), recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
     const metronomePauses = f.meter.pause.mock.calls.length;
     const input = () => { if (incident === 'analysis') f.failure();
-      else { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); } };
+      else { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); f.health.set('inputMicrophone', 'INTERRUPTED'); } };
     const recording = () => { const clone = f.root.copies[1]; clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute')); };
     f.meter.resume.mockImplementationOnce(() => { if (first === 'input') { input(); recording(); } else { recording(); input(); }
       expect(canonicalPause).not.toHaveBeenCalled(); });

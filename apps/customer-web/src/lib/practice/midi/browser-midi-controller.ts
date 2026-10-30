@@ -51,24 +51,8 @@ export type BrowserMidiControllerOptions = {
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
-  onStateChange?: (state: BrowserMidiState) => void;
 };
 export type MidiNoteFact = ParsedMidiMessage & { sessionTime: SessionTime };
-
-export type BrowserMidiState = {
-  isSupported: boolean;
-  hasPermission: boolean | null;
-  connectedInputCount: number;
-  isRunning: boolean;
-};
-
-export class MidiNoConnectedInputError extends Error {
-  readonly code = 'NO_CONNECTED_INPUT' as const;
-  constructor(message = 'NO_CONNECTED_INPUT') {
-    super(message);
-    this.name = 'MidiNoConnectedInputError';
-  }
-}
 
 export class BrowserMidiController {
   private readonly timebase: PracticeTimebase;
@@ -79,70 +63,35 @@ export class BrowserMidiController {
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
-  private readonly onStateChange?: (state: BrowserMidiState) => void;
-
-  private midiAccess: MIDIAccess | null = null;
   private isRunning = false;
-  private isSupported: boolean;
-  private hasPermission: boolean | null = null;
-  private connectedInputCount = 0;
-
   private readonly access: MIDIAccess;
   private readonly boundInputs = new Set<MIDIInput>();
-  private readonly stateChanged = () => { this.syncInputs(this.access); this.notifyState(); };
   private readonly message = (event: MIDIMessageEvent) => { if (event.data) this.dispatchMidiData(event.data, event.timeStamp); };
 
   constructor(options: BrowserMidiControllerOptions) {
     this.timebase = options.timebase;
     this.onAttack = options.onAttack;
     this.onMidiNote = options.onMidiNote;
-    this.onStateChange = options.onStateChange;
     this.access = options.access;
-    this.isSupported = true;
-    this.hasPermission = true;
-  }
-
-  getState(): BrowserMidiState {
-    return {
-      isSupported: this.isSupported,
-      hasPermission: this.hasPermission,
-      connectedInputCount: this.connectedInputCount,
-      isRunning: this.isRunning,
-    };
   }
 
   async start(): Promise<void> {
-    if (this.isRunning) {
-      return;
-    }
-
-    const access = this.access;
-    this.midiAccess = access;
-    this.bindAccess(access);
-    this.syncInputs(access);
-
-    if (this.connectedInputCount === 0) {
-      this.isRunning = false;
-      this.notifyState();
-      throw new MidiNoConnectedInputError('NO_CONNECTED_INPUT');
-    }
-
-    this.isRunning = true;
-    this.notifyState();
+    if (this.isRunning) return;
+    this.isRunning = true; this.refreshInputs();
   }
-
-  stop(): void {
-    if (!this.isRunning && !this.midiAccess) {
-      return;
-    }
-    this.unbindAccess();
-    this.isRunning = false;
-    this.notifyState();
+  refreshInputs(): void {
+    if (!this.isRunning) return;
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
+    this.access.inputs.forEach(input => {
+      if (input.state !== 'connected') return;
+      input.addEventListener('midimessage', this.message); this.boundInputs.add(input);
+    });
   }
-
   dispose(): void {
-    this.stop();
-    this.midiAccess = null;
+    this.isRunning = false;
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
   }
 
   /**
@@ -177,26 +126,5 @@ export class BrowserMidiController {
       noteNumber,
       confidence: 1,
     });
-
-  }
-
-  private bindAccess(access: MIDIAccess): void { access.addEventListener('statechange', this.stateChanged); }
-  private unbindAccess(): void {
-    this.midiAccess?.removeEventListener('statechange', this.stateChanged);
-    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
-    this.boundInputs.clear();
-  }
-  private syncInputs(access: MIDIAccess): void {
-    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
-    this.boundInputs.clear();
-    access.inputs.forEach(input => {
-      if (input.state !== 'connected') return;
-      input.addEventListener('midimessage', this.message); this.boundInputs.add(input);
-    });
-    this.connectedInputCount = this.boundInputs.size;
-  }
-
-  private notifyState(): void {
-    this.onStateChange?.(this.getState());
   }
 }
