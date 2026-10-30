@@ -1,3 +1,5 @@
+import { continuousMetronomeSyncPoint } from './metronome-sync';
+import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
@@ -68,7 +70,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
   const worker: AcousticInferencePort = {
     run: vi.fn(async () => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++runs })),
     dispose: vi.fn(async () => {}), onFailure: listener => { fail = listener; return () => { fail = undefined; }; } };
-  const meter = { start: vi.fn(), stop: vi.fn(), pause: vi.fn(), resume: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), syncContinuous: vi.fn() };
+  const meter = observeMetronomeRuntime();
   const platform: ContinuousPlatform = {
     midiClock: clock, acquireInference: vi.fn(async () => worker),
     createAudioContext: vi.fn(() => context as unknown as AudioContext),
@@ -85,7 +87,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     },
     createMidi: vi.fn(options => { midiOptions = options; return { start: async () => {}, dispose: vi.fn(),
       refreshInputs: vi.fn() }; }),
-    createRecorder: vi.fn(mode => new PerformanceRecorder(mode)), createMetronome: vi.fn(() => meter),
+    createRecorder: vi.fn(mode => new PerformanceRecorder(mode)), createMetronomeAudio: vi.fn(() => metronomeAudioFixture()),
   };
   let controller: ContinuousPracticeController | undefined;
   async function feed(ms: number) {
@@ -137,8 +139,8 @@ describe('Continuous application owner', () => {
   });
   it('rejects physical MIDI loss between binding and Start with the input failure owner', async () => {
     const f = environment(), controller = f.create('MIDI');
-    vi.mocked(f.platform.createMetronome).mockImplementationOnce(() => {
-      f.health.set('midi', 'LOST'); return f.meter;
+    vi.mocked(f.platform.createMetronomeAudio).mockImplementationOnce(() => {
+      f.health.set('midi', 'LOST'); return metronomeAudioFixture();
     });
     await controller.start();
     expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', inputError: 'NO_CONNECTED_INPUT', completed: null });
@@ -210,9 +212,11 @@ describe('Continuous application owner', () => {
       expect(after.metronomeEnabled).toBe(true);
       expect(controller.snapshot().transport).toEqual(transport);
       expect(f.platform.createMidi).toHaveBeenCalledOnce();
-      expect(f.platform.createMetronome).toHaveBeenCalledOnce();
-      expect(f.meter.destroy).not.toHaveBeenCalled();
+      expect(f.platform.createMetronomeAudio).toHaveBeenCalledOnce();
+      expect(f.meter.dispose).not.toHaveBeenCalled();
       expect(f.meter.setEnabled).toHaveBeenLastCalledWith(true);
+      expect(Reflect.get(f.meter.start.mock.instances[0] as object, 'plan')).toBe(Reflect.get(controller, 'options').plan.metronomePlan);
+      expect(f.meter.syncContinuous).toHaveBeenLastCalledWith(continuousMetronomeSyncPoint(transport!));
       expect(resolveScope).not.toHaveBeenCalled(); expect(resolveTempo).not.toHaveBeenCalled();
     } finally { await controller.dispose(); resolveScope.mockRestore(); resolveTempo.mockRestore(); }
   });
@@ -362,7 +366,7 @@ describe('Continuous application owner', () => {
       expect(f.platform.createAudioContext).not.toHaveBeenCalled();
       expect(f.platform.acquireInference).not.toHaveBeenCalled();
       expect(f.platform.createAudioContext).not.toHaveBeenCalled();
-      expect(f.platform.createMetronome).not.toHaveBeenCalled();
+      expect(f.platform.createMetronomeAudio).not.toHaveBeenCalled();
       f.clock.set(10000); controller.refresh();
       expect(controller.snapshot().completed).toBeNull(); expect(callback).not.toHaveBeenCalled();
       expect(store).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
@@ -497,14 +501,14 @@ describe('Continuous application owner', () => {
     let recordingStream: MediaStream | undefined;
     vi.stubGlobal('MediaRecorder', class extends Recorder { constructor(stream: MediaStream) { super(); recordingStream = stream; } });
     const f = environment(), camera = stream(true), callback = vi.fn();
-    f.platform.createMetronome = vi.fn(() => {
-      recordingStream!.getVideoTracks()[0].stop(); return f.meter;
+    f.platform.createMetronomeAudio = vi.fn(() => {
+      recordingStream!.getVideoTracks()[0].stop(); return metronomeAudioFixture();
     });
     const controller = f.create('MIDI', 4, 'VIDEO', callback, camera.media);
     await controller.start();
     expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
       evaluation: null, completed: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
-    expect(f.meter.start).not.toHaveBeenCalled(); expect(f.meter.destroy).toHaveBeenCalledOnce();
+    expect(f.meter.start).not.toHaveBeenCalled(); expect(f.meter.dispose).toHaveBeenCalledOnce();
     expect(callback).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
     expect(recordingStream!.getTracks().every(track => track.readyState === 'ended')).toBe(true);
     expect(camera.media.getTracks().every(track => track.readyState === 'live')).toBe(true);
@@ -578,7 +582,7 @@ describe('Continuous application owner', () => {
     if (result.evaluation.status !== 'COMPLETE') throw new Error('Expected complete evaluation');
     expect(result.evaluation.assignment.observations).toEqual([]);
     expect(f.platform.createAudioContext).toHaveBeenCalledTimes(1);
-    expect(f.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: f.context }));
+    expect(f.platform.createMetronomeAudio).toHaveBeenCalledWith(f.context);
     expect(f.context.close).toHaveBeenCalledTimes(1); expect(f.root.audio.stop).not.toHaveBeenCalled();
     expect(callback).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ completionReason: 'SCOPE_COMPLETED' }));
     await controller.dispose();
@@ -1138,7 +1142,7 @@ it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before 
     expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', completed: null, resourceIntervention: null });
     expect(controller.snapshot().session).toBe('ABANDONED');
     expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
-    expect(f.meter.destroy).toHaveBeenCalledOnce(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
+    expect(f.meter.dispose).toHaveBeenCalledOnce(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
     expect(f.root.audio.readyState).toBe('live'); expect(f.root.audio.stop).not.toHaveBeenCalled();
     expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(callback).not.toHaveBeenCalled();
     // Reuse the healthy borrowed device, not any attempt-owned graph/session/lease.

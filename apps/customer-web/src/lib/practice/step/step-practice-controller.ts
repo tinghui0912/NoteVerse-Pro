@@ -1,3 +1,4 @@
+import { MetronomeRuntime } from '@/lib/practice/metronome/metronome-runtime';
 import { AcousticFailure, DeviceFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
 import { resumePracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import type { PracticeAnalysisResourcePlan } from '@/lib/practice/planning/resource-plan';
@@ -8,7 +9,7 @@ import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
 import { createLocalSessionId } from '@/lib/practice/kernel/session';
 import { type LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
 import type { StepPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
-import { browserStepPlatform, type StepMidiPort, type StepMetronomePort, type StepPlatform } from './step-platform';
+import { browserStepPlatform, type StepMidiPort, type StepPlatform } from './step-platform';
 import { StepMidiAttemptInput } from './step-midi-attempt-input';
 import { projectStepFailure, type StepApplicationErrorCode } from './step-errors';
 import { MidiStepRetirementPolicy, type StepRetirementPolicy } from './step-retirement-policy';
@@ -36,7 +37,7 @@ export class StepPracticeController {
   private runtime: StepPracticeRuntime | null = null;
   private timebase: PracticeTimebase | null = null;
   private midi: StepMidiPort | null = null;
-  private metronome: StepMetronomePort | null = null;
+  private metronome: MetronomeRuntime | null = null;
   private input: StepMidiAttemptInput | null = null;
   private microphone: StepMicrophoneInput<StepAttemptIdentity> | null = null;
   private unboundInference: AcousticInferencePort | null = null;
@@ -60,7 +61,7 @@ export class StepPracticeController {
   private finalSnapshot: LocalStepSessionSnapshot | null = null;
   constructor(private readonly options: StepControllerOptions) {
     this.startup = options.startupTimings ?? new PracticeStartupTimings();
-    this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.plan.metronomeInitiallyEnabled;
+    this.platform = options.platform ?? browserStepPlatform(); this.enabled = options.plan.metronomePlan.initiallyEnabled;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   engineeringSnapshot() { return Object.freeze({ startup: this.startup.snapshot(), failureCause: this.failureCause, sessionId: this.snapshot().sessionSnapshot?.localSessionId ?? null }); }
@@ -159,11 +160,9 @@ export class StepPracticeController {
     microphone.arm(boundary);
   }
   private createMetronome(audioContext?: AudioContext): void {
-    const scope = this.options.plan.scope;
-    this.metronome = this.platform.createMetronome({ artifact: this.options.plan.artifact,
-      tempoPlan: this.options.plan.tempoPlan,
-      mode: 'STEP', scopeStartBeat: scope.startBeat, scopeEndBeat: scope.terminalBeat, enabled: this.enabled,
-      ...(audioContext ? { audioContext } : {}) });
+    this.metronome = new MetronomeRuntime(this.options.plan.metronomePlan,
+      this.platform.createMetronomeAudio(audioContext ?? null));
+    this.metronome.setEnabled(this.enabled);
   }
   private attemptSink(runtime: StepPracticeRuntime): StepAcousticAttemptSink<StepAttemptIdentity> {
     return {
@@ -211,8 +210,9 @@ export class StepPracticeController {
     return this.disposal;
   }
   setMetronomeEnabled(enabled: boolean): void {
-    this.enabled = enabled; this.runtime?.setMetronomeEnabled(enabled); this.metronome?.setEnabled(enabled);
-    if (enabled) this.updateTarget(); this.emit();
+    this.enabled = enabled; this.runtime?.setMetronomeEnabled(enabled);
+    if (enabled) this.updateTarget();
+    this.metronome?.setEnabled(enabled); this.emit();
   }
   private completeNaturally(): Promise<void> {
     if (this.completionTask || this.state === 'ENDED' || this.state === 'DISPOSED') return this.completionTask ?? Promise.resolve();
@@ -310,7 +310,7 @@ export class StepPracticeController {
     const midi = this.midi, metronome = this.metronome; this.midi = null; this.metronome = null;
     this.input?.cancel(); this.input = null;
     try { midi?.dispose(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
-    try { metronome?.destroy(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
+    try { metronome?.dispose(); } catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }
     let disposal: Promise<void> | undefined;
     try { disposal = microphone?.dispose() ?? this.unboundInference?.dispose(); }
     catch { this.error = 'STEP_RESOURCE_CLEANUP_FAILED'; }

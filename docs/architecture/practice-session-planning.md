@@ -6,6 +6,7 @@ Canonical Practice Source (sourceId + parsed artifact)
   -> planPracticeSession
   -> immutable PracticeSessionPlan
        -> resources: PracticeResourcePlan
+       -> metronomePlan: ResolvedMetronomePlan
        -> STEP execution
        -> Continuous execution
 ```
@@ -21,7 +22,7 @@ admission. Live note feedback is presentation state and is absent from the inten
 creates a composition-local `planPracticeSession(source, intent)` function. It checks
 source identity and intent validity on an admitted runtime artifact, then resolves scope
 and tempo. The frozen plan owns sourceId, the canonical artifact, mode/input/recording,
-resolved scope, resolved tempo, the canonical resource plan and the initial metronome flag. Score/revision/artifact
+resolved scope, resolved tempo, the canonical resource plan and resolved metronome timing. Score/revision/artifact
 IDs remain owned by the artifact. Scope and tempo projections and canonical notation
 are immutable to consumers.
 
@@ -240,3 +241,34 @@ observers. It independently watches its owned clone tracks and MediaRecorder. Bo
 physical and pipeline incidents preserve their audio/video mute/ended meanings,
 strongest recoverability and the single canonical pause. DeviceLease never interprets
 context, capture, analysis or recorder failures as physical root loss.
+
+## Metronome Plan, Runtime and Audio
+
+`PracticeSessionPlan.metronomePlan` is the immutable musical projection owned by
+session planning. It contains STEP/CONTINUOUS mode, meter segments, resolved tempo,
+finite timeline end, scope start/end and initial enabled state. Empty meter input
+resolves an explicit DEFAULT_4_4 segment in the plan builder. Runtime receives no
+Artifact and performs no semantic scope/tempo resolution. A candidate initial-enable
+change reuses the same resolved scope and tempo.
+
+Mode controllers compose `MetronomeRuntime(plan.metronomePlan, audio)` with a
+`MetronomeAudioPort` supplied by browser infrastructure. Musical plan fields are
+immutable during the attempt. The runtime owns enabled/running state, pulse cursor
+and one 25ms scheduling interval with a 100ms lookahead. Pause, stop and idempotent
+disposal clear the interval; disposed callbacks cannot restart scheduling.
+
+STEP commands the current target onset and has no count-in. Its meter grid follows
+that target; repeated pulses keep the BPM at the target until the target changes.
+Continuous commands `continuousMetronomeSyncPoint` from its canonical transport:
+COUNT_IN carries exact remaining phase and RUNNING carries the current musical beat.
+Metronome mirrors those coordinates without owning another count-in policy or clock.
+Live enable resynchronizes against the current mode context; disable silences future
+click scheduling. Both commands preserve the attempt, scope, tempo and progression.
+
+The browser audio adapter owns Web Audio construction/resume, click oscillator/gain
+envelopes and context release. Microphone attempts provide a BORROWED attempt context,
+which metronome disposal never closes. MIDI uses an OWNED metronome context, constructed
+on audio activation and closed at most once. `MetronomeAudioPort` exposes only
+`activate`, `nowMs`, `scheduleClick({ atMs, accent })` and `dispose`. Optional audio
+creation/resume/click/cleanup faults stay nonfatal and cannot become physical root,
+analysis, recording or critical attempt-cleanup failures.

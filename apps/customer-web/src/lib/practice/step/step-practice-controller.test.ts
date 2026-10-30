@@ -1,3 +1,4 @@
+import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { MidiFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import * as scopeContract from '@/lib/practice/kernel/scope';
@@ -26,11 +27,11 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const midi = { start: vi.fn(async () => { if (delayed) await new Promise<void>(resolve => { resolveStart = resolve; }); }),
     dispose: vi.fn(),
     refreshInputs: vi.fn() };
-  const metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
+  const metronome = observeMetronomeRuntime();
   const platform: StepPlatform = { clock, timer: {
     schedule: (callback, delay) => { const task = { callback, delay, cancelled: false }; timers.push(task); return task; },
     cancel: handle => { (handle as typeof timers[number]).cancelled = true; },
-  }, createMidi: vi.fn(value => { options = value; return midi; }), createMetronome: vi.fn(() => metronome) };
+  }, createMidi: vi.fn(value => { options = value; return midi; }), createMetronomeAudio: vi.fn(() => metronomeAudioFixture()) };
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.moments[index].groupId,
     endGroupId: selectedArtifact.moments.at(-1)!.groupId };
   const completion = vi.fn();
@@ -68,14 +69,14 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     await s.controller.abandon(); await s.controller.abandon();
     expect(s.controller.snapshot()).toMatchObject({ state: 'DISPOSED', sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' } });
     expect(s.completion).not.toHaveBeenCalled(); s.controller.dispose(); s.controller.dispose();
-    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
+    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.dispose).toHaveBeenCalledTimes(1);
   });
   it('preparation failure returns to application IDLE without inventing a domain IDLE snapshot', async () => {
     const s = setup(); s.midi.start.mockRejectedValueOnce(new MidiFailure('NO_CONNECTED_INPUT'));
     await s.controller.start();
     expect(s.controller.snapshot()).toMatchObject({ state: 'IDLE', sessionSnapshot: null, error: 'NO_CONNECTED_INPUT', canAcceptAttempt: false });
     expect(s.completion).not.toHaveBeenCalled(); expect(s.midi.dispose).toHaveBeenCalledTimes(1);
-    expect(s.metronome.destroy).toHaveBeenCalledTimes(1); s.controller.dispose();
+    expect(s.metronome.dispose).toHaveBeenCalledTimes(1); s.controller.dispose();
     expect(s.midi.dispose).toHaveBeenCalledTimes(1);
   });
   it.each([60,62])('exact end note is ignored before or after close (%s), strictly later note starts fresh', async pianoKey => {
@@ -262,9 +263,9 @@ describe('STEP application owner / bounded MIDI gesture', () => {
   it('natural completion and disposal release resources exactly once, before completion notification', async () => {
     const s = setup(4); await s.controller.start(); s.clock.set(101); s.note(74); s.close(); await s.controller.abandon();
     expect(s.controller.snapshot().state).toBe('ENDED'); expect(s.completion).toHaveBeenCalledTimes(1);
-    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
+    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.dispose).toHaveBeenCalledTimes(1);
     s.controller.abandon(); s.controller.dispose(); s.controller.dispose();
-    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.destroy).toHaveBeenCalledTimes(1);
+    expect(s.midi.dispose).toHaveBeenCalledTimes(1); expect(s.metronome.dispose).toHaveBeenCalledTimes(1);
   });
   it('dispose during preparation cancels late start and emits no successful session', async () => {
     const s = setup(0, 'MIDI', true), pending = s.controller.start(); s.controller.dispose(); s.resolveStart(); await pending;
@@ -320,7 +321,8 @@ it('executes planned metronome geometry and preserves an active gesture across a
     expect(after.step.currentIndex).toBe(before.step.currentIndex);
     expect(after.scope).toBe(before.scope); expect(after.tempoPlan).toBe(before.tempoPlan);
     expect(after.metronomeEnabled).toBe(true);
-    const options = (s.platform.createMetronome as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const options = Reflect.get(s.metronome.start.mock.instances[0] as object, 'plan');
+    expect(options).toBe(Reflect.get(s.controller, 'options').plan.metronomePlan);
     expect(options.tempoPlan).toBe(before.tempoPlan);
     expect(options.scopeStartBeat).toBe(before.scope.startBeat);
     expect(options.scopeEndBeat).toBe(before.scope.terminalBeat);

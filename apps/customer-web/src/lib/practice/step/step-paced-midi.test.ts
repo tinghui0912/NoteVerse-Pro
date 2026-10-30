@@ -1,3 +1,4 @@
+import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
@@ -16,7 +17,7 @@ it('real Browser MIDI preserves POST_VERDICT MIDIMessageEvent.timeStamp delivere
   const platform: StepPlatform = { clock,
     timer: { schedule: fn => { tasks.push(fn); return fn; }, cancel: () => {} },
     createMidi: options => new BrowserMidiController(options),
-    createMetronome: () => ({ start() {}, destroy() {}, setEnabled() {}, setStepContext() {} }) };
+    createMetronomeAudio: () => metronomeAudioFixture() };
   const owner = new StepPracticeController({ rootHealth: rootHealthFixture().port, plan: stepSessionPlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, platform });
   const note = (timeStamp: number) => device.send([0x90, 60, 90], timeStamp);
   try {

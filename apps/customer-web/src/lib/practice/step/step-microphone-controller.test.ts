@@ -1,3 +1,4 @@
+import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { CaptureFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
@@ -34,7 +35,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
   const stream = { getTracks: () => [track], getAudioTracks: () => [track], clone: vi.fn(() => ({ stop: cloneStop })) };
   const context = Object.assign(new EventTarget(), { sampleRate: Number(rate), currentTime: 7, state: 'running',
     resume: vi.fn(async () => {}), close: vi.fn(async () => { context.state = 'closed'; context.dispatchEvent(new Event('statechange')); }) });
-  const metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
+  const metronome = observeMetronomeRuntime();
   let source!: SourceAnalysisRuntime, bridge!: CaptureConsumer, publish!: SourceAnalysisOptions['onPublication'];
   let next = 0, sequence = 0, paused = false, pianoKeys = [60], eventOffset = 8000;
   let workerFailure: ((e: Error) => void) | undefined;
@@ -69,7 +70,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
   const stopCapture = vi.fn(() => { if (stopped) return; stopped = true; detach(); cloneStop(); });
   const platform: StepPlatform = {
     clock: new ManualClock(999_000), timer: { schedule: vi.fn(), cancel: vi.fn() },
-    createMidi: vi.fn(), createMetronome: vi.fn(() => metronome),
+    createMidi: vi.fn(), createMetronomeAudio: vi.fn(() => metronomeAudioFixture()),
     microphone: {
       createAudioContext: vi.fn(() => context as unknown as AudioContext),
       acquireInference: vi.fn(async () => worker), workletUrl: 'fake://worklet',
@@ -185,7 +186,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
         expect(r.completion).not.toHaveBeenCalled();
         expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
         expect(r.context.close).toHaveBeenCalledTimes(fault === 'context' ? 0 : 1);
-        expect(r.metronome.destroy).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled();
+        expect(r.metronome.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled();
         await (end === 'End' ? r.controller.abandon() : r.controller.dispose());
         expect(r.controller.snapshot()).toMatchObject({ state: 'DISPOSED', analysisIntervention: null, infrastructureIntervention: null,
           sessionSnapshot: { runtimeStatus: 'ENDED', completionReason: 'STOPPED_BY_USER' } });
@@ -193,7 +194,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
         expect(domainEnd).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
         expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
         expect(r.context.close).toHaveBeenCalledTimes(fault === 'context' ? 0 : 1);
-        expect(r.metronome.destroy).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled();
+        expect(r.metronome.dispose).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled();
         expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
         expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
       });
@@ -234,7 +235,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       r.controller.skip();r.publish(r.publications[0]);staleFailure(new Error('LATE_FAILURE'));
       expect(r.controller.snapshot().sessionSnapshot!.step).toEqual(frozen);
       expect(r.finalized).toHaveLength(phase==='POST_VERDICT'?2:1);expect(r.completion).not.toHaveBeenCalled();
-      expect(r.worker.dispose).toHaveBeenCalledOnce();expect(r.cloneStop).toHaveBeenCalledOnce();expect(r.context.close).toHaveBeenCalledOnce();expect(r.metronome.destroy).toHaveBeenCalledOnce();expect(r.track.stop).not.toHaveBeenCalled();
+      expect(r.worker.dispose).toHaveBeenCalledOnce();expect(r.cloneStop).toHaveBeenCalledOnce();expect(r.context.close).toHaveBeenCalledOnce();expect(r.metronome.dispose).toHaveBeenCalledOnce();expect(r.track.stop).not.toHaveBeenCalled();
       expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
       await(end==='End'?r.controller.abandon():r.controller.dispose());
       expect(domainEnd).toHaveBeenCalledOnce();expect(r.controller.snapshot()).toMatchObject({state:'DISPOSED',analysisIntervention:null,sessionSnapshot:{runtimeStatus:'ENDED',completionReason:'STOPPED_BY_USER'}});
@@ -263,11 +264,11 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
     expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(SourceAnalysisRuntime.create).toHaveBeenCalledOnce();
-    expect(r.platform.createMetronome).toHaveBeenCalledWith(expect.objectContaining({ audioContext: r.context }));
+    expect(r.platform.createMetronomeAudio).toHaveBeenCalledWith(r.context);
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     await r.controller.abandon(); await r.controller.dispose(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
     expect(r.completion).not.toHaveBeenCalled();
   });
 
@@ -390,7 +391,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.controller.snapshot().analysisIntervention).toBeNull();
     expect(r.completion).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
     expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce();
-    expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.metronome.dispose).toHaveBeenCalledOnce();
     await r.controller.dispose(); expect(r.completion).toHaveBeenCalledOnce();
   });
 
@@ -417,7 +418,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     expect(r.finalized).toEqual(finalizedBeforeFailure);
     await r.controller.abandon(); await r.controller.start(); await r.controller.dispose();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.connectCapture).toHaveBeenCalledOnce();
     r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST'); r.context.dispatchEvent(new Event('statechange'));
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
@@ -464,7 +465,7 @@ it.each(['worker', 'context'] as const)('%s cleanup failure is surfaced while al
   await r.controller.abandon();
   expect(r.controller.snapshot().error).toBe('STEP_RESOURCE_CLEANUP_FAILED');
   expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+  expect(r.track.stop).not.toHaveBeenCalled(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
   await r.controller.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
 });
 
@@ -567,7 +568,7 @@ for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const
     expect(r.controller.snapshot().analysisIntervention).toBe(intervention);
     expect(r.controller.snapshot().sessionSnapshot).toMatchObject({ ...retained, updatedAtMs: expect.any(Number) });
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
     expect(r.track.stop).not.toHaveBeenCalled();
 
     await (end === 'End' ? r.controller.abandon() : r.controller.dispose());
@@ -579,7 +580,7 @@ for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const
     staleFailure(new Error('AFTER_TEARDOWN')); await r.controller.dispose();
     expect(domainEnd).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
     expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
     expect(r.track.stop).not.toHaveBeenCalled();
   });
 }
@@ -617,7 +618,7 @@ it.each(['End', 'unmount'] as const)('infrastructure cleanup rejection retains P
   stale(new Error('LATE_FAILURE')); await r.controller.dispose();
   expect(domainEnd).toHaveBeenCalledOnce(); expect(r.completion).not.toHaveBeenCalled();
   expect(r.worker.dispose).toHaveBeenCalledOnce(); expect(r.cloneStop).toHaveBeenCalledOnce();
-  expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+  expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
   expect(r.track.stop).not.toHaveBeenCalled();
 });
 
@@ -662,7 +663,7 @@ it('ACTIVE STEP worker INFER silence retains target under terminal analysis inte
     expect(r.input().snapshot().failure).toBe('WORKER_TIMEOUT');
     expect(r.source().snapshot()).toMatchObject({ state: 'DISPOSED', outstanding: 0 }); expect(engine.snapshot().state).toBe('FAILED');
     expect(r.finalized).toHaveLength(0); expect(r.completion).not.toHaveBeenCalled();
-    expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.destroy).toHaveBeenCalledOnce();
+    expect(r.cloneStop).toHaveBeenCalledOnce(); expect(r.context.close).toHaveBeenCalledOnce(); expect(r.metronome.dispose).toHaveBeenCalledOnce();
     expect(r.track.stop).not.toHaveBeenCalled(); expect(service.terminate).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
     await r.controller.abandon(); expect(r.controller.snapshot().sessionSnapshot?.completionReason).toBe('STOPPED_BY_USER');

@@ -1,3 +1,4 @@
+import { resolveMetronomePlan, type ResolvedMetronomePlan } from '@/lib/practice/metronome/metronome-plan';
 import { planPracticeResources, type PracticeResourcePlan } from './resource-plan';
 import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScope, type ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
@@ -11,7 +12,7 @@ type PlannedTruth = Readonly<{
   inputSource: PracticeExecutionIntent['inputSource'];
   scope: Readonly<ResolvedPracticeScope>;
   tempoPlan: ResolvedPracticeTempoPlan;
-  metronomeInitiallyEnabled: boolean;
+  metronomePlan: ResolvedMetronomePlan;
 }>;
 export type PracticeSessionPlan = PlannedTruth & (
   | Readonly<{ mode: 'STEP_BY_STEP'; recordingMode: 'OFF' }>
@@ -45,7 +46,9 @@ export function createPracticeSessionPlanner() {
       current = { key, artifact: freezeValue(source.artifact), scope, tempoPlan };
     }
     const truth = { resources, sourceId: source.sourceId, artifact: current.artifact, inputSource: intent.inputSource,
-      scope: current.scope, tempoPlan: current.tempoPlan, metronomeInitiallyEnabled: intent.metronomeEnabled };
+      scope: current.scope, tempoPlan: current.tempoPlan, metronomePlan: resolveMetronomePlan({ mode: intent.mode === 'STEP_BY_STEP' ? 'STEP' : 'CONTINUOUS',
+        meterSegments: current.artifact.meterSegments, tempoPlan: current.tempoPlan, timelineEndBeat: current.artifact.scoreEndBeat,
+        scopeStartBeat: current.scope.startBeat, scopeEndBeat: current.scope.terminalBeat, initiallyEnabled: intent.metronomeEnabled }) };
     return intent.mode === 'STEP_BY_STEP'
       ? Object.freeze({ ...truth, mode: 'STEP_BY_STEP', recordingMode: 'OFF' })
       : Object.freeze({ ...truth, mode: 'CONTINUOUS_PLAY', recordingMode: intent.recordingMode });

@@ -84,16 +84,7 @@ export function pulseStepBeats(meter: MeterSegment): number {
 export function meterAtBeat(artifact: MetronomeMeterSource, beat: number): MeterSegment {
   const targetBeat = roundBeat(Math.max(0, beat));
   const segments = artifact.meterSegments;
-  if (!segments || segments.length === 0) {
-    return {
-      startBeat: 0,
-      numerator: 4,
-      denominator: 4,
-      measureDurationBeats: 4.0,
-      countInPulses: 4,
-      source: 'DEFAULT_4_4',
-    };
-  }
+  if (!segments.length) throw new Error('Resolved metronome meter timing required.');
 
   let active = segments[0];
   for (const segment of segments) {

@@ -1,3 +1,4 @@
+import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 // @vitest-environment jsdom
 import { Suspense } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -52,11 +53,10 @@ vi.mock('@/components/practice/practice-score-viewer', () => ({ PracticeScoreVie
 beforeEach(() => {
   vi.restoreAllMocks(); vi.clearAllMocks(); mode = 'STEP_BY_STEP'; ready = true; deviceReady = true; health = rootHealthFixture();
   fake.invalid = false; fake.requestError = false; fake.missing = false; fake.incomplete = false; fake.denied = false; fake.loading = false;
-  const clock = new ManualClock(), metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn(),
-    stop: vi.fn(), pause: vi.fn(), resume: vi.fn(), syncContinuous: vi.fn() };
+  const clock = new ManualClock();
   const createMidi = vi.fn(() => ({ start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }));
-  fake.step.mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronome: () => metronome });
-  fake.continuous.mockReturnValue({ midiClock: clock, createMidi, createMetronome: () => metronome,
+  fake.step.mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
+  fake.continuous.mockReturnValue({ midiClock: clock, createMidi, createMetronomeAudio: () => metronomeAudioFixture(),
     createRecorder: () => new PerformanceRecorder('OFF'), acquireInference: vi.fn(), createAudioContext: vi.fn() });
 });
 afterEach(cleanup);
@@ -117,7 +117,7 @@ it('STEP PREPARING exposes End and locks scope/tempo without accepting another S
   let release!: () => void;
   fake.step.mockReturnValueOnce({ clock: new ManualClock(), timer: { schedule: vi.fn(), cancel: vi.fn() },
     createMidi: () => ({ start: () => new Promise<void>(resolve => { release = resolve; }), refreshInputs: vi.fn(), dispose: vi.fn() }),
-    createMetronome: () => ({ start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() }) });
+    createMetronomeAudio: () => metronomeAudioFixture() });
   await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.start }));
   await waitFor(() => expect(release).toBeTypeOf('function'));
   expect(screen.getByRole('button', { name: practice.rangeSelectionStart })).toBeDisabled();

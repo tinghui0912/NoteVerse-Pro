@@ -1,3 +1,4 @@
+import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -20,11 +21,11 @@ afterEach(() => vi.restoreAllMocks());
 beforeEach(() => continuousCompletionStore.clearCompletion());
 function rig() {
   const health = rootHealthFixture(), clock = new ManualClock(100), borrowRoots = vi.fn(() => borrowedDevices());
-  const meter = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn(), pause: vi.fn(), resume: vi.fn(), stop: vi.fn(), syncContinuous: vi.fn() };
+  const meter = observeMetronomeRuntime();
   const midi = { start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }, createMidi = vi.fn(() => midi);
-  const step = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronome: () => meter });
+  const step = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
   const continuous = vi.spyOn(continuousPlatform, 'browserContinuousPlatform').mockReturnValue({ midiClock: clock, createMidi,
-    createMetronome: () => meter, createRecorder: () => new PerformanceRecorder('OFF') } as never);
+    createMetronomeAudio: () => metronomeAudioFixture(), createRecorder: () => new PerformanceRecorder('OFF') } as never);
   const completion = vi.fn();
   return { health, clock, meter, midi, step, continuous, options: { plan: stepSessionPlan(artifact), admitted: true,
     compositionId: 'score/revision', borrowRoots, rootHealth: health.port, onNaturalCompletion: completion }, completion };

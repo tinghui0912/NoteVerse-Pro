@@ -1,3 +1,4 @@
+import { MetronomeRuntime } from '@/lib/practice/metronome/metronome-runtime';
 import { DeviceFailure, MidiFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
 import { resumePracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import type { PracticeRootHealthPort, PracticeRootHealthSnapshot } from '@/lib/practice/device/device-contract';
@@ -21,7 +22,7 @@ import type { ContinuousAnalysisIntervention } from './analysis-intervention';
 import type { PracticeResourceIntervention } from './resource-intervention';
 import { AudioContextPerformanceClock } from './audio-context-performance-clock';
 import { projectContinuousFailure, ContinuousApplicationFailure, type ContinuousErrorCode } from './continuous-errors';
-import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
+import type { ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { ContinuousMidiInput } from './continuous-midi-input';
 import { browserContinuousPlatform } from './continuous-platform';
@@ -57,7 +58,7 @@ export class ContinuousPracticeController {
   private microphone: ContinuousMicrophoneInput | null = null;
   private midi: ContinuousMidiInput | null = null;
   private recorder: ContinuousRecorderPort | null = null;
-  private metronome: ContinuousMetronomePort | null = null;
+  private metronome: MetronomeRuntime | null = null;
   private context: AudioContext | null = null;
   private rootStream: MediaStream | null = null;
   private renderClock: AudioContextPerformanceClock | null = null;
@@ -98,7 +99,7 @@ export class ContinuousPracticeController {
   private readonly startup: PracticeStartupTimings;
   constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform()) {
     this.startup = options.startupTimings ?? new PracticeStartupTimings();
-    this.enabled = options.plan.metronomeInitiallyEnabled;
+    this.enabled = options.plan.metronomePlan.initiallyEnabled;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot(): ContinuousControllerSnapshot {
@@ -169,10 +170,9 @@ export class ContinuousPracticeController {
       this.detachRootHealth = this.options.rootHealth.subscribe(snapshot => { if (subscribed) this.rootHealthChanged(snapshot); });
       subscribed = true; this.rootHealthChanged(this.options.rootHealth.snapshot());
       this.checkAlive();
-      const scope = this.options.plan.scope;
-      this.metronome = this.platform.createMetronome({ artifact: this.options.plan.artifact, tempoPlan: this.options.plan.tempoPlan, enabled: this.enabled,
-        mode: 'CONTINUOUS', scopeStartBeat: scope.startBeat, scopeEndBeat: scope.terminalBeat,
-        ...(this.context ? { audioContext: this.context } : {}) });
+      this.metronome = new MetronomeRuntime(this.options.plan.metronomePlan,
+        this.platform.createMetronomeAudio(this.context));
+      this.metronome.setEnabled(this.enabled);
       this.transition(C => {
         this.assertMidiSourceHealthy();
         try { this.recorder!.assertPrepared(); } catch (error) { throw error instanceof RecordingFailure ? error : new ContinuousApplicationFailure('RECORDING_PREPARATION_FAILED', { cause: error }); }
@@ -268,8 +268,9 @@ export class ContinuousPracticeController {
     this.notify();
   }
   setMetronomeEnabled(enabled: boolean): void {
-    this.enabled = enabled; this.session?.setMetronomeEnabled(enabled); this.metronome?.setEnabled(enabled);
+    this.enabled = enabled; this.session?.setMetronomeEnabled(enabled);
     if (enabled && this.transport) this.metronome?.syncContinuous(continuousMetronomeSyncPoint(this.transport));
+    this.metronome?.setEnabled(enabled);
   }
   private startRecording(): void { this.recorder?.startIfReady(0); this.recordingBegan = true; }
   private planRunning(C: number): void {
@@ -481,7 +482,7 @@ export class ContinuousPracticeController {
         this.cleanupFailure ??= 'RESOURCE_CLEANUP_FAILED'; this.inputError ??= 'RESOURCE_CLEANUP_FAILED';
         this.record('CLEANUP_FAILED', String(error));
       };
-      for (const release of [() => this.metronome?.destroy(), () => this.midi?.dispose(), () => this.recorder?.stopAndCleanup()]) {
+      for (const release of [() => this.metronome?.dispose(), () => this.midi?.dispose(), () => this.recorder?.stopAndCleanup()]) {
         try { release(); } catch (error) { failed(error); }
       }
       try { await this.releaseMicrophone(); }

@@ -3,7 +3,7 @@ import { createPracticeAudioContext } from '@/lib/practice/failure/browser-failu
 import { browserMicrophoneCapture } from '@/lib/practice/acoustic/source/browser-microphone-platform';
 import { BrowserMidiController } from '@/lib/practice/midi/browser-midi-controller';
 import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
-import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
+import { createBrowserMetronomeAudio } from '@/lib/practice/metronome/browser-metronome-audio';
 import type { ContinuousPlatform } from './continuous-input';
 
 export function browserContinuousPlatform(acquireInference: ContinuousPlatform['acquireInference'] = async () => { throw new AcousticFailure('ENVIRONMENT_NOT_READY'); }): ContinuousPlatform { return {
@@ -13,5 +13,5 @@ export function browserContinuousPlatform(acquireInference: ContinuousPlatform['
   ...browserMicrophoneCapture,
   createMidi: options => new BrowserMidiController(options),
   createRecorder: mode => new PerformanceRecorder(mode),
-  createMetronome: options => new MetronomeController(options),
+  createMetronomeAudio: context => createBrowserMetronomeAudio(context ? { kind: 'BORROWED', context } : { kind: 'OWNED' }),
 }; }

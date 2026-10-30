@@ -1,3 +1,4 @@
+import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { PracticeExecutionOwner, type PracticeExecutionFactories } from './practice-execution-owner';
 import { continuousSessionPlan, stepSessionPlan } from '../__fixtures__/session-plan';
@@ -133,9 +134,9 @@ it('cleanup failure remains visible and prevents overlapping replacement ownersh
   await r.owner.start(); expect(r.created).toHaveLength(1); await r.owner.dispose();
 });
 it('real STEP explicitly starts without count-in, waits for input, and next Start has a new localSessionId', async () => {
-  const clock = new ManualClock(100), health = rootHealthFixture(), metronome = { start: vi.fn(), destroy: vi.fn(), setEnabled: vi.fn(), setStepContext: vi.fn() };
+  const clock = new ManualClock(100), health = rootHealthFixture();
   const createMidi = vi.fn(() => ({ start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }));
-  const platform = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronome: () => metronome });
+  const platform = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
   const continuous = vi.spyOn(continuousPlatform, 'browserContinuousPlatform');
   const owner = new PracticeExecutionOwner({ borrowRoots: () => borrowedDevices(), rootHealth: health.port });
   owner.setCandidate(stepSessionPlan(artifact), true, 'score/revision'); expect(platform).not.toHaveBeenCalled(); expect(continuous).not.toHaveBeenCalled();

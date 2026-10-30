@@ -24,7 +24,7 @@ it('deterministically retains canonical source and artifact identities', () => {
   expect(first.resources).toBe(planPracticeResources(intent));
   expect(first).toEqual(second); expect(first.artifact).toBe(input.artifact);
   expect(first.sourceId).toBe(input.sourceId); expect(Object.keys(first).sort()).toEqual([
-    'resources', 'sourceId', 'artifact', 'mode', 'inputSource', 'recordingMode', 'scope', 'tempoPlan', 'metronomeInitiallyEnabled',
+    'resources', 'sourceId', 'artifact', 'mode', 'inputSource', 'recordingMode', 'scope', 'tempoPlan', 'metronomePlan',
   ].sort());
 });
 it('resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM', () => {
@@ -61,8 +61,10 @@ it('initial metronome choices reuse exactly one scope/tempo resolution', () => {
   const resolveTempo = vi.spyOn(tempoContract, 'resolvePracticeTempoPlan');
   const planPracticeSession = createPracticeSessionPlanner(), input = source();
   const off = planPracticeSession(input, intent), on = planPracticeSession(input, { ...intent, metronomeEnabled: true });
+  expect(on.metronomePlan).not.toBe(off.metronomePlan);
+  expect(on.metronomePlan.tempoPlan).toBe(off.metronomePlan.tempoPlan);
   expect(on.resources).toBe(off.resources); expect(on.scope).toBe(off.scope); expect(on.tempoPlan).toBe(off.tempoPlan);
-  expect(on.metronomeInitiallyEnabled).toBe(true); expect(off.metronomeInitiallyEnabled).toBe(false);
+  expect(on.metronomePlan.initiallyEnabled).toBe(true); expect(off.metronomePlan.initiallyEnabled).toBe(false);
   expect(resolveScope).toHaveBeenCalledOnce(); expect(resolveTempo).toHaveBeenCalledOnce();
 });
 it('STEP executes the exact planned scope and tempo through completion', () => {

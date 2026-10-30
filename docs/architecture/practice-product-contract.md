@@ -344,7 +344,7 @@ sourceId/intent validation on the Source-admitted artifact and resolves scope an
 `PracticeSessionPlan`. STEP and Continuous controllers consume that plan; pure runtimes
 consume its narrow resolved projections. Live feedback is not execution intent.
 
-The plan captures the initial metronome flag. Live enable/disable stays a runtime
+The plan carries immutable `ResolvedMetronomePlan` musical timing and initial enabled state. Live enable/disable stays a runtime
 command and preserves execution ownership, localSessionId and progression. Flag-only
 candidate changes reuse the current resolved scope/tempo. Resources belong to the
 readiness/device/application boundaries. The plan contains immutable resource
@@ -403,7 +403,12 @@ analysis-publication boundary.
 Shared `midi/` infrastructure publishes physical NOTE_ON facts in session time;
 it has no mode-domain dependency. The Continuous input adapter projects these facts
 into `observeMidiAttack`; acoustic observations enter only through `publishAnalysis`.
-Shared `metronome/` consumes its own minimal sync-point contract. Continuous
+Shared `metronome/` consumes resolved musical timing from `PracticeSessionPlan.metronomePlan`
+and its own minimal live sync-point contract. `MetronomeRuntime` owns scheduling state;
+`MetronomeAudioPort` separates browser audio side effects. The browser adapter borrows
+microphone attempt AudioContext without closing it, or owns a MIDI metronome context
+and closes it once. Optional audio faults stay nonfatal. Mode, meter and tempo are
+immutable during an attempt; enable/disable is live. Continuous
 application code projects clock snapshots into that contract. Neither shared
 infrastructure imports STEP or Continuous domain code.
 

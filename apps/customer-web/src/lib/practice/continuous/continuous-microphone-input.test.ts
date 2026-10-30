@@ -25,7 +25,7 @@ function rig() {
     dispose: vi.fn(async () => {}), onFailure: listener => { workerFailure = listener; return () => { workerFailure = undefined; }; } };
   const platform: ContinuousPlatform = { midiClock: clock, acquireInference: vi.fn(async () => worker),
     createAudioContext: vi.fn(), coefficients: async () => readFileSync('public/model-assets/practice-acoustic/fir-1-3.f32'), workletUrl: '/worklet',
-    createMidi: vi.fn(), createRecorder: vi.fn(), createMetronome: vi.fn(), connectCapture: async options => {
+    createMidi: vi.fn(), createRecorder: vi.fn(), createMetronomeAudio: vi.fn(), connectCapture: async options => {
       bridge = options.bridge;
       const subscribe = bridge.subscribeReadiness.bind(bridge);
       vi.spyOn(bridge, 'subscribeReadiness').mockImplementation(listener => {
