@@ -9,7 +9,7 @@ import {
 import { take, artifact, tempoPlan, recordingTimebase } from './__fixtures__/saved-take';
 
 describe('share video session saved-take parsing', () => {
-  it('creates a session only from complete historical video metadata', () => {
+  it('creates a session only from complete saved-video metadata', () => {
     const result = createShareVideoSessionFromSavedTake(
       take,
       new Blob(['video'], { type: 'video/webm' }),

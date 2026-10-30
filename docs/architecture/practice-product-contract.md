@@ -295,8 +295,7 @@ render identity, measure/staff/voice and tie facts once. An event owns chronolog
 Each moment owns groupId, onset/end, physical attacks and continuation references.
 One onset/key attack retains every referenced unison notation identity across voices
 and staves. Continuations retain notation but create neither STEP attacks nor
-Continuous strikes. There are no expectedPracticeGroups/practiceAttackSteps arrays,
-ExpectedPracticeNote/PracticeStepNote copies or mirrored render/metadata aggregates.
+Continuous strikes. Rendering resolves the canonical notation records by reference.
 
 Scope uses the canonical moment groupId. STEP projects attack/continuation key sets;
 Continuous projects strike identity, performance time and render references from
@@ -633,15 +632,13 @@ This FIFO convention is deterministic product policy, not learner-accuracy evide
 The domain-specific same-key solver uses scalar suffix cardinality/cost tables
 and chronological reconstruction, with O(targets * events) space/time per cohort.
 No DP cell retains a growing pair list; costs use structured comparison, without
-epsilon or artificial numeric weighting. The generic residual-graph/Bellman-Ford
-matcher is absent from production. Overlapping eligibility remains: targets
+epsilon or artificial numeric weighting. Overlapping eligibility allows: targets
 1000/1250ms with events 1100/1110ms both match, as do events 800/1100ms. Nearest
 per-target greedy and midpoint clipping do not preserve these objectives.
 
 W=250ms remains an unqualified algorithm-policy parameter. The common-radius
-non-crossing proof works for any radius, not specifically 250ms. Round 16 selected
-no replacement tolerance; V4 changes only cohort solver/equal-objective ownership.
-It is not timing-tolerance validation and does not claim improved learner accuracy.
+non-crossing proof works for any common radius. Solver correctness does not
+establish learner timing tolerance or recognition accuracy.
 Note duration / notation end is not an attack acceptance deadline. Beat/IOI-relative
 acceptance, midpoint ownership and device/learner qualification are not adopted.
 
@@ -798,8 +795,8 @@ Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-Result validation accepts schema 7 exact fields only. Schemas 2/3/4/5, V3 assignment policy, retired
-interpretation fields/policies, extra unknown fields and a metrics field are rejected without migration, normalization, compatibility or repair.
+Result validation accepts the exact schema7 fields and configured provenance.
+Unknown fields and unsupported schema/policy identities fail closed.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
 or active duration. Score annotations, playhead and share-score rendering require
 confirmed artifact identity independently of recording replay.
@@ -906,8 +903,8 @@ Count-In only when the intervention caused the pause; an existing user pause nee
 an explicit later Resume. Accepted degradation is a quiet valid performance, not an
 input/start ERROR. No worker retry or publication can revive analysis. Completed
 natural evaluation is the existing exact UNAVAILABLE shape with reason
-`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema remains
-6 and V4 assignment provenance remains unchanged. Healthy media finalizes normally;
+`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema7
+binds the configured assignment and evidence provenance. Healthy media finalizes normally;
 Review retains replay/save/share and its unavailable notice without target colors.
 
 Acoustic analysis release neither closes the controller AudioContext nor stops the
@@ -1009,7 +1006,7 @@ never reconstructs a Practice Report.
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
 My Performances is a saved media archive with playback/download/share actions,
-without learner report statistics or historical report navigation.
+without learner report statistics or saved learner-report navigation.
 
 ## Clean Share-Video Score
 

@@ -235,7 +235,7 @@ def note_sounding_end_beat(
 
 
 def assert_practice_timeline(timeline: PracticeScoreTimeline) -> None:
-    """Defend the canonical ownership graph, not equality of serialized copies."""
+    """Validate canonical identities, references, chronology and complete physical membership."""
     if not timeline.notes or not timeline.events or not timeline.moments:
         raise PracticeScoreInvalidError("Score has no playable Practice targets.")
     notes = {n.note_id: n for n in timeline.notes}

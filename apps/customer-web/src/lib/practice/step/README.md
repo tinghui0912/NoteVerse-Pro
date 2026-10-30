@@ -11,7 +11,7 @@ The [canonical Practice contract](../../../../../../docs/architecture/practice-p
 owns revision-wide schema3 validity and integer PracticePianoKey21..108. Scope selects
 progression only. Canonical moments own targets; STEP projects attack keys and
 continuation keys from their note references. There is no serialized STEP sequence. Runtime asserts the artifact, resolves scope and initializes;
-there is no selected-scope string target language or target compatibility error.
+revision-wide key validity applies to every selected target.
 
 STEP schema9/runtime step-piano-key-learning-v12 receives StepPianoKeyEvidence:
 nonempty dense own-indexed numeric observedAttackKeys, raw length<=128, finite
@@ -35,5 +35,4 @@ boundaries fence stale timers/publications. Explicit rearm commits finality; inp
 loss does not erase an already finalized verdict. Source/availability clocks remain
 separate. Microphone borrowed root tracks remain device-owned; attempt clones,
 capture/context and inference leases release deterministically. Natural completion
-wins over late failures; cleanup failure remains visible. No manual Start or
-schema8 migration reader is introduced.
+wins over late failures; cleanup failure remains visible. The controller and page own the current attempt activation lifecycle.

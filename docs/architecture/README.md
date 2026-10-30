@@ -9,11 +9,18 @@ accepted current decisions and their rationale.
 - [Backend Settings Ownership](runtime/settings-ownership.md)
 - [Import Processing](runtime/import-processing.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
-- [Canonical Practice Piano-Key Contract](practice-piano-key-contract.md)
-- [Canonical Practice Moment Artifact](practice-moment-artifact.md)
-- [Practice Product Contract](practice-product-contract.md)
-- [Practice Foundation Release Gate](practice-foundation-release-gate.md)
 - [External Dependencies](integrations/external-dependencies.md)
+
+## Practice
+
+- [Product Contract](practice-product-contract.md)
+- [Piano-Key Domain](practice-piano-key-contract.md)
+- [Canonical Moment Artifact](practice-moment-artifact.md)
+- [STEP Evidence Admission](practice-step-pitch-evidence-bounds.md)
+- [Acoustic Domain Identity Admission](practice-acoustic-domain-identity-bounds.md)
+- [Acoustic Evidence Identity Boundary](practice-acoustic-identity-boundary.md)
+- [Resource and Liveness Semantics](practice-acoustic-resource-semantics.md)
+- [Parameter Evidence](practice-acoustic-parameter-provenance.md)
 
 ## Editor
 

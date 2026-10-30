@@ -1,6 +1,6 @@
 import { attackNoteIds, notesForIds, type PracticeMoment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
-/** Read-only presentation projection, not an artifact field or another target owner. */
+/** Read-only presentation values resolved from canonical moment note references. */
 export type PracticeMomentView = Readonly<{
   groupId: string; onsetBeat: number; canonicalEndBeat: number;
   renderNoteIds: readonly string[]; measureNumbers: readonly string[];

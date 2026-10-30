@@ -38,7 +38,7 @@ it('time/pianoKey indexes preserve inclusive endpoints and the full canonical re
   const query = store.inRange(10, 40) as ReturnType<typeof obs>[];
   query.pop(); expect(store.observationCount).toBe(4); expect(store.values()).toHaveLength(4);
 });
-it('historical permutation replay is idempotent without advancing either axis or allocating another receipt', () => {
+it('accepted publication permutation replay is idempotent without advancing either axis or allocating another receipt', () => {
   const store = new ContinuousEvidenceStore('axes');
   const first = { ...publication('first', 20, 25), observations: [obs('b', 10), obs('a', 20)] };
   store.accept(first, false); store.accept(publication('later', 30, 35), false);

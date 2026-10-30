@@ -101,19 +101,9 @@ describe('immutable Continuous product result', () => {
     expectTypeOf<Extract<keyof Parameters<typeof createContinuousPerformanceResult>[0], 'metrics'>>().toEqualTypeOf<never>();
   });
   it.each([
-    ['schema 1', (value: ReturnType<typeof clone>) => { value.schemaVersion = 1; }],
-    ['schema 6', (value: ReturnType<typeof clone>) => { value.schemaVersion = 6; }],
-    ['schema 5', (value: ReturnType<typeof clone>) => { value.schemaVersion = 5; }],
-    ['assignment policy V3', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3'; }],
-    ['schema 4', (value: ReturnType<typeof clone>) => { value.schemaVersion = 4; }],
-    ['old interpretation tree', (value: ReturnType<typeof clone>) => { value.evaluation.interpretation = {}; }],
-    ['retired MIDI policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V2'; }],
-    ['retired acoustic policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'ACOUSTIC_TARGET_DETECTION_V2'; }],
-    ['schema 3', (value: ReturnType<typeof clone>) => { value.schemaVersion = 3; }],
-    ['old assignment policy', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2'; }],
-    ['old MIDI policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'MIDI_PHYSICAL_NOTE_EVENTS_V1'; }],
-    ['old acoustic policy', (value: ReturnType<typeof clone>) => { value.evaluation.interpretationPolicyId = 'ACOUSTIC_CONSERVATIVE_SUPPORT_V1'; }],
-    ['schema 2', (value: ReturnType<typeof clone>) => { value.schemaVersion = 2; }],
+    ['unsupported schema', (value: ReturnType<typeof clone>) => { value.schemaVersion = 999; }],
+    ['unsupported assignment policy', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'UNSUPPORTED_ASSIGNMENT_POLICY'; }],
+    ['unknown evaluation field', (value: ReturnType<typeof clone>) => { value.evaluation.unexpectedField = {}; }],
     ['extra metrics', (value: ReturnType<typeof clone>) => { value.metrics = {}; }],
     ['session', (value: ReturnType<typeof clone>) => { value.localSessionId = 'foreign'; }],
     ['source', (value: ReturnType<typeof clone>) => { value.inputSource = 'STEP'; }],

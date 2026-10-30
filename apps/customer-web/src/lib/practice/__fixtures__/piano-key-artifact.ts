@@ -1,7 +1,7 @@
 import fixture from './canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
-/** Consistent canonical graph for domain tests, never a legacy transport conversion. */
+/** Consistent canonical note/event/moment graph for domain tests. */
 export function artifactWithKeys(steps: readonly (readonly number[])[]): PracticeScoreArtifact {
   const base = structuredClone(fixture) as PracticeScoreArtifact;
   base.notes = []; base.events = []; base.moments = [];

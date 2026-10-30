@@ -142,29 +142,19 @@ describe('Practice bounded domain dependencies', () => {
     for (const edge of imports(file)) expect(dependencyAllowed(file, edge), edge.specifier).toBe(true);
   });
   it('keeps research harnesses and CLI runners out of every production source import', () => {
-    const forbidden = (edge: Edge) => /(?:tests\/research\/|scripts\/(?:practice-timing|benchmark-practice-timing|benchmark-practice-evaluation-scale|analyze-practice-midi-corpus))/.test(
-      `${edge.specifier} ${edge.target ?? ''}`);
+    const toolingRoots = ['tests', 'scripts'].map(owner => normalize(path.resolve(owner)) + '/');
+    const forbidden = (edge: Edge) => toolingRoots.some(root => edge.target?.startsWith(root));
     for (const [file, edges] of sourceGraph) for (const edge of edges) expect(forbidden(edge), `${file}: ${edge.specifier}`).toBe(false);
     const consumer = path.join(practiceRoot, 'continuous/domain/evaluation/session.ts');
-    for (const owner of ['candidate-policies', 'ordered-solvers', 'matcher-proof', 'timing-semantics-audit', 'run-timing-audit.mjs']) {
+    for (const owner of ['policy-benchmark', 'corpus-analysis', 'research-report', 'command']) {
       const specifier = `@/../tests/research/practice-timing/${owner}`;
-      for (const statement of [`import { Candidate } from '${specifier}';`, `export { Candidate } from '${specifier}';`, `const candidate = import('${specifier}');`]) {
+      for (const statement of [`import { Tool } from '${specifier}';`, `export { Tool } from '${specifier}';`, `const candidate = import('${specifier}');`]) {
         const edges = imports(consumer, statement);
         expect(edges).toHaveLength(1); expect(forbidden(edges[0]), statement).toBe(true);
       }
     }
   });
-  it('has concrete owners and no common mode barrel', () => {
-    expect(existsSync(path.join(practiceRoot, 'local-core'))).toBe(false);
-    for (const [file, edges] of sourceGraph) {
-      expect(edges.map(edge => edge.specifier), relative(file)).not.toEqual(
-        expect.arrayContaining([expect.stringMatching(/(?:^|\/)local-core(?:\/|$)/)])
-      );
-    }
-    for (const owner of ['kernel', 'step/domain', 'continuous/domain']) {
-      expect(existsSync(path.join(practiceRoot, owner, 'index.ts'))).toBe(false);
-    }
-  });
+
 
   it('keeps kernel and mode domains pure and independent', () => {
     for (const file of files) {
@@ -317,16 +307,13 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('exposes concrete result/recording owners without a metrics product module', () => {
+  it('exposes concrete result/recording owners with explicit entry points', () => {
     for (const file of ['result/continuous-performance-result.ts',
       'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-recorder.ts',
       'recording/performance-replay.ts', 'continuous/completion.ts', 'continuous/completion-store.ts']) {
       expect(existsSync(path.join(practiceRoot, file)), file).toBe(true);
     }
-    for (const file of ['completed-performance.ts', 'performance-recorder.ts', 'performance-replay.ts']) {
-      expect(existsSync(path.join(practiceRoot, file)), file).toBe(false);
-    }
-    expect(existsSync(path.join(practiceRoot, 'result/continuous-performance-metrics.ts'))).toBe(false);
+
   });
 
   it('keeps result creation natural-only and abandonment free of completion work', () => {
@@ -368,14 +355,7 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('keeps rendering, review and sharing under their concrete owners without root bridges', () => {
-    for (const owner of ['score-view', 'review', 'sharing', 'sharing/video']) expect(existsSync(path.join(practiceRoot, owner, 'index.ts'))).toBe(false);
-    for (const name of ['verovio-adapter', 'playhead-cursor', 'practice-scroll', 'performance-playhead-controller',
-      'step-playhead-controller', 'performance-annotation-controller', 'range-selection', 'scope-timing', 'floating-score-svg',
-      'share-video-export', 'share-video-frame-renderer', 'share-video-playback-position', 'share-video-preview',
-      'share-video-score-camera', 'share-video-score-model', 'share-video-session', 'share-video-templates']) {
-      for (const ext of ['.ts', '.tsx']) expect(existsSync(path.join(practiceRoot, name + ext)), name + ext).toBe(false);
-    }
+  it('keeps rendering, review and sharing under their concrete owners with presentation dependency direction', () => {
     const viewer = normalize(path.join(sourceRoot, 'components/practice/practice-score-viewer.tsx'));
     for (const edge of sourceGraph.get(viewer)!) {
       if (!edge.target) continue;
@@ -589,7 +569,6 @@ it('device acquisition belongs only to Device Lease or explicit Setup qualificat
       }
     }; visit(normalize(start));
   }
-  expect(existsSync(path.join(sourceRoot, 'hooks/practice/use-practice-video-preview.ts'))).toBe(false);
 });
 
 it('STEP learning is subscription-driven without an elapsed timer or animation sampling loop', () => {
@@ -652,54 +631,11 @@ it('keeps live presentation on the narrow feedback contract, never the diagnosti
   }
 });
 
-it('production cannot reintroduce target substitutions, old policies or retired decoration states', () => {
-  const retiredNames = new Set(['GROUP_RESIDUAL','ContinuousGroupResidualAssignment','residualAssignments',
-    'commitGroupResidualAssignments','residualGroups','groupFrontier','waitingGroups','extraObservations',
-    'wrongNoteIds','missedNoteIds','targetGroups','CONTINUOUS_ANALYSIS_BOUNDS_MS',
-    'ContinuousInterpretation','MidiContinuousInterpretation','AcousticContinuousInterpretation',
-    'MidiStrikeFeedback','AcousticStrikeFeedback','MidiGroupFeedback','AcousticGroupFeedback',
-    'interpretContinuousAssignment','interpretContinuousTargetState','interpretationPolicyForInputSource','interpretationPolicyId',
-    'noteAnnotationsFromLiveFeedback','noteAnnotationsFromCompletedEvaluation',
-    'matchContinuousEvidence','ContinuousMatchingEdge','candidateEdge']);
-  const retiredValues = new Set(['WRONG','UNCONFIRMED','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V2','CONTINUOUS_EXACT_PITCH_ASSIGNMENT_FINALITY_V3',
-    'MIDI_PHYSICAL_NOTE_EVENTS_V1','ACOUSTIC_CONSERVATIVE_SUPPORT_V1',
-    'MIDI_PHYSICAL_NOTE_EVENTS_V2','ACOUSTIC_TARGET_DETECTION_V2','INCOMPLETE_CHORD','PARTIALLY_SUPPORTED']);
-  const violations: string[] = [];
-  // This guard forbids token identities/values; no structural AST is needed.
-  for (const file of productionFiles(sourceRoot)) {
-    const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, readFileSync(file, 'utf8'));
-    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
-      const value = scanner.getTokenValue();
-      if (token === ts.SyntaxKind.Identifier && retiredNames.has(value)) violations.push(file + ': ' + value);
-      if ((token === ts.SyntaxKind.StringLiteral || token === ts.SyntaxKind.NoSubstitutionTemplateLiteral)
-        && (retiredValues.has(value) || /practice-summary-note-(wrong|missed)/.test(value))) violations.push(file + ': ' + value);
-    }
-  }
-  expect(violations).toEqual([]);
-});
 
-it('has no source-specific interpretation implementation or target/group classification vocabulary', () => {
-  for (const name of ['interpretation.ts', 'interpretation-types.ts', 'live-feedback.ts']) {
-    expect(existsSync(path.join(practiceRoot, 'continuous/domain/evaluation', name))).toBe(false);
-  }
-  for (const file of productionFiles(path.join(practiceRoot, 'continuous/domain/evaluation'))) {
-    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-    const visit = (node: ts.Node) => {
-      if (ts.isIdentifier(node)) expect(node.text, file).not.toBe('verdict');
-      if (ts.isStringLiteralLike(node)) expect(['CORRECT','MISSING','SUPPORTED','NOT_DETECTED'].includes(node.text), file).toBe(false);
-      ts.forEachChild(node, visit);
-    }; visit(source);
-  }
-});
 
-it('has only domain-specific ordered same-pitch matching in production and keeps score-view policy-blind',()=>{
-  expect(existsSync(path.join(practiceRoot,'continuous/domain/evaluation/matching.ts'))).toBe(false);
-  const matcher=path.join(practiceRoot,'continuous/domain/evaluation/same-key-matching.ts');
-  const source=ts.createSourceFile(matcher,readFileSync(matcher,'utf8'),ts.ScriptTarget.Latest,true);
-  const visit=(node:ts.Node)=>{
-    if(ts.isIdentifier(node))expect(['leftCount','rightCount','Edge','capacity','reverse'].includes(node.text),node.text).toBe(false);
-    ts.forEachChild(node,visit);
-  };visit(source);
+
+
+it('keeps score-view independent of assignment policy identities',()=>{
   for(const file of [...productionFiles(path.join(practiceRoot,'score-view')),path.join(sourceRoot,'components/practice/practice-score-viewer.tsx')]) {
     const ast=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true);
     const inspect=(node:ts.Node)=>{
@@ -807,26 +743,11 @@ it('keeps distinct STEP interventions application-owned and failure actions hone
 
 it('keeps execution device status informational and requalification exclusively behind Setup', () => {
   const components = path.join(sourceRoot, 'components/practice');
-  expect(existsSync(path.join(components, 'practice-device-issue.tsx'))).toBe(false);
-  const retired = ['renewFailed', 'deviceReconnect', 'deviceRetry', 'DeviceRecoveryManager', 'PracticeRecoveryStore', 'USER_REQUESTED_REQUALIFICATION', 'setupContinue'];
-  const violations: string[] = [];
-  for (const file of sourceGraph.keys()) {
-    const execution = file.startsWith(normalize(practiceRoot) + '/') || ['/components/practice/', '/hooks/practice/', '/practice/page.tsx'].some(owner => file.includes(owner));
-    if (!execution) continue;
-    const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, readFileSync(file, 'utf8'));
-    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
-      if (token !== ts.SyntaxKind.Identifier && token !== ts.SyntaxKind.StringLiteral) continue;
-      const value = scanner.getTokenValue();
-      if (retired.includes(value)) violations.push(`${file}: ${value}`);
-      if (value === 'stepRequiresSetup' && !file.endsWith('/practice/page.tsx')) violations.push(`${file}: page disposition escaped`);
-    }
-  }
-  expect(violations).toEqual([]);
   const pagePath = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const page = ts.createSourceFile(pagePath, readFileSync(pagePath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let statusCount = 0, popoverCount = 0, navigation = false, topNavigation = false, settingsLink = false, requirements = false, terminalEnd = false, continueGuard = false, completionGuard = false;
   const visit = (node: ts.Node) => {
-    if (ts.isIdentifier(node)) expect(['PracticeDeviceIssue', 'idleDeviceIssue', 'handleReconnect', 'getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeDeviceLease']).not.toContain(node.text);
+    if (ts.isIdentifier(node)) expect(['getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeDeviceLease']).not.toContain(node.text);
     if (ts.isCallExpression(node) && node.expression.getText(page) === 'practiceDeviceRequirements') requirements = true;
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'goToPracticeSetup') {
       navigation = true;

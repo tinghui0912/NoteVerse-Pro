@@ -5,14 +5,14 @@ export class PracticeScoreContractError extends Error {
 }
 export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3 as const;
 
-/** Each retained notation fact occurs once, including its event and render ownership. */
+/** Each retained notation fact owns one event reference and one render identity. */
 export type PracticeScoreNote = {
   noteId: string; eventId: string; pianoKey: PracticePianoKey; renderNoteId: string;
   measureNumber: string; staffId: string; voiceId: string; tieTypes: ('start' | 'stop')[];
 };
 export type PracticeScoreEvent = { eventId: string; onsetBeat: number; durationBeats: number };
 export type PracticeAttack = { attackId: string; pianoKey: PracticePianoKey; noteIds: string[] };
-/** The single target sequence. groupId also owns scope identity; no step/group identity map. */
+/** Chronological target sequence; groupId owns moment and scope identity. */
 export type PracticeMoment = {
   groupId: string; onsetBeat: number; canonicalEndBeat: number;
   attacks: PracticeAttack[]; continuationNoteIds: string[];
@@ -30,7 +30,7 @@ export type PracticeScoreArtifact = {
   firstPlayableBeat: number; scoreEndBeat: number;
 };
 
-/** Validate untrusted transport, never upgrade, repair, coerce or mutate it. */
+/** Strictly validate untrusted transport while preserving the input object and primitive values. */
 export function parsePracticeScoreArtifact(value: unknown): PracticeScoreArtifact {
   assertPracticeScoreArtifact(value);
   return value;

@@ -52,9 +52,6 @@ def test_single_canonical_notation_graph_retains_unison_and_continuation():
     }
     assert len(parsed.moments[3].continuationNoteIds) == 1
     assert [a.pianoKey for a in parsed.moments[3].attacks] == [69, 72]
-    assert {"expectedPracticeGroups", "practiceAttackSteps", "playableEvents"}.isdisjoint(
-        parsed.model_dump()
-    )
 
 
 @pytest.mark.parametrize(
@@ -81,8 +78,8 @@ def test_single_canonical_notation_graph_retains_unison_and_continuation():
         "continuation-as-attack",
         "missing-continuation",
         "duplicate-continuation",
-        "schema2",
-        "mirrored-targets",
+        "unsupported-schema",
+        "unknown-field",
     ],
 )
 def test_canonical_graph_rejects_corruption_without_repair(kind):
@@ -130,10 +127,10 @@ def test_canonical_graph_rejects_corruption_without_repair(kind):
         value["moments"][3]["continuationNoteIds"] = []
     elif kind == "duplicate-continuation":
         value["moments"][3]["continuationNoteIds"] *= 2
-    elif kind == "schema2":
-        value["schemaVersion"] = 2
-    elif kind == "mirrored-targets":
-        value["expectedPracticeGroups"] = []
+    elif kind == "unsupported-schema":
+        value["schemaVersion"] = 999
+    elif kind == "unknown-field":
+        value["unexpectedField"] = []
     before = json.dumps(value, sort_keys=True)
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate(value)

@@ -86,7 +86,7 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
 
     @model_validator(mode="after")
     def canonical_ownership(self) -> Self:
-        # Transport validation reuses score-processing ownership, not another target model.
+        # Transport validation uses the canonical score-processing graph invariant.
         timeline = PracticeScoreTimeline(
             notes=tuple(
                 PracticeScoreNote(

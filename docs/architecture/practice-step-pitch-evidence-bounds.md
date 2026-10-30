@@ -1,52 +1,47 @@
 # STEP Piano-Key Evidence and Raw-Work Boundary
 
-The current product contract is [canonical Practice piano keys](practice-piano-key-contract.md).
-Round57 replaces the historical string-language audit with numeric physical identity.
-It does not qualify any device, learner, recognition, latency or workload budget.
+## Cardinalities and ownership
 
-## Four distinct cardinalities
-
-| Concept | Current owner and meaning |
+| Quantity | Current meaning |
 | --- | --- |
-| Raw evidence entry count | STEP completeAttempt,1..128 before indexed entry reads; duplicates count |
-| Distinct semantic keys | Set+numeric-sort normalization of dense valid PracticePianoKey entries |
-| Valid producer output | MIDI and acoustic Practice projections can retain at most88 distinct product keys; raw MIDI wire universe is128, independent acoustic source universe is88 |
-| Defensive raw-work budget |128 remains a separately owned unqualified admission budget; neither MIDI128 nor product88 derives it |
+| Raw entries | completeAttempt accepts1..128 entries; duplicates count |
+| Distinct keys | Set+numeric-sort normalization of dense valid PracticePianoKey entries |
+| Source output | Practice MIDI/acoustic projections retain at most88 distinct product keys |
+| Work-admission budget |128 is independently owned and unqualified; neither MIDI wire128 nor product88 derives it |
 
-Dense128 duplicate key60 entries accept and normalize to one key60. Raw129 rejects
-before index0 access. A sparse array (including length128) or inherited-only entry
-fails STEP_ATTEMPT_EVIDENCE_INVALID, preserves ANALYZING/active ownership, and permits
-valid retry. Caller allocation and arbitrary hostile getters/proxies are outside
-this ordinary-array work claim. Extra non-index properties are irrelevant.
+STEP schema9/runtime step-piano-key-learning-v12 receives the same source-neutral
+StepPianoKeyEvidence from both inputs. Admission checks ownership/state, capture
+time, confidence, Array/nonempty/raw length, dense own indices and valid keys before
+normalization, structural comparison and record retention.
 
-## Integrity and source boundaries
+Dense128 duplicate key60 entries normalize to one60. Length129 rejects before index0
+access. Sparse/inherited-only entries fail STEP_ATTEMPT_EVIDENCE_INVALID, preserve
+ANALYZING and the active attempt, and permit valid retry. Extra non-index properties
+are irrelevant. This bounds ordinary runtime iteration/Set/sort work; caller's prior
+allocation and arbitrary hostile getters/proxies are outside the work claim.
 
-Browser MIDI exposes one numeric noteNumber identity. Wire-valid keys20/109 are
-ignored only at the score-blind Practice adapter, while21/108 enter evidence. H35
-remains a fixed half-open first-NOTE_ON window. The Set needs no separate pitch cap;
-validated product identity bounds retained distinct keys without arbitrary loss.
+## Source and target integrity
 
-Acoustic source publication still independently validates exact canonical
-pitch↔midiPitch identity and sequence/coordinate/observation integrity. The historical
-280-spelling forgery remains rejected upstream. Practice assembly retains/project
-midiPitch only. H50, physical retirement and no late partial evidence are unchanged.
+MIDI wire-valid keys outside21..108 are ignored by the score-blind Practice adapter;
+valid product keys enter a fixed first-NOTE_ON H35 interval. Acoustic publication
+validates canonical pitch/midiPitch identity and sequence/coordinates before H50
+retention. Practice consumes midiPitch numerically. Physical retirement excludes
+stale input from subsequent attempts.
 
-The domain receives the same source-neutral StepPianoKeyEvidence from both inputs.
-Its schema9/v12 snapshot stores numeric observedAttackKeys. Comparison is structural
-normalized key-set equality; no string serialization, target-aware filtering,
-canonicalization, subset acceptance or cross-attempt accumulation exists.
+The [artifact](practice-moment-artifact.md) validates every note in the revision.
+Moments own physical attacks; both modes project the same attacks. Key uniqueness
+bounds each target's distinct cardinality by the explicit88-key product domain.
+Scope and device readiness do not change score validity.
 
-## Revision-wide target validity
+Exact set comparison is order/duplicate insensitive, excludes continuation and
+retains missing/extra evidence as MISMATCH. Source assembly is target-blind and
+keeps accepted gesture evidence. Confidence is metadata rather than a verdict gate.
 
-Backend validates every retained playable key21..108 and rejects an empty/no-target
-revision before schema3 production. Browser kernel defensively validates every
-canonical note/event/moment graph, including unused sections. STEP and Continuous
-project the same physical attacks; no serialized mode-specific target copy exists. FULL/RANGE only select from
-an already-valid revision. The Round55 selected-scope string compatibility workaround
-and its target-owned error are deleted, not generalized. Product key validity is
-independent of source reachability, device permissions and environment qualification.
+## Qualification
 
-T15 source identities, numeric comparison, dense shape and whole-artifact admission
-are resolved. Raw128 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY, in QUALIFY and
-workload DELETE/REDESIGN only. Future DERIVE is None. The canonical product domain
-is an explicit decision; no statistical/device qualification follows from it.
+Raw128 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY. Its retained-ownership and
+workload headroom need measured workload evidence before any numerical change.
+H35/H50 also require learner/input-timing qualification. Correctness tests do not
+qualify recognition, physical-device latency or learner intent. See
+[resource semantics](practice-acoustic-resource-semantics.md) and the
+[parameter inventory](practice-acoustic-parameter-provenance.md).

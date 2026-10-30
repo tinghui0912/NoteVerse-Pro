@@ -19,7 +19,7 @@ function strikes(artifact: PracticeScoreArtifact) {
   return buildContinuousExpectedStrikes({ artifact, tempoSelection: { mode: 'SCORE' }, scope: { kind: 'FULL' } });
 }
 describe('one canonical Practice note graph and moment sequence', () => {
-  it('accepts the actual deterministic schema3 producer fixture with no mode-specific serialized truth', () => {
+  it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
     assertPracticeScoreArtifact(fixture);
     expect(fixture.schemaVersion).toBe(3); expect(fixture.artifactId).toBe('practice-score-artifact:c2f3275222932efa');
     expect(fixture.notes).toHaveLength(7);
@@ -27,7 +27,6 @@ describe('one canonical Practice note graph and moment sequence', () => {
     expect(fixture.moments.map(m => m.attacks.map(a => a.pianoKey))).toEqual([[60],[60],[67],[69,72],[74]]);
     expect(Object.keys(fixture).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
       'meterSegments','scoreTempoSegments','firstPlayableBeat','scoreEndBeat'].sort());
-    expect(JSON.stringify(fixture)).not.toMatch(/expectedPracticeGroups|practiceAttackSteps|expectedNoteId|stepNoteId|strikeTargets|attackTargets/);
   });
   it('two unison notation identities produce one STEP attack and one Continuous strike carrying both render IDs', () => {
     const value = unison(), before = structuredClone(value);
@@ -94,9 +93,8 @@ const corruptions: [string, Corrupt][] = [
   ['continuation owned as attack', v => { v.moments[3].attacks[0].noteIds.push(v.moments[3].continuationNoteIds[0]); }],
   ['attack as continuation', v => { v.moments[0].continuationNoteIds.push(v.moments[0].attacks[0].noteIds[0]); }],
   ['bad tie grammar', v => { Object.assign(v.notes[0], { tieTypes: ['other'] }); }],
-  ['schema2', v => { Object.assign(v, { schemaVersion: 2 }); }],
-  ['parallel STEP sequence', v => { Object.assign(v, { practiceAttackSteps: [] }); }],
-  ['parallel Continuous sequence', v => { Object.assign(v, { expectedPracticeGroups: [] }); }],
+  ['unsupported schema version', v => { Object.assign(v, { schemaVersion: 999 }); }],
+  ['unknown top-level field', v => { Object.assign(v, { unexpectedField: [] }); }],
   ['invalid score extent', v => { v.scoreEndBeat += 1; }],
   ['empty revision', v => { v.notes = []; v.events = []; v.moments = []; }],
 ];

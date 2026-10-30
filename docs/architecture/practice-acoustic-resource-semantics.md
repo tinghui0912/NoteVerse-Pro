@@ -1,1550 +1,203 @@
-# Practice Acoustic Resource and Liveness Semantics
+# Acoustic Resource and Liveness Semantics
 
-## Round58 current contract
+## Ownership and failure
 
-The [canonical piano-key contract](practice-piano-key-contract.md) supersedes the
-historical STEP string-language/selected-scope discussion below. Artifact3 is
-revision-wide Practice-ready with physical keys21..108, independently of source,
-mode and scope. STEP9/v12 and Result7 replace prior development shapes without
-compatibility readers. Raw128 remains unqualified and is not derived from88.
-The selected acoustic source bytes, canonical core and adapter composite identities
-are unchanged; only non-attested Practice projections consume midiPitch numerically.
-Source pitch-name metadata still belongs to the independent acoustic contract.
-Timing/resource values and evidence-provenance shape are unchanged. Earlier named
-rounds below describe their audited baseline, not a second current product contract.
-Round58 normalizes only the [score artifact](practice-moment-artifact.md): one
-canonical notation graph and moment sequence replace duplicated mode target truths.
-STEP9/v12 and Result7 remain unchanged. No selected acoustic source bytes, core or
-composite values, model/FIR bytes or evidence-provenance fields change. Raw128/192
-and all timing/resource values remain unqualified exactly as before.
+Resource admission is fail closed. Accepted source chronology and evidence are
+retained through their owners; bounded diagnostics are presentation data rather
+than the evidence store. Resource budgets express current safety behavior without
+claiming universal browser/device headroom. See [parameter evidence](practice-acoustic-parameter-provenance.md).
 
-
-Round 23 characterizes approved baseline
-`51a8616753e01451673cf53c5ba58adcf3476861`. It complements the
-[parameter provenance ledger](practice-acoustic-parameter-provenance.md) without
-changing its 93-row inventory or any production policy. This round changes only
-existing tests and this document. No resource/timing value, source implementation,
-identity/hash, schema, workflow or dependency changes.
-
-Round 24, based on `2ac94b2357d1b251e542a8c2f67b6ab78fcf9154`, fixes only
-R03's synchronous controller failure-propagation defect. The Round 23 reachability
-witness remains valid. At Round24 the admission mechanism's semantic necessity was
-**UNRESOLVED**; Round30 resolves it below, independently of numeric8. Fixing failure
-handling did not qualify this cap. The source,
-publication, timing, resource values and identity contracts remain unchanged.
-
-The order is **semantic necessity → reachable valid workload → failure effect →
-ownership alternative → identity impact**. Reachability in a deterministic legal
-state does not estimate frequency on real hardware. A deferred worker represents
-a silent/stalled inference service; fake timers advance observation time without
-waiting real seconds. None of these experiments qualifies a cap or recommends
-raising/lowering it. No accepted evidence may be silently discarded.
-
-## Decision matrix
-
-| Item | Validly reachable? | Minimal trigger | Required stall/lag | What state grows? | Current failure effect | Correctness necessity | Alternative ownership/dataflow | Identity/provenance impact | Recommended next action |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| R01 outstanding model inputs | Yes: source runtime and admitted Continuous controller, current cap4 | Four copied ready inputs; attempt to queue fifth; first INFER held | Worker/GPU service slower than ready-window arrival; no main-thread/transport stall needed | Queued+active PCM arrays, chain closures/window records, queuedRegions counters | ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED before fifth extract; source terminal; admitted controller pauses under analysis intervention, retained session/no Result | Ordered single-worker ownership is necessary to current protocol; numeric 4 and terminal response are not mathematically required by it | Review producer admission/pull-driven planning and finite evidence/context ownership before numeric headroom; stalled capture cannot simply drop required input | Resource policy is deliberately outside evidence-core provenance; selected executor byte changes still cascade core/adapters | REDESIGN BEFORE TUNING; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R02 pending source regions | More than4 is valid and now accepted at both supported rates | Positive intervals accumulate inside fixed future-context lag; zero-duration regions retire immediately even behind a blocked head | No worker stall is required | Only positive region records not yet planned, plus at most one active region; copied inputs remain R01-owned | Old explicit cap/error producer deleted; no replacement numeric cap | Discrete positive source intervals + finite adapter/model horizon bound retention independently of session length; see proof below | KEEP exact-region empty retirement and FIFO positive planning; no coalescing or silent drop | Runtime admission/lifecycle change edits selected executor bytes, mechanically advancing core/composite hashes without changing evidence semantics or provenance shape | DELETE AS REDUNDANT: implemented; no device/memory qualification claim |
-| R03 pending capture boundaries | Yes: public controller Start/Pause/Resume, logical clock advances while PCM delivery lags | Four preserved BEGIN/PAUSE pairs pending; next Resume attempts ninth BEGIN | Canonical 15.625ms one-bar initial/resume count-ins plus 10ms running intervals; total PCM lag 102.5ms, below transport credit payload envelope | Ordered physical-boundary queue, IDs, source/performance segment history not yet consumed | CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborts bridge; **Round 24 FIXED synchronous reentrancy**: controller remains ACTIVE with canonical PAUSED transport and input-required resource intervention before Resume returns | Round30 proves finite fail-closed admission necessary for exact accepted positive history without an alternate spill owner; numeric8 is still an unqualified temporary resource-safety value | KEEP admission in principle; redesign/qualify exact representation and counting unit; no silent positive-history deletion/coalescing | Bridge/controller and cap leaf remain outside evidence-core provenance; tests/docs change no identity/schema | KEEP + QUALIFY mechanism; REDESIGN BEFORE TUNING representation; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for8 |
-| R04 Worklet transport credits | Yes: existing tests accept 32 unacked blocks and fail 33rd; new ACKed stream independently reaches R01 |33rd full 2048-sample block without ordered ACK | Main-thread delivery/acceptance/ACK stall; not equivalent to worker/GPU stall | Transferred PCM messages/buffers awaiting main-thread synchronous acceptance | ACOUSTIC_CAPTURE_TRANSPORT_LIMIT_EXCEEDED; Worklet stops rather than dropping PCM; capture/infrastructure owner handles fault | Finite message ownership matters; numeric 32 and exact terminal policy need workload/product justification | Retain explicit ownership/ACK integrity; review admission/backpressure separately from inference scheduling | Worklet/transport contract not directly attested by core; availability policy is deliberately outside evidence-core provenance | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R14 worker/RPC liveness | Yes: all five valid RPCs can receive no service response | One unanswered request with no legal liveness signal | Worker/driver/GPU silence; main-thread event loop still executes | Pending RPC/PCM/chain/lease ownership until settlement | Round27: finite silent-RPC safety fuse implemented; ACOUSTIC_WORKER_RPC_TIMEOUT terminates client/worker and rejects pending | Finite silent-service liveness is required; numeric60000ms is UNQUALIFIED_RESOURCE_SAFETY_POLICY | KEEP mechanism; qualify silence window using real supported workloads/devices; no retry/fallback | Worker liveness is deliberately outside evidence-core provenance; no core/composite/schema change | KEEP + QUALIFY; NEEDS REAL DEVICE/WORKLOAD EVIDENCE |
-| R18 readiness predicate observation | Yes: real PCM preroll and TERMINAL/tail transitions | Source readiness commits; local bridge notifies after receive/schedule/abort | No observation timer or polling stall; Promise continuation follows source stack unwind | One attempt-owned subscription/abort hook/deadline per pending wait | Round28: 5ms polling removed; local event-driven observation implemented; failure/abort/dispose wake waits | Predicate truth is unchanged;5ms numerical poll was unnecessary implementation magic | KEEP local snapshot-subscribe-recheck and one-shot cleanup;15s/60s deadline qualification stays separate | Non-core Continuous bridge/input notification; source executor and all evidence identities unchanged | Polling DELETED; KEEP local observer; NEEDS REAL DEVICE/WORKLOAD EVIDENCE for remaining deadlines |
-| R05 deleted resource-policy alias: maxUnacknowledgedBlocks | No executable production reader before deletion; code references removed in Round31 | Historical declaration and assertion only | None | No runtime state | Deletion changes no admission/ACK/overflow behavior; R04 remains enforced | Redundant ownership removed; real authority is transport contract/standalone producer | KEEP DELETED; qualification belongs only to R04 | resource-policy.ts is not attested; deletion changes no core/composite hash/schema | DELETE AS REDUNDANT: implemented; KEEP DELETED |
-
-## Test validity and owners
-
-All new resource witnesses use current caps, shipped FIR coefficient bytes, real
-SourceAnalysisRuntime/ContinuousAcousticProjection, finite chronological PCM,
-nonempty regions, synchronous publication sinks and the production controller
-where stated. Deferred promises affect only inference/RPC completion. Controller
-witnesses use public commands, actual source/performance mapping and full 2048-sample
-transport messages. No private state/queue is injected, cap lowered, timeout added,
-production function exported or behavior switched for tests.
-
-A direct schedule of nine arbitrary BEGINs would not prove learner/controller
-reachability: schedule() validates coordinates, not the complete product protocol.
-The tests instead exercise actual controller cancellation rules. The source-only
-region test separately labels public source API reachability; the controller test
-establishes the stronger product path.
-
-The short-meter fixture uses a valid 1/128 time signature at 120 BPM: a canonical
-resume count-in is one bar, 1/32 quarter-note beat, 15.625ms. The existing MusicXML
-meter parser accepts positive beat-type values and emits this duration; artifact
-validation admits the consistent meter fields. No policy constant is shortened.
-Initial and resume count-ins both use that same canonical score-derived bar in
-the short-meter witnesses; the 4/4 witnesses use their normal four-beat initial
-bar. This is adversarial,
-schema-valid geometry, not a claim that a learner can or normally will perform
-these UI actions at this frequency. Measurements are still needed for incidence.
-
-## R01 — copied inputs and failure ordering
-
-SourceAnalysisRuntime.append validates the block, advances nextSource, resamples
-and appends to the raw ring, then calls planAvailable. A ready window first checks
-`outstanding === maxOutstandingWindows`, then extracts 29120 float32 samples, and
-only then enqueues the owned copy. Outstanding counts **one active plus queued
-inputs**, not active GPU executions alone. The worker chain is serialized.
-
-The source witness begins at source 96000 (48kHz, after real preroll), holds the
-first inference, and feeds legitimate blocks through 219392. Four inputs are copied;
-only job0 has started. Feeding toward 248320 makes a fifth window ready. A spy on
-the existing AcousticPcmRing.extract observes exactly four calls before and after
-failure. The accepted source prefix has advanced before planning throws. Four
-copies total 465920 payload bytes; no fifth copy exists. The source failure clears
-region planning state, but outstanding copied inputs remain owned until the active
-promise settles and queued closures are skipped. These tests have no published
-observations before the stall; accepted PCM is not the same as accepted evaluation
-observations. They do not claim raw PCM must be retained as a completed-result ledger.
-
-Disposal calls the inference port disposal once, but SourceAnalysisRuntime also
-awaits its chain. A deliberately non-settling fake inference keeps that disposal
-promise pending. After release, late result delivery is fenced, queued work is not
-restarted, outstanding returns to zero and no publication appears. The real engine's
-normal lease retirement awaits its pending service, now subject to the separate R14 silence fuse.
-
-The admitted-controller witness confirms the source backpressure failure first
-reaches the analysis owner: transport PAUSED, analysis intervention latched,
-evaluation feedback null, retained ACTIVE session, no natural callback/Result,
-borrowed root untouched. It does not make 4 necessary. Removing the cap alone leaves
-copied buffers, closures and counters growing when inference cannot keep up.
-A pull-driven planner could bound copies by ownership rather than4, but source PCM
-still arrives and real-context retention must be accounted for. It is not a proof
-that indefinite stall can be handled losslessly with finite memory and no failure.
-
-### Round32 — R11 snapshot maximum is derived
-
-The historical `maximumOutstandingInputBytes: 4 * R.inputBytes` diagnostic repeated
-R01's multiplier. It now uses R.maxOutstandingWindows × R.inputBytes, retaining
-465920 bytes under unchanged4/116480 owners. The real four-outstanding R01 witness
-asserts that maximum and outstandingInputBytes=outstanding×inputBytes, then still
-fails the fifth ready window before ring extraction/copy. No admission, source
-region, worker/publication or readiness path changes. KEEP DERIVED; R01 remains
-UNQUALIFIED_RESOURCE_SAFETY_POLICY and R09 remains a separate byte relationship.
-The selected executor byte change mechanically advances core/composite identities
-under the [existing boundary](practice-acoustic-identity-boundary.md#round32-diagnostic-derivation-and-selected-byte-identity-advance);
-Result shape/evidence meaning and numeric policies are unchanged.
-
-### Round35 — R09 input PCM accounting is derived
-
-The historical `inputBytes: 29120 * 4` in resource policy is now
-M.inputSamples × Float32Array.BYTES_PER_ELEMENT. Model geometry owns29120 and the
-typed representation owns width4; the scalar remains116480. Its only production
-reads are snapshot outstandingInputBytes=outstanding×inputBytes and
-maximumOutstandingInputBytes=maxOutstandingWindows×inputBytes, still465920 at4.
-It does not size allocations, tensors or wire messages, enforce admission or enter
-a persisted/API contract. Real R01 regression checks the authoritative relationship,
-representation fact and unchanged scalar, while retaining fifth-window failure
-before extraction. Object/message/worker/ORT/GPU/GC/total-heap overhead is excluded.
-KEEP DERIVED; R01 resource qualification remains separate. At Round35, R12 retained
-targetRingBytes×4 as well as16 samples/ms and other conversions. Round36 below
-derives only the former; time-rate conversions remain for later subrounds.
-Resource policy imports only the existing
-model authority in an allowed direction; model-contract has no reverse runtime
-dependency. No selected byte attestation or evidence identity changes.
-
-### Round36 — target-ring payload reporting follows Float32 storage
-
-AcousticPcmRing still allocates new Float32Array(targetRingSamples), at65536 samples.
-The snapshot's historical `targetRingBytes: R.targetRingSamples * 4` becomes
-R.targetRingSamples × Float32Array.BYTES_PER_ELEMENT. Its262144-byte value reports
-only that PCM payload, not object/allocator/runtime overhead or total ring memory.
-There is no independent production reader or persisted/API contract for the field;
-it does not control allocation, wrap, extraction or admission. A real four-outstanding
-runtime witness checks the derived relationship and unchanged scalar/representation.
-Resource policy, R09 inputBytes, R01 threshold and the ring implementation are untouched.
-
-Round29's746/685 output bounds,29870/29809 sufficient retention bounds,29120 input
-samples and65536 ring capacity remain unchanged. This does not qualify R08, prove
-65536 minimum/optimal or qualify total memory. R12 remains partially unresolved
-derivation debt then included16/16000/1000; Round37 below derives only target-rate
-authority, leaving samples/ms and time-unit expressions. Only the selected
-executor's diagnostic expression bytes change; executor/core/composite attestations
-mechanically advance without changing evidence meaning, identity scope or Result shape.
-
-### Round37 — source↔target mappings use the model rate authority
-
-16000 remains the verified model/target-rate declaration, not a newly qualified
-or tunable policy. Executor region origin/end and preroll source→target terms,
-publication event numerator/division, base recovery/validation and owned-through
-frontier now reference M.sampleRateHz. The audit also found two direct source→target
-uses in Continuous projection's segment origin and retirement comparison; these
-now reference its existing ACOUSTIC_MODEL import. No extra rate owner/helper exists.
-
-Every arithmetic operation retains its original order. In particular, event mapping
-still forms base×modelRate+target×sourceRate, checks Number.isSafeInteger, then divides.
-Both-rate tests use the authority for expected event/frontier coordinates; a real
-nonzero-base partial-region witness checks origin/end, preroll and publication
-identity/frontier. Safe numerator boundary tests retain acceptance before overflow
-and rejection afterwards. Existing sequence/partial-region/projection/STEP regressions
-continue to exercise ordering and mapping. This does not change accepted/rejected
-coordinates, event times, rounding, observation identity or successful evidence.
-
-At Round37, planner and Continuous publication implementations remained byte-identical, including
-their *16 and samplesPerMs conventions; executor preroll's `(M.inputMs-M.futureMs)*16`
-is untouched. R12 remains STILL PARTIALLY UNRESOLVED DERIVATION DEBT for16/1000 and
-remaining sample/ms/time-unit conversions. Two selected executor/publication source
-byte changes mechanically advance core/composite identities without semantic or
-Result-shape changes; no target-rate/conversion/runtime-policy field is added.
-
-### Round38 — one derived target samples/ms relationship
-
-ACOUSTIC_TARGET_SAMPLES_PER_MS is model.sampleRateHz/1000, evaluated once in the
-model contract. It is exactly16 today: a derived geometry relationship, neither a
-second rate owner nor a numeric policy/identity field. Runtime preroll, planner's
-three target-ms multiplications, publication sequence's three matching geometry
-checks/summary expressions, and worker geometry validation's two matching checks
-now use it. Continuous evidence projection retains its local samplesPerMs alias,
-referencing the same derived value instead of recomputing division.
-
-Each original x×16 remains one multiplication with the same exact operand value;
-nextWindow×ownedMs×derived retains left associativity. Addition, Math.round,
-comparisons and cancellation-sensitive event projection keep their original order.
-Putting x×modelRate/1000 at each consumer would add a division and is deliberately
-avoided. Full ownership9600, future2720, input29120, past16800 and preroll26400 remain
-current exact characterizations, not new policy owners or qualification claims.
-
-Real-runtime both-rate tests cover the last ineligible/first eligible preroll
-source coordinates. Fractional-origin/full/partial planner and worker tests cover
-Math.round around the half-sample boundary. Source-publication tests validate the
-same planner relationship and exact half-open exclusion; Continuous projected
-times remain unchanged. Existing mapping, sequence, STEP and terminal coverage
-regressions remain applicable. No tolerance is widened.
-
-The audit additionally found worker model-validation target geometry, included in
-this same derivation. SHA radix16 and capture10000ms are unrelated and untouched.
-Continuous projection's source-Hz↔ms `delta/sourceRate*1000` and `1000/sourceRate`,
-including its Round37 source→target formulas, stay byte-identical. At Round38 those
-two unit literals remained an R12 review item, then marked STILL PARTIALLY
-UNRESOLVED DERIVATION DEBT. Round39 below closes that review without changing expressions.
-
-Executor/publication/planner selected bytes mechanically advance core/composite
-identities. Continuous publication and model-validation are not added as anchors;
-evidence meaning, model declarations, source semantics and Result shape remain
-unchanged. This derivation does not qualify16000, owned600ms or future170ms.
-
-### Round39 — R12 unit-definition closure, no production change
-
-The exact current-branch audit (`rg -n "\b1000\b|MILLISECONDS|SECONDS|samplesPerMs|performanceEndMs|actualEnd" apps/customer-web/src/lib/practice/acoustic docs/architecture`)
-finds exactly three executable acoustic uses of standalone1000, plus one unchanged
-identity-description string. Other production hits are the derived samplesPerMs
-alias and Performance Time fields/control flow.
-
-| Production location | Unchanged expression | Dimensional meaning |
+| Owner | Current responsibility | Numerical qualification |
 | --- | --- | --- |
-| model-contract.ts:14 | model.sampleRateHz /1000 | [samples/second] divided by [milliseconds/second] = target samples/millisecond |
-| continuous-projection.ts:55 actualEnd | performanceStartMs + sourceDelta/sourceRate*1000 | sourceDelta [samples] / sourceRate [samples/second] = seconds; multiply by1000 [milliseconds/second] gives milliseconds, then add the Performance Time anchor |
-| continuous-projection.ts:56 tolerance | 1000/sourceRate | [milliseconds/second] / [samples/second] = milliseconds/sample; for one sample, its duration expressed in milliseconds |
-| acoustic-core-identity.json:28 declaration string | inputWindowStartMs + round(peakFrame/100*16000)/16000*1000 | Describes decoder target-sample→seconds→milliseconds mapping;1000 is the same unit definition in non-executable declaration text, not a second tunable owner |
-
-The tolerance is **one source sample**, not1000ms or a one-second tolerance.
-At44100Hz it is approximately0.02267573696ms; at48000Hz,0.02083333333ms. These
-are mathematical characterizations of a declared source rate, not device timing
-qualification. The numeric one-sample comparison is not a new1000-valued policy.
-No other acoustic production1000 was found beyond the four classified hits above.
-10000ms readiness,60000ms liveness,
-test timestamps/availability values and historical examples are separate concerns;
-substring matches must not turn them into R12 unit ownership.
-
-1000 milliseconds =1 second is an exact unit definition, not a model, learner,
-resource or admission parameter. The existing local delta/sourceRate*1000 and
-1000/sourceRate make dimensions clear. A new MILLISECONDS_PER_SECOND constant,
-generic units module/service or conversion class would add indirection without
-eliminating any independently tunable owner, so none is introduced. Rewriting to
-delta*1000/sourceRate could change Float64 ordering and serves no closure purpose;
-the current expressions remain byte-identical. The model-derived target samples/ms
-relationship and all Round35–38 derivations remain intact.
-
-Existing both-rate runtime/segment, partial/half-open publication, geometry/source
-mapping and mismatch regressions remain relevant. No trivial unit-constant test,
-production comment, retry, calibration or policy change is added. R12 ownership
-debt is **RESOLVED / KEEP RESOLVED**: derive where there was duplicate ownership,
-keep explicit local unit definitions where there is none. This does not claim the
-repository has no other magic numbers. Unit identity is not empirical timing
-qualification: source-clock/ADC accuracy and browser scheduling retain their own
-evidence requirements. No selected source/declaration, core/composite identity,
-Result schema6 or provenance shape changes.
-
-### Round55 — resolved-scope compatibility, unchanged raw-work qualification
-
-The [STEP implementation state](practice-piano-key-contract.md#round55-current-state--selected-scope-target-compatibility-enforced)
-enforces Round54's theorem in the STEP constructor after whole-artifact assertion
-and inclusive scope resolution, before ordinary session initialization. Selected
-attack sets must be nonempty D280 with distinct count<=the existing raw evidence
-maximum128. One module-local predicate and maximum in STEP domain/runtime.ts are
-reused by evidence admission; no duplicated regex/count owner or new helper module.
-Asserted artifact uniqueness permits direct count, without another Set/sort.
-
-STEP_TARGET_INVALID belongs to target/session compatibility and projects to the
-existing STEP_SCORE_UNAVAILABLE application error, not learner evidence/device
-failure. Selected C10/empty/129 fail,128/E#4 accept; unused incompatible sections
-do not invalidate a good selected scope. Shared kernel artifact admission/backend/
-artifact schema1 and physical sources are unchanged. Constructor failure is before
-learner interaction, not all microphone resource acquisition; existing cleanup
-disposes inference/input and closes context, preserving borrowed device roots.
-
-Later selected attack-set projection/Set/sort work is now limited by the existing
-compatible cardinality. Prior whole-artifact validation/allocation, global Maps/
-Sets/sorts, continuation/notation size, step count, total heap, hostile JS objects
-and device workload remain outside this guarantee. Raw128 is still unqualified;
-MIDI128/acoustic88 do not derive it. Evidence admission/order/dense retry, D280 and
-normalization/structural comparison remain unchanged. Runtime advances v10→v11
-for changed session starts, with STEP schema8 and Result6/provenance shape intact;
-no acoustic selected-source/identity movement or payload migration occurs.
-
-T15 compatibility is resolved and leaves Future DERIVE, now **None**. T15 remains
-UNQUALIFIED_RESOURCE_SAFETY_POLICY; canonical domain-language/raw-work policy stays
-DELETE/REDESIGN and raw128 QUALIFY. All93 primary rows/classes/counts and S17/R01/
-R03/R04/S09/S10/S15 states remain unchanged. Round54's descriptions below of an
-unimplemented guard and then-future bucket are historical.
-
-### Round54 — target/evidence compatibility follows from the existing contract
-
-The [STEP domain audit](practice-piano-key-contract.md#round54-historical-audit--step-targetevidence-satisfiability)
-proves that an artifact-admitted normalized distinct attack set T has legal direct
-matching evidence exactly when T is nonempty, lies in D280, and has at most128
-members. Legal evidence is an ordinary dense1..128-entry D280 array; normalization
-cannot add members, increase count or empty a nonempty set. Conversely T itself is
-a legal dense witness with ordinary valid attempt/time/confidence. This proves a
-compatibility consequence of raw128; it does **not** qualify or derive that number.
-
-Real browser artifact/runtime probes admit empty attack/group sets, C10 and129
-distinct D280 targets, all impossible to MATCH. A retained empty group/step is not
-the zero-group artifact rejected by resolvePracticeScope. E#4 direct-MATCHes but
-cannot come from either canonical source. Source reachability is a different
-question from domain satisfiability and does not justify MIDI128/piano88 restrictions.
-
-Target-side work is not currently bounded by raw128. Artifact validation maps/sorts
-physical sets, checks notation/partitions and allocates Maps/Sets for the entire
-artifact before the runtime's evidence gate, and scope resolution reasserts it.
-currentTarget projects target/continuation data; pitchSetsEqual independently
-normalizes/sorts expected pitches. A future resolved-scope compatibility guard
-would bound later selected attack-set work using already-asserted uniqueness, but
-would not bound earlier/global artifact work, continuation/notation size, number
-of steps, caller allocation or total memory. No device/headroom qualification follows.
-
-The one recommended Round55 action is an upfront STEP-owned **resolved-scope**
-compatibility guard using existing D280/raw maximum ownership. Whole-artifact
-structural validation stays; a good selected section need not inherit another
-section's unsatisfiable target. STEP_TARGET_INVALID should distinguish target
-defects from learner evidence failures; future application projection should use
-existing STEP_SCORE_UNAVAILABLE, preserving source blindness and cleanup. Runtime
-would advance v10→v11 for changed session admission, while schema8/artifact1/
-Result6 shapes and existing artifact bytes/content identities need no migration.
-Current microphone acquisition begins before runtime construction, so a constructor
-guard is not a promise of zero pre-validation resource work.
-
-Round54 changes documentation only. T15 remains resource-safety for unqualified
-raw128; domain-language/raw-work policy remains DELETE/REDESIGN and raw128 QUALIFY.
-Future DERIVE gains only the proved target/evidence compatibility relationship.
-All93 rows/class counts and S17/R01/R03/R04/S09/S10/S15 are unchanged. Current STEP
-v10/schema8, D280/raw128/normalization/structural comparison/dense validation,
-artifact/source behavior, Result6/provenance and all Round53 acoustic identities
-remain unchanged. No new policy, test/production edit or hosted rerun is performed.
-
-### Round53 — delete the implied acoustic grammar check, preserve exact identity
-
-SourcePublicationSequence now relies on its existing integer21..108 and exact
-pianoMidiPitchToName equality without the later regex. The helper's twelve sharp/
-natural names plus single-digit octave0..8 produce88 distinct A0..C8 strings, all
-satisfying the deleted grammar. Hence the old condition was implied, with no
-independent rejection after canonical identity. Tests characterize all88 through
-the actual helper and retain the old regex locally only as historical proof.
-No production helper/table/grammar is added, moved or duplicated.
-
-The accepted qualified publication set is equivalent. Existing direct/worker
-mismatch errors remain ACOUSTIC_PUBLICATION_OBSERVATION_INVALID and
-ACOUSTIC_EVENT_IDENTITY_MISMATCH; range/integer/coordinates/confidence/ID/duplicate/
-ownership/sequence defenses and fail-before-summary ordering remain unchanged.
-All88 direct observations retain values/order/IDs at both rates; STEP's historical
-280-spelling forgery is still rejected upstream. No canonicalization or repair.
-
-Only publicationSource selected bytes/SHA change, then core/model-contract current
-SHA and both adapter core references/composites advance mechanically. Executor,
-decoder, planner, source-adapter implementation, model and FIR identities remain.
-No STEP production change or v11 bump: schema8/runtime v10, Round51 comparison,
-Round52 dense validation, D280/raw128, artifact admission and Result6/provenance shape
-stay unchanged. No resource/timing/calibration/recognition parameter is changed.
-
-The completed grammar cleanup leaves Future DERIVE **None**. T15 stays primary
-resource-safety for unqualified raw128; only remaining domain-language/raw-work policy
-stays DELETE/REDESIGN and raw128 QUALIFY. All93 rows/class counts and S17/R01/R03/R04/
-S09/S10/S15 states remain unchanged. This proves a current structural implication,
-not learner, device, memory-headroom or recognition qualification.
-
-### Round52 — historical dense own-entry evidence correction
-
-The [domain companion](practice-piano-key-contract.md) records a narrow
-direct-array shape correction. completeAttempt checks every index after its existing
-raw128 gate, requiring an own property and a primitive string matching the unchanged
-domain regex. Missing/inherited-only entries now fail STEP_ATTEMPT_EVIDENCE_INVALID;
-some no longer skips holes that Set iteration would observe as undefined. No full
-copy, normalization change or new policy constant is introduced.
-
-Sparse1/partial/leading-hole/128 rejection leaves ANALYZING, the same active attempt,
-no pending record and unchanged target/index/generation. A valid retry finalizes
-normally. Dense128 duplicate C4 remains valid; length129 rejects before index0 reads.
-Non-index array properties remain irrelevant and ordinary own accessors remain
-ordinary indexed reads. This is fail-closed shape integrity, not arbitrary hostile
-getter/proxy or total-memory protection. Raw128 is still an unqualified budget.
-
-Runtime behavior identity advances to step-exact-pitch-learning-v10, schema8 remains;
-no session/Result6/provenance migration. Domain language/artifact/source admission,
-Round51 exact comparison, normalization, clocks/H35/H50 and all acoustic sources/
-attestations/core/composites remain unchanged. T15 dense-array shape joins source
-identity and comparison as resolved; only domain-language/raw-work policy stays
-DELETE/REDESIGN and raw128 QUALIFY. The independent acoustic regex Future DERIVE
-item is still present/unmodified. All93 classifications/counts and S17/R01/R03/R04/
-S09/S10/S15 states remain unchanged; no learner/device/resource qualification follows.
-
-### Round51 — historical exact STEP set comparison correction
-
-The [domain companion](practice-piano-key-contract.md) records the implemented
-Round50 recommendation. pitchSetsEqual compares the lengths/elements of normalized
-arrays directly, with unchanged normalizePitchSet Set+sort behavior. No serialization
-delimiter, hash or canonicalization is used. Different sets C4<U+001F>E4 versus
-C4/E4 now finalize MISMATCH instead of false MATCH. Artifact/evidence still pass
-their existing admission checks; record evidence is retained and mismatch rearm
-does not advance target/index/generation. Normal exact-set progression is preserved.
-
-This observable verdict correction advances STEP runtimeVersion to
-step-exact-pitch-learning-v9, retaining schemaVersion8. No session-record shape or
-artifact migration/old-session compatibility mechanism is introduced. Result6 and
-provenance remain unchanged. The raw128 guard/evaluation position, domain evidence
-regex, normalization, sparse-array issue, backend/artifact/source admission, H35/H50
-and every acoustic selected source/identity remain unchanged.
-
-T15 exact comparison is structurally resolved, alongside MIDI/acoustic source identity.
-Remaining domain-language/raw-work/direct-shape work stays DELETE/REDESIGN and
-raw128 stays unqualified in QUALIFY; primary resource-safety classification and all93
-rows/counts remain. Future DERIVE still contains only the redundant acoustic
-post-canonical publication regex; it is not deleted here. S17/R01/R03/R04 and resolved
-S09/S10/S15 remain unchanged. No workload, learner, recognition or timing qualification.
-
-### Round50 — historical domain pitch-language/raw-work audit
-
-The [domain contract audit](practice-piano-key-contract.md) distinguishes
-backend physical-name generation, API/browser structural consistency, canonical
-MIDI128/acoustic88 source identities, domain D280 syntax, exact-string normalization
-and raw-entry work admission. Browser/API artifacts can consistently admit strings
-outside either producer, outside D, or129 distinct targets. No local backend range
-check proves universal0..127; current fixture48..81 is not the accepted contract.
-
-Raw128 rejects before evidence entry iteration/Set/sort/record retention, as confirmed
-by zero index0 getter reads on a rejected129-entry array.128 duplicate C4 entries
-still normalize to1;129 reject. The policy does not bound prior allocation, hostile
-objects or target-side projection/sorting, and is not derived from producer128/88.
-It incidentally limits distinct admitted evidence, without defining the280-string
-domain universe or qualifying CPU/memory/device behavior.
-
-An actual admitted-artifact counterexample shows pitchSetsEqual's U+001F join can
-report MATCH for different sets: one target C4<U+001F>E4 versus C4/E4 evidence.
-This is a domain comparison-integrity gap, not a reason to filter source evidence
-or silently canonicalize score strings. The sole Round51 recommendation is an
-element-wise normalized-array comparison with a runtimeVersion decision/advance;
-domain language, raw128 and schema shape can stay unchanged. No code is changed now.
-
-Separately, every canonical acoustic21..108 name necessarily satisfies the later
-SourcePublicationSequence regex. It adds no rejection after exact mapping and is
-now a narrow future DERIVE/deletion sub-item. The domain regex is a different owner
-and is not proposed for deletion. Future DERIVE is therefore no longer empty.
-T15 primary remains UNQUALIFIED_RESOURCE_SAFETY_POLICY; domain comparison/language/
-raw-work remains DELETE/REDESIGN and raw128 QUALIFY. All93 rows/class counts remain;
-S17/R01/R03/R04 and resolved S09/S10/S15 are unchanged. Round50 is docs-only: no
-production/test, identity/schema/version, timing/resource or recognition behavior changes.
-
-### Round49 — acoustic pitch identity before publication and STEP retention
-
-The [T15 companion](practice-step-pitch-evidence-bounds.md) records the resolved
-acoustic source sub-boundary. Decoder-private pitchName becomes exported
-pianoMidiPitchToName in the same selected decoder file; decoder and source
-publication validators share its single sharp/natural mapping. Integer21..108
-validation still comes first. Worker mismatches fail ACOUSTIC_EVENT_IDENTITY_MISMATCH
-before observation identity/copy/retention; direct publication mismatches fail
-ACOUSTIC_PUBLICATION_OBSERVATION_INVALID before accepted sequence advancement.
-No mismatch is repaired and no second pitch table or Browser MIDI dependency appears.
-
-The existing STEP sequence-before-open/retention order rejects malformed READY
-publications without opening/completing or retaining observations. An active H50
-gesture is invalidated/cleared on a malformed successor, with no partial/late evidence.
-The historical280-spelling forgery with valid coordinates/IDs is now rejected
-upstream. All88 canonical A0..C8 identities, valid observation values/order, decoder
-region finding/peak ties, event time/confidence and H50 geometry remain unchanged.
-
-T15 is SOURCE IDENTITIES RESOLVED, DOMAIN UNRESOLVED. Domain raw128,128-duplicate
-acceptance/normalization and129-duplicate rejection stay unchanged; the broader
-domain regex/language question is not decided here. No new count cap or raw128
-qualification follows from88 source identities. T15 stays resource-safety in
-domain-only DELETE/REDESIGN and raw128 QUALIFY; DERIVE empty; all93 classes/counts
-unchanged. S17 remains KEEP SINGLE OWNER/numeric unqualified, R01/R03/R04 untouched.
-Only selected decoder/publication attestations and dependent core/composites advance
-mechanically. Executor/planner/adapter/FIR/model assets, Result6/STEP8/runtimeVersion
-and provenance shape remain unchanged. This is malformed-source integrity, not
-recognition, learner, device, timing or resource-policy tuning.
-
-### Round48 — one selected-source admission owner, numeric192 still unqualified
-
-Round47 candidate2 is implemented: isAcousticDomainIdentity in selected
-source-publication.ts owns Boolean(value) && value.length<=192. The four original
-runtime/projection/STEP assembler/STEP input gates retain their fields, positions,
-short-circuit ordering and errors. Nothing moves into an unattested helper or new
-resource module; no defensive gate is deleted. Source runtime already depends on
-publication, and the existing dependency/cycle guards apply without relaxed rules.
-
-Primitive-string equivalence includes0/1/192/193 code units,96/97 emoji,192 non-ASCII
-units, whitespace, separators and control characters. Character count is still not
-byte accounting or a semantic grammar. Direct projection session192/source192 and
-the product184→192 /185→193 suffix consequence remain unchanged. Invalid STEP source
-still fails before inference acquisition/FIR/capture. Source/session field-shape
-validation remains first, and valid session/invalid source still fails at runtime.
-
-S17 duplicate ownership is KEEP SINGLE OWNER, removed from DELETE/REDESIGN;
-numeric192 remains UNQUALIFIED_RESOURCE_SAFETY_POLICY in QUALIFY. Short generated
-IDs and structural payload amplification do not select or qualify that number.
-All93 rows/classes/counts remain; DERIVE is empty. R01/R03/R04/T15 and resolved
-S09/S10/S15 are untouched. No learner/device/recognition/latency qualification follows.
-
-Only selected executor/publication source bytes advance their attestations, then
-canonical core and both adapter composites advance mechanically. Model/FIR/decoder/
-planner/adapter implementation, source geometry, event/availability separation,
-publication ordering and product behavior remain unchanged. Result6/STEP8/runtime
-version/provenance shape stay the same; no policy field or attestation scope is added.
-
-### Round47 — historical audit of acoustic domain identity admission
-
-The [domain identity audit](practice-acoustic-domain-identity-bounds.md) enumerates
-all four192-code-unit guards, including STEP microphone setup omitted from the
-earlier S17 source list. Runtime/STEP gates check sourceDomainId; Continuous
-projection checks the separate sessionDomainId. Product source IDs append :capture,
-so a184-character session composes to source192 while session185 fails the runtime
-source gate. This is a composition consequence, not a new policy or a reason to
-derive192. UUID product session/source lengths are51/59 for Continuous and41/49 for
-STEP; arbitrary generator prefixes and direct constructors still admit raw callers.
-
-Source publications retain2N+1 domain-bearing string fields for N observations;
-Continuous projection retains2M+1 source-prefix fields plus its session ID. Existing
-upstream event bounds apply; no new event cap is proposed. Map keys, canonical
-replay comparisons, Result evidence and serialization further depend on ID length.
-These are structural amplification relationships, not exact heap-byte measurements.
-String.length counts UTF-16 code units and does not measure UTF-8/escaped JSON cost.
-Current IDs remain opaque: whitespace, Unicode, colons and control characters are
-not excluded by these gates; no reverse delimiter parser was found.
-
-The six-candidate matrix recommends exactly one future Round48 change: centralize
-the current predicate under narrow acoustic/runtime identity-admission ownership,
-while preserving every gate, field, check position and caller-specific failure code.
-Some STEP checks repeat previously validated source IDs on shipped paths, but the
-constructors/start/factories are independently callable defensive boundaries. Root
-generation alone does not justify removing them. Direct193 stays rejected; normal
-IDs, failure owners and Result/schema/version shape would stay unchanged. A future
-selected-runtime source edit must still follow mechanical attestation rules.
-
-Round47 implements none of that recommendation: documentation only. S17 stays
-UNQUALIFIED_RESOURCE_SAFETY_POLICY, unresolved in duplicate-owner REDESIGN and
-numeric192 QUALIFY. There is no derived/qualified192 envelope, learner/device or
-memory-headroom claim. Future DERIVE remains empty; all93 rows and class counts
-remain unchanged (resource11, redundant12, semantic-unresolved0). R01/R03/R04/T15
-and resolved S09/S10/S15 are untouched. Production/test behavior, selected source
-bytes/core/composite identities, Result6 and STEP8/runtimeVersion/provenance remain
-unchanged. The companion records call graphs, native-generator length assumptions,
-direct0/1/192/193/4096 probes, payload/grammar findings and future decision evidence.
-
-### Round46 — validate MIDI identity before retention, delete the Set cap
-
-The [STEP pitch-evidence companion](practice-step-pitch-evidence-bounds.md) records
-candidate3's narrow implementation. isMidiNoteNumber in the MIDI owner holds the
-existing integer0..127 note contract; Browser parser and STEP source-aware input
-share it. NOTE_ON must also strictly match midiNoteToPitch(noteNumber) before
-sink.open, active creation or Set insertion. Inconsistent facts are rejected,
-never canonicalized/repaired. The existing catch/cancel/failure path clears active
-ownership and fences stale timer callbacks. NOTE_OFF is still ignored before
-validation; no velocity policy changes.
-
-The explicit MIDI Set128 check and old pitch-limit error producer are deleted,
-with no replacement numeric capacity. Only validated canonical wire identities
-can enter the Set, so at most128 distinct pitches can be retained. Tests feed all
-128 parser facts and a129th duplicate event, preserving fixed H35, sorted unique
-evidence, target blindness and valid controller outcomes. Negative/above-range/
-fractional/mismatched direct facts fail before opening or cancel an existing
-gesture without partial/late evidence. Synthetic valid MIDI fixtures now use the
-real mapping/parser instead of pairing every pitch with noteNumber60; paced and
-stale input paths remain covered.
-
-Domain runtime/attempt sources are byte-for-byte unchanged. Raw128 still bounds
-pre-normalization work:128 duplicate C4 entries accept and dedup;129 reject.
-That raw-work number is not newly derived/qualified. T15 remains unresolved in
-DELETE/REDESIGN, with raw128 in QUALIFY, UNQUALIFIED_RESOURCE_SAFETY_POLICY as
-primary class and Future DERIVE empty. All93 rows/counts remain unchanged from
-Round45 (resource-safety11, redundant12, semantic-unresolved0). S09/S10/S15 stay
-resolved. STEP schema8/runtime version, Result/provenance and all acoustic selected
-source/core/composite/model identities are unchanged. No coordinator, domain MIDI
-dependency, target-aware closure or new resource/timing policy is introduced.
-
-### Round45 — T15 is a mixed identity and raw-work boundary, not pure DERIVE
-
-The [dedicated STEP pitch-evidence audit](practice-step-pitch-evidence-bounds.md)
-records the complete production call graph, four cardinalities, canonicality gaps,
-current duplicate behavior and six-candidate decision matrix. Valid Browser MIDI
-can emit only128 distinct canonical pitches; valid current decoder output has88.
-Both assemblers deduplicate before domain completion. However, MidiNoteFact is
-structural and note() does not validate noteNumber/pitch consistency; inconsistent
-direct callbacks can reach its distinct-Set guard. The domain grammar admits280
-primitive spellings and normalizePitchSet does not canonicalize physical identity.
-Publication validation also does not bind pitch strings to midiPitch, so actual
-decoder bounds must not be attributed to every validator-accepted forged stream.
-
-The runtime raw128 guard is effective pre-normalization work defense, as the
-128-duplicate-accepted/129-duplicate-rejected contract shows. It is not a theorem
-about distinct MIDI identities. T15 therefore leaves Future DERIVE for
-DELETE/REDESIGN (remaining raw budget needs qualification), and its primary class
-is corrected to UNQUALIFIED_RESOURCE_SAFETY_POLICY. All93 rows remain; redundant
-count13→12 and resource-safety10→11, semantic-unresolved0; no other class changes.
-S09 stays KEEP DERIVED STORAGE, S10 KEEP DERIVED/SINGLE OWNER and S15 KEEP EXACT
-CONSTRUCTION. Future DERIVE is empty, without claiming all ownership debt resolved.
-
-Round45 recommended MIDI fact identity validation before retention, then removal
-of only the unreachable-on-valid-facts Set count guard; Round46 implements that
-sub-boundary above. Keep domain raw128 and its current owner unchanged;129 duplicate
-C4 entries
-remain rejected as a raw-work contract. Do not move that check after dedup or add
-MIDI infrastructure dependencies to the domain. The audit implements none of this:
-all sources/tests, STEP schema8/runtime version, Result/provenance and acoustic
-identities remain unchanged. No learner/device/headroom qualification follows.
-
-### Round44 — S15 validates exact producer endpoint construction
-
-The production call-path audit found two window producers. SourceAnalysisRuntime
-planAvailable calls planWindow and enqueue forwards the returned window unchanged.
-AcousticEngine.prepare constructs the smoke window locally from model input,
-future context and owned width. Engine lease.run, worker-client INFER and worker
-entry forward the supplied window to AcousticModelSession.run; they do not
-reconstruct endpoints. No other legitimate production window constructor was found.
-
-planWindow constructs endSample=Math.round(ownedEndTarget+futureSamples), where
-futureSamples=M.futureMs×ACOUSTIC_TARGET_SAMPLES_PER_MS. assertWindowGeometry now
-recomputes that expression from the same stored ownedEndTarget Number and requires
-strict equality. Smoke satisfies ownedEndTarget+futureSamples=inputSamples exactly
-and remains valid. Existing owned-interval and fixed input-width checks are retained;
-planner arithmetic, Math.round placement and smoke geometry are unchanged.
-
-This avoids validating endSample−ownedEndTarget−futureSamples as a residual, whose
-subtractions can be cancellation-sensitive at large coordinates. The claim is
-only repeated construction from the same stored operand and operation sequence,
-not exact floating-point arithmetic in general. There is no replacement epsilon,
-ULP budget, half-sample tolerance or approximate-equality abstraction.
-
-The worker intentionally tightens malformed/direct input admission: shifting both
-input endpoints by±1 preserves29120 width but fails ACOUSTIC_WORKER_WINDOW_MISMATCH.
-Both-rate planner/full/partial/fractional tests retain existing behavior, including
-.499999/.5/.500001 rounding cases. Geometry-only near-safe-integer source-anchor
-regressions allocate no PCM and accept the exact construction while rejecting
-coupled shifts; they do not claim full-session/device coordinate qualification.
-
-S15 is KEEP EXACT CONSTRUCTION, resolving the historical independent slack. At
-Round44 Future DERIVE contained T15 only; Round45 audits and re-buckets it above.
-S09 stays KEEP DERIVED STORAGE and S10 stays KEEP
-DERIVED/SINGLE OWNER. All93 classifications/counts stay unchanged. model-validation
-is outside selected file anchors, so core/composite/model identities, selected
-attestations and Result schema6/provenance shape are unchanged. This establishes
-numerical/contract integrity, not recognition, learner, clock-accuracy or latency
-qualification.
-
-### Round43 — S09 source FIR storage follows actual support
-
-The pre-change repository-wide storageBytes/sourceAdapterBytes audit found only
-the adapter accounting method, its source-runtime diagnostic snapshot projection
-and tests. No admission, Result, product threshold or release-policy consumer
-uses that scalar. Continuous/STEP snapshots may carry diagnostics without making
-them evidence or admission owners.
-
-The adapter now initializes its private Float32 source ring after up is established:
-capacity=ceil(actual coefficient count/up). Every write/read modulo uses ring.length.
-There is no new public capacity field, numeric constant, transport/model-window
-relationship or generic resource owner. The current assets yield ceil(8821/160)=56
-source samples at44100 and ceil(61/1)=61 at48000.
-
-For q=mD+C, the production convolution reads source indices
-max(0,ceil((q−L+1)/U)) through floor(q/U), at most ceil(L/U) consecutive positions.
-Since U and D are coprime, U successive full-support outputs visit all rational
-phases; tests attain56 and61, not merely an upper estimate. The loop drains ready
-outputs after each source sample. Each emitted output therefore has end=received−1;
-begin≥end−capacity+1, so its entire support remains in the ring before overwrite.
-Origin-clipped spans are no larger. This argument is independent of input chunk
-size and session length. Existing seeded2048-sample partition tests and longer
-streaming tests repeatedly wrap the smaller rings without changing output bytes.
-
-Payload storageBytes/sourceAdapterBytes changes only with the private allocation:
-44100:35284+128×4=35796 →35284+56×4=35508 bytes;
-48000:244+128×4=756 →244+61×4=488 bytes. Float32Array.BYTES_PER_ELEMENT supplies
-the width in tests; these are asset/representation characterizations, not total
-heap or device/headroom qualification. Admission, failures, FIR accumulation,
-readiness/emission, source mapping, first-real boundary and Result semantics do
-not change. Target-ring/R01/transport policies are untouched.
-
-S09 is KEEP DERIVED STORAGE; at Round43 future DERIVE contained S15/T15
-(S15 is resolved by Round44 above). S08/S10 meanings
-remain unchanged. Only the existing selected adapter source attestation advances,
-mechanically cascading core and both composite digests; executor/publication/
-planner source attestations and binary FIR assets remain unchanged. Result stays
-schema6 with the same provenance shape. All93 classifications/counts stay unchanged.
-
-### Round42 — S10 uses the FIR-owned usable origin boundary
-
-QualifiedSourceAdapter derives firstFullyRealOutputIndex as ceil(center/down),
-where center=(actual coefficient length−1)/2. The shipped44100 FIR has8821 taps:
-ceil(4410/441)=10. The shipped48000 FIR has61 taps:ceil(30/3)=10. This is the
-first target output whose FIR support no longer needs pre-stream samples, not an
-empirically optimal context or recognition/device/latency qualification.
-
-SourceAnalysisRuntime supplies that adapter boundary to AcousticPcmRing. The ring
-exposes firstUsable=max(minimumUsableTargetIndex,firstRetained); extract, region
-admission and preroll all consume that single relationship. No numeric origin
-constant, generic policy module or second rate-specific owner is introduced.
-The existing preroll source-delta expression and planWindow arithmetic remain
-unchanged. Both-rate tests exercise false immediately before and true exactly at
-the established preroll frontier, region admission at the rounded window-input
-frontier, real FIR extraction and the transition to wrap-retention ownership.
-These distinct predicates retain their existing frontiers; they are not collapsed
-into one new readiness policy. Partial-region, gap, publication and resource
-regressions remain applicable; FIR push/accumulation/emission code and seeded
-numerical golden fixtures are unchanged.
-
-S10 is KEEP DERIVED/SINGLE OWNER; at Round42 future DERIVE contained S09/S15/T15
-(S09 is resolved by Round43 above).
-At Round42, S09 ring128, S15 endpoint tolerance and T15 were untouched;
-Round43 derives S09 above. Selected source byte
-changes mechanically advance core/composite identities; model/FIR assets, window
-geometry, timing/resource policies and Result schema6/provenance shape do not change.
-All93 classifications/counts remain unchanged.
-
-### Round41 — G03 full-window past is derived and checked
-
-The exact production audit found only the model-contract pastMs declaration and
-its identity-guard comparison; planner/runtime/worker/Continuous/source-adapter
-geometry never read that property. The redundant ACOUSTIC_MODEL.pastMs is removed.
-The guard now derives fullWindowPastMs locally as inputMs−ownedMs−futureMs:
-1820−600−170=1050ms. The canonical JSON retains fullWindowPastMs as a useful
-human-readable ownership description with no independent numeric freedom; changing
-it alone fails identity assertion. This does not qualify1050 as an optimal
-learner/device context. No geometry, allocation, admission or smoke behavior changes.
-G03 is KEEP DERIVED/CHECKED; at Round41 future DERIVE contained S09/S10/S15/T15
-(S10 is resolved by Round42 above).
-X02 stays derived, R12 resolved, and R05/T14 deleted. All93 primary classifications
-and counts remain unchanged.
-
-### Round40 — X02 smoke geometry follows the model contract
-
-The sole production engine smoke fixture now uses PCM length/endSample=inputSamples,
-ownedEnd=inputSamples−futureMs×ACOUSTIC_TARGET_SAMPLES_PER_MS, then
-ownedStart=ownedEnd−ownedMs×ACOUSTIC_TARGET_SAMPLES_PER_MS. These are local derived
-variables in AcousticEngine.prepare, not shared constants or a new geometry owner.
-The model layer imports only its existing model-contract authority; no runtime
-planner dependency/helper and no pastMs read is added. G03 was untouched in
-Round40; its duplicate declaration is removed by Round41 above.
-
-Current values stay input/PCM29120, future2720, owned width9600, ownedEnd26400,
-ownedStart16800, startSample0 and endSample29120. Future endpoint residual is exactly
-zero, not merely within worker-validation tolerance. A real prepare regression
-captures the worker input, validates it with assertWindowGeometry, and checks one
-LOAD→BEGIN_SESSION→INFER→END_SESSION, the unchanged state sequence, and no second
-smoke on warm prepare. Existing lease, crash, cancellation, retirement and RPC
-silence regressions remain. The ordinary-lease input at the top of acoustic-engine
-tests is an independent valid-input fixture, intentionally retained rather than
-mechanically eliminating test literals.
-
-X02 KEEP DERIVED; smoke compatibility is not real-audio qualification. Production
-implementation changes, but runtime/product admission, smoke worker geometry,
-inference count and lifecycle do not. Engine source is outside the selected byte
-anchors: executor/publication/planner/core/composites and Result schema6/provenance
-shape stay unchanged, without an engine-source identity or scope expansion.
-
-### Round33 — R07 source block maximum is derived from R06
-
-R06's `CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048` is the numeric format authority,
-with a verified standalone Worklet declaration. BrowserAcousticCapture checks
-message samples.length equals that exact value **before** bridge acceptance/ACK.
-The production SourceAnalysisRuntime.append callers are
-[StepAcousticCaptureBridge.receive](../../apps/customer-web/src/lib/practice/step/step-acoustic-capture-bridge.ts)
-and [ContinuousAcousticProjection.append](../../apps/customer-web/src/lib/practice/acoustic/continuous/continuous-projection.ts).
-The former passes the accepted chunk's identical Float32Array without expansion;
-the latter only forwards its block. Its sole production upstream,
-[ContinuousCaptureBridge.receive](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts),
-first validates SourceChronology, then takes subarrays partitioned by boundaries
-inside that chunk. Each slice is bounded by its parent; ordered slices cover the
-same source coordinates without padding/combining. No file-input, batch or synthetic
-production producer exists. The runtime's internal ring.append is a resampled-ring
-operation, not another source producer.
-
-Thus source/runtime maximum <= current transport block size is a structural
-pipeline relationship, not an independent numeric choice. Round33 deletes the
-historical resource-policy.maxSourceBlockSamples alias; SourceChronology and source
-runtime directly import the transport constant. Both retain `length > maximum`
-validation, not exact-size admission. SourceChronology still rejects empty chunks;
-all other source/rate/finite/chronology checks and failure codes are unchanged.
-Real-owner regressions accept2048 and smaller chunks, reject oversized input before
-source truth advances, preserve Continuous within-block slices and STEP pass-through.
-Runtime→source is an existing permitted dependency direction; no guard is relaxed.
-KEEP DERIVED; R06's numeric2048 still requires device/latency/allocation qualification.
-The selected executor's import/expression bytes mechanically advance core/composite
-attestations; no evidence meaning or Result shape changes.
-
-### Round34 — T14 gesture count guard deleted under the accepted contract
-
-Before retaining observations, StepAcousticAttemptAssembler calls the unchanged
-SourcePublicationSequence. It rejects publication length>maxEventsPerWindow=16104;
-sourcePublication also rejects oversized raw inference output. This upstream bound
-is retained. Accepted same-region successors require consecutive window indices,
-next start at previous start+owned600ms, and previous owned end equal to that start.
-Hence a nonfinal predecessor is full-width; a partial final has no same-region
-successor. H50=50ms<600ms, so an active half-open gesture can touch at most its
-initial publication and one successor. A full successor seals before a third;
-a partial successor either seals or leaves the gesture active with no legal
-same-region successor. A region change while active still fails
-STEP_ACOUSTIC_GESTURE_COVERAGE_GAP, rather than accumulating another region.
-
-Thus at most2×16104=32208 observations can be retained for any accepted gesture,
-below the historical32768 guard. Round34 deletes the independent constant and
-internal failure branch; it installs **no replacement cap**. Cross-window tests
-show sealing at window1 and no contribution from window2; partial-final tests cover
-both enough/not-enough frontier and rejected successors. The upstream length-gate
-tests use sparse invalid arrays, not tens of thousands of generated gesture events.
-Existing malformed/sequence/duplicate/mapping/retirement/reentrancy failures and
-the6000-publication ownership regression remain. Copy/freeze/order/dedupe and the
-current-H50-plus-previous-summary lifecycle are unchanged.
-
-Production implementation changes; runtime/product behavior changes **NO for all
-inputs accepted by the current source-publication contract**. This is not a claim
-about arbitrary JavaScript objects or a device/learner-density qualification.
-KEEP DELETED; retain upstream bounds and topology regressions. H50 and R10/R06
-retain their independent evidence classifications. The STEP assembler is not a
-selected evidence-core byte anchor, so no core/composite identity changes occur.
-
-## R02 — explicit region cap deleted with structural lifecycle bounds
-
-Round23's historical cap4 witness was legal: four short closed positive regions
-awaited real future PCM (regionsStarted=4, regionsDrained=0, windowsQueued=0,
-outstanding=0); the fifth BEGIN produced ACOUSTIC_SEGMENT_LIMIT_EXCEEDED. It did not
-require a worker stall. Round29 removes the explicit count check and
-maxPendingSegments field/error producer. There is **no replacement numeric cap**.
-The same public-controller short-meter/full-block witness now admits the fifth
-region, stays ACTIVE/RUNNING, and has no intervention, bridge failure or Result.
-R03 remains a separate cap8 safety fuse with unchanged ninth-boundary failure.
-
-### Exact-region empty retirement closes the no-progress loophole
-
-Simply deleting cap4 was unsafe. FIFO planAvailable returns when a positive head
-window lacks future PCM. Zero-duration followers behind it would never reach their
-own planWindow=null branch and could accumulate without source progress.
-
-endAnalysisRegion now closes the active record, and if endTarget===originTarget
-removes **that exact record** from regions immediately. It consumes its original
-monotonically allocated region index, increments regionsStarted/regionsDrained
-truthfully, clears active, returns IDLE and then calls normal planAvailable.
-An empty region owns no window, copied input, publication or observation. No
-positive head is shifted out, and no later region/job/window identity is renumbered.
-In particular, actual zero-source-duration BEGIN/END always satisfies this empty
-ownership condition. Existing finite-coordinate/representability checks remain;
-this lifecycle rule does not repair or normalize source coordinates.
-
-```mermaid
-flowchart LR
-  B[BEGIN allocates region index] --> A[active record in regions]
-  A --> E[END records source and target endpoint]
-  E --> Z{No positive owned target interval?}
-  Z -->|yes| X[Remove exact record now; increment drained]
-  Z -->|no| P[FIFO positive planning awaits real PCM]
-  X --> P
-  P --> Q[Copy ready model input; R01 admission still applies]
-  P --> R[All windows planned: remove record; increment drained]
-  Q --> I[Serialized inference/publication; queuedRegions owns copied input]
-```
-
-regions[] is pending **planning**, not inference history. queuedRegions/outstanding
-can remain nonempty after a region is removed and tailReady becomes true. R14 owns
-silent worker settlement; deletion of R02 does not create another inference queue.
-
-### Finite source-progress retirement horizon (both rates)
-
-Use relative source count N=absoluteSource−base, source rate r, model ratio
-u/d=16000/r and FIR center c=(tapCount−1)/2. Shipped pairs are:
-
-| r | u | d | taps | c | Declared conservative real lookahead ceil(c/u) |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 44100 | 160 | 441 | 8821 | 4410 | 28 source samples |
-| 48000 | 1 | 3 | 61 | 30 | 30 source samples |
-
-The real adapter emits target sample m exactly when its actual emission predicate
-floor((m*d+c)/u)<received holds. Thus a final window with exclusive integer input
-end F needs samples through m=F−1 and becomes ready at the exact adapter threshold
-N_required(F)=floor(((F−1)*d+c)/u)+1 (using the actual Float64 operations for an
-implementation threshold). No padded samples are admitted.
-
-For a closed endpoint E, the last partial input end is
-F=round(endTarget+170*16)=round(endTarget+2720). In exact arithmetic,
-endTarget=(E−base)*u/d. Therefore the exact-arithmetic required progress is
-N_required(round(N*u/d+2720))−N. Its phase repeats after d source samples, adding u
-target samples. Exhausting all d residues gives worst cases **7524 at44100** and
-**8189 at48000**. These are derived equation results, not latency or policy values.
-
-A strict implementation bound must also cover the existing Float64 expressions,
-not assume arbitrary source-coordinate translations are bit-exact. The following
-conservative bounds apply throughout the existing nonnegative safe-integer source
-index range (and when the subsequent source progress is representable):
-
-1. Relative source differences are exact integers. Multiplying one by16000 stays
-   below2^67, so round-to-nearest product error is at most8192. The subsequent
-   division is below2^52 target samples and has error at most1/4 target sample.
-2. endTarget is the sum of two such conversions (origin and region duration).
-   Include at most1/4 for that sum,1/4 for adding2720, and1/2 for integer rounding.
-   Hence |F−(N*u/d+2720)| <= a_r=16384/r+3/2 target samples.
-3. For44100, m*441 and its addition of4410 are below2^61, each with at most128
-   error; division by160 has error at most1 source sample, including the upper
-   safe-index boundary neighborhood. Thus the emission expression differs from
-   its real-arithmetic coordinate by at most e_44100=256/160+1=2.6 source samples.
-   For48000, m*3 and addition of30 are below2^54 with error at most1 each;
-   division by1 is exact, so e_48000=2 source samples.
-4. Consequently a uniform sufficient horizon is the derived integer
-   H_r=ceil((2720+a_r−1)*d/u+c/u+e_r+1): **7531 source samples at44100** and
-   **8196 at48000**. The −1 selects F−1 and the final +1 makes received exclusive.
-   These deliberately conservative implementation bounds are not tight minima,
-   measured device margins or new production constants.
-
-Every remaining closed **positive** source region consumes at least one discrete
-source sample. Closed endpoints are ordered and distinct. At current N, an endpoint
-E<=N−H_r has every required window ready; FIFO must plan/remove it unless R01 or an
-independent existing integrity guard fails closed. Older endpoints have the same
-bound, so earlier regions cannot indefinitely block an otherwise sufficiently old
-record. Only a finite H_r-sized suffix of possible positive endpoints can remain,
-plus at most one active region. This count relation is independent of session
-length, prior region count and worker speed. Near the safe-index ceiling no
-out-of-range future append is promised: the implication for representable N and
-E<=N−H_r still bounds retained records. Without source progress positive records
-cannot increase; zero-duration records no longer persist. No count check implements
-this derived relationship.
-
-### Ring-retention proof; R08 and R01 remain separate
-
-Each queued input copies exactly29120 target samples; in-flight inference no
-longer relies on the ring. For a not-yet-copied window with input end G, its start
-is G−29120. Planning runs after **every admitted append**, which carries at most
-CAPTURE_TRANSPORT_BLOCK_SAMPLES=2048 source samples, now directly derived from R06
-by both validation owners rather than a separate R07 literal. Given that unchanged
-transport format, the proof remains intact; this does not qualify numeric2048.
-From the emission error bounds above, a conservative maximum
-output increment is D_r=ceil((2048+2*e_r)*u/d)+1: **746 / 685 target samples**.
-This follows by comparing the last emitted and first not-emitted sample predicates
-before/after the append, not by inventing extra audio context.
-
-Final endpoints are ordered in exact source time; their rounded target input ends
-can differ from that order by at most ceil(2*a_r)=4 target samples. Full-window ends
-use one source conversion plus exact integer9600-sample strides, whose rounding
-error is no larger than the same a_r bound. An earlier head
-window never ends after its own final window. A newly closed partial window still
-needs2720 future target samples, far more than these roundoff/adapter bounds, so
-closing cannot introduce a deeply overdue unplanned input. Once a head crosses
-readiness, FIFO immediately extracts all ready work or R01 fails closed. Thus even
-a later window delayed by the four-sample ordering skew has L−G <= D_r+4 at its
-first extraction opportunity, where L is the ring end.
-
-It suffices that ring capacity >=29120+D_r+4: **29870 at44100 / 29809 at48000**.
-The unchanged capacity65536 satisfies both, hence
-G−29120 >= L−65536 = firstRetained when the ring has wrapped. At stream origin,
-qualified preroll supplies the existing fully-real lower boundary10; a valid short
-final input remains above it. This proof concerns admitted real-context workloads,
-not forged insufficient-preroll calls, numeric overflow, padded finish or a stalled
-main-thread batch outside the2048-source-sample append contract. Those existing
-guards still fail closed. The ring has ample *proved retention for this lifecycle*;
-this neither qualifies all65536 headroom nor authorizes shrinking R08.
-
-If many windows become ready together and inference cannot drain, the unchanged
-R01 maxOutstandingWindows=4 rejects the fifth **before** ring.extract/copy. R02
-removal does not bypass it, retain an unbounded copied-PCM backlog or silently drop
-any evidence. R01's numeric qualification remains separate.
-
-### Executable witnesses and identity consequences
-
-Both rates test one blocked positive head followed by128 zero-duration regions
-without any PCM progress: only the positive head stays pending, all empty indices
-are consumed/retired immediately, no worker/publication exists, then real tail
-produces exactly the original region's window. Both also retain64 distinct positive
-regions beyond4, then append real samples and promptly drain inference: all64
-indices/windows publish once, pending/outstanding reach0 and started==drained.
-Those tests begin after ring wrap and verify extract start>=firstRetained. Positive
-source gaps retain the existing exact publication-order contract at fractional
-44100 phases; no source mapping/rounding validator is changed.
-
-Continuous projection separately tests32 positive segments at both rates, distinct
-source/performance anchors, ordered unique observation/publication identities and
-truthful terminal coverage. The existing public fifth-region controller witness
-now succeeds; the ninth-boundary R03 witness remains unchanged. Test counts128/64/32
-are witnesses, never replacement production limits. Equation/residue and large
-numeric-boundary probes support the analytic inequalities; tests are not the proof
-or a device/memory/workload qualification.
-
-Editing source-analysis-runtime.ts changes a selected byte attestation even though
-this is an admission/lifecycle change. Round29 updates executor bytes/SHA and
-mechanically recomputes core and both adapter composite identities. Model, decoder,
-FIR, planner, adapter implementation and evidence semantic declaration are unchanged.
-Result remains schema6 with the same evidenceProvenance shape; its current identity
-values advance, without adding runtime-policy provenance or full outcome replay.
-
-## R03 — controller boundaries and transaction-safe failure propagation
-
-Start/Resume plan a future BEGIN at count-in completion and a TERMINAL at the scope
-end. isPending allows cancelPending to ignore already-applied IDs. Pause always
-cancels future TERMINAL. During count-in it also cancels the future BEGIN. Once
-RUNNING is logically reached, Pause preserves a BEGIN still awaiting PCM and
-schedules PAUSE after it: otherwise historical captured PCM would lose its source
-segment. Pause during a canceled resume countdown adds no new running interval.
-The capture bridge applies pending boundaries only when nextSource exactly reaches
-their source coordinate; new control boundaries can coexist with old ones while
-that source delivery lags.
-
-The minimal count-growth witness uses initial count-in with unconsumed BEGIN:
-
-| Public operation | Pending after cancellation/application rules |
-| --- | --- |
-| Start | BEGIN, TERMINAL (2) |
-| Reach RUNNING, Pause1 | BEGIN1, PAUSE1 (2) |
-| Resume1 | prior pair + BEGIN2, TERMINAL (4) |
-| Reach RUNNING, Pause2; Resume2 | two pairs + BEGIN3, TERMINAL (6) |
-| Reach RUNNING, Pause3; Resume3 | three pairs + BEGIN4, TERMINAL (8) |
-| Reach RUNNING, Pause4 | four BEGIN/PAUSE pairs (8), old TERMINAL canceled |
-| Resume4 | ninth BEGIN attempted before new TERMINAL; bridge aborts |
-
-Every preserved interval is positive. Each completed running pause/resume cycle
-increases surviving history by two; count-in cancellation cannot accelerate that
-growth. From the initial two-boundary state, four pauses/four resumes are the
-minimal cycle count to attempt the ninth under these rules. The fixture's source
-PCM delivery lag is 102.5ms, compatible with fewer than 32 queued transport blocks
-at 48kHz. Main-thread input/control tasks progressing while capture-message tasks
-are delayed is a scheduling adversary, not measured hardware behavior. A normal 4/4
-count-in would require much longer lag and may encounter R04 first; the short-meter
-witness avoids assuming that transport has unlimited credits.
-
-### Round30 — finite admission necessity, independent of numeric8
-
-#### Positive breakpoints are observable information
-
-Let accepted positive running interval i own source samples `[s_i,e_i)`, at source
-rate r, with Performance Time start p_i. Its mapping is
-`P(s)=p_i+(s-s_i)*1000/r`. Between intervals there is a real paused source gap,
-while `p_(i+1)=p_i+(e_i-s_i)*1000/r`: the gap contributes no Performance Time.
-Exact replay therefore needs enough information to recover each source start/end
-and its Performance Time relationship until PCM consumes that history. This need
-does not depend on AcousticBoundary objects being the eventual representation.
-
-The Round30 bridge regression uses real source adapter/window/projection owners,
-the same chronological deterministic PCM and physical fake-inference events in
-five counterfactual histories. At48kHz A owns `[96000,96480)`, a10ms pause follows,
-and B owns `[96960,97440)`. Original observations are C4 at `(source96000,P0)`
-and D4 at `(source96960,P10)`, from distinct region/window/observation identities;
-the terminal analyzed-through frontier is20ms. The gap's E4 atsource96720 is excluded.
-Deleting A or B loses its valid evidence even when the remaining history is made
-internally valid; deleting A also moves B toP0. Replacing all four boundaries with
-`BEGIN A → TERMINAL B` while retaining P20 fails the real
-`ACOUSTIC_SEGMENT_END_MISMATCH` invariant: the envelope owns30ms, not20ms.
-Changing the terminal toP30 makes the envelope internally valid but wrongly
-includes gap E4 atP15 and shifts B toP20. Neither preserves observable history.
-This is a semantic counterexample, not a recognition-quality or hardware claim.
-
-#### Information-retention lower bound
-
-For any N within representable source chronology, construct N independent blocks.
-Each block has A running10ms, a positive gap g1, B running10ms, and a positive gap g2
-before the next block. Choose `(g1,g2)` as either `(20ms,30ms)` or `(30ms,20ms)`.
-Both gaps allow the short-meter fixture's15.625ms canonical Resume Count-In plus
-paused time; choose a scope long enough for the admitted prefix. Both choices have
-identical70ms source duration,20ms Performance Time advance and end anchors.
-At48kHz all boundaries and a possible physical event30ms into a block
-are on real source/model frame coordinates. That event is inside B for the first
-choice and inside a paused gap for the second. The N choices yield2^N histories
-with identical aggregate/end summaries but independently distinguishable evidence
-membership. Any exact lossless representation must distinguish these histories,
-requiring at least N bits. Encoding them in one arbitrary-precision number still
-uses growing storage; a constant number of fields is not constant space.
-
-Thus there is no fixed-space exact representation of arbitrary accepted positive
-history independent of its length. This is a family/lower-bound argument within
-the existing safe-integer chronology, not an assertion of literally infinite JS
-coordinates or an exact browser delivery-lag distribution. The finite numeric
-coordinate universe is not a supported memory budget. Some particular regular
-histories can compress, and redundant/cancellable controls can disappear; the
-counterexample proves that internal positive breakpoints cannot **generally** be
-deleted or envelope-coalesced. Arbitrary possible events are enough for this
-necessity argument; no assumption that a real decoder always detects them is needed.
-
-#### Current owners and finite admission consequence
-
-The capture bridge retains pending exact source/performance boundaries and IDs.
-Projection segments/source regions are populated as that PCM history is consumed,
-not an external store for unconsumed controls. Controller future-BEGIN/TERMINAL
-handles are cancellation handles, not a lossless archive. The canonical
-[performance clock](../../apps/customer-web/src/lib/practice/continuous/domain/performance-clock.ts)
-also retains `clockSegments` for historical session/performance conversion; this
-is growing in-memory history, not bounded external persistence, nor a replacement
-source-sample boundary replay owner. Worklet credits retain PCM, not control topology.
-No current capture/controller owner spills accepted chronology to disk or another
-lossless external persistence owner. Moving history between these in-memory owners
-would not defeat the information lower bound or establish a finite browser budget.
-The present fuse bounds pending bridge admission, not all canonical-clock memory
-or total supported session duration; no whole-application memory qualification is implied.
-
-Given finite resources, exact accepted positive history, no silent drop/reorder/
-coalescing, and no alternate spill owner, some **finite explicit fail-closed
-admission** of not-yet-consumed control history is necessary in principle. The
-alternative would require a new persistence owner or an explicit product limit
-on accepted history. This proves the mechanism requirement, **not** numeric8,
-the boundary-array counting unit, or a particular overflow UX. Paired segment
-records, byte-budgeted compact exact structures or persisted history may be future
-representations, but must preserve every accepted breakpoint's mapping and
-explicitly fail or persist at capacity. No such redesign is implemented here.
-
-#### Growth induction and legitimate cancellation
-
-Let H_k be historical positive BEGIN/PAUSE boundaries after k completed RUNNING→Pause
-cycles while capture has consumed none of them. H_0 is empty. Start/Resume schedules
-a future BEGIN and a cancellable future TERMINAL. If the count-in has not logically
-reached BEGIN, Pause may cancel it: no positive interval has been accepted. Once
-RUNNING is logically reached, Pause instead retains that BEGIN, cancels the future
-TERMINAL and appends PAUSE closing a positive interval. Hence H_1 has two entries.
-Inductively Resume retains the entire H_k prefix and appends future BEGIN/TERMINAL;
-the next logically reached positive RUNNING→Pause replaces that TERMINAL with PAUSE,
-so `|H_(k+1)|=|H_k|+2=2(k+1)`. Source consumption would retire history, but without
-it each admitted cycle adds two necessary breakpoints. The induction is conditional
-on admission, independent of cap8; current8 stops the prefix from growing beyond
-its capacity rather than being a premise of the proof.
-
-The public-controller witness now asserts each preserved prefix with `isPending`,
-positive source/performance intervals, a real paused source gap with equal
-Performance Time anchors, unchanged source-consumption position and new future
-BEGIN/TERMINAL suffixes. Its four completed cycles reach2,4,6,8 historical entries
-before the next BEGIN fails admission. Bounded32-entry `boundaryDiagnostics` is
-only engineering evidence of operations; the actual pending queue/IDs own replay.
-Trimming diagnostics neither retires nor authorizes dropping accepted history.
-
-R04 does not derive8. Its32×2048/48000≈1.365s is a payload-duration conversion,
-not a safe-stall SLO or a bound on main-thread control tasks. The legal R03 witness
-fails at102.5ms PCM lag, earlier than that payload horizon. PCM credits, model-input
-ownership and accepted control chronology have different counters/failure domains.
-No exact MessagePort scheduling upper latency is inferred. R01 remains separate;
-R02's structurally bounded source-region lifecycle is not re-capped or coupled here.
-
-**Current conclusion:** mechanism KEEP in principle; representation/counting unit
-may be REDESIGNED BEFORE TUNING. Numeric8 remains
-UNQUALIFIED_RESOURCE_SAFETY_POLICY: a temporary defensive safety fuse, not a
-qualified workload, browser or user limit. Why8, real learner control churn,
-capture/main-thread scheduling distribution and memory/headroom remain NEEDS REAL
-DEVICE/WORKLOAD EVIDENCE. Round30 changes only tests/documentation. Overflow,
-explicit End → fresh healthy Start, evidence identities and Result schema6 are unchanged.
-
-### Historical Round 23 defect; Round 24 status: FIXED
-
-At the Round 23 baseline, schedule's CAPTURE_BOUNDARY_LIMIT_EXCEEDED aborted the
-bridge and SourceAnalysisRuntime. Because bridge.failed was already true,
-ContinuousPracticeController.analysisFailed classified it as capture infrastructure
-and entered inputHealthChanged/updateResourceIntervention. That path attempted
-pauseTransport inside Resume's existing AudioContextPerformanceClock transaction,
-throwing NESTED_CLOCK_TRANSACTION. Application remained ACTIVE with COUNT_IN,
-no resource intervention, and could advance again on refresh. This was a separate
-failure-propagation correctness defect, not evidence that a larger cap was needed.
-
-Round 24 preserves the same legal witness and the first capture failure. Controller
-callbacks latch input-health facts and pending resource work during the canonical
-clock transaction. Analysis/other pause requests use a pending transport-pause
-intent; recording facts remain owned by the recorder. Only after the outer clock
-transaction releases its latch does transition's finally synchronously drain these
-actions, before the public command returns. A drain guard prevents its own pause
-transaction from recursively draining; resource application rereads latched input
-and recorder facts after pausing. A latched RESTART_REQUIRED input incident cannot
-be overwritten by a weaker live-health snapshot or subsequent health notification.
-No timer, microtask, retry, exception suppression or boundary-specific branch is
-involved. Cleanup clears pending intents and existing lifecycle guards prevent
-stale callbacks from reestablishing an intervention after abandonment/disposal.
-
-The updated witness verifies that Resume does not throw and returns with:
-
-- Application ACTIVE; canonical transport PAUSED, with Performance Time frozen
-  across a later clock advance and refresh; no Resume/recovery bypass.
-- Bridge failed=true, pending boundaries=0; source failureCode remains
-  CAPTURE_BOUNDARY_LIMIT_EXCEEDED; no worker inference, publication-derived Result
-  or natural-completion callback.
-- analysisIntervention=null; resource intervention reason CAPTURE_PIPELINE_INVALID,
-  recoverability RESTART_REQUIRED, state WAITING_FOR_USER, impact INPUT_REQUIRED
-  for recording OFF, and pauseOrigin INTERVENTION.
-- Exactly one additional canonical, recorder-port and metronome pause; exactly one
-  resource-intervention diagnostic. End/dispose abandons and releases once while
-  preserving borrowed root ownership.
-
-A separate non-cap regression emits a real AudioContext statechange synchronously
-from the metronome's Resume port. It verifies one canonical/media pause, stable
-session identity/time, SAME_PIPELINE_RECOVERABLE classification, and explicit
-same-owner recovery with normal Resume Count-In. Four transaction-local input or
-analysis + recording order permutations verify one pause and no bypass of the
-remaining learner choice. Another non-cap capture abort followed by weaker clock
-and recording facts verifies that hard first-cause ownership survives the drain.
-Existing USER-paused, INITIAL/RESUME count-in, analysis-pause-once and teardown
-regressions remain applicable. These tests establish failure ownership; they do
-not qualify cap8 or implement queue redesign.
-
-### Round 26 — temporary defensive safety fuse and honest recovery
-
-Bounded ownership/backpressure is required in principle: when capture source PCM
-does not advance, learner control chronology cannot consume unbounded retained
-memory. The current `maxScheduledBoundaries=8` is a **temporary defensive safety
-fuse, not a qualified workload limit**. There is no proof that 8 is mathematically
-necessary, a browser safety limit or the supported ceiling for normal learner
-interaction. Worklet32 credits do not derive cap8. Raising the number would not
-resolve the ownership/chronology problem. Round26 recorded **REDESIGN BEFORE TUNING**;
-Round30 above supersedes its mechanism-necessity uncertainty with a proof. Compact
-representation/counting-unit redesign and numeric workload qualification remain future work.
-No cap value or queue algorithm changes in Round 26.
-
-Overflow remains fail-closed: bridge/runtime retain first cause
-CAPTURE_BOUNDARY_LIMIT_EXCEEDED; the bridge is failed and its pending queue aborts.
-This is an explicit attempt failure, not silent removal of positive BEGIN/PAUSE
-history followed by continued analysis. No accepted positive interval is silently
-coalesced, no failed bridge is retried, no Result is fabricated and Performance Time
-stays PAUSED. The current attempt cannot safely resume its failed capture pipeline.
-Application attempt ownership remains ACTIVE until explicit learner End or existing
-page teardown; overflow itself is neither abandonment nor natural completion.
-
-The existing application reason CAPTURE_PIPELINE_INVALID is sufficient to distinguish
-capture processing failure from MICROPHONE_SOURCE_LOST. For hard capture incidents,
-ResourceInterruptionDialog says “Audio input processing stopped” / “音频输入处理已停止”,
-with “Audio processing for this attempt could not continue safely. End this attempt,
-then start a new one.” / “本次练习的音频处理无法安全继续。请结束本次练习，然后重新开始。”
-It exposes only **End**. It does not claim physical disconnection, expose technical
-codes, offer Resume/degradation/Restart/Retry or silently restart. Physical source
-loss retains its input-loss copy; recoverable AudioContext and recording-only
-incidents retain their existing actions and wording. Device icons continue to
-represent actual Device Lease health, not internal capture failure.
-
-End uses the existing abandon/dispose path: no Result or natural-completion callback,
-release of the failed capture graph/worker lease/attempt clock/metronome, and no stop
-of a healthy borrowed root. The hook waits for release and returns READY/IDLE with
-no stale intervention. **When workspace readiness and Device Lease remain healthy,
-explicit Start is allowed directly**, without forced Setup. It creates a new
-controller/session/capture bridge and inference lease; the failed graph/session is
-never reused. It can enter normal count-in/running. If actual device/environment
-readiness is unhealthy, the existing Setup/requalification owner still applies.
-This is explicit End → new Start, not a new universal Restart action.
-
-Regression evidence is compositional: the real ninth-boundary controller witness
-now includes release and a fresh successful admission on the same healthy borrowed
-root; hook tests verify READY and a new controller after explicit End/Start; page
-and EN/ZH component tests verify honest copy, End-only action and healthy Start
-availability. No private-state injection or production test-only hook is used.
-The Round 25 evidence-core boundary remains intact: capture/resource failure policy
-is outside that identity, and no acoustic/core/composite hash or Result schema changes.
-
-### Historical coalescing witness and current constraint
-
-The Round23 bridge regression delivers two 10ms positive intervals with one 10ms pause.
-It emits distinct observations at (performance 0ms,source 96000) and
-(performance 10ms,source 96960), then exact terminal 20ms. Dropping a BEGIN/PAUSE pair
-would remove real historical evidence and/or change later performance anchors.
-Combining separated intervals without retaining their gap/mapping also corrupts
-Source Time→Performance Time. Zero-length regions may publish nothing, but region
-indices/observation IDs/coverage and controller state still require proof before
-calling even that deletion observationally equivalent. Round29 now immediately retires
-exact empty source regions without renumbering other regions. Pending TERMINAL
-cancellation already has explicit ownership. Round30's counterfactual regression
-above proves positive envelope coalescing is not generally equivalent; no coalescing
-implementation is introduced. Compact representation preserving **all** intervals remains a research
-candidate; erasing positive history is not an approved optimization.
-
-## R04 — three distinct backpressure positions
-
-BrowserAcousticCapture receives a full block, calls bridge.receive synchronously,
-checks the consumer returned undefined and capture is not stopped, then posts ACK.
-The inference Promise is not awaited. A capture test records accept→ACK while its
-accepted inference remains pending. A second test runs the actual standalone
-Worklet with chronological PCM and ACKs each accepted block. More than 32 cumulative
-blocks pass; a held first inference independently fills the four copied-input slots
-and reaches R01 without a Worklet credit failure. The isolated transport fixture
-then sends STOP explicitly; production capture cleanup is separately exercised at
-the BrowserAcousticCapture/controller owner. Existing Worklet tests prove that
-32 simultaneously unacked blocks pass and 33rd fails, with no new accumulator.
-
-- **Main-thread/capture delivery stall:** unacked transferred blocks grow at R04.
-- **Worker service stall:** main-thread can still ACK; copied inference inputs grow
-  at R01. regions[] may already be retired.
-- **GPU stall:** INFER may remain unanswered inside the worker; it can look like a
-  silent worker hang to the client, but is not the same queue as Worklet credits.
-
-Credits do not structurally bound outstanding model inputs, future control boundary
-count, or source-region count. They count unaccepted PCM messages, not model work
-or user controls. There can be correlations in actual scheduling, not a mathematical
-substitution for the other bounds. `32×2048/rate` is 1.486077s at 44.1k and 1.365333s
-at 48k, solely **payload duration conversion**, not a safe-stall SLO or a liveness
-proof. Current sample/block/credit values remain unchanged.
-
-## R14 — finite silent-RPC safety fuse implemented in Round 27
-
-Round 23 proved the prior absence of a silence deadline: valid LOAD, BEGIN_SESSION,
-INFER, END_SESSION and idle DISPOSE could remain pending indefinitely. A real
-source tail could be ready while inference/drain remained outstanding; the former
-60000ms tail predicate wait did not cover subsequent seal/drain. This remains the
-historical defect and the reason for the Round 27 product decision.
-
-The model-service owner now declares
-[ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS=60000](../../apps/customer-web/src/lib/practice/acoustic/model/worker-liveness-policy.ts).
-It is a **temporary defensive silence safety fuse**, not an inference latency SLO,
-GPU/device qualification, total model-load duration limit or exact wall-clock
-scheduler guarantee. While the main-thread event loop can continue executing, a
-pending RPC without a legal liveness signal no longer owns an infinite lifecycle.
-Browser background throttling/scheduling can delay timer delivery; failure is not
-promised to occur at exactly60000ms of real wall time.
-
-[AcousticModelWorker](../../apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts)
-owns one watchdog per pending request. Matching final response removes pending and
-clears its timer before settlement. Legal matching **LOAD PROGRESS** invokes the
-existing callback and rearms that request's silence window, retaining the request
-ID. Thus a progressing load may take more than60s in total. Malformed progress,
-non-LOAD progress and unrelated messages cannot refresh another request. No
-progress protocol exists for the other four RPCs. Malformed matching responses do
-not settle an RPC or renew its watchdog; existing unmatched-response failure
-remains fail-closed.
-
-On silence timeout the first terminal cause is ACOUSTIC_WORKER_RPC_TIMEOUT:
-client CLOSED, worker terminated, all pending RPCs rejected and all watchdogs
-cleared. Late messages/errors/disposal cannot revive CLOSED or notify failure
-twice. Crash/messageerror before timeout preserve their own codes. Synchronous
-postMessage failure removes its pending record/timer immediately. Explicit dispose
-of a busy client still immediately terminates with ACOUSTIC_WORKER_DISPOSED, never
-waiting for60s. Normal lease retirement still belongs to the engine; it now awaits
-RPCs that have bounded silence, rather than an unbounded service promise.
-
-| RPC / owner | After silence fuse (no response/progress) | Existing ownership retained |
-| --- | --- | --- |
-| LOAD | Reject TIMEOUT; engine FAILED; explicit Environment qualification becomes BLOCKED | No automatic second worker; only explicit Setup/requalification may replace it |
-| BEGIN_SESSION | Reject TIMEOUT; engine FAILED; no reusable/returned broken lease | Exclusive acquisition; no READY_IDLE reuse |
-| INFER | Reject TIMEOUT; engine FAILED; source chain/drain can settle | Accepted evidence is not invented; no worker/provider retry or fallback |
-| END_SESSION | Reject TIMEOUT; RETIRING transitions through FAILED; retirement rejects finitely; concurrent engine disposal can finish | No replacement lease from failed engine; disposal does not force earlier normal retirement |
-| DISPOSE (idle worker) | Reject TIMEOUT after worker termination | Cleanup error remains observable; no pretend successful disposal |
-
-Idle DISPOSE retains its existing owner contract (the disposing owner issues no
-concurrent work); this round does not introduce a different general concurrency
-model. The client busy-dispose and engine lease-retirement owners remain distinct.
-
-### Application propagation and real-client regressions
-
-No SourceAnalysisRuntime, publication, controller or STEP failure-classification
-behavior is changed. The existing rejection/onFailure paths give:
-
-- **Continuous ACTIVE:** canonical PAUSED transport and analysis intervention,
-  not CAPTURE_PIPELINE_INVALID/resource intervention. The learner chooses existing
-  Continue without analysis or End; accepted degradation retains session/clock/
-  healthy recorder, disables feedback and never retries the worker.
-- **Continuous natural FINALIZING:** the real tailReady=true, pendingRegions=0,
-  outstanding=2 witness has no Result before error settlement. After the silent
-  INFER times out, runtime drain settles, healthy recording finalizes and the
-  controller naturally reaches COMPLETE exactly once, with UNAVAILABLE /
-  CONTINUOUS_ANALYSIS_UNAVAILABLE evaluation and the configured acoustic evidence
-  provenance. It does not abandon scope completion or fabricate target evidence.
-- **STEP ACTIVE:** existing acoustic-runtime classification latches the terminal
-  analysis intervention, preserves ACTIVE session/target/progress and makes input
-  unavailable. No infrastructure intervention, verdict, completion or restart is
-  fabricated. Only existing End/page teardown ends the retained attempt.
-- **Setup:** silent LOAD moves explicit CHECKING to real BLOCKED with diagnostic
-  timeout reason. A new engine is created only by a later explicit requalification.
-
-Tests use real client/engine protocol with deterministic fake service replies and
-fake timers, including five silence paths, response-before-deadline, repeated LOAD
-progress beyond total60s, progress-then-silence, malformed/unrelated messages,
-crash/messageerror precedence, busy dispose, postMessage throw, late-response fences,
-engine failure/retirement/disposal and the application paths above. No real60s sleep
-or production test hook is used.
-
-R14 mechanism is **KEEP + QUALIFY**: finite silent-service liveness is required;
-the numeric60s window still **NEEDS REAL DEVICE/WORKLOAD EVIDENCE**. No generic retry,
-provider fallback, global coordinator or broader cap/polling redesign is included.
-The Round25 evidence-core exclusion of runtime liveness remains unchanged: no
-acoustic core/composite hash, timing provenance, assignmentV4 or Result schema6
-change, and no new runtime-policy provenance field.
-
-## R18 — 5ms polling removed; local event-driven observation implemented
-
-Round23 showed that delaying the old5ms readiness timer to50ms changed only when
-prerollReady was noticed, not source event sample, projected Performance Time,
-terminal analyzed-through, publication identity/order or availability clock policy.
-Round28 keeps that same PCM/source/boundary geometry regression, now observing
-readiness without any periodic timer. It does not claim improved recognition
-accuracy or a new event/latency model.
-
-The attempt-local
-[ContinuousCaptureBridge](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.ts)
-owns subscribeReadiness. It notifies after successful receive has committed all PCM
-and reached boundaries, after schedule has applied any immediately reached boundary
-(including TERMINAL), and after abort/failure state has committed. Observers cannot
-undo source/capture state: a throwing listener is isolated from the committed
-operation. This is not a global event bus, store, singleton or cross-mode observer.
-No notification or dependency is added to SourceAnalysisRuntime or STEP.
-
-[ContinuousMicrophoneInput](../../apps/customer-web/src/lib/practice/continuous/continuous-microphone-input.ts)
-owns each one-shot wait. It checks the current source predicate, subscribes, then
-**rechecks** predicate/failure/cancellation so a transition between snapshot and
-subscription cannot be missed. At most one existing safety deadline timer remains
-per wait; there is no5ms/10ms/20ms observation loop or periodic wakeup. Listener
-callbacks only settle the wait Promise; application continuation runs after the
-capture/source mutation stack unwinds and cannot reenter canonical transport.
-
-Readiness, first source/worker failure, AbortSignal, input disposal or deadline
-settles the wait once and detaches the bridge subscription, abort handler and
-deadline timer. The input owns a local pending-wait wake set so worker failure or
-dispose does not leave an orphan waiting for a future PCM notification/deadline.
-Dispose does not require caller abort. A stale notification or delayed timeout
-callback is fenced by settled/disposed state and cannot revive the attempt.
-
-The preroll safety deadline remains **15000ms** (R16); tail-ready remains
-**60000ms** (R17). Their callbacks recheck current predicate before rejecting with
-CONTINUOUS_ANALYSIS_TIMEOUT. If readiness committed before a delayed callback is
-actually delivered, readiness wins; browser scheduling/throttling still prevents an
-exact wall-clock timeout/SLO claim. Both values remain
-UNQUALIFIED_RESOURCE_SAFETY_POLICY. Capture readiness10000ms (R15) and worker RPC
-silence60000ms (R14) retain separate owners and unchanged values.
-
-TailReady means source-region planning has the required real PCM; it does not mean
-outstanding inference has drained. Event notification clears the readiness wait,
-then existing capture stop/seal/drain ownership continues. A deferred-inference
-regression proves tailReady can wake while finish remains pending on drain; the
-Round27 RPC silence watchdog independently handles a silent service. R18 neither
-replaces that watchdog nor merges these timeouts into a generic audio timeout.
-
-Executable regressions cover exact real preroll threshold, source origin and
-geometry; TERMINAL at current source with no later PCM; tail PCM readiness followed
-by independent drain; missed-notification subscription handoff; preroll/tail
-safety deadlines and readiness before delayed timeout; failure/abort/dispose in
-both phases; listener/timer/abort-hook cleanup and stale callbacks; and observer
-exceptions after committed bridge transitions. No production test hook is added.
-The source executor, core declaration/hash, source-adapter hashes, Result schema6,
-assignmentV4 and timing/provenance contents remain unchanged. Only predicate
-observation mechanism changes; numeric deadline qualification remains future work.
-
-## Acoustic identity and runtime-policy boundary — resolved in Round 25
-
-The normative [acoustic evidence identity boundary](practice-acoustic-identity-boundary.md)
-defines ACOUSTIC_ANALYSIS_IDENTITY/acousticCoreIdentitySha256 as the
-evidence-producing acoustic semantic core: model, decoder, source mapping,
-window ownership and successful publication contents/source identity/analyzed-through
-semantics. Selected file attestations are deliberate integrity anchors, not an
-executable transitive closure. The hash is a versioned declaration/build identity;
-behavior-neutral edits to attested files can change it, so it is not a pure
-semantic-equivalence hash.
-
-resource-policy.ts, capture transport/bridge admission, input readiness observation and
-deadlines, worker/client/engine liveness and controller intervention policies are
-explicitly outside that provenance boundary. Attested executor bytes can still
-change when a resource-related implementation is edited; this incidental byte
-sensitivity does not identify all runtime policy or make the declaration transitive.
-No core JSON/hash/composite/schema change implements this clarification.
-
-Result evidenceProvenance identifies the configured evidence-producing semantics
-used/intended by the attempt. COMPLETE identifies the accepted evidence stack;
-UNAVAILABLE identifies the intended stack without claiming successful publication.
-It is not full execution provenance and cannot replay every COMPLETE/UNAVAILABLE,
-intervention or hang cause. A future product requirement for runtime outcome
-reproducibility requires a separate versioned runtime-policy provenance owner and
-schema decision, not an expansion/redefinition of the existing core hash.
-
-Round25 resolved only provenance scope, leaving resource necessity unchanged.
-Round29 independently resolves R02 via immediate empty retirement and finite
-positive retention without a cap. Round27 added the separate R14 silence fuse;
-its numeric60s remains unqualified. Round28 deleted R18
-polling in favor of local observation, leaving R16/R17 unqualified. Round30 proves
-R03 finite admission necessary in principle; cap8 remains numerically unqualified.
-Round31 deletes the dead maxUnacknowledgedBlocks alias; transport-credit authority
-remains only with R04's contract and verified standalone Worklet declaration.
-
-## Historical Round23 exact-reference audit; Round31 deletion
-
-Repository command: `rg -n "maxUnacknowledgedBlocks" .` (feature branch, local exact search).
-At the Round23 baseline it found four lines: resource-policy.ts:3 (declaration),
-acoustic/continuous/runtime.test.ts:65 (assertion), and the parameter-provenance
-ledger:158/402 (documentation). There was **no executable production consumer**.
-This companion originally added only two documentation hits (its matrix row and the command
-above). The completion report includes the final full path/line hit set and an
-external copy of the unfiltered command output. The enforced Worklet constant is
-uppercase CAPTURE_TRANSPORT_MAX_UNACKED and is a different, live owner. No deletion,
-rename or alias was performed in Round23's characterization.
-
-Round31 reruns the exact branch search over apps/customer-web and docs. Before
-deletion, code hits were still only the resource-policy declaration and one
-Continuous runtime-test assertion; there was no executable reader. Both are now
-removed, without a replacement alias/import. The historical name remains only in
-audit documentation. Current `CAPTURE_TRANSPORT_MAX_UNACKED=32` is owned by the
-transport TS contract and matching standalone Worklet declaration/enforcement.
-The transport tests explicitly check declaration parity,32 accepted unacked blocks,
-33rd-block overflow, one ACK freeing exactly one credit, and invalid ACK ordering.
-Continuous runtime does not gain a transport dependency to preserve a stale test.
-This production-source deletion changes no runtime behavior; executor, evidence
-identity/composite values and Result schema/provenance shape stay unchanged.
-
-## Round 23 validation and remaining release concerns
-
-New tests are colocated with existing source runtime, capture bridge, transport,
-capture owner, worker/model lifecycle and Continuous controller tests. Shared-source
-STEP and architecture/attestation regressions run unchanged. All new liveness
-observations use deferred Promises or fake/manual clocks, not real-time sleeps;
-120000ms checkpoints and 5/50ms timer-delivery axes are test observations, not newly
-introduced production policy values. Controller fixture changes only allow full
-2048-sample blocks and a schema-valid short meter; existing defaults are unchanged.
-The final related focused run passed **18 files / 459 tests**, including all 28 new
-characterization cases and unchanged shared-source STEP/architecture/attestation
-regressions. Typecheck, lint with zero warnings, documentation guards/structure/
-links and diff-check also pass. Full E2E/backend/coverage/build are not claimed.
-
-| Existing test owner | New cases | Executable evidence |
-| --- | ---: | --- |
-| [source-analysis-runtime.test.ts](../../apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.test.ts) | 3 | R01 copy ordering/cleanup; R02 region pressure; R14 region vs drain ownership |
-| [capture-bridge.test.ts](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture-bridge.test.ts) | 1 | Positive short intervals retain distinct source/performance evidence |
-| [capture.test.ts](../../apps/customer-web/src/lib/practice/acoustic/continuous/capture.test.ts) | 1 | Synchronous acceptance→ACK before deferred inference |
-| [capture-transport.test.ts](../../apps/customer-web/src/lib/practice/acoustic/source/capture-transport.test.ts) | 1 | ACKed Worklet stream reaches R01 independently of transport32 |
-| [inference.test.ts](../../apps/customer-web/src/lib/practice/acoustic/model/inference.test.ts) | 15 | Five valid RPCs × response/crash/messageerror, silent checkpoint before settlement |
-| [acoustic-engine.test.ts](../../apps/customer-web/src/lib/practice/acoustic/model/acoustic-engine.test.ts) | 1 | Silent END_SESSION holds retirement/disposal and excludes another lease |
-| [continuous-practice-controller.test.ts](../../apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.test.ts) | 6 | R01/R02 admitted failure; R03 reentrancy; R14 FINALIZING; R18 two timer-delivery cases |
-
-
-**R03 was an observed correctness blocker in Round 23 and is FIXED in Round 24**
-by the synchronous controller fence described above, independently of resource
-qualification. Round23 also demonstrated missing finite liveness under silence.
-Round27 now supplies the separate R14 silence safety mechanism described above;
-its60s choice has no real-device/workload qualification. Historical Round23/24
-counts below do not qualify that new policy.
-
-The remaining future conclusions are:
-
-- **REDESIGN BEFORE TUNING:** R01 retained-state/admission design; R03 representation/
-  counting unit, while KEEP finite fail-closed admission in principle. Numeric8
-  remains unqualified. R02 explicit cap is deleted after the structural lifecycle proof above.
-- **R18 POLLING DELETED:** local event-driven observation replaces the redundant
-  interval; qualify remaining R16/R17 deadlines separately.
-- **KEEP + QUALIFY:** required transport ordering/ACK integrity, with remaining
-  numeric credit/headroom and R14 silence deadline justified by actual supported
-  workloads rather than tests.
-- **DELETE AS REDUNDANT:** R05 implemented in Round31 after the exact-reference
-  audit; KEEP DELETED. Do not remove the real R04 Worklet credit contract.
-- **DERIVE:** diagnostic/resource accounting duplicated from actual owners, after
-  boundary and consumer review; R11 is completed in Round32 and R07 in Round33;
-  both stay derived.
-  No numerical replacement policy is inferred.
-- **IDENTITY BOUNDARY RESOLVED IN ROUND 25:** the [normative contract](practice-acoustic-identity-boundary.md)
-  deliberately excludes runtime admission/failure/liveness from the evidence core;
-  future outcome-replay provenance requires its own versioned owner/schema decision.
-- **NEEDS REAL DEVICE/WORKLOAD EVIDENCE:** frequency/headroom, scheduler task lag,
-  short-control workloads, GPU/worker silence, and any eventual liveness policy.
-
-Round 24 does not implement cap adjustment, queue coalescing, retry/fallback, silent
-drop, automatic calibration, global coordination or R14 timeout work.
-
-## Round 24 validation
-
-The controller suite passes 117 tests, including the corrected R03 witness and
-six new synchronous callback regressions. The related focused run passes 37 files /
-847 tests, including clock, capture/transport, microphone/controller, source runtime,
-publication, recording, architecture boundaries and acoustic file-attestation tests.
-The full Customer Web unit suite passes 209 files / 2,425 tests. Typecheck, lint
-with zero warnings, documentation structure/links and diff-check pass. This round
-does not rerun E2E, backend, coverage or production build. No resource, timing,
-identity/hash, Result schema or evidence-publication contract changes.
+| Source runtime | At most4 queued/active copied model inputs; reject before the fifth extraction |4 is unqualified workload policy |
+| Capture bridge | At most8 scheduled source/performance boundaries; transactional failure propagation | Finite admission is necessary;8/representation unqualified |
+| Worklet transport |32 unacknowledged2048-source-sample mono Float32 blocks |32 and2048 require independent workload/transport evidence |
+| Target PCM ring |65536 target samples; extraction checks qualified real/retained range | Retention relationships are proved; full headroom unqualified |
+| Source adapter | Ring length ceil(actual FIR taps/up) | Derived from convolution support |
+| STEP domain |1..128 raw evidence entries before indexed reads |128 is an independent unqualified work budget |
+| Acoustic domain admission | Nonempty primitive string, at most192 UTF-16 units at four gates |192 is unqualified raw-string budget |
+
+## Model geometry and payload accounting
+
+The model contract declares16000Hz and29120 input samples:1820ms. Owned600ms is
+9600 samples; future170ms is2720. Full-window past is the checked identity relationship
+1820−600−170=1050ms (16800 samples). A window advances by the owned stride, clips
+its owned end to the region, constructs input end as Math.round(ownedEnd+2720), and
+constructs start as end−29120. Worker validation repeats the same stored-operand
+endpoint construction and fixed width. Partial final windows still use a full real
+input tensor; the past extends as needed. Engine smoke uses the same model-owned
+input/future/owned relationships.
+
+ACOUSTIC_TARGET_SAMPLES_PER_MS derives once as sampleRateHz/1000. Consumers multiply
+by this relationship with explicit operation order. Source durations use
+sourceDelta/sourceRate*1000; one source sample has duration1000/sourceRate ms
+(about0.02267573696 at44100 and0.02083333333 at48000).1000 defines milliseconds per
+second; this is not a1000ms tolerance. The unit identity needs no device qualification;
+ADC/clock accuracy and scheduling do. Float64 ordering and Math.round placement
+belong to the current arithmetic contract.
+
+Each copied input accounts for29120×Float32Array.BYTES_PER_ELEMENT=116480 bytes.
+Outstanding payload accounting derives from maxOutstandingWindows×inputBytes,
+currently465920 bytes. The target ring reports its actual Float32 byteLength,
+262144 bytes. These figures exclude JS objects, message copies, ORT/GPU and GC costs.
+
+## FIR realness and source storage
+
+For tap count L, rational up U/down D, center C=(L−1)/2 and output m, convolution
+uses q=mD+C and source support ceil((q−L+1)/U)..floor(q/U). The adapter drains ready
+outputs after every received source sample. It emits only when the highest required
+index is real. The first output with no negative-source dependency is ceil(C/D).
+
+| Source rate | L | U / D | C | First fully real | Source ring ceil(L/U) | Conservative real lookahead ceil(C/U) |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+|44100|8821|160 /441|4410|10|56|28 samples |
+|48000|61|1 /3|30|10|61|30 samples |
+
+Every rational phase is visited because gcd(U,D)=1; phase witnesses attain56/61.
+At emission the highest needed index is the just-received sample, since ready
+outputs are drained each step. The support span is at most ring capacity, so its
+beginning remains in the retained suffix. Arbitrary partitioning and repeated
+wrap-around therefore preserve needed source samples. Golden tests check exact
+Float32 output lengths/digests and accumulation order.
+
+The runtime gives the adapter-derived firstFullyRealOutputIndex to the PCM ring.
+The ring's firstUsable=max(firstFullyRealOutputIndex,firstRetained) is the common
+extraction/admission/preroll boundary. Preroll requires26400 real-context target
+samples plus that usable boundary. This is structural FIR support, not recognition,
+latency or learner timing qualification.
+
+Adapter storage is coefficient bytes plus the derived Float32 source ring:
+35284+56×4=35508 bytes at44100 and244+61×4=488 at48000. These diagnostic values are
+consequences of assets/representation rather than admission thresholds.
+
+## Decoder and gesture retention bounds
+
+For F frames, k disjoint above-threshold regions require2k−1<=F, so k<=ceil(F/2).
+With183 frames and88 model pitches, the decoder emits at most92×88=8096 events
+before ownership filtering. The descriptor-derived admission maximum183×88=16104
+is safe but loose. Arbitrary producer objects still pass integrity validation.
+
+SourcePublicationSequence checks the publication bound before sorting or STEP
+retention. A same-region successor requires a full600ms predecessor; a partial final
+has no same-region successor. An H50 gesture can touch at most its anchor publication
+and the successor, whose full coverage seals it before a third. A region crossing
+while active fails coverage validation. Thus active gesture retention is at most
+two accepted publications, bounded by2×16104 observations. This relationship is not
+an additional production count policy. It does not qualify50ms or learner density.
+
+H35/H50 represent finite score-blind chord aggregation. Independent per-event verdicts
+can accept a subset too early; unbounded aggregation can merge answers. The chosen
+35/50ms require learner/device evidence. STEP full accepted gesture evidence enters
+exact key-set evaluation, with continuation excluded and missing/extra keys mismatching.
+Dense malformed evidence preserves ANALYZING ownership for retry, as described by
+[STEP evidence](practice-step-pitch-evidence-bounds.md).
+
+## Pending planning lifetime and ring retention
+
+regions[] owns pending planning rather than inference history. endAnalysisRegion
+immediately removes its exact record when endTarget===originTarget. Region IDs and
+started/drained counters preserve chronology. Positive records remain FIFO until
+all windows can be copied; queued inference owns copied PCM independently.
+
+Let N=absoluteSource−base, rate r, U/D=16000/r and FIR center C. The exact implementation
+emission predicate is floor((mD+C)/U)<received. A final exclusive input end F needs
+N_required(F)=floor(((F−1)D+C)/U)+1. With F=round(endTarget+2720), exact-arithmetic
+phase enumeration gives worst additional source progress7524/8189 at44100/48000.
+
+Safe-index Float64 reasoning must also cover translation/rounding error:
+
+1. Relative source differences are exact integers. Multiplication by16000 stays
+   below2^67 with at most8192 round-to-nearest error; subsequent division is below
+   2^52 target samples with at most1/4 sample error.
+2. End target adds two conversions, then future context and integer rounding.
+   The resulting endpoint error is bounded by a_r=16384/r+3/2 target samples.
+3. For44100, multiplication by441 and addition of4410 each have at most128 error;
+   division by160 contributes at most1 source sample. Emission error is bounded by
+   e_44100=256/160+1=2.6 source samples. For48000 the multiply/add errors give e=2.
+4. H_r=ceil((2720+a_r−1)D/U+C/U+e_r+1) is a sufficient source-progress horizon:
+   7531/8196 samples. These are proof bounds rather than production constants or
+   measured latency. The claim requires representable subsequent source progress.
+
+Every positive closed region consumes at least one discrete source sample; endpoints
+are ordered and distinct. Once E<=N−H_r, all required windows are ready and FIFO
+retires the region unless independent admission/integrity fails closed. Only a
+finite H_r-sized suffix of positive endpoints plus at most one active record remains.
+With no source progress positive regions cannot multiply, and empty records retire.
+
+Each admitted append contains at most2048 source samples. The emission error bounds
+give conservative output increment D_r=ceil((2048+2e_r)U/D)+1=746/685 target samples.
+Rounded window-end ordering differs by at most ceil(2a_r)=4 samples. A newly closed
+partial still requires2720 future samples, so cannot introduce deeply overdue work.
+At first extraction opportunity L−G<=D_r+4, where L is ring end and G window end.
+Capacity>=29120+D_r+4=29870/29809 therefore preserves uncopied input. Current65536
+satisfies that condition. Copied inputs are independent of subsequent ring wrap.
+
+This proof concerns admitted real-context append/planning and representable
+coordinates. It does not authorize shrinking the ring or establish stall/heap/GPU
+headroom. Fifth-input admission fails before extraction; source-ring, target-ring,
+transport-credit and outstanding-input ownership remain distinct.
+
+## Exact scheduled-boundary information
+
+For accepted running interval [s_i,e_i), Performance Time maps as
+P(s)=p_i+(s−s_i)×1000/r. Positive paused source gaps contribute no Performance Time.
+Keeping only an envelope can include gap events and change later event coordinates;
+keeping exact breakpoints preserves membership and affine mapping.
+
+A concrete48000Hz history with runs[96000,96480) and[96960,97440) has20ms performance
+duration and a10ms source gap. An event at96720 belongs to the gap. An envelope of
+both runs owns30ms and either fails the segment-end invariant or incorrectly admits
+the gap event. Omitting a run loses its evidence or changes the next run's anchor.
+
+For an information lower bound, use N blocks with A10ms, gap g1, B10ms, gap g2 and
+choose(g1,g2)=(20ms,30ms) or(30ms,20ms). Each block has identical70ms physical extent
+and20ms Performance Time, yet an event30ms into the block has different membership.
+The histories use an admitted short-meter scope with15.625ms Resume Count-In,
+so both gaps can contain count-in and paused time. This is a conditional prefix
+construction, not admission beyond the current cap or a claim about every meter.
+The2^N distinguishable histories require at least N bits for lossless representation.
+Regular histories can compress, but arbitrary accepted positive chronology cannot
+generally be dropped or envelope-coalesced. This argument is within representable
+coordinates, not an infinite-JS-coordinate or measured delivery-lag claim.
+
+Resume schedules future BEGIN/TERMINAL. Pause before BEGIN may cancel that provisional
+interval. Once positive RUNNING ownership is accepted, Pause retains BEGIN and its
+closing PAUSE. Without source consumption each admitted positive cycle adds two
+necessary breakpoints. The bridge admits up to8 and fails transactionally on overflow.
+Controllers stop/freeze the affected owner and release/cancel resources through
+existing terminal failure paths; already accepted truth is not silently truncated.
+
+Clock segments and projection regions are separate growing/consumed histories;
+Worklet credits retain PCM rather than topology. No current bridge spill owner
+provides external lossless storage. Finite admission is necessary in principle,
+but numeric8 and its representation remain unqualified.32 transport credits and
+maxOutstandingWindows4 do not derive the boundary budget or total session memory.
+
+## Liveness and availability
+
+Worker RPC silence safety uses60000ms. Legal matching LOAD progress refreshes the
+silence deadline, not total load duration. Stalled RPCs settle through existing
+failure/cleanup ownership. Capture readiness uses10000ms; Continuous preroll/tail
+readiness waits use15000/60000ms. Tail readiness and inference drain are distinct
+waits. None is a guaranteed latency, complete watchdog coverage or device SLO.
+
+Continuous readiness uses local snapshot/subscription/recheck observation with
+one-shot settlement and cleanup. Analysis readiness/availability never adjusts
+physical event time. The bridge/controller propagate terminal infrastructure failure
+synchronously at the boundary and fence stale callbacks by current owner/token.
+Analysis intervention, infrastructure failure and natural completion have distinct
+application dispositions; natural completion wins late failures according to current
+controller ownership.
+
+## Qualification and diagnostic limits
+
+Current implementation tests cover exact source mapping, partial windows, ring wrap,
+source gaps, backpressure, cancellation, RPC silence and terminal cleanup. They do
+not measure browser/ADC clock accuracy, physical latency, learner chord timing,
+recognition precision/recall, device memory headroom or workload stall distributions.
+
+Diagnostics have separate bounded histories/counters and may truncate presentation
+strings. They do not define accepted evidence retention. Numeric4/8/32/65536,
+readiness deadlines, raw128 and identity192 need their own workload evidence before
+numerical changes. The [identity boundary](practice-acoustic-identity-boundary.md)
+identifies configured evidence semantics rather than complete runtime outcome replay.

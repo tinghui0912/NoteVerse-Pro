@@ -307,7 +307,7 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         )
 
 
-def test_practice_score_artifact_read_schema3_only() -> None:
+def test_practice_score_artifact_rejects_unsupported_schema() -> None:
     import json
     import os
     import pytest
@@ -317,4 +317,4 @@ def test_practice_score_artifact_read_schema3_only() -> None:
     value = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
     assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3
     with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 2})
+        PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 999})

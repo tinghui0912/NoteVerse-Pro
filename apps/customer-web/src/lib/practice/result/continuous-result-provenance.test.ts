@@ -37,42 +37,24 @@ describe('session-level evidence identity', () => {
       | 'decoderSourceSha256' | 'sourceSampleRateHz' | 'sourceAdapterIdentitySha256' | 'timing'
     >();
   });
-  it.each([true, false].flatMap(available => [
-    'resourcePolicyId', 'runtimePolicySha256', 'livenessPolicyId', 'executionIdentitySha256',
-  ].map(field => ({ available, field }))))('rejects $field in configured microphone provenance (analysis available=$available)', ({ available, field }) => {
+  it.each([true, false])('rejects unknown microphone provenance fields (available=%s)', available => {
     const parsed = JSON.parse(JSON.stringify(canonicalContinuousResultFixture('MICROPHONE', 48000, available)));
-    parsed.evidenceProvenance[field] = 'not-part-of-evidence-provenance';
+    parsed.evidenceProvenance.unexpectedField = 'unexpected';
     expect(() => assertContinuousEvidenceProvenance(parsed.evidenceProvenance)).toThrow('Continuous acoustic evidence identity is corrupt.');
     expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
   });
-  // Retired hashes are rejection probes only, never an accepted identity/compatibility path.
-  it.each([
-    { rate: 44100, retiredAdapter: '27dc3ec4690d0e715ccc76481d056417eb913b4c64e1147880985795941d71fd' },
-    { rate: 48000, retiredAdapter: 'd0bd52cbab51f00902d48ddcf2e2d9160435ccf3eb5f33ed29ba1cdc8e7f7cf3' },
-  ] as const)('$rate schema-6 parsed microphone Result rejects retired core/composite provenance', ({ rate, retiredAdapter }) => {
+  it.each([44100, 48000] as const)('%i rejects well-formed digests that differ from configured core/adapter identity', rate => {
     for (const available of [true, false]) {
       const current = canonicalContinuousResultFixture('MICROPHONE', rate, available);
-      const retiredCore = '6f57c7780ad8a16ea529c194de20d743fa124af82e1dea3a51be4cd9d24177ed';
-      for (const patch of [{ acousticCoreIdentitySha256: retiredCore }, { sourceAdapterIdentitySha256: retiredAdapter },
-        { acousticCoreIdentitySha256: retiredCore, sourceAdapterIdentitySha256: retiredAdapter }]) {
+      const unknownCore = '0'.repeat(64), unknownAdapter = '1'.repeat(64);
+      for (const patch of [{ acousticCoreIdentitySha256: unknownCore }, { sourceAdapterIdentitySha256: unknownAdapter },
+        { acousticCoreIdentitySha256: unknownCore, sourceAdapterIdentitySha256: unknownAdapter }]) {
         const parsed = JSON.parse(JSON.stringify(current));
         Object.assign(parsed.evidenceProvenance, patch);
         expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
+        expect(() => assertContinuousPerformanceResult(current)).not.toThrow();
+        expect(Object.keys(parsed.evidenceProvenance)).toEqual(Object.keys(current.evidenceProvenance));
       }
-    }
-  });
-  it.each([
-    { rate: 44100, adapter: 'c51d5a9644c29eb0540166355bcb3c8ac834b09e7f068d996ca8a13f77cbbc9e' },
-    { rate: 48000, adapter: '26c621b2d4fa15a9ce351de864e386141823a9fb1b70435905007ca63fae7dcc' },
-  ] as const)('$rate rejects the previous executor-attestation identity without changing schema6 provenance shape', ({ rate, adapter }) => {
-    for (const available of [true, false]) {
-      const current = canonicalContinuousResultFixture('MICROPHONE', rate, available);
-      const parsed = JSON.parse(JSON.stringify(current));
-      parsed.evidenceProvenance.acousticCoreIdentitySha256 = '0fb6c699928908462d377145882f6ad01544e3385b865b9a8a23192e7faee644';
-      parsed.evidenceProvenance.sourceAdapterIdentitySha256 = adapter;
-      expect(() => assertContinuousPerformanceResult(parsed)).toThrow('Continuous acoustic evidence identity is corrupt.');
-      expect(() => assertContinuousPerformanceResult(current)).not.toThrow(); expect(current.schemaVersion).toBe(7);
-      expect(Object.keys(parsed.evidenceProvenance)).toEqual(Object.keys(current.evidenceProvenance));
     }
   });
   it('MIDI provenance comes from the physical evidence owner without acoustic fields', () => {

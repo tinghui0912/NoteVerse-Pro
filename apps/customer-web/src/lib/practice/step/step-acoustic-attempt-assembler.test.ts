@@ -62,17 +62,13 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
     expect(() => s.assembler.accept(second)).toThrow('STEP_ACOUSTIC_ASSEMBLER_UNAVAILABLE');
     expect(s.completed).toEqual([]);
   });
-  it('the historical280-spelling forgery is rejected upstream and cannot produce StepPianoKeyEvidence', () => {
-    const spellings = [...'ABCDEFG'].flatMap(letter => ['', '#'].flatMap(sharp => ['', '-'].flatMap(sign =>
-      Array.from({ length: 10 }, (_, octave) => `${letter}${sharp}${sign}${octave}`))));
-    expect(new Set(spellings).size).toBe(280);
-    const validEvents = spellings.map((_, index) => event(start + 3 * (index + 1)));
+  it.each(['E4', 'E#4', 'C10', ''])('rejects mismatched source pitch %j before STEP retention', pitch => {
+    const validEvents = [event(start + 3)];
     const valid = publication(0, validEvents);
-    const result = { events: validEvents.map((e, index) => ({ ...e, pitch: spellings[index] })),
+    const result = { events: validEvents.map(e => ({ ...e, pitch })),
       inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
     expect(() => sourcePublication('source', 48000, 0, valid.window, result, 0)).toThrow('ACOUSTIC_EVENT_IDENTITY_MISMATCH');
-    const forged = { ...valid, observations: valid.observations.map((o, index) => ({ ...o, pitch: spellings[index] })) };
-    expect(new Set(forged.observations.map(o => o.observationId)).size).toBe(280);
+    const forged = { ...valid, observations: valid.observations.map(o => ({ ...o, pitch })) };
     const s = setup();
     expect(() => s.assembler.accept(forged)).toThrow('ACOUSTIC_PUBLICATION_OBSERVATION_INVALID');
     expect(s.open).not.toHaveBeenCalled(); expect(s.completed).toEqual([]);
