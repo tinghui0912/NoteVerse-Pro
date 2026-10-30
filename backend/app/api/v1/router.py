@@ -19,7 +19,7 @@ from app.modules.publications.router import public_router as publications
 from app.modules.publications.router import score_router as score_publications
 from app.modules.review.router import router as review
 from app.modules.performance_takes.router import router as performance_takes
-from app.modules.practice.source_router import router as practice_sources
+from app.modules.practice.source.router import router as practice_sources
 from app.modules.scores.router import router as scores
 from app.modules.storage_usage.router import router as storage_usage
 from app.modules.score_assets.router import render_asset_router

@@ -262,11 +262,12 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // Mock Practice Content
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/content`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: apiResponse({
+        source_id: "source-1",
         score_id: scoreId,
         revision_id: revisionId,
         content: sampleMusicXml,
@@ -414,11 +415,11 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // Mock PracticeScoreArtifact
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/artifact`, (route) =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/artifact`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse(testArtifact),
+      body: apiResponse({ source_id: "source-1", artifact: testArtifact }),
     })
   );
 }

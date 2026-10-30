@@ -11,23 +11,12 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
 ) -> None:
     from app.processing.practice_score import score_loader
 
-    score_path = tmp_path / "score.musicxml"
     prepared_path = tmp_path / "prepared.musicxml"
-    score_path.write_text("<score-partwise version='4.0' />", encoding="utf-8")
     prepared_path.write_text("<score-partwise version='4.0' />", encoding="utf-8")
-
-    @contextmanager
-    def fake_prepared_musicxml_path_for_practice(_score_path):
-        yield prepared_path
 
     sentinel = object()
     loaded_paths: list[str] = []
 
-    monkeypatch.setattr(
-        score_loader,
-        "prepared_musicxml_path_for_practice",
-        fake_prepared_musicxml_path_for_practice,
-    )
     monkeypatch.setattr(
         score_loader,
         "load_score_as_part_for_practice",
@@ -42,7 +31,7 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
         staticmethod(lambda note_array, musicxml_path: sentinel),
     )
 
-    timeline = score_loader.practice_score_timeline_from_musicxml(score_path)
+    timeline = score_loader.practice_score_timeline_from_prepared_musicxml(prepared_path)
 
     assert timeline is sentinel
     assert loaded_paths == [str(prepared_path)]

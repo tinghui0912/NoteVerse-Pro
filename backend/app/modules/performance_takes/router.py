@@ -19,9 +19,9 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadAuthorizationRead,
     PerformanceTakeUploadAuthorizationRequest,
 )
-from app.modules.practice.source_schemas import (
-    PracticeReadyScoreContentRead,
-    PracticeScoreArtifactRead,
+from app.modules.practice.source.schemas import (
+    PracticeSourceContentRead,
+    PracticeSourceArtifactRead,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.shared.responses import APIResponse, success_response
@@ -146,7 +146,7 @@ async def stream_take_media(
 
 @router.get(
     "/{take_id}/practice-source/content",
-    response_model=APIResponse[PracticeReadyScoreContentRead],
+    response_model=APIResponse[PracticeSourceContentRead],
 )
 async def get_take_practice_source_content(
     take_id: str,
@@ -161,7 +161,7 @@ async def get_take_practice_source_content(
 
 @router.get(
     "/{take_id}/practice-source/artifact",
-    response_model=APIResponse[PracticeScoreArtifactRead],
+    response_model=APIResponse[PracticeSourceArtifactRead],
 )
 async def get_take_practice_source_artifact(
     take_id: str,

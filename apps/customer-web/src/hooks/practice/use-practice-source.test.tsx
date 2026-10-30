@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: fake.replace })
   usePathname: () => '/score/score/practice/setup', useSearchParams: () => new URLSearchParams(fake.query) }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { head_revision_id: 'head', capabilities: { can_practice: true } } } }) }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeScoreArtifact: (...args: unknown[]) => fake.api(...args) } }));
-beforeEach(() => { fake.query = ''; fake.replace.mockReset(); fake.api.mockReset().mockImplementation(async (scoreId, revisionId) => ({ data: { ...fixture, scoreId, revisionId } })); });
+beforeEach(() => { fake.query = ''; fake.replace.mockReset(); fake.api.mockReset().mockImplementation(async (scoreId, revisionId) => ({ data: { source_id: 'source-1', artifact: { ...fixture, scoreId, revisionId } } })); });
 function harness() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return function SourceHarness({ children }: { children: ReactNode }) { return <QueryClientProvider client={client}>{children}</QueryClientProvider>; };

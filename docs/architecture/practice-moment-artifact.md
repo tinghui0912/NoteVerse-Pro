@@ -62,11 +62,11 @@ and prepared MusicXML. Pydantic transport models reuse its canonical graph invar
 The customer OpenAPI schema and generated browser DTOs describe schemaVersion3.
 Committed backend/browser fixture tests verify deterministic payload agreement.
 
-/artifact supplies the Practice domain artifact; /content supplies stable-render
-MusicXML. Artifact content determines artifactId. PerformanceTake source snapshots
-retain schemaVersion3, exact score/revision/artifact IDs, prepared XML/artifact
-checksums and immutable object contents. Authorization and finalization retain their
-own source-snapshot metadata contract.
+[Practice Source](practice-source.md) supplies the domain artifact through
+`/source/artifact` and stable-render MusicXML through `/source/content`. Both carry
+the same source_id. Artifact content determines artifactId. PracticeSourceSnapshot
+materializes schemaVersion3, exact score/revision/artifact IDs, prepared XML/artifact
+checksums and immutable object contents. PerformanceTake references that durable source.
 
 STEP uses schema9/runtime step-piano-key-learning-v12; its target, attempt and evidence
 snapshots carry numeric keys. Result schema7 binds canonical scope group identities

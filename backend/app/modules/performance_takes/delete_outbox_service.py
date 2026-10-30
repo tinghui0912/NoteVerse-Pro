@@ -20,7 +20,7 @@ from app.modules.async_operations.delivery_policy import (
     delivery_lease_expired,
     exponential_retry_delay_seconds,
 )
-from app.modules.performance_takes.source_snapshot_delete_service import (
+from app.modules.practice.source.retention import (
     practice_source_snapshot_delete_service,
 )
 from app.modules.storage_usage.service import StorageUsageService

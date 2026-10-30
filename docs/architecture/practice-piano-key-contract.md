@@ -22,7 +22,8 @@ has one attack containing all unison notation identities across voices/staves.
 Backend deterministic construction and browser strict parsing validate this graph.
 Scope selects indexes/beats from an admitted revision.
 
-PracticeSourceService exposes /artifact and stable-render MusicXML through /content.
+PracticeSourceService exposes `/source/artifact` and stable-render MusicXML through
+`/source/content`, with a common source_id. See [Practice Source](practice-source.md).
 Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
 parser/storage/serialization/invariant failures map to503 practice_source_failed.
 Generated DTOs describe transport; the kernel owns semantic admission. Independently

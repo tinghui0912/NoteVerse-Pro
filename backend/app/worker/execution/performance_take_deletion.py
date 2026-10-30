@@ -17,7 +17,7 @@ from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
-from app.modules.performance_takes.source_snapshot_delete_service import (
+from app.modules.practice.source.retention import (
     practice_source_snapshot_delete_service,
 )
 from app.modules.storage_usage.service import storage_usage_service

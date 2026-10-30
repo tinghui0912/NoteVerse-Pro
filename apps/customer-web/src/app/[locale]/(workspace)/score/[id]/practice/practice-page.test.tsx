@@ -31,8 +31,11 @@ vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: 
 vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: (_config: unknown, enabled: boolean) => { fake.leaseEnabled(enabled); return fake.device; } }));
 vi.mock('@/hooks/practice/use-local-practice', () => ({ useLocalPractice: (options: { onNaturalCompletion: typeof fake.natural }) => { fake.localOptions(options); fake.natural = options.onNaturalCompletion; return fake.local; } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { capabilities: { can_practice: true }, head_revision_id: 'head-revision' } } }) }));
-vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({ usePracticeReadyScoreContent: () => ({ data: { data: { content: '<score />' } } }) }));
-vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({ usePracticeScoreArtifact: () => ({ data: fake.invalidScore ? undefined : artifact, isError: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null }) }));
+vi.mock('@/hooks/practice/use-practice-revision-source', () => ({ usePracticeRevisionSource: () => ({
+  artifact: fake.invalidScore ? null : artifact, content: fake.invalidScore ? null : '<score />',
+  artifactQuery: { isError: fake.invalidScore }, contentQuery: {},
+  invalid: fake.invalidScore, error: fake.invalidScore ? { code: 'practice_score_invalid' } : null,
+}) }));
 vi.mock('@/hooks/practice/use-practice-range-selection', () => ({ usePracticeRangeSelection: () => ({ practiceScope: { kind: 'FULL' }, isIncomplete: false, isSelecting: false }) }));
 vi.mock('@/lib/practice/input-capability', () => ({ evaluatePracticeInputCapabilities: () => ({}), getSelectedInputCapability: () => ({ supported: true }) }));
 vi.mock('@/components/states', () => ({ ResourceLoadError: () => null }));

@@ -1,14 +1,13 @@
 import { apiClient, ApiResponse } from '../api-client';
-import type { PracticeReadyScoreContentRead } from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeSourceContentRead, PracticeSourceArtifactRead } from '@/generated/api/types.gen';
 
 async function getPracticeReadyScoreContent(
     scoreId: string,
     revisionId: string,
     signal?: AbortSignal
-): Promise<ApiResponse<PracticeReadyScoreContentRead>> {
-    return apiClient.get<ApiResponse<PracticeReadyScoreContentRead>>(
-        `/practice/scores/${scoreId}/revisions/${revisionId}/content`,
+): Promise<ApiResponse<PracticeSourceContentRead>> {
+    return apiClient.get<ApiResponse<PracticeSourceContentRead>>(
+        `/practice/scores/${scoreId}/revisions/${revisionId}/source/content`,
         undefined,
         { signal }
     );
@@ -18,9 +17,9 @@ async function getPracticeScoreArtifact(
     scoreId: string,
     revisionId: string,
     signal?: AbortSignal
-): Promise<ApiResponse<PracticeScoreArtifact>> {
-    return apiClient.get<ApiResponse<PracticeScoreArtifact>>(
-        `/practice/scores/${scoreId}/revisions/${revisionId}/artifact`,
+): Promise<ApiResponse<PracticeSourceArtifactRead>> {
+    return apiClient.get<ApiResponse<PracticeSourceArtifactRead>>(
+        `/practice/scores/${scoreId}/revisions/${revisionId}/source/artifact`,
         undefined,
         { signal }
     );

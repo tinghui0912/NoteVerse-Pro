@@ -19,7 +19,8 @@ class StrictPracticeSourceModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
-class PracticeReadyScoreContentRead(StrictPracticeSourceModel):
+class PracticeSourceContentRead(StrictPracticeSourceModel):
+    source_id: str
     score_id: str
     revision_id: str
     content: str
@@ -140,3 +141,8 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
                 raise ValueError("Invalid meter contract.")
             previous = meter.startBeat
         return self
+
+
+class PracticeSourceArtifactRead(StrictPracticeSourceModel):
+    source_id: str
+    artifact: PracticeScoreArtifactRead

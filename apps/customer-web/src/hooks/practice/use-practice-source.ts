@@ -2,10 +2,10 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
-import { usePracticeScoreArtifact } from './use-practice-score-artifact';
+import { usePracticeRevisionSource } from './use-practice-revision-source';
 
 /** Shared route-family source identity. A pinned artifact is the revision-wide admission contract. */
-export function usePracticeSource(scoreId: string) {
+export function usePracticeSource(scoreId: string, { loadContent = false }: { loadContent?: boolean } = {}) {
   const router = useRouter(), pathname = usePathname(), query = useSearchParams();
   const scoreQuery = useScoreDetail(scoreId);
   const requested = query.get('practiceRevisionId');
@@ -17,9 +17,6 @@ export function usePracticeSource(scoreId: string) {
     pinned.set('practiceRevisionId', revisionId);
     router.replace(`${pathname}?${pinned.toString()}`, { scroll: false });
   }, [requested, revisionId, query, pathname, router]);
-  const artifactQuery = usePracticeScoreArtifact(scoreId, revisionId, canPractice && Boolean(requested));
-  const error = artifactQuery.error;
-  const invalid = Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'practice_score_invalid');
-  return { scoreQuery, artifactQuery, revisionId, canPractice, invalid,
-    artifact: Boolean(requested) && !invalid && !artifactQuery.isError ? artifactQuery.data ?? null : null };
+  const source = usePracticeRevisionSource(scoreId, revisionId, { loadContent, enabled: canPractice && Boolean(requested) });
+  return { ...source, scoreQuery, revisionId, canPractice };
 }

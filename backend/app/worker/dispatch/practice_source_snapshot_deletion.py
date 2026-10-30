@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.db.sync_session import get_worker_db
-from app.modules.performance_takes.source_snapshot_delete_service import (
+from app.modules.practice.source.retention import (
     practice_source_snapshot_delete_service,
 )
 from app.worker.dispatch.runtime import send_durable_task

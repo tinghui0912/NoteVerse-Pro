@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from app.core.exceptions import ExternalServiceException, ValidationException
-from app.modules.practice.source_service import PracticeSourceService
+from app.modules.practice.source.service import PracticeSourceService
 from app.processing.practice_score.piano_key import PracticeScoreInvalidError
 from app.processing.practice_score.score_timeline import PracticeScoreTimeline
 from app.processing.practice_score.practice_score_artifact import practice_score_artifact_from_timeline
@@ -39,9 +39,9 @@ def test_entire_revision_is_invalid_even_if_an_earlier_section_is_playable(keys)
 async def test_score_invalidity_is_distinct_from_infrastructure(error, exception, code, status):
     service = PracticeSourceService()
     access = SimpleNamespace(score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r"))
-    service._practice_musicxml_path = AsyncMock(return_value=(access, Path("score.musicxml")))
-    with patch("app.modules.practice.source_service.practice_score_timeline_from_musicxml", side_effect=error):
+    service._authorized_musicxml_path = AsyncMock(return_value=(access, Path("score.musicxml")))
+    with patch.object(Path, "read_bytes", return_value=b"xml"), patch.object(service.builder, "build", side_effect=error):
         with pytest.raises(exception) as caught:
-            await service.get_practice_score_artifact(AsyncMock(), "s", 1, "r")
+            await service.get_artifact(AsyncMock(), "s", 1, "r")
     assert caught.value.code == code
     assert caught.value.status_code == status

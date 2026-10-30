@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from app.modules.practice.source_schemas import PracticeScoreArtifactRead
+from app.modules.practice.source.schemas import PracticeScoreArtifactRead
 
 
 def canonical():

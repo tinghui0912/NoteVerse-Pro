@@ -175,18 +175,6 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 
 let currentMockScoreState: 'ready' | 'loading' | 'unavailable' = 'ready';
 
-vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
-  usePracticeReadyScoreContent: vi.fn(() => ({
-    data: {
-      data: {
-        content: currentMockScoreState === 'unavailable' ? '' : '<score-partwise></score-partwise>',
-      },
-    },
-    isLoading: currentMockScoreState === 'loading',
-    selectedRevisionId: 'rev-1',
-  })),
-}));
-
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
   schemaVersion: 3, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
   firstPlayableBeat: 0, scoreEndBeat: 20,
@@ -200,10 +188,11 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
 
 let currentMockArtifact = createMockArtifact();
 
-vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({
-  usePracticeScoreArtifact: vi.fn(() => ({
-    data: currentMockArtifact,
-    isLoading: false,
+vi.mock('@/hooks/practice/use-practice-revision-source', () => ({
+  usePracticeRevisionSource: vi.fn(() => ({
+    artifact: currentMockArtifact,
+    content: currentMockScoreState === 'unavailable' ? null : '<score-partwise></score-partwise>',
+    isLoading: currentMockScoreState === 'loading',
   })),
 }));
 

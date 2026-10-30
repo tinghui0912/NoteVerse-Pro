@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from app.processing.practice_score.musicxml_stable_ids import (
     prepare_musicxml_ids_for_practice,
 )
-from app.processing.practice_score.score_loader import practice_score_timeline_from_musicxml
+from app.processing.practice_score.score_loader import practice_score_timeline_from_prepared_musicxml
 
 
 def test_practice_ready_musicxml_ids_match_artifact_timeline_render_ids(tmp_path) -> None:
@@ -34,15 +34,14 @@ def test_practice_ready_musicxml_ids_match_artifact_timeline_render_ids(tmp_path
 </score-partwise>
 """
     score_path = tmp_path / "score.musicxml"
-    score_path.write_text(source, encoding="utf-8")
-
     prepared = prepare_musicxml_ids_for_practice(source)
+    score_path.write_text(prepared, encoding="utf-8")
     prepared_note_ids = [
         note.get("id")
         for note in ET.fromstring(prepared).findall(".//note")
         if note.find("{*}rest") is None
     ]
-    timeline = practice_score_timeline_from_musicxml(score_path)
+    timeline = practice_score_timeline_from_prepared_musicxml(score_path)
 
     timeline_note_ids = [
         note.render_note_id for note in timeline.notes if any(note.note_id in attack.note_ids for moment in timeline.moments for attack in moment.attacks)

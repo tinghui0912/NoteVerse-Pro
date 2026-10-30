@@ -987,9 +987,9 @@ export type ApiResponsePracticeAcousticAccessRead = {
 };
 
 /**
- * APIResponse[PracticeReadyScoreContentRead]
+ * APIResponse[PracticeSourceArtifactRead]
  */
-export type ApiResponsePracticeReadyScoreContentRead = {
+export type ApiResponsePracticeSourceArtifactRead = {
     /**
      * Code
      *
@@ -999,7 +999,7 @@ export type ApiResponsePracticeReadyScoreContentRead = {
     /**
      * Response payload
      */
-    data?: PracticeReadyScoreContentRead | null;
+    data?: PracticeSourceArtifactRead | null;
     /**
      * Message
      *
@@ -1015,9 +1015,9 @@ export type ApiResponsePracticeReadyScoreContentRead = {
 };
 
 /**
- * APIResponse[PracticeScoreArtifactRead]
+ * APIResponse[PracticeSourceContentRead]
  */
-export type ApiResponsePracticeScoreArtifactRead = {
+export type ApiResponsePracticeSourceContentRead = {
     /**
      * Code
      *
@@ -1027,7 +1027,7 @@ export type ApiResponsePracticeScoreArtifactRead = {
     /**
      * Response payload
      */
-    data?: PracticeScoreArtifactRead | null;
+    data?: PracticeSourceContentRead | null;
     /**
      * Message
      *
@@ -3398,28 +3398,6 @@ export type PracticeAcousticAccessRead = {
 };
 
 /**
- * PracticeReadyScoreContentRead
- */
-export type PracticeReadyScoreContentRead = {
-    /**
-     * Content
-     */
-    content: string;
-    /**
-     * Mime Type
-     */
-    mime_type?: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-};
-
-/**
  * PracticeScoreArtifactRead
  */
 export type PracticeScoreArtifactRead = {
@@ -3611,6 +3589,43 @@ export type PracticeScoreTempoSegmentRead = {
      * Startbeat
      */
     startBeat: number;
+};
+
+/**
+ * PracticeSourceArtifactRead
+ */
+export type PracticeSourceArtifactRead = {
+    artifact: PracticeScoreArtifactRead;
+    /**
+     * Source Id
+     */
+    source_id: string;
+};
+
+/**
+ * PracticeSourceContentRead
+ */
+export type PracticeSourceContentRead = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Mime Type
+     */
+    mime_type?: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Source Id
+     */
+    source_id: string;
 };
 
 /**
@@ -6362,7 +6377,7 @@ export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSour
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeScoreArtifactRead;
+    200: ApiResponsePracticeSourceArtifactRead;
 };
 
 export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponse = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses];
@@ -6392,12 +6407,12 @@ export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourc
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeReadyScoreContentRead;
+    200: ApiResponsePracticeSourceContentRead;
 };
 
 export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponse = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses];
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetData = {
+export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetData = {
     body?: never;
     path: {
         /**
@@ -6410,28 +6425,28 @@ export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionI
         revision_id: string;
     };
     query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact';
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/artifact';
 };
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors = {
+export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetError = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors];
+export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetError = GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors[keyof GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetErrors];
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses = {
+export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeScoreArtifactRead;
+    200: ApiResponsePracticeSourceArtifactRead;
 };
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponse = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses];
+export type GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponse = GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses[keyof GetSourceArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceArtifactGetResponses];
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetData = {
+export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetData = {
     body?: never;
     path: {
         /**
@@ -6444,26 +6459,26 @@ export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevis
         revision_id: string;
     };
     query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content';
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source/content';
 };
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors = {
+export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetError = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors];
+export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetError = GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors[keyof GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetErrors];
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses = {
+export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeReadyScoreContentRead;
+    200: ApiResponsePracticeSourceContentRead;
 };
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponse = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses];
+export type GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponse = GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses[keyof GetSourceContentApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceContentGetResponses];
 
 export type GetPublicScoreApiV1PublicationsSlugGetData = {
     body?: never;

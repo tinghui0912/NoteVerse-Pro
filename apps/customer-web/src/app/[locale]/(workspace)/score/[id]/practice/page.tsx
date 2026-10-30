@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { usePracticeSource } from '@/hooks/practice/use-practice-source';
-import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
 import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
@@ -99,7 +98,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [stepRequiresSetup, setStepRequiresSetup] = useState(false);
 
   // Score details and assets
-  const source = usePracticeSource(id);
+  const source = usePracticeSource(id, { loadContent: true });
   const { scoreQuery, artifactQuery, artifact } = source;
   const canEnterPractice = source.canPractice;
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
@@ -108,12 +107,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     if (source.invalid) router.replace(practiceLocation(id, 'setup', source.revisionId));
   }, [source.invalid, source.revisionId, id, router]);
 
-  const revisionQuery = usePracticeReadyScoreContent(
-    id,
-    selectedRevisionId,
-    canEnterPractice && Boolean(selectedRevisionId)
-  );
-  const xmlContent = revisionQuery.data?.data?.content ?? null;
+  const revisionQuery = source.contentQuery;
+  const xmlContent = source.content;
 
   // Range interaction projects canonical moment notation references.
   const expectedGroups: readonly PracticeMomentView[] = useMemo(
@@ -168,7 +163,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const isLoadingXml = scoreQuery.isLoading || revisionQuery.isLoading || artifactQuery.isLoading;
   const isResourceLoading =
     scoreQuery.isLoading || (Boolean(selectedRevisionId) && (revisionQuery.isLoading || artifactQuery.isLoading));
-  const loadError = scoreQuery.error ?? revisionQuery.error ?? artifactQuery.error;
+  const loadError = scoreQuery.error ?? source.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
   const loadErrorDescription = loadError
     ? userFacingErrorMessage(errors, loadError, common('loadFailedDescription'))

@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.models import (
@@ -48,6 +49,15 @@ class PracticeSourceSnapshotDeletePayload:
 
 
 class PracticeSourceSnapshotDeleteService:
+    async def enqueue_if_unreferenced_async(
+        self, db: AsyncSession, snapshot_id: int | None, *, storage_backend: str
+    ) -> None:
+        await db.run_sync(
+            lambda sync_db: self.enqueue_if_unreferenced(
+                sync_db, snapshot_id, storage_backend=storage_backend
+            )
+        )
+
     def active_reference_count(self, db: Session, snapshot_id: int) -> int:
         take_refs = db.execute(
             select(func.count(PerformanceTake.id)).where(
@@ -57,9 +67,7 @@ class PracticeSourceSnapshotDeleteService:
         auth_refs = db.execute(
             select(func.count(PerformanceTakeUploadAuthorization.id)).where(
                 PerformanceTakeUploadAuthorization.source_snapshot_id == snapshot_id,
-                PerformanceTakeUploadAuthorization.status.notin_(
-                    list(TERMINAL_AUTH_STATUSES)
-                ),
+                PerformanceTakeUploadAuthorization.status.notin_(list(TERMINAL_AUTH_STATUSES)),
             )
         ).scalar_one()
         return int(take_refs) + int(auth_refs)
@@ -117,8 +125,7 @@ class PracticeSourceSnapshotDeleteService:
             db.execute(
                 select(PracticeSourceSnapshot)
                 .where(
-                    PracticeSourceSnapshot.status
-                    == PracticeSourceSnapshotStatus.CREATING.value,
+                    PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.CREATING.value,
                     PracticeSourceSnapshot.creation_expires_at.is_not(None),
                     PracticeSourceSnapshot.creation_expires_at <= now,
                 )
@@ -148,8 +155,7 @@ class PracticeSourceSnapshotDeleteService:
         }:
             return None
         if (
-            _status_value(outbox.status)
-            == PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
+            _status_value(outbox.status) == PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
             and outbox.next_attempt_at > utc_now_naive()
         ):
             return None
@@ -193,7 +199,10 @@ class PracticeSourceSnapshotDeleteService:
             if attempt is not None and outbox.attempt_count != attempt:
                 return False
             return True
-        if _status_value(outbox.status) != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value:
+        if (
+            _status_value(outbox.status)
+            != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value
+        ):
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
@@ -215,7 +224,10 @@ class PracticeSourceSnapshotDeleteService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if _status_value(outbox.status) != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value:
+        if (
+            _status_value(outbox.status)
+            != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value
+        ):
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
@@ -337,8 +349,7 @@ class PracticeSourceSnapshotDeleteService:
                 PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
                 PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value,
             }
-            and outbox.attempt_count
-            < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
+            and outbox.attempt_count < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
             and outbox.next_attempt_at <= utc_now_naive()
         )
 

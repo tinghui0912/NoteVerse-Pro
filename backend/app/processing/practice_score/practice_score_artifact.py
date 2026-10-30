@@ -64,10 +64,15 @@ def practice_score_artifact_json(
     )
 
 
+def canonical_practice_artifact_bytes(value: dict[str, Any]) -> bytes:
+    """Deterministic JSON representation used for artifact content identity and storage."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
 def _artifact_id(payload: dict[str, Any]) -> str:
     identity_payload = {**payload, "artifactId": ""}
     digest = hashlib.sha256(
-        json.dumps(identity_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        canonical_practice_artifact_bytes(identity_payload)
     ).hexdigest()[:16]
     return f"practice-score-artifact:{digest}"
 

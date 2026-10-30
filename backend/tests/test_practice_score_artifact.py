@@ -312,7 +312,7 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
     import os
     import pytest
     from pydantic import ValidationError
-    from app.modules.practice.source_schemas import PracticeScoreArtifactRead
+    from app.modules.practice.source.schemas import PracticeScoreArtifactRead
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
     value = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
     assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3

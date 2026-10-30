@@ -15,6 +15,7 @@ accepted current decisions and their rationale.
 
 - [Product Contract](practice-product-contract.md)
 - [Piano-Key Domain](practice-piano-key-contract.md)
+- [Practice Source](practice-source.md)
 - [Canonical Moment Artifact](practice-moment-artifact.md)
 - [STEP Evidence Admission](practice-step-pitch-evidence-bounds.md)
 - [Acoustic Domain Identity Admission](practice-acoustic-domain-identity-bounds.md)

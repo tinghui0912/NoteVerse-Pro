@@ -9,8 +9,7 @@ from time import monotonic
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -28,14 +27,6 @@ from app.db.models.performance_take import (
     PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
 )
-from app.db.models.practice_source_snapshot import (
-    PracticeSourceSnapshot,
-    PracticeSourceSnapshotStatus,
-)
-from app.db.models.practice_source_snapshot_delete_outbox import (
-    PracticeSourceSnapshotDeleteOutbox,
-    PracticeSourceSnapshotDeleteOutboxStatus,
-)
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
@@ -44,7 +35,7 @@ from app.db.models.performance_take_upload_authorization import (
     PerformanceTakeUploadAuthorization,
     PerformanceTakeUploadAuthorizationStatus,
 )
-from app.db.models.score import Score, ScoreDeletionStatus, ScoreRevision
+from app.db.models.score import Score, ScoreDeletionStatus
 from app.db.models.storage_usage import StorageUsageCategory
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
@@ -57,11 +48,12 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadAuthorizationRequest,
     RecordingTimebase,
 )
-from app.modules.practice.source_schemas import (
-    PracticeReadyScoreContentRead,
-    PracticeScoreArtifactRead,
+from app.modules.practice.source.schemas import (
+    PracticeSourceContentRead,
+    PracticeSourceArtifactRead,
 )
-from app.modules.practice.source_service import PracticeSourceService
+from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.source.domain import PracticeSourceSnapshotRef
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
@@ -84,7 +76,6 @@ MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
 TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
-SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS = 15 * 60
 TERMINAL_UPLOAD_AUTHORIZATION_STATUSES = {
     PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
     PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
@@ -279,10 +270,6 @@ def _sha256_storage_object(storage: FileStorage, key: str) -> str:
     return digest.hexdigest()
 
 
-def _sha256_bytes(content: bytes) -> str:
-    return hashlib.sha256(content).hexdigest()
-
-
 def _safe_compare_digest(left: str, right: str) -> bool:
     return hmac.compare_digest(left.lower(), right.lower())
 
@@ -318,7 +305,7 @@ class PerformanceTakeService:
         self,
         take: PerformanceTake,
         *,
-        snapshot: PracticeSourceSnapshot,
+        snapshot: PracticeSourceSnapshotRef,
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
@@ -375,9 +362,7 @@ class PerformanceTakeService:
         db: AsyncSession,
         take: PerformanceTake,
     ) -> PerformanceTakeUploadAuthorizationRead:
-        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        snapshot = await self.practice_source_service.snapshot(db, take.source_snapshot_id)
         score = await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         can_open_score = await self._can_open_score(db, take.user_id, score)
         return PerformanceTakeUploadAuthorizationRead(
@@ -484,260 +469,6 @@ class PerformanceTakeService:
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
         return now + timedelta(seconds=settings.S3_PRESIGN_EXPIRE_SECONDS)
-
-    async def _get_or_create_source_snapshot(
-        self,
-        db: AsyncSession,
-        *,
-        user_id: int,
-        score: Score,
-        revision: ScoreRevision,
-        artifact_id: str,
-    ) -> PracticeSourceSnapshot:
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-        ready_content = await self.practice_source_service.get_practice_ready_score_content(
-            db,
-            score.score_uuid,
-            user_id,
-            revision.revision_uuid,
-        )
-        artifact = await self.practice_source_service.get_practice_score_artifact(
-            db,
-            score.score_uuid,
-            user_id,
-            revision.revision_uuid,
-        )
-        if (
-            artifact.scoreId != score.score_uuid
-            or artifact.revisionId != revision.revision_uuid
-            or artifact.artifactId != artifact_id
-        ):
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="artifact_id",
-                details={"reason": "source_artifact_identity_mismatch"},
-            )
-
-        musicxml_bytes = ready_content.content.encode("utf-8")
-        artifact_bytes = artifact.model_dump_json(by_alias=True).encode("utf-8")
-        musicxml_sha = _sha256_bytes(musicxml_bytes)
-        artifact_sha = _sha256_bytes(artifact_bytes)
-        fingerprint = _sha256_bytes(
-            "|".join(
-                [
-                    score.score_uuid,
-                    revision.revision_uuid,
-                    artifact.artifactId,
-                    str(artifact.schemaVersion),
-                    musicxml_sha,
-                    artifact_sha,
-                ]
-            ).encode("utf-8")
-        )
-
-        existing = (
-            await db.execute(
-                select(PracticeSourceSnapshot).where(
-                    PracticeSourceSnapshot.source_fingerprint == fingerprint
-                )
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            if existing.status != PracticeSourceSnapshotStatus.READY.value:
-                raise ValidationException(
-                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                    field="source_snapshot",
-                    details={"reason": "source_snapshot_not_ready"},
-                )
-            return existing
-
-        musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
-        artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
-        snapshot = PracticeSourceSnapshot(
-            source_fingerprint=fingerprint,
-            source_score_uuid=score.score_uuid,
-            source_revision_uuid=revision.revision_uuid,
-            artifact_id=artifact.artifactId,
-            artifact_schema_version=artifact.schemaVersion,
-            prepared_musicxml_object_key=musicxml_key,
-            prepared_musicxml_sha256=musicxml_sha,
-            prepared_musicxml_byte_size=len(musicxml_bytes),
-            artifact_object_key=artifact_key,
-            artifact_sha256=artifact_sha,
-            artifact_byte_size=len(artifact_bytes),
-            status=PracticeSourceSnapshotStatus.CREATING.value,
-            creation_expires_at=utc_now_naive()
-            + timedelta(seconds=SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS),
-        )
-        try:
-            async with db.begin_nested():
-                db.add(snapshot)
-                await db.flush()
-        except IntegrityError:
-            existing = (
-                await db.execute(
-                    select(PracticeSourceSnapshot).where(
-                        PracticeSourceSnapshot.source_fingerprint == fingerprint
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing is not None:
-                if existing.status != PracticeSourceSnapshotStatus.READY.value:
-                    raise ValidationException(
-                        ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                        field="source_snapshot",
-                        details={"reason": "source_snapshot_not_ready"},
-                    )
-                return existing
-            raise
-        await db.commit()
-        await db.refresh(snapshot)
-
-        try:
-            await asyncio.to_thread(
-                self.storage.put_bytes,
-                key=musicxml_key,
-                content=musicxml_bytes,
-                content_type=ready_content.mime_type,
-            )
-            await asyncio.to_thread(
-                self.storage.put_bytes,
-                key=artifact_key,
-                content=artifact_bytes,
-                content_type="application/json",
-            )
-        except Exception as error:
-            await self._enqueue_snapshot_delete_if_unreferenced(db, snapshot.id)
-            await db.commit()
-            raise ValidationException(
-                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                field="source_snapshot",
-                details={"reason": "source_snapshot_storage_write_failed"},
-            ) from error
-
-        locked_snapshot = (
-            await db.execute(
-                select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == snapshot.id)
-                .with_for_update()
-            )
-        ).scalar_one_or_none()
-        now = utc_now_naive()
-        if (
-            locked_snapshot is None
-            or locked_snapshot.status != PracticeSourceSnapshotStatus.CREATING.value
-            or locked_snapshot.creation_expires_at is None
-            or locked_snapshot.creation_expires_at <= now
-        ):
-            if locked_snapshot is not None:
-                await self._enqueue_snapshot_delete_for_locked_snapshot(db, locked_snapshot)
-            await db.commit()
-            raise ValidationException(
-                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                field="source_snapshot",
-                details={"reason": "source_snapshot_creation_lease_expired"},
-            )
-
-        snapshot = locked_snapshot
-        snapshot.status = PracticeSourceSnapshotStatus.READY.value
-        snapshot.creation_expires_at = None
-        await db.commit()
-        await db.refresh(snapshot)
-        return snapshot
-
-    async def _lock_ready_source_snapshot(
-        self,
-        db: AsyncSession,
-        snapshot_id: int | None,
-    ) -> PracticeSourceSnapshot:
-        if snapshot_id is None:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
-        snapshot = (
-            await db.execute(
-                select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == snapshot_id)
-                .with_for_update()
-            )
-        ).scalar_one_or_none()
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
-            raise ValidationException(
-                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                field="source_snapshot",
-                details={"reason": "source_snapshot_not_ready"},
-            )
-        return snapshot
-
-    async def _enqueue_snapshot_delete_for_locked_snapshot(
-        self,
-        db: AsyncSession,
-        snapshot: PracticeSourceSnapshot,
-    ) -> PracticeSourceSnapshotDeleteOutbox | None:
-        if snapshot.id is None or self.storage is None:
-            return None
-        take_refs = (
-            await db.execute(
-                select(func.count(PerformanceTake.id)).where(
-                    PerformanceTake.source_snapshot_id == snapshot.id
-                )
-            )
-        ).scalar_one()
-        auth_refs = (
-            await db.execute(
-                select(func.count(PerformanceTakeUploadAuthorization.id)).where(
-                    PerformanceTakeUploadAuthorization.source_snapshot_id == snapshot.id,
-                    PerformanceTakeUploadAuthorization.status.notin_(
-                        list(TERMINAL_UPLOAD_AUTHORIZATION_STATUSES)
-                    ),
-                )
-            )
-        ).scalar_one()
-        if int(take_refs) + int(auth_refs) > 0:
-            return None
-
-        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
-        snapshot.creation_expires_at = None
-        existing = (
-            await db.execute(
-                select(PracticeSourceSnapshotDeleteOutbox).where(
-                    PracticeSourceSnapshotDeleteOutbox.snapshot_uuid
-                    == snapshot.snapshot_uuid,
-                    PracticeSourceSnapshotDeleteOutbox.status
-                    != PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value,
-                )
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            return existing
-        outbox = PracticeSourceSnapshotDeleteOutbox(
-            source_snapshot_id=snapshot.id,
-            snapshot_uuid=snapshot.snapshot_uuid,
-            storage_backend=self.storage.backend_name,
-            prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
-            artifact_object_key=snapshot.artifact_object_key,
-            status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
-            max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
-        )
-        db.add(outbox)
-        return outbox
-
-    async def _enqueue_snapshot_delete_if_unreferenced(
-        self,
-        db: AsyncSession,
-        snapshot_id: int | None,
-    ) -> None:
-        if snapshot_id is None or self.storage is None:
-            return
-        snapshot = (
-            await db.execute(
-                select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == snapshot_id)
-                .with_for_update()
-            )
-        ).scalar_one_or_none()
-        if snapshot is None:
-            return
-        await self._enqueue_snapshot_delete_for_locked_snapshot(db, snapshot)
 
     async def _ensure_finalize_copy_lease(
         self,
@@ -874,7 +605,7 @@ class PerformanceTakeService:
         await self.storage_usage_service.release_reservation(
             db, auth.reservation_id, auto_commit=False
         )
-        await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
+        await self.practice_source_service.release_snapshot(db, source_snapshot_id)
         await db.commit()
         return auth.staging_object_key
 
@@ -1013,38 +744,14 @@ class PerformanceTakeService:
                 details={"reason": f"client_request_id_{_status_value(existing_auth.status).lower()}"},
             )
 
-        score_stmt = select(Score).where(
-            Score.score_uuid == request.score_id,
-            Score.deletion_status == ScoreDeletionStatus.ACTIVE,
-        )
-        score_res = await db.execute(score_stmt)
-        score = score_res.scalars().first()
-        if not score:
-            raise ResourceNotFoundException("score", request.score_id, ErrorCode.SCORE_NOT_FOUND)
-
-        rev_stmt = select(ScoreRevision).where(
-            ScoreRevision.revision_uuid == request.revision_id,
-            ScoreRevision.score_id == score.id,
-        )
-        rev_res = await db.execute(rev_stmt)
-        revision = rev_res.scalars().first()
-        if not revision:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
-
-        await self.score_access_policy.authorize(
-            db,
-            score.score_uuid,
-            ScoreAction.PRACTICE,
-            user_id=user_id,
-            revision_uuid=revision.revision_uuid,
-        )
-        snapshot = await self._get_or_create_source_snapshot(
+        pinned = await self.practice_source_service.pin_source(
             db,
             user_id=user_id,
-            score=score,
-            revision=revision,
-            artifact_id=request.artifact_id,
+            score_id=request.score_id,
+            revision_id=request.revision_id,
+            expected_artifact_id=request.artifact_id,
         )
+        snapshot = pinned.snapshot
 
         take_uuid = str(uuid4())
         staging_object_key = _build_staging_object_key(user_id, take_uuid, cleaned_mime)
@@ -1058,7 +765,7 @@ class PerformanceTakeService:
         if upload_target is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
 
-        snapshot = await self._lock_ready_source_snapshot(db, snapshot.id)
+        snapshot = await self.practice_source_service.snapshot(db, snapshot.id, lock=True)
 
         reservation_handle = await self.storage_usage_service.reserve(
             db,
@@ -1081,11 +788,11 @@ class PerformanceTakeService:
             source_snapshot_id=snapshot.id,
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
-            score_id=score.id,
-            score_uuid=score.score_uuid,
-            score_title=score.title,
-            revision_id=revision.id,
-            revision_uuid=revision.revision_uuid,
+            score_id=pinned.score_db_id,
+            score_uuid=pinned.score_id,
+            score_title=pinned.score_title,
+            revision_id=pinned.revision_db_id,
+            revision_uuid=pinned.revision_id,
             artifact_id=request.artifact_id,
             scope_type=request.scope_type,
             scope_start_beat=request.scope_start_beat,
@@ -1153,7 +860,7 @@ class PerformanceTakeService:
             await self.storage_usage_service.release_reservation(
                 db, reservation_id, auto_commit=False
             )
-            await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
+            await self.practice_source_service.release_snapshot(db, source_snapshot_id)
             await db.commit()
         if (
             staging_key is not None
@@ -1360,7 +1067,7 @@ class PerformanceTakeService:
                     auth.reservation_id,
                     auto_commit=False,
                 )
-                await self._enqueue_snapshot_delete_if_unreferenced(
+                await self.practice_source_service.release_snapshot(
                     db, source_snapshot_id
                 )
             await db.commit()
@@ -1470,12 +1177,11 @@ class PerformanceTakeService:
         # owner deletion, member removal, or grant expiry after authorization do
         # not invalidate this already-authorized save.
         async def load_pinned_source_and_live_score() -> tuple[
-            PracticeSourceSnapshot | None,
+            PracticeSourceSnapshotRef | None,
             Score | None,
         ]:
-            pinned_snapshot = await db.get(
-                PracticeSourceSnapshot,
-                auth_snapshot["source_snapshot_id"],
+            pinned_snapshot = await self.practice_source_service.find_snapshot(
+                db, auth_snapshot["source_snapshot_id"]
             )
             linked_score = (
                 await db.get(Score, auth_snapshot["score_id"])
@@ -1504,7 +1210,7 @@ class PerformanceTakeService:
             )
             snapshot, score = await load_pinned_source_and_live_score()
         log_stage("db_finalize_started", started_at=finalize_started)
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
+        if snapshot is None:
             await self._record_failed_candidate_final(
                 db,
                 user_id=user_id,
@@ -1585,7 +1291,7 @@ class PerformanceTakeService:
                 auth.reservation_id,
                 auto_commit=False,
             )
-            await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
+            await self.practice_source_service.release_snapshot(db, source_snapshot_id)
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
 
@@ -1699,20 +1405,13 @@ class PerformanceTakeService:
                     score_map[s.id] = s
 
         snapshot_ids = {item.source_snapshot_id for item in items}
-        snapshot_map: dict[int, PracticeSourceSnapshot] = {}
-        if snapshot_ids:
-            snapshots_res = await db.execute(
-                select(PracticeSourceSnapshot).where(PracticeSourceSnapshot.id.in_(snapshot_ids))
-            )
-            for snapshot in snapshots_res.scalars().all():
-                if snapshot.id is not None:
-                    snapshot_map[snapshot.id] = snapshot
+        snapshot_map = await self.practice_source_service.list_snapshots(db, snapshot_ids)
 
         read_items: list[PerformanceTakeRead] = []
         for item in items:
             score_obj = score_map.get(item.linked_score_id) if item.linked_score_id is not None else None
             snapshot = snapshot_map.get(item.source_snapshot_id)
-            if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
+            if snapshot is None:
                 continue
             can_open_score = await self._can_open_score(db, user_id, score_obj)
             read_items.append(
@@ -1743,9 +1442,7 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
-        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        snapshot = await self.practice_source_service.snapshot(db, take.source_snapshot_id)
         score = await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         can_open_score = await self._can_open_score(db, user_id, score)
 
@@ -1812,29 +1509,12 @@ class PerformanceTakeService:
         db: AsyncSession,
         user_id: int,
         take_id: str,
-    ) -> PracticeReadyScoreContentRead:
+    ) -> PracticeSourceContentRead:
         take = await self.repository.get_by_uuid(db, user_id, take_id)
         if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
-        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-        content_bytes = await asyncio.to_thread(
-            self.storage.read_bytes,
-            snapshot.prepared_musicxml_object_key,
-        )
-        if _sha256_bytes(content_bytes) != snapshot.prepared_musicxml_sha256:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot",
-                details={"reason": "prepared_musicxml_checksum_mismatch"},
-            )
-        return PracticeReadyScoreContentRead(
-            score_id=snapshot.source_score_uuid,
-            revision_id=snapshot.source_revision_uuid,
-            content=content_bytes.decode("utf-8"),
+        return await self.practice_source_service.get_snapshot_content(
+            db, take.source_snapshot_id
         )
 
     async def get_practice_source_artifact(
@@ -1842,37 +1522,13 @@ class PerformanceTakeService:
         db: AsyncSession,
         user_id: int,
         take_id: str,
-    ) -> PracticeScoreArtifactRead:
+    ) -> PracticeSourceArtifactRead:
         take = await self.repository.get_by_uuid(db, user_id, take_id)
         if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
-        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
-        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-        artifact_bytes = await asyncio.to_thread(
-            self.storage.read_bytes,
-            snapshot.artifact_object_key,
+        return await self.practice_source_service.get_snapshot_artifact(
+            db, take.source_snapshot_id
         )
-        if _sha256_bytes(artifact_bytes) != snapshot.artifact_sha256:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot",
-                details={"reason": "artifact_checksum_mismatch"},
-            )
-        artifact = PracticeScoreArtifactRead.model_validate_json(artifact_bytes)
-        if (
-            artifact.scoreId != snapshot.source_score_uuid
-            or artifact.revisionId != snapshot.source_revision_uuid
-            or artifact.artifactId != snapshot.artifact_id
-        ):
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot",
-                details={"reason": "artifact_identity_mismatch"},
-            )
-        return artifact
 
     async def delete_take(
         self,

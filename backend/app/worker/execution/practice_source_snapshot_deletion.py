@@ -12,7 +12,7 @@ from app.db.models import (
     PracticeSourceSnapshotDeleteOutboxStatus,
 )
 from app.db.sync_session import get_worker_db
-from app.modules.performance_takes.source_snapshot_delete_service import (
+from app.modules.practice.source.retention import (
     practice_source_snapshot_delete_service,
 )
 from app.storage import file_storage

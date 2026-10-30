@@ -12,8 +12,14 @@ invalid scores to pinned Setup. Device readiness remains independent. See the
 
 ## Execution and Inputs
 
-Practice execution is browser-local. The backend provides canonical score, source
-and `PracticeScoreArtifact` data, plus immutable model assets. Once the required
+Practice execution is browser-local. The backend Practice Source service authorizes
+one revision and builds an immutable source bundle containing schema3 artifact and
+prepared notation representations. The live `/source/artifact` and `/source/content`
+responses carry the same `source_id`; the revision-source hook validates their
+identity and exposes coherent representations. Setup loads only the artifact.
+Practice and Review load artifact and notation. [Practice Source](practice-source.md)
+owns deterministic construction, snapshot persistence and retention.
+The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
 Cold-start offline availability depends on asset and application caching.
 

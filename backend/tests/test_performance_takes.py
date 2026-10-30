@@ -46,7 +46,7 @@ from app.main import app
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
-from app.modules.performance_takes.source_snapshot_delete_service import (
+from app.modules.practice.source.retention import (
     practice_source_snapshot_delete_service,
 )
 from app.modules.performance_takes.dependencies import (
@@ -54,10 +54,13 @@ from app.modules.performance_takes.dependencies import (
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.schemas import PerformanceTakeUploadAuthorizationRequest
-from app.modules.practice.source_schemas import (
-    PracticeReadyScoreContentRead,
-    PracticeScoreArtifactRead,
+from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.source.repository import PracticeSourceRepository
+from app.modules.practice.source.domain import (
+    AuthorizedPracticeSource, PracticeSourceBundle, PracticeSourceRepresentation, PracticeSourceArtifact,
 )
+from app.modules.score_access.policy import ScoreAction
+from app.processing.practice_score.practice_score_artifact import canonical_practice_artifact_bytes
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService
@@ -89,33 +92,30 @@ DEFAULT_TAKE_RECORDING_TIMEBASE = {
 }
 
 
-class _FakePracticeSourceService:
-    async def get_practice_ready_score_content(
-        self,
-        db,
-        score_uuid: str,
-        user_id: int,
-        revision_uuid: str,
-    ) -> PracticeReadyScoreContentRead:
-        del db, user_id
-        return PracticeReadyScoreContentRead(
-            score_id=score_uuid,
-            revision_id=revision_uuid,
-            content=(
-                '<?xml version="1.0" encoding="UTF-8"?>'
-                '<score-partwise version="4.0"><part-list /></score-partwise>'
-            ),
+class _FakePracticeSourceService(PracticeSourceService):
+    async def get_source(self, db, score_uuid: str, user_id: int, revision_uuid: str):
+        access = await self.access_policy.authorize(
+            db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
+        )
+        return AuthorizedPracticeSource(
+            _source_bundle(score_uuid, revision_uuid, DEFAULT_TAKE_ARTIFACT_ID),
+            access.score.id, access.revision.id, access.score.title,
         )
 
-    async def get_practice_score_artifact(
-        self,
-        db,
-        score_uuid: str,
-        user_id: int,
-        revision_uuid: str | None,
-    ) -> PracticeScoreArtifactRead:
-        del db, user_id
-        return PracticeScoreArtifactRead(**_source_artifact_payload(score_uuid, revision_uuid or DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID))
+
+def _source_bundle(score_id, revision_id, artifact_id):
+    value = _source_artifact_payload(score_id, revision_id, artifact_id)
+    return PracticeSourceBundle(
+        score_id, revision_id,
+        PracticeSourceRepresentation(
+            b'<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><part-list /></score-partwise>',
+            "application/vnd.recordare.musicxml+xml",
+        ),
+        PracticeSourceArtifact(
+            PracticeSourceRepresentation(canonical_practice_artifact_bytes(value), "application/json"),
+            artifact_id, 3,
+        ),
+    )
 
 
 def _source_artifact_payload(score_id: str, revision_id: str, artifact_id: str):
@@ -137,7 +137,7 @@ def _performance_take_service(
     return PerformanceTakeService(
         storage=storage,
         storage_usage_service=storage_usage_service,
-        practice_source_service=_FakePracticeSourceService(),
+        practice_source_service=_FakePracticeSourceService(storage=storage),
     )
 
 
@@ -149,29 +149,12 @@ def _create_default_source_snapshot(
     source_revision_uuid: str = DEFAULT_TAKE_REVISION_ID,
     artifact_id: str = DEFAULT_TAKE_ARTIFACT_ID,
 ) -> PracticeSourceSnapshot:
-    musicxml_bytes = (
-        b'<?xml version="1.0" encoding="UTF-8"?>'
-        b'<score-partwise version="4.0"><part-list /></score-partwise>'
-    )
-    artifact_bytes = json.dumps(
-        _source_artifact_payload(source_score_uuid, source_revision_uuid, artifact_id),
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    musicxml_sha = hashlib.sha256(musicxml_bytes).hexdigest()
-    artifact_sha = hashlib.sha256(artifact_bytes).hexdigest()
-    fingerprint = hashlib.sha256(
-        "|".join(
-            [
-                source_score_uuid,
-                source_revision_uuid,
-                artifact_id,
-                "3",
-                musicxml_sha,
-                artifact_sha,
-            ]
-        ).encode("utf-8")
-    ).hexdigest()
+    bundle = _source_bundle(source_score_uuid, source_revision_uuid, artifact_id)
+    musicxml_bytes = bundle.prepared_musicxml.data
+    artifact_bytes = bundle.artifact.representation.data
+    musicxml_sha = bundle.prepared_musicxml.sha256
+    artifact_sha = bundle.artifact.representation.sha256
+    fingerprint = bundle.source_id
     existing = session.execute(
         select(PracticeSourceSnapshot).where(
             PracticeSourceSnapshot.source_fingerprint == fingerprint
@@ -257,6 +240,62 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
     assert raised.value.details == {"field": "scope_type", "reason": "scope_type_invalid"}
 
 
+def test_source_materialization_stores_exact_bundle_and_rejects_inflight_reuse(test_env):
+    session, storage, _, _ = test_env
+    bundle = _source_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
+    repository = PracticeSourceRepository(storage)
+    original_put = storage.put_bytes
+    writes = []
+    inflight = []
+
+    def put(**kwargs):
+        writes.append(kwargs["key"])
+        if not inflight:
+            with pytest.raises(ValidationException) as caught:
+                _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
+            inflight.append(caught.value.details["reason"])
+        return original_put(**kwargs)
+
+    with patch.object(storage, "put_bytes", side_effect=put):
+        first = _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
+        second = _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
+    assert first == second
+    assert first.source_id == bundle.source_id
+    assert inflight == ["source_snapshot_not_ready"]
+    assert len(writes) == 2
+    row = session.get(PracticeSourceSnapshot, first.id)
+    assert storage.read_bytes(row.prepared_musicxml_object_key) == bundle.prepared_musicxml.data
+    assert storage.read_bytes(row.artifact_object_key) == bundle.artifact.representation.data
+    assert row.prepared_musicxml_sha256 == bundle.prepared_musicxml.sha256
+    assert row.artifact_sha256 == bundle.artifact.representation.sha256
+    assert row.prepared_musicxml_byte_size == bundle.prepared_musicxml.byte_size
+    assert row.artifact_byte_size == bundle.artifact.representation.byte_size
+
+
+@pytest.mark.parametrize("representation", ["prepared_musicxml", "artifact"])
+def test_source_snapshot_checksum_corruption_is_rejected(test_env, representation):
+    session, storage, _, _ = test_env
+    row = _create_default_source_snapshot(session, storage)
+    key = getattr(row, f"{representation}_object_key")
+    storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
+    with pytest.raises(ValidationException) as caught:
+        _run_async(PracticeSourceService(storage=storage).get_snapshot_artifact(AsyncSessionAdapter(session), row.id))
+    assert caught.value.details["reason"] == f"{representation}_checksum_mismatch"
+
+
+def test_source_snapshot_artifact_identity_corruption_is_rejected(test_env):
+    session, storage, _, _ = test_env
+    row = _create_default_source_snapshot(session, storage)
+    changed = _source_bundle("other-score", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID).artifact.representation
+    storage.put_bytes(key=row.artifact_object_key, content=changed.data, content_type=changed.mime_type)
+    row.artifact_sha256 = changed.sha256
+    row.artifact_byte_size = changed.byte_size
+    session.commit()
+    with pytest.raises(ValidationException) as caught:
+        _run_async(PracticeSourceService(storage=storage).get_snapshot_content(AsyncSessionAdapter(session), row.id))
+    assert caught.value.details["reason"] == "artifact_identity_mismatch"
+
+
 def _create_take_delete_outbox(
     session: Session,
     take: PerformanceTake,
@@ -321,6 +360,9 @@ class AsyncSessionAdapter:
 
     async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
         return self.session.execute(statement, params=params, *args, **kwargs)
+
+    async def run_sync(self, function):
+        return function(self.session)
 
     async def commit(self) -> None:
         self.session.commit()
@@ -709,6 +751,10 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert snapshot.artifact_id == "art-1"
         assert storage.exists(snapshot.prepared_musicxml_object_key)
         assert storage.exists(snapshot.artifact_object_key)
+        expected_bundle = _source_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
+        assert storage.read_bytes(snapshot.prepared_musicxml_object_key) == expected_bundle.prepared_musicxml.data
+        assert storage.read_bytes(snapshot.artifact_object_key) == expected_bundle.artifact.representation.data
+        assert snapshot.source_fingerprint == expected_bundle.source_id
 
         res_source_content = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
         assert res_source_content.status_code == 200, res_source_content.text
@@ -718,9 +764,10 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
         assert res_source_artifact.status_code == 200, res_source_artifact.text
         artifact_data = res_source_artifact.json()["data"]
-        assert artifact_data["scoreId"] == "score-uuid-10"
-        assert artifact_data["revisionId"] == "revision-uuid-100"
-        assert artifact_data["artifactId"] == "art-1"
+        assert artifact_data["source_id"] == res_source_content.json()["data"]["source_id"] == snapshot.source_fingerprint
+        assert artifact_data["artifact"]["scoreId"] == "score-uuid-10"
+        assert artifact_data["artifact"]["revisionId"] == "revision-uuid-100"
+        assert artifact_data["artifact"]["artifactId"] == "art-1"
         final_object_key = take_row.media_object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
@@ -1215,7 +1262,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_source_content_hard.json()["data"]["revision_id"] == "revision-uuid-100"
         res_source_artifact_hard = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
         assert res_source_artifact_hard.status_code == 200, res_source_artifact_hard.text
-        assert res_source_artifact_hard.json()["data"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert res_source_artifact_hard.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
 
         # Deleting take returns 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -2508,7 +2555,7 @@ def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
         assert res_source_content.json()["data"]["revision_id"] == "revision-uuid-100"
         res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
         assert res_source_artifact.status_code == 200, res_source_artifact.text
-        assert res_source_artifact.json()["data"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert res_source_artifact.json()["data"]["artifact"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
 
         # List takes exposes the durable historical source, but no live score link.
         res_list = client.get("/api/v1/performance-takes")

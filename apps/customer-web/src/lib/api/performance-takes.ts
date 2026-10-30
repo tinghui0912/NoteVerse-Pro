@@ -7,11 +7,11 @@ import type {
   PerformanceTakeRead,
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
-  PracticeReadyScoreContentRead,
+  PracticeSourceContentRead,
+  PracticeSourceArtifactRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -23,7 +23,8 @@ export type {
   PerformanceTakeRead,
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
-  PracticeReadyScoreContentRead,
+  PracticeSourceContentRead,
+  PracticeSourceArtifactRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 };
@@ -57,13 +58,13 @@ export const performanceTakesApi = {
       { signal }
     ),
   getPracticeSourceContent: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PracticeReadyScoreContentRead>>(
+    apiClient.get<ApiResponse<PracticeSourceContentRead>>(
       `/performance-takes/${takeId}/practice-source/content`,
       undefined,
       { signal }
     ),
   getPracticeSourceArtifact: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PracticeScoreArtifact>>(
+    apiClient.get<ApiResponse<PracticeSourceArtifactRead>>(
       `/performance-takes/${takeId}/practice-source/artifact`,
       undefined,
       { signal }

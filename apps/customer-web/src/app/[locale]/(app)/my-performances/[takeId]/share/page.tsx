@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
@@ -17,11 +16,9 @@ import {
 } from '@/hooks/queries/use-performance-take-queries';
 import {
   downloadPerformanceTakeMediaBlob,
-  performanceTakesApi,
 } from '@/lib/api/performance-takes';
 import { ApiError } from '@/lib/api-client';
-import { queryKeys } from '@/lib/query-client';
-import { assertPracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { usePracticeSnapshotSource } from '@/hooks/practice/use-practice-revision-source';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
@@ -81,24 +78,12 @@ export default function HistoricalPerformanceSharePage() {
   const take = takeQuery.data?.data ?? null;
   const isBaseEligible = Boolean(take && hasSavedTakeShareVideoMetadata(take));
 
-  const revisionQuery = useQuery({
-    queryKey: queryKeys.performanceTakes.practiceSourceContent(takeId),
-    queryFn: ({ signal }) => performanceTakesApi.getPracticeSourceContent(takeId, signal),
-    enabled: isBaseEligible && Boolean(takeId),
-  });
-  const artifactQuery = useQuery({
-    queryKey: queryKeys.performanceTakes.practiceSourceArtifact(takeId),
-    queryFn: async ({ signal }) => {
-      const response = await performanceTakesApi.getPracticeSourceArtifact(takeId, signal);
-      if (!response.data) {
-        throw new Error('PracticeScoreArtifact response missing data');
-      }
-      assertPracticeScoreArtifact(response.data);
-      return response.data;
-    },
-    enabled: isBaseEligible && Boolean(takeId),
-    staleTime: Infinity,
-  });
+  const source = usePracticeSnapshotSource(takeId, {
+    scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
+    artifactId: take?.source_artifact_id ?? '',
+  }, isBaseEligible);
+  const artifactQuery = source.artifactQuery;
+  const revisionQuery = source.contentQuery;
 
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -144,16 +129,7 @@ export default function HistoricalPerformanceSharePage() {
 
   useEffect(() => () => adapter.dispose(), [adapter]);
 
-  const exactIdentityMatches = Boolean(
-    take &&
-      artifactQuery.data &&
-      revisionQuery.data?.data &&
-      revisionQuery.data.data.score_id === take.source_score_id &&
-      revisionQuery.data.data.revision_id === take.source_revision_id &&
-      artifactQuery.data.scoreId === take.source_score_id &&
-      artifactQuery.data.revisionId === take.source_revision_id &&
-      artifactQuery.data.artifactId === take.source_artifact_id
-  );
+  const exactIdentityMatches = Boolean(source.artifact && source.content);
   const sessionEligibility = useMemo(() => {
     if (!take || !mediaBlob || !artifactQuery.data || !exactIdentityMatches) return null;
     return createShareVideoSessionFromSavedTake(
@@ -178,7 +154,7 @@ export default function HistoricalPerformanceSharePage() {
     };
   }, [session]);
 
-  const xmlContent = revisionQuery.data?.data?.content ?? null;
+  const xmlContent = source.content;
   if (takeQuery.isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -244,7 +220,7 @@ export default function HistoricalPerformanceSharePage() {
     );
   }
   if (
-    (revisionQuery.data?.data && artifactQuery.data && !exactIdentityMatches)
+    source.invalid
   ) {
     return (
       <HistoricalTakeUnavailable
@@ -275,7 +251,7 @@ export default function HistoricalPerformanceSharePage() {
       />
     );
   }
-  if (revisionQuery.isError || artifactQuery.isError) {
+  if (source.isError) {
     return (
       <HistoricalTakeUnavailable
         message={t('historicalShareTemporaryUnavailable')}

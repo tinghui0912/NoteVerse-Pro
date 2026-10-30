@@ -38,8 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
-import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
+import { usePracticeRevisionSource } from '@/hooks/practice/use-practice-revision-source';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
@@ -110,20 +109,12 @@ export default function PracticeReviewPage({
 
   const selectedRevisionId = result?.revisionId ?? undefined;
 
-  const revisionQuery = usePracticeReadyScoreContent(
-    id,
-    selectedRevisionId,
-    isValidCompletion && Boolean(id)
-  );
-  const xmlContent = revisionQuery.data?.data?.content ?? null;
-  const isLoadingXml = revisionQuery.isLoading;
-
-  const artifactQuery = usePracticeScoreArtifact(
-    id,
-    selectedRevisionId,
-    isValidCompletion && Boolean(id)
-  );
-  const artifact = artifactQuery.data ?? null;
+  const source = usePracticeRevisionSource(id, selectedRevisionId, {
+    loadContent: true, enabled: isValidCompletion && Boolean(id),
+  });
+  const xmlContent = source.content;
+  const isLoadingXml = source.isLoading;
+  const artifact = source.artifact;
   const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, xmlAvailable: Boolean(xmlContent), scoreId: id }),
     [artifact, result, xmlContent, id]);
   const isRevisionMismatched = scoreState.status === 'IDENTITY_MISMATCH';

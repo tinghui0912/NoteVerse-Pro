@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
-from pathlib import Path
 import re
-from tempfile import NamedTemporaryFile
 import xml.etree.ElementTree as ET
 
 
@@ -34,9 +31,7 @@ def prepare_musicxml_ids_for_practice(xml: str) -> str:
                 existing = element.get("id")
                 sanitized_existing = _sanitize_xml_id(existing) if existing else ""
                 can_keep_existing = (
-                    bool(existing)
-                    and sanitized_existing == existing
-                    and existing not in used_ids
+                    bool(existing) and sanitized_existing == existing and existing not in used_ids
                 )
                 if can_keep_existing and existing is not None:
                     next_id = existing
@@ -51,24 +46,6 @@ def prepare_musicxml_ids_for_practice(xml: str) -> str:
                 used_ids.add(next_id)
 
     return _serialize(root) if changed else xml
-
-
-@contextmanager
-def prepared_musicxml_path_for_practice(source_path: str | Path) -> Iterator[Path]:
-    path = Path(source_path)
-    source = path.read_text(encoding="utf-8")
-    prepared = prepare_musicxml_ids_for_practice(source)
-    if prepared == source:
-        yield path
-        return
-
-    with NamedTemporaryFile("w", suffix=".musicxml", encoding="utf-8", delete=False) as file:
-        file.write(prepared)
-        temporary_path = Path(file.name)
-    try:
-        yield temporary_path
-    finally:
-        temporary_path.unlink(missing_ok=True)
 
 
 def _direct_children_by_local_name(element: ET.Element, name: str) -> Iterator[ET.Element]:

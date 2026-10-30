@@ -216,11 +216,12 @@ async function setupPracticeMocks(
   );
 
   // Mock Practice Content
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/content`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: apiResponse({
+        source_id: "source-1",
         score_id: scoreId,
         revision_id: revisionId,
         content: selectableMusicXml,
@@ -229,11 +230,11 @@ async function setupPracticeMocks(
   );
 
   // Mock PracticeScoreArtifact
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/artifact`, (route) =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source/artifact`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse(artifactOverride ?? smokeArtifact),
+      body: apiResponse({ source_id: "source-1", artifact: artifactOverride ?? smokeArtifact }),
     })
   );
 
