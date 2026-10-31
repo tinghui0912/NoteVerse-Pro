@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline, practice_meter_segments_from_musicxml
 
 
 def note_array(np):
@@ -33,6 +33,7 @@ def musicxml_fixture(tmp_path):
   </part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>A</step><octave>5</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n3"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
@@ -58,6 +59,7 @@ def semantic_identity_musicxml_fixture(tmp_path, note_ids: tuple[str, str, str])
   </part-list>
   <part id="P1">
     <measure number="Display-A">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="{first_id}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
       <note id="{second_id}"><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
     </measure>
@@ -94,7 +96,7 @@ def semantic_identity_note_array(np, note_ids: tuple[str, str, str]):
 def test_practice_score_timeline_preserves_events_and_exact_onset_groups(tmp_path) -> None:
     import numpy as np
 
-    timeline = PracticeScoreTimeline.from_note_array(
+    timeline = timeline_from_notes(
         note_array(np),
         musicxml_path=musicxml_fixture(tmp_path),
     )
@@ -142,6 +144,7 @@ def test_practice_attack_steps_cover_simple_new_attacks(tmp_path) -> None:
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
     </measure>
@@ -151,7 +154,7 @@ def test_practice_attack_steps_cover_simple_new_attacks(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     assert tuple(
         tuple(target.piano_key for target in step.attacks)
@@ -188,6 +191,7 @@ def test_practice_attack_steps_keep_same_pitch_without_tie_as_new_attack(tmp_pat
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
     </measure>
@@ -197,7 +201,7 @@ def test_practice_attack_steps_keep_same_pitch_without_tie_as_new_attack(tmp_pat
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     assert tuple(
         tuple(target.piano_key for target in step.attacks)
@@ -257,7 +261,7 @@ def test_practice_score_timeline_preserves_meter_for_count_in_duration_and_pulse
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=path)
+    timeline = timeline_from_notes(notes, musicxml_path=path)
 
     first_meter = timeline.meter_at(0.0)
     second_meter = timeline.meter_at(3.0)
@@ -273,11 +277,11 @@ def test_practice_score_timeline_uses_revision_stable_expected_group_ids(tmp_pat
     import numpy as np
 
     musicxml_path = musicxml_fixture(tmp_path)
-    first_timeline = PracticeScoreTimeline.from_note_array(
+    first_timeline = timeline_from_notes(
         note_array(np),
         musicxml_path=musicxml_path,
     )
-    second_timeline = PracticeScoreTimeline.from_note_array(
+    second_timeline = timeline_from_notes(
         note_array(np),
         musicxml_path=musicxml_path,
     )
@@ -297,11 +301,11 @@ def test_practice_score_timeline_group_identity_does_not_depend_on_render_note_i
 
     first_ids = ("render-v1-a", "render-v1-b", "render-v1-c")
     second_ids = ("render-v2-a", "render-v2-b", "render-v2-c")
-    first_timeline = PracticeScoreTimeline.from_note_array(
+    first_timeline = timeline_from_notes(
         semantic_identity_note_array(np, first_ids),
         musicxml_path=semantic_identity_musicxml_fixture(tmp_path, first_ids),
     )
-    second_timeline = PracticeScoreTimeline.from_note_array(
+    second_timeline = timeline_from_notes(
         semantic_identity_note_array(np, second_ids),
         musicxml_path=semantic_identity_musicxml_fixture(tmp_path, second_ids),
     )
@@ -359,6 +363,7 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations(tmp_path) -> 
   </part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/></note>
     </measure>
     <measure number="2">
@@ -370,7 +375,7 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations(tmp_path) -> 
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     assert timeline.playable_onset_beats == (3.0,)
     assert tuple(group.onset_beat for group in timeline.moments) == (3.0,)
@@ -411,6 +416,7 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) 
   </part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/></note>
     </measure>
     <measure number="2">
@@ -425,7 +431,7 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) 
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     assert tuple(group.onset_beat for group in timeline.moments) == (3.0,)
     group = timeline.moments[0]
@@ -462,6 +468,7 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) 
   </part-list>
   <part id="P1">
     <measure number="2">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
       <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
@@ -472,7 +479,7 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) 
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     assert tuple(group.onset_beat for group in timeline.moments) == (4.0,)
     group = timeline.moments[0]
@@ -514,6 +521,7 @@ def test_practice_attack_steps_keep_shared_pitch_rearticulation_in_chord(tmp_pat
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
@@ -527,7 +535,7 @@ def test_practice_attack_steps_keep_shared_pitch_rearticulation_in_chord(tmp_pat
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     second_step = timeline.moments[1]
     assert tuple(target.piano_key for target in second_step.attacks) == (60, 65, 69)
@@ -560,6 +568,7 @@ def test_practice_attack_steps_consolidate_same_pitch_multi_voice_staff_targets(
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
       <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>2</voice><staff>2</staff></note>
     </measure>
@@ -569,7 +578,7 @@ def test_practice_attack_steps_consolidate_same_pitch_multi_voice_staff_targets(
         encoding="utf-8",
     )
 
-    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+    timeline = timeline_from_notes(notes, musicxml_path=musicxml_path)
 
     step = timeline.moments[0]
     assert tuple(target.piano_key for target in step.attacks) == (60,)
@@ -587,7 +596,7 @@ def test_practice_attack_steps_consolidate_same_pitch_multi_voice_staff_targets(
 def test_practice_attack_steps_merge_multi_voice_staff_same_onset(tmp_path) -> None:
     import numpy as np
 
-    timeline = PracticeScoreTimeline.from_note_array(
+    timeline = timeline_from_notes(
         note_array(np),
         musicxml_path=musicxml_fixture(tmp_path),
     )
@@ -611,3 +620,10 @@ def moment_end(timeline, group_id):
 def moment_notes(timeline, moment):
     ids = {i for attack in moment.attacks for i in attack.note_ids}
     return [n for n in timeline.notes if n.note_id in ids]
+
+
+def timeline_from_notes(note_array, *, musicxml_path):
+    return PracticeScoreTimeline.from_note_array(
+        note_array, musicxml_path=musicxml_path,
+        meter_segments=practice_meter_segments_from_musicxml(musicxml_path),
+    )

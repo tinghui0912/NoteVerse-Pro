@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.processing.practice_score.piano_key import PracticePianoKey
 from app.processing.practice_score.score_timeline import (
@@ -11,6 +11,7 @@ from app.processing.practice_score.score_timeline import (
     PracticeScoreEvent,
     PracticeMoment,
     PracticeAttack,
+    PracticeMeterSegment,
     assert_practice_timeline,
 )
 
@@ -56,7 +57,7 @@ class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
     denominator: int
     measureDurationBeats: float
     countInPulses: int
-    source: Literal["MUSICXML", "DEFAULT_4_4"]
+    source: Literal["MUSICXML"]
 
 
 class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
@@ -72,7 +73,7 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
     notes: list[PracticeScoreNoteRead]
     events: list[PracticeScoreEventRead]
     moments: list[PracticeScoreMomentRead]
-    meterSegments: list[PracticeScoreMeterSegmentRead]
+    meterSegments: list[PracticeScoreMeterSegmentRead] = Field(min_length=1)
     scoreTempoSegments: list[PracticeScoreTempoSegmentRead]
     firstPlayableBeat: float
     scoreEndBeat: float
@@ -111,6 +112,10 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
             ),
             first_playable_beat=self.firstPlayableBeat,
             end_beat=self.scoreEndBeat,
+            meter_segments=tuple(
+                PracticeMeterSegment(m.startBeat, m.numerator, m.denominator, m.source)
+                for m in self.meterSegments
+            ),
         )
         assert_practice_timeline(timeline)
         if not self.scoreId or not self.revisionId or not self.artifactId:
@@ -120,6 +125,8 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
             if tempo.startBeat < 0 or tempo.startBeat <= previous or tempo.bpm <= 0:
                 raise ValueError("Invalid score tempo chronology.")
             previous = tempo.startBeat
+        if not self.meterSegments or self.meterSegments[0].startBeat != 0:
+            raise ValueError("Practice requires explicit initial meter timing.")
         previous = -1.0
         for meter in self.meterSegments:
             if (

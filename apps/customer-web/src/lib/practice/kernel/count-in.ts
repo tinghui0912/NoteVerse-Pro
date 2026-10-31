@@ -8,16 +8,9 @@ export type CountInContract = {
 };
 
 function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
-  const defaultMeter: MeterSegment = {
-    startBeat: 0,
-    numerator: 4,
-    denominator: 4,
-    measureDurationBeats: 4,
-    countInPulses: 4,
-    source: 'DEFAULT_4_4',
-  };
-  const segments = artifact.meterSegments && artifact.meterSegments.length > 0 ? artifact.meterSegments : [defaultMeter];
-  let active = segments[0] ?? defaultMeter;
+  const segments = artifact.meterSegments;
+  if (!segments.length || segments[0].startBeat !== 0) throw new Error('Admitted initial meter timing required.');
+  let active = segments[0];
   for (const segment of segments) {
     if (segment.startBeat > beat) {
       break;

@@ -6703,6 +6703,7 @@
             "items": {
               "$ref": "#/components/schemas/PracticeScoreMeterSegmentRead"
             },
+            "minItems": 1,
             "title": "Metersegments",
             "type": "array"
           },
@@ -6834,10 +6835,7 @@
             "type": "integer"
           },
           "source": {
-            "enum": [
-              "MUSICXML",
-              "DEFAULT_4_4"
-            ],
+            "const": "MUSICXML",
             "title": "Source",
             "type": "string"
           },

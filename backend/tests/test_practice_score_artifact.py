@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline, practice_meter_segments_from_musicxml
 from app.processing.practice_score.practice_score_artifact import (
     practice_score_artifact_from_timeline,
 )
@@ -24,7 +24,7 @@ class _NoteArray(list):
 def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
     musicxml_path = tmp_path / "canonical-local-core.musicxml"
     musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
-    timeline = PracticeScoreTimeline.from_note_array(
+    timeline = timeline_from_notes(
         _canonical_note_array(),
         musicxml_path=musicxml_path,
     )
@@ -75,7 +75,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     import pytest
     from app.processing.practice_score.piano_key import PracticeScoreInvalidError
     timeline = PracticeScoreTimeline(notes=(), events=(), moments=(),
-                                    first_playable_beat=None, end_beat=0.)
+                                    first_playable_beat=None, end_beat=0., meter_segments=())
     with pytest.raises(PracticeScoreInvalidError):
         practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
 
@@ -83,7 +83,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
 def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
     musicxml_path = tmp_path / "canonical-local-core.musicxml"
     musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
-    timeline = PracticeScoreTimeline.from_note_array(
+    timeline = timeline_from_notes(
         _canonical_note_array(),
         musicxml_path=musicxml_path,
     )
@@ -318,3 +318,10 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
     assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 999})
+
+
+def timeline_from_notes(note_array, *, musicxml_path):
+    return PracticeScoreTimeline.from_note_array(
+        note_array, musicxml_path=musicxml_path,
+        meter_segments=practice_meter_segments_from_musicxml(musicxml_path),
+    )

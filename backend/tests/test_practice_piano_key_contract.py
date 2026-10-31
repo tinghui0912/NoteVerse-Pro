@@ -8,7 +8,7 @@ import pytest
 from app.core.exceptions import ExternalServiceException, ValidationException
 from app.modules.practice.source.service import PracticeSourceService
 from app.processing.practice_score.piano_key import PracticeScoreInvalidError
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline, PracticeMeterSegment
 from app.processing.practice_score.practice_score_artifact import practice_score_artifact_from_timeline
 
 
@@ -19,7 +19,7 @@ def notes(keys):
 
 @pytest.mark.parametrize("key", [21, 108])
 def test_piano_endpoints_are_practice_ready(key):
-    timeline = PracticeScoreTimeline.from_note_array(notes([key]))
+    timeline = PracticeScoreTimeline.from_note_array(notes([key]), meter_segments=(PracticeMeterSegment(0, 4, 4),))
     artifact = practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
     assert artifact["schemaVersion"] == 3
     assert [a["pianoKey"] for a in artifact["moments"][0]["attacks"]] == [key]
@@ -28,7 +28,7 @@ def test_piano_endpoints_are_practice_ready(key):
 @pytest.mark.parametrize("keys", [[20], [109], [60, 20], [60, 109], []])
 def test_entire_revision_is_invalid_even_if_an_earlier_section_is_playable(keys):
     with pytest.raises(PracticeScoreInvalidError):
-        PracticeScoreTimeline.from_note_array(notes(keys))
+        PracticeScoreTimeline.from_note_array(notes(keys), meter_segments=(PracticeMeterSegment(0, 4, 4),))
 
 
 @pytest.mark.asyncio

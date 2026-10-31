@@ -12,7 +12,8 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
     from app.processing.practice_score import score_loader
 
     prepared_path = tmp_path / "prepared.musicxml"
-    prepared_path.write_text("<score-partwise version='4.0' />", encoding="utf-8")
+    prepared_path.write_text("<score-partwise><part><measure><attributes><time><beats>4</beats>"
+                             "<beat-type>4</beat-type></time></attributes></measure></part></score-partwise>", encoding="utf-8")
 
     sentinel = object()
     loaded_paths: list[str] = []
@@ -28,7 +29,7 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
     monkeypatch.setattr(
         score_loader.PracticeScoreTimeline,
         "from_note_array",
-        staticmethod(lambda note_array, musicxml_path: sentinel),
+        staticmethod(lambda note_array, musicxml_path, meter_segments: sentinel),
     )
 
     timeline = score_loader.practice_score_timeline_from_prepared_musicxml(prepared_path)

@@ -1,3 +1,5 @@
+import canonical from '../__fixtures__/canonical-practice-score-artifact.json';
+import { parsePracticeScoreArtifact } from './artifact';
 import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
 import { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import {
@@ -242,4 +244,14 @@ it("resolves score tempo at the first playable onset after a leading rest", () =
     expect(tempoInfo.source).toBe('MUSICXML');
 
 
+});
+
+it.each([{scoreTempoSegments:[]},{scoreTempoSegments:[{startBeat:3,bpm:100}]}])('admitted explicit meter supports optional and delayed score tempo',({scoreTempoSegments})=>{
+  const artifact=parsePracticeScoreArtifact({...structuredClone(canonical),scoreTempoSegments});
+  const plan=resolvePracticeTempoPlan(artifact,{mode:'SCORE'});
+  expect(plan.segments[0]).toEqual({startBeat:0,bpm:80,source:'PRODUCT_DEFAULT'});
+  expect(plan.segments.slice(1)).toEqual(scoreTempoSegments.map(t=>({...t,source:'MUSICXML'})));
+  const timeline=new PracticeTempoTimeline(plan,artifact.scoreEndBeat);
+  expect(timeline.bpmAtBeat(0)).toBe(80);
+  if(scoreTempoSegments.length)expect(timeline.bpmAtBeat(3)).toBe(100);
 });

@@ -1,0 +1,157 @@
+from dataclasses import replace
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from pydantic import ValidationError
+
+from app.core.exceptions import ValidationException
+from app.modules.practice.source.builder import PracticeSourceBuilder
+from app.modules.practice.source.schemas import PracticeScoreArtifactRead
+from app.modules.practice.source.service import PracticeSourceService
+from app.processing.practice_score.piano_key import PracticeScoreInvalidError
+from app.processing.practice_score.score_loader import (
+    practice_score_timeline_from_prepared_musicxml,
+)
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline, PracticeMeterSegment
+
+
+def time(numerator=4, denominator=4):
+    return f"<time><beats>{numerator}</beats><beat-type>{denominator}</beat-type></time>"
+
+
+def xml(initial, later="", tempo=""):
+    # Key signature is intentionally absent: physical piano identity owns pitch.
+    return f"""<score-partwise version="3.1">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1"><attributes><divisions>1</divisions>{initial}</attributes>
+        <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+      </measure><measure number="2"><attributes>{later}</attributes>{tempo}
+        <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+      </measure></part></score-partwise>""".encode()
+
+
+def build(value):
+    return PracticeSourceBuilder().build(score_id="s", revision_id="r", canonical_musicxml=value)
+
+
+@pytest.mark.parametrize(
+    "initial,later,expected",
+    [
+        (time(), "", [(0, 4, 4)]),
+        (time(3, 4), "", [(0, 3, 4)]),
+        (time(3, 4), time(6, 8), [(0, 3, 4), (3, 6, 8)]),
+    ],
+)
+def test_explicit_initial_meter_and_inherited_or_changed_meter(initial, later, expected):
+    bundle = build(xml(initial, later))
+    artifact = PracticeScoreArtifactRead.model_validate(bundle.artifact.value)
+    assert [(m.startBeat, m.numerator, m.denominator) for m in artifact.meterSegments] == expected
+    assert all(m.source == "MUSICXML" for m in artifact.meterSegments)
+    assert artifact.notes[0].pianoKey == 60
+    assert b"<key>" not in bundle.prepared_musicxml.data
+    assert artifact.scoreTempoSegments == []
+
+
+INVALID = [
+    ("", ""),
+    ("", time(3, 4)),
+    (time("invalid", 4), ""),
+    (time(3, "invalid"), ""),
+    (time("9" * 400, 4), ""),
+    (time(4, "9" * 400), ""),
+    (time("3.5", 4), ""),
+    (time(0, 4), ""),
+    (time(4, 0), ""),
+    ("<time><senza-misura/></time>", ""),
+    (time(), "<time><senza-misura/></time>"),
+    (time(), time(3, "invalid")),
+]
+
+
+@pytest.mark.parametrize("initial,later", INVALID)
+def test_invalid_meter_fails_before_partitura_and_source_derivation(tmp_path, initial, later):
+    path = tmp_path / "prepared.musicxml"
+    path.write_bytes(xml(initial, later))
+    with patch(
+        "app.processing.practice_score.score_loader.load_score_as_part_for_practice"
+    ) as load:
+        with pytest.raises(PracticeScoreInvalidError):
+            practice_score_timeline_from_prepared_musicxml(path)
+    load.assert_not_called()
+    with pytest.raises(PracticeScoreInvalidError):
+        build(path.read_bytes())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("initial,later", INVALID)
+async def test_real_builder_meter_failure_maps_to_existing_invalid_score(tmp_path, initial, later):
+    path = tmp_path / "score.musicxml"
+    path.write_bytes(xml(initial, later))
+    service = PracticeSourceService()
+    access = SimpleNamespace(
+        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
+    )
+    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    with pytest.raises(ValidationException) as caught:
+        await service.read_source(AsyncMock(), "s", 1, "r")
+    assert caught.value.code == "practice_score_invalid"
+    assert caught.value.status_code == 422
+    assert isinstance(caught.value.__cause__, PracticeScoreInvalidError)
+
+
+def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
+    no_tempo = build(xml(time(3, 4))).artifact.value
+    assert no_tempo["scoreTempoSegments"] == []
+    delayed = build(
+        xml(time(3, 4), tempo='<direction><sound tempo="100"/></direction>')
+    ).artifact.value
+    assert delayed["scoreTempoSegments"] == [{"startBeat": 3.0, "bpm": 100.0}]
+    assert set(no_tempo) == {
+        "schemaVersion",
+        "scoreId",
+        "revisionId",
+        "artifactId",
+        "notes",
+        "events",
+        "moments",
+        "meterSegments",
+        "scoreTempoSegments",
+        "firstPlayableBeat",
+        "scoreEndBeat",
+    }
+    assert set(PracticeScoreArtifactRead.model_fields) == set(no_tempo)
+
+
+@pytest.mark.parametrize(
+    "meters",
+    [
+        [],
+        [
+            {
+                "startBeat": 1,
+                "numerator": 4,
+                "denominator": 4,
+                "measureDurationBeats": 4,
+                "countInPulses": 4,
+                "source": "MUSICXML",
+            }
+        ],
+    ],
+)
+def test_transport_rejects_missing_initial_meter_without_mutation(meters):
+    from copy import deepcopy
+
+    value = {**build(xml(time())).artifact.value, "meterSegments": meters}
+    before = deepcopy(value)
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate(value)
+    assert value == before
+
+
+def test_timeline_meter_access_fails_closed_without_initial_meter():
+    timeline = PracticeScoreTimeline((), (), (), None, 0, ())
+    with pytest.raises(PracticeScoreInvalidError):
+        timeline.meter_at(0)
+    with pytest.raises(PracticeScoreInvalidError):
+        replace(timeline, meter_segments=(PracticeMeterSegment(1, 3, 4),)).meter_at(0)

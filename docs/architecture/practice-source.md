@@ -157,3 +157,21 @@ or service failures. The original cause is retained for diagnostics and safe API
 formatting. Setup stops before qualification on either failure; load failure is retryable
 through Start Practice. Practice presents failure in place. The shared strict parser
 remains the full score admission authority. See [failure boundaries](practice-failures.md).
+
+## Meter, Pitch and Tempo Admission
+
+Practice requires an explicit valid initial MusicXML meter. The canonical meter
+timeline is nonempty and its first segment starts at beat 0. Numerator and denominator
+are positive integers; measure duration is positive and count-in pulses are nonnegative
+integers. Later measures may omit time signatures and inherit the established meter;
+explicit meter changes remain supported. Missing, malformed or unsupported unmetered
+notation fails with INVALID_SCORE (`practice_score_invalid`). Source construction owns
+that admission; transport parsers defend the same contract, and count-in/session/metronome
+layers consume admitted timing without synthesizing meter.
+
+Key signature is not Practice admission data: physical piano keys own pitch identity.
+A valid metered score without a key signature is Practice-valid. Explicit tempo is
+optional: SCORE selection uses PRODUCT_DEFAULT 80 BPM when no tempo is present, or
+before the first explicit MUSICXML tempo. Continuous PerformanceClock owns count-in
+derived from the active admitted meter; metronome mirrors its transport sync point.
+STEP has no count-in and uses admitted meter for target pulse grid and accents.

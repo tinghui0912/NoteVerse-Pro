@@ -19,7 +19,7 @@ export type PracticeMoment = {
 };
 export type MeterSegment = {
   startBeat: number; numerator: number; denominator: number; measureDurationBeats: number; countInPulses: number;
-  source: 'MUSICXML' | 'DEFAULT_4_4';
+  source: 'MUSICXML';
 };
 export type TempoSegment = { startBeat: number; bpm: number };
 export type PracticeScoreArtifact = {
@@ -107,11 +107,13 @@ export function assertPracticeScoreArtifact(value: unknown): asserts value is Pr
     tempoBeat = t.startBeat;
   }
   let meterBeat = -1;
-  for (const raw of array(root.meterSegments)) {
+  const meterSegments = array(root.meterSegments);
+  if (!meterSegments.length) fail('Explicit initial meter required.');
+  for (const raw of meterSegments) {
     const m = object(raw, 'startBeat numerator denominator measureDurationBeats countInPulses source');
     for (const key of ['startBeat', 'numerator', 'denominator', 'measureDurationBeats', 'countInPulses']) number(m[key]);
-    if ((m.startBeat as number) < 0 || (m.startBeat as number) <= meterBeat || (m.numerator as number) < 1 || (m.denominator as number) < 1
-      || (m.measureDurationBeats as number) <= 0 || (m.countInPulses as number) < 0 || !['numerator','denominator','countInPulses'].every(key => Number.isInteger(m[key])) || !['MUSICXML','DEFAULT_4_4'].includes(m.source as string)) fail('Invalid meter contract.');
+    if ((meterBeat === -1 && m.startBeat !== 0) || (m.startBeat as number) < 0 || (m.startBeat as number) <= meterBeat || (m.numerator as number) < 1 || (m.denominator as number) < 1
+      || (m.measureDurationBeats as number) <= 0 || (m.countInPulses as number) < 0 || !['numerator','denominator','countInPulses'].every(key => Number.isInteger(m[key])) || m.source !== 'MUSICXML') fail('Invalid meter contract.');
     meterBeat = m.startBeat as number;
   }
 }

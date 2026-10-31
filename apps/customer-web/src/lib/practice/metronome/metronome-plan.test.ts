@@ -15,10 +15,9 @@ it.each(['STEP','CONTINUOUS'] as const)('%s projects exact resolved timing and f
   expect(Object.isFrozen(plan.meterSegments[0])).toBe(true);expect(Object.isFrozen(plan.tempoPlan.segments)).toBe(true);
   expect(()=>Object.assign(plan,{mode:'OTHER'})).toThrow();expect(()=>Object.assign(plan.meterSegments[0],{numerator:3})).toThrow();
 });
-it('empty meter input resolves explicit default 4/4 while terminal timing is always required',()=>{
+it('meter and finite terminal timing are required without repair',()=>{
   const base=stepSessionPlan(structuredClone(fixture) as PracticeScoreArtifact).metronomePlan;
-  const plan=resolveMetronomePlan({...base,meterSegments:[],timelineEndBeat:12,scopeEndBeat:12});
-  expect(plan.meterSegments).toEqual([{startBeat:0,numerator:4,denominator:4,measureDurationBeats:4,countInPulses:4,source:'DEFAULT_4_4'}]);
-  expect(plan.timelineEndBeat).toBe(12);
+  expect(() => resolveMetronomePlan({...base,meterSegments:[]})).toThrow('initial meter');
+  expect(() => resolveMetronomePlan({...base,meterSegments:[{...base.meterSegments[0],startBeat:1}]})).toThrow('initial meter');
   for(const terminal of [undefined,NaN,Infinity,-1])expect(()=>resolveMetronomePlan({...base,timelineEndBeat:terminal} as never)).toThrow();
 });

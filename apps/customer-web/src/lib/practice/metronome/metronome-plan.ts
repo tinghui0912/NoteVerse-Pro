@@ -20,13 +20,14 @@ export function resolveMetronomePlan(input: ResolvedMetronomePlan): ResolvedMetr
     || input.scopeEndBeat > input.timelineEndBeat || !input.tempoPlan?.segments.length) {
     throw new Error('Invalid resolved metronome timing.');
   }
-  const meterSegments = input.meterSegments.length ? input.meterSegments : [{ startBeat: 0,
-    numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'DEFAULT_4_4' as const }];
+  const meterSegments = input.meterSegments;
+  if (!meterSegments.length || meterSegments[0].startBeat !== 0) throw new Error('Admitted initial meter timing required.');
   for (const segment of meterSegments) {
     if (!Number.isFinite(segment.startBeat) || segment.startBeat < 0
-      || !Number.isFinite(segment.numerator) || segment.numerator <= 0
-      || !Number.isFinite(segment.denominator) || segment.denominator <= 0
-      || !Number.isFinite(segment.measureDurationBeats) || segment.measureDurationBeats <= 0) {
+      || !Number.isInteger(segment.numerator) || segment.numerator <= 0
+      || !Number.isInteger(segment.denominator) || segment.denominator <= 0
+      || !Number.isFinite(segment.measureDurationBeats) || segment.measureDurationBeats <= 0
+      || !Number.isInteger(segment.countInPulses) || segment.countInPulses < 0 || segment.source !== 'MUSICXML') {
       throw new Error('Invalid metronome meter timing.');
     }
   }

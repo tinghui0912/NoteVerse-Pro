@@ -13,9 +13,7 @@ import xml.etree.ElementTree as ET
 from app.processing.practice_score.piano_key import PracticeScoreInvalidError, practice_piano_key
 
 ScoreBeat = float
-DEFAULT_METER_NUMERATOR = 4
-DEFAULT_METER_DENOMINATOR = 4
-MeterSource = Literal["MUSICXML", "DEFAULT_4_4"]
+MeterSource = Literal["MUSICXML"]
 
 
 @dataclass(frozen=True)
@@ -62,7 +60,13 @@ class PracticeMeterSegment:
 
     @property
     def measure_duration_beats(self) -> ScoreBeat:
-        return _round_beat(self.numerator * 4.0 / self.denominator)
+        try:
+            duration = _round_beat(self.numerator * 4.0 / self.denominator)
+        except (OverflowError, ZeroDivisionError) as error:
+            raise PracticeScoreInvalidError("Invalid Practice meter duration.") from error
+        if not math.isfinite(duration) or duration <= 0:
+            raise PracticeScoreInvalidError("Invalid Practice meter duration.")
+        return duration
 
     @property
     def count_in_pulses(self) -> int:
@@ -76,11 +80,15 @@ class PracticeScoreTimeline:
     moments: tuple[PracticeMoment, ...]
     first_playable_beat: ScoreBeat | None
     end_beat: ScoreBeat
-    meter_segments: tuple[PracticeMeterSegment, ...] = ()
+    meter_segments: tuple[PracticeMeterSegment, ...]
 
     @classmethod
     def from_note_array(
-        cls, note_array, *, musicxml_path: str | Path | None = None
+        cls,
+        note_array,
+        *,
+        meter_segments: tuple[PracticeMeterSegment, ...],
+        musicxml_path: str | Path | None = None,
     ) -> "PracticeScoreTimeline":
         names = set(note_array.dtype.names or ())
         if not {"onset_beat", "duration_beat", "pitch", "id"} <= names:
@@ -141,7 +149,7 @@ class PracticeScoreTimeline:
             end_beat=_round_beat(
                 max((e.onset_beat + e.duration_beats for e in events), default=0.0)
             ),
-            meter_segments=_musicxml_meter_segments(musicxml_path),
+            meter_segments=meter_segments,
         )
         assert_practice_timeline(timeline)
         return timeline
@@ -151,8 +159,8 @@ class PracticeScoreTimeline:
         return tuple(moment.onset_beat for moment in self.moments)
 
     def meter_at(self, beat: ScoreBeat) -> PracticeMeterSegment:
-        if not self.meter_segments:
-            return _default_meter_segment()
+        if not self.meter_segments or self.meter_segments[0].start_beat != 0:
+            raise PracticeScoreInvalidError("Practice requires explicit initial meter timing.")
         active = self.meter_segments[0]
         for segment in self.meter_segments:
             if segment.start_beat > max(0.0, float(beat)):
@@ -238,6 +246,26 @@ def assert_practice_timeline(timeline: PracticeScoreTimeline) -> None:
     """Validate canonical identities, references, chronology and complete physical membership."""
     if not timeline.notes or not timeline.events or not timeline.moments:
         raise PracticeScoreInvalidError("Score has no playable Practice targets.")
+    if not timeline.meter_segments or timeline.meter_segments[0].start_beat != 0:
+        raise PracticeScoreInvalidError("Practice requires explicit initial meter timing.")
+    previous_meter = -math.inf
+    for meter in timeline.meter_segments:
+        if (
+            not math.isfinite(meter.start_beat)
+            or meter.start_beat < 0
+            or meter.start_beat <= previous_meter
+            or type(meter.numerator) is not int
+            or meter.numerator <= 0
+            or type(meter.denominator) is not int
+            or meter.denominator <= 0
+            or not math.isfinite(meter.measure_duration_beats)
+            or meter.measure_duration_beats <= 0
+            or type(meter.count_in_pulses) is not int
+            or meter.count_in_pulses < 0
+            or meter.source != "MUSICXML"
+        ):
+            raise PracticeScoreInvalidError("Invalid Practice meter timing.")
+        previous_meter = meter.start_beat
     notes = {n.note_id: n for n in timeline.notes}
     events = {e.event_id: e for e in timeline.events}
     if len(notes) != len(timeline.notes) or len(events) != len(timeline.events):
@@ -386,20 +414,20 @@ def _musicxml_note_metadata(path: str | Path | None) -> dict[str, _MusicXmlNoteM
     return metadata
 
 
-def _musicxml_meter_segments(path: str | Path | None) -> tuple[PracticeMeterSegment, ...]:
-    if path is None:
-        return ()
+def practice_meter_segments_from_musicxml(path: str | Path) -> tuple[PracticeMeterSegment, ...]:
     try:
         root = ET.parse(path).getroot()
-    except (OSError, ET.ParseError):
-        return ()
+    except (OSError, ET.ParseError) as error:
+        raise PracticeScoreInvalidError("Practice meter timing cannot be read.") from error
+    if any(_local_name(element.tag) == "senza-misura" for element in root.iter()):
+        raise PracticeScoreInvalidError("Unmetered notation is unsupported for Practice.")
 
     first_part = next(iter(_direct_children_by_local_name(root, "part")), None)
     if first_part is None:
-        return ()
+        raise PracticeScoreInvalidError("Practice requires initial part meter timing.")
 
     divisions = 1.0
-    current_measure_duration_beats = _default_meter_segment().measure_duration_beats
+    current_measure_duration_beats: float | None = None
     measure_start_beat = 0.0
     segments: list[PracticeMeterSegment] = []
 
@@ -413,16 +441,22 @@ def _musicxml_meter_segments(path: str | Path | None) -> tuple[PracticeMeterSegm
                     divisions = _positive_float_or_default(divisions_text, divisions)
                 time = element.find("{*}time")
                 if time is not None:
-                    numerator = _positive_int_or_default(_child_text(time, "beats"), 0)
-                    denominator = _positive_int_or_default(_child_text(time, "beat-type"), 0)
-                    if numerator > 0 and denominator > 0:
-                        meter = PracticeMeterSegment(
-                            start_beat=_round_beat(measure_start_beat),
-                            numerator=numerator,
-                            denominator=denominator,
-                        )
-                        current_measure_duration_beats = meter.measure_duration_beats
-                        segments.append(meter)
+                    try:
+                        numerator = int(_child_text(time, "beats"))
+                        denominator = int(_child_text(time, "beat-type"))
+                    except ValueError as error:
+                        raise PracticeScoreInvalidError(
+                            "Invalid Practice time signature."
+                        ) from error
+                    if numerator <= 0 or denominator <= 0 or cursor != 0:
+                        raise PracticeScoreInvalidError("Invalid Practice time signature timing.")
+                    meter = PracticeMeterSegment(
+                        start_beat=_round_beat(measure_start_beat),
+                        numerator=numerator,
+                        denominator=denominator,
+                    )
+                    current_measure_duration_beats = meter.measure_duration_beats
+                    segments.append(meter)
                 continue
 
             if tag in {"note", "forward"}:
@@ -431,12 +465,14 @@ def _musicxml_meter_segments(path: str | Path | None) -> tuple[PracticeMeterSegm
             elif tag == "backup":
                 cursor = max(0.0, cursor - _duration_beats(element, divisions))
 
+        if current_measure_duration_beats is None:
+            raise PracticeScoreInvalidError("Practice requires an explicit initial time signature.")
         measure_start_beat += (
             measure_extent if measure_extent > 0 else current_measure_duration_beats
         )
 
-    if not segments:
-        return ()
+    if not segments or segments[0].start_beat != 0:
+        raise PracticeScoreInvalidError("Practice requires explicit initial meter timing.")
 
     deduped: dict[ScoreBeat, PracticeMeterSegment] = {
         segment.start_beat: segment for segment in segments
@@ -457,23 +493,6 @@ def _positive_float_or_default(value: str, default: float) -> float:
     except ValueError:
         return default
     return parsed if parsed > 0 else default
-
-
-def _positive_int_or_default(value: str, default: int) -> int:
-    try:
-        parsed = int(value)
-    except ValueError:
-        return default
-    return parsed if parsed > 0 else default
-
-
-def _default_meter_segment() -> PracticeMeterSegment:
-    return PracticeMeterSegment(
-        start_beat=0.0,
-        numerator=DEFAULT_METER_NUMERATOR,
-        denominator=DEFAULT_METER_DENOMINATOR,
-        source="DEFAULT_4_4",
-    )
 
 
 def _direct_children_by_local_name(element: ET.Element, name: str) -> tuple[ET.Element, ...]:

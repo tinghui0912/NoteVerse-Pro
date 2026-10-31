@@ -4,7 +4,7 @@ import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { describe, expect, it } from 'vitest';
 import canonical from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
-import { assertPracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from './artifact';
+import { assertPracticeScoreArtifact, parsePracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from './artifact';
 import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { resolvePracticeScope } from './scope';
 import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
@@ -111,4 +111,16 @@ it.each(corruptions)('rejects %s without coercion, repair or mutation', (_label,
 it.each([20,109,60.5,NaN,Infinity,true,'60','C4'])('rejects a later unselected invalid key %s revision-wide', key => {
   const value = structuredClone(fixture); Object.assign(value.notes.at(-1)!, { pianoKey: key });
   expect(() => assertPracticeScoreArtifact(value)).toThrow();
+});
+
+it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startBeat:1}]}])('strict parser rejects missing initial meter without repair',({meterSegments})=>{
+  const value={...structuredClone(fixture),meterSegments},before=structuredClone(value);
+  expect(()=>parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({code:'practice_score_invalid'}));
+  expect(value).toEqual(before);
+});
+it('strict parser admits explicit initial meter and physical notation without tonal metadata',()=>{
+  const value=structuredClone(fixture);expect(parsePracticeScoreArtifact(value)).toBe(value);
+  expect(value.meterSegments[0]).toMatchObject({startBeat:0,source:'MUSICXML'});
+  expect(Object.keys(value).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
+    'meterSegments','scoreTempoSegments','firstPlayableBeat','scoreEndBeat'].sort());
 });

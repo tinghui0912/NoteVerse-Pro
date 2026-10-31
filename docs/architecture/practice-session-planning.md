@@ -246,8 +246,9 @@ context, capture, analysis or recorder failures as physical root loss.
 
 `PracticeSessionPlan.metronomePlan` is the immutable musical projection owned by
 session planning. It contains STEP/CONTINUOUS mode, meter segments, resolved tempo,
-finite timeline end, scope start/end and initial enabled state. Empty meter input
-resolves an explicit DEFAULT_4_4 segment in the plan builder. Runtime receives no
+finite timeline end, scope start/end and initial enabled state. Meter timing is
+nonempty, explicitly MUSICXML-sourced and starts at beat 0. Missing initial meter
+fails admission; planning and runtime perform no meter repair. Runtime receives no
 Artifact and performs no semantic scope/tempo resolution. A candidate initial-enable
 change reuses the same resolved scope and tempo.
 

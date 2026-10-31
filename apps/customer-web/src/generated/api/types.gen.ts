@@ -3478,7 +3478,7 @@ export type PracticeScoreMeterSegmentRead = {
     /**
      * Source
      */
-    source: 'MUSICXML' | 'DEFAULT_4_4';
+    source: 'MUSICXML';
     /**
      * Startbeat
      */

@@ -20,11 +20,7 @@ describe('Meter-derived count-in', () => {
       numerator: 6,
       denominator: 8,
     });
-    expect(countInContractAt(cloneArtifact({ meterSegments: [] }), 0)).toMatchObject({
-      durationBeats: 4,
-      pulses: 4,
-      numerator: 4,
-      denominator: 4,
-    });
+    expect(() => countInContractAt(cloneArtifact({ meterSegments: [] }), 0)).toThrow('initial meter');
+    expect(() => countInContractAt(cloneArtifact({ meterSegments: [{ ...artifact.meterSegments[0], startBeat: 1 }] }), 0)).toThrow('initial meter');
   });
 });
