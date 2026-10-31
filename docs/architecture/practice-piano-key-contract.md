@@ -4,7 +4,7 @@
 
 PracticePianoKey is an integer MIDI key21..108:88 physical piano keys A0..C8.
 This is an explicit Practice product domain, owned by backend
-processing/practice_score/piano_key.py and browser practice/kernel/piano-key.ts.
+modules/practice/score/piano_key.py and browser practice/kernel/piano-key.ts.
 Enharmonic spelling belongs to notation; physical evaluation compares numeric keys.
 The domain is independent of input source and acoustic model vocabulary.
 

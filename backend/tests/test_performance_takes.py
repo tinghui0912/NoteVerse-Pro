@@ -63,7 +63,7 @@ from app.modules.practice.source.domain import (
     PracticeSourceArtifact,
 )
 from app.modules.score_access.policy import ScoreAction
-from app.processing.practice_score.practice_score_artifact import canonical_practice_artifact_bytes
+from app.modules.practice.score.artifact import canonical_practice_artifact_bytes
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService

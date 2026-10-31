@@ -23,12 +23,12 @@ resolution throughout the calling operation.
 
 `PracticeSourceBuilder` prepares MusicXML note IDs exactly once per bundle build.
 The resulting UTF-8 bytes are both the notation representation and the input to the
-already-prepared timeline loader. Meter, tempo and artifact construction therefore
-refer to the exact notation IDs delivered to the browser.
+[Practice score compiler](practice-score-compiler.md). Meter, tempo and artifact
+construction refer to the exact notation IDs delivered to the browser.
 
 The frozen bundle contains score/revision identity, prepared MusicXML bytes and a
 frozen artifact representation with canonical JSON bytes. Artifact values exposed to
-consumers are detached projections of those immutable bytes. The processing-layer
+consumers are detached projections of those immutable bytes. The score-domain
 `canonical_practice_artifact_bytes` primitive owns JSON serialization: sorted keys,
 compact separators, UTF-8, and finite JSON numbers.
 
@@ -158,20 +158,9 @@ formatting. Setup stops before qualification on either failure; load failure is 
 through Start Practice. Practice presents failure in place. The shared strict parser
 remains the full score admission authority. See [failure boundaries](practice-failures.md).
 
-## Meter, Pitch and Tempo Admission
+## Score Admission
 
-Practice requires an explicit valid initial MusicXML meter. The canonical meter
-timeline is nonempty and its first segment starts at beat 0. Numerator and denominator
-are positive integers; measure duration is positive and count-in pulses are nonnegative
-integers. Later measures may omit time signatures and inherit the established meter;
-explicit meter changes remain supported. Missing, malformed or unsupported unmetered
-notation fails with INVALID_SCORE (`practice_score_invalid`). Source construction owns
-that admission; transport parsers defend the same contract, and count-in/session/metronome
-layers consume admitted timing without synthesizing meter.
-
-Key signature is not Practice admission data: physical piano keys own pitch identity.
-A valid metered score without a key signature is Practice-valid. Explicit tempo is
-optional: SCORE selection uses PRODUCT_DEFAULT 80 BPM when no tempo is present, or
-before the first explicit MUSICXML tempo. Continuous PerformanceClock owns count-in
-derived from the active admitted meter; metronome mirrors its transport sync point.
-STEP has no count-in and uses admitted meter for target pulse grid and accents.
+The [Practice score compiler](practice-score-compiler.md) owns quarter-note chronology,
+explicit initial meter admission and physical note placement. The builder consumes
+its compiled facts for meter, tempo and artifact projections. Deterministic invalid
+score input maps to HTTP 422 `practice_score_invalid` at the Source service boundary.

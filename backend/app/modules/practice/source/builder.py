@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
+import xml.etree.ElementTree as ET
+from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 
-from app.processing.practice_score.musicxml_stable_ids import prepare_musicxml_ids_for_practice
-from app.processing.practice_score.practice_score_artifact import (
+from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
+from app.modules.practice.score.compiler.musicxml import compile_practice_score
+from app.modules.practice.score.timeline import practice_timeline_from_compiled
+from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_score_artifact_from_timeline,
 )
-from app.processing.practice_score.score_loader import (
-    practice_score_timeline_from_prepared_musicxml,
-)
-from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 from .domain import PracticeSourceArtifact, PracticeSourceBundle, PracticeSourceRepresentation
 
 
@@ -19,17 +17,20 @@ class PracticeSourceBuilder:
     def build(
         self, *, score_id: str, revision_id: str, canonical_musicxml: bytes
     ) -> PracticeSourceBundle:
-        prepared = prepare_musicxml_ids_for_practice(canonical_musicxml.decode("utf-8")).encode(
-            "utf-8"
-        )
-        with TemporaryDirectory() as directory:
-            prepared_path = Path(directory) / "score.musicxml"
-            prepared_path.write_bytes(prepared)
-            timeline = practice_score_timeline_from_prepared_musicxml(prepared_path)
-            tempo = practice_tempo_segments_from_musicxml(prepared_path)
-            value = practice_score_artifact_from_timeline(
-                timeline, score_id=score_id, revision_id=revision_id, score_tempo_segments=tempo
+        try:
+            prepared = prepare_musicxml_ids_for_practice(canonical_musicxml.decode("utf-8")).encode(
+                "utf-8"
             )
+        except (ET.ParseError, UnicodeError) as cause:
+            raise PracticeScoreInvalidError("Invalid Practice MusicXML.") from cause
+        compiled = compile_practice_score(prepared)
+        timeline = practice_timeline_from_compiled(compiled)
+        value = practice_score_artifact_from_timeline(
+            timeline,
+            score_id=score_id,
+            revision_id=revision_id,
+            score_tempo_segments=compiled.tempo_segments,
+        )
         return PracticeSourceBundle(
             score_id,
             revision_id,

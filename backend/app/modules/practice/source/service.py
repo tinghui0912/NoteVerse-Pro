@@ -13,7 +13,7 @@ from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.processing.practice_score.piano_key import PracticeScoreInvalidError
+from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from .builder import PracticeSourceBuilder

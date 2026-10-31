@@ -16,7 +16,7 @@ from app.db.models.practice_source_snapshot import (
 from app.shared.constants import ErrorCode
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
-from app.processing.practice_score.practice_score_artifact import canonical_practice_artifact_bytes
+from app.modules.practice.score.artifact import canonical_practice_artifact_bytes
 from .domain import (
     PracticeSourceArtifact,
     PracticeSourceBundle,

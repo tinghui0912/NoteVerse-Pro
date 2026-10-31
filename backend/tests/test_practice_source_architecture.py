@@ -27,26 +27,28 @@ def test_take_source_dependencies_are_public_service_and_value_contracts():
     }
 
 
-def test_builder_depends_on_prepared_processing_and_immutable_domain_only():
-    dependencies = imports("modules/practice/source/builder.py")
-    processing = {
-        alias.name
-        for node in dependencies
-        if node.module and node.module.startswith("app.processing.")
-        for alias in node.names
-    }
-    assert processing == {
-        "prepare_musicxml_ids_for_practice",
-        "practice_score_timeline_from_prepared_musicxml",
-        "practice_tempo_segments_from_musicxml",
-        "practice_score_artifact_from_timeline",
-        "canonical_practice_artifact_bytes",
-    }
+def test_source_builder_consumes_compiler_and_score_projections():
+    dependencies = {node.module for node in imports("modules/practice/source/builder.py")}
+    assert {
+        "app.modules.practice.score.compiler.stable_ids",
+        "app.modules.practice.score.compiler.musicxml",
+        "app.modules.practice.score.timeline",
+        "app.modules.practice.score.artifact",
+    } <= dependencies
     assert not any(
-        node.module
-        and node.module.startswith(("app.modules.performance_takes", "app.db", "fastapi"))
-        for node in dependencies
+        module and module.startswith(("app.modules.performance_takes", "app.db", "fastapi"))
+        for module in dependencies
     )
+
+
+def test_score_compiler_dependency_direction():
+    score = ROOT / "modules/practice/score"
+    for path in score.rglob("*.py"):
+        for node in imports(path.relative_to(ROOT)):
+            if node.level:
+                assert node.module in {"domain", "piano_key", "timeline"}
+            elif node.module and node.module.startswith("app."):
+                assert node.module.startswith("app.modules.practice.score.")
 
 
 def test_source_domain_is_independent_of_transport_and_persistence():

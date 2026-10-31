@@ -72,22 +72,13 @@ def compare_fixture(fixture_path: Path) -> None:
 
 def _canonical_artifact() -> dict[str, Any]:
     sys.path.insert(0, str(BACKEND_ROOT))
-    import tempfile
+    from app.modules.practice.score.compiler.musicxml import compile_practice_score
+    from app.modules.practice.score.timeline import practice_timeline_from_compiled
+    from app.modules.practice.score.domain import PracticeTempoSegment
+    from app.modules.practice.score.artifact import practice_score_artifact_from_timeline
+    from tests.test_practice_score_artifact import _canonical_musicxml
 
-    from app.processing.practice_score.score_timeline import PracticeScoreTimeline
-    from app.processing.practice_score.tempo import PracticeTempoSegment
-    from app.processing.practice_score.practice_score_artifact import (
-        practice_score_artifact_from_timeline,
-    )
-    from tests.test_practice_score_artifact import _canonical_musicxml, _canonical_note_array
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        musicxml_path = Path(tmpdir) / "canonical-local-core.musicxml"
-        musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
-        timeline = PracticeScoreTimeline.from_note_array(
-            _canonical_note_array(),
-            musicxml_path=musicxml_path,
-        )
+    timeline = practice_timeline_from_compiled(compile_practice_score(_canonical_musicxml()))
 
     return practice_score_artifact_from_timeline(
         timeline,

@@ -9,11 +9,8 @@ from app.core.exceptions import ValidationException
 from app.modules.practice.source.builder import PracticeSourceBuilder
 from app.modules.practice.source.schemas import PracticeScoreArtifactRead
 from app.modules.practice.source.service import PracticeSourceService
-from app.processing.practice_score.piano_key import PracticeScoreInvalidError
-from app.processing.practice_score.score_loader import (
-    practice_score_timeline_from_prepared_musicxml,
-)
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline, PracticeMeterSegment
+from app.modules.practice.score.piano_key import PracticeScoreInvalidError
+from app.modules.practice.score.domain import PracticeScoreTimeline, PracticeMeterSegment
 
 
 def time(numerator=4, denominator=4):
@@ -70,14 +67,12 @@ INVALID = [
 
 
 @pytest.mark.parametrize("initial,later", INVALID)
-def test_invalid_meter_fails_before_partitura_and_source_derivation(tmp_path, initial, later):
+def test_invalid_meter_fails_before_timeline_projection(tmp_path, initial, later):
     path = tmp_path / "prepared.musicxml"
     path.write_bytes(xml(initial, later))
-    with patch(
-        "app.processing.practice_score.score_loader.load_score_as_part_for_practice"
-    ) as load:
+    with patch("app.modules.practice.source.builder.practice_timeline_from_compiled") as load:
         with pytest.raises(PracticeScoreInvalidError):
-            practice_score_timeline_from_prepared_musicxml(path)
+            build(path.read_bytes())
     load.assert_not_called()
     with pytest.raises(PracticeScoreInvalidError):
         build(path.read_bytes())

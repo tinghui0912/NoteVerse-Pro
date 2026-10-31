@@ -4,15 +4,15 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.processing.practice_score.piano_key import PracticePianoKey
-from app.processing.practice_score.score_timeline import (
+from app.modules.practice.score.timeline import assert_practice_timeline
+from app.modules.practice.score.piano_key import PracticePianoKey
+from app.modules.practice.score.domain import (
     PracticeScoreTimeline,
     PracticeScoreNote,
     PracticeScoreEvent,
     PracticeMoment,
     PracticeAttack,
     PracticeMeterSegment,
-    assert_practice_timeline,
 )
 
 

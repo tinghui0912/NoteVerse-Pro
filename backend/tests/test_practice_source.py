@@ -15,7 +15,8 @@ from app.modules.practice.source.domain import (
     PracticeSourceSnapshotRef,
 )
 from app.modules.practice.source.service import PracticeSourceService
-from app.processing.practice_score.musicxml_stable_ids import prepare_musicxml_ids_for_practice
+from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
+from app.modules.practice.score.compiler.musicxml import compile_practice_score
 
 FIXTURE = Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
 
@@ -27,15 +28,13 @@ def test_bundle_prepares_once_and_artifact_uses_the_exact_prepared_notation():
             "app.modules.practice.source.builder.prepare_musicxml_ids_for_practice",
             wraps=prepare_musicxml_ids_for_practice,
         ) as prepare,
-        patch(
-            "app.processing.practice_score.musicxml_stable_ids.prepare_musicxml_ids_for_practice",
-            prepare,
-        ),
+        patch("app.modules.practice.source.builder.compile_practice_score", wraps=compile_practice_score) as compile_score,
     ):
         bundle = builder.build(
             score_id="score-1", revision_id="revision-1", canonical_musicxml=FIXTURE.read_bytes()
         )
     prepare.assert_called_once()
+    compile_score.assert_called_once_with(bundle.prepared_musicxml.data)
     ids = {
         note.attrib["id"]
         for note in ET.fromstring(bundle.prepared_musicxml.data).iter("note")

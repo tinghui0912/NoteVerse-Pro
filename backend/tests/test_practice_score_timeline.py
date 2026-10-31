@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline, practice_meter_segments_from_musicxml
+from tests.practice_score_fixtures import timeline_from_notes
 
 
 def note_array(np):
@@ -33,12 +33,12 @@ def musicxml_fixture(tmp_path):
   </part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>A</step><octave>5</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n3"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n4"><pitch><step>C</step><octave>3</octave></pitch><voice>2</voice><staff>2</staff></note>
-      <note id="n5"><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>A</step><octave>5</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n3"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n4"><pitch><step>C</step><octave>3</octave></pitch><voice>2</voice><staff>2</staff><duration>1</duration></note>
+      <note id="n5"><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -59,7 +59,7 @@ def semantic_identity_musicxml_fixture(tmp_path, note_ids: tuple[str, str, str])
   </part-list>
   <part id="P1">
     <measure number="Display-A">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <note id="{first_id}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
       <note id="{second_id}"><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
     </measure>
@@ -144,9 +144,9 @@ def test_practice_attack_steps_cover_simple_new_attacks(tmp_path) -> None:
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -191,9 +191,9 @@ def test_practice_attack_steps_keep_same_pitch_without_tie_as_new_attack(tmp_pat
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -363,11 +363,11 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations(tmp_path) -> 
   </part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/><duration>1</duration></note>
     </measure>
     <measure number="2">
-      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -416,14 +416,14 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) 
   </part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/><duration>1</duration></note>
     </measure>
     <measure number="2">
-      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><tie type="start"/></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><tie type="start"/><duration>1</duration></note>
     </measure>
     <measure number="3">
-      <note id="n3"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
+      <note id="n3"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -468,10 +468,10 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) 
   </part-list>
   <part id="P1">
     <measure number="2">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
-      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><duration>1</duration></note>
+      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -521,13 +521,13 @@ def test_practice_attack_steps_keep_shared_pitch_rearticulation_in_chord(tmp_pat
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n4"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n5"><chord/><pitch><step>F</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n6"><chord/><pitch><step>A</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n4"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n5"><chord/><pitch><step>F</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n6"><chord/><pitch><step>A</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -568,9 +568,9 @@ def test_practice_attack_steps_consolidate_same_pitch_multi_voice_staff_targets(
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
-      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
-      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>2</voice><staff>2</staff></note>
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><duration>1</duration></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>2</voice><staff>2</staff><duration>1</duration></note>
     </measure>
   </part>
 </score-partwise>
@@ -620,10 +620,3 @@ def moment_end(timeline, group_id):
 def moment_notes(timeline, moment):
     ids = {i for attack in moment.attacks for i in attack.note_ids}
     return [n for n in timeline.notes if n.note_id in ids]
-
-
-def timeline_from_notes(note_array, *, musicxml_path):
-    return PracticeScoreTimeline.from_note_array(
-        note_array, musicxml_path=musicxml_path,
-        meter_segments=practice_meter_segments_from_musicxml(musicxml_path),
-    )

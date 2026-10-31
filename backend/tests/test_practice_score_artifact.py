@@ -1,33 +1,21 @@
 from __future__ import annotations
+from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 
 from pathlib import Path
 
-from app.processing.practice_score.score_timeline import PracticeScoreTimeline, practice_meter_segments_from_musicxml
-from app.processing.practice_score.practice_score_artifact import (
+from app.modules.practice.score.domain import PracticeScoreTimeline
+from app.modules.practice.score.timeline import practice_timeline_from_compiled
+from app.modules.practice.score.compiler.musicxml import compile_practice_score
+from app.modules.practice.score.artifact import (
     practice_score_artifact_from_timeline,
 )
-from app.processing.practice_score.tempo import PracticeTempoSegment
-
-
-class _DType:
-    names = ("onset_beat", "duration_beat", "pitch", "voice", "id")
-
-
-class _Note(dict):
-    dtype = _DType()
-
-
-class _NoteArray(list):
-    dtype = _DType()
+from app.modules.practice.score.domain import PracticeTempoSegment
 
 
 def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
     musicxml_path = tmp_path / "canonical-local-core.musicxml"
     musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
-    timeline = timeline_from_notes(
-        _canonical_note_array(),
-        musicxml_path=musicxml_path,
-    )
+    timeline = practice_timeline_from_compiled(compile_practice_score(musicxml_path.read_bytes()))
 
     artifact = practice_score_artifact_from_timeline(
         timeline,
@@ -73,7 +61,7 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
     ]
 def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     import pytest
-    from app.processing.practice_score.piano_key import PracticeScoreInvalidError
+    from app.modules.practice.score.piano_key import PracticeScoreInvalidError
     timeline = PracticeScoreTimeline(notes=(), events=(), moments=(),
                                     first_playable_beat=None, end_beat=0., meter_segments=())
     with pytest.raises(PracticeScoreInvalidError):
@@ -83,10 +71,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
 def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
     musicxml_path = tmp_path / "canonical-local-core.musicxml"
     musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
-    timeline = timeline_from_notes(
-        _canonical_note_array(),
-        musicxml_path=musicxml_path,
-    )
+    timeline = practice_timeline_from_compiled(compile_practice_score(musicxml_path.read_bytes()))
 
     artifact1 = practice_score_artifact_from_timeline(
         timeline,
@@ -107,20 +92,6 @@ def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
 
 
 
-def _canonical_note_array() -> _NoteArray:
-    return _NoteArray(
-        [
-            _Note(onset_beat=0.0, duration_beat=1.0, pitch=60, voice=1, id="n1"),
-            _Note(onset_beat=1.0, duration_beat=1.0, pitch=60, voice=1, id="n2"),
-            _Note(onset_beat=2.0, duration_beat=1.0, pitch=67, voice=1, id="n3"),
-            _Note(onset_beat=3.0, duration_beat=1.5, pitch=67, voice=1, id="n4"),
-            _Note(onset_beat=3.0, duration_beat=1.5, pitch=69, voice=2, id="n5"),
-            _Note(onset_beat=3.0, duration_beat=1.5, pitch=72, voice=2, id="n6"),
-            _Note(onset_beat=4.5, duration_beat=1.5, pitch=74, voice=1, id="n7"),
-        ]
-    )
-
-
 def _canonical_musicxml() -> str:
     return """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -135,8 +106,9 @@ def _canonical_musicxml() -> str:
     <measure number="2">
       <attributes><time><beats>6</beats><beat-type>8</beat-type></time></attributes>
       <note id="n4"><pitch><step>G</step><octave>4</octave></pitch><duration>1.5</duration><tie type="stop"/><voice>1</voice><staff>1</staff></note>
+      <backup><duration>1.5</duration></backup>
       <note id="n5"><pitch><step>A</step><octave>4</octave></pitch><duration>1.5</duration><voice>2</voice><staff>1</staff></note>
-      <note id="n6"><pitch><step>C</step><octave>5</octave></pitch><duration>1.5</duration><voice>2</voice><staff>1</staff></note>
+      <note id="n6"><chord/><pitch><step>C</step><octave>5</octave></pitch><duration>1.5</duration><voice>2</voice><staff>1</staff></note>
       <note id="n7"><pitch><step>D</step><octave>5</octave></pitch><duration>1.5</duration><voice>1</voice><staff>1</staff></note>
     </measure>
   </part>
@@ -145,7 +117,6 @@ def _canonical_musicxml() -> str:
 
 
 def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> None:
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -170,7 +141,7 @@ def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> No
     xml_path = tmp_path / "multi_tempo.musicxml"
     xml_path.write_text(xml, encoding="utf-8")
 
-    segments = practice_tempo_segments_from_musicxml(xml_path)
+    segments = compile_practice_score(prepare_musicxml_ids_for_practice(xml_path.read_text())).tempo_segments
     assert segments == (
         PracticeTempoSegment(start_beat=0.0, bpm=120.0),
         PracticeTempoSegment(start_beat=3.0, bpm=90.0),
@@ -178,7 +149,6 @@ def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> No
 
 
 def test_practice_tempo_segments_empty_when_no_tempo_tag(tmp_path: Path) -> None:
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -194,12 +164,11 @@ def test_practice_tempo_segments_empty_when_no_tempo_tag(tmp_path: Path) -> None
     xml_path = tmp_path / "no_tempo.musicxml"
     xml_path.write_text(xml, encoding="utf-8")
 
-    segments = practice_tempo_segments_from_musicxml(xml_path)
+    segments = compile_practice_score(prepare_musicxml_ids_for_practice(xml_path.read_text())).tempo_segments
     assert segments == ()
 
 
 def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -233,7 +202,7 @@ def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
     xml_path = tmp_path / "metronome.musicxml"
     xml_path.write_text(xml, encoding="utf-8")
 
-    segments = practice_tempo_segments_from_musicxml(xml_path)
+    segments = compile_practice_score(prepare_musicxml_ids_for_practice(xml_path.read_text())).tempo_segments
     # half at 60 = 120 bpm; dotted-quarter at 80 = 80 * 1.5 = 120 bpm
     assert segments == (
         PracticeTempoSegment(start_beat=0.0, bpm=120.0),
@@ -242,7 +211,6 @@ def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
 
 
 def test_practice_tempo_segments_preserves_positive_first_tempo_beat(tmp_path: Path) -> None:
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -262,7 +230,7 @@ def test_practice_tempo_segments_preserves_positive_first_tempo_beat(tmp_path: P
     xml_path = tmp_path / "delayed_tempo.musicxml"
     xml_path.write_text(xml, encoding="utf-8")
 
-    segments = practice_tempo_segments_from_musicxml(xml_path)
+    segments = compile_practice_score(prepare_musicxml_ids_for_practice(xml_path.read_text())).tempo_segments
     assert segments == (
         PracticeTempoSegment(start_beat=4.0, bpm=100.0),
     )
@@ -270,21 +238,19 @@ def test_practice_tempo_segments_preserves_positive_first_tempo_beat(tmp_path: P
 
 def test_practice_tempo_segments_missing_file_raises(tmp_path: Path) -> None:
     import pytest
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     with pytest.raises(FileNotFoundError):
-        practice_tempo_segments_from_musicxml(tmp_path / "does_not_exist.musicxml")
+        compile_practice_score((tmp_path / "does_not_exist.musicxml").read_bytes())
 
 
 def test_practice_tempo_segments_invalid_xml_raises(tmp_path: Path) -> None:
-    import xml.etree.ElementTree as ET
+    from app.modules.practice.score.piano_key import PracticeScoreInvalidError
     import pytest
-    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     bad_xml = tmp_path / "corrupted.musicxml"
     bad_xml.write_text("<score-partwise><broken", encoding="utf-8")
-    with pytest.raises(ET.ParseError):
-        practice_tempo_segments_from_musicxml(bad_xml)
+    with pytest.raises(PracticeScoreInvalidError):
+        compile_practice_score(bad_xml.read_bytes())
 
 
 def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> None:
@@ -318,10 +284,3 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
     assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 999})
-
-
-def timeline_from_notes(note_array, *, musicxml_path):
-    return PracticeScoreTimeline.from_note_array(
-        note_array, musicxml_path=musicxml_path,
-        meter_segments=practice_meter_segments_from_musicxml(musicxml_path),
-    )

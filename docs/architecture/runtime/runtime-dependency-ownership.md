@@ -27,7 +27,7 @@ changes rather than ordinary build side effects.
 | `storage` | Object storage clients |
 | `image` | Pillow operations |
 | `fingering` | NumPy and PianoPlayer |
-| `practice-score` | Partitura MusicXML/artifact processing |
+| `practice-score` | Partitura library dependency |
 | `render` | NumPy and Verovio |
 | `ocr` | Linux x86_64 PaddleOCR |
 | `migrations` | Alembic and database capability |

@@ -57,8 +57,9 @@ through those references. Serialized target ownership remains in moments/attacks
 
 ## Construction and persistence
 
-Backend score_timeline constructs deterministic notes/events/moments from Partitura
-and prepared MusicXML. Pydantic transport models reuse its canonical graph invariant.
+The [Practice score compiler](practice-score-compiler.md) supplies canonical note
+placement and timing. Timeline projection constructs deterministic notes/events/moments
+from those compiled facts. Pydantic transport models reuse the canonical graph invariant.
 The customer OpenAPI schema and generated browser DTOs describe schemaVersion3.
 Committed backend/browser fixture tests verify deterministic payload agreement.
 

@@ -5,11 +5,8 @@ import hashlib
 import json
 from typing import Any, Sequence
 
-from app.processing.practice_score.score_timeline import (
-    PracticeScoreTimeline,
-    assert_practice_timeline,
-)
-from app.processing.practice_score.tempo import PracticeTempoSegment
+from .domain import PracticeScoreTimeline, PracticeTempoSegment
+from .timeline import assert_practice_timeline
 
 
 PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3
@@ -71,9 +68,7 @@ def canonical_practice_artifact_bytes(value: dict[str, Any]) -> bytes:
 
 def _artifact_id(payload: dict[str, Any]) -> str:
     identity_payload = {**payload, "artifactId": ""}
-    digest = hashlib.sha256(
-        canonical_practice_artifact_bytes(identity_payload)
-    ).hexdigest()[:16]
+    digest = hashlib.sha256(canonical_practice_artifact_bytes(identity_payload)).hexdigest()[:16]
     return f"practice-score-artifact:{digest}"
 
 
