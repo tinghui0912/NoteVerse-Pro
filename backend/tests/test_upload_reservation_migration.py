@@ -51,7 +51,7 @@ def test_0054_preserves_rows_identities_statuses_and_unique_lineage(monkeypatch)
                 source_score_uuid=str(uuid4()),
                 source_revision_uuid=str(uuid4()),
                 artifact_id="artifact",
-                artifact_schema_version=3,
+                artifact_schema_version=1,
                 prepared_musicxml_object_key="source.xml",
                 prepared_musicxml_sha256="a" * 64,
                 prepared_musicxml_byte_size=10,

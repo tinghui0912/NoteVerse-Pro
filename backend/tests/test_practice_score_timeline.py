@@ -80,7 +80,8 @@ def semantic_identity_compiled_score(note_ids):
 def test_practice_score_timeline_preserves_events_and_exact_onset_groups() -> None:
     timeline = practice_timeline_from_compiled(mixed_compiled_score())
 
-    assert timeline.first_playable_beat == 3.0
+    assert timeline.events[0].onset_beat == 3.0
+    assert timeline.moments[0].onset_beat == 3.0
     assert timeline.end_beat == 6.0
     assert timeline.playable_onset_beats == (3.0, 4.0, 4.05)
 
@@ -163,7 +164,7 @@ def test_practice_moment_attacks_keep_same_pitch_without_tie_as_new_attack() -> 
     assert timeline.moments[0].attacks[0].attack_id != timeline.moments[1].attacks[0].attack_id
 
 
-def test_practice_score_timeline_preserves_meter_for_count_in_duration_and_pulses() -> None:
+def test_practice_score_timeline_preserves_active_meter_and_derived_duration() -> None:
     timeline = practice_timeline_from_compiled(
         compiled_score(
             compiled_note(
@@ -187,20 +188,10 @@ def test_practice_score_timeline_preserves_meter_for_count_in_duration_and_pulse
 
     first_meter = timeline.meter_at(0.0)
     second_meter = timeline.meter_at(3.0)
-    assert (first_meter.numerator, first_meter.denominator, first_meter.source) == (
-        3,
-        4,
-        "MUSICXML",
-    )
-    assert (second_meter.numerator, second_meter.denominator, second_meter.source) == (
-        6,
-        8,
-        "MUSICXML",
-    )
-    assert timeline.count_in_duration_beats_at(0.0) == 3.0
-    assert timeline.count_in_duration_beats_at(3.0) == 3.0
-    assert timeline.count_in_pulses_at(0.0) == 3
-    assert timeline.count_in_pulses_at(3.0) == 6
+    assert (first_meter.numerator, first_meter.denominator) == (3, 4)
+    assert (second_meter.numerator, second_meter.denominator) == (6, 8)
+    assert timeline.meter_at(0.0).measure_duration_beats == 3.0
+    assert timeline.meter_at(3.0).measure_duration_beats == 3.0
 
 
 def test_practice_score_timeline_uses_revision_stable_group_ids() -> None:

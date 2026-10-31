@@ -13,6 +13,6 @@ export function artifactWithKeys(steps: readonly (readonly number[])[]): Practic
     base.moments.push({ groupId, onsetBeat: i, canonicalEndBeat: i + 1, continuationNoteIds: [],
       attacks: keys.map((pianoKey, k) => ({ attackId: `strike-${i}-${k}`, pianoKey, noteIds: [`note-${i}-${k}`] })) });
   });
-  base.firstPlayableBeat = 0; base.scoreEndBeat = steps.length;
+  base.scoreEndBeat = steps.length;
   return base;
 }

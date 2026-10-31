@@ -21,7 +21,7 @@ def make_timeline(keys):
 def test_piano_endpoints_are_practice_ready(key):
     timeline = make_timeline([key])
     artifact = practice_score_artifact_from_timeline(timeline, score_id="s", revision_id="r", score_tempo_segments=())
-    assert artifact["schemaVersion"] == 3
+    assert artifact["schemaVersion"] == 1
     assert [a["pianoKey"] for a in artifact["moments"][0]["attacks"]] == [key]
 
 

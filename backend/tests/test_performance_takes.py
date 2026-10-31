@@ -122,7 +122,7 @@ def _source_bundle(score_id, revision_id, artifact_id):
                 canonical_practice_artifact_bytes(value), "application/json"
             ),
             artifact_id,
-            3,
+            value["schemaVersion"],
         ),
     )
 
@@ -193,7 +193,7 @@ def _create_default_source_snapshot(
         source_score_uuid=source_score_uuid,
         source_revision_uuid=source_revision_uuid,
         artifact_id=artifact_id,
-        artifact_schema_version=3,
+        artifact_schema_version=1,
         prepared_musicxml_object_key=musicxml_key,
         prepared_musicxml_sha256=musicxml_sha,
         prepared_musicxml_byte_size=len(musicxml_bytes),
@@ -2886,7 +2886,7 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
             source_score_uuid="score-uuid-10",
             source_revision_uuid=DEFAULT_TAKE_REVISION_ID,
             artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
-            artifact_schema_version=3,
+            artifact_schema_version=1,
             prepared_musicxml_object_key=musicxml_key,
             prepared_musicxml_sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
             prepared_musicxml_byte_size=len(b"<score-partwise />"),

@@ -41,7 +41,7 @@ def unison():
 def test_single_canonical_notation_graph_retains_unison_and_continuation():
     value = unison()
     parsed = PracticeScoreArtifactRead.model_validate(value)
-    assert parsed.schemaVersion == 3
+    assert parsed.schemaVersion == 1
     assert len(parsed.notes) == 8
     attack = parsed.moments[0].attacks[0]
     assert attack.pianoKey == 60

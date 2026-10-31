@@ -1,0 +1,37 @@
+[
+  {
+    "numerator": 3,
+    "denominator": 4,
+    "durationBeats": 3
+  },
+  {
+    "numerator": 6,
+    "denominator": 8,
+    "durationBeats": 3
+  },
+  {
+    "numerator": 2,
+    "denominator": 2,
+    "durationBeats": 4
+  },
+  {
+    "numerator": 1,
+    "denominator": 3,
+    "durationBeats": 1.333333
+  },
+  {
+    "numerator": 1,
+    "denominator": 512,
+    "durationBeats": 0.007812
+  },
+  {
+    "numerator": 3,
+    "denominator": 512,
+    "durationBeats": 0.023438
+  },
+  {
+    "numerator": 1,
+    "denominator": 8192,
+    "durationBeats": 0.000488
+  }
+]

@@ -6695,10 +6695,6 @@
             "title": "Events",
             "type": "array"
           },
-          "firstPlayableBeat": {
-            "title": "Firstplayablebeat",
-            "type": "number"
-          },
           "meterSegments": {
             "items": {
               "$ref": "#/components/schemas/PracticeScoreMeterSegmentRead"
@@ -6726,7 +6722,7 @@
             "type": "string"
           },
           "schemaVersion": {
-            "const": 3,
+            "const": 1,
             "title": "Schemaversion",
             "type": "integer"
           },
@@ -6756,7 +6752,6 @@
           "moments",
           "meterSegments",
           "scoreTempoSegments",
-          "firstPlayableBeat",
           "scoreEndBeat"
         ],
         "title": "PracticeScoreArtifactRead",
@@ -6818,26 +6813,13 @@
       "PracticeScoreMeterSegmentRead": {
         "additionalProperties": false,
         "properties": {
-          "countInPulses": {
-            "title": "Countinpulses",
-            "type": "integer"
-          },
           "denominator": {
             "title": "Denominator",
             "type": "integer"
           },
-          "measureDurationBeats": {
-            "title": "Measuredurationbeats",
-            "type": "number"
-          },
           "numerator": {
             "title": "Numerator",
             "type": "integer"
-          },
-          "source": {
-            "const": "MUSICXML",
-            "title": "Source",
-            "type": "string"
           },
           "startBeat": {
             "title": "Startbeat",
@@ -6847,10 +6829,7 @@
         "required": [
           "startBeat",
           "numerator",
-          "denominator",
-          "measureDurationBeats",
-          "countInPulses",
-          "source"
+          "denominator"
         ],
         "title": "PracticeScoreMeterSegmentRead",
         "type": "object"

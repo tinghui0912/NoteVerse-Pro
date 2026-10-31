@@ -179,7 +179,7 @@ Resource planning defines requirements and bindings, not acquisition or Start/En
 lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
 construction.
 
-Artifact schema3, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema7,
+Artifact schemaVersion 1, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema7,
 count-in policy, timing/recognition/resource values and acoustic identities are their
 current contracts. See the [product contract](practice-product-contract.md) and
 [Practice Source](practice-source.md).
@@ -273,3 +273,18 @@ on audio activation and closed at most once. `MetronomeAudioPort` exposes only
 `activate`, `nowMs`, `scheduleClick({ atMs, accent })` and `dispose`. Optional audio
 creation/resume/click/cleanup faults stay nonfatal and cannot become physical root,
 analysis, recording or critical attempt-cleanup failures.
+
+
+## Meter and Count-In policy
+
+The artifact supplies admitted meter facts: `startBeat`, `numerator`, `denominator`.
+The pure score-domain measure-duration helper derives quarter beats using canonical
+six-decimal rounding. `kernel/count-in.ts` owns the execution policy: a full active
+measure supplies Count-In duration, and its numerator supplies the number of pulses.
+Thus 3/4 gives 3 beats/3 pulses, 6/8 gives 3 beats/6 pulses, and 2/2 gives 4 beats/2
+pulses. Count-In pulses are not part of the score artifact or source identity.
+
+Metronome pulse-grid policy uses a step of `4 / denominator`, with downbeats and pulse
+indices derived from the same admitted meter and measure-duration helper. Invalid
+meter invariants fail closed. Continuous PerformanceClock owns the actual countdown;
+MetronomeRuntime consumes its live sync point. STEP has no Count-In.

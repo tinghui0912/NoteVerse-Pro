@@ -44,7 +44,10 @@ def test_explicit_initial_meter_and_inherited_or_changed_meter(initial, later, e
     bundle = build(xml(initial, later))
     artifact = PracticeScoreArtifactRead.model_validate(bundle.artifact.value)
     assert [(m.startBeat, m.numerator, m.denominator) for m in artifact.meterSegments] == expected
-    assert all(m.source == "MUSICXML" for m in artifact.meterSegments)
+    assert all(
+        set(m.model_dump()) == {"startBeat", "numerator", "denominator"}
+        for m in artifact.meterSegments
+    )
     assert artifact.notes[0].pianoKey == 60
     assert b"<key>" not in bundle.prepared_musicxml.data
     assert artifact.scoreTempoSegments == []
@@ -112,7 +115,6 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
         "moments",
         "meterSegments",
         "scoreTempoSegments",
-        "firstPlayableBeat",
         "scoreEndBeat",
     }
     assert set(PracticeScoreArtifactRead.model_fields) == set(no_tempo)
@@ -127,9 +129,6 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
                 "startBeat": 1,
                 "numerator": 4,
                 "denominator": 4,
-                "measureDurationBeats": 4,
-                "countInPulses": 4,
-                "source": "MUSICXML",
             }
         ],
     ],
@@ -145,8 +144,48 @@ def test_transport_rejects_missing_initial_meter_without_mutation(meters):
 
 
 def test_timeline_meter_access_fails_closed_without_initial_meter():
-    timeline = PracticeScoreTimeline((), (), (), None, 0, ())
+    timeline = PracticeScoreTimeline((), (), (), 0, ())
     with pytest.raises(PracticeScoreInvalidError):
         timeline.meter_at(0)
     with pytest.raises(PracticeScoreInvalidError):
         replace(timeline, meter_segments=(PracticeMeterSegment(1, 3, 4),)).meter_at(0)
+
+
+def test_meter_duration_uses_shared_canonical_score_beat_witnesses():
+    import json
+    import os
+    from pathlib import Path
+
+    root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
+    cases = json.loads(
+        (
+            root / "apps/customer-web/src/lib/practice/__fixtures__/meter-duration-cases.json"
+        ).read_text()
+    )
+    for case in cases:
+        assert (
+            PracticeMeterSegment(0, case["numerator"], case["denominator"]).measure_duration_beats
+            == case["durationBeats"]
+        )
+
+
+@pytest.mark.parametrize(
+    "meter",
+    [
+        {"startBeat": 0, "numerator": 0, "denominator": 4},
+        {"startBeat": 0, "numerator": True, "denominator": 4},
+        {"startBeat": 0, "numerator": 3.5, "denominator": 4},
+        {"startBeat": 0, "numerator": 3, "denominator": 0},
+        {"startBeat": 0, "numerator": 3, "denominator": "4"},
+        {"startBeat": 0, "numerator": 3, "denominator": 4, "unexpectedField": 1},
+        {"startBeat": 0, "numerator": 3},
+    ],
+)
+def test_meter_transport_exact_facts_fail_closed_without_mutation(meter):
+    from copy import deepcopy
+
+    value = {**build(xml(time())).artifact.value, "meterSegments": [meter]}
+    before = deepcopy(value)
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate(value)
+    assert value == before

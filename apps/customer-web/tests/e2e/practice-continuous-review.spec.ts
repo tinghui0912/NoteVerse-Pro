@@ -41,15 +41,15 @@ const sampleMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const testArtifact: PracticeScoreArtifact = {
-  schemaVersion: 3,
+  schemaVersion: 1,
   artifactId: 'practice-score-artifact:continuous-test', scoreId, revisionId,
-  firstPlayableBeat: 0, scoreEndBeat: 4,
+   scoreEndBeat: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['note-c4', 'note-d4', 'note-e4'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
   events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetBeat: i, durationBeats: i === 2 ? 2 : 1 })),
   moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetBeat: i, canonicalEndBeat: i === 2 ? 4 : i+1,
     attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'MUSICXML' }],
+  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
   scoreTempoSegments: [{ startBeat: 0, bpm: 120 }],
 };
 
@@ -261,7 +261,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       }),
     })
   );
-
 
   // Mock Score Detail for 0 fallback
   await page.route('**/api/v1/scores/0', (route) =>
@@ -1452,7 +1451,6 @@ for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis i
   expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(before.engine.sessions);
 });
 
-
 test('READY microphone Setup always probes afresh through both navigation entries without reloading its warm engine', async ({page}) => {
   await setupContinuousPracticeMocks(page); await openPreparedPractice(page,scoreId,revisionId);
   await configurePractice(page,'CONTINUOUS','MICROPHONE','OFF');
@@ -1475,7 +1473,6 @@ test('READY microphone Setup always probes afresh through both navigation entrie
     await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(0);
   }
 });
-
 
 test('Setup Start Practice waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
   await setupContinuousPracticeMocks(page);

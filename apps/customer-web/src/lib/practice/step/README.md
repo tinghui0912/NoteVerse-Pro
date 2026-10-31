@@ -8,7 +8,7 @@ for input and has no Pause/Resume lifecycle.
 ## Domain and input contract
 
 The [canonical Practice contract](../../../../../../docs/architecture/practice-piano-key-contract.md)
-owns revision-wide schema3 validity and integer PracticePianoKey21..108. Scope selects
+owns revision-wide schemaVersion 1 validity and integer PracticePianoKey21..108. Scope selects
 progression only. Canonical moments own targets; STEP projects attack keys and
 continuation keys from their note references. There is no serialized STEP sequence. Runtime asserts the artifact, resolves scope and initializes;
 revision-wide key validity applies to every selected target.

@@ -105,7 +105,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     const base = artifactWithKeys([[60]]);
     base.events[0].durationBeats = scoreEndBeat; base.moments[0].canonicalEndBeat = scoreEndBeat;
     const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
-      ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator, measureDurationBeats: 4 / meterDenominator, countInPulses: 1, source: 'MUSICXML' as const }] }),
+      ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator,   }] }),
     };
     controller = new ContinuousPracticeController({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
     return controller;
@@ -1022,7 +1022,6 @@ it('controller refresh and repeated live snapshots never request the full assign
     expect(full).not.toHaveBeenCalled();
   } finally { full.mockRestore(); await controller.abandon(); await controller.dispose(); }
 });
-
 
 // Resource characterization uses only public controller commands, real clock/source mapping,
 // current caps and complete 2048-sample transport blocks (no controller/session state injection).

@@ -41,15 +41,15 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const smokeArtifact: PracticeScoreArtifact = {
-  schemaVersion: 3,
+  schemaVersion: 1,
   artifactId: 'practice-score-artifact:smoke-test', scoreId, revisionId,
-  firstPlayableBeat: 0, scoreEndBeat: 4,
+   scoreEndBeat: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['select-start-note', 'middle-note', 'select-end-note'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
   events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetBeat: i, durationBeats: i === 2 ? 2 : 1 })),
   moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetBeat: i, canonicalEndBeat: i === 2 ? 4 : i+1,
     attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'MUSICXML' }],
+  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
   scoreTempoSegments: [{ startBeat: 0, bpm: 100 }, { startBeat: 2, bpm: 90 }],
 };
 
@@ -214,7 +214,6 @@ async function setupPracticeMocks(
       }),
     })
   );
-
 
   // One Practice Source envelope supplies the artifact and requested notation.
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`, route =>
@@ -534,7 +533,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     const leadingRestArtifact = {
       ...smokeArtifact,
       scoreTempoSegments: [{ startBeat: 2.0, bpm: 90.0 }],
-      firstPlayableBeat: 2, scoreEndBeat: 3,
+       scoreEndBeat: 3,
       notes: smokeArtifact.notes.slice(0,1),
       events: [{ ...smokeArtifact.events[0], onsetBeat: 2 }],
       moments: [{ ...smokeArtifact.moments[0], onsetBeat: 2, canonicalEndBeat: 3 }],

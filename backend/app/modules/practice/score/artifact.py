@@ -9,7 +9,7 @@ from .domain import PracticeScoreTimeline, PracticeTempoSegment
 from .timeline import assert_practice_timeline
 
 
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
 
 
 def practice_score_artifact_from_timeline(
@@ -32,7 +32,6 @@ def practice_score_artifact_from_timeline(
         "moments": [_camel_dataclass(moment) for moment in timeline.moments],
         "meterSegments": [_meter_segment(segment) for segment in timeline.meter_segments],
         "scoreTempoSegments": [_tempo_segment(segment) for segment in score_tempo_segments],
-        "firstPlayableBeat": timeline.first_playable_beat,
         "scoreEndBeat": timeline.end_beat,
     }
     payload["artifactId"] = _artifact_id(payload)
@@ -89,9 +88,6 @@ def _meter_segment(segment) -> dict[str, Any]:
         "startBeat": segment.start_beat,
         "numerator": segment.numerator,
         "denominator": segment.denominator,
-        "measureDurationBeats": segment.measure_duration_beats,
-        "countInPulses": segment.count_in_pulses,
-        "source": segment.source,
     }
 
 

@@ -10,11 +10,11 @@ import {
 
 function makeTestArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return {
-    schemaVersion: 3,
+    schemaVersion: 1,
     scoreId: 'test-score',
     revisionId: 'test-rev',
     artifactId: 'practice-score-artifact:test',
-    firstPlayableBeat: 0.0,
+
     scoreEndBeat: 32.0,
     notes: [],
     events: [],
@@ -24,9 +24,7 @@ function makeTestArtifact(overrides: Partial<PracticeScoreArtifact> = {}): Pract
         startBeat: 0.0,
         numerator: 4,
         denominator: 4,
-        measureDurationBeats: 4.0,
-        countInPulses: 4,
-        source: 'MUSICXML',
+
       },
     ],
     scoreTempoSegments: [{ startBeat: 0.0, bpm: 120.0 }],
@@ -41,33 +39,25 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         startBeat: 0,
         numerator: 4,
         denominator: 4,
-        measureDurationBeats: 4,
-        countInPulses: 4,
-          source: 'MUSICXML',
+
       };
       const meter34: MeterSegment = {
         startBeat: 0,
         numerator: 3,
         denominator: 4,
-        measureDurationBeats: 3,
-        countInPulses: 3,
-          source: 'MUSICXML',
+
       };
       const meter68: MeterSegment = {
         startBeat: 0,
         numerator: 6,
         denominator: 8,
-        measureDurationBeats: 3,
-        countInPulses: 6,
-          source: 'MUSICXML',
+
       };
       const meter22: MeterSegment = {
         startBeat: 0,
         numerator: 2,
         denominator: 2,
-        measureDurationBeats: 4,
-        countInPulses: 2,
-          source: 'MUSICXML',
+
       };
 
       // 4 / denominator
@@ -82,9 +72,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         startBeat: 0,
         numerator: 6,
         denominator: 8,
-        measureDurationBeats: 3.0,
-        countInPulses: 6,
-          source: 'MUSICXML',
+
       };
 
       // Measure 1: beats 0.0 to 2.5
@@ -114,9 +102,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             startBeat: 0.0,
             numerator: 6,
             denominator: 8,
-            measureDurationBeats: 3.0,
-            countInPulses: 6,
-          source: 'MUSICXML',
+
           },
         ],
       });
@@ -159,9 +145,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             startBeat: 0.0,
             numerator: 4,
             denominator: 4,
-            measureDurationBeats: 4.0,
-            countInPulses: 4,
-          source: 'MUSICXML',
+
           },
         ],
       });
@@ -233,17 +217,13 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             startBeat: 0.0,
             numerator: 4,
             denominator: 4,
-            measureDurationBeats: 4.0,
-            countInPulses: 4,
-          source: 'MUSICXML',
+
           },
           {
             startBeat: 12.0,
             numerator: 6,
             denominator: 8,
-            measureDurationBeats: 3.0,
-            countInPulses: 6,
-          source: 'MUSICXML',
+
           },
         ],
       });
@@ -360,9 +340,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             startBeat: 0.0,
             numerator: 6,
             denominator: 8,
-            measureDurationBeats: 3.0,
-            countInPulses: 6,
-          source: 'MUSICXML',
+
           },
         ],
       });
@@ -495,9 +473,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             startBeat: 0.0,
             numerator: 6,
             denominator: 8,
-            measureDurationBeats: 3.0,
-            countInPulses: 6,
-          source: 'MUSICXML',
+
           },
         ],
       });
@@ -587,4 +563,11 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
       expect(pulses[0].isDownbeat).toBe(true);
     });
   });
+});
+
+it.each([0, -1, 0.5, NaN, Infinity])('invalid denominator %s fails closed at pulse projections', denominator => {
+  const meter = { startBeat: 0, numerator: 4, denominator };
+  expect(() => pulseStepBeats(meter)).toThrow();
+  expect(() => isDownbeat(meter, 0)).toThrow();
+  expect(() => pulseIndexInMeasure(meter, 0)).toThrow();
 });

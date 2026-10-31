@@ -3,7 +3,7 @@ import { isPracticePianoKey, type PracticePianoKey } from './piano-key';
 export class PracticeScoreContractError extends Error {
   readonly code = 'practice_score_invalid';
 }
-export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 3 as const;
+export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1 as const;
 
 /** Each retained notation fact owns one event reference and one render identity. */
 export type PracticeScoreNote = {
@@ -18,8 +18,7 @@ export type PracticeMoment = {
   attacks: PracticeAttack[]; continuationNoteIds: string[];
 };
 export type MeterSegment = {
-  startBeat: number; numerator: number; denominator: number; measureDurationBeats: number; countInPulses: number;
-  source: 'MUSICXML';
+  startBeat: number; numerator: number; denominator: number;
 };
 export type TempoSegment = { startBeat: number; bpm: number };
 export type PracticeScoreArtifact = {
@@ -27,7 +26,7 @@ export type PracticeScoreArtifact = {
   scoreId: string; revisionId: string; artifactId: string;
   notes: PracticeScoreNote[]; events: PracticeScoreEvent[]; moments: PracticeMoment[];
   meterSegments: MeterSegment[]; scoreTempoSegments: TempoSegment[];
-  firstPlayableBeat: number; scoreEndBeat: number;
+  scoreEndBeat: number;
 };
 
 /** Strictly validate untrusted transport while preserving the input object and primitive values. */
@@ -37,7 +36,7 @@ export function parsePracticeScoreArtifact(value: unknown): PracticeScoreArtifac
 }
 
 export function assertPracticeScoreArtifact(value: unknown): asserts value is PracticeScoreArtifact {
-  const root = object(value, 'schemaVersion scoreId revisionId artifactId notes events moments meterSegments scoreTempoSegments firstPlayableBeat scoreEndBeat');
+  const root = object(value, 'schemaVersion scoreId revisionId artifactId notes events moments meterSegments scoreTempoSegments scoreEndBeat');
   if (root.schemaVersion !== PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION) fail('Unsupported PracticeScoreArtifact schema.');
   for (const key of ['scoreId', 'revisionId', 'artifactId']) identity(root[key]);
   const noteRows = array(root.notes), eventRows = array(root.events), momentRows = array(root.moments);
@@ -69,8 +68,8 @@ export function assertPracticeScoreArtifact(value: unknown): asserts value is Pr
     const onset = byOnset.get(event.onsetBeat) ?? []; onset.push(note); byOnset.set(event.onsetBeat, onset);
   }
   if (byEvent.size !== events.size) fail('Event without canonical notation.');
-  number(root.firstPlayableBeat); number(root.scoreEndBeat);
-  if (root.firstPlayableBeat !== (eventRows[0] as PracticeScoreEvent).onsetBeat || root.scoreEndBeat !== roundBeat(endBeat)) fail('Invalid canonical score extent.');
+  number(root.scoreEndBeat);
+  if (root.scoreEndBeat !== roundBeat(endBeat)) fail('Invalid canonical score extent.');
   const expectedOnsets = [...byOnset].filter(([, ns]) => ns.some(n => !n.tieTypes.includes('stop'))).map(([onset]) => onset).sort((a,b) => a-b);
   if (expectedOnsets.length !== momentRows.length) fail('Moments must cover every attack onset exactly.');
   const groupIds = new Set<string>(), attackIds = new Set<string>();
@@ -110,10 +109,10 @@ export function assertPracticeScoreArtifact(value: unknown): asserts value is Pr
   const meterSegments = array(root.meterSegments);
   if (!meterSegments.length) fail('Explicit initial meter required.');
   for (const raw of meterSegments) {
-    const m = object(raw, 'startBeat numerator denominator measureDurationBeats countInPulses source');
-    for (const key of ['startBeat', 'numerator', 'denominator', 'measureDurationBeats', 'countInPulses']) number(m[key]);
-    if ((meterBeat === -1 && m.startBeat !== 0) || (m.startBeat as number) < 0 || (m.startBeat as number) <= meterBeat || (m.numerator as number) < 1 || (m.denominator as number) < 1
-      || (m.measureDurationBeats as number) <= 0 || (m.countInPulses as number) < 0 || !['numerator','denominator','countInPulses'].every(key => Number.isInteger(m[key])) || m.source !== 'MUSICXML') fail('Invalid meter contract.');
+    const m = object(raw, 'startBeat numerator denominator');
+    for (const key of ['startBeat', 'numerator', 'denominator']) number(m[key]);
+    if ((meterBeat === -1 && m.startBeat !== 0) || (m.startBeat as number) < 0 || (m.startBeat as number) <= meterBeat) fail('Invalid meter chronology.');
+    measureDurationBeats(m as MeterSegment);
     meterBeat = m.startBeat as number;
   }
 }
@@ -125,7 +124,7 @@ function soundingEnd(note: PracticeScoreNote, notes: ReadonlyMap<string, Practic
   while (current.tieTypes.includes('start')) {
     const candidates = [...notes.values()].filter(n => !visited.has(n.noteId) && n.tieTypes.includes('stop')
       && n.pianoKey === current.pianoKey && n.staffId === current.staffId && n.voiceId === current.voiceId
-      && events.get(n.eventId)!.onsetBeat >= event.onsetBeat && events.get(n.eventId)!.onsetBeat <= event.onsetBeat + event.durationBeats);
+      && events.get(n.eventId)!.onsetBeat >= event.onsetBeat && events.get(n.eventId)!.onsetBeat <= roundBeat(event.onsetBeat + event.durationBeats));
     candidates.sort((a,b) => events.get(a.eventId)!.onsetBeat - events.get(b.eventId)!.onsetBeat);
     if (!candidates.length) break;
     current = candidates[0]; visited.add(current.noteId); event = events.get(current.eventId)!;
@@ -159,4 +158,27 @@ function references(value: unknown): string[] {
 function identity(value: unknown): asserts value is string { if (typeof value !== 'string' || !value) fail('Invalid canonical identity.'); }
 function number(value: unknown): asserts value is number { if (typeof value !== 'number' || !Number.isFinite(value)) fail('Invalid numeric chronology.'); }
 function fail(message: string): never { throw new PracticeScoreContractError(message); }
-export function roundBeat(value: number): number { return Math.round(value * 1_000_000) / 1_000_000; }
+/** Canonical six-decimal score beats: nearest decimal, ties to even on the IEEE value. */
+export function roundBeat(value: number): number {
+  if (!Number.isFinite(value) || value === 0 || Math.round(value * 1_000_000) / 1_000_000 === value) return value;
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, Math.abs(value));
+  const bits = view.getBigUint64(0), exponent = Number((bits >> BigInt(52)) & BigInt(0x7ff));
+  const mantissa = (bits & ((BigInt(1) << BigInt(52)) - BigInt(1))) + (exponent ? BigInt(1) << BigInt(52) : BigInt(0));
+  const shift = exponent ? exponent - 1075 : -1074;
+  if (shift >= 0) return value;
+  const denominator = BigInt(1) << BigInt(-shift), scaled = mantissa * BigInt(1_000_000);
+  let rounded = scaled / denominator;
+  const remainder = scaled % denominator;
+  if (remainder * BigInt(2) > denominator || (remainder * BigInt(2) === denominator && rounded % BigInt(2) !== BigInt(0))) rounded += BigInt(1);
+  return Math.sign(value) * Number(`${rounded}e-6`);
+}
+
+/** Score-derived measure extent; Count-In and pulse behavior are execution policy. */
+export function measureDurationBeats(meter: Readonly<Pick<MeterSegment, 'numerator' | 'denominator'>>): number {
+  if (!Number.isInteger(meter.numerator) || meter.numerator <= 0
+    || !Number.isInteger(meter.denominator) || meter.denominator <= 0) fail('Invalid meter facts.');
+  const duration = roundBeat(meter.numerator * 4 / meter.denominator);
+  if (!Number.isFinite(duration) || duration <= 0) fail('Invalid measure duration.');
+  return duration;
+}

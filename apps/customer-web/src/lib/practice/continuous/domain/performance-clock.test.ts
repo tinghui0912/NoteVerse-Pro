@@ -137,7 +137,7 @@ describe('Continuous transport clock', () => {
 
 describe('meter-aware Resume Count-In', () => {
   it.each([3, 4])('%i/4 keeps performance/beat fixed until the resumed running boundary', beats => {
-    const score = cloneArtifact({ meterSegments: [{ startBeat: 0, numerator: beats, denominator: 4, measureDurationBeats: beats, countInPulses: beats, source: 'MUSICXML' }] } as Partial<PracticeScoreArtifact>);
+    const score = cloneArtifact({ meterSegments: [{ startBeat: 0, numerator: beats, denominator: 4,   }] } as Partial<PracticeScoreArtifact>);
     const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score, tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(score, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countInBeats: 1 });
     expect(runtime.start()).toMatchObject({ state: 'COUNT_IN', countInKind: 'INITIAL', performanceTimeMs: 0 });
     clock.advance(500); expect(runtime.advanceToNow().performanceTimeMs).toBe(0);

@@ -3382,10 +3382,6 @@ export type PracticeScoreArtifactRead = {
      */
     events: Array<PracticeScoreEventRead>;
     /**
-     * Firstplayablebeat
-     */
-    firstPlayableBeat: number;
-    /**
      * Metersegments
      */
     meterSegments: Array<PracticeScoreMeterSegmentRead>;
@@ -3404,7 +3400,7 @@ export type PracticeScoreArtifactRead = {
     /**
      * Schemaversion
      */
-    schemaVersion: 3;
+    schemaVersion: 1;
     /**
      * Scoreendbeat
      */
@@ -3460,25 +3456,13 @@ export type PracticeScoreEventRead = {
  */
 export type PracticeScoreMeterSegmentRead = {
     /**
-     * Countinpulses
-     */
-    countInPulses: number;
-    /**
      * Denominator
      */
     denominator: number;
     /**
-     * Measuredurationbeats
-     */
-    measureDurationBeats: number;
-    /**
      * Numerator
      */
     numerator: number;
-    /**
-     * Source
-     */
-    source: 'MUSICXML';
     /**
      * Startbeat
      */

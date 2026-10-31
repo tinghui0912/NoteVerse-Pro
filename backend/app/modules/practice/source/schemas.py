@@ -55,9 +55,6 @@ class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
     startBeat: float
     numerator: int
     denominator: int
-    measureDurationBeats: float
-    countInPulses: int
-    source: Literal["MUSICXML"]
 
 
 class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
@@ -66,7 +63,7 @@ class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
 
 
 class PracticeScoreArtifactRead(StrictPracticeSourceModel):
-    schemaVersion: Literal[3]
+    schemaVersion: Literal[1]
     scoreId: str
     revisionId: str
     artifactId: str
@@ -75,7 +72,6 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
     moments: list[PracticeScoreMomentRead]
     meterSegments: list[PracticeScoreMeterSegmentRead] = Field(min_length=1)
     scoreTempoSegments: list[PracticeScoreTempoSegmentRead]
-    firstPlayableBeat: float
     scoreEndBeat: float
 
     @model_validator(mode="after")
@@ -110,10 +106,9 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
                 )
                 for m in self.moments
             ),
-            first_playable_beat=self.firstPlayableBeat,
             end_beat=self.scoreEndBeat,
             meter_segments=tuple(
-                PracticeMeterSegment(m.startBeat, m.numerator, m.denominator, m.source)
+                PracticeMeterSegment(m.startBeat, m.numerator, m.denominator)
                 for m in self.meterSegments
             ),
         )
@@ -125,20 +120,6 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
             if tempo.startBeat < 0 or tempo.startBeat <= previous or tempo.bpm <= 0:
                 raise ValueError("Invalid score tempo chronology.")
             previous = tempo.startBeat
-        if not self.meterSegments or self.meterSegments[0].startBeat != 0:
-            raise ValueError("Practice requires explicit initial meter timing.")
-        previous = -1.0
-        for meter in self.meterSegments:
-            if (
-                meter.startBeat < 0
-                or meter.startBeat <= previous
-                or meter.numerator < 1
-                or meter.denominator < 1
-                or meter.measureDurationBeats <= 0
-                or meter.countInPulses < 0
-            ):
-                raise ValueError("Invalid meter contract.")
-            previous = meter.startBeat
         return self
 
 

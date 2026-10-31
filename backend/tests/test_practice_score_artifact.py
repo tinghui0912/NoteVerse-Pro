@@ -25,8 +25,8 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
         score_tempo_segments=compiled.tempo_segments,
     )
 
-    assert artifact["schemaVersion"] == 3
-    assert artifact["artifactId"] == "practice-score-artifact:c2f3275222932efa"
+    assert artifact["schemaVersion"] == 1
+    assert artifact["artifactId"] == "practice-score-artifact:fc944718d72728b7"
     assert artifact["scoreTempoSegments"] == [
         {"startBeat": 0.0, "bpm": 120.0},
         {"startBeat": 3.0, "bpm": 90.0},
@@ -56,17 +56,11 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
             "startBeat": 0.0,
             "numerator": 3,
             "denominator": 4,
-            "measureDurationBeats": 3.0,
-            "countInPulses": 3,
-            "source": "MUSICXML",
         },
         {
             "startBeat": 3.0,
             "numerator": 6,
             "denominator": 8,
-            "measureDurationBeats": 3.0,
-            "countInPulses": 6,
-            "source": "MUSICXML",
         },
     ]
 
@@ -76,7 +70,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 
     timeline = PracticeScoreTimeline(
-        notes=(), events=(), moments=(), first_playable_beat=None, end_beat=0.0, meter_segments=()
+        notes=(), events=(), moments=(), end_beat=0.0, meter_segments=()
     )
     with pytest.raises(PracticeScoreInvalidError):
         practice_score_artifact_from_timeline(
@@ -256,7 +250,6 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         events=(),
         notes=(),
         moments=(),
-        first_playable_beat=None,
         end_beat=0.0,
         meter_segments=(),
     )
@@ -283,6 +276,23 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
             / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
         ).read_text()
     )
-    assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 3
+    assert PracticeScoreArtifactRead.model_validate(value).schemaVersion == 1
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate({**value, "schemaVersion": 999})
+
+
+def test_semantic_score_fact_changes_artifact_content_identity():
+    from app.modules.practice.source.builder import PracticeSourceBuilder
+
+    builder = PracticeSourceBuilder()
+    xml = CANONICAL_MUSICXML.read_bytes()
+    first = builder.build(score_id="s", revision_id="r", canonical_musicxml=xml)
+    same = builder.build(score_id="s", revision_id="r", canonical_musicxml=xml)
+    changed = builder.build(
+        score_id="s",
+        revision_id="r",
+        canonical_musicxml=xml.replace(b"<step>C</step>", b"<step>D</step>", 1),
+    )
+    assert first.artifact.artifact_id == same.artifact.artifact_id
+    assert changed.artifact.artifact_id != first.artifact.artifact_id
+    assert changed.source_id != first.source_id

@@ -1,5 +1,5 @@
 import type { MeterSegment } from '@/lib/practice/kernel/artifact';
-import { roundBeat } from '@/lib/practice/kernel/artifact';
+import { measureDurationBeats, roundBeat } from '@/lib/practice/kernel/artifact';
 import { beatsToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 
 /** Timing-only input; it makes no claim of Practice score validity. */
@@ -72,9 +72,7 @@ export type MetronomePlanningCursor =
  * - 2/2 -> 2.0 quarter beats (half note)
  */
 export function pulseStepBeats(meter: MeterSegment): number {
-  if (!Number.isFinite(meter.denominator) || meter.denominator <= 0) {
-    return 1.0;
-  }
+  measureDurationBeats(meter);
   return 4 / meter.denominator;
 }
 
@@ -101,9 +99,9 @@ export function meterAtBeat(artifact: MetronomeMeterSource, beat: number): Meter
  * Determines whether a score beat aligns with a measure downbeat for the active meter segment.
  */
 export function isDownbeat(meter: MeterSegment, beat: number): boolean {
+  const measureBeats = measureDurationBeats(meter);
   const rel = roundBeat(beat - meter.startBeat);
   if (rel < -1e-4) return false;
-  const measureBeats = meter.measureDurationBeats;
   const remainder = ((rel % measureBeats) + measureBeats) % measureBeats;
   return remainder < 1e-4 || Math.abs(remainder - measureBeats) < 1e-4;
 }
@@ -114,7 +112,7 @@ export function isDownbeat(meter: MeterSegment, beat: number): boolean {
 export function pulseIndexInMeasure(meter: MeterSegment, beat: number): number {
   const step = pulseStepBeats(meter);
   const rel = roundBeat(beat - meter.startBeat);
-  const measureBeats = meter.measureDurationBeats;
+  const measureBeats = measureDurationBeats(meter);
   const remainder = ((rel % measureBeats) + measureBeats) % measureBeats;
   const rawIndex = Math.round(remainder / step);
   return rawIndex % meter.numerator;

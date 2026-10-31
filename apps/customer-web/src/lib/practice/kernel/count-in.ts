@@ -1,4 +1,4 @@
-import type { MeterSegment, PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { measureDurationBeats, type MeterSegment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export type CountInContract = {
   durationBeats: number;
@@ -20,11 +20,12 @@ function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
   return active;
 }
 
+/** Current Count-In policy uses one pulse per denominator unit. */
 export function countInContractAt(artifact: PracticeScoreArtifact, beat: number): CountInContract {
   const meter = meterAt(artifact, beat);
   return {
-    durationBeats: meter.measureDurationBeats,
-    pulses: meter.countInPulses,
+    durationBeats: measureDurationBeats(meter),
+    pulses: meter.numerator,
     numerator: meter.numerator,
     denominator: meter.denominator,
   };

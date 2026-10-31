@@ -16,7 +16,7 @@ coercion, clamping, transposition or filtering. Empty/no-target revisions fail.
 
 ## Artifact and source boundary
 
-[Artifact schema3](practice-moment-artifact.md) owns canonical notes, events and
+[Artifact schemaVersion 1](practice-moment-artifact.md) owns canonical notes, events and
 chronological moments with physical attacks and continuation references. A key/onset
 has one attack containing all unison notation identities across voices/staves.
 Backend deterministic construction and browser strict parsing validate this graph.

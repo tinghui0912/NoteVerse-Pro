@@ -145,7 +145,7 @@ The saved-source route returns the same envelope and verifies one snapshot bundl
 per request. Saved-take presentation requests notation. Snapshot reads remain available
 after live score deletion while a durable take retains the snapshot.
 
-The [artifact contract](practice-moment-artifact.md) owns schema3 notation/moment
+The [artifact contract](practice-moment-artifact.md) owns schemaVersion 1 notation/moment
 semantics. Source representation ownership does not define evaluation, timing,
 resource budgets or recording evidence semantics.
 

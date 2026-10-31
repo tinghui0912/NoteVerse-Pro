@@ -32,13 +32,13 @@ export const take: PerformanceTakeRead = {
 };
 
 export const artifact: PracticeScoreArtifact = {
-  schemaVersion: 3, scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1',
+  schemaVersion: 1, scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1',
   notes: [0,1].map(i => ({ noteId: `note-${i + 1}`, eventId: `event-${i + 1}`, pianoKey: 60,
     renderNoteId: `note-${i + 1}`, measureNumber: String(i + 1), staffId: '', voiceId: '', tieTypes: [] })),
   events: [0,1].map(i => ({ eventId: `event-${i + 1}`, onsetBeat: i * 4, durationBeats: i ? 12 : 4 })),
   moments: [0,1].map(i => ({ groupId: `group-${i + 1}`, onsetBeat: i * 4, canonicalEndBeat: i ? 16 : 4,
     attacks: [{ attackId: `strike-${i + 1}`, pianoKey: 60, noteIds: [`note-${i + 1}`] }], continuationNoteIds: [] })),
   scoreTempoSegments: [{ startBeat: 0, bpm: 96 }],
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 0, source: 'MUSICXML' }],
-  firstPlayableBeat: 0, scoreEndBeat: 16,
+  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
+   scoreEndBeat: 16,
 };

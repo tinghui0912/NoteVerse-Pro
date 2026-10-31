@@ -3,7 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import math
-from typing import Literal, SupportsFloat
+from typing import SupportsFloat
 from .piano_key import PracticeScoreInvalidError
 
 
@@ -18,7 +18,6 @@ def canonical_beat(value: SupportsFloat) -> float:
 
 
 ScoreBeat = float
-MeterSource = Literal["MUSICXML"]
 
 
 @dataclass(frozen=True)
@@ -61,10 +60,16 @@ class PracticeMeterSegment:
     start_beat: ScoreBeat
     numerator: int
     denominator: int
-    source: MeterSource = "MUSICXML"
 
     @property
     def measure_duration_beats(self) -> ScoreBeat:
+        if (
+            type(self.numerator) is not int
+            or self.numerator <= 0
+            or type(self.denominator) is not int
+            or self.denominator <= 0
+        ):
+            raise PracticeScoreInvalidError("Invalid Practice meter facts.")
         try:
             duration = canonical_beat(self.numerator * 4.0 / self.denominator)
         except (OverflowError, ZeroDivisionError) as error:
@@ -72,10 +77,6 @@ class PracticeMeterSegment:
         if not math.isfinite(duration) or duration <= 0:
             raise PracticeScoreInvalidError("Invalid Practice meter duration.")
         return duration
-
-    @property
-    def count_in_pulses(self) -> int:
-        return self.numerator
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,6 @@ class PracticeScoreTimeline:
     notes: tuple[PracticeScoreNote, ...]
     events: tuple[PracticeScoreEvent, ...]
     moments: tuple[PracticeMoment, ...]
-    first_playable_beat: ScoreBeat | None
     end_beat: ScoreBeat
     meter_segments: tuple[PracticeMeterSegment, ...]
 
@@ -135,9 +135,3 @@ class PracticeScoreTimeline:
                 break
             active = segment
         return active
-
-    def count_in_duration_beats_at(self, beat: ScoreBeat) -> ScoreBeat:
-        return self.meter_at(beat).measure_duration_beats
-
-    def count_in_pulses_at(self, beat: ScoreBeat) -> int:
-        return self.meter_at(beat).count_in_pulses

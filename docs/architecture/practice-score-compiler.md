@@ -10,14 +10,15 @@ canonical MusicXML
   -> compile_practice_score(prepared MusicXML)
   -> immutable CompiledPracticeScore
        notes + measures + meter segments + tempo segments
-  -> timeline projection -> schema3 artifact
+  -> timeline projection -> schemaVersion 1 artifact
 ```
 
 ## Beat axis and measure chronology
 
 One score beat is one quarter note. The compiler parses decimal timing quantities
 exactly and accumulates rational divisions, cursor positions and measure boundaries.
-`domain.canonical_beat` rounds exported beat values to six decimal places. Distinct
+`domain.canonical_beat` rounds exported beat values to six decimal places using nearest rounding with ties
+to even on the floating-point value. Distinct
 score positions must remain distinct at that precision. Note durations are the
 canonical difference between exported onset and endpoint and must remain positive.
 
@@ -44,8 +45,7 @@ facts, with no downstream XML timing traversal.
 ## Admission
 
 The initial meter is explicit, starts at beat zero and has positive integer numerator
-and denominator. Its measure duration is positive and its count-in pulse count is
-nonnegative. Later measures inherit the active meter or declare a supported meter
+and denominator. Its domain-derived measure duration is finite and positive. Later measures inherit the active meter or declare a supported meter
 change. Missing/malformed meter and senza-misura notation are invalid for Practice.
 
 Divisions and note/backup/forward durations are explicit positive finite numbers.
@@ -79,7 +79,7 @@ canonical note chronology to the timeline projection. Source consumes its public
 compilation boundary; HTTP, persistence and
 PerformanceTake remain outside score compilation.
 
-The schema3 artifact serializer owns canonical JSON and artifact content identity.
+The schemaVersion 1 artifact serializer owns canonical JSON and artifact content identity.
 The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/` supplies
 both artifact behavior tests and the repository contract checker. The committed
 browser fixture verifies the compiled notation/event/moment projection against that

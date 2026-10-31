@@ -1,5 +1,5 @@
 {
-  "artifactId": "practice-score-artifact:c2f3275222932efa",
+  "artifactId": "practice-score-artifact:fc944718d72728b7",
   "events": [
     {
       "durationBeats": 1.0,
@@ -32,22 +32,15 @@
       "onsetBeat": 4.5
     }
   ],
-  "firstPlayableBeat": 0.0,
   "meterSegments": [
     {
-      "countInPulses": 3,
       "denominator": 4,
-      "measureDurationBeats": 3.0,
       "numerator": 3,
-      "source": "MUSICXML",
       "startBeat": 0.0
     },
     {
-      "countInPulses": 6,
       "denominator": 8,
-      "measureDurationBeats": 3.0,
       "numerator": 6,
-      "source": "MUSICXML",
       "startBeat": 3.0
     }
   ],
@@ -214,7 +207,7 @@
     }
   ],
   "revisionId": "canonical-local-core-revision",
-  "schemaVersion": 3,
+  "schemaVersion": 1,
   "scoreEndBeat": 6.0,
   "scoreId": "canonical-local-core-score",
   "scoreTempoSegments": [

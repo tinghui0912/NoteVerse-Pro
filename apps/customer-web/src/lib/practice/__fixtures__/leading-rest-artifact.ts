@@ -5,8 +5,8 @@ leadingRestArtifact.events[0].onsetBeat = 2;
 leadingRestArtifact.moments[0].groupId = 'g-rest-1';
 leadingRestArtifact.moments[0].onsetBeat = 2;
 leadingRestArtifact.moments[0].canonicalEndBeat = 3;
-leadingRestArtifact.firstPlayableBeat = 2;
+
 leadingRestArtifact.scoreEndBeat = 3;
-leadingRestArtifact.meterSegments = [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'MUSICXML' }];
+leadingRestArtifact.meterSegments = [{ startBeat: 0, numerator: 4, denominator: 4,   }];
 leadingRestArtifact.scoreTempoSegments = [{ startBeat: 0, bpm: 80 }, { startBeat: 2, bpm: 100 }];
 export { leadingRestArtifact };

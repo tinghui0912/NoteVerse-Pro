@@ -66,7 +66,6 @@ def practice_timeline_from_compiled(compiled: CompiledPracticeScore) -> Practice
         tuple(notes),
         tuple(events),
         _build_moments(tuple(notes), tuple(events)),
-        events[0].onset_beat if events else None,
         canonical_beat(max((e.onset_beat + e.duration_beats for e in events), default=0.0)),
         compiled.meter_segments,
     )
@@ -153,17 +152,9 @@ def assert_practice_timeline(timeline: PracticeScoreTimeline) -> None:
             not math.isfinite(meter.start_beat)
             or meter.start_beat < 0
             or meter.start_beat <= previous_meter
-            or type(meter.numerator) is not int
-            or meter.numerator <= 0
-            or type(meter.denominator) is not int
-            or meter.denominator <= 0
-            or not math.isfinite(meter.measure_duration_beats)
-            or meter.measure_duration_beats <= 0
-            or type(meter.count_in_pulses) is not int
-            or meter.count_in_pulses < 0
-            or meter.source != "MUSICXML"
         ):
             raise PracticeScoreInvalidError("Invalid Practice meter timing.")
+        _ = meter.measure_duration_beats
         previous_meter = meter.start_beat
     notes = {n.note_id: n for n in timeline.notes}
     events = {e.event_id: e for e in timeline.events}
@@ -192,9 +183,7 @@ def assert_practice_timeline(timeline: PracticeScoreTimeline) -> None:
         if not any(n.event_id == event.event_id for n in timeline.notes):
             raise ValueError("Canonical event has no notation owner.")
         previous = event.onset_beat
-    if timeline.first_playable_beat != timeline.events[
-        0
-    ].onset_beat or timeline.end_beat != canonical_beat(
+    if timeline.end_beat != canonical_beat(
         max(e.onset_beat + e.duration_beats for e in timeline.events)
     ):
         raise ValueError("Canonical score extent differs from event chronology.")

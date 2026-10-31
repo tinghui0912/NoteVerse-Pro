@@ -22,7 +22,7 @@ function artifact(): PracticeScoreArtifact {
     moments: groups.map(g => ({ groupId: g.groupId, onsetBeat: g.onsetBeat, canonicalEndBeat: g.canonicalEndBeat, attacks: [{ attackId: g.groupId, pianoKey: 60, noteIds: [g.groupId] }], continuationNoteIds: [] })),
     meterSegments: [],
     scoreTempoSegments: [{ startBeat: 0, bpm: 60 }],
-    firstPlayableBeat: 2,
+
     scoreEndBeat: 4.5,
   };
 }

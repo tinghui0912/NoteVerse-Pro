@@ -6,7 +6,7 @@ import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
 const tempo: ResolvedPracticeTempoPlan = { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 120, source: 'PRODUCT_DEFAULT' }] };
 const meter = (numerator = 4, denominator = 4, startBeat = 0): MeterSegment => ({ startBeat, numerator, denominator,
-  measureDurationBeats: numerator * 4 / denominator, countInPulses: numerator, source: 'MUSICXML' });
+    });
 function rig(mode: 'STEP' | 'CONTINUOUS' = 'CONTINUOUS', enabled = true, meters = [meter()], tempoPlan = tempo, startBeat = 0, endBeat = 32) {
   let now = 0;
   const audio = { activate: vi.fn(), nowMs: () => now, scheduleClick: vi.fn(), dispose: vi.fn() };

@@ -541,7 +541,6 @@ describe('Continuous clock and evaluation composition', () => {
       pianoKey: 60,
       confidence: 1,
 
-
     });
     expect(evaluated).toBe(true);
     expect(performance.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
@@ -558,7 +557,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     const empty = cloneArtifact({
       artifactId: 'empty-artifact',
-      firstPlayableBeat: 0,
+
       scoreEndBeat: 0,
       notes: [],
       events: [],
@@ -595,7 +594,6 @@ describe('Continuous clock and evaluation composition', () => {
     const finalPerfA = perfA.snapshotSession();
     expect(finalPerfA.lifecycleState).toBe('ENDED');
     expect(finalPerfA.metronomeEnabled).toBe(true);
-
 
     const perfB = new ContinuousPracticeSession({ ...continuousSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: true }), clock, metronomeEnabled: true });
     perfB.start();

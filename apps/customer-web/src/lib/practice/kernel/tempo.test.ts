@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 
 function createMockArtifact(scoreTempoSegments: { startBeat: number; bpm: number }[]): PracticeScoreArtifact {
   return {
-    schemaVersion: 3,
+    schemaVersion: 1,
     scoreId: 'test-score',
     revisionId: 'test-revision',
     artifactId: 'test-artifact',
@@ -28,7 +28,7 @@ function createMockArtifact(scoreTempoSegments: { startBeat: number; bpm: number
     moments: [],
     meterSegments: [],
     scoreTempoSegments,
-    firstPlayableBeat: 0,
+
     scoreEndBeat: 16,
   };
 }
@@ -242,7 +242,6 @@ it("resolves score tempo at the first playable onset after a leading rest", () =
     const tempoInfo = effectiveScoreTempoAtBeat(leadingRestArtifact, leadingRestArtifact.moments[0].onsetBeat);
     expect(tempoInfo.bpm).toBe(100);
     expect(tempoInfo.source).toBe('MUSICXML');
-
 
 });
 

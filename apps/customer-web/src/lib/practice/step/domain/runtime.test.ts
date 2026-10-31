@@ -14,7 +14,7 @@ describe('STEP runtime target and session contracts', () => {
 
     const empty = cloneArtifact({
       artifactId: 'empty-artifact',
-      firstPlayableBeat: 0,
+
       scoreEndBeat: 0,
       notes: [],
       events: [],
@@ -35,7 +35,6 @@ describe('STEP runtime target and session contracts', () => {
 
     stepRuntime.setMetronomeEnabled(true);
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(true);
-
 
   });
 
@@ -61,7 +60,6 @@ describe('STEP runtime target and session contracts', () => {
     expect(finalStepB.runtimeStatus).toBe('ENDED');
     expect(finalStepB.metronomeEnabled).toBe(false);
 
-
   });
 
   it("starts on the first target after a leading rest", () => {
@@ -71,10 +69,8 @@ describe('STEP runtime target and session contracts', () => {
     expect(stepRuntime.currentOnsetBeat).toBe(2.0);
     expect(stepRuntime.currentTarget()?.stepId).toBe('g-rest-1');
 
-
   });
 });
-
 
 it.each(['MIDI', 'MICROPHONE'] as const)('%s snapshots expose only the current learning interaction and attempt schema', inputSource => {
   const localSessionId = 'snapshot-contract', time = (ms: number) => ({ domainId: localSessionId, ms });

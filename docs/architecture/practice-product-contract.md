@@ -3,7 +3,7 @@
 ## Revision-Wide Score Admission
 
 Practice-ready validity belongs to the entire pinned score revision. The only current
-artifact is schema3 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
+artifact is schemaVersion 1 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; source or scope never repairs an invalid revision.
 Setup requests it through the shared Source parser only when Start Practice is pressed,
 before Environment qualification. Invalid direct Practice entry disables DeviceLease/session
@@ -13,7 +13,7 @@ resources and shows an in-place score-unavailable state. Device readiness remain
 ## Execution and Inputs
 
 Practice execution is browser-local. The backend Practice Source service authorizes
-one revision and builds an immutable source bundle containing schema3 artifact and
+one revision and builds an immutable source bundle containing schemaVersion 1 artifact and
 prepared notation representations. One `/source` request returns `source_id`, the
 artifact, and optional prepared-MusicXML notation. The revision-source hook owns one
 query and runtime artifact parsing. Setup requests `include_notation=false` and
@@ -362,7 +362,7 @@ metadata. It depends on neither mode, acoustic implementation nor browser resour
 Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
 their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
-Artifact schema3 has one canonical notation ownership graph and one canonical
+Artifact schemaVersion 1 has one canonical notation ownership graph and one canonical
 Practice moment/physical-attack sequence. STEP and Continuous are projections, not
 independent serialized target truths. A note owns its event reference, pianoKey,
 render identity, measure/staff/voice and tie facts once. An event owns chronology.
@@ -427,7 +427,7 @@ these dependency and ownership boundaries.
 
 ## STEP_BY_STEP
 
-STEP is paced learning, not a performance report. The shared schema3 artifact is
+STEP is paced learning, not a performance report. The shared schemaVersion 1 artifact is
 validated revision-wide before scope selection. StepPracticeRuntime owns progression;
 StepPracticeController owns inputs, metronome, cancellation and resource cleanup.
 There is no STEP Performance Clock or Pause/Resume lifecycle.
@@ -1192,4 +1192,7 @@ meter changes. Missing, malformed or unsupported unmetered notation is INVALID_S
 A key signature is not required. Explicit tempo is optional: SCORE selection uses
 PRODUCT_DEFAULT 80 BPM before any explicit MUSICXML tempo. The detailed score
 admission and timing contract belongs to the [Practice score compiler](practice-score-compiler.md).
-Continuous PerformanceClock owns meter-derived count-in; STEP has no count-in.
+Continuous PerformanceClock owns count-in: the current policy gives 3/4 three beats
+and three pulses, 6/8 three beats and six pulses, and 2/2 four beats and two pulses.
+These are execution policies defined by [session planning](practice-session-planning.md).
+STEP has no count-in.

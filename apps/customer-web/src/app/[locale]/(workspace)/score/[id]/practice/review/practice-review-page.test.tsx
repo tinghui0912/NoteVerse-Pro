@@ -176,13 +176,13 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 let currentMockScoreState: 'ready' | 'loading' | 'unavailable' = 'ready';
 
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 3, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
-  firstPlayableBeat: 0, scoreEndBeat: 20,
+  schemaVersion: 1, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+   scoreEndBeat: 20,
   notes: Array.from({ length: 5 }, (_, i) => ({ noteId: `note-${i+1}`, eventId: `event-${i+1}`, pianoKey: 60, renderNoteId: `n-${i+1}`, measureNumber: '1', staffId: '', voiceId: '', tieTypes: [] })),
   events: Array.from({ length: 5 }, (_, i) => ({ eventId: `event-${i+1}`, onsetBeat: i*4, durationBeats: 4 })),
   moments: Array.from({ length: 5 }, (_, i) => ({ groupId: `g-${i+1}`, onsetBeat: i*4, canonicalEndBeat: (i+1)*4, attacks: [{ attackId: `strike-${i+1}`, pianoKey: 60, noteIds: [`note-${i+1}`] }], continuationNoteIds: [] })),
   scoreTempoSegments: [{ startBeat: 0, bpm: 100 }],
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 0, source: 'MUSICXML' }],
+  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
   ...overrides,
 });
 

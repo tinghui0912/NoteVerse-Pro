@@ -25,12 +25,13 @@ function strikes(artifact: PracticeScoreArtifact) {
 describe('one canonical Practice note graph and moment sequence', () => {
   it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
     assertPracticeScoreArtifact(fixture);
-    expect(fixture.schemaVersion).toBe(3); expect(fixture.artifactId).toBe('practice-score-artifact:c2f3275222932efa');
+    expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:fc944718d72728b7');
     expect(fixture.notes).toHaveLength(7);
     expect(new Set(fixture.notes.map(n => n.noteId)).size).toBe(fixture.notes.length);
     expect(fixture.moments.map(m => m.attacks.map(a => a.pianoKey))).toEqual([[60],[60],[67],[69,72],[74]]);
+    expect(Object.keys(fixture.meterSegments[0]).sort()).toEqual(['startBeat','numerator','denominator'].sort());
     expect(Object.keys(fixture).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
-      'meterSegments','scoreTempoSegments','firstPlayableBeat','scoreEndBeat'].sort());
+      'meterSegments','scoreTempoSegments','scoreEndBeat'].sort());
   });
   it('two unison notation identities produce one STEP attack and one Continuous strike carrying both render IDs', () => {
     const value = unison(), before = structuredClone(value);
@@ -120,7 +121,18 @@ it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startBe
 });
 it('strict parser admits explicit initial meter and physical notation without tonal metadata',()=>{
   const value=structuredClone(fixture);expect(parsePracticeScoreArtifact(value)).toBe(value);
-  expect(value.meterSegments[0]).toMatchObject({startBeat:0,source:'MUSICXML'});
+  expect(value.meterSegments[0]).toEqual({startBeat:0,numerator:3,denominator:4});
   expect(Object.keys(value).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
-    'meterSegments','scoreTempoSegments','firstPlayableBeat','scoreEndBeat'].sort());
+    'meterSegments','scoreTempoSegments','scoreEndBeat'].sort());
+});
+
+
+it('validates tie-chain endpoints on the canonical score-beat axis', () => {
+  const value = artifactWithKeys([[60], [60]]);
+  value.notes[0].tieTypes = ['start']; value.notes[1].tieTypes = ['stop'];
+  value.events[0].onsetBeat = 0.1; value.events[0].durationBeats = 0.7;
+  value.events[1].onsetBeat = 0.8; value.events[1].durationBeats = 1;
+  value.moments.pop(); value.moments[0].onsetBeat = 0.1; value.moments[0].canonicalEndBeat = 1.8;
+  value.scoreEndBeat = 1.8;
+  expect(parsePracticeScoreArtifact(value)).toBe(value);
 });

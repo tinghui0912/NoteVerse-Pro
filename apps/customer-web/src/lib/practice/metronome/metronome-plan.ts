@@ -1,4 +1,4 @@
-import type { MeterSegment } from '@/lib/practice/kernel/artifact';
+import { measureDurationBeats, type MeterSegment } from '@/lib/practice/kernel/artifact';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
 /** Immutable musical projection of an admitted session; no browser resources. */
@@ -22,14 +22,13 @@ export function resolveMetronomePlan(input: ResolvedMetronomePlan): ResolvedMetr
   }
   const meterSegments = input.meterSegments;
   if (!meterSegments.length || meterSegments[0].startBeat !== 0) throw new Error('Admitted initial meter timing required.');
+  let previousBeat = -Infinity;
   for (const segment of meterSegments) {
-    if (!Number.isFinite(segment.startBeat) || segment.startBeat < 0
-      || !Number.isInteger(segment.numerator) || segment.numerator <= 0
-      || !Number.isInteger(segment.denominator) || segment.denominator <= 0
-      || !Number.isFinite(segment.measureDurationBeats) || segment.measureDurationBeats <= 0
-      || !Number.isInteger(segment.countInPulses) || segment.countInPulses < 0 || segment.source !== 'MUSICXML') {
-      throw new Error('Invalid metronome meter timing.');
+    if (!Number.isFinite(segment.startBeat) || segment.startBeat < 0 || segment.startBeat <= previousBeat) {
+      throw new Error('Invalid metronome meter chronology.');
     }
+    measureDurationBeats(segment);
+    previousBeat = segment.startBeat;
   }
   freeze(input.tempoPlan);
   return Object.freeze({ ...input, meterSegments: Object.freeze(meterSegments.map(segment => Object.freeze({ ...segment }))) });
