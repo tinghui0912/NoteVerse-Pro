@@ -9,6 +9,36 @@ import { StepPracticeRuntime } from '../step/domain/runtime';
 import { ManualClock } from './timebase';
 
 describe('canonical meter facts and execution policy', () => {
+  it.each([
+    { numerator: Number.MAX_SAFE_INTEGER, denominator: 4 },
+    { numerator: Number.MAX_SAFE_INTEGER, denominator: Number.MAX_SAFE_INTEGER },
+  ])('preserves portable integer boundary facts: $numerator/$denominator', (meter) => {
+    const artifact = structuredClone(canonical) as PracticeScoreArtifact;
+    artifact.meterSegments = [{ startBeat: 0, ...meter }];
+    const before = structuredClone(artifact);
+    expect(measureDurationBeats(meter)).toBeGreaterThan(0);
+    expect(parsePracticeScoreArtifact(artifact)).toBe(artifact);
+    expect(artifact).toEqual(before);
+  });
+  it.each(['numerator', 'denominator'] as const)('rejects a nonportable %s before duration projection', (field) => {
+    const meter = { numerator: Number.MAX_SAFE_INTEGER, denominator: Number.MAX_SAFE_INTEGER };
+    meter[field] = Number.MAX_SAFE_INTEGER + 1;
+    // The ratio is an ordinary positive duration; exact integer transport owns admission.
+    expect(meter.numerator * 4 / meter.denominator).toBeCloseTo(4);
+    expect(() => measureDurationBeats(meter)).toThrow();
+    const value = { ...structuredClone(canonical), meterSegments: [{ startBeat: 0, ...meter }] };
+    const before = structuredClone(value);
+    expect(() => parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
+    expect(value).toEqual(before);
+  });
+  it('requires meter integers to retain exact semantics across JSON and browser Number', () => {
+    const decoded: { n: number } = JSON.parse('{"n":9007199254740993}');
+    expect(String(decoded.n)).toBe('9007199254740992');
+    expect(Number.isInteger(decoded.n)).toBe(true);
+    expect(Number.isSafeInteger(decoded.n)).toBe(false);
+    const value = { ...structuredClone(canonical), meterSegments: [{ startBeat: 0, numerator: decoded.n, denominator: 4 }] };
+    expect(() => parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
+  });
   it.each(cases)('derives canonical duration from $numerator/$denominator', ({ numerator, denominator, durationBeats }) => {
     expect(measureDurationBeats({ numerator, denominator })).toBe(durationBeats);
   });

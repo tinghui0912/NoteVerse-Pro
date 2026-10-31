@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.modules.practice.score.timeline import assert_practice_timeline
 from app.modules.practice.score.piano_key import PracticePianoKey
 from app.modules.practice.score.domain import (
+    MAX_JSON_SAFE_INTEGER,
     PracticeScoreTimeline,
     PracticeScoreNote,
     PracticeScoreEvent,
@@ -53,8 +54,8 @@ class PracticeScoreMomentRead(StrictPracticeSourceModel):
 
 class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
     startBeat: float
-    numerator: int
-    denominator: int
+    numerator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
+    denominator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
 
 
 class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):

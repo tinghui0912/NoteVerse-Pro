@@ -9,7 +9,9 @@ domain model; generated API DTOs describe the transport boundary.
 The exact root fields are `schemaVersion`, `scoreId`, `revisionId`, `artifactId`,
 `notes`, `events`, `moments`, `meterSegments`, `scoreTempoSegments`, and `scoreEndBeat`.
 Every meter segment contains exactly `startBeat`, `numerator`, and `denominator`.
-These positive integer meter facts establish a nonempty timeline beginning at beat
+Meter numerator and denominator are positive JSON-safe integers (`1..9007199254740991`),
+so canonical JSON and browser Number represent each value exactly. These facts
+establish a nonempty timeline beginning at beat
 zero, with finite, nonnegative, strictly increasing segment positions. Derived
 measure duration must be finite and positive.
 

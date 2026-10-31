@@ -10,7 +10,11 @@ from app.modules.practice.source.builder import PracticeSourceBuilder
 from app.modules.practice.source.schemas import PracticeScoreArtifactRead
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
-from app.modules.practice.score.domain import PracticeScoreTimeline, PracticeMeterSegment
+from app.modules.practice.score.domain import (
+    MAX_JSON_SAFE_INTEGER,
+    PracticeScoreTimeline,
+    PracticeMeterSegment,
+)
 
 
 def time(numerator=4, denominator=4):
@@ -189,3 +193,124 @@ def test_meter_transport_exact_facts_fail_closed_without_mutation(meter):
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate(value)
     assert value == before
+
+
+@pytest.mark.parametrize(
+    "numerator,denominator",
+    [
+        (MAX_JSON_SAFE_INTEGER, 4),
+        (MAX_JSON_SAFE_INTEGER, MAX_JSON_SAFE_INTEGER),
+    ],
+)
+def test_meter_domain_admits_portable_integer_boundary(numerator, denominator):
+    meter = PracticeMeterSegment(0, numerator, denominator)
+    assert meter.numerator == numerator
+    assert meter.denominator == denominator
+    assert meter.measure_duration_beats > 0
+
+
+@pytest.mark.parametrize("field", ["numerator", "denominator"])
+@pytest.mark.parametrize(
+    "value", [0, -1, MAX_JSON_SAFE_INTEGER + 1, MAX_JSON_SAFE_INTEGER + 2, True, 4.0, "4"]
+)
+def test_meter_domain_requires_positive_json_safe_integer_facts(field, value):
+    facts = {"numerator": MAX_JSON_SAFE_INTEGER, "denominator": MAX_JSON_SAFE_INTEGER}
+    facts[field] = value
+    if type(value) is int and value > MAX_JSON_SAFE_INTEGER:
+        # This ratio has an ordinary positive duration; portability owns rejection.
+        assert round(facts["numerator"] * 4.0 / facts["denominator"], 6) == 4
+    with pytest.raises(PracticeScoreInvalidError, match="positive JSON-safe integers"):
+        PracticeMeterSegment(0, **facts)
+
+
+@pytest.mark.parametrize(
+    "numerator,denominator",
+    [
+        (MAX_JSON_SAFE_INTEGER, 4),
+        (MAX_JSON_SAFE_INTEGER, MAX_JSON_SAFE_INTEGER),
+    ],
+)
+def test_artifact_transport_preserves_safe_meter_integers_without_mutation(numerator, denominator):
+    from copy import deepcopy
+    import json
+
+    value = {
+        **build(xml(time())).artifact.value,
+        "meterSegments": [{"startBeat": 0, "numerator": numerator, "denominator": denominator}],
+    }
+    before = deepcopy(value)
+    for parsed in (
+        PracticeScoreArtifactRead.model_validate(value),
+        PracticeScoreArtifactRead.model_validate_json(json.dumps(value)),
+    ):
+        assert parsed.meterSegments[0].numerator == numerator
+        assert parsed.meterSegments[0].denominator == denominator
+    assert value == before
+
+
+@pytest.mark.parametrize("field", ["numerator", "denominator"])
+@pytest.mark.parametrize(
+    "value", [0, -1, MAX_JSON_SAFE_INTEGER + 1, MAX_JSON_SAFE_INTEGER + 2, True, 4.0, "4"]
+)
+def test_artifact_transport_rejects_nonportable_meter_integers_without_coercion(field, value):
+    from copy import deepcopy
+    import json
+
+    meter = {
+        "startBeat": 0,
+        "numerator": MAX_JSON_SAFE_INTEGER,
+        "denominator": MAX_JSON_SAFE_INTEGER,
+    }
+    meter[field] = value
+    artifact = {**build(xml(time())).artifact.value, "meterSegments": [meter]}
+    before = deepcopy(artifact)
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate(artifact)
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate_json(json.dumps(artifact))
+    assert artifact == before
+
+
+def test_meter_openapi_exposes_portable_integer_bounds():
+    from app.modules.practice.source.schemas import PracticeScoreMeterSegmentRead
+
+    properties = PracticeScoreMeterSegmentRead.model_json_schema()["properties"]
+    for field in ("numerator", "denominator"):
+        assert properties[field]["type"] == "integer"
+        assert properties[field]["exclusiveMinimum"] == 0
+        assert properties[field]["maximum"] == MAX_JSON_SAFE_INTEGER
+
+
+@pytest.mark.parametrize(
+    "numerator,denominator",
+    [
+        (MAX_JSON_SAFE_INTEGER + 1, MAX_JSON_SAFE_INTEGER),
+        (MAX_JSON_SAFE_INTEGER, MAX_JSON_SAFE_INTEGER + 1),
+    ],
+)
+def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, denominator):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.api.deps import get_current_user, get_db
+    from app.core.exception_handlers import register_exception_handlers
+    from app.modules.practice.source.router import router, get_practice_source_service
+
+    assert round(numerator * 4.0 / denominator, 6) == 4
+    path = tmp_path / "score.musicxml"
+    path.write_bytes(xml(time(numerator, denominator)))
+    service = PracticeSourceService()
+    access = SimpleNamespace(
+        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
+    )
+    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(router, prefix="/api/v1/practice")
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_practice_source_service] = lambda: service
+    with patch.object(service.builder, "build", wraps=service.builder.build) as builder:
+        response = TestClient(app).get("/api/v1/practice/scores/s/revisions/r/source")
+    builder.assert_called_once()
+    assert response.status_code == 422
+    assert response.json()["public_code"] == "practice_score_invalid"

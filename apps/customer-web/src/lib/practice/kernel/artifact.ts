@@ -176,8 +176,8 @@ export function roundBeat(value: number): number {
 
 /** Score-derived measure extent; Count-In and pulse behavior are execution policy. */
 export function measureDurationBeats(meter: Readonly<Pick<MeterSegment, 'numerator' | 'denominator'>>): number {
-  if (!Number.isInteger(meter.numerator) || meter.numerator <= 0
-    || !Number.isInteger(meter.denominator) || meter.denominator <= 0) fail('Invalid meter facts.');
+  if (!Number.isSafeInteger(meter.numerator) || meter.numerator <= 0
+    || !Number.isSafeInteger(meter.denominator) || meter.denominator <= 0) fail('Invalid meter facts.');
   const duration = roundBeat(meter.numerator * 4 / meter.denominator);
   if (!Number.isFinite(duration) || duration <= 0) fail('Invalid measure duration.');
   return duration;

@@ -18,6 +18,8 @@ def canonical_beat(value: SupportsFloat) -> float:
 
 
 ScoreBeat = float
+# Exact integer range shared by canonical JSON and the browser Number domain.
+MAX_JSON_SAFE_INTEGER = 2**53 - 1
 
 
 @dataclass(frozen=True)
@@ -61,15 +63,15 @@ class PracticeMeterSegment:
     numerator: int
     denominator: int
 
+    def __post_init__(self) -> None:
+        for value in (self.numerator, self.denominator):
+            if type(value) is not int or not 1 <= value <= MAX_JSON_SAFE_INTEGER:
+                raise PracticeScoreInvalidError(
+                    "Practice meter facts require positive JSON-safe integers."
+                )
+
     @property
     def measure_duration_beats(self) -> ScoreBeat:
-        if (
-            type(self.numerator) is not int
-            or self.numerator <= 0
-            or type(self.denominator) is not int
-            or self.denominator <= 0
-        ):
-            raise PracticeScoreInvalidError("Invalid Practice meter facts.")
         try:
             duration = canonical_beat(self.numerator * 4.0 / self.denominator)
         except (OverflowError, ZeroDivisionError) as error:

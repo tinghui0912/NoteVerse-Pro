@@ -6814,10 +6814,14 @@
         "additionalProperties": false,
         "properties": {
           "denominator": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
             "title": "Denominator",
             "type": "integer"
           },
           "numerator": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
             "title": "Numerator",
             "type": "integer"
           },

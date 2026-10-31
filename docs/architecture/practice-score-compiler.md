@@ -44,8 +44,9 @@ facts, with no downstream XML timing traversal.
 
 ## Admission
 
-The initial meter is explicit, starts at beat zero and has positive integer numerator
-and denominator. Its domain-derived measure duration is finite and positive. Later measures inherit the active meter or declare a supported meter
+The initial meter is explicit and starts at beat zero. Its numerator and denominator
+are positive JSON-safe integers, exactly representable by canonical JSON and browser
+Number (`1..9007199254740991`). Its domain-derived measure duration is finite and positive. Later measures inherit the active meter or declare a supported meter
 change. Missing/malformed meter and senza-misura notation are invalid for Practice.
 
 Divisions and note/backup/forward durations are explicit positive finite numbers.
