@@ -86,10 +86,6 @@ def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
         return SimpleNamespace(returncode=0, stderr="", stdout="")
 
     monkeypatch.setattr(
-        "app.processing.engines.playback.fluidsynth.ensure_partitura_default_soundfont",
-        lambda _: None,
-    )
-    monkeypatch.setattr(
         "app.processing.engines.playback.fluidsynth.settings.WORK_ROOT", str(tmp_path / "work")
     )
     monkeypatch.setattr("app.processing.engines.playback.fluidsynth.subprocess.run", fake_run)

@@ -1,21 +1,41 @@
-"""Synthetic compiled-note values for pure timeline projection tests."""
+"""Immutable compiled-domain fixtures for pure timeline projection tests."""
 
-from dataclasses import replace
-from app.modules.practice.score.compiler.musicxml import compile_practice_score
-from app.modules.practice.score.timeline import practice_timeline_from_compiled
-from app.modules.practice.score.domain import canonical_beat
+from app.modules.practice.score.domain import (
+    CompiledPracticeNote,
+    CompiledPracticeScore,
+    PracticeMeterSegment,
+)
 
 
-def timeline_from_notes(note_array, *, musicxml_path):
-    compiled = compile_practice_score(musicxml_path.read_bytes())
-    notation = {n.render_note_id: n for n in compiled.notes}
-    notes = tuple(
-        replace(
-            notation[str(row["id"])],
-            onset_beat=canonical_beat(row["onset_beat"]),
-            duration_beats=canonical_beat(row["duration_beat"]),
-            piano_key=int(row["pitch"]),
-        )
-        for row in note_array
+def compiled_note(
+    *,
+    render_note_id: str,
+    onset_beat: float,
+    duration_beats: float,
+    piano_key: int,
+    semantic_locator: str,
+    measure_number: str = "1",
+    staff_id: str = "1",
+    voice_id: str = "1",
+    tie_types: tuple[str, ...] = (),
+) -> CompiledPracticeNote:
+    return CompiledPracticeNote(
+        render_note_id,
+        onset_beat,
+        duration_beats,
+        piano_key,
+        measure_number,
+        staff_id,
+        voice_id,
+        semantic_locator,
+        tie_types,
     )
-    return practice_timeline_from_compiled(replace(compiled, notes=notes))
+
+
+def compiled_score(
+    *notes: CompiledPracticeNote,
+    meter_segments: tuple[PracticeMeterSegment, ...] = (PracticeMeterSegment(0, 4, 4),),
+) -> CompiledPracticeScore:
+    return CompiledPracticeScore(
+        notes=notes, meter_segments=meter_segments, tempo_segments=(), measures=()
+    )

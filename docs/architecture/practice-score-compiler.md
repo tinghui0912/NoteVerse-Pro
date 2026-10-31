@@ -74,12 +74,14 @@ ownership remains local to its notation part. Timeline projection groups these f
 events/moments and physical attacks. It performs no MusicXML parsing.
 
 Domain values are frozen and contain no parsing or persistence dependencies.
-The compiler depends on score domain values and the standard library. Practice
-note chronology is supplied directly by the compiler, without an external note-array
-adapter. Source consumes its public compilation boundary; HTTP, persistence and
+The compiler depends on score domain values and the standard library. It supplies
+canonical note chronology to the timeline projection. Source consumes its public
+compilation boundary; HTTP, persistence and
 PerformanceTake remain outside score compilation.
 
 The schema3 artifact serializer owns canonical JSON and artifact content identity.
-The committed browser fixture verifies the compiled notation/event/moment projection
-against that transport contract. Source bundle identity and durable materialization
+The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/` supplies
+both artifact behavior tests and the repository contract checker. The committed
+browser fixture verifies the compiled notation/event/moment projection against that
+transport contract. Source bundle identity and durable materialization
 are described by [Practice Source](practice-source.md).

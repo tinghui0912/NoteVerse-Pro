@@ -11,6 +11,7 @@ from uuid import uuid4
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = REPO_ROOT / "backend"
+CANONICAL_MUSICXML = BACKEND_ROOT / "tests/fixtures/musicxml/canonical-practice-score.musicxml"
 BROWSER_FIXTURE = (
     REPO_ROOT
     / "apps"
@@ -74,20 +75,16 @@ def _canonical_artifact() -> dict[str, Any]:
     sys.path.insert(0, str(BACKEND_ROOT))
     from app.modules.practice.score.compiler.musicxml import compile_practice_score
     from app.modules.practice.score.timeline import practice_timeline_from_compiled
-    from app.modules.practice.score.domain import PracticeTempoSegment
     from app.modules.practice.score.artifact import practice_score_artifact_from_timeline
-    from tests.test_practice_score_artifact import _canonical_musicxml
 
-    timeline = practice_timeline_from_compiled(compile_practice_score(_canonical_musicxml()))
+    compiled = compile_practice_score(CANONICAL_MUSICXML.read_bytes())
+    timeline = practice_timeline_from_compiled(compiled)
 
     return practice_score_artifact_from_timeline(
         timeline,
         score_id="canonical-local-core-score",
         revision_id="canonical-local-core-revision",
-        score_tempo_segments=(
-            PracticeTempoSegment(start_beat=0.0, bpm=120.0),
-            PracticeTempoSegment(start_beat=3.0, bpm=90.0),
-        ),
+        score_tempo_segments=compiled.tempo_segments,
     )
 
 

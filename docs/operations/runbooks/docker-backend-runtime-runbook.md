@@ -250,7 +250,7 @@ exhaustion is a failure, never a reason to skip a gate.
 API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.
 API owns customer/control-plane/observability and migration entrypoints. Beat
 owns PostgreSQL scheduler locking and Celery, without Worker task implementations.
-Partitura is qualified through API/Quality. Worker owns render and heavy OCR/ML.
+Worker owns render and heavy OCR/ML.
 
 Offline image contracts run the approved uv dependency check and bounded imports.
 Final Worker uses the canonical 16-task registration checker. Contracts do not

@@ -13,7 +13,7 @@ BACKEND = ROOT / "backend"
 PROJECT = tomllib.loads((BACKEND / "pyproject.toml").read_text(encoding="utf-8"))
 CAPABILITIES = {
     "core", "db", "cache", "celery", "tracing", "http", "auth", "storage",
-    "image", "fingering", "practice-score", "render", "ocr", "migrations", "quality-tools",
+    "image", "fingering", "render", "ocr", "migrations", "quality-tools",
 }
 RUNTIMES = {"api", "beat", "worker-app", "worker", "quality", "dev"}
 

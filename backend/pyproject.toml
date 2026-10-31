@@ -57,9 +57,6 @@ fingering = [
   "numpy==2.3.5",
   "pianoplayer==3.0.2",
 ]
-practice-score = [
-  "partitura==1.9.0",
-]
 render = [
   "numpy==2.3.5",
   "verovio==6.3.0",
@@ -89,7 +86,6 @@ api = [
   { include-group = "auth" },
   { include-group = "image" },
   { include-group = "fingering" },
-  { include-group = "practice-score" },
 ]
 beat = [
   { include-group = "celery" },
