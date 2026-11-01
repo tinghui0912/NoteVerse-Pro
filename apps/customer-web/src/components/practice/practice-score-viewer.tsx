@@ -94,7 +94,7 @@ export function PracticeScoreViewer({
       !activeStepGroup ||
       !xmlContent ||
       renderRevision === 0 ||
-      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED');
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED' && lifecycle !== 'ERROR');
 
     if (shouldClear) {
       stepPlayheadController.clear(container);
@@ -245,7 +245,7 @@ export function PracticeScoreViewer({
       sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
-      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED' && lifecycle !== 'ERROR')
     ) {
       return;
     }

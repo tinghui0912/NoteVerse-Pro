@@ -267,3 +267,31 @@ it('composes Continuous cursor/annotations, restores them on score rerender, and
     delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   }
 });
+
+
+it('retains the owned STEP target during an error and clears it when the target is released', async () => {
+  Object.defineProperty(SVGElement.prototype, 'getBBox', { configurable: true,
+    value: function(this: SVGElement) { return DOMRect.fromRect(this.classList.contains('system')
+      ? { x: 0, y: 0, width: 120, height: 80 } : { x: 10, y: 20, width: 30, height: 40 }); } });
+  const props: PracticeScoreViewerProps = { xmlContent: '<score-partwise />', isLoadingXml: false,
+    sessionMode: 'STEP_BY_STEP', lifecycle: 'ACTIVE', activeStepGroup: mockStepGroup };
+  const view = render(<PracticeScoreViewer {...props} />);
+  const cursor = () => view.container.querySelector('[data-practice-playhead-cursor]');
+  try {
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    const position = cursor()!.getAttribute('x');
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ERROR" />);
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    expect(cursor()!.getAttribute('x')).toBe(position);
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ACTIVE" />);
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    expect(cursor()!.getAttribute('x')).toBe(position);
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ERROR" activeStepGroup={null} />);
+    expect(cursor()).toBeNull();
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="READY" />);
+    expect(cursor()).toBeNull();
+  } finally {
+    view.unmount();
+    delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
+  }
+});

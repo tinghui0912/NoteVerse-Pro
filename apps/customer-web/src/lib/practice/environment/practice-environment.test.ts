@@ -212,3 +212,42 @@ it('silent worker LOAD leaves CHECKING finitely and requires explicit requalific
     expect(engines[1]).not.toBe(engines[0]);
   } finally { await environment.dispose(); vi.useRealTimers(); }
 });
+
+
+it('qualified infrastructure remains matched while inference is leased or retiring, without admitting a second lease', async () => {
+  const r = rig();
+  await r.environment.requalify(mic);
+  const engine = r.platform.createEngine.mock.results[0].value;
+  const lease = await r.environment.acquireInference(new AbortController().signal);
+  expect(engine.snapshot().state).toBe('LEASED');
+  expect(r.environment.matches(mic)).toBe(true);
+  expect(r.environment.matches(midi)).toBe(false);
+  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
+
+  const end = deferred<void>();
+  r.worker.endSession.mockImplementationOnce(() => end.promise);
+  const retirement = lease.dispose();
+  await vi.waitFor(() => expect(engine.snapshot().state).toBe('RETIRING'));
+  expect(r.environment.matches(mic)).toBe(true);
+  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
+  end.resolve();
+  await retirement;
+  expect(r.environment.matches(mic)).toBe(true);
+  expect(r.platform.probe).toHaveBeenCalledOnce();
+  expect(r.worker.beginSession).toHaveBeenCalledTimes(2); // Qualification smoke + one attempt.
+  await r.environment.dispose();
+  expect(r.environment.matches(mic)).toBe(false);
+});
+
+it('an acoustic failure revokes qualification during an active inference lease', async () => {
+  const r = rig();
+  await r.environment.requalify(mic);
+  const lease = await r.environment.acquireInference(new AbortController().signal);
+  expect(r.environment.matches(mic)).toBe(true);
+  r.crash();
+  expect(r.environment.snapshot().status).toBe('BLOCKED');
+  expect(r.environment.matches(mic)).toBe(false);
+  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
+  await lease.dispose();
+  await r.environment.dispose();
+});

@@ -69,6 +69,26 @@ docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm 
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run typecheck
 ```
 
+## Browser Tests
+
+Playwright owns a production server on `localhost:3000` (or `PLAYWRIGHT_PORT`).
+The port must be free; an existing development server is not reused. Build with the
+same environment before running browser assertions:
+
+```powershell
+$env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
+$env:AUTH_COOKIE_NAME='auth'
+$env:REFRESH_COOKIE_NAME='refresh'
+npm ci
+npm run build
+npm run test:e2e -- tests/e2e/practice-continuous-review.spec.ts --project chromium --workers=1 --retries=0
+```
+
+The Practice browser suite supplies Source, authorization, model-access and device
+protocol fixtures. Acoustic Worker RPC is controlled by the fixture; the browser
+still executes the application, Web Audio capture and MediaRecorder. A green suite
+does not claim execution of the real acoustic model or a hosted backend.
+
 ## Dependency Notes
 
 - `node_modules` lives in a Docker named volume so the host bind mount does not

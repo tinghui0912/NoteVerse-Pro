@@ -32,8 +32,11 @@ export class PracticeEnvironment {
   snapshot = (): PracticeReadiness => this.readiness;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   matches(requirements: readonly PracticeQualificationRequirement[]): boolean {
+    const engineState = this.engine?.snapshot().state;
+    // Qualification describes infrastructure health, independently of inference lease availability.
     return this.readiness.status === 'READY' && this.readiness.fingerprint === qualificationFingerprint(requirements)
-      && (!requirements.includes('acousticEngine') || this.engine?.snapshot().state === 'READY_IDLE');
+      && (!requirements.includes('acousticEngine')
+        || engineState === 'READY_IDLE' || engineState === 'LEASED' || engineState === 'RETIRING');
   }
   /** Explicit qualification always rechecks external requirements; a healthy warm engine is reused. */
   requalify(requirements: readonly PracticeQualificationRequirement[]): Promise<void> {

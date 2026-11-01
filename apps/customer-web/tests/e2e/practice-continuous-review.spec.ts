@@ -1,6 +1,6 @@
 import { resolvePracticeScope } from '../../src/lib/practice/kernel/scope';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/kernel/tempo';
-import type { PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
+import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
 import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
@@ -11,6 +11,10 @@ import {
 
 const scoreId = 'continuous-review-score';
 const revisionId = 'continuous-review-revision';
+const unmatchedApiRequests = new WeakMap<Page, string[]>();
+test.afterEach(async ({ page }) => {
+  expect(unmatchedApiRequests.get(page) ?? [], 'All API requests belong to the browser fixture').toEqual([]);
+});
 
 const sampleMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -62,6 +66,7 @@ function apiResponse(data: unknown) {
 type MockOptions = {
   denyMicrophone?: boolean;
   camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'PENDING';
+  reservationMismatch?: 'SCOPE' | 'TEMPO';
 };
 
 type MediaMock = {
@@ -72,6 +77,17 @@ type MediaMock = {
 };
 
 async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {}) {
+  const unmatched: string[] = [];
+  unmatchedApiRequests.set(page, unmatched);
+  await page.route('**/api/v1/**', route => {
+    unmatched.push(`${route.request().method()} ${route.request().url()}`);
+    return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({ success: false, public_code: 'unmocked_api' }) });
+  });
+  // Explicit navigation away from Practice also stays inside the mock backend.
+  await page.route('**/api/v1/library/folders', route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, mastered_count: 0, recent_practice_count: 0, to_practice_count: 0 } satisfies LibraryFolderTreeRead) }));
+  await page.route('**/api/v1/library/entries?**', route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: [], pagination: { page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
   await installAcousticEngineFixture(page);
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
@@ -297,6 +313,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
 
   // Mock Performance Takes Routes
   const takesDatabase: PerformanceTakeRead[] = [];
+  const saveProtocol = { events: [] as string[], request: null as PerformanceTakeUploadReservationRequest | null };
+
   let reservedRequest: PerformanceTakeUploadReservationRequest;
   function acceptedPlan(request: PerformanceTakeUploadReservationRequest) {
     const scope = resolvePracticeScope(testArtifact, request.scope.kind === 'FULL'
@@ -309,18 +327,38 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     };
   }
   await page.route('**/api/v1/performance-takes/upload-reservations', route => {
+    expect(route.request().method()).toBe('POST');
     reservedRequest = route.request().postDataJSON();
+    // The public write contract carries selections and evidence only.
+    expect(Object.keys(reservedRequest).sort()).toEqual(['client_request_id', 'media', 'recording_timebase', 'scope', 'source', 'tempo_selection']);
+    expect(reservedRequest.source).toEqual({ source_id: 'source-1' });
+    expect(Object.keys(reservedRequest.scope).sort()).toEqual(reservedRequest.scope.kind === 'FULL'
+      ? ['kind'] : ['end_group_id', 'kind', 'start_group_id']);
+    expect(Object.keys(reservedRequest.tempo_selection).sort()).toEqual(reservedRequest.tempo_selection.mode === 'SCORE' ? ['mode'] : ['bpm', 'mode']);
+    expect(reservedRequest.client_request_id).toEqual(expect.any(String));
+    expect(reservedRequest.media.byte_size).toBeGreaterThan(0);
+    expect(reservedRequest.recording_timebase.activeSegments.length).toBeGreaterThan(0);
+    saveProtocol.request = reservedRequest;
+    saveProtocol.events.push('RESERVATION');
+    const accepted = acceptedPlan(reservedRequest);
+    if (options.reservationMismatch === 'SCOPE') accepted.resolved_scope.terminal_beat += 1;
+    if (options.reservationMismatch === 'TEMPO') {
+      accepted.resolved_tempo_plan = { ...accepted.resolved_tempo_plan,
+        segments: accepted.resolved_tempo_plan.segments.map((segment, index) => index === 0 ? { ...segment, bpm: segment.bpm + 1 } : segment) };
+    }
     const { source, media, scope, tempo_selection, recording_timebase } = reservedRequest;
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
       metadata: { source, media, scope, tempo_selection, recording_timebase },
-      ...acceptedPlan(reservedRequest),
+      ...accepted,
       upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
     }) });
   });
   await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize', route => {
     expect(route.request().postData()).toBeNull();
+    expect(saveProtocol.events).toEqual(['RESERVATION', 'MEDIA_PUT']);
+    saveProtocol.events.push('FINALIZE');
     const { source, media, scope, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
     const take: PerformanceTakeRead = {
@@ -337,9 +375,19 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });
   });
 
-  await page.route('**/api/v1/performance-takes/mock-upload/*', (route) =>
-    route.fulfill({ status: 200 })
-  );
+  await page.route('**/api/v1/performance-takes/mock-upload/*', route => {
+    expect(route.request().method()).toBe('PUT');
+    expect(saveProtocol.events).toEqual(['RESERVATION']);
+    expect(route.request().postDataBuffer()?.byteLength).toBe(reservedRequest.media.byte_size);
+    saveProtocol.events.push('MEDIA_PUT');
+    return route.fulfill({ status: 200 });
+  });
+  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1', route => {
+    expect(route.request().method()).toBe('DELETE');
+    expect(saveProtocol.events).toEqual(['RESERVATION']);
+    saveProtocol.events.push('CANCEL');
+    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({ cancelled: true }) });
+  });
 
   await page.route('**/api/v1/performance-takes/take-e2e-1/playback-url', (route) =>
     route.fulfill({
@@ -401,11 +449,14 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
           ? { musicxml: sampleMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
     })
   );
+  return saveProtocol;
 }
 
 function recordingOption(page: Page, mode: 'OFF' | 'AUDIO' | 'VIDEO') {
   return page.getByRole('button', { name: { OFF: /^不录制/, AUDIO: /^(录制音频|录音)/, VIDEO: /^(录制视频|录像)/ }[mode] });
 }
+
+
 
 test('first use requires explicit intent; full reload restores intent but requires live preparation', async ({ page }) => {
   await setupContinuousPracticeMocks(page);
@@ -973,12 +1024,12 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
 
   test('CONTINUOUS_PLAY + Audio: Save recording, direct upload, view in My Performances, and delete', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const mediaWrites: { url: string; body: Record<string, unknown> | null }[] = [];
     page.on('request', request => {
       if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postData() ? request.postDataJSON() : null });
     });
-    await setupContinuousPracticeMocks(page);
+    const protocol = await setupContinuousPracticeMocks(page);
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to continuous mode
@@ -1018,6 +1069,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     // Verify button changes to "已保存"
     await expect(page.getByRole('button', { name: '已保存' })).toBeVisible({ timeout: 10_000 });
 
+    expect(protocol.events).toEqual(['RESERVATION', 'MEDIA_PUT', 'FINALIZE']);
+    expect(protocol.request?.scope).toEqual({ kind: 'FULL' });
+    expect(protocol.request?.tempo_selection).toEqual({ mode: 'SCORE' });
+    await testInfo.attach('save-protocol', { body: JSON.stringify(protocol, null, 2), contentType: 'application/json' });
     expect(mediaWrites).toHaveLength(2);
     expect(mediaWrites[0].body).toHaveProperty('source');
     expect(mediaWrites[1].body).toBeNull();
@@ -1418,6 +1473,9 @@ test('permission-denied page binding has no recovery command; only Setup Prepare
 
 test('existing MIDIAccess recovers naturally; denied fresh access is requalified only by Setup Prepare', async ({ page }) => {
   await setupContinuousPracticeMocks(page); await openPreparedPractice(page, scoreId, revisionId);
+  const start = page.getByRole('button', { name: '开始', exact: true });
+  await expect(start).toBeEnabled(); await start.click();
+  await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(1);
   const counts = await deviceAndEnvironmentCounts(page), cursor = page.locator('[data-practice-playhead-cursor]'), x = await cursor.getAttribute('x');
   const connect = async (connected: boolean) => page.evaluate(value => (window as unknown as {__practiceMidi:{connect(value:boolean):void}}).__practiceMidi.connect(value), connected);
   await connect(false); await expect(page.getByRole('button', {name:'MIDI 键盘不可用',exact:true})).toBeVisible();
@@ -1434,6 +1492,8 @@ test('existing MIDIAccess recovers naturally; denied fresh access is requalified
   expect((await deviceAndEnvironmentCounts(page)).midi).toBe(counts.midi + 1);
   await connect(true); await page.evaluate(() => { (window as unknown as {__practiceMidi:{denied:boolean}}).__practiceMidi.denied = false; });
   expect(await preparePracticeSetup(page)).toBe('READY');
+  await expect(cursor).toHaveCount(0);
+  await expect(start).toBeEnabled(); await start.click();
   await expect(cursor).toHaveCount(1); await expect(cursor).toHaveAttribute('x', x!);
   expect((await deviceAndEnvironmentCounts(page)).midi).toBe(counts.midi + 3);
 });
@@ -1513,4 +1573,42 @@ test('Setup Start Practice waits for the previous microphone attempt retirement 
   expect(after.media).toBe(before.media+2); expect(after.engine.loads).toBe(before.engine.loads);
   expect(after.engine.sessions).toBe(before.engine.sessions+1); expect(modelAccesses).toBe(accesses);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
+for (const mismatch of ['SCOPE', 'TEMPO'] as const) {
+  test(`Review save rejects server ${mismatch} mismatch before media upload`, async ({ page }, testInfo) => {
+    const protocol = await setupContinuousPracticeMocks(page, { reservationMismatch: mismatch });
+    await openPreparedPractice(page, scoreId, revisionId);
+    await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '查看报告', exact: true }).click();
+    await expect(page.getByRole('button', { name: '保存录制', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: '保存录制', exact: true }).click();
+    await expect(page.getByText('保存失败', { exact: true })).toBeVisible();
+    expect(protocol.events).toEqual(['RESERVATION', 'CANCEL']);
+    await expect(page.getByRole('button', { name: '已保存', exact: true })).toHaveCount(0);
+    await testInfo.attach('save-protocol', { body: JSON.stringify(protocol, null, 2), contentType: 'application/json' });
+  });
+}
+
+test('Review saves RANGE and CUSTOM selection with server planning agreement', async ({ page }, testInfo) => {
+  const protocol = await setupContinuousPracticeMocks(page);
+  await openPreparedPractice(page, scoreId, revisionId);
+  await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+  await page.getByRole('button', { name: '分段', exact: true }).click();
+  for (const note of ['note-d4', 'note-e4']) await page.locator(`[data-id="${note}"]`).first().locator('path, use').first().click();
+  await page.getByRole('button', { name: '速度' }).click();
+  await page.getByRole('button', { name: '+5 BPM', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '开始', exact: true }).click();
+  await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '查看报告', exact: true }).click();
+  await expect(page.getByRole('button', { name: '保存录制', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '保存录制', exact: true }).click();
+  await expect(page.getByRole('button', { name: '已保存', exact: true })).toBeVisible();
+  expect(protocol.events).toEqual(['RESERVATION', 'MEDIA_PUT', 'FINALIZE']);
+  expect(protocol.request?.scope).toEqual({ kind: 'RANGE', start_group_id: 'group-1', end_group_id: 'group-2' });
+  expect(protocol.request?.tempo_selection).toEqual({ mode: 'CUSTOM_FIXED_BPM', bpm: 125 });
+  await testInfo.attach('save-protocol', { body: JSON.stringify(protocol, null, 2), contentType: 'application/json' });
 });

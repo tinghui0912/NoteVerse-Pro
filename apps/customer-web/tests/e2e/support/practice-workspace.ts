@@ -15,12 +15,26 @@ export async function installAcousticEngineFixture(page: Page) {
       private closed = false;
       private token: string | null = null;
       private job = 0;
-      constructor(url: string | URL, options?: WorkerOptions) {
+      private native: Worker | null = null;
+      private fixture = false;
+      constructor(private readonly url: string | URL, private readonly options?: WorkerOptions) {
         super();
-        if (!String(url).includes('acoustic-worker')) return new nativeWorker(url, options) as unknown as EngineWorker;
-        stats.fail = () => this.dispatchEvent(new ErrorEvent('error', { message: 'ACOUSTIC_WORKER_CRASH' }));
       }
-      postMessage(message: { id: number; type: string; sessionId?: string; input?: { window: { jobIndex: number; ownedStartTarget: number } } }) {
+      postMessage(message: { id: number; type: string; modelUrl?: string; sessionId?: string; input?: { window: { jobIndex: number; ownedStartTarget: number } } }) {
+        if (this.closed) return;
+        if (!this.fixture && !this.native) {
+          // The acoustic RPC begins with LOAD. Bundler-generated Worker URLs carry no domain identity.
+          this.fixture = message.type === 'LOAD' && Number.isInteger(message.id) && typeof message.modelUrl === 'string';
+          if (this.fixture) {
+            stats.fail = () => this.dispatchEvent(new ErrorEvent('error', { message: 'ACOUSTIC_WORKER_CRASH' }));
+          } else {
+            this.native = new nativeWorker(this.url, this.options);
+            this.native.addEventListener('message', event => this.dispatchEvent(new MessageEvent('message', { data: event.data })));
+            this.native.addEventListener('messageerror', () => this.dispatchEvent(new MessageEvent('messageerror')));
+            this.native.addEventListener('error', event => this.dispatchEvent(new ErrorEvent('error', { message: event.message })));
+          }
+        }
+        if (this.native) { this.native.postMessage(message); return; }
         queueMicrotask(() => {
           if (this.closed) return;
           let result: unknown, error: string | undefined;
@@ -47,7 +61,12 @@ export async function installAcousticEngineFixture(page: Page) {
           this.dispatchEvent(new MessageEvent('message', { data: error ? { id: message.id, error } : { id: message.id, result } }));
         });
       }
-      terminate() { this.closed = true; stats.terminations++; }
+      terminate() {
+        if (this.closed) return;
+        this.closed = true;
+        if (this.native) this.native.terminate();
+        else if (this.fixture) stats.terminations++;
+      }
     }
     window.Worker = EngineWorker as unknown as typeof Worker;
   });
