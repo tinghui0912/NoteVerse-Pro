@@ -79,7 +79,7 @@ export function pulseStepBeats(meter: MeterSegment): number {
 /**
  * Finds the active MeterSegment for a given musical beat in the score.
  */
-export function meterAtBeat(artifact: MetronomeMeterSource, beat: number): MeterSegment {
+function meterAtBeat(artifact: MetronomeMeterSource, beat: number): MeterSegment {
   const targetBeat = roundBeat(Math.max(0, beat));
   const segments = artifact.meterSegments;
   if (!segments.length) throw new Error('Resolved metronome meter timing required.');

@@ -216,15 +216,20 @@ async function setupPracticeMocks(
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`, route =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: apiResponse({ source_id: 'source-1', artifact: artifactOverride ?? smokeArtifact, notation:
-        new URL(route.request().url()).searchParams.get('include_notation') === 'true'
-          ? { musicxml: selectableMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
-    })
-  );
+  for (const sourcePath of [
+    `**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`,
+    '**/api/v1/practice/sources/source-1*',
+  ]) {
+    await page.route(sourcePath, route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse({ source_id: 'source-1', artifact: artifactOverride ?? smokeArtifact, notation:
+          new URL(route.request().url()).searchParams.get('include_notation') === 'true'
+            ? { musicxml: selectableMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
+      })
+    );
+  }
 
   // Mock the practice-acoustic-robust-browser@v1 access contract.
   await page.route(`**${practiceModelAccessPath}`, (route) => {
@@ -818,9 +823,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await page.getByRole('button', { name: 'MIDI 键盘', exact: true }).click();
     expect(requests).toEqual([]);
     await page.getByRole('button', { name: '开始练习', exact: true }).click();
-    await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
-    await page.getByText('技术详情', { exact: true }).click();
-    await expect(page.getByText('NO_CONNECTED_INPUT', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('practice-setup').getByRole('alert')).toHaveText('准备未能完成，请检查浏览器权限与设备连接后重试。');
+    await expect(page.getByRole('button', { name: '开始练习', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.evaluate(() => (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice());
     await page.getByRole('button', { name: '开始练习', exact: true }).click();

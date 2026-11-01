@@ -1,6 +1,6 @@
 import type { LocalPracticeSessionBase } from '@/lib/practice/kernel/session';
 
-export type ContinuousPracticeLifecycle =
+type ContinuousPracticeLifecycle =
   | 'READY'
   | 'ACTIVE'
   | 'PAUSED'

@@ -47,7 +47,7 @@ export function sourceRate(value: number): SourceRate {
   if (value !== 44100 && value !== 48000) fail('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
   return value;
 }
-export const ACOUSTIC_ANALYSIS_ERROR_CODES = [
+const ACOUSTIC_ANALYSIS_ERROR_CODES = [
   'ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED',
   'ACOUSTIC_CAPTURE_ALREADY_ATTACHED',
   'ACOUSTIC_CAPTURE_FAILED',

@@ -3,11 +3,11 @@ import type { PracticeExecutionIntent } from './execution-intent';
 export type PracticeQualificationRequirement = 'browserAudio' | 'microphone' | 'acousticEngine'
   | 'midi' | 'camera' | 'audioRecording' | 'videoRecording';
 export type PracticeLiveRoot = 'inputMicrophone' | 'recordingMicrophone' | 'camera' | 'midi';
-export type PracticeInputResourcePlan = Readonly<{ kind: 'MICROPHONE'; root: 'inputMicrophone' }>
+type PracticeInputResourcePlan = Readonly<{ kind: 'MICROPHONE'; root: 'inputMicrophone' }>
   | Readonly<{ kind: 'MIDI'; root: 'midi' }>;
 export type PracticeAnalysisResourcePlan = Readonly<{ kind: 'NONE' }>
   | Readonly<{ kind: 'ACOUSTIC'; sourceRoot: 'inputMicrophone' }>;
-export type PracticeRecordingResourcePlan = Readonly<{ mode: 'OFF' }>
+type PracticeRecordingResourcePlan = Readonly<{ mode: 'OFF' }>
   | Readonly<{ mode: 'AUDIO'; audioRoot: 'inputMicrophone' | 'recordingMicrophone' }>
   | Readonly<{ mode: 'VIDEO'; audioRoot: 'inputMicrophone' | 'recordingMicrophone'; videoRoot: 'camera' }>;
 export type PracticeResourcePlan = Readonly<{

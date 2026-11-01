@@ -11,7 +11,7 @@ test('marketing features reveal on viewport entry and remain revealed after scro
   );
   await page.goto('/en', { waitUntil: 'domcontentloaded' });
 
-  const section = page.locator('section#features');
+  const section = page.getByRole('main').locator('section#features');
   const animationState = () => section.evaluate((element) => {
     const style = getComputedStyle(element);
     const matrix = style.transform === 'none'
