@@ -356,7 +356,7 @@ export default function PracticeReviewPage({
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     continuousCompletionStore.clearCompletion();
-    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'practice', result?.revisionId));
+    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.revisionId));
   }, [id, router, result?.revisionId]);
 
   const requestLeave = useCallback(
@@ -404,7 +404,7 @@ export default function PracticeReviewPage({
           title={t('reviewExpiredTitle')}
           description={t('reviewExpiredDesc')}
           action={
-            <Button onClick={() => router.push(`/score/${id}/practice`)}>
+            <Button onClick={() => router.push(practiceLocation(id, 'setup'))}>
               <Repeat className="mr-2 h-4 w-4" />
               {t('backToPractice')}
             </Button>

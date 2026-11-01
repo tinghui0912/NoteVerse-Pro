@@ -31,10 +31,6 @@ export function planPracticeResources(
   return plans[intent.inputSource][intent.recordingMode];
 }
 
-export function qualificationFingerprint(qualification: readonly PracticeQualificationRequirement[]): string {
-  return [...new Set(qualification)].sort().join('|');
-}
-
 function resources(inputSource: 'MICROPHONE' | 'MIDI', mode: 'OFF' | 'AUDIO' | 'VIDEO'): PracticeResourcePlan {
   const input: PracticeInputResourcePlan = inputSource === 'MICROPHONE'
     ? Object.freeze({ kind: 'MICROPHONE', root: 'inputMicrophone' }) : Object.freeze({ kind: 'MIDI', root: 'midi' });

@@ -9,7 +9,7 @@ Enharmonic spelling belongs to notation; physical evaluation compares numeric ke
 The domain is independent of input source and acoustic model vocabulary.
 
 Practice admission validates the entire pinned score revision before mode, source,
-FULL/RANGE selection, browser permission, Device Lease or Environment preparation.
+FULL/RANGE selection, browser permission, Resource Binding or Environment preparation.
 Every retained playable note, including continuations and unused sections, must have
 a valid key. Booleans, fractional values, strings and out-of-domain keys fail without
 coercion, clamping, transposition or filtering. Empty/no-target revisions fail.
@@ -29,12 +29,12 @@ parser/storage/serialization/invariant failures map to503 practice_source_failed
 Generated DTOs describe transport; the kernel parser owns revision-wide semantic
 admission. Planning and mode execution consume that admitted runtime artifact.
 
-usePracticeSource pins exact revision identity and delegates transport parsing to the
-canonical Source query. Setup Start Practice requests fresh artifact-only admission
-before qualification. Invalid scores block that revision's preparation and resource
-creation; direct Practice entry renders the error in place with user-controlled Setup
-navigation. Score validity is independent of device readiness. Localized invalid-score feedback preserves that
-distinction.
+`usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
+command invokes `usePracticeRevisionSource` for fresh artifact-only admission before
+resource acquisition. Its successful PreparedPractice handoff carries exact sourceId
+and retained roots. Practice exact-reads that source through the same canonical parser.
+Without handoff it shows Setup required; invalid admitted Source fails closed in place.
+Score correctness and retained physical health have distinct owners.
 
 ## Source adapters
 

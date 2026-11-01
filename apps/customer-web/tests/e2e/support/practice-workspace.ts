@@ -6,7 +6,7 @@ export async function installAcousticEngineFixture(page: Page) {
     const nativeWorker = window.Worker;
     const heldRetirements: Array<() => void> = [];
     const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {},
-      holdRetirement: false, pendingRetirements: 0, releaseRetirement: () => {} };
+      failNextInference: false, holdRetirement: false, pendingRetirements: 0, releaseRetirement: () => {} };
     stats.releaseRetirement = () => {
       stats.holdRetirement = false; const pending = heldRetirements.splice(0); stats.pendingRetirements = 0; pending.forEach(release => release());
     };
@@ -41,6 +41,7 @@ export async function installAcousticEngineFixture(page: Page) {
           if (message.type === 'LOAD') { stats.loads++; result = { actualSessionLoadCount: stats.loads, automaticFallback: false }; }
           else if (message.type === 'BEGIN_SESSION' && !this.token && message.sessionId) { this.token = message.sessionId; this.job = 0; stats.sessions++; }
           else if (message.type === 'INFER' && message.sessionId === this.token && message.input?.window.jobIndex === this.job) {
+            if (stats.failNextInference) { stats.failNextInference = false; this.dispatchEvent(new MessageEvent('message', { data: { id: message.id, error: 'ACOUSTIC_INFERENCE_FAILED' } })); return; }
             stats.inferences++; result = { events: stats.pitches.map(pitch => ({ pitch, midiPitch: pitch === 'D4' ? 62 : 60,
               targetSample: Math.ceil(message.input!.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
               inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++this.job };

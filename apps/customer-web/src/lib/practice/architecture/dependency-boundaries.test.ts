@@ -84,9 +84,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('continuous/timing/')) return Boolean(target && (target.startsWith('continuous/timing/') || target.startsWith('kernel/')));
   if (source.startsWith('configuration/')) return Boolean(target && (target.startsWith('configuration/')
     || target.startsWith('kernel/') || target === 'recording/recording-mode.ts'));
-  if (source.startsWith('readiness/')) return Boolean(target && (target.startsWith('readiness/') || edge.typeOnly && target === 'planning/resource-plan.ts'));
   if (source.startsWith('environment/')) return Boolean(target && (target.startsWith('environment/') || target.startsWith('acoustic/')
-    || target.startsWith('readiness/') || target === 'planning/resource-plan.ts' || target === 'device/browser-device-platform.ts' || ['recording/recorder-capability.ts', 'recording/recording-mode.ts'].includes(target)
+    || target === 'planning/resource-plan.ts' || edge.typeOnly && target === 'device/device-contract.ts' || target === 'input-capability.ts' || ['recording/recorder-capability.ts', 'recording/recording-mode.ts'].includes(target)
     || edge.target === normalize(path.join(sourceRoot, 'lib/api/practice-acoustic-model-asset.ts'))));
   if (['kernel/', 'step/', 'continuous/', 'acoustic/', 'result/', 'recording/'].some(owner => source.startsWith(owner))
     && target && presentationOwners.some(owner => target.startsWith(owner))) return false;
@@ -195,27 +194,20 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('projects resource planning into readiness, live roots and controller bindings', () => {
+  it('projects one resource plan into retained acquisition, validation and execution bindings', () => {
     const resourcePath = path.join(practiceRoot, 'planning/resource-plan.ts');
     expect(imports(resourcePath).every(edge => edge.typeOnly && edge.target === normalize(path.join(practiceRoot, 'planning/execution-intent.ts')))).toBe(true);
-    for (const owner of ['readiness/readiness-state.ts', 'device/practice-device-lease.ts']) {
-      const edges = imports(path.join(practiceRoot, owner));
-      expect(edges.some(edge => edge.target?.endsWith('/planning/resource-plan.ts') && edge.typeOnly)).toBe(true);
-      expect(edges.every(edge => !edge.target?.includes('/configuration/'))).toBe(true);
-    }
-    const environmentImports = imports(path.join(practiceRoot, 'environment/practice-environment.ts'));
-    const qualification = environmentImports.find(edge => edge.target?.endsWith('/planning/resource-plan.ts'));
-    expect(qualification?.bindings).toEqual(['qualificationFingerprint', 'PracticeQualificationRequirement']);
-    const workspace = readFileSync(path.join(sourceRoot, 'contexts/practice-workspace-context.tsx'), 'utf8');
-    expect(workspace).toContain('environment.requalify(resourcePlan.qualification)');
-    expect(workspace).toContain('environment.matches(resourcePlan.qualification)');
-    const lease = readFileSync(path.join(practiceRoot, 'device/practice-device-lease.ts'), 'utf8');
-    expect(lease).toContain('this.required = resources.liveRoots');
+    const binding = path.join(practiceRoot, 'device/practice-resource-binding.ts');
+    expect(imports(binding).some(edge => edge.target?.endsWith('/device/browser-device-platform.ts') && !edge.typeOnly)).toBe(true);
+    expect(imports(binding).some(edge => edge.target?.includes('/environment/'))).toBe(false);
+    const environment = path.join(practiceRoot, 'environment/practice-environment.ts');
+    expect(imports(environment).some(edge => edge.target?.includes('/device/'))).toBe(false);
+    const validator = imports(path.join(practiceRoot, 'environment/validate-practice-resources.ts'));
+    expect(validator.some(edge => edge.target?.endsWith('/device/device-contract.ts') && edge.typeOnly)).toBe(true);
+    expect(validator.some(edge => edge.target?.endsWith('/planning/resource-plan.ts') && edge.typeOnly)).toBe(true);
+    expect(validator.some(edge => edge.target?.endsWith('/device/browser-device-platform.ts'))).toBe(false);
     const controller = readFileSync(path.join(practiceRoot, 'continuous/continuous-practice-controller.ts'), 'utf8');
-    expect(controller).toContain('this.options.devices[recording.audioRoot]');
-    expect(controller).toContain('this.options.devices[recording.videoRoot]');
-    expect(controller).toContain('this.options.devices[resources.analysis.sourceRoot]');
-    expect(controller).toContain('this.options.devices[resources.input.root]');
+    for (const projection of ['recording.audioRoot','recording.videoRoot','resources.analysis.sourceRoot','resources.input.root']) expect(controller).toContain(`this.options.devices[${projection}]`);
   });
 
   it('projects device physical facts through a read-only health port into independent pipelines', () => {
@@ -243,10 +235,10 @@ describe('Practice bounded domain dependencies', () => {
     expect(recorder).toContain('observeSourceHealth(sources: Readonly<');
     expect(recorder).toContain('this.ownedStream.getTracks()');
     expect(events('recording/performance-recorder.ts').every(event => event.target === 'track')).toBe(true);
-    const device = readFileSync(path.join(practiceRoot, 'device/practice-device-lease.ts'), 'utf8');
+    const device = readFileSync(path.join(practiceRoot, 'device/practice-resource-binding.ts'), 'utf8');
     expect(device).toContain('readonly rootHealth: PracticeRootHealthPort');
     expect(device).toContain('listener(this.rootHealth.snapshot())');
-    expect(events('device/practice-device-lease.ts')).toContainEqual({ target: 'access', event: "'statechange'" });
+    expect(events('device/practice-resource-binding.ts')).toContainEqual({ target: 'access', event: "'statechange'" });
   });
 
   it('composes exactly one explicit execution owner behind the page bridge and consumes admitted score values', () => {
@@ -513,7 +505,7 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('separates intent, readiness, workspace infrastructure and per-session production paths', () => {
+  it('separates intent, retained admission, workspace infrastructure and per-session production paths', () => {
     for (const [file, edges] of graph) {
       const owner = relative(file);
       if (owner.startsWith('step/') || owner.startsWith('continuous/')) for (const edge of edges) {
@@ -530,7 +522,7 @@ describe('Practice bounded domain dependencies', () => {
         expect(edge.target && ['kernel/artifact.ts', 'kernel/scope.ts', 'kernel/tempo.ts'].includes(relative(edge.target)), owner).toBe(false);
       }
     }
-    for (const source of ['configuration/preferences.ts', 'planning/resource-plan.ts', 'readiness/readiness-state.ts', 'environment/practice-environment.ts']) {
+    for (const source of ['configuration/preferences.ts', 'planning/resource-plan.ts', 'environment/practice-environment.ts']) {
       for (const target of ['step/domain/runtime', 'continuous/domain/practice-session', 'result/continuous-performance-result', 'review/review-view-model']) {
         const file = path.join(practiceRoot, source);
         expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
@@ -538,7 +530,7 @@ describe('Practice bounded domain dependencies', () => {
     }
     const profile = readFileSync(path.join(practiceRoot, 'configuration/preference-storage.ts'), 'utf8');
     expect(profile).not.toMatch(/sessionStorage|indexedDB/);
-    for (const file of files.filter(file => relative(file).startsWith('readiness/'))) {
+    for (const file of files.filter(file => relative(file).startsWith('preparation/'))) {
       expect(readFileSync(file, 'utf8')).not.toMatch(/localStorage|sessionStorage|indexedDB/);
     }
   });
@@ -634,14 +626,14 @@ it('fresh attempt binding cannot reach cold Setup qualification', () => {
       const owner = relative(edge.target);
       expect(owner.startsWith('environment/'), `${relative(file)} -> ${owner}`).toBe(false);
       expect(owner.includes('practice-acoustic-model-asset'), owner).toBe(false);
-      expect(edge.bindings.some(name => ['PracticeEnvironment', 'probePracticeRequirements', 'getPracticeAcousticModelAccess', 'AcousticEngine'].includes(name)), owner).toBe(false);
+      expect(edge.bindings.some(name => ['PracticeEnvironment', 'validatePracticeResources', 'getPracticeAcousticModelAccess', 'AcousticEngine'].includes(name)), owner).toBe(false);
       if (sourceGraph.has(edge.target)) visit(edge.target);
     }
   };
   for (const root of roots) visit(normalize(path.resolve(practiceRoot, root)));
 });
 
-it('device acquisition belongs only to Device Lease or explicit Setup qualification, never attempts or recorder', () => {
+it('physical acquisition is adapter-owned and invoked by the retained binding, never validators or attempts', () => {
   const executionFiles = [...files, ...productionFiles(path.join(sourceRoot, 'hooks/practice')),
     ...productionFiles(path.join(sourceRoot, 'components/practice')),
     path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx')];
@@ -651,7 +643,7 @@ it('device acquisition belongs only to Device Lease or explicit Setup qualificat
     const visit = (node: ts.Node) => {
       if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
         && ['getUserMedia', 'requestMIDIAccess'].includes(node.expression.name.text)) {
-        expect(owner.startsWith('environment/') || owner === 'device/browser-device-platform.ts', owner).toBe(true);
+        expect(owner, 'raw browser acquisition belongs to its device adapter').toBe('device/browser-device-platform.ts');
       }
       ts.forEachChild(node, visit);
     }; visit(ast);
@@ -828,7 +820,7 @@ it('keeps execution device status informational and requalification exclusively 
   const page = ts.createSourceFile(pagePath, readFileSync(pagePath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let statusCount = 0, popoverCount = 0, navigation = false, topNavigation = false, settingsLink = false, requirements = false, end = false, stepControls = false, completionGuard = false;
   const visit = (node: ts.Node) => {
-    if (ts.isIdentifier(node)) expect(['getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeDeviceLease']).not.toContain(node.text);
+    if (ts.isIdentifier(node)) expect(['getUserMedia', 'requestMIDIAccess', 'browserDevicePlatform', 'PracticeResourceBinding']).not.toContain(node.text);
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'requiredDevices') {
       requirements = true; expect(node.initializer?.getText(page)).toBe('workspace.resourcePlan?.liveRoots ?? []');
     }
@@ -836,7 +828,8 @@ it('keeps execution device status informational and requalification exclusively 
       navigation = true;
       const text = node.getText(page);
       expect(text).toContain("router.push(practiceLocation(id, 'setup', selectedRevisionId))");
-      expect(text).not.toMatch(/workspace\.|device\.|execution\./);
+      expect(text).toContain('workspace.clearPreparedPractice()');
+      expect(text).not.toMatch(/device\.|execution\./);
     }
     if (ts.isVariableDeclaration(node) && node.name.getText(page) === 'handleEnd') {
       end = true; expect(node.getText(page)).toContain('await execution.end()');
@@ -868,7 +861,7 @@ it('keeps execution device status informational and requalification exclusively 
       const type = node.parameters[0].type;
       expect(type && ts.isTypeLiteralNode(type) ? type.members.map(member => member.name?.getText(popover)).sort() : []).toEqual(['health', 'issue', 'resource']);
     }
-    if (ts.isIdentifier(node)) expect(['MediaStream', 'MIDIAccess', 'PracticeDeviceLease', 'getUserMedia', 'requestMIDIAccess', 'onReconnect', 'canReconnect', 'useState', 'useRef', 'environment', 'router']).not.toContain(node.text);
+    if (ts.isIdentifier(node)) expect(['MediaStream', 'MIDIAccess', 'PracticeResourceBinding', 'getUserMedia', 'requestMIDIAccess', 'onReconnect', 'canReconnect', 'useState', 'useRef', 'environment', 'router']).not.toContain(node.text);
     ts.forEachChild(node, inspect);
   }; inspect(popover);
   for (const locale of ['en', 'zh']) {
@@ -877,38 +870,31 @@ it('keeps execution device status informational and requalification exclusively 
   }
 });
 
-it('Setup commands admit Source before current capability and fresh Environment qualification', () => {
+it('Setup commands compose fresh source, retained acquisition, validation, atomic handoff and navigation', () => {
   const file = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx');
   const source = ts.createSourceFile(file, readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const calls: string[]=[];
-  const inspect = (node: ts.Node) => {
-    if (ts.isPropertyAccessExpression(node)) expect(node.getText(source)).not.toBe('workspace.ready');
-    if (ts.isCallExpression(node)) calls.push(node.expression.getText(source));
-    ts.forEachChild(node, inspect);
-  }; inspect(source);
-  expect(calls.filter(call => call === 'source.sourceQuery.refetch')).toHaveLength(1);
-  expect(calls.filter(call => call === 'environment.requalify')).toHaveLength(1);
-  expect(calls.indexOf('source.sourceQuery.refetch')).toBeLessThan(calls.indexOf('evaluatePracticeInputCapabilities'));
-  expect(calls.indexOf('evaluatePracticeInputCapabilities')).toBeLessThan(calls.indexOf('environment.requalify'));
-  expect(calls.indexOf('environment.requalify')).toBeLessThan(calls.indexOf('environment.matches'));
-  const environmentFile=path.join(practiceRoot,'environment/practice-environment.ts');
-  const environment=ts.createSourceFile(environmentFile,readFileSync(environmentFile,'utf8'),ts.ScriptTarget.Latest,true);
-  let fresh=false;
-  const visit=(node:ts.Node)=>{
-    if(ts.isMethodDeclaration(node)) {
-      expect(node.name.getText(environment)).not.toBe('prepare');
-      if(node.name.getText(environment)==='requalify') {fresh=true;expect(node.getText(environment)).not.toContain('this.matches(');expect(node.getText(environment)).toContain('this.platform.probe(');}
-    }
-    ts.forEachChild(node,visit);
-  };visit(environment);expect(fresh).toBe(true);
+  const inspect = (node: ts.Node) => { if (ts.isCallExpression(node)) calls.push(node.expression.getText(source)); ts.forEachChild(node, inspect); }; inspect(source);
+  const order = ['source.loadFresh','planPracticeResources','binding.open','validatePracticeResources','commitPreparedPractice','router.replace'];
+  expect(order.map(name=>calls.indexOf(name))).toEqual([...order.map(name=>calls.indexOf(name))].sort((a,b)=>a-b));
+  for(const name of order) expect(calls.filter(call=>call===name)).toHaveLength(1);
+  const page = path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  const pageEdges=imports(page);
+  expect(pageEdges.some(edge=>edge.bindings.includes('usePracticeSourceById'))).toBe(true);
+  expect(pageEdges.some(edge=>edge.bindings.includes('usePracticeResourceBinding'))).toBe(true);
+  expect(pageEdges.filter(edge=>edge.bindings.includes('usePracticeRevisionSource'))).toEqual([]);
+  const workspace=ts.createSourceFile('workspace.tsx',readFileSync(path.join(sourceRoot,'contexts/practice-workspace-context.tsx'),'utf8'),ts.ScriptTarget.Latest,true);
+  const returned:string[]=[];
+  const visit=(node:ts.Node)=>{if(ts.isReturnStatement(node)&&node.expression&&ts.isObjectLiteralExpression(node.expression)) returned.push(...node.expression.properties.map(p=>p.name?.getText(workspace)??''));ts.forEachChild(node,visit);};visit(workspace);
+  expect(returned).toContain('preparedPractice');
+  expect(returned.filter(name=>['ready','readiness','requalify'].includes(name))).toEqual([]);
 });
-
 
 it('Environment observes acoustic retirement without taking the attempt lease or polling', () => {
   const file = path.join(practiceRoot, 'environment/practice-environment.ts');
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
   const violations: string[] = [];
-  let waitFound = false, failureGuardFound = false;
+  let waitFound = false;
   const visit = (node: ts.Node) => {
     if (ts.isIdentifier(node) && ['PracticeReleaseManager', 'GlobalResourceCoordinator', 'SetupRecoveryCoordinator'].includes(node.text)) violations.push(node.text);
     if (ts.isMethodDeclaration(node) && node.name.getText(source) === 'awaitEngineRetirement') {
@@ -925,21 +911,9 @@ it('Environment observes acoustic retirement without taking the attempt lease or
       expect(calls).toContain('signal.addEventListener'); expect(calls).toContain('signal.removeEventListener');
       expect(calls.some(call => /dispose|retire|terminate|acquire|endSession/.test(call))).toBe(false);
     }
-    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'onFailure') {
-      const callback = node.arguments[0];
-      if (callback && ts.isArrowFunction(callback) && ts.isBlock(callback.body)) {
-        const guard = callback.body.statements[0];
-        if (guard && ts.isIfStatement(guard)) {
-          failureGuardFound = true;
-          expect(guard.expression.getText(source)).toBe("this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY'");
-          expect(guard.thenStatement.getText(source)).toContain('this.invalidate(error)');
-          expect(guard.elseStatement).toBeUndefined();
-        }
-      }
-    }
     ts.forEachChild(node, visit);
   }; visit(source);
-  expect({ waitFound, failureGuardFound, violations }).toEqual({ waitFound: true, failureGuardFound: true, violations: [] });
+  expect({ waitFound, violations }).toEqual({ waitFound: true, violations: [] });
 });
 
 it('keeps Continuous readiness observation local to the attempt input and outside source, STEP and Result', () => {

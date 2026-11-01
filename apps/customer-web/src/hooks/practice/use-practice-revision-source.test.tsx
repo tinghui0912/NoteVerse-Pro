@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import * as artifactContract from '@/lib/practice/kernel/artifact';
@@ -138,4 +138,18 @@ it.each(['scoreId', 'revisionId', 'artifactId'] as const)('saved Take requires i
   const { result } = renderHook(() => usePerformanceTakePracticeSource('take', identity, { loadNotation: true }), { wrapper: harness() });
   await waitFor(() => expect(result.current.invalid).toBe(true));
   expect(result.current.artifact).toBeNull();
+});
+
+it('explicit fresh admission cancels an in-flight query and never reuses cached success',async()=>{
+  let resolve!:(value:ReturnType<typeof envelope>)=>void;
+  api.source.mockImplementationOnce(()=>new Promise(done=>{resolve=done;}));
+  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false,enabled:false}),{wrapper:harness()});
+  const firstCommand=new AbortController();
+  const first=result.current.loadFresh(firstCommand.signal).catch(error=>error);
+  await waitFor(()=>expect(api.source).toHaveBeenCalledOnce());const firstSignal=api.source.mock.calls[0][3] as AbortSignal;
+  firstCommand.abort();
+  await act(async()=>{const next=await result.current.loadFresh(new AbortController().signal);expect(next.data?.sourceId).toBe('source-1');});
+  expect(firstSignal.aborted).toBe(true);expect(api.source).toHaveBeenCalledTimes(2);
+  await act(async()=>{resolve(envelope(false));await first;});
+  await act(async()=>{await result.current.loadFresh(new AbortController().signal);});expect(api.source).toHaveBeenCalledTimes(3);
 });

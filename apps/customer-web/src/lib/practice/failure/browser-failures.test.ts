@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { browserDevicePlatform } from '../device/browser-device-platform';
-import { probePracticeRequirements } from '../environment/browser-readiness-probes';
+import { PracticeResourceBinding } from '../device/practice-resource-binding';
+import { planPracticeResources } from '../planning/resource-plan';
 import { createPracticeAudioContext, resumePracticeAudioContext, recordingBrowserFailure } from './browser-failures';
 import { RecordingFailure } from './causal-failure';
 import { browserMicrophoneCapture } from '../acoustic/source/browser-microphone-platform';
@@ -21,7 +22,8 @@ it('MIDI permission, unsupported browser and connectedness have explicit facts',
   await expect(browserDevicePlatform.acquireMidi()).rejects.toMatchObject({kind:'MIDI',code:'PERMISSION_DENIED',cause});
   vi.stubGlobal('navigator',{}); await expect(browserDevicePlatform.acquireMidi()).rejects.toMatchObject({kind:'MIDI',code:'UNSUPPORTED'});
   vi.stubGlobal('navigator',{requestMIDIAccess:vi.fn().mockResolvedValue({inputs:new Map()})});
-  await expect(probePracticeRequirements(['midi'],vi.fn(),new AbortController().signal)).rejects.toMatchObject({kind:'MIDI',code:'NO_CONNECTED_INPUT'});
+  const binding = new PracticeResourceBinding(planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }));
+  await expect(binding.open()).rejects.toThrow(); expect(binding.snapshot().issue?.condition).toBe('UNAVAILABLE'); binding.close();
 });
 it('AudioContext availability and resume failures stay separate from physical device health', async () => {
   vi.stubGlobal('AudioContext',undefined); expect(createPracticeAudioContext).toThrow(expect.objectContaining({kind:'AUDIO_CONTEXT',code:'UNAVAILABLE'}));

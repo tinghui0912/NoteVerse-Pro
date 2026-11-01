@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
-import { usePracticeSource } from '@/hooks/practice/use-practice-source';
+import { usePracticeRouteScore } from '@/hooks/practice/use-practice-route-score';
+import { usePracticeRevisionSource } from '@/hooks/practice/use-practice-revision-source';
+import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
+import { validatePracticeResources } from '@/lib/practice/environment/validate-practice-resources';
 import { SourceFailure } from '@/lib/practice/failure/causal-failure';
 import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
@@ -11,73 +14,83 @@ import { practiceLocation } from '@/lib/practice/configuration/practice-location
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
-import { qualificationFingerprint } from '@/lib/practice/planning/resource-plan';
-import { evaluatePracticeInputCapabilities, getSelectedInputCapability } from '@/lib/practice/input-capability';
+import { planPracticeResources, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
 
 type Preparation = {
   revisionId: string;
   configuration: PracticeConfiguration;
-  stage: 'SOURCE' | 'QUALIFYING' | 'READY' | 'BLOCKED';
-  failure: 'SOURCE' | 'CAPABILITY' | 'ENVIRONMENT' | null;
+  stage: 'SOURCE' | 'ACQUIRING' | 'VALIDATING' | 'FAILED';
+  failure: 'SOURCE' | 'RESOURCES' | null;
+  components?: Partial<Record<PracticeQualificationRequirement, 'READY'>>;
+  progress?: number | null;
 };
 
 export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
   const params = useParams<{ id: string }>(), router = useRouter();
-  const source = usePracticeSource(params.id, { loadNotation: false, enabled: false });
-  const { profile, updateProfile, readiness, configuration, resourcePlan, environment } = workspace;
+  const route = usePracticeRouteScore(params.id);
+  const source = { ...route, ...usePracticeRevisionSource(params.id, route.revisionId, { loadNotation: false, enabled: false }) };
+  const { profile, updateProfile, configuration, resourcePlan, environment, beginPreparation, commitPreparedPractice, clearPreparedPractice } = workspace;
   const [preparation, setPreparation] = useState<Preparation | null>(null);
   const [invalidRevision, setInvalidRevision] = useState<string | null>(null);
-  const generation = useRef(0), inFlight = useRef<number | null>(null);
-  useEffect(() => () => { generation.current++; inFlight.current = null; }, [params.id, source.revisionId, configuration, environment]);
+  const transaction = useRef<AbortController | null>(null);
+  useEffect(() => {
+    clearPreparedPractice();
+    return () => { transaction.current?.abort(); transaction.current = null; };
+  }, [params.id, source.revisionId, configuration?.mode, configuration?.inputSource, configuration?.recordingMode, clearPreparedPractice]);
   const current = preparation?.revisionId === source.revisionId && preparation?.configuration === configuration ? preparation : null;
-  const checking = current?.stage === 'SOURCE' || current?.stage === 'QUALIFYING';
+  const checking = current?.stage === 'SOURCE' || current?.stage === 'ACQUIRING' || current?.stage === 'VALIDATING';
   const invalid = invalidRevision !== null && invalidRevision === source.revisionId;
   const currentRequirements = resourcePlan?.qualification ?? [];
-  const currentReadiness = Boolean(current && current.stage !== 'SOURCE' && current.failure !== 'SOURCE'
-    && current.failure !== 'CAPABILITY' && readiness.fingerprint === qualificationFingerprint(currentRequirements));
-
   const prepare = async () => {
     const revisionId = source.revisionId;
-    if (inFlight.current !== null || invalid || !workspace.hydrated || !configuration || !resourcePlan
-      || !revisionId || !source.canPractice || source.scoreQuery.isError) return;
-    const token = ++generation.current;
-    inFlight.current = token;
+    if (transaction.current || invalid || !workspace.hydrated || !configuration
+      || !revisionId || !source.pinned || !source.canPractice || source.scoreQuery.isError) return;
+    const command = beginPreparation(); transaction.current = command;
     const captured = { revisionId, configuration };
-    const active = () => generation.current === token;
-    setPreparation({ ...captured, stage: 'SOURCE', failure: null });
+    const active = () => transaction.current === command && !command.signal.aborted;
+    let binding: PracticeResourceBinding | null = null;
+    let committed = false;
     let failure: Preparation['failure'] = 'SOURCE';
+    setPreparation({ ...captured, stage: 'SOURCE', failure: null });
     try {
-      const admitted = await source.sourceQuery.refetch();
+      const admitted = await source.loadFresh(command.signal);
       if (!active()) return;
-      if (admitted.isError || !admitted.data) {
-        if (admitted.error instanceof SourceFailure && admitted.error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
-        setPreparation({ ...captured, stage: 'BLOCKED', failure: 'SOURCE' });
-        return;
-      }
-      failure = 'CAPABILITY';
-      const capability = getSelectedInputCapability(resourcePlan, evaluatePracticeInputCapabilities());
-      if (!capability.supported) {
-        setPreparation({ ...captured, stage: 'BLOCKED', failure: 'CAPABILITY' });
-        return;
-      }
-      failure = 'ENVIRONMENT';
-      setPreparation({ ...captured, stage: 'QUALIFYING', failure: null });
-      await environment.requalify(resourcePlan.qualification);
-      if (!active()) return;
-      if (!environment.matches(resourcePlan.qualification)) {
-        setPreparation({ ...captured, stage: 'BLOCKED', failure: 'ENVIRONMENT' });
-        return;
-      }
-      setPreparation({ ...captured, stage: 'READY', failure: null });
-      router.replace(practiceLocation(params.id, 'practice', revisionId));
+      if (admitted.isError || !admitted.data) throw admitted.error;
+      failure = 'RESOURCES';
+      const resources = planPracticeResources(configuration);
+      setPreparation({ ...captured, stage: 'ACQUIRING', failure: null });
+      binding = new PracticeResourceBinding(resources);
+      const owner = binding;
+      const close = () => owner.close();
+      command.signal.addEventListener('abort', close, { once: true });
+      try {
+        await binding.open();
+        if (!active()) return;
+        const roots = binding.borrowRoots();
+        if (!roots) throw new Error('PRACTICE_RESOURCES_UNAVAILABLE');
+        setPreparation({ ...captured, stage: 'VALIDATING', failure: null });
+        await validatePracticeResources({ plan: resources, roots, environment, signal: command.signal,
+          onComponent: key => { if (active()) setPreparation(previous => previous ? { ...previous, components: { ...previous.components, [key]: 'READY' } } : previous); },
+          onProgress: progress => { if (active()) setPreparation(previous => previous ? { ...previous, progress } : previous); },
+        });
+        if (!active()) return;
+        const { sourceId, artifact } = admitted.data;
+        const admission = Object.freeze({ source: Object.freeze({ sourceId, scoreId: artifact.scoreId,
+          revisionId: artifact.revisionId, artifactId: artifact.artifactId }), configuration: Object.freeze({
+          mode: configuration.mode, inputSource: configuration.inputSource, recordingMode: configuration.recordingMode,
+        }) });
+        committed = commitPreparedPractice(Object.freeze({ admission, binding }), command);
+        if (committed) router.replace(practiceLocation(params.id, 'practice', revisionId));
+      } finally { command.signal.removeEventListener('abort', close); }
     } catch (error) {
       if (active()) {
         if (failure === 'SOURCE' && error instanceof SourceFailure && error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
-        setPreparation({ ...captured, stage: 'BLOCKED', failure });
+        setPreparation({ ...captured, stage: 'FAILED', failure });
       }
     } finally {
-      if (inFlight.current === token) inFlight.current = null;
+      if (!committed) binding?.close();
+      if (transaction.current === command) transaction.current = null;
     }
   };
 
@@ -112,12 +125,11 @@ export default function PracticeSetupPage() {
     </fieldset>}
     <section aria-live="polite" className="space-y-2">
       {currentRequirements.map(key => <p key={key}>
-        {t(`setupComponent_${key}`)}: {t(!currentReadiness ? 'setupNotPrepared' : readiness.components[key] === 'READY' ? 'setupReady'
-          : readiness.components[key] === 'BLOCKED' ? 'setupBlocked' : 'setupChecking')}
-        {currentReadiness && key === 'acousticEngine' && readiness.components[key] === 'CHECKING' && readiness.progress !== null ? ` ${readiness.progress}%` : ''}
+        {t(`setupComponent_${key}`)}: {t(!current || current.stage === 'SOURCE' ? 'setupNotPrepared'
+          : current.stage === 'FAILED' ? 'setupBlocked' : current.components?.[key] === 'READY' ? 'setupReady' : 'setupChecking')}
+        {key === 'acousticEngine' && current?.stage === 'VALIDATING' && current.progress != null ? ` ${current.progress}%` : ''}
       </p>)}
-      {(current?.failure === 'CAPABILITY' || current?.failure === 'ENVIRONMENT') && <p role="alert">{t('setupFailure')}</p>}
-      {currentReadiness && readiness.status === 'BLOCKED' && <details><summary>{t('setupTechnicalDetails')}</summary><code>{readiness.reason}</code></details>}
+      {current?.failure === 'RESOURCES' && <p role="alert">{t('setupFailure')}</p>}
     </section>
     <button type="button" className="rounded bg-orange-600 px-5 py-3 text-white disabled:opacity-50"
       disabled={invalid || !source.revisionId || !source.canPractice || source.scoreQuery.isError || !configuration || checking || !workspace.hydrated}

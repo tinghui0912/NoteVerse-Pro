@@ -6,8 +6,8 @@ Practice-ready validity belongs to the entire pinned score revision. The only cu
 artifact is schemaVersion 1 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; source or scope never repairs an invalid revision.
 Setup requests it through the shared Source parser only when Start Practice is pressed,
-before Environment qualification. Invalid direct Practice entry disables DeviceLease/session
-resources and shows an in-place score-unavailable state. Device readiness remains independent. See the
+before resource acquisition. Invalid Practice Source disables attempt/session
+resources and shows an in-place score-unavailable state. Physical health remains binding-owned. See the
 [canonical contract](practice-piano-key-contract.md) for owners, error codes and versions.
 
 ## Execution and Inputs
@@ -64,247 +64,98 @@ not Setup. The switch controls score feedback visibility independently of readin
 session identity, inference, evaluation, Review and Share Video. The preference
 persists with the profile and defaults to OFF.
 
-## Environment, Device Lease and Attempt Lifetimes
+## Preparation, Resource Binding and Attempt Lifetimes
 
-```text
-Practice Environment (shared Practice layout / workspace)
-    verified model, warm Worker, WebGPU ONNX session, qualification
-        ↓
-Practice Device Lease (exact Practice page mount)
-    input microphone root, recording microphone root, camera root, MIDIAccess
-        ↓
-Practice Attempt (one fresh play-through)
-    identity/timebase, AudioContext, capture/worklet, inference lease,
-    evaluator, recorder clones/timebase, completion
-```
+Setup is the unconditional entry from Score Detail. Only its explicit Start practice
+(开始练习) command admits the fresh pinned Source, derives the resource plan, acquires
+live physical roots, validates those same roots and atomically commits memory-only
+PreparedPractice. Failure stays on Setup and releases the transaction's resources.
+Selectors are locked while the command runs; stale completion cannot navigate.
 
-`device/` acquires the required browser roots quietly on Practice page entry,
-observes mute/unmute/ended and MIDI statechange events without polling, and owns
-all root-track disposal and physical-health interpretation. Its read-only
-`PracticeRootHealthPort` supplies immutable normalized facts to execution owners.
-Subscription delivers current facts synchronously; controllers recheck after registering
-their cleanup. Active execution receives events directly, independently of page rendering. Required device health is represented by compact status
-icons within the stable `PracticeStatus` surface, without extra healthy-state prose.
+Setup does not probe and release physical roots before Practice.
+The explicit Setup command acquires the live roots that the admitted Practice execution will actually borrow.
+Successful preparation does not create a persistent readiness flag.
+It creates a retained resource binding plus exact Source admission.
 
-Fault ownership follows the same three lifetimes. Environment invalidates only its
-own qualification/model/runtime truth (including AcousticEngine failure). Device and Attempt errors do not invalidate
-Environment or automatically navigate to Setup; warm model/Worker/ONNX remain ready.
-An Attempt owns its failure/retry and Device Lease owns root recovery.
+Practice exact-reads the admitted sourceId. Direct entry or full reload has no retained
+admission and shows Setup required, with no Source fallback or physical acquisition.
+User navigation back to Setup retains the pinned revision and releases the binding.
+Review also releases physical resources; its Retry opens Setup for a fresh command.
+Candidate scope, tempo, metronome and live-feedback choices remain workspace-local.
 
-Device issues identify a resource (`inputMicrophone`, `recordingMicrophone`, `camera`
-or `midi`), phase (`OPEN` or `RUNTIME`) and stable condition. Permission denial maps
-to PERMISSION_DENIED, missing hardware to NOT_FOUND, browser NotReadableError to
-BUSY, mute to INTERRUPTED, ended/disconnected input to LOST, and other acquisition
-failure to UNAVAILABLE. Browser exception text is not public product state.
-Open is transactional: failure releases every root/listener acquired by that open.
-The execution Device Lease binds roots once for the mounted Practice page. Hard
-lost roots and failed binding are observed and surfaced, never reacquired there.
-Repeated open calls cannot retry a failed transaction or replace a lost root.
+`PracticeResourceBinding` owns one retained microphone/camera/MIDIAccess acquisition,
+physical-health interpretation and exactly-once release. Practice and attempts borrow
+its objects. Attempt End, natural completion and same-page Retry retain the same roots.
+Entering Setup, Review, leaving the Practice flow or replacing resource configuration
+releases them. No physical fault triggers automatic reacquisition.
+Physical roots may fail after successful preparation; such a failure is an event on the same retained binding, not a second acquisition failure.
 
-Device Lease faults update the message inside the same `PracticeStatus` shell,
-without replacing its geometry, background or border. Required resources come from
-`PracticeResourcePlan.liveRoots`. Microphone icons keep the same glyph: healthy is green,
-unavailable/interrupted is red, with localized accessible labels. Required camera and
-MIDI resources use the same compact pattern. Popovers are informational only: resource,
-health and issue facts, without commands or access to device/platform/session owners.
+Physical HEALTHY/INTERRUPTED/LOST facts drive read-only status icons and mode-owned
+interventions. Permission/acquisition errors remain typed facts, without raw browser
+text. Popovers have no reconnect command. Same-root unmute/MIDI reconnect may recover;
+hard replacement needs a new explicit Setup command. AudioContext, capture, worker,
+inference and recorder errors are pipeline facts and never close retained roots or
+convert healthy physical resources into LOST.
 
-Explicit device/permission requalification belongs exclusively to Practice Setup:
-The single Start Practice action first refetches and admits the pinned Source, then
-checks the selected capability and invokes `PracticeEnvironment.requalify(requirements)`.
-Every successful Score-admission command runs fresh browser/device requirement probes,
-even when Environment evidence is READY. `workspace.ready` describes live runtime
-admission; it does not authorize navigation or skip qualification.
+The workspace Environment owns acoustic model preparation, a warm Worker/ONNX engine
+and inference leases. Acoustic validation borrows the retained input microphone with
+a temporary processing pipeline. Recording validation uses clones of retained tracks,
+releasing only those clones. Attempts create fresh contexts, capture pipelines,
+recording clones, inference leases, metronomes and timebases. Cleanup releases those
+attempt resources without stopping borrowed roots.
 
-A stable, quiet Practice setup navigation is always available. Both that navigation
-and Settings → Setup only close the Settings sheet and push the exact pinned revision
-URL. Navigation has no device/environment side effects: no acquisition, qualification,
-invalidation, restart or synthetic failure reason. Active attempts end through normal
-page unmount/disposal. Every Setup visit starts with unprepared transaction presentation.
+Both modes require explicit Practice Start. READY has no attempt controller. STEP has
+no count-in; Continuous owns canonical count-in/transport. End returns READY. Natural
+completion offers explicit Try Again on the same binding when current admission permits.
+Metronome remains live; scope/range/tempo are locked during an active attempt. Recording
+indicators appear only after actual recorder start and freeze with paused transport.
 
-Explicit requalification moves normally to CHECKING and then READY, or BLOCKED only
-when that qualification transaction actually fails. Entering Setup is not a failure.
-A healthy READY_IDLE acoustic engine/model/worker stays warm: fresh external probes do
-not recreate the engine, request model access, download or load the model again. A
-FAILED/DISPOSED engine is constructed and prepared inside the explicit
-requalification transaction.
-
-Fresh Setup qualification may overlap asynchronous retirement of the previous Practice
-attempt's acoustic inference lease. The previous attempt owns that retirement through
-its unmount/controller cleanup. After fresh external probes, Environment observes its
-warm engine and waits by state subscription while it is LEASED or RETIRING; it never
-forces the lease to retire. This normal ownership handoff keeps readiness CHECKING,
-not BLOCKED, without a polling timer or timeout. Once READY_IDLE, the same engine,
-worker and loaded model are reused. A genuinely FAILED/DISPOSED engine is replaced
-inside the explicit qualification transaction. CHECKING owns any resulting qualification
-failure; ambient engine failure invalidates only live READY evidence. Only an actually
-unsuccessful qualification ends in BLOCKED. Environment disposal aborts the wait and
-detaches its subscription, preventing a later READY publication.
-
-Permission-denied browser policy may make `getUserMedia()` reject immediately; the app
-cannot force a browser permission prompt. The learner allows access in browser site
-settings, returns to Practice Setup, and explicitly prepares again. Execution status has
-no Reconnect, Retry or fault-specific configuration action.
-
-Natural same-resource recovery has its own ownership. Microphone mute/unmute observes
-the same root; input controllers own recovery on that root. MIDIAccess statechange may
-observe a connected input again without requesting new access. Neither requires Setup.
-A hard access/permission reacquisition does. Settings navigation remains deliberate;
-ordinary device faults do not invalidate Environment or navigate automatically.
-
-| Configuration | Device Lease roots |
-| --- | --- |
-| STEP / microphone | Input microphone |
-| STEP / MIDI | MIDIAccess |
-| Continuous / microphone / OFF or AUDIO | Input microphone |
-| Continuous / microphone / VIDEO | Input microphone, camera video |
-| Continuous / MIDI / OFF | MIDIAccess |
-| Continuous / MIDI / AUDIO | MIDIAccess, recording microphone |
-| Continuous / MIDI / VIDEO | MIDIAccess, recording microphone, camera video |
-
-Setup probes are temporary and released; they are not handed into Practice.
-Same-page Start, End, natural completion and Try Again
-retain the same Device Lease. Attempts borrow roots, bind fresh MIDI listeners,
-and never acquire or stop roots. Recorder audio always clones the selected audio
-root; video combines that clone with a camera-root clone. Preview only displays
-the Device Lease camera stream. Normal healthy completion Try Again creates a fresh
-attempt on these roots, without device recovery. If devices or Environment are no longer
-ready, Try Again stays on Practice without starting an attempt. The learner can choose
-the pinned Setup navigation to prepare. There is no in-place root
-replacement or multi-segment recording.
-
-Leaving the exact Practice page for Setup, Review, Score or another route immediately
-stops its root microphone/camera tracks and detaches MIDI/device listeners. Same-page
-End retains these devices and their browser privacy indicators. Review Retry opens
-a new Device Lease. Leaving the entire Practice layout also closes the Environment.
-
-Each Attempt has a fresh localSessionId, PracticeTimebase/source domain, AudioContext,
-capture chronology, inference token, evaluator/ledger, recorder and recording timebase.
-Attempt cleanup releases its capture, context, inference lease, recorder clones and
-listeners. Start and Retry use the existing Environment and DeviceLease without
-readiness probes, model downloads, ONNX creation or root reacquisition. Retry releases
-the completed attempt and starts a fresh attempt directly.
-
-Both modes present Start when READY and admitted. READY has no execution controller
-or attempt-owned resources. Start shows compact preparation state; Continuous then
-owns count-in/transport while STEP immediately accepts learning input and waits for
-the learner without count-in or a performance clock. Ordinary End returns READY and
-presents Start again. Natural completion opens its completion dialog once; Try Again
-is an explicit Retry command.
-
-Scope, Section and tempo are editable before Start and locked during PREPARING,
-ACTIVE, PAUSED and FINALIZING. Candidate edits create no controller. The executed plan
-is captured at Start and remains stable through later candidate rerenders. Metronome
-is a live command on the existing session. Settings links to Setup for mode/input/
-recording changes; Continuous feedback remains presentation-only.
-
-A recording indicator is shown only after an AUDIO/VIDEO recorder actually starts:
-a red dot and recording elapsed time. STEP and Continuous OFF show no timer. Pause,
-Resume Count-In and interventions freeze recording duration; explicit continuation
-without recording removes the indicator.
-
-Bounded engineering-only diagnostics distinguish deviceLeaseOpen from per-attempt
-waitPreviousRelease, acquireInferenceLease, audioContextResume, firLoad, captureConnect,
-acousticPreroll, midiBind and recorderAdmission. They never enter Result, metrics,
-PerformanceTake or backend data and have no learner-facing debug UI.
-
-Physical root health is distinct from processing pipeline health. DeviceLease alone
-interprets borrowed microphone/camera tracks and MIDIAccess connectedness. STEP and
-Continuous consume normalized facts for their planned roots. MIDI adapters bind
-messages through `refreshInputs()`; AudioContext, capture, inference, owned recording
-clones and MediaRecorder retain their pipeline-specific health owners. Recoverable
-incidents preserve session/target/performance identity and require their existing
-retirement or explicit continuation boundary. See [physical health contracts](practice-session-planning.md#physical-root-health-and-pipeline-health).
+See [session planning](practice-session-planning.md#setup-preparation-and-retained-admission)
+for transaction, handoff and resource lifetimes, and its
+[resource matrix](practice-session-planning.md#resource-planning-and-lifetimes).
 
 ## Failure Ownership
 
 External failures are normalized once by browser, media, worker and Source adapters
 into closed typed causal facts. STEP and Continuous application policies project those
 facts into their own stable error codes and interventions. Physical root health remains
-DeviceLease-owned; context/capture/inference/recorder failures describe pipeline health.
+ResourceBinding-owned; context/capture/inference/recorder failures describe pipeline health.
 Domain invariants fail closed under their domain owners. Presentation consumes stable
 application codes; raw causes and text are diagnostic only. Cleanup failures remain
 explicit and block execution replacement. See [failure boundaries](practice-failures.md).
 
-## Practice Readiness
+## Setup Admission
 
-`planning/resource-plan.ts` derives qualification, live roots and input/analysis/recording
-bindings from the execution configuration. `PracticeSessionPlan.resources` carries
-that immutable plan into execution. The workspace uses its qualification projection
-for candidate configuration. Live Environment readiness is UNCONFIGURED, CHECKING,
-READY or BLOCKED, with component diagnostics and download progress. Its fingerprint
-represents the effective requirement set. Environment evidence supports current runtime
-admission and warm infrastructure ownership; it is never persisted or used as a navigation
-credential. Setup presents only the preparation transaction initiated on its current visit.
+Setup mounts without Source admission or device acquisition. It has Back to score
+navigation, configuration controls and one Start practice CTA. A fresh Source request
+and strict parse precede resource acquisition and same-root preflight. Deterministic
+invalid Score blocks that revision; load/capability/preflight failure stays retryable
+through the same CTA. No failure automatically routes Practice to Setup.
 
-| Configuration | Required checks |
-| --- | --- |
-| STEP / microphone | Audio capture, qualified source adapter/worklet, warm recognition |
-| STEP / MIDI | MIDI access and at least one connected input |
-| Continuous / microphone / OFF | Audio capture, qualified source adapter/worklet, warm recognition |
-| Continuous / microphone / AUDIO | Microphone recognition plus audio recorder |
-| Continuous / microphone / VIDEO | Microphone recognition, video-only camera and video recorder |
-| Continuous / MIDI / OFF | MIDI access and at least one connected input |
-| Continuous / MIDI / AUDIO | MIDI, recording microphone and audio recorder |
-| Continuous / MIDI / VIDEO | MIDI, recording microphone, camera and video recorder |
-
-MIDI recording never starts acoustic analysis. Microphone recording uses the session
-microphone audio; camera acquisition is video-only. `qualification` defines disposable Setup checks; `liveRoots` defines retained
-Practice-page physical roots. Both projections have one resource-planning owner and
-different lifecycle owners. `PracticeDeviceLease` and the page status controls consume
-the same live-root projection. Controllers bind acoustic analysis and recorder audio/video
-from the planned root names. Recorder probes use the same
-MIME strategy as the session recorder, construct and start/stop a real recorder,
-and discard all probe data. Probe tracks, worklets and AudioContexts are released.
-VIDEO/AUDIO/MIDI failures keep the selected intent and block Start; no fallback
-changes the configuration. Technical reason codes are available behind details.
-
-Score Detail's Practice command always enters `/practice/setup`, pinning the current
-head revision when available. A direct Setup URL resolves and pins an absent revision
-from score metadata. Mounting Setup and editing configuration perform no Practice Source
-admission, Environment probes, DeviceLease acquisition or execution construction.
-Setup has a Back to score navigation and one primary action: Start practice (开始练习).
-
-Every Setup Start Practice command captures the pinned revision, complete configuration
-and planned requirements. It requests a fresh artifact-only Practice Source through the
-canonical parser first, then checks the current selected input capability and calls
-`PracticeEnvironment.requalify()` for the captured qualification projection. Cached Source
-success and READY Environment state never skip these checks. Healthy warm infrastructure
-may be reused by its owner. Controls are locked during preparation; stale or unmounted
-completion cannot navigate. Only successful current preparation replaces the route with
-Practice at the exact admitted revision.
-
-Invalid Score admission stays on Setup and blocks preparation for that revision before
-qualification. A transient Source load failure stays retryable through the same CTA.
-Capability or qualification failure stays on Setup. All navigation is user-directed except
-successful preparation and revision pinning within the current route.
-
-Practice loads and strictly parses its own Source response defensively. Missing configuration,
-invalid or failed Source, access denial and unavailable Environment/device admission fail
-closed in place, without automatic navigation to Setup. Its top Setup navigation preserves
-the pinned revision. An unavailable Retry stays on Practice. Full reload restores preferences,
-not readiness or GPU memory. Setup preparation enters the workspace; the separate Practice
-Start command constructs an actual attempt through `PracticeExecutionOwner`. Live page
-binding owns DeviceLease roots; Start borrows them and creates fresh attempt-owned resources.
+`PreparedPractice` binds exact Source provenance to mode/input/recording and its live
+binding. It is not persisted. Scope/tempo/metronome/live-feedback changes do not replace
+that binding. Practice starts attempts only with matching admission, verified exact
+Source, healthy roots, valid selection/plan and an available acoustic engine when needed.
 
 ## Practice Environment
 
 The shared Practice layout keeps one stable `PracticeEnvironment` service across
 Setup, Practice, Review and Retry. `environment/` owns infrastructure preparation,
-readiness diagnostics and the score-blind `acoustic/model/acoustic-engine.ts`.
+model progress and the score-blind `acoustic/model/acoustic-engine.ts`.
 It owns no score, scope, evaluator, attempt, result or recording artifact.
 
 ```text
-Setup Start Practice -> Source admission -> Qualification
+Setup Start Practice -> Source admission -> Retained-root validation
                                                -> Warm environment (workspace lifetime)
                                                -> Session inference lease (fresh attempt Start)
 ```
 
 Cold preparation verifies the OPFS/downloaded model identity, creates one Worker
 and one ONNX WebGPU session, then executes a controlled finite smoke inference.
-The smoke lease ends before READY and publishes no Practice evidence. Healthy
+The smoke lease ends before preparation commit and publishes no Practice evidence. Healthy
 repeated Starts, End, natural completion, Review and Retry reuse that model/GPU
 session. Engine states are EMPTY, PREPARING, READY_IDLE, LEASED, RETIRING, FAILED
-and DISPOSED. Failures invalidate readiness and require explicit Setup preparation;
+and DISPOSED. A FAILED engine denies new inference acquisition; explicit Setup validation can prepare another engine;
 there is no provider or input fallback.
 
 Worker protocol is LOAD, BEGIN_SESSION, INFER, END_SESSION, DISPOSE. Each lease
@@ -322,7 +173,7 @@ controllers acquire a prepared inference port before microphone capture; neither
 loads models, requests signed access nor creates Workers. `SourceAnalysisRuntime`
 knows only its session-local inference port. Session teardown releases capture,
 analysis/recorder clones, AudioContexts, recorder and inference lease while retaining
-the page Device Lease and healthy warm engine.
+the page Resource Binding and healthy warm engine.
 Natural completion and abandonment retain their distinct contracts below.
 
 Persistent state consists only of user preferences and the verified OPFS
@@ -348,7 +199,7 @@ consume its narrow resolved projections. Live feedback is not execution intent.
 The plan carries immutable `ResolvedMetronomePlan` musical timing and initial enabled state. Live enable/disable stays a runtime
 command and preserves execution ownership, localSessionId and progression. Flag-only
 candidate changes reuse the current resolved scope/tempo. Resources belong to the
-readiness/device/application boundaries. The plan contains immutable resource
+retained binding/application boundaries. The plan contains immutable resource
 requirements/bindings; acquired objects and health state belong to those runtime owners.
 
 Common local snapshots contain sourceId, resolved scope/tempo and current metronome
@@ -504,7 +355,7 @@ Pause or a fault cancels countdown back to PAUSED; End abandons without a Result
 Resume begins a distinct source/performance segment.
 Source ranges are half-open and source sample identity remains chronological.
 
-The Device Lease owns the root microphone. Analysis and recorder use independent
+The Resource Binding owns the root microphone. Analysis and recorder use independent
 attempt clones. Metronome borrows the attempt context. Controller cleanup releases
 clones and closes the context while the page retains its root devices.
 
@@ -927,7 +778,7 @@ is rechecked immediately before transport starts. Failure releases this Start's
 owned resources and inference lease, preserves recording intent and remains an
 Attempt admission failure, without invalidating Environment. It creates no Result, dialog or recording
 artifact, and does not classify recording faults as acoustic-analysis faults.
-Setup success does not promise immutable permissions; Device Lease binding acquires
+Setup success does not promise immutable permissions; Resource Binding binding acquires
 roots and recorder admission checks its fresh attempt clones. Start never acquires
 browser devices or repeats cold model preparation.
 
@@ -938,7 +789,7 @@ chronology and exposes a dedicated recording intervention. Performance time and
 finality cannot advance beyond that pause boundary while the user decides.
 
 A temporary muted recording track is recoverable only while every required track
-remains live, becomes unmuted, and the same MediaRecorder remains usable. DeviceLease physical-source facts and owned-clone/MediaRecorder events update
+remains live, becomes unmuted, and the same MediaRecorder remains usable. ResourceBinding physical-source facts and owned-clone/MediaRecorder events update
 recorder continuity passively. There is no manual
 Check Device action. Recovery only exposes Continue; it never resumes automatically.
 Ended tracks, recorder errors, pause/resume/start failures and unusable pipelines
@@ -959,9 +810,8 @@ root/context/capture failure instead retains the active session and target behin
 End-only infrastructure intervention. Unusable resources are released immediately;
 only End or page teardown ends domain/application truth. The controller never stops
 or reacquires the borrowed root. End retires the STEP attempt and returns READY; the
-next Start uses current Source, Environment, DeviceLease and selected-capability
-admission. Past intervention state is not a readiness authority. Returning to Setup
-has no environment side effects; explicit Start Practice performs fresh Source admission and qualification.
+next Start uses the matching retained admission, exact Source, binding health and engine lifecycle.
+Returning to Setup releases the binding; explicit Start Practice admits fresh Source and live roots.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.
 Continuous required-input root ended, context closure and invalid capture offer End only. Required
@@ -995,7 +845,7 @@ Review retains replay/save/share and its unavailable notice without target color
 
 Acoustic analysis release neither closes the controller AudioContext nor stops the
 borrowed root stream, metronome or recorder. Analysis-source health consumption is
-irreversibly released with analysis; DeviceLease continues observing retained physical
+irreversibly released with analysis; ResourceBinding continues observing retained physical
 roots. AudioContext health observation stays active
 because that context still owns canonical performance time. Recording track health
 continues to belong to the recorder. No failure dialog offers Restart or an alias.
@@ -1073,7 +923,7 @@ report navigation. Continuous additionally offers View Report.
 
 STOPPED_BY_USER is abandonment. End calls abandon(), cancels pending work and
 releases attempt input bindings, metronome, inference lease, capture/recording clones
-and AudioContext ownership. Page Device Lease roots and the warm Environment remain. It discards
+and AudioContext ownership. Page Resource Binding roots and the warm Environment remain. It discards
 unfinished session state and recording chunks without draining the acoustic tail,
 finalizing a recording or creating result/completion handoff. No dialog or
 report appears. The presentation returns to its pre-start ready state; preferences

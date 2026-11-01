@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { planPracticeResources, qualificationFingerprint } from './resource-plan';
+import { planPracticeResources } from './resource-plan';
 
 const matrix = [
   ['STEP_BY_STEP', 'MICROPHONE', 'OFF', ['acousticEngine', 'browserAudio', 'microphone'], ['inputMicrophone'],
@@ -50,12 +50,4 @@ it('depends only on execution resource choices, with stable immutable projection
   expect(() => Object.assign(first.recording, { audioRoot: 'inputMicrophone' })).toThrow();
   expect(() => Reflect.apply(Array.prototype.push, first.liveRoots, ['inputMicrophone'])).toThrow();
   expect(() => Reflect.apply(Array.prototype.push, first.qualification, ['browserAudio'])).toThrow();
-});
-it('fingerprints the exact planned qualification set independently of order', () => {
-  const mic = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' });
-  const same = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF' });
-  const midi = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' });
-  expect(qualificationFingerprint(mic.qualification)).toBe(qualificationFingerprint(same.qualification));
-  expect(qualificationFingerprint([...mic.qualification].reverse())).toBe(qualificationFingerprint(mic.qualification));
-  expect(qualificationFingerprint(midi.qualification)).not.toBe(qualificationFingerprint(mic.qualification));
 });

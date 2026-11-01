@@ -53,7 +53,7 @@ Pinned revision -> Canonical Practice Source -> strict artifact admission
 `usePracticeExecution` bridges React presentation and the ordinary
 `application/practice-execution-owner.ts` owner. READY has no attempt controller,
 platform, inference lease, AudioContext, MIDI message binding, recorder, metronome,
-refresh loop or controller physical-health subscription. The page DeviceLease and
+refresh loop or controller physical-health subscription. The retained ResourceBinding and
 workspace Environment have their independent retained lifetimes.
 
 The candidate plan is editable before Start. Scope, tempo and initial metronome
@@ -67,12 +67,12 @@ Both STEP and Continuous require user Start. STEP starts learning input acceptan
 without count-in or a performance clock and may wait indefinitely for the first note.
 Continuous starts its count-in and canonical transport. End detaches presentation,
 fences callbacks, abandons/disposes the selected controller, and returns READY.
-Current source/environment/device/capability admission controls the next Start.
+Matching admission, exact Source, root health and engine lifecycle control the next Start.
 Intervention End creates no independent readiness state.
 
 Natural scope completion notifies once and retains completed presentation. Retry is
 a deliberate command that fully releases the completed attempt and starts one fresh
-controller directly. It does not reacquire page roots or requalify the Environment.
+controller directly. It does not reacquire retained roots or repeat preflight.
 The owner clears the transient Continuous completion handoff only at genuine new
 attempt construction and publishes it only from the current natural completion.
 
@@ -89,39 +89,52 @@ Pure runtime components consume resolved projections without full score traversa
 Common local snapshots expose sourceId, resolved scope/tempo and current metronome
 state. Continuous natural Result8 uses the executed scope/tempo without re-resolution.
 
-## Preparation and Score Admission
+## Setup Preparation and Retained Admission
 
 ```text
-Score Detail Practice -> Setup (pinned revision)
-Setup Start Practice -> fresh canonical Source admission
-                     -> current input capability
-                     -> fresh Environment qualification
-                     -> Practice workspace
-Practice Start -> PracticeExecutionOwner -> selected attempt
+Score Detail -> Setup configuration
+explicit Start Practice -> fresh revision Source admission
+                        -> planPracticeResources(configuration)
+                        -> acquire PracticeResourceBinding
+                        -> validate SAME roots and acoustic/recording pipelines
+                        -> atomically commit PreparedPractice
+                        -> Practice exact-read admitted sourceId
+Practice Start -> PracticeExecutionOwner -> selected attempt borrows SAME roots
 ```
 
-Setup is a configuration surface until its single Start Practice command. Mounting
-or editing choices requests no Practice Source and performs no qualification. Each
-command captures the revision/configuration/resource requirements, locks controls,
-and refetches Source before checking capability and calling Environment requalification.
-A warm engine can be reused; previous readiness and query-cache success cannot bypass
-admission. Only current successful completion enters Practice at the admitted revision.
-Setup's component evidence describes the current visit's preparation transaction.
+Setup mounts without Source admission or physical acquisition. The command captures
+pinned revision and resource configuration, locks selectors and fences asynchronous
+completion with an abort signal. Source admission uses `usePracticeRevisionSource`
+and the canonical strict parser before any acquisition. Invalid revision admission
+blocks this command; transient source failure remains retryable through the same CTA.
 
-`usePracticeRevisionSource` maps the untrusted source envelope through
-`parsePracticeScoreArtifact()` and verifies source/score/revision identity. The strict
-parser owns revision-wide score correctness. Invalid Score blocks qualification and
-preparation for that revision. Source load failure remains retryable through the same
-Start Practice CTA. Practice uses the same parser defensively and renders loading,
-load error, invalid Score, access denial or unavailable admission in place. A direct
-Practice URL with incomplete configuration creates no plan, live roots or controller.
-User-controlled Setup navigation remains available and preserves the pinned revision.
-Retry creates a fresh attempt only when current admission permits it; it stays on
-Practice otherwise.
+`PracticePreparationAdmission` is immutable: exact sourceId/scoreId/revisionId/artifactId
+and mode/inputSource/recordingMode. `PreparedPractice` pairs that admission with its
+retained `PracticeResourceBinding` from the same successful transaction. It exists only
+in workspace memory. Scope, tempo, metronome and live feedback do not identify this
+admission. Resource choices change it; candidate musical/presentation edits do not.
 
-Planning consumes admitted runtime values, validates intent/sourceId/scope/tempo
-selection and resource combinations, and resolves execution truth. Execution does not
-introduce another full artifact validator.
+Setup does not probe and release physical roots before Practice.
+The explicit Setup command acquires the live roots that the admitted Practice execution will actually borrow.
+Successful preparation does not create a persistent readiness flag.
+It creates a retained resource binding plus exact Source admission.
+
+The transaction rolls back its binding on acquisition, validation, cancellation or
+stale completion. Commit checks transaction identity, configuration and current root
+health atomically. Entering Setup retires any admitted binding before another command.
+Unmount, revision/resource configuration replacement and superseding commands fence
+pending work; late acquisitions are closed rather than published.
+
+Practice uses `usePracticeSourceById` with the admission's complete expected identity,
+never revision resolution. Missing memory admission, including full reload/direct entry,
+shows Setup required with no Source fallback, device acquisition, inference or controller.
+Loading, Source contract/load failure and access denial fail closed in place. Navigation
+is user-directed. Review Retry returns to pinned Setup for a fresh physical binding.
+
+Practice Start checks matching admission, strict exact Source, healthy retained roots,
+complete range and candidate plan. Acoustic inference acquisition additionally requires
+the engine's actual READY_IDLE lifecycle. This is not aggregate workspace readiness.
+Planning owns semantic scope/tempo resolution; execution consumes the admitted plan.
 
 ## Resource Planning and Lifetimes
 
@@ -130,8 +143,8 @@ PracticeExecutionIntent (mode + inputSource + recordingMode)
   -> planPracticeResources
   -> immutable PracticeResourcePlan
        -> PracticeSessionPlan.resources
-       -> qualification -> Setup / PracticeEnvironment / temporary probes
-       -> liveRoots -> PracticeDeviceLease / retained page roots
+       -> qualification -> Setup validation on retained roots
+       -> liveRoots -> PracticeResourceBinding / retained physical roots
        -> input -> STEP / Continuous input binding
        -> analysis -> acoustic execution
        -> recording -> recorder audio/video root binding
@@ -166,19 +179,29 @@ MIDI recording uses recordingMicrophone without acoustic analysis or browserAudi
 qualification. Selected-input capability combines the planned input/analysis bindings
 with detected browser facts. Recording capability remains separate Setup evidence.
 
-The workspace can plan resources as soon as execution configuration is complete;
-artifact, source identity, scope and tempo are not inputs to resource planning.
-The Setup preparation command requires successful Source admission before executing qualification.
-`PracticeEnvironment` consumes `qualification` and owns qualification execution and
-the warm acoustic engine. `qualificationFingerprint` is the sole qualification-set
-identity derivation. Setup probes release their temporary streams, capture and
-AudioContext. They do not provide live execution roots.
+The workspace can plan resources from complete execution configuration. The explicit
+Setup command acquires `liveRoots` once. `validatePracticeResources` consumes those
+objects, detects current capabilities and verifies connected/live tracks. It acquires
+no physical devices. Recording preflight starts/stops a real MediaRecorder with the
+same MIME strategy as execution, using clones of the planned audio/video roots;
+clones are released on every outcome and retained original tracks stay live.
 
-The exact Practice page gives that same resource plan to `usePracticeDeviceLease`.
-The lease consumes `liveRoots`, retains acquired roots, observes them and releases
-them on unmount. Its binding transaction, same-root observation and fail-closed
-admission are owned by the device boundary. DeviceLease is the sole physical health interpreter of the retained roots.
-Controllers consume its read-only port; pipeline health has separate owners.
+`PracticeEnvironment.validateAcoustic` borrows the retained input microphone for a
+temporary AudioContext/FIR/capture pipeline and owns the warm model/worker engine.
+Temporary processing objects are released while the microphone and healthy engine
+remain retained. Model preparation performs its controlled smoke inference. When an
+old attempt is LEASED/RETIRING, validation observes its retirement without stealing
+the lease. Attempt Start creates fresh processing resources and inference leases.
+
+`usePracticeResourceBinding` observes the supplied binding without opening/closing it.
+Replacement/clear immediately hides retired roots and fences late owner callbacks.
+The binding alone interprets physical health. It never reacquires after a fault.
+Physical roots may fail after successful preparation; such a failure is an event on the same retained binding, not a second acquisition failure.
+
+Attempt End, natural completion and same-page Retry retain the binding. Entering
+Setup, Review, leaving the route family, configuration replacement or explicit
+abandonment closes it exactly once. Review navigation releases physical roots before
+routing; Review needs only the durable Source. Pipeline faults do not close the binding.
 
 Resource planning defines requirements and bindings, not acquisition or Start/End
 lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
@@ -193,7 +216,7 @@ current contracts. See the [product contract](practice-product-contract.md) and
 
 ```text
 PracticeResourcePlan.liveRoots
-  -> PracticeDeviceLease
+  -> PracticeResourceBinding
        -> retained roots and physical root health
        -> PracticeRootHealthPort
             -> STEP application owner
@@ -208,7 +231,7 @@ function, then recheck the current snapshot before admission. This closes the
 snapshot/subscription gap without polling or relying on React rendering. Only the
 active execution owner subscribes; cleanup detaches the subscription.
 
-DeviceLease observes borrowed media-track mute/unmute/ended and retained MIDIAccess
+ResourceBinding observes borrowed media-track mute/unmute/ended and retained MIDIAccess
 statechange. A required live unmuted media track is HEALTHY, a muted live track is
 INTERRUPTED, and a missing/ended track is LOST. MIDI is HEALTHY with at least one
 connected input and LOST otherwise. Same-access MIDI reconnects refresh message
@@ -220,8 +243,8 @@ Physical root health is distinct from processing pipeline health:
 
 | Fact | Owner |
 | --- | --- |
-| Borrowed microphone/camera mute or end | DeviceLease |
-| Retained MIDIAccess connectedness | DeviceLease |
+| Borrowed microphone/camera mute or end | ResourceBinding |
+| Retained MIDIAccess connectedness | ResourceBinding |
 | MIDIInput message listener binding and NOTE_ON/OFF parsing | BrowserMidiController |
 | AudioContext state | Execution pipeline |
 | Capture bridge validity / worker or model failure | Acoustic pipeline |
@@ -244,7 +267,7 @@ The application maps planned recording roots to AUDIO/VIDEO source-health facts.
 `PerformanceRecorder` consumes those facts without retaining borrowed-track health
 observers. It independently watches its owned clone tracks and MediaRecorder. Both
 physical and pipeline incidents preserve their audio/video mute/ended meanings,
-strongest recoverability and the single canonical pause. DeviceLease never interprets
+strongest recoverability and the single canonical pause. ResourceBinding never interprets
 context, capture, analysis or recorder failures as physical root loss.
 
 ## Metronome Plan, Runtime and Audio

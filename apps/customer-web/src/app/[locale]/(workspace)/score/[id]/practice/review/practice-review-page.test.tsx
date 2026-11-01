@@ -342,7 +342,7 @@ describe('PracticeReviewPage', () => {
 
     const backButton = screen.getByRole('button', { name: /返回练习/i });
     fireEvent.click(backButton);
-    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
+    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup');
   });
 
   it.each((['en', 'zh'] as const).flatMap(locale =>
@@ -474,12 +474,12 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
     expect(screen.getByTestId('mock-verovio-viewer')).toBeDefined();
 
-    // Clicking retry button clears completion and routes to practice
+    // Clicking retry button clears completion and routes to Setup for a fresh retained binding
     const retryButton = screen.getByRole('button', { name: /重弹一次/i });
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
     expect(continuousCompletionStore.getCompletion()).toBeNull();
-    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice?practiceRevisionId=rev-1');
+    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup?practiceRevisionId=rev-1');
   });
 
   it.each(['MIDI','MICROPHONE'] as const)('%s review has no aggregate cards and keeps completed annotation semantics', (inputSource) => {

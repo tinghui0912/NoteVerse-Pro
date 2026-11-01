@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
-import { usePracticeSource } from '@/hooks/practice/use-practice-source';
+import { usePracticeRouteScore } from '@/hooks/practice/use-practice-route-score';
+import { usePracticeSourceById } from '@/hooks/practice/use-practice-revision-source';
+import { matchesPreparationConfiguration } from '@/lib/practice/preparation/prepared-practice';
 import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
-import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
+import { usePracticeResourceBinding } from '@/hooks/practice/use-practice-resource-binding';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import { usePracticeRangeSelection } from '@/hooks/practice/use-practice-range-selection';
@@ -31,10 +33,6 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
 import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
 import { projectPracticeMomentViews, type PracticeMomentView } from '@/lib/practice/score-view/moment-view';
-import {
-  evaluatePracticeInputCapabilities,
-  getSelectedInputCapability,
-} from '@/lib/practice/input-capability';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 
 function CameraPreview({
@@ -95,11 +93,19 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
 
   // Score details and assets
-  const source = usePracticeSource(id, { loadNotation: true });
-  const { scoreQuery, sourceQuery, artifact } = source;
-  const canEnterPractice = source.canPractice;
+  const route = usePracticeRouteScore(id);
+  const prepared = workspace.preparedPractice;
+  const admission = prepared?.admission;
+  const matching = Boolean(admission && admission.source.scoreId === id && admission.source.revisionId === route.revisionId
+    && matchesPreparationConfiguration(admission, workspace.configuration));
+  const source = usePracticeSourceById(matching ? admission!.source.sourceId : '', {
+    scoreId: id, revisionId: admission?.source.revisionId ?? '', artifactId: admission?.source.artifactId ?? '',
+  }, { loadNotation: true, enabled: matching && route.canPractice });
+  const { artifact } = source;
+  const { scoreQuery } = route;
+  const canEnterPractice = route.canPractice;
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
-  const selectedRevisionId = source.revisionId ?? undefined;
+  const selectedRevisionId = route.revisionId ?? undefined;
 
   const xmlContent = source.musicXml;
   const sourceAdmitted = Boolean(artifact && source.sourceId && selectedRevisionId && xmlContent)
@@ -126,18 +132,16 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     ? planPracticeSession({ sourceId: source.sourceId, artifact }, executionIntent) : null,
     [artifact, source.sourceId, executionIntent, planPracticeSession, sourceAdmitted]);
 
-  const device = usePracticeDeviceLease(workspace.resourcePlan, sourceAdmitted && Boolean(plan) && workspace.ready);
+  const device = usePracticeResourceBinding(matching ? prepared!.binding : null);
+  const acousticState = useSyncExternalStore(workspace.environment.subscribeAcoustic, workspace.environment.acousticState, workspace.environment.acousticState);
   const requiredDevices = workspace.resourcePlan?.liveRoots ?? [];
   const devicesReady = device.snapshot?.state === 'READY';
   const cameraPreviewStream = device.snapshot?.health.camera === 'HEALTHY' ? device.snapshot.roots.camera : null;
 
-  const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
-  const selectedInputCapability = useMemo(
-    () => workspace.resourcePlan ? getSelectedInputCapability(workspace.resourcePlan, inputCapabilities) : undefined,
-    [inputCapabilities, workspace.resourcePlan]
-  );
+  // Capability preflight belongs to Setup; this projects the admitted selected input only.
+  const selectedInputCapability = matching ? { supported: true as const, status: 'AVAILABLE' as const } : undefined;
   const canPreparePractice = sourceAdmitted && Boolean(plan) && !range.isIncomplete && !range.isSelecting
-    && workspace.ready && devicesReady && selectedInputCapability?.supported === true;
+    && matching && devicesReady && (plan?.resources.analysis.kind !== 'ACOUSTIC' || acousticState === 'READY_IDLE');
   // Local Practice orchestration
   const execution = usePracticeExecution({
     plan, admitted: canPreparePractice, compositionId: `${id}:${selectedRevisionId ?? ''}`,
@@ -164,11 +168,11 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     [execution, setMetronomeEnabled]
   );
 
-  const isLoadingXml = scoreQuery.isLoading || sourceQuery.isLoading;
+  const isLoadingXml = scoreQuery.isLoading || source.isLoading;
   const isResourceLoading =
-    scoreQuery.isLoading || (Boolean(selectedRevisionId) && sourceQuery.isLoading);
+    scoreQuery.isLoading || (matching && source.isLoading);
   const loadError = scoreQuery.error ?? source.error;
-  const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
+  const resourceMissingAfterLoad = !isResourceLoading && matching && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
   const loadErrorDescription = loadError
     ? userFacingErrorMessage(errors, scoreQuery.error ?? source.transportError, common('loadFailedDescription'))
     : resourceMissingAfterLoad
@@ -177,6 +181,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const goToPracticeSetup = () => {
     setIsSettingsOpen(false);
+    workspace.clearPreparedPractice();
     router.push(practiceLocation(id, 'setup', selectedRevisionId));
   };
   const handleRetry = async () => {
@@ -187,8 +192,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const handleViewSummary = useCallback(() => {
     setIsCompletionDialogOpen(false);
+    workspace.clearPreparedPractice();
     router.push(`/score/${id}/practice/review`);
-  }, [id, router]);
+  }, [id, router, workspace]);
 
   const handleAdjustSelectedSection = async () => {
     setIsCompletionDialogOpen(false);
@@ -236,7 +242,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const handleEnd = async () => { await execution.end(); };
   const controlSurfaceProps = {
       isLoading: isLoadingXml,
-      isPreparingSession: execution.inputState === 'STARTING' || !device.snapshot || device.snapshot.state === 'OPENING',
+      isPreparingSession: execution.inputState === 'STARTING',
       canPrepareSession: canPreparePractice && execution.canStart,
       selectedInputCapability,
       selectedInputSupported: selectedInputCapability?.supported,
@@ -320,7 +326,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  if (!configuration || !workspace.hydrated || (!workspace.ready && !isActive && !isCompletionDialogOpen)) {
+  if (!configuration || !workspace.hydrated || !matching) {
     return renderFrame(<p role="status" className="p-6">{t('setupRequired')}</p>);
   }
 

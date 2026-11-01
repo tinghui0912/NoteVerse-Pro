@@ -7,7 +7,8 @@ import en from '../../../messages/en/practice.json';
 import zh from '../../../messages/zh/practice.json';
 import type { PracticeDeviceHealth, PracticeDeviceIssue } from '@/lib/practice/device/device-contract';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
-import { usePracticeDeviceLease } from '@/hooks/practice/use-practice-device-lease';
+import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
+import { usePracticeResourceBinding } from '@/hooks/practice/use-practice-resource-binding';
 import { PracticeDeviceStatusPopover } from './practice-device-status-popover';
 import { PracticeStatus } from './practice-status';
 
@@ -52,8 +53,10 @@ for (const [locale, messages] of [['en', en], ['zh', zh]] as const) {
   it(`${locale}: repeated permission-denied icon visits never reacquire the execution root`, async () => {
     const getUserMedia = vi.fn().mockRejectedValue(new DOMException('blocked', 'NotAllowedError'));
     vi.stubGlobal('navigator', { userAgent: navigator.userAgent, maxTouchPoints: 0, mediaDevices: { getUserMedia } });
+    const binding = new PracticeResourceBinding(planPracticeResources({ mode:'STEP_BY_STEP', inputSource:'MICROPHONE', recordingMode:'OFF' }));
+    await expect(binding.open()).rejects.toThrow();
     function Status() {
-      const device = usePracticeDeviceLease(planPracticeResources({ mode:'STEP_BY_STEP', inputSource:'MICROPHONE', recordingMode:'OFF' }), true);
+      const device = usePracticeResourceBinding(binding);
       return <PracticeStatus lifecycle="READY" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
         <PracticeDeviceStatusPopover resource="inputMicrophone" health={device.snapshot?.health.inputMicrophone ?? null} issue={device.snapshot?.issue ?? null} />
       } />;
@@ -72,8 +75,10 @@ for (const [locale, messages] of [['en', en], ['zh', zh]] as const) {
 it('existing MIDIAccess statechange recovers naturally without requesting new access', async () => {
   const midi = midiDeviceFixture(), requestMIDIAccess = vi.fn().mockResolvedValue(midi.access);
   vi.stubGlobal('navigator', { userAgent:navigator.userAgent, maxTouchPoints:0, requestMIDIAccess });
+  const binding = new PracticeResourceBinding(planPracticeResources({mode:'STEP_BY_STEP', inputSource:'MIDI', recordingMode:'OFF'}));
+  await binding.open();
   function Status() {
-    const device = usePracticeDeviceLease(planPracticeResources({mode:'STEP_BY_STEP', inputSource:'MIDI', recordingMode:'OFF'}), true);
+    const device = usePracticeResourceBinding(binding);
     return <PracticeStatus lifecycle="READY" sessionMode="STEP_BY_STEP" deviceIssue={device.snapshot?.issue} deviceControls={
       <PracticeDeviceStatusPopover resource="midi" health={device.snapshot?.health.midi ?? null} issue={device.snapshot?.issue ?? null} />
     } />;

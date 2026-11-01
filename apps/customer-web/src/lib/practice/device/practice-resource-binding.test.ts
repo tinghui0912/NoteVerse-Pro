@@ -1,6 +1,6 @@
 import { DeviceFailure } from '@/lib/practice/failure/causal-failure';
 import { describe, expect, it, vi } from 'vitest';
-import { PracticeDeviceLease } from './practice-device-lease';
+import { PracticeResourceBinding } from './practice-resource-binding';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
 import { midiDeviceFixture } from '../__fixtures__/device-roots';
@@ -15,7 +15,7 @@ function rig(configuration: Pick<PracticeExecutionIntent, 'mode' | 'inputSource'
   const acquired: ReturnType<typeof media>[] = [], midi = midiDeviceFixture();
   const platform = { acquireStream: vi.fn(async (resource: string) => { const root = media(resource === 'camera'); acquired.push(root); return root.stream; }),
     acquireMidi: vi.fn(async () => midi.access) };
-  return { owner: new PracticeDeviceLease(planPracticeResources(configuration), platform), platform, acquired, midi };
+  return { owner: new PracticeResourceBinding(planPracticeResources(configuration), platform), platform, acquired, midi };
 }
 const matrix = [
   ['STEP_BY_STEP', 'MICROPHONE', 'OFF', ['inputMicrophone']],
@@ -27,7 +27,7 @@ const matrix = [
   ['CONTINUOUS_PLAY', 'MIDI', 'AUDIO', ['midi', 'recordingMicrophone']],
   ['CONTINUOUS_PLAY', 'MIDI', 'VIDEO', ['midi', 'recordingMicrophone', 'camera']],
 ] as const;
-describe('page-scoped Practice Device Lease', () => {
+describe('retained Practice Resource Binding', () => {
   it.each(matrix)('%s / %s / %s owns exactly its required roots', async (mode, inputSource, recordingMode, expected) => {
     const configuration = { mode, inputSource, recordingMode }, f = rig(configuration);
     expect(planPracticeResources(configuration).liveRoots).toEqual(expected); await f.owner.open();
@@ -64,13 +64,13 @@ describe('page-scoped Practice Device Lease', () => {
     f.midi.connect(true); expect(f.owner.snapshot().state).toBe('READY');
     expect(f.platform.acquireMidi).toHaveBeenCalledOnce(); f.owner.close();
     f.midi.connect(false); expect(other).toHaveBeenCalledTimes(3); expect(f.owner.snapshot().roots.midi).toBeNull();
-    f.midi.connect(true); const next = new PracticeDeviceLease(planPracticeResources(configuration), f.platform); await next.open();
+    f.midi.connect(true); const next = new PracticeResourceBinding(planPracticeResources(configuration), f.platform); await next.open();
     expect(f.platform.acquireMidi).toHaveBeenCalledTimes(2); next.close();
   });
   it.each(['PERMISSION_DENIED', 'NOT_FOUND', 'BUSY'] as const)('root %s fails page binding closed without leaking browser details', async name => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
     f.platform.acquireStream.mockRejectedValueOnce(new DeviceFailure(name, 'MICROPHONE', { cause: new Error('private browser detail') }));
-    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    await expect(f.owner.open()).rejects.toMatchObject({kind:'DEVICE',code:name});
     expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: name }, roots: { recordingMicrophone: null } });
     f.owner.close();
   });
@@ -86,7 +86,7 @@ describe('page-scoped Practice Device Lease', () => {
     f.platform.acquireStream.mockImplementationOnce(async () => {
       const root = media(); f.acquired.push(root); return root.stream;
     }).mockRejectedValueOnce(new DeviceFailure('PERMISSION_DENIED', 'CAMERA'));
-    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    await expect(f.owner.open()).rejects.toMatchObject({kind:'DEVICE',code:'PERMISSION_DENIED'});
     expect(f.acquired[0].track.stop).toHaveBeenCalledOnce();
     expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { inputMicrophone: null, camera: null },
       issue: { resource: 'camera', phase: 'OPEN', condition: 'PERMISSION_DENIED' } });
@@ -98,7 +98,7 @@ describe('page-scoped Practice Device Lease', () => {
   it('detaches and clears acquired MIDI when a later recording microphone open fails', async () => {
     const f = rig({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'AUDIO' });
     f.platform.acquireStream.mockRejectedValueOnce(new DeviceFailure('NOT_FOUND', 'MICROPHONE'));
-    await expect(f.owner.open()).rejects.toThrow('PRACTICE_DEVICE_UNAVAILABLE');
+    await expect(f.owner.open()).rejects.toMatchObject({kind:'DEVICE',code:'NOT_FOUND'});
     expect(f.owner.snapshot()).toMatchObject({ state: 'FAULTED', roots: { midi: null, recordingMicrophone: null },
       issue: { resource: 'recordingMicrophone', phase: 'OPEN', condition: 'NOT_FOUND' } });
     const changed = vi.fn(); f.owner.subscribe(changed); f.midi.connect(false); f.midi.connect(true);
@@ -110,7 +110,7 @@ it.each(['inputMicrophone', 'recordingMicrophone', 'camera'] as const)('%s physi
   const plan = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: resource === 'inputMicrophone' ? 'MICROPHONE' : 'MIDI', recordingMode: resource === 'camera' ? 'VIDEO' : resource === 'recordingMicrophone' ? 'AUDIO' : 'OFF' });
   const root = media(resource === 'camera'), midi = midiDeviceFixture();
   const acquire = vi.fn(async (name: string) => name === resource ? root.stream : media(name === 'camera').stream);
-  const lease = new PracticeDeviceLease(plan, { acquireStream: acquire, acquireMidi: async () => midi.access });
+  const lease = new PracticeResourceBinding(plan, { acquireStream: acquire, acquireMidi: async () => midi.access });
   await lease.open(); const port = lease.rootHealth, changes = vi.fn();
   expect(Object.keys(port).sort()).toEqual(['snapshot', 'subscribe']);
   const unsubscribe = port.subscribe(changes);

@@ -80,8 +80,9 @@ Continuous consume the validated semantic artifact.
 `usePracticeRevisionSource` owns one network query, maps the generated source DTO,
 parses the artifact once and validates requested score/revision identity. Its cache
 identity includes the notation option. It exposes `sourceId`, `artifact`, `musicXml`
-and `sourceQuery`. `usePracticeSource` adapts score-route access and revision pinning
-to that query owner. `usePerformanceTakePracticeSource` uses the same envelope parser for
+and `sourceQuery`. `usePracticeRouteScore` owns metadata access and URL revision pinning only.
+Setup invokes the revision query explicitly; Practice exact-reads PreparedPractice sourceId
+with score/revision/artifact identity validation. `usePerformanceTakePracticeSource` uses the same envelope parser for
 saved takes and additionally validates the take's artifact identity. Practice domains
 remain independent of API clients and generated transport DTOs.
 
@@ -90,11 +91,12 @@ remain independent of API clients and generated transport DTOs.
 The source projection's strict `parsePracticeScoreArtifact()` call owns revision-wide
 score correctness. It returns the runtime artifact or invalid-source state. Setup performs
 no Source request on mount or configuration edits. Its explicit Start Practice command
-refetches the pinned revision through this parser before capability checks or Environment
-qualification. Invalid revision admission disables that command for the pinned revision;
-transient load failure remains retryable. Qualification never runs after Source failure.
-Practice loads its artifact and notation through the same parser. Absent/failed/invalid
-Source data disables DeviceLease execution and cannot create a plan or controller. These
+refetches the pinned revision through this parser before live resource acquisition and same-root validation. Invalid revision admission disables that command for the pinned revision;
+transient load failure remains retryable. Acquisition never runs after Source failure.
+Successful preparation pairs exact Source admission with a retained physical binding.
+Practice exact-reads that sourceId through the same parser; it never selects Source from
+revision identity again. Without the memory-only handoff it shows Setup required and
+requests no Source. Absent/failed/invalid Source cannot create an attempt controller. These
 states render in place; they never automatically route to Setup. Score revision pinning
 remains part of the Source query identity.
 

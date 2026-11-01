@@ -1,7 +1,7 @@
 'use client';
 
 import { SourceFailure } from '@/lib/practice/failure/causal-failure';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PracticeSourceRead } from '@/generated/api/types.gen';
 import type { ApiResponse } from '@/lib/api-client';
 import { practiceApi } from '@/lib/api';
@@ -42,8 +42,10 @@ function useSourceQuery(options: {
   queryKey: readonly unknown[];
   request: (signal: AbortSignal) => Promise<ApiResponse<PracticeSourceRead>>;
 }) {
+  const client = useQueryClient();
+  const queryKey = [...options.queryKey, options.identity];
   const sourceQuery = useQuery({
-    queryKey: [...options.queryKey, options.identity],
+    queryKey,
     queryFn: async ({ signal }) => {
       try {
         const response = await options.request(signal);
@@ -66,6 +68,14 @@ function useSourceQuery(options: {
     artifact: source?.artifact ?? null,
     musicXml: source?.musicXml ?? null,
     sourceQuery,
+    loadFresh: async (signal: AbortSignal) => {
+      signal.throwIfAborted();
+      await client.cancelQueries({ queryKey, exact: true });
+      signal.throwIfAborted();
+      const response = await sourceQuery.refetch();
+      signal.throwIfAborted();
+      return response;
+    },
     error,
     transportError: error instanceof SourceFailure && error.code === 'LOAD_FAILED' ? error.cause : null,
     isError: sourceQuery.isError,

@@ -8,7 +8,7 @@ import { ContinuousPracticeSession } from './domain/practice-session';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { completedContinuousTargetFeedback } from './domain/evaluation/target-feedback';
 import { ContinuousAssignmentFinalizer } from './domain/evaluation/assignment-finalizer';
-import { PracticeDeviceLease } from '../device/practice-device-lease';
+import { PracticeResourceBinding } from '../device/practice-resource-binding';
 import { borrowedDevices } from '../__fixtures__/device-roots';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
@@ -149,7 +149,7 @@ describe('Continuous application owner', () => {
   it('real DeviceLease alone observes recording-only microphone and camera roots', async () => {
     const microphone = stream(), camera = stream(true), midi = borrowedDevices().midi!;
     const physicalTrack = microphone.media.getAudioTracks()[0], listen = vi.spyOn(physicalTrack, 'addEventListener');
-    const lease = new PracticeDeviceLease(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }), {
+    const lease = new PracticeResourceBinding(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }), {
       acquireMidi: async () => midi, acquireStream: async name => name === 'camera' ? camera.media : microphone.media,
     });
     await lease.open(); const f = environment();
@@ -942,12 +942,12 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
     run: vi.fn(async (_token: string, input: Parameters<AcousticInferencePort['run']>[0]) => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 })),
     dispose: vi.fn(async () => {}), terminate: vi.fn(), onFailure: () => () => {} };
   const engine = new AcousticEngine(() => worker), platform = { modelUrl: vi.fn(async () => '/verified-model'),
-    createEngine: vi.fn(() => engine), probe: vi.fn(async (requirements: readonly string[], ready: (key: never) => void) => requirements.filter(key => key !== 'acousticEngine').forEach(key => ready(key as never))) };
-  const workspace = new PracticeEnvironment(platform), prepare = vi.spyOn(workspace, 'requalify');
-  await workspace.requalify(['acousticEngine', 'browserAudio', 'microphone', 'audioRecording']);
+    createEngine: vi.fn(() => engine), validateCapture: vi.fn(async () => {}) };
+  const workspace = new PracticeEnvironment(platform), prepare = vi.spyOn(workspace, 'validateAcoustic');
   const sharedRoot = stream(), acquire = vi.fn(async () => sharedRoot.media);
-  const devices = new PracticeDeviceLease(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'AUDIO' }), { acquireStream: acquire, acquireMidi: vi.fn() });
+  const devices = new PracticeResourceBinding(planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'AUDIO' }), { acquireStream: acquire, acquireMidi: vi.fn() });
   await devices.open();
+  await workspace.validateAcoustic({ inputMicrophone: devices.borrowRoots()!.inputMicrophone!, signal: new AbortController().signal });
   const ids = new Set<string>(), sessions = new Set<unknown>(), recorders = new Set<unknown>(), leases = new Set<unknown>(), contexts = new Set<unknown>();
   for (const natural of [false, false, true, true]) {
     const f = environment(48000, sharedRoot); f.platform.acquireInference = async signal => { const lease = await workspace.acquireInference(signal); leases.add(lease); return lease; };
@@ -965,7 +965,7 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
     expect(engine.snapshot().state).toBe('READY_IDLE');
   }
   for (const values of [ids, sessions, recorders, leases, contexts]) expect(values.size).toBe(4);
-  expect(prepare).toHaveBeenCalledOnce(); expect(platform.probe).toHaveBeenCalledOnce(); expect(platform.modelUrl).toHaveBeenCalledOnce();
+  expect(prepare).toHaveBeenCalledOnce(); expect(platform.validateCapture).toHaveBeenCalledOnce(); expect(platform.modelUrl).toHaveBeenCalledOnce();
   expect(acquire).toHaveBeenCalledOnce(); expect(sharedRoot.audio.stop).not.toHaveBeenCalled();
   expect(worker.beginSession).toHaveBeenCalledTimes(5); // One qualification smoke lease, four fresh attempts.
   expect(new Set(worker.beginSession.mock.calls.map(call => call[0])).size).toBe(5);

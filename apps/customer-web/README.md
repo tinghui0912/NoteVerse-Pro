@@ -105,3 +105,13 @@ docker compose -f docker-compose.customer-web-dev.yml build customer-web
 
 To reset all Customer Web development state manually, including the dependency
 volume, run `docker compose -f docker-compose.customer-web-dev.yml down -v`.
+
+### Practice preparation ownership
+
+Setup Start practice admits a fresh pinned Source, acquires one live
+`PracticeResourceBinding`, validates those same roots and commits memory-only
+`PreparedPractice`. Practice exact-reads the admitted sourceId and borrows the retained
+MediaStream/MIDIAccess objects. End and same-page Retry retain them; Setup, Review,
+leaving the flow and provider disposal release them. Full reload requires Setup again.
+Production Playwright tests witness physical acquisition counts, exact stream identity,
+Source handoff and the selection-only reservation/PUT/finalize protocol.

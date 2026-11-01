@@ -5,8 +5,8 @@ import { type PracticeDeviceHealth,
 import { browserDevicePlatform, type PracticeDevicePlatform } from './browser-device-platform';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 
-/** Exact Practice-page owner. Attempts borrow these roots and never dispose them. */
-export class PracticeDeviceLease {
+/** Retained physical owner acquired by the explicit Setup command. Attempts only borrow roots. */
+export class PracticeResourceBinding {
   private roots: { -readonly [K in keyof PracticeDeviceRoots]: PracticeDeviceRoots[K] } = {
     inputMicrophone: null, recordingMicrophone: null, camera: null, midi: null,
   };
@@ -25,8 +25,8 @@ export class PracticeDeviceLease {
   private readonly detach = new Map<PracticeLiveRoot, () => void>();
   private pending: Promise<void> | null = null;
   private readonly timings = new PracticeStartupTimings();
-  constructor(resources: PracticeResourcePlan, private readonly platform: PracticeDevicePlatform = browserDevicePlatform) {
-    this.required = resources.liveRoots;
+  constructor(readonly resourcePlan: PracticeResourcePlan, private readonly platform: PracticeDevicePlatform = browserDevicePlatform) {
+    this.required = resourcePlan.liveRoots;
   }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   snapshot() {
@@ -34,13 +34,13 @@ export class PracticeDeviceLease {
     return Object.freeze({ state: this.state, issue: this.issue, roots: Object.freeze({ ...this.roots }), health: Object.freeze(health) });
   }
   engineeringSnapshot() { return this.timings.snapshot(); }
-  /** One binding transaction per mounted execution page; faults never reacquire roots. */
+  /** One acquisition transaction; faults never reacquire physical roots. */
   open(): Promise<void> {
     if (this.pending) return this.pending;
-    if (this.state === 'CLOSED') return Promise.reject(new Error('PRACTICE_DEVICE_LEASE_CLOSED'));
+    if (this.state === 'CLOSED') return Promise.reject(new Error('PRACTICE_RESOURCE_BINDING_CLOSED'));
     if (this.state !== 'NEW') return this.state === 'READY' ? Promise.resolve() : Promise.reject(new Error('PRACTICE_DEVICE_UNAVAILABLE'));
     this.state = 'OPENING'; this.notify();
-    this.pending = this.timings.measure('deviceLeaseOpen', async () => {
+    this.pending = this.timings.measure('resourceBindingOpen', async () => {
       const acquired: PracticeLiveRoot[] = [];
       let opening = this.required[0];
       try {
@@ -80,10 +80,14 @@ export class PracticeDeviceLease {
           this.issue ??= Object.freeze({ resource: opening, phase: 'OPEN', condition });
           this.state = 'FAULTED'; this.notify();
         }
-        throw new Error('PRACTICE_DEVICE_UNAVAILABLE');
+        throw error;
       }
     }).finally(() => { this.pending = null; });
     return this.pending;
+  }
+  borrowRoots(): PracticeDeviceRoots | null {
+    return this.state === 'READY' && this.required.every(root => this.health(root) === 'HEALTHY')
+      ? this.snapshot().roots : null;
   }
   close(): void {
     if (this.isClosed()) return;
@@ -106,7 +110,7 @@ export class PracticeDeviceLease {
   }
   private changed(): void {
     if (this.isClosed()) return;
-    // Keep failed binding facts for this mounted lease; only a new page can bind again.
+    // A failed acquisition stays failed; a new explicit preparation must create another binding.
     const failedOpen = this.issue?.phase === 'OPEN' && !this.roots[this.issue.resource] ? this.issue : null;
     const resource = this.required.find(resource => this.health(resource) !== 'HEALTHY');
     this.issue = failedOpen ?? (resource ? Object.freeze({ resource, phase: 'RUNTIME',

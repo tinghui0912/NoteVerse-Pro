@@ -1,83 +1,61 @@
-import { AcousticFailure, isPracticeCausalFailure, type PracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
-import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
+import { AcousticFailure } from '@/lib/practice/failure/causal-failure';
+import { AcousticEngine, type AcousticEngineState } from '@/lib/practice/acoustic/model/acoustic-engine';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { getPracticeAcousticModelAccess } from '@/lib/api/practice-acoustic-model-asset';
-import { qualificationFingerprint, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
-import { unconfiguredReadiness, type PracticeReadiness } from '@/lib/practice/readiness/readiness-state';
-import { probePracticeRequirements } from './browser-readiness-probes';
+import { validateAcousticCapture } from './browser-acoustic-validation';
 
 export type EnvironmentPlatform = {
   modelUrl(signal: AbortSignal): Promise<string>;
   createEngine(): AcousticEngine;
-  probe: typeof probePracticeRequirements;
+  validateCapture: typeof validateAcousticCapture;
 };
 const browserPlatform: EnvironmentPlatform = {
   modelUrl: async signal => {
     try { return (await getPracticeAcousticModelAccess(signal)).downloadUrl; }
     catch (cause) { throw new AcousticFailure('MODEL_ASSET_UNAVAILABLE', { cause }); }
   },
-  createEngine: () => new AcousticEngine(), probe: probePracticeRequirements,
+  createEngine: () => new AcousticEngine(), validateCapture: validateAcousticCapture,
 };
 
-/** Workspace infrastructure only. Readiness is live evidence, never persisted permission. */
+/** Workspace acoustic infrastructure only. Physical roots are borrowed for validation. */
 export class PracticeEnvironment {
-  private readiness: PracticeReadiness = unconfiguredReadiness;
   private engine: AcousticEngine | null = null;
-  private abort: AbortController | null = null;
-  private pending: Promise<void> | null = null;
   private disposed = false;
+  private pending: Promise<void> | null = null;
+  private readonly lifetime = new AbortController();
   private readonly listeners = new Set<() => void>();
-  private epoch = 0;
   constructor(private readonly platform: EnvironmentPlatform = browserPlatform) {}
-  snapshot = (): PracticeReadiness => this.readiness;
-  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  matches(requirements: readonly PracticeQualificationRequirement[]): boolean {
-    const engineState = this.engine?.snapshot().state;
-    // Qualification describes infrastructure health, independently of inference lease availability.
-    return this.readiness.status === 'READY' && this.readiness.fingerprint === qualificationFingerprint(requirements)
-      && (!requirements.includes('acousticEngine')
-        || engineState === 'READY_IDLE' || engineState === 'LEASED' || engineState === 'RETIRING');
-  }
-  /** Explicit qualification always rechecks external requirements; a healthy warm engine is reused. */
-  requalify(requirements: readonly PracticeQualificationRequirement[]): Promise<void> {
+  // These observations describe the engine itself, never aggregate qualification evidence.
+  acousticState = (): AcousticEngineState => this.disposed ? 'DISPOSED' : this.engine?.snapshot().state ?? 'EMPTY';
+  subscribeAcoustic = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  validateAcoustic(options: { inputMicrophone: MediaStream; signal: AbortSignal; onProgress?: (percent: number | null) => void }): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_DISPOSED'));
-    if (this.pending) return Promise.reject(new Error('PRACTICE_ENVIRONMENT_BUSY'));
-    const epoch = ++this.epoch, abort = new AbortController(); this.abort = abort;
-    const fingerprint = qualificationFingerprint(requirements);
-    this.update({ status: 'CHECKING', fingerprint, components: Object.fromEntries(requirements.map(key => [key, 'CHECKING'])), reason: null, progress: null });
-    const check = () => { if (abort.signal.aborted || this.disposed || epoch !== this.epoch) throw new Error('PRACTICE_PREPARATION_CANCELLED'); };
-    const ready = (key: PracticeQualificationRequirement) => {
-      check(); this.update({ ...this.readiness, components: { ...this.readiness.components, [key]: 'READY' } });
-    };
-    this.pending = (async () => {
-      try {
-        await this.platform.probe(requirements, ready, abort.signal); check();
-        if (requirements.includes('acousticEngine')) {
-          if (this.engine) { await this.awaitEngineRetirement(this.engine, abort.signal); check(); }
-          if (!this.engine || ['FAILED', 'DISPOSED'].includes(this.engine.snapshot().state)) {
-            await this.engine?.dispose(); check();
-            this.engine = this.platform.createEngine();
-            this.engine.subscribe(() => { if (!this.disposed) this.update({ ...this.readiness }); });
-            this.engine.onFailure(error => {
-              if (this.readiness.status === 'READY' && this.readiness.components.acousticEngine === 'READY') this.invalidate(error);
-            });
-          }
-          if (this.engine.snapshot().state === 'EMPTY') {
-            const url = await this.platform.modelUrl(abort.signal); check();
-            await this.engine.prepare(url, progress => {
-              if (!abort.signal.aborted) this.update({ ...this.readiness,
-                progress: progress.totalBytes ? Math.floor(progress.bytesDownloaded / progress.totalBytes * 100) : null });
-            });
-          }
-          check(); if (this.engine.snapshot().state !== 'READY_IDLE') throw new Error('ACOUSTIC_ENGINE_NOT_IDLE');
-          ready('acousticEngine');
-        }
-        check(); this.update({ ...this.readiness, status: 'READY', progress: null });
-      } catch (error) {
-        if (!this.disposed && epoch === this.epoch) this.invalidate(error);
-      } finally { this.pending = null; }
+    const previous = this.pending;
+    const signal = AbortSignal.any([options.signal, this.lifetime.signal]);
+    const check = () => signal.throwIfAborted();
+    const operation = (async () => {
+      if (previous) await previous.catch(() => {});
+      check();
+      await this.platform.validateCapture(options.inputMicrophone, signal); check();
+      if (this.engine) await this.awaitEngineRetirement(this.engine, signal);
+      check();
+      if (!this.engine || ['FAILED', 'DISPOSED'].includes(this.engine.snapshot().state)) {
+        await this.engine?.dispose(); check();
+        this.engine = this.platform.createEngine();
+        this.engine.subscribe(() => { for (const listener of this.listeners) listener(); });
+      }
+      if (this.engine.snapshot().state === 'EMPTY') {
+        const url = await this.platform.modelUrl(signal); check();
+        await this.engine.prepare(url, progress => {
+          if (!signal.aborted) options.onProgress?.(progress.totalBytes ? Math.floor(progress.bytesDownloaded / progress.totalBytes * 100) : null);
+        });
+      }
+      check();
+      if (this.engine.snapshot().state !== 'READY_IDLE') throw new AcousticFailure('ENVIRONMENT_NOT_READY');
     })();
-    return this.pending;
+    const pending = operation.finally(() => { if (this.pending === pending) this.pending = null; });
+    this.pending = pending;
+    return pending;
   }
   /** Observe the previous owner's handoff; only that owner can release its lease. */
   private awaitEngineRetirement(engine: AcousticEngine, signal: AbortSignal): Promise<void> {
@@ -100,36 +78,13 @@ export class PracticeEnvironment {
     });
   }
   acquireInference = async (signal: AbortSignal): Promise<AcousticInferencePort> => {
-    if (this.disposed || this.readiness.status !== 'READY' || !this.readiness.components.acousticEngine
-      || this.engine?.snapshot().state !== 'READY_IDLE') throw new AcousticFailure('ENVIRONMENT_NOT_READY');
+    if (this.disposed || this.engine?.snapshot().state !== 'READY_IDLE') throw new AcousticFailure('ENVIRONMENT_NOT_READY');
     return this.engine.acquire(signal);
   };
-  private invalidate(cause: unknown): void {
-    if (this.disposed) return;
-    this.update({ ...this.readiness, status: 'BLOCKED', reason: qualificationFailureCode(cause),
-      components: Object.fromEntries(Object.entries(this.readiness.components).map(([key, state]) =>
-        [key, state === 'CHECKING' || (key === 'acousticEngine' && this.engine?.snapshot().state === 'FAILED') ? 'BLOCKED' : state])) });
-  }
   async dispose(): Promise<void> {
     if (this.disposed) return;
-    this.disposed = true; this.epoch++; this.abort?.abort();
-    try { await this.engine?.dispose(); }
-    finally {
-      await this.pending;
-      this.listeners.clear(); this.readiness = unconfiguredReadiness;
-    }
+    this.disposed = true; this.lifetime.abort();
+    try { await this.engine?.dispose(); await this.pending?.catch(() => {}); }
+    finally { this.listeners.clear(); }
   }
-  private update(value: PracticeReadiness): void {
-    this.readiness = Object.freeze({ ...value, components: Object.freeze({ ...value.components }) });
-    for (const listener of this.listeners) listener();
-  }
-}
-
-function qualificationFailureCode(cause: unknown): string {
-  if (!isPracticeCausalFailure(cause)) return 'PRACTICE_PREPARATION_FAILED';
-  const failure: PracticeCausalFailure = cause;
-  if (failure.kind === 'DEVICE') return `${failure.resource}_${failure.code === 'PERMISSION_DENIED' ? 'PERMISSION_DENIED' : 'UNAVAILABLE'}`;
-  if (failure.kind === 'MIDI') return failure.code === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT'
-    : failure.code === 'ACCESS_UNAVAILABLE' ? 'MIDI_UNAVAILABLE' : `MIDI_${failure.code}`;
-  return failure.code;
 }

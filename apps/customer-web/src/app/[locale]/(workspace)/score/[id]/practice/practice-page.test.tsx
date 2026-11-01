@@ -24,8 +24,9 @@ const fake = vi.hoisted(() => ({ invalid: false, requestError: false, missing: f
 let health: ReturnType<typeof rootHealthFixture>;
 let mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
 let ready: boolean, deviceReady: boolean;
-const environment = { acquireInference: vi.fn(), invalidate: vi.fn() };
-const workspace = { get ready() { return ready; }, hydrated: true, readiness: { status: 'READY' },
+const environment = { acquireInference: vi.fn(), acousticState: () => 'READY_IDLE', subscribeAcoustic: () => () => {} };
+const binding = {};
+const workspace = { get preparedPractice() { return ready ? { admission: { source: { sourceId: 'source', scoreId: 'score-id', revisionId: 'pinned-revision', artifactId: artifact.artifactId }, configuration: { mode, inputSource: 'MIDI', recordingMode: 'OFF' } }, binding } : null; }, clearPreparedPractice: vi.fn(), hydrated: true,
   get profile() { return { mode: fake.incomplete ? null : mode, inputSource: fake.incomplete ? null : 'MIDI', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } }; },
   get configuration(): PracticeConfiguration | null { return fake.incomplete ? null : { mode, inputSource: 'MIDI', recordingMode: 'OFF', liveFeedbackEnabled: false }; },
   get resourcePlan() { return this.configuration ? planPracticeResources(this.configuration) : null; }, scope: { kind: 'FULL' },
@@ -34,13 +35,16 @@ const workspace = { get ready() { return ready; }, hydrated: true, readiness: { 
 vi.mock('@/i18n/routing', () => ({ Link: ({ children }: { children: unknown }) => children, useRouter: () => fake.router }));
 vi.mock('next/navigation', () => ({ useRouter: () => fake.router }));
 vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => workspace }));
-vi.mock('@/hooks/practice/use-practice-device-lease', () => ({ usePracticeDeviceLease: (_plan: unknown, enabled: boolean) => {
-  fake.leaseEnabled(enabled); return { snapshot: { state: deviceReady ? 'READY' : 'FAULTED', health: {}, roots: {}, issue: null },
+vi.mock('@/hooks/practice/use-practice-resource-binding', () => ({ usePracticeResourceBinding: (owner: unknown) => {
+  fake.leaseEnabled(Boolean(owner)); return { snapshot: { state: deviceReady ? 'READY' : 'FAULTED', health: {}, roots: {}, issue: null },
     rootHealth: health.port, borrow: () => deviceReady ? borrowedDevices() : null };
 } }));
-vi.mock('@/hooks/practice/use-practice-source', () => ({ usePracticeSource: () => ({
+vi.mock('@/hooks/practice/use-practice-route-score', () => ({ usePracticeRouteScore: () => ({
+  scoreQuery: { data: { data: { capabilities: { can_practice: !fake.denied } } }, isLoading: false, error: null }, revisionId: 'pinned-revision', canPractice: !fake.denied,
+}) }));
+vi.mock('@/hooks/practice/use-practice-revision-source', () => ({ usePracticeSourceById: () => ({
   scoreQuery: { data: { data: { capabilities: { can_practice: !fake.denied } } }, isLoading: false, error: null },
-  sourceQuery: { isLoading: fake.loading, error: null }, sourceId: fake.invalid || fake.missing ? null : 'source',
+  isLoading: fake.loading, sourceQuery: { isLoading: fake.loading, error: null }, sourceId: fake.invalid || fake.missing ? null : 'source',
   artifact: fake.invalid || fake.missing || fake.requestError ? null : artifact,
   musicXml: fake.invalid ? null : '<score />', invalid: fake.invalid,
   error: fake.requestError ? new Error('source request failed') : null, revisionId: 'pinned-revision', canPractice: !fake.denied,
@@ -101,7 +105,7 @@ it.each(['analysisIntervention', 'infrastructureIntervention'] as const)('STEP %
   expect(screen.queryByRole('alertdialog')).toBeNull(); expect(fake.router.push).not.toHaveBeenCalled();
 });
 it.each(['invalid', 'missing', 'requestError'] as const)('%s source fails closed without controller or DeviceLease execution', async field => {
-  fake[field] = true; await openPage(); expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);
+  fake[field] = true; await openPage();
   expect(fake.step).not.toHaveBeenCalled(); expect(fake.continuous).not.toHaveBeenCalled(); expect(environment.acquireInference).not.toHaveBeenCalled();
   expect(health.listenerCount()).toBe(0); expect(fake.router.replace).not.toHaveBeenCalled(); expect(fake.router.push).not.toHaveBeenCalled();
   if (field === 'invalid') expect(screen.getByRole('alert')).toHaveTextContent(practice.scoreInvalid);
@@ -110,7 +114,7 @@ it.each(['invalid', 'missing', 'requestError'] as const)('%s source fails closed
 it('Setup navigation retains pinned revision and has no qualification/device side effects', async () => {
   await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-  expect(environment.invalidate).not.toHaveBeenCalled(); expect(fake.step).not.toHaveBeenCalled();
+  expect(workspace.clearPreparedPractice).toHaveBeenCalledOnce(); expect(fake.step).not.toHaveBeenCalled();
 });
 
 it('STEP PREPARING exposes End and locks scope/tempo without accepting another Start', async () => {
@@ -144,17 +148,17 @@ it.each(['incomplete', 'environment', 'denied', 'loading'] as const)('%s admissi
   await openPage();
   expect(fake.router.replace).not.toHaveBeenCalled(); expect(fake.router.push).not.toHaveBeenCalled();
   expect(fake.step).not.toHaveBeenCalled(); expect(fake.continuous).not.toHaveBeenCalled();
-  if (condition !== 'loading') expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);
+  if (condition === 'incomplete' || condition === 'environment') expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);
   if (condition === 'incomplete' || condition === 'environment') expect(screen.getByText(practice.setupRequired)).toBeVisible();
   if (condition === 'denied') expect(screen.getByText(practice.accessDeniedTitle)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
   expect(fake.router.push).toHaveBeenCalledExactlyOnceWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
 });
 
-it('an active attempt remains visible when Environment admission becomes unavailable', async () => {
+it('an active attempt keeps its binding when acoustic infrastructure fails', async () => {
   const view = await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.start }));
   await waitFor(() => expect(screen.getByRole('button', { name: practice.finish })).toBeEnabled());
-  ready = false; await act(async () => { view.rerender(pageTree()); });
+  vi.spyOn(environment, 'acousticState').mockReturnValue('FAILED'); await act(async () => { view.rerender(pageTree()); });
   expect(screen.getByRole('button', { name: practice.finish })).toBeEnabled();
   expect(fake.router.replace).not.toHaveBeenCalled(); expect(fake.router.push).not.toHaveBeenCalled();
 });

@@ -1,12 +1,6 @@
-import { DeviceFailure, AcousticFailure } from '../failure/causal-failure';
 import { expect, it, vi } from 'vitest';
 import { PracticeEnvironment } from './practice-environment';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
-import { workerRpcRig } from '@/lib/practice/acoustic/model/__fixtures__/worker-rpc';
-import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '@/lib/practice/acoustic/model/worker-liveness-policy';
-import { planPracticeResources, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
-const mic = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MICROPHONE', recordingMode: 'OFF' }).qualification;
-const midi = planPracticeResources({ mode: 'STEP_BY_STEP', inputSource: 'MIDI', recordingMode: 'OFF' }).qualification;
 function rig() {
   let crash: (error: Error) => void = () => {};
   const worker = { load: vi.fn(async () => ({})), beginSession: vi.fn(async () => {}),
@@ -14,240 +8,65 @@ function rig() {
     endSession: vi.fn(async () => {}), dispose: vi.fn(async () => {}), terminate: vi.fn(),
     onFailure: (listener: (error: Error) => void) => { crash = listener; return () => {}; } };
   const platform = { modelUrl: vi.fn(async () => '/verified-model'), createEngine: vi.fn(() => new AcousticEngine(() => worker)),
-    probe: vi.fn(async (requirements: readonly PracticeQualificationRequirement[], ready: (key: PracticeQualificationRequirement) => void) => {
-      requirements.filter(key => key !== 'acousticEngine').forEach(ready);
-    }) };
+    validateCapture: vi.fn(async (_stream: MediaStream, _signal: AbortSignal) => {}) };
   const environment = new PracticeEnvironment(platform);
   return { environment, platform, worker, crash: () => crash(new Error('ACOUSTIC_WORKER_CRASH')) };
 }
-it('MIDI OFF prepares no audio, acoustic engine or model, and uses the exact requirements fingerprint', async () => {
-  const r = rig(); await r.environment.requalify(midi);
-  expect(r.environment.matches(midi)).toBe(true); expect(r.environment.matches(mic)).toBe(false);
-  expect(r.platform.modelUrl).not.toHaveBeenCalled(); expect(r.platform.createEngine).not.toHaveBeenCalled();
-  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toThrow('NOT_READY');
-  await r.environment.dispose();
+
+const inputMicrophone = {} as MediaStream;
+const options = () => ({ inputMicrophone, signal: new AbortController().signal });
+it('starts empty and cannot grant an inference lease before acoustic preparation', async () => {
+  const r = rig(); expect(r.environment.acousticState()).toBe('EMPTY');
+  await expect(r.environment.acquireInference(options().signal)).rejects.toMatchObject({kind:'ACOUSTIC', code:'ENVIRONMENT_NOT_READY'});
+  expect(r.platform.modelUrl).not.toHaveBeenCalled(); await r.environment.dispose();
 });
-it('every explicit qualification reruns probes while healthy acoustic session leases share one cold preparation', async () => {
-  const r = rig(); await r.environment.requalify(mic);
+it('validates the exact borrowed microphone on every command, retaining one warm engine', async () => {
+  const r = rig();
   for (let i = 0; i < 3; i++) {
-    await r.environment.requalify([...mic].reverse());
-    const lease = await r.environment.acquireInference(new AbortController().signal); await lease.dispose();
+    const command = options(); await r.environment.validateAcoustic(command);
+    expect(r.platform.validateCapture).toHaveBeenLastCalledWith(inputMicrophone, expect.any(AbortSignal));
+    const lease = await r.environment.acquireInference(command.signal); await lease.dispose();
   }
-  expect(r.platform.probe).toHaveBeenCalledTimes(4); expect(r.platform.modelUrl).toHaveBeenCalledOnce();
+  expect(r.platform.validateCapture).toHaveBeenCalledTimes(3); expect(r.platform.modelUrl).toHaveBeenCalledOnce();
   expect(r.worker.load).toHaveBeenCalledOnce(); expect(r.worker.beginSession).toHaveBeenCalledTimes(4);
-  expect(r.worker.dispose).not.toHaveBeenCalled(); await r.environment.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  await r.environment.dispose(); expect(r.worker.dispose).toHaveBeenCalledOnce();
 });
-it('camera failure leaves VIDEO requirements blocked rather than turning them into a ready OFF set', async () => {
-  const r = rig(); r.platform.probe.mockRejectedValueOnce(new DeviceFailure('PERMISSION_DENIED', 'CAMERA'));
-  const requirements = planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'VIDEO' }).qualification;
-  await r.environment.requalify(requirements);
-  expect(r.environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'CAMERA_PERMISSION_DENIED' });
-  expect(r.environment.matches(requirements)).toBe(false); expect(r.environment.matches(midi)).toBe(false);
+it('capture validation failure propagates and does not acquire/model-load an engine', async () => {
+  const r = rig(), cause = new Error('capture'); r.platform.validateCapture.mockRejectedValueOnce(cause);
+  await expect(r.environment.validateAcoustic(options())).rejects.toBe(cause);
   expect(r.platform.createEngine).not.toHaveBeenCalled(); await r.environment.dispose();
 });
-it('failure invalidates live readiness and only explicit prepare creates a replacement engine', async () => {
-  const r = rig(); await r.environment.requalify(mic); r.crash();
-  expect(r.environment.snapshot()).toMatchObject({ status: 'BLOCKED', components: { acousticEngine: 'BLOCKED' } });
-  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toThrow('NOT_READY');
-  expect(r.platform.createEngine).toHaveBeenCalledOnce();
-  await r.environment.requalify(mic); expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
-  expect(r.environment.matches(mic)).toBe(true); await r.environment.dispose();
-});
-it('cancellation cannot publish readiness after disposal', async () => {
-  const r = rig(); let release!: () => void;
-  r.platform.probe.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
-  const preparation = r.environment.requalify(midi); const disposed = r.environment.dispose();
-  release(); await preparation; await disposed; expect(r.environment.snapshot().status).toBe('UNCONFIGURED');
-  await expect(r.environment.requalify(midi)).rejects.toThrow('DISPOSED');
-});
-
-it('an unused acoustic engine failure does not invalidate MIDI-only readiness', async () => {
-  const r = rig(); await r.environment.requalify(mic); await r.environment.requalify(midi);
-  r.crash(); expect(r.environment.matches(midi)).toBe(true);
-  expect(r.platform.createEngine).toHaveBeenCalledOnce();
-  await r.environment.requalify(mic);
-  expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
-  expect(r.environment.matches(mic)).toBe(true); await r.environment.dispose();
-});
-
-it('requalification transitions READY → CHECKING → READY without manufacturing a failure', async () => {
-  const r=rig(); await r.environment.requalify(mic);
-  const states: string[]=[], reasons: (string|null)[]=[];
-  r.environment.subscribe(()=>{states.push(r.environment.snapshot().status);reasons.push(r.environment.snapshot().reason);});
-  expect(r.environment.matches(mic)).toBe(true);
-  await r.environment.requalify(mic);
-  expect(states[0]).toBe('CHECKING'); expect(states.at(-1)).toBe('READY'); expect(states).not.toContain('BLOCKED');
-  expect(reasons.every(reason=>reason===null)).toBe(true); expect(r.platform.probe).toHaveBeenCalledTimes(2);
-  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.platform.modelUrl).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+it('engine failure is an infrastructure fact; only a new explicit validation replaces it', async () => {
+  const r = rig(); await r.environment.validateAcoustic(options()); r.crash();
+  expect(r.environment.acousticState()).toBe('FAILED');
+  await expect(r.environment.acquireInference(options().signal)).rejects.toMatchObject({code:'ENVIRONMENT_NOT_READY'});
+  expect(r.platform.createEngine).toHaveBeenCalledOnce(); await r.environment.validateAcoustic(options());
+  expect(r.platform.createEngine).toHaveBeenCalledTimes(2); expect(r.environment.acousticState()).toBe('READY_IDLE');
   await r.environment.dispose();
 });
-for(const state of ['FAILED','DISPOSED'] as const) it(`${state} engine is replaced only during explicit requalification`, async()=>{
-  const r=rig(); await r.environment.requalify(mic);
-  if(state==='FAILED')r.crash(); else await r.platform.createEngine.mock.results[0].value.dispose();
-  expect(r.environment.matches(mic)).toBe(false);
-  expect(r.platform.createEngine).toHaveBeenCalledOnce();
-  await r.environment.requalify(mic);
-  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
-  expect(r.platform.modelUrl).toHaveBeenCalledTimes(2); expect(r.worker.load).toHaveBeenCalledTimes(2);
-  expect(r.environment.matches(mic)).toBe(true); await r.environment.dispose();
-});
-
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void, reject!: (reason: Error) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
-  return { promise, resolve, reject };
-}
-function watchRetirement(engine: AcousticEngine) {
-  const subscribe = engine.subscribe.bind(engine), detachments: ReturnType<typeof vi.fn>[] = [];
-  vi.spyOn(engine, 'subscribe').mockImplementation(listener => {
-    const detach = vi.fn(subscribe(listener)); detachments.push(detach); return detach;
-  });
-  return detachments;
-}
-it('LEASED handoff waits for the attempt to dispose its own lease, without stealing ownership', async () => {
-  const r = rig(); await r.environment.requalify(mic);
-  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
-  const ownerDispose = vi.fn(() => lease.dispose());
-  const engineDispose = vi.spyOn(engine, 'dispose'), detachments = watchRetirement(engine);
-  const endCalls = r.worker.endSession.mock.calls.length, states: string[] = [];
-  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
-  let settled = false; const qualification = r.environment.requalify(mic).then(() => { settled = true; });
-  await vi.waitFor(() => expect(detachments).toHaveLength(1));
-  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(engine.snapshot().state).toBe('LEASED');
-  expect(settled).toBe(false); expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null});
-  expect(ownerDispose).not.toHaveBeenCalled(); expect(engineDispose).not.toHaveBeenCalled();
-  expect(r.worker.endSession).toHaveBeenCalledTimes(endCalls); expect(r.worker.dispose).not.toHaveBeenCalled(); expect(r.worker.terminate).not.toHaveBeenCalled();
-  expect(r.worker.beginSession).toHaveBeenCalledTimes(2); // Initial smoke + the original attempt; no second lease.
-  await ownerDispose(); await qualification;
-  expect(ownerDispose).toHaveBeenCalledOnce(); expect(r.worker.endSession).toHaveBeenCalledTimes(endCalls + 1);
-  expect(engine.snapshot().state).toBe('READY_IDLE'); expect(r.environment.matches(mic)).toBe(true);
-  expect(states).not.toContain('BLOCKED'); expect(detachments[0]).toHaveBeenCalledOnce();
-  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.platform.modelUrl).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+it('observes engine LEASED/RETIRING truth and never steals an active lease during validation', async () => {
+  const r = rig(); await r.environment.validateAcoustic(options());
+  const lease = await r.environment.acquireInference(options().signal);
+  expect(r.environment.acousticState()).toBe('LEASED');
+  await expect(r.environment.acquireInference(options().signal)).rejects.toMatchObject({code:'ENVIRONMENT_NOT_READY'});
+  let done = false; const next = r.environment.validateAcoustic(options()).then(() => { done = true; });
+  await Promise.resolve(); expect(done).toBe(false);
+  await lease.dispose(); await next;
+  expect(r.environment.acousticState()).toBe('READY_IDLE'); expect(r.worker.load).toHaveBeenCalledOnce();
   await r.environment.dispose();
 });
-it('RETIRING deferred endSession keeps qualification CHECKING and reuses the same warm engine', async () => {
-  const r = rig(); await r.environment.requalify(mic);
-  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
-  const end = deferred<void>(); r.worker.endSession.mockImplementationOnce(() => end.promise);
-  const retirement = lease.dispose(); await vi.waitFor(() => expect(engine.snapshot().state).toBe('RETIRING'));
-  const detachments = watchRetirement(engine), states: string[] = [];
-  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
-  let settled = false; const qualification = r.environment.requalify(mic).then(() => { settled = true; });
-  await vi.waitFor(() => expect(detachments).toHaveLength(1));
-  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(settled).toBe(false);
-  expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null}); expect(states).not.toContain('BLOCKED');
-  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.platform.modelUrl).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
-  end.resolve(); await retirement; await qualification;
-  expect(engine.snapshot().state).toBe('READY_IDLE'); expect(r.environment.matches(mic)).toBe(true);
-  expect(detachments[0]).toHaveBeenCalledOnce(); expect(states).not.toContain('BLOCKED');
-  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.worker.load).toHaveBeenCalledOnce();
+it('aborted validation cannot succeed after temporary capture finishes', async () => {
+  const r = rig(); let finish!: () => void;
+  r.platform.validateCapture.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const abort = new AbortController(); const pending = r.environment.validateAcoustic({ inputMicrophone, signal: abort.signal });
+  abort.abort(); finish(); await expect(pending).rejects.toThrow(); expect(r.platform.modelUrl).not.toHaveBeenCalled();
   await r.environment.dispose();
 });
-for (const replacementFails of [false, true]) it(`real failure during retirement is transaction-owned; replacement failure=${replacementFails}`, async () => {
-  const r = rig(); await r.environment.requalify(mic);
-  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
-  const end = deferred<void>(), load = deferred<object>();
-  r.worker.endSession.mockImplementationOnce(() => end.promise);
-  r.worker.terminate.mockImplementationOnce(() => { end.reject(new Error('ACOUSTIC_WORKER_CRASH')); });
-  if (replacementFails) r.worker.load.mockImplementationOnce(() => load.promise);
-  const retirement = lease.dispose().catch(() => {}), detachments = watchRetirement(engine);
-  const states: string[] = [];
-  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
-  const qualification = r.environment.requalify(mic);
-  await vi.waitFor(() => expect(detachments).toHaveLength(1));
-  r.crash();
-  if (replacementFails) {
-    await vi.waitFor(() => expect(r.worker.load).toHaveBeenCalledTimes(2));
-    expect(r.environment.snapshot()).toMatchObject({status:'CHECKING', reason:null}); expect(states).not.toContain('BLOCKED');
-    load.reject(new AcousticFailure('MODEL_LOAD_FAILED'));
-  }
-  await retirement; await qualification;
-  expect(detachments[0]).toHaveBeenCalledOnce();
-  expect(r.platform.probe).toHaveBeenCalledTimes(2); expect(r.platform.createEngine).toHaveBeenCalledTimes(2);
-  expect(r.platform.modelUrl).toHaveBeenCalledTimes(2); expect(r.worker.load).toHaveBeenCalledTimes(2);
-  if (replacementFails) {
-    expect(r.environment.snapshot()).toMatchObject({status:'BLOCKED', reason:'MODEL_LOAD_FAILED'});
-    expect(states.filter(state => state === 'BLOCKED')).toHaveLength(1);
-  } else { expect(r.environment.matches(mic)).toBe(true); expect(states).not.toContain('BLOCKED'); }
-  await r.environment.dispose();
-});
-it('disposing the Environment aborts and detaches its wait without a later READY or dangling qualification', async () => {
-  const r = rig(); await r.environment.requalify(mic);
-  const engine = r.platform.createEngine.mock.results[0].value, lease = await r.environment.acquireInference(new AbortController().signal);
-  const end = deferred<void>(); r.worker.endSession.mockImplementationOnce(() => end.promise);
-  const retirement = lease.dispose(), detachments = watchRetirement(engine), states: string[] = [];
-  r.environment.subscribe(() => states.push(r.environment.snapshot().status));
-  const qualification = r.environment.requalify(mic);
-  await vi.waitFor(() => expect(detachments).toHaveLength(1));
-  const disposed = r.environment.dispose();
-  await qualification; expect(detachments[0]).toHaveBeenCalledOnce();
-  expect(states).not.toContain('READY'); expect(states).not.toContain('BLOCKED');
-  end.resolve(); await retirement; await disposed;
-  expect(r.environment.snapshot().status).toBe('UNCONFIGURED'); expect(states).not.toContain('READY');
-  expect(r.platform.createEngine).toHaveBeenCalledOnce(); expect(r.worker.dispose).toHaveBeenCalledOnce();
-  await expect(r.environment.requalify(mic)).rejects.toThrow('PRACTICE_ENVIRONMENT_DISPOSED');
-});
-
-it('silent worker LOAD leaves CHECKING finitely and requires explicit requalification for a fresh engine', async () => {
-  vi.useFakeTimers(); const old = workerRpcRig(), fresh = workerRpcRig(); old.service.silent.add('LOAD');
-  const engines: AcousticEngine[] = [];
-  const platform = { modelUrl: vi.fn(async () => '/model'), createEngine: vi.fn(() => {
-    const client = engines.length === 0 ? old.client : fresh.client;
-    const engine = new AcousticEngine(() => client); engines.push(engine); return engine;
-  }), probe: vi.fn(async (requirements: readonly PracticeQualificationRequirement[], ready: (key: PracticeQualificationRequirement) => void) => {
-    requirements.filter(key => key !== 'acousticEngine').forEach(ready);
-  }) };
-  const environment = new PracticeEnvironment(platform);
-  try {
-    const qualification = environment.requalify(mic);
-    await vi.advanceTimersByTimeAsync(SILENCE - 1);
-    expect(environment.snapshot().status).toBe('CHECKING'); expect(platform.createEngine).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(1); await qualification;
-    expect(environment.snapshot()).toMatchObject({ status: 'BLOCKED', reason: 'WORKER_TIMEOUT' });
-    expect(engines[0].snapshot().state).toBe('FAILED'); expect(environment.matches(mic)).toBe(false);
-    expect(platform.createEngine).toHaveBeenCalledOnce(); expect(old.service.terminate).toHaveBeenCalledOnce();
-    expect(vi.getTimerCount()).toBe(0);
-    await environment.requalify(mic);
-    expect(platform.createEngine).toHaveBeenCalledTimes(2); expect(environment.matches(mic)).toBe(true);
-    expect(engines[1]).not.toBe(engines[0]);
-  } finally { await environment.dispose(); vi.useRealTimers(); }
-});
-
-
-it('qualified infrastructure remains matched while inference is leased or retiring, without admitting a second lease', async () => {
-  const r = rig();
-  await r.environment.requalify(mic);
-  const engine = r.platform.createEngine.mock.results[0].value;
-  const lease = await r.environment.acquireInference(new AbortController().signal);
-  expect(engine.snapshot().state).toBe('LEASED');
-  expect(r.environment.matches(mic)).toBe(true);
-  expect(r.environment.matches(midi)).toBe(false);
-  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
-
-  const end = deferred<void>();
-  r.worker.endSession.mockImplementationOnce(() => end.promise);
-  const retirement = lease.dispose();
-  await vi.waitFor(() => expect(engine.snapshot().state).toBe('RETIRING'));
-  expect(r.environment.matches(mic)).toBe(true);
-  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
-  end.resolve();
-  await retirement;
-  expect(r.environment.matches(mic)).toBe(true);
-  expect(r.platform.probe).toHaveBeenCalledOnce();
-  expect(r.worker.beginSession).toHaveBeenCalledTimes(2); // Qualification smoke + one attempt.
-  await r.environment.dispose();
-  expect(r.environment.matches(mic)).toBe(false);
-});
-
-it('an acoustic failure revokes qualification during an active inference lease', async () => {
-  const r = rig();
-  await r.environment.requalify(mic);
-  const lease = await r.environment.acquireInference(new AbortController().signal);
-  expect(r.environment.matches(mic)).toBe(true);
-  r.crash();
-  expect(r.environment.snapshot().status).toBe('BLOCKED');
-  expect(r.environment.matches(mic)).toBe(false);
-  await expect(r.environment.acquireInference(new AbortController().signal)).rejects.toMatchObject({ kind: 'ACOUSTIC', code: 'ENVIRONMENT_NOT_READY' });
-  await lease.dispose();
-  await r.environment.dispose();
+it('dispose cancels a waiting engine handoff and releases infrastructure exactly once', async () => {
+  const r = rig(); await r.environment.validateAcoustic(options());
+  const lease = await r.environment.acquireInference(options().signal);
+  const next = r.environment.validateAcoustic(options()); const rejected = expect(next).rejects.toThrow();
+  await r.environment.dispose(); await rejected; await lease.dispose(); await r.environment.dispose();
+  expect(r.environment.acousticState()).toBe('DISPOSED'); expect(r.worker.dispose).toHaveBeenCalledOnce();
+  await expect(r.environment.validateAcoustic(options())).rejects.toThrow('DISPOSED');
 });

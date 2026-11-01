@@ -2,10 +2,9 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
-import { usePracticeRevisionSource } from './use-practice-revision-source';
 
-/** Shared route-family source identity. A pinned artifact is the revision-wide admission contract. */
-export function usePracticeSource(scoreId: string, { loadNotation = false, enabled = true }: { loadNotation?: boolean; enabled?: boolean } = {}) {
+/** Route metadata and revision pinning only; never admits a Practice Source. */
+export function usePracticeRouteScore(scoreId: string) {
   const router = useRouter(), pathname = usePathname(), query = useSearchParams();
   const scoreQuery = useScoreDetail(scoreId);
   const requested = query.get('practiceRevisionId');
@@ -17,6 +16,5 @@ export function usePracticeSource(scoreId: string, { loadNotation = false, enabl
     pinned.set('practiceRevisionId', revisionId);
     router.replace(`${pathname}?${pinned.toString()}`, { scroll: false });
   }, [requested, revisionId, query, pathname, router]);
-  const source = usePracticeRevisionSource(scoreId, revisionId, { loadNotation, enabled: enabled && canPractice && Boolean(requested) });
-  return { ...source, scoreQuery, revisionId, canPractice };
+  return { scoreQuery, revisionId, canPractice, pinned: Boolean(requested) };
 }

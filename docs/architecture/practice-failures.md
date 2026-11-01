@@ -45,7 +45,7 @@ policy; hard source/capture loss requires restart. Recording runtime faults and
 interruptions remain typed live value objects, with recording-only or input-required
 impact determined by the mode's current resource bindings and intervention policy.
 
-DeviceLease alone interprets retained physical-root health as HEALTHY, INTERRUPTED
+PracticeResourceBinding alone interprets retained physical-root health as HEALTHY, INTERRUPTED
 or LOST. AudioContext, capture, worker and recorder pipeline facts have their own
 owners; they do not change physical-root health. See
 [session and resource planning](practice-session-planning.md#physical-root-health-and-pipeline-health).
@@ -61,8 +61,11 @@ The revision-source query runs the canonical strict artifact parser once per res
 Invalid artifact, envelope identity or notation produces `SourceFailure.INVALID_SCORE`;
 transport/service failure produces `SourceFailure.LOAD_FAILED`. The load failure retains
 its transport cause for safe API error-code formatting and HTTP resource decisions.
-Setup admits Source before capability and fresh Environment qualification. Source
-failure never authorizes qualification or automatic navigation.
+Setup admits Source before acquiring live roots and validating those same objects.
+Failed acquisition or validation closes the transaction binding and cannot commit
+PreparedPractice. Source failure permits no acquisition or automatic navigation.
+Physical binding health and acoustic engine lifecycle are independent: worker/capture/
+context/recording faults never close the retained physical binding.
 
 `PracticeExecutionView` is mode-discriminated and exposes closed STEP/Continuous
 application codes. `PracticeStatus` maps those codes, capability facts and typed device
