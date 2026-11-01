@@ -5,10 +5,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import * as artifactContract from '@/lib/practice/kernel/artifact';
-import { usePracticeRevisionSource, usePracticeSnapshotSource } from './use-practice-revision-source';
-const api = vi.hoisted(() => ({ source: vi.fn(), snapshot: vi.fn() }));
+import { usePracticeRevisionSource, usePerformanceTakePracticeSource } from './use-practice-revision-source';
+const api = vi.hoisted(() => ({ source: vi.fn(), savedSource: vi.fn() }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSource: (...args: unknown[]) => api.source(...args) } }));
-vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { getPracticeSource: (...args: unknown[]) => api.snapshot(...args) } }));
+vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { getPracticeSource: (...args: unknown[]) => api.savedSource(...args) } }));
 function harness() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return function Wrapper({ children }: { children: ReactNode }) { return <QueryClientProvider client={client}>{children}</QueryClientProvider>; };
@@ -20,7 +20,7 @@ function envelope(loadNotation: boolean) {
 beforeEach(() => {
   vi.restoreAllMocks(); vi.resetAllMocks();
   api.source.mockImplementation(async (_score, _revision, loadNotation) => envelope(loadNotation));
-  api.snapshot.mockImplementation(async (_take, loadNotation) => envelope(loadNotation));
+  api.savedSource.mockImplementation(async (_take, loadNotation) => envelope(loadNotation));
 });
 it('Setup requests one artifact-only source and receives no notation', async () => {
   const { result } = renderHook(() => usePracticeRevisionSource('score', 'revision', { loadNotation: false }), { wrapper: harness() });
@@ -85,14 +85,14 @@ it('does not request a source without a pinned revision', () => {
   expect(api.source).not.toHaveBeenCalled();
 });
 it('saved take rendering requests one verified source with notation', async () => {
-  const { result } = renderHook(() => usePracticeSnapshotSource('take', { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
   await waitFor(() => expect(result.current.musicXml).toBe('<score />'));
-  expect(api.snapshot).toHaveBeenCalledExactlyOnceWith('take', true, expect.any(AbortSignal));
+  expect(api.savedSource).toHaveBeenCalledExactlyOnceWith('take', true, expect.any(AbortSignal));
   expect(api.source).not.toHaveBeenCalled();
 });
 it.each(['scoreId', 'revisionId', 'artifactId'])('rejects saved source %s mismatch', async field => {
   const identity = { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [field]: 'other' };
-  const { result } = renderHook(() => usePracticeSnapshotSource('take', identity, { loadNotation: true }), { wrapper: harness() });
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', identity, { loadNotation: true }), { wrapper: harness() });
   await waitFor(() => expect(result.current.invalid).toBe(true));
   expect(result.current.artifact).toBeNull(); expect(result.current.musicXml).toBeNull();
 });

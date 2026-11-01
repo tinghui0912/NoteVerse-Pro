@@ -21,7 +21,7 @@ from app.modules.async_operations.delivery_policy import (
     exponential_retry_delay_seconds,
 )
 from app.modules.practice.source.retention import (
-    practice_source_snapshot_delete_service,
+    practice_source_delete_service,
 )
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import FileStorage
@@ -552,14 +552,14 @@ class PerformanceTakeDeleteOutboxService:
                 PerformanceTakeUploadReservationStatus.EXPIRED.value,
                 PerformanceTakeUploadReservationStatus.COMPLETED.value,
             }
-            and reservation.source_snapshot_id is not None
+            and reservation.practice_source_id is not None
         ):
-            source_snapshot_id = reservation.source_snapshot_id
-            reservation.source_snapshot_id = None
+            practice_source_id = reservation.practice_source_id
+            reservation.practice_source_id = None
             reservation.updated_at = now
-            practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+            practice_source_delete_service.enqueue_if_unowned(
                 db,
-                source_snapshot_id,
+                practice_source_id,
                 storage_backend=reservation.storage_backend,
             )
             cleaned_reservation = True

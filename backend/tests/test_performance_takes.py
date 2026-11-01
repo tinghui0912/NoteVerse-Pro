@@ -29,10 +29,10 @@ from app.db.models import (
     PerformanceTakeMediaKind,
     PerformanceTakeUploadReservation,
     PerformanceTakeUploadReservationStatus,
-    PracticeSourceSnapshot,
-    PracticeSourceSnapshotDeleteOutbox,
-    PracticeSourceSnapshotDeleteOutboxStatus,
-    PracticeSourceSnapshotStatus,
+    PracticeSourceRecord,
+    PracticeSourceDeleteOutbox,
+    PracticeSourceDeleteOutboxStatus,
+    PracticeSourceStatus,
     Score,
     ScoreRevision,
     StorageQuotaPolicy,
@@ -47,7 +47,7 @@ from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
 from app.modules.practice.source.retention import (
-    practice_source_snapshot_delete_service,
+    practice_source_delete_service,
 )
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
@@ -58,7 +58,7 @@ from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.source.repository import PracticeSourceRepository
 from app.modules.practice.source.domain import (
     AuthorizedPracticeSource,
-    PracticeSourceBundle,
+    PracticeSource,
     PracticeSourceRepresentation,
     PracticeSourceArtifact,
 )
@@ -73,7 +73,7 @@ from app.shared.error_codes import ErrorCode
 from app.storage.base import DirectUploadTarget
 from app.storage.factory import get_file_storage
 from app.storage.local import LocalFileStorage
-from app.worker.execution import performance_take_deletion, practice_source_snapshot_deletion
+from app.worker.execution import performance_take_deletion, practice_source_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
 DEFAULT_TAKE_REVISION_ID = "revision-uuid-100"
@@ -96,21 +96,25 @@ DEFAULT_TAKE_RECORDING_TIMEBASE = {
 
 
 class _FakePracticeSourceService(PracticeSourceService):
-    async def get_source(self, db, score_uuid: str, user_id: int, revision_uuid: str):
+    async def resolve_source(self, db, score_uuid: str, user_id: int, revision_uuid: str):
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
         )
+        reference, source = await self.repository.get_or_create(
+            db, _canonical_source(score_uuid, revision_uuid, DEFAULT_TAKE_ARTIFACT_ID),
+            live_revision_id=access.revision.id,
+        )
         return AuthorizedPracticeSource(
-            _source_bundle(score_uuid, revision_uuid, DEFAULT_TAKE_ARTIFACT_ID),
+            source, reference,
             access.score.id,
             access.revision.id,
             access.score.title,
         )
 
 
-def _source_bundle(score_id, revision_id, artifact_id):
+def _canonical_source(score_id, revision_id, artifact_id):
     value = _source_artifact_payload(score_id, revision_id, artifact_id)
-    return PracticeSourceBundle(
+    return PracticeSource(
         score_id,
         revision_id,
         PracticeSourceRepresentation(
@@ -159,37 +163,37 @@ def _performance_take_service(
     )
 
 
-def _create_default_source_snapshot(
+def _create_default_source(
     session: Session,
     storage: LocalFileStorage,
     *,
     source_score_uuid: str = "score-uuid-10",
     source_revision_uuid: str = DEFAULT_TAKE_REVISION_ID,
     artifact_id: str = DEFAULT_TAKE_ARTIFACT_ID,
-) -> PracticeSourceSnapshot:
-    bundle = _source_bundle(source_score_uuid, source_revision_uuid, artifact_id)
-    musicxml_bytes = bundle.prepared_musicxml.data
-    artifact_bytes = bundle.artifact.representation.data
-    musicxml_sha = bundle.prepared_musicxml.sha256
-    artifact_sha = bundle.artifact.representation.sha256
-    fingerprint = bundle.source_id
+) -> PracticeSourceRecord:
+    source_value = _canonical_source(source_score_uuid, source_revision_uuid, artifact_id)
+    musicxml_bytes = source_value.prepared_musicxml.data
+    artifact_bytes = source_value.artifact.representation.data
+    musicxml_sha = source_value.prepared_musicxml.sha256
+    artifact_sha = source_value.artifact.representation.sha256
+    source_id = source_value.source_id
     existing = session.execute(
-        select(PracticeSourceSnapshot).where(
-            PracticeSourceSnapshot.source_fingerprint == fingerprint
+        select(PracticeSourceRecord).where(
+            PracticeSourceRecord.source_id == source_id
         )
     ).scalar_one_or_none()
     if existing is not None:
         return existing
-    musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
-    artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
+    musicxml_key = f"practice-sources/{source_id}/score.musicxml"
+    artifact_key = f"practice-sources/{source_id}/artifact.json"
     storage.put_bytes(
         key=musicxml_key,
         content=musicxml_bytes,
         content_type="application/vnd.recordare.musicxml+xml",
     )
     storage.put_bytes(key=artifact_key, content=artifact_bytes, content_type="application/json")
-    snapshot = PracticeSourceSnapshot(
-        source_fingerprint=fingerprint,
+    source = PracticeSourceRecord(
+        source_id=source_id,
         source_score_uuid=source_score_uuid,
         source_revision_uuid=source_revision_uuid,
         artifact_id=artifact_id,
@@ -200,33 +204,33 @@ def _create_default_source_snapshot(
         artifact_object_key=artifact_key,
         artifact_sha256=artifact_sha,
         artifact_byte_size=len(artifact_bytes),
-        status=PracticeSourceSnapshotStatus.READY.value,
+        status=PracticeSourceStatus.READY.value,
         creation_expires_at=None,
     )
-    session.add(snapshot)
+    session.add(source)
     session.flush()
-    return snapshot
+    return source
 
 
 def _create_default_take(
     session: Session,
     *,
     user_id: int,
-    source_snapshot_id: int,
+    practice_source_id: int,
     client_request_id: str,
     take_uuid: str,
     media_object_key: str,
     linked_score_id: int | None = 10,
 ) -> PerformanceTake:
-    snapshot = session.get(PracticeSourceSnapshot, source_snapshot_id)
+    source = session.get(PracticeSourceRecord, practice_source_id)
     reservation = PerformanceTakeUploadReservation(
         user_id=user_id,
         client_request_id=client_request_id,
         take_uuid=take_uuid,
-        score_uuid=snapshot.source_score_uuid,
+        score_uuid=source.source_score_uuid,
         score_title="Moonlight Sonata",
-        revision_uuid=snapshot.source_revision_uuid,
-        artifact_id=snapshot.artifact_id,
+        revision_uuid=source.source_revision_uuid,
+        artifact_id=source.artifact_id,
         scope_type="FULL",
         scope_start_beat=0,
         scope_terminal_beat=4,
@@ -248,7 +252,7 @@ def _create_default_take(
     take = PerformanceTake(
         take_uuid=take_uuid,
         user_id=user_id,
-        source_snapshot_id=source_snapshot_id,
+        practice_source_id=practice_source_id,
         linked_score_id=linked_score_id,
         score_title_snapshot="Moonlight Sonata",
         upload_reservation_id=reservation.id,
@@ -272,11 +276,11 @@ def _create_default_take(
 
 def test_invalid_stored_scope_reports_validation_error(test_env):
     session, storage, user, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     take = _create_default_take(
         session,
         user_id=user.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="invalid-stored-scope",
         take_uuid="invalid-stored-scope",
         media_object_key="test/invalid-stored-scope.webm",
@@ -284,14 +288,14 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
     take.scope_type = "INVALID"
     service = PerformanceTakeService(storage=storage)
     with pytest.raises(ValidationException) as raised:
-        service._to_read_dto(take, snapshot=snapshot)
+        service._to_read_dto(take, source_ref=source)
     assert raised.value.code == ErrorCode.VALIDATION_ERROR
     assert raised.value.details == {"field": "scope_type", "reason": "scope_type_invalid"}
 
 
-def test_source_materialization_stores_exact_bundle_and_rejects_inflight_reuse(test_env):
+def test_source_materialization_stores_exact_source_value_and_rejects_inflight_reuse(test_env):
     session, storage, _, _ = test_env
-    bundle = _source_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
+    source_value = _canonical_source("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
     repository = PracticeSourceRepository(storage)
     original_put = storage.put_bytes
     writes = []
@@ -301,45 +305,46 @@ def test_source_materialization_stores_exact_bundle_and_rejects_inflight_reuse(t
         writes.append(kwargs["key"])
         if not inflight:
             with pytest.raises(ValidationException) as caught:
-                _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
+                _run_async(repository.get_or_create(AsyncSessionAdapter(session), source_value, live_revision_id=100))
             inflight.append(caught.value.details["reason"])
         return original_put(**kwargs)
 
     with patch.object(storage, "put_bytes", side_effect=put):
-        first = _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
-        second = _run_async(repository.materialize(AsyncSessionAdapter(session), bundle))
+        (first, verified) = _run_async(repository.get_or_create(AsyncSessionAdapter(session), source_value, live_revision_id=100))
+        (second, _) = _run_async(repository.get_or_create(AsyncSessionAdapter(session), source_value, live_revision_id=100))
     assert first == second
-    assert first.source_id == bundle.source_id
-    assert inflight == ["source_snapshot_not_ready"]
+    assert verified == source_value
+    assert first.source_id == source_value.source_id
+    assert inflight == ["practice_source_not_ready"]
     assert len(writes) == 2
-    row = session.get(PracticeSourceSnapshot, first.id)
-    assert storage.read_bytes(row.prepared_musicxml_object_key) == bundle.prepared_musicxml.data
-    assert storage.read_bytes(row.artifact_object_key) == bundle.artifact.representation.data
-    assert row.prepared_musicxml_sha256 == bundle.prepared_musicxml.sha256
-    assert row.artifact_sha256 == bundle.artifact.representation.sha256
-    assert row.prepared_musicxml_byte_size == bundle.prepared_musicxml.byte_size
-    assert row.artifact_byte_size == bundle.artifact.representation.byte_size
+    row = session.get(PracticeSourceRecord, first.id)
+    assert storage.read_bytes(row.prepared_musicxml_object_key) == source_value.prepared_musicxml.data
+    assert storage.read_bytes(row.artifact_object_key) == source_value.artifact.representation.data
+    assert row.prepared_musicxml_sha256 == source_value.prepared_musicxml.sha256
+    assert row.artifact_sha256 == source_value.artifact.representation.sha256
+    assert row.prepared_musicxml_byte_size == source_value.prepared_musicxml.byte_size
+    assert row.artifact_byte_size == source_value.artifact.representation.byte_size
 
 
 @pytest.mark.parametrize("representation", ["prepared_musicxml", "artifact"])
-def test_source_snapshot_checksum_corruption_is_rejected(test_env, representation):
+def test_practice_source_checksum_corruption_is_rejected(test_env, representation):
     session, storage, _, _ = test_env
-    row = _create_default_source_snapshot(session, storage)
+    row = _create_default_source(session, storage)
     key = getattr(row, f"{representation}_object_key")
     storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
     with pytest.raises(ValidationException) as caught:
         _run_async(
-            PracticeSourceService(storage=storage).read_snapshot(
+            PracticeSourceService(storage=storage).read_source_by_id(
                 AsyncSessionAdapter(session), row.id
             )
         )
     assert caught.value.details["reason"] == f"{representation}_checksum_mismatch"
 
 
-def test_source_snapshot_artifact_identity_corruption_is_rejected(test_env):
+def test_practice_source_artifact_identity_corruption_is_rejected(test_env):
     session, storage, _, _ = test_env
-    row = _create_default_source_snapshot(session, storage)
-    changed = _source_bundle(
+    row = _create_default_source(session, storage)
+    changed = _canonical_source(
         "other-score", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID
     ).artifact.representation
     storage.put_bytes(
@@ -350,7 +355,7 @@ def test_source_snapshot_artifact_identity_corruption_is_rejected(test_env):
     session.commit()
     with pytest.raises(ValidationException) as caught:
         _run_async(
-            PracticeSourceService(storage=storage).read_snapshot(
+            PracticeSourceService(storage=storage).read_source_by_id(
                 AsyncSessionAdapter(session), row.id
             )
         )
@@ -535,24 +540,24 @@ def _run_worker_deletion(
     return performance_take_deletion.execute_performance_take_deletion_task(None, outbox_uuid)
 
 
-def _run_snapshot_deletion(
+def _run_source_deletion(
     monkeypatch: pytest.MonkeyPatch,
     session: Session,
     storage: LocalFileStorage,
     outbox_uuid: str,
 ) -> dict[str, str]:
     monkeypatch.setattr(
-        practice_source_snapshot_deletion,
+        practice_source_deletion,
         "get_worker_db",
         lambda: _mock_worker_db(session),
     )
-    monkeypatch.setattr(practice_source_snapshot_deletion, "file_storage", storage)
+    monkeypatch.setattr(practice_source_deletion, "file_storage", storage)
     monkeypatch.setattr(
-        practice_source_snapshot_deletion,
+        practice_source_deletion,
         "start_attempt_trace",
         lambda **_kwargs: _TraceScope(),
     )
-    return practice_source_snapshot_deletion.execute_practice_source_snapshot_deletion_task(
+    return practice_source_deletion.execute_practice_source_deletion_task(
         None, outbox_uuid
     )
 
@@ -796,38 +801,38 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         take_row = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
         ).scalar_one()
-        snapshot = session.get(PracticeSourceSnapshot, take_row.source_snapshot_id)
-        assert snapshot is not None
-        assert snapshot.source_score_uuid == "score-uuid-10"
-        assert snapshot.source_revision_uuid == "revision-uuid-100"
-        assert snapshot.artifact_id == "art-1"
-        assert storage.exists(snapshot.prepared_musicxml_object_key)
-        assert storage.exists(snapshot.artifact_object_key)
-        expected_bundle = _source_bundle(
+        source = session.get(PracticeSourceRecord, take_row.practice_source_id)
+        assert source is not None
+        assert source.source_score_uuid == "score-uuid-10"
+        assert source.source_revision_uuid == "revision-uuid-100"
+        assert source.artifact_id == "art-1"
+        assert storage.exists(source.prepared_musicxml_object_key)
+        assert storage.exists(source.artifact_object_key)
+        expected_source_value = _canonical_source(
             "score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID
         )
         assert (
-            storage.read_bytes(snapshot.prepared_musicxml_object_key)
-            == expected_bundle.prepared_musicxml.data
+            storage.read_bytes(source.prepared_musicxml_object_key)
+            == expected_source_value.prepared_musicxml.data
         )
         assert (
-            storage.read_bytes(snapshot.artifact_object_key)
-            == expected_bundle.artifact.representation.data
+            storage.read_bytes(source.artifact_object_key)
+            == expected_source_value.artifact.representation.data
         )
-        assert snapshot.source_fingerprint == expected_bundle.source_id
+        assert source.source_id == expected_source_value.source_id
 
         with patch.object(
             take_svc.practice_source_service.repository,
-            "read_bundle",
-            wraps=take_svc.practice_source_service.repository.read_bundle,
-        ) as read_bundle:
+            "read",
+            wraps=take_svc.practice_source_service.repository.read,
+        ) as read:
             res_source = client.get(
                 f"/api/v1/performance-takes/{take_id}/practice-source?include_notation=true"
             )
-        assert read_bundle.call_count == 1
+        assert read.call_count == 1
         assert res_source.status_code == 200, res_source.text
         source_data = res_source.json()["data"]
-        assert source_data["source_id"] == snapshot.source_fingerprint
+        assert source_data["source_id"] == source.source_id
         assert "<score-partwise" in source_data["notation"]["musicxml"]
         assert source_data["artifact"]["scoreId"] == "score-uuid-10"
         assert source_data["artifact"]["revisionId"] == "revision-uuid-100"
@@ -1269,7 +1274,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert cleanup_res.scores_deleted == 1
 
         # Verify in DB: live score rows are physically deleted. The take no longer
-        # points at live score/revision rows; its historical source is the snapshot.
+        # points at live score/revision rows; its durable source remains independently retained.
         retained_score = session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none()
         assert retained_score is None
 
@@ -1280,12 +1285,12 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert take_in_db is not None
         assert take_in_db.linked_score_id is None
         assert take_in_db.score_title_snapshot == "Moonlight Sonata"
-        snapshot = session.get(PracticeSourceSnapshot, take_in_db.source_snapshot_id)
-        assert snapshot is not None
-        assert snapshot.source_score_uuid == "score-uuid-10"
-        assert snapshot.source_revision_uuid == "revision-uuid-100"
-        assert storage.exists(snapshot.prepared_musicxml_object_key)
-        assert storage.exists(snapshot.artifact_object_key)
+        source = session.get(PracticeSourceRecord, take_in_db.practice_source_id)
+        assert source is not None
+        assert source.source_score_uuid == "score-uuid-10"
+        assert source.source_revision_uuid == "revision-uuid-100"
+        assert storage.exists(source.prepared_musicxml_object_key)
+        assert storage.exists(source.artifact_object_key)
 
         # Verify storage: media object is STILL PRESERVED!
         assert storage.exists(final_key)
@@ -1498,11 +1503,11 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        snapshot_id = auth_before_cancel.source_snapshot_id
-        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
-        assert snapshot is not None
-        musicxml_key = snapshot.prepared_musicxml_object_key
-        artifact_key = snapshot.artifact_object_key
+        practice_source_id = auth_before_cancel.practice_source_id
+        source = session.get(PracticeSourceRecord, practice_source_id)
+        assert source is not None
+        musicxml_key = source.prepared_musicxml_object_key
+        artifact_key = source.artifact_object_key
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
@@ -1522,7 +1527,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        assert auth.source_snapshot_id is None
+        assert auth.practice_source_id is None
         auth.last_put_url_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
             minutes=1
         )
@@ -1536,21 +1541,15 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         session.commit()
         assert cleaned_count == 1
         assert not storage.exists(staging_key)
-        snapshot_outbox = session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
-            )
-        ).scalar_one()
-        snapshot_res = _run_snapshot_deletion(
-            monkeypatch,
-            session,
-            storage,
-            snapshot_outbox.outbox_uuid,
-        )
-        assert snapshot_res["status"] == "deleted"
-        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
-        assert not storage.exists(musicxml_key)
-        assert not storage.exists(artifact_key)
+        assert session.execute(select(PracticeSourceDeleteOutbox).where(
+            PracticeSourceDeleteOutbox.practice_source_id == practice_source_id
+        )).scalar_one_or_none() is None
+        retained = session.get(PracticeSourceRecord, practice_source_id)
+        session.refresh(retained)
+        assert retained.status == PracticeSourceStatus.READY.value
+        assert retained.live_revision_id == 100
+        assert storage.exists(musicxml_key)
+        assert storage.exists(artifact_key)
 
         # Idempotent cancel via the canonical DELETE route.
         res_cancel_delete_again = client.delete(
@@ -2133,11 +2132,11 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
 
 def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     session, _storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, _storage)
+    source = _create_default_source(session, _storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="req-finalizing-reserve",
         take_uuid="take-finalizing-reserve",
         score_id=10,
@@ -2247,11 +2246,11 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
                 PerformanceTakeUploadReservation.client_request_id == "req-abandoned-01"
             )
         ).scalar_one()
-        snapshot_id = auth.source_snapshot_id
-        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
-        assert snapshot is not None
-        musicxml_key = snapshot.prepared_musicxml_object_key
-        artifact_key = snapshot.artifact_object_key
+        practice_source_id = auth.practice_source_id
+        source = session.get(PracticeSourceRecord, practice_source_id)
+        assert source is not None
+        musicxml_key = source.prepared_musicxml_object_key
+        artifact_key = source.artifact_object_key
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
@@ -2273,22 +2272,16 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
 
         session.refresh(auth)
         assert auth.status == PerformanceTakeUploadReservationStatus.EXPIRED
-        assert auth.source_snapshot_id is None
-        snapshot_outbox = session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
-            )
-        ).scalar_one()
-        snapshot_res = _run_snapshot_deletion(
-            monkeypatch,
-            session,
-            storage,
-            snapshot_outbox.outbox_uuid,
-        )
-        assert snapshot_res["status"] == "deleted"
-        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
-        assert not storage.exists(musicxml_key)
-        assert not storage.exists(artifact_key)
+        assert auth.practice_source_id is None
+        assert session.execute(select(PracticeSourceDeleteOutbox).where(
+            PracticeSourceDeleteOutbox.practice_source_id == practice_source_id
+        )).scalar_one_or_none() is None
+        retained = session.get(PracticeSourceRecord, practice_source_id)
+        session.refresh(retained)
+        assert retained.status == PracticeSourceStatus.READY.value
+        assert retained.live_revision_id == 100
+        assert storage.exists(musicxml_key)
+        assert storage.exists(artifact_key)
 
     finally:
         app.dependency_overrides.clear()
@@ -2455,7 +2448,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         app.dependency_overrides.clear()
 
 
-def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
+def test_score_deleted_between_auth_and_finalize_uses_durable_source(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -2492,7 +2485,7 @@ def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
         # Simulate score becoming unavailable before client calls finalize. The
-        # upload reservation already pinned a durable source snapshot, so this
+        # upload reservation already references the durable source, so this
         # save must still finish without requiring live Score access.
         session.execute(text("UPDATE scores SET deletion_status = 'DELETED' WHERE id = 10;"))
         session.commit()
@@ -2513,12 +2506,12 @@ def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
         take = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
         ).scalar_one()
-        snapshot = session.get(PracticeSourceSnapshot, take.source_snapshot_id)
-        assert snapshot is not None
-        assert snapshot.source_score_uuid == "score-uuid-10"
-        assert snapshot.source_revision_uuid == "revision-uuid-100"
-        assert storage.exists(snapshot.prepared_musicxml_object_key)
-        assert storage.exists(snapshot.artifact_object_key)
+        source = session.get(PracticeSourceRecord, take.practice_source_id)
+        assert source is not None
+        assert source.source_score_uuid == "score-uuid-10"
+        assert source.source_revision_uuid == "revision-uuid-100"
+        assert storage.exists(source.prepared_musicxml_object_key)
+        assert storage.exists(source.artifact_object_key)
 
         source = client.get(
             f"/api/v1/performance-takes/{take_id}/practice-source?include_notation=true"
@@ -2594,15 +2587,15 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
             )
         ).scalar_one()
         assert auth_row.status == PerformanceTakeUploadReservationStatus.COMPLETED
-        assert auth_row.source_snapshot_id is None
+        assert auth_row.practice_source_id is None
         take_row = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
         ).scalar_one()
-        snapshot_id = take_row.source_snapshot_id
-        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
-        assert snapshot is not None
-        musicxml_key = snapshot.prepared_musicxml_object_key
-        artifact_key = snapshot.artifact_object_key
+        practice_source_id = take_row.practice_source_id
+        source = session.get(PracticeSourceRecord, practice_source_id)
+        assert source is not None
+        musicxml_key = source.prepared_musicxml_object_key
+        artifact_key = source.artifact_object_key
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)
 
@@ -2666,42 +2659,32 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         )
         session.refresh(account)
         assert account.used_bytes == 0
-        snapshot_outbox = session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
-            )
-        ).scalar_one()
-        assert snapshot_outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.PENDING
-
-        snapshot_res = _run_snapshot_deletion(
-            monkeypatch,
-            session,
-            storage,
-            snapshot_outbox.outbox_uuid,
-        )
-        assert snapshot_res["status"] == "deleted"
-        session.refresh(snapshot_outbox)
-        assert snapshot_outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED
-        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
-        assert not storage.exists(musicxml_key)
-        assert not storage.exists(artifact_key)
+        assert session.execute(select(PracticeSourceDeleteOutbox).where(
+            PracticeSourceDeleteOutbox.practice_source_id == practice_source_id
+        )).scalar_one_or_none() is None
+        retained = session.get(PracticeSourceRecord, practice_source_id)
+        session.refresh(retained)
+        assert retained.status == PracticeSourceStatus.READY.value
+        assert retained.live_revision_id == 100
+        assert storage.exists(musicxml_key)
+        assert storage.exists(artifact_key)
 
     finally:
         app.dependency_overrides.clear()
 
 
-def test_snapshot_delete_outbox_retries_transient_storage_failure(
+def test_source_delete_outbox_retries_transient_storage_failure(
     test_env,
     monkeypatch: pytest.MonkeyPatch,
 ):
     session, storage, _user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
-    snapshot_id = snapshot.id
-    musicxml_key = snapshot.prepared_musicxml_object_key
-    artifact_key = snapshot.artifact_object_key
-    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    source = _create_default_source(session, storage)
+    practice_source_id = source.id
+    musicxml_key = source.prepared_musicxml_object_key
+    artifact_key = source.artifact_object_key
+    outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot_id,
+        practice_source_id,
         storage_backend=storage.backend_name,
     )
     session.commit()
@@ -2713,10 +2696,10 @@ def test_snapshot_delete_outbox_retries_transient_storage_failure(
 
         def delete(self, key: str) -> bool:
             if key == musicxml_key:
-                raise ConnectionError("snapshot object store timeout")
+                raise ConnectionError("source object store timeout")
             return super().delete(key)
 
-    failed = _run_snapshot_deletion(
+    failed = _run_source_deletion(
         monkeypatch,
         session,
         FailingSnapshotStorage(storage),
@@ -2724,15 +2707,15 @@ def test_snapshot_delete_outbox_retries_transient_storage_failure(
     )
     assert failed["status"] == "failed"
     session.refresh(outbox)
-    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.FAILED
-    assert "snapshot object store timeout" in (outbox.last_error or "")
-    assert session.get(PracticeSourceSnapshot, snapshot_id) is not None
+    assert outbox.status == PracticeSourceDeleteOutboxStatus.FAILED
+    assert "source object store timeout" in (outbox.last_error or "")
+    assert session.get(PracticeSourceRecord, practice_source_id) is not None
     assert storage.exists(musicxml_key)
     assert storage.exists(artifact_key)
 
     outbox.next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
     session.commit()
-    succeeded = _run_snapshot_deletion(
+    succeeded = _run_source_deletion(
         monkeypatch,
         session,
         storage,
@@ -2740,30 +2723,30 @@ def test_snapshot_delete_outbox_retries_transient_storage_failure(
     )
     assert succeeded["status"] == "deleted"
     session.refresh(outbox)
-    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED
-    assert session.get(PracticeSourceSnapshot, snapshot_id) is None
+    assert outbox.status == PracticeSourceDeleteOutboxStatus.COMPLETED
+    assert session.get(PracticeSourceRecord, practice_source_id) is None
     assert not storage.exists(musicxml_key)
     assert not storage.exists(artifact_key)
 
 
-def test_snapshot_gc_marks_snapshot_deleting_until_completed(test_env):
+def test_source_gc_marks_snapshot_deleting_until_completed(test_env):
     session, storage, _user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
-    snapshot_id = snapshot.id
+    source = _create_default_source(session, storage)
+    practice_source_id = source.id
 
-    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot_id,
+        practice_source_id,
         storage_backend=storage.backend_name,
     )
     session.commit()
 
     assert outbox is not None
-    session.refresh(snapshot)
-    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+    session.refresh(source)
+    assert source.status == PracticeSourceStatus.DELETING.value
 
 
-def test_snapshot_creation_storage_failure_has_durable_cleanup(
+def test_source_creation_storage_failure_has_durable_cleanup(
     test_env,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -2788,7 +2771,7 @@ def test_snapshot_creation_storage_failure_has_durable_cleanup(
 
         def put_bytes(self, *, key: str, content: bytes, content_type: str) -> None:
             if key.endswith("/artifact.json"):
-                raise ConnectionError("artifact snapshot write failed")
+                raise ConnectionError("artifact source write failed")
             super().put_bytes(key=key, content=content, content_type=content_type)
 
     failing_storage = ArtifactWriteFailsStorage(storage)
@@ -2823,34 +2806,35 @@ def test_snapshot_creation_storage_failure_has_durable_cleanup(
                     "duration_ms": 5000,
                 },
                 "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-snapshot-create-storage-fail",
+                "client_request_id": "req-source-create-storage-fail",
                 "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
         )
         assert res_auth.status_code >= 400
 
-        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
-        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
-        assert storage.exists(snapshot.prepared_musicxml_object_key)
-        assert not storage.exists(snapshot.artifact_object_key)
+        source = session.execute(select(PracticeSourceRecord)).scalar_one()
+        assert source.status == PracticeSourceStatus.DELETING.value
+        assert source.live_revision_id is None
+        assert storage.exists(source.prepared_musicxml_object_key)
+        assert not storage.exists(source.artifact_object_key)
         outbox = session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            select(PracticeSourceDeleteOutbox).where(
+                PracticeSourceDeleteOutbox.practice_source_id == source.id
             )
         ).scalar_one()
-        assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.PENDING
+        assert outbox.status == PracticeSourceDeleteOutboxStatus.PENDING
 
-        result = _run_snapshot_deletion(
+        result = _run_source_deletion(
             monkeypatch,
             session,
             storage,
             outbox.outbox_uuid,
         )
         assert result["status"] == "deleted"
-        assert session.get(PracticeSourceSnapshot, snapshot.id) is None
-        assert not storage.exists(snapshot.prepared_musicxml_object_key)
-        assert not storage.exists(snapshot.artifact_object_key)
+        assert session.get(PracticeSourceRecord, source.id) is None
+        assert not storage.exists(source.prepared_musicxml_object_key)
+        assert not storage.exists(source.artifact_object_key)
     finally:
         app.dependency_overrides.clear()
 
@@ -2867,8 +2851,8 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
         ("both", True, True),
     ]
     for label, has_musicxml, has_artifact in variants:
-        musicxml_key = f"practice-source-snapshots/stale-{label}/score.musicxml"
-        artifact_key = f"practice-source-snapshots/stale-{label}/artifact.json"
+        musicxml_key = f"practice-sources/stale-{label}/score.musicxml"
+        artifact_key = f"practice-sources/stale-{label}/artifact.json"
         if has_musicxml:
             storage.put_bytes(
                 key=musicxml_key,
@@ -2881,8 +2865,9 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
                 content=b"{}",
                 content_type="application/json",
             )
-        snapshot = PracticeSourceSnapshot(
-            source_fingerprint=f"stale-{label}",
+        source = PracticeSourceRecord(
+            source_id=f"stale-{label}",
+            live_revision_id=100,
             source_score_uuid="score-uuid-10",
             source_revision_uuid=DEFAULT_TAKE_REVISION_ID,
             artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
@@ -2893,13 +2878,13 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
             artifact_object_key=artifact_key,
             artifact_sha256=hashlib.sha256(b"{}").hexdigest(),
             artifact_byte_size=len(b"{}"),
-            status=PracticeSourceSnapshotStatus.CREATING.value,
+            status=PracticeSourceStatus.CREATING.value,
             creation_expires_at=expired_at,
         )
-        session.add(snapshot)
+        session.add(source)
         session.flush()
 
-    due = practice_source_snapshot_delete_service.recover_stale_creating(
+    due = practice_source_delete_service.recover_stale_creating(
         session,
         storage_backend=storage.backend_name,
     )
@@ -2907,16 +2892,16 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
     assert len(due) == len(variants)
 
     for outbox_uuid in due:
-        result = _run_snapshot_deletion(monkeypatch, session, storage, outbox_uuid)
+        result = _run_source_deletion(monkeypatch, session, storage, outbox_uuid)
         assert result["status"] == "deleted"
 
-    assert session.execute(select(PracticeSourceSnapshot)).scalars().all() == []
+    assert session.execute(select(PracticeSourceRecord)).scalars().all() == []
     for label, _has_musicxml, _has_artifact in variants:
-        assert not storage.exists(f"practice-source-snapshots/stale-{label}/score.musicxml")
-        assert not storage.exists(f"practice-source-snapshots/stale-{label}/artifact.json")
+        assert not storage.exists(f"practice-sources/stale-{label}/score.musicxml")
+        assert not storage.exists(f"practice-sources/stale-{label}/artifact.json")
 
 
-def test_reservation_rejects_snapshot_pending_gc(test_env):
+def test_reservation_rejects_source_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -2949,7 +2934,7 @@ def test_reservation_rejects_snapshot_pending_gc(test_env):
                     "duration_ms": 5000,
                 },
                 "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-snapshot-pending-gc-first",
+                "client_request_id": "req-source-pending-gc-first",
                 "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
@@ -2960,9 +2945,11 @@ def test_reservation_rejects_snapshot_pending_gc(test_env):
             f"/api/v1/performance-takes/upload-reservations/{reservation_id}"
         )
         assert cancel_response.status_code == 200
-        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
-        session.refresh(snapshot)
-        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+        source = session.execute(select(PracticeSourceRecord)).scalar_one()
+        session.refresh(source)
+        assert source.status == PracticeSourceStatus.READY.value
+        source.status = PracticeSourceStatus.DELETING.value
+        session.commit()
 
         response = client.post(
             "/api/v1/performance-takes/upload-reservations",
@@ -2978,7 +2965,7 @@ def test_reservation_rejects_snapshot_pending_gc(test_env):
                     "duration_ms": 5000,
                 },
                 "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-snapshot-pending-gc",
+                "client_request_id": "req-source-pending-gc",
                 "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
@@ -2986,7 +2973,7 @@ def test_reservation_rejects_snapshot_pending_gc(test_env):
         assert response.status_code >= 400
         rejected_auth = session.execute(
             select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.client_request_id == "req-snapshot-pending-gc"
+                PerformanceTakeUploadReservation.client_request_id == "req-source-pending-gc"
             )
         ).scalar_one_or_none()
         assert rejected_auth is None
@@ -2994,7 +2981,7 @@ def test_reservation_rejects_snapshot_pending_gc(test_env):
         app.dependency_overrides.clear()
 
 
-def test_reservation_creator_cannot_ready_snapshot_after_stale_recovery(test_env):
+def test_reservation_creator_cannot_ready_source_after_stale_recovery(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     original_put_bytes = storage.put_bytes
@@ -3003,20 +2990,20 @@ def test_reservation_creator_cannot_ready_snapshot_after_stale_recovery(test_env
     def put_bytes_with_stale_recovery(*, key: str, content: bytes, content_type: str | None = None):
         nonlocal put_count
         stored = original_put_bytes(key=key, content=content, content_type=content_type)
-        if key.startswith("practice-source-snapshots/"):
+        if key.startswith("practice-sources/"):
             put_count += 1
         if put_count == 2:
-            snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
-            snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
-            snapshot.creation_expires_at = None
+            source = session.execute(select(PracticeSourceRecord)).scalar_one()
+            source.status = PracticeSourceStatus.DELETING.value
+            source.creation_expires_at = None
             session.add(
-                PracticeSourceSnapshotDeleteOutbox(
-                    source_snapshot_id=snapshot.id,
-                    snapshot_uuid=snapshot.snapshot_uuid,
+                PracticeSourceDeleteOutbox(
+                    practice_source_id=source.id,
+                    source_id=source.source_id,
                     storage_backend=storage.backend_name,
-                    prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
-                    artifact_object_key=snapshot.artifact_object_key,
-                    status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
+                    prepared_musicxml_object_key=source.prepared_musicxml_object_key,
+                    artifact_object_key=source.artifact_object_key,
+                    status=PracticeSourceDeleteOutboxStatus.PENDING.value,
                     max_attempts=5,
                 )
             )
@@ -3054,38 +3041,38 @@ def test_reservation_creator_cannot_ready_snapshot_after_stale_recovery(test_env
                     "duration_ms": 5000,
                 },
                 "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-snapshot-stale-creator",
+                "client_request_id": "req-source-stale-creator",
                 "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
         )
         assert response.status_code >= 400
-        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
-        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
-        assert snapshot.creation_expires_at is None
+        source = session.execute(select(PracticeSourceRecord)).scalar_one()
+        assert source.status == PracticeSourceStatus.DELETING.value
+        assert source.creation_expires_at is None
         assert (
             session.execute(
                 select(PerformanceTakeUploadReservation).where(
                     PerformanceTakeUploadReservation.client_request_id
-                    == "req-snapshot-stale-creator"
+                    == "req-source-stale-creator"
                 )
             ).scalar_one_or_none()
             is None
         )
-        outboxes = session.execute(select(PracticeSourceSnapshotDeleteOutbox)).scalars().all()
+        outboxes = session.execute(select(PracticeSourceDeleteOutbox)).scalars().all()
         assert len(outboxes) == 1
     finally:
         storage.put_bytes = original_put_bytes  # type: ignore[assignment]
         app.dependency_overrides.clear()
 
 
-def test_snapshot_gc_does_not_restore_ready_if_reference_appears_before_claim(test_env):
+def test_source_gc_does_not_restore_ready_if_reference_appears_before_claim(test_env):
     session, storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
-    snapshot_id = snapshot.id
-    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    source = _create_default_source(session, storage)
+    practice_source_id = source.id
+    outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot_id,
+        practice_source_id,
         storage_backend=storage.backend_name,
     )
     assert outbox is not None
@@ -3093,9 +3080,9 @@ def test_snapshot_gc_does_not_restore_ready_if_reference_appears_before_claim(te
 
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        source_snapshot_id=snapshot_id,
-        client_request_id="req-snapshot-gc-race",
-        take_uuid="take-snapshot-gc-race",
+        practice_source_id=practice_source_id,
+        client_request_id="req-source-gc-race",
+        take_uuid="take-source-gc-race",
         score_id=None,
         score_uuid="score-uuid-10",
         score_title="Moonlight Sonata",
@@ -3127,100 +3114,88 @@ def test_snapshot_gc_does_not_restore_ready_if_reference_appears_before_claim(te
     session.add(auth)
     session.commit()
 
-    payload = practice_source_snapshot_delete_service.claim(session, outbox.outbox_uuid)
+    payload = practice_source_delete_service.claim(session, outbox.outbox_uuid)
     session.commit()
 
     assert payload is None
-    session.refresh(snapshot)
+    session.refresh(source)
     session.refresh(outbox)
-    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
-    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
-    assert storage.exists(snapshot.prepared_musicxml_object_key)
-    assert storage.exists(snapshot.artifact_object_key)
+    assert source.status == PracticeSourceStatus.DELETING.value
+    assert outbox.status == PracticeSourceDeleteOutboxStatus.COMPLETED.value
+    assert storage.exists(source.prepared_musicxml_object_key)
+    assert storage.exists(source.artifact_object_key)
 
 
-def test_snapshot_worker_fails_if_active_reference_appears_after_storage_deletion(
+def test_source_worker_preserves_objects_if_reference_appears_after_claim(
     test_env,
     monkeypatch,
 ):
     session, storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
-    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    source = _create_default_source(session, storage)
+    outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot.id,
+        source.id,
         storage_backend=storage.backend_name,
     )
     assert outbox is not None
     session.commit()
 
-    original_delete = storage.delete
-    deleted_count = 0
+    original_claim = practice_source_delete_service.claim
 
-    def delete_and_create_invalid_ref(key: str) -> bool:
-        nonlocal deleted_count
-        result = original_delete(key)
-        if key in {
-            snapshot.prepared_musicxml_object_key,
-            snapshot.artifact_object_key,
-        }:
-            deleted_count += 1
-        if deleted_count == 2:
-            auth = PerformanceTakeUploadReservation(
-                user_id=user_1.id,
-                source_snapshot_id=snapshot.id,
-                client_request_id="req-snapshot-active-ref-after-delete",
-                take_uuid="take-snapshot-active-ref-after-delete",
-                score_id=None,
-                score_uuid="score-uuid-10",
-                score_title="Moonlight Sonata",
-                revision_id=None,
-                revision_uuid=DEFAULT_TAKE_REVISION_ID,
-                artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
-                scope_type="FULL",
-                scope_start_beat=0.0,
-                scope_terminal_beat=4.0,
-                scope_start_group_id=None,
-                scope_end_group_id=None,
-                tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-                recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-                duration_ms=5000,
-                media_kind="AUDIO",
-                media_mime_type="audio/webm",
-                media_byte_size=len(VALID_WEBM_BYTES),
-                storage_backend=storage.backend_name,
-                staging_object_key="performance-takes/staging/active-ref-after-delete.webm",
-                final_object_key="performance-takes/final/active-ref-after-delete.webm",
-                storage_reservation_id="reservation-active-ref-after-delete",
-                status=PerformanceTakeUploadReservationStatus.RESERVED.value,
-                expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
-                last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
-                + timedelta(minutes=5),
-                staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
-                + timedelta(minutes=5),
-            )
-            session.add(auth)
-            session.commit()
-        return result
+    def claim_then_reference(db, outbox_uuid):
+        payload = original_claim(db, outbox_uuid)
+        auth = PerformanceTakeUploadReservation(
+            user_id=user_1.id,
+            practice_source_id=source.id,
+            client_request_id="req-source-active-ref-after-delete",
+            take_uuid="take-source-active-ref-after-delete",
+            score_id=None,
+            score_uuid="score-uuid-10",
+            score_title="Moonlight Sonata",
+            revision_id=None,
+            revision_uuid=DEFAULT_TAKE_REVISION_ID,
+            artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+            scope_type="FULL",
+            scope_start_beat=0.0,
+            scope_terminal_beat=4.0,
+            scope_start_group_id=None,
+            scope_end_group_id=None,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            duration_ms=5000,
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+            storage_backend=storage.backend_name,
+            staging_object_key="performance-takes/staging/active-ref-after-delete.webm",
+            final_object_key="performance-takes/final/active-ref-after-delete.webm",
+            storage_reservation_id="reservation-active-ref-after-delete",
+            status=PerformanceTakeUploadReservationStatus.RESERVED.value,
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
+            last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+            + timedelta(minutes=5),
+            staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
+            + timedelta(minutes=5),
+        )
+        session.add(auth)
+        session.commit()
+        return payload
 
-    storage.delete = delete_and_create_invalid_ref  # type: ignore[assignment]
-
-    try:
-        result = _run_snapshot_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-    finally:
-        storage.delete = original_delete  # type: ignore[assignment]
+    with patch.object(practice_source_delete_service, "claim", side_effect=claim_then_reference):
+        result = _run_source_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
     assert result["status"] == "failed"
-    session.refresh(snapshot)
+    session.refresh(source)
     session.refresh(outbox)
-    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
-    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
-    assert "invariant violation" in (outbox.last_error or "")
-    assert not storage.exists(snapshot.prepared_musicxml_object_key)
-    assert not storage.exists(snapshot.artifact_object_key)
+    assert source.status == PracticeSourceStatus.DELETING.value
+    assert outbox.status == PracticeSourceDeleteOutboxStatus.FAILED.value
+    assert "invariant violated" in (outbox.last_error or "")
+    assert storage.exists(source.prepared_musicxml_object_key)
+    assert storage.exists(source.artifact_object_key)
 
 
-def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, monkeypatch):
+def test_source_gc_enqueued_once_after_last_take_reference_deleted(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     first_key = "performance-takes/final/gc-last-ref/first.webm"
     second_key = "performance-takes/final/gc-last-ref/second.webm"
     storage.put_bytes(key=first_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
@@ -3228,7 +3203,7 @@ def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, m
     first_take = _create_default_take(
         session,
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="gc-last-ref-first",
         take_uuid="take-gc-last-ref-first",
         media_object_key=first_key,
@@ -3236,7 +3211,7 @@ def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, m
     second_take = _create_default_take(
         session,
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="gc-last-ref-second",
         take_uuid="take-gc-last-ref-second",
         media_object_key=second_key,
@@ -3247,11 +3222,11 @@ def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, m
 
     first_result = _run_worker_deletion(monkeypatch, session, storage, first_outbox.outbox_uuid)
     assert first_result["status"] == "deleted"
-    assert session.get(PracticeSourceSnapshot, snapshot.id) is not None
+    assert session.get(PracticeSourceRecord, source.id) is not None
     assert (
         session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            select(PracticeSourceDeleteOutbox).where(
+                PracticeSourceDeleteOutbox.practice_source_id == source.id
             )
         ).scalar_one_or_none()
         is None
@@ -3259,56 +3234,56 @@ def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, m
 
     second_result = _run_worker_deletion(monkeypatch, session, storage, second_outbox.outbox_uuid)
     assert second_result["status"] == "deleted"
-    session.refresh(snapshot)
-    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
-    snapshot_outboxes = (
+    session.refresh(source)
+    assert source.status == PracticeSourceStatus.DELETING.value
+    source_outboxes = (
         session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            select(PracticeSourceDeleteOutbox).where(
+                PracticeSourceDeleteOutbox.practice_source_id == source.id
             )
         )
         .scalars()
         .all()
     )
-    assert len(snapshot_outboxes) == 1
+    assert len(source_outboxes) == 1
 
-    duplicate = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    duplicate = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot.id,
+        source.id,
         storage_backend=storage.backend_name,
     )
     assert duplicate is not None
-    assert duplicate.id == snapshot_outboxes[0].id
+    assert duplicate.id == source_outboxes[0].id
     session.commit()
 
-    snapshot_result = _run_snapshot_deletion(
+    source_result = _run_source_deletion(
         monkeypatch,
         session,
         storage,
-        snapshot_outboxes[0].outbox_uuid,
+        source_outboxes[0].outbox_uuid,
     )
-    assert snapshot_result["status"] == "deleted"
-    assert session.get(PracticeSourceSnapshot, snapshot.id) is None
-    assert not storage.exists(snapshot.prepared_musicxml_object_key)
-    assert not storage.exists(snapshot.artifact_object_key)
+    assert source_result["status"] == "deleted"
+    assert session.get(PracticeSourceRecord, source.id) is None
+    assert not storage.exists(source.prepared_musicxml_object_key)
+    assert not storage.exists(source.artifact_object_key)
 
 
-def test_snapshot_gc_waits_for_active_reservation_after_last_take_deleted(test_env, monkeypatch):
+def test_source_gc_waits_for_active_reservation_after_last_take_deleted(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     media_key = "performance-takes/final/gc-active-auth/take.webm"
     storage.put_bytes(key=media_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     take = _create_default_take(
         session,
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="gc-active-auth-take",
         take_uuid="take-gc-active-auth",
         media_object_key=media_key,
     )
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="gc-active-auth",
         take_uuid="take-gc-active-auth-pending",
         score_id=None,
@@ -3345,34 +3320,34 @@ def test_snapshot_gc_waits_for_active_reservation_after_last_take_deleted(test_e
 
     take_result = _run_worker_deletion(monkeypatch, session, storage, take_outbox.outbox_uuid)
     assert take_result["status"] == "deleted"
-    session.refresh(snapshot)
-    assert snapshot.status == PracticeSourceSnapshotStatus.READY.value
+    session.refresh(source)
+    assert source.status == PracticeSourceStatus.READY.value
     assert (
         session.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            select(PracticeSourceDeleteOutbox).where(
+                PracticeSourceDeleteOutbox.practice_source_id == source.id
             )
         ).scalar_one_or_none()
         is None
     )
 
     auth.status = PerformanceTakeUploadReservationStatus.CANCELLED
-    auth.source_snapshot_id = None
+    auth.practice_source_id = None
     session.flush()
-    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+    outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
-        snapshot.id,
+        source.id,
         storage_backend=storage.backend_name,
     )
     assert outbox is not None
     session.commit()
 
-    snapshot_result = _run_snapshot_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-    assert snapshot_result["status"] == "deleted"
-    assert session.get(PracticeSourceSnapshot, snapshot.id) is None
+    source_result = _run_source_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+    assert source_result["status"] == "deleted"
+    assert session.get(PracticeSourceRecord, source.id) is None
 
 
-def test_reserve_does_not_reuse_snapshot_pending_gc(test_env):
+def test_reserve_does_not_reuse_source_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -3410,27 +3385,27 @@ def test_reserve_does_not_reuse_snapshot_pending_gc(test_env):
             "/api/v1/performance-takes/upload-reservations",
             json={
                 **base_request,
-                "client_request_id": "req-source-snapshot-created",
+                "client_request_id": "req-source-source-created",
             },
         )
         assert first.status_code == 200, first.text
         auth = session.execute(
             select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.client_request_id == "req-source-snapshot-created"
+                PerformanceTakeUploadReservation.client_request_id == "req-source-source-created"
             )
         ).scalar_one()
-        snapshot = session.get(PracticeSourceSnapshot, auth.source_snapshot_id)
-        assert snapshot is not None
+        source = session.get(PracticeSourceRecord, auth.practice_source_id)
+        assert source is not None
         auth.status = PerformanceTakeUploadReservationStatus.CANCELLED.value
-        auth.source_snapshot_id = None
-        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+        auth.practice_source_id = None
+        source.status = PracticeSourceStatus.DELETING.value
         session.commit()
 
         res = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
                 **base_request,
-                "client_request_id": "req-source-snapshot-not-ready",
+                "client_request_id": "req-source-source-not-ready",
             },
         )
         assert res.status_code != 200
@@ -3438,13 +3413,13 @@ def test_reserve_does_not_reuse_snapshot_pending_gc(test_env):
             session.execute(
                 select(PerformanceTakeUploadReservation).where(
                     PerformanceTakeUploadReservation.client_request_id
-                    == "req-source-snapshot-not-ready"
+                    == "req-source-source-not-ready"
                 )
             ).scalar_one_or_none()
             is None
         )
-        session.refresh(snapshot)
-        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+        session.refresh(source)
+        assert source.status == PracticeSourceStatus.DELETING.value
     finally:
         app.dependency_overrides.clear()
 
@@ -3601,7 +3576,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
 
 def _expired_cleanup_auth(
     *,
-    source_snapshot_id: int,
+    practice_source_id: int,
     user_id: int,
     client_request_id: str,
     staging_key: str,
@@ -3610,7 +3585,7 @@ def _expired_cleanup_auth(
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
     return PerformanceTakeUploadReservation(
         user_id=user_id,
-        source_snapshot_id=source_snapshot_id,
+        practice_source_id=practice_source_id,
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
         score_id=10,
@@ -3644,9 +3619,9 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
     staging_key = "staging/performance-takes/1/delete-false/recording.webm"
     final_key = "performance-takes/1/delete-false/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="delete-false",
         staging_key=staging_key,
@@ -3681,9 +3656,9 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
     staging_key = "staging/performance-takes/1/head-still-exists/recording.webm"
     final_key = "performance-takes/1/head-still-exists/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="head-still-exists",
         staging_key=staging_key,
@@ -3718,9 +3693,9 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
     staging_key = "staging/performance-takes/1/head-fails/recording.webm"
     final_key = "performance-takes/1/head-fails/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="head-fails",
         staging_key=staging_key,
@@ -3761,10 +3736,10 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
     session, _storage, user_1, _ = test_env
     take_svc = _performance_take_service(storage=_storage)
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
-    snapshot = _create_default_source_snapshot(session, _storage)
+    source = _create_default_source(session, _storage)
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="lease-expired-before-copy",
         take_uuid="take-lease-expired-before-copy",
         score_id=10,
@@ -3811,9 +3786,9 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     past = now - timedelta(hours=2)
-    snapshot = _create_default_source_snapshot(session, _storage)
+    source = _create_default_source(session, _storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="already-completed-cleanup",
         staging_key="staging/performance-takes/1/already-completed/recording.webm",
@@ -3845,9 +3820,9 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
     session, storage, user_1, _ = test_env
     orphan_key = "performance-takes/1/orphan-token/old-token.webm"
     storage.put_bytes(key=orphan_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="orphan-final-only",
         staging_key="staging/performance-takes/1/orphan-final-only/recording.webm",
@@ -3895,9 +3870,9 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
     session, storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/orphan-late/old-token.webm"
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="orphan-late-copy",
         staging_key="staging/performance-takes/1/orphan-late/recording.webm",
@@ -3945,9 +3920,9 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
     session, storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/absent-known/old-token.webm"
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="absent-known-orphan",
         staging_key="staging/performance-takes/1/absent-known/recording.webm",
@@ -3979,9 +3954,9 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
     waiting_key = "performance-takes/1/two-orphans/waiting.webm"
     waiting_until = now + timedelta(minutes=15)
     storage.put_bytes(key=removable_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="two-orphans-preserve",
         staging_key="staging/performance-takes/1/two-orphans/recording.webm",
@@ -4018,9 +3993,9 @@ def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extend
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/remove-after-extended/token.webm"
-    snapshot = _create_default_source_snapshot(session, _storage)
+    source = _create_default_source(session, _storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="remove-after-extended",
         staging_key="staging/performance-takes/1/remove-after-extended/recording.webm",
@@ -4054,9 +4029,9 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     referenced_key = "performance-takes/1/referenced-orphan/token.webm"
     storage.put_bytes(key=referenced_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     auth = _expired_cleanup_auth(
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         user_id=user_1.id,
         client_request_id="referenced-orphan",
         staging_key="staging/performance-takes/1/referenced-orphan/recording.webm",
@@ -4072,7 +4047,7 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
         PerformanceTake(
             take_uuid="take-referenced-orphan",
             user_id=user_1.id,
-            source_snapshot_id=snapshot.id,
+            practice_source_id=source.id,
             linked_score_id=10,
             score_title_snapshot="Referenced orphan",
             upload_reservation_id=auth.id,
@@ -4107,12 +4082,12 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
 
 def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     session, storage, user_1, _ = test_env
-    snapshot = _create_default_source_snapshot(session, storage)
+    source = _create_default_source(session, storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        source_snapshot_id=snapshot.id,
+        practice_source_id=source.id,
         client_request_id="finalizing-expired-retry",
         take_uuid="finalizing-expired",
         score_id=10,
@@ -4509,7 +4484,7 @@ def test_unpublished_practice_migration_marker_is_repaired_before_upgrade(
             conn.execute(
                 text("UPDATE alembic_version SET version_num = '0069_practice_source_snapshots'")
             )
-            conn.execute(text("CREATE TABLE practice_source_snapshots (id BIGSERIAL PRIMARY KEY)"))
+            conn.execute(text("CREATE TABLE practice_sources (id BIGSERIAL PRIMARY KEY)"))
 
         monkeypatch.setattr(repair.settings, "DATABASE_URL", pg.alembic_async_url)
         repair.main()
@@ -4744,3 +4719,210 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         session.refresh(account)
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
+
+
+def test_live_and_saved_consumers_share_verified_durable_source(test_env):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+    from app.modules.practice.source.router import get_practice_source_service
+    from app.modules.practice.source.builder import PracticeSourceBuilder
+
+    session, storage, user, _ = test_env
+    canonical = (Path(__file__).parent / "fixtures/musicxml/canonical-practice-score.musicxml").read_bytes()
+    storage.put_bytes(key="canonical.musicxml", content=canonical, content_type="application/xml")
+    assets = Mock()
+    assets.canonical_source = AsyncMock(return_value=SimpleNamespace(storage_key="canonical.musicxml"))
+    source_service = PracticeSourceService(storage=storage, asset_repository=assets)
+    take_service = PerformanceTakeService(storage=storage, practice_source_service=source_service)
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides.update({
+        get_db: override_db,
+        get_current_user: lambda: user,
+        get_practice_source_service: lambda: source_service,
+        get_performance_take_service: lambda: take_service,
+    })
+    client = PerformanceTakeTestClient(app)
+    live_url = "/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/source"
+    try:
+        with patch.object(source_service.builder, "build", wraps=source_service.builder.build) as build:
+            artifact_only = client.get(live_url)
+            assert artifact_only.status_code == 200, artifact_only.text
+            build.assert_called_once()
+        payload = artifact_only.json()["data"]
+        assert payload["notation"] is None
+        row = session.execute(select(PracticeSourceRecord)).scalar_one()
+        assert row.status == "READY"
+        assert row.live_revision_id == 100
+        assert row.source_id == payload["source_id"]
+        expected = PracticeSourceBuilder().build(score_id="score-uuid-10", revision_id="revision-uuid-100", canonical_musicxml=canonical)
+        assert row.source_id == expected.source_id
+        assert row.prepared_musicxml_object_key == f"practice-sources/{row.source_id}/score.musicxml"
+        assert row.artifact_object_key == f"practice-sources/{row.source_id}/artifact.json"
+        assert storage.read_bytes(row.prepared_musicxml_object_key) == expected.prepared_musicxml.data
+        assert storage.read_bytes(row.artifact_object_key) == expected.artifact.representation.data
+        assert row.prepared_musicxml_sha256 == expected.prepared_musicxml.sha256
+        assert row.artifact_sha256 == expected.artifact.representation.sha256
+        assert row.prepared_musicxml_byte_size == expected.prepared_musicxml.byte_size
+        assert row.artifact_byte_size == expected.artifact.representation.byte_size
+        assert practice_source_delete_service.recover_unowned_ready(session, storage_backend=storage.backend_name) == []
+        assert practice_source_delete_service.enqueue_if_unowned(session, row.id, storage_backend=storage.backend_name) is None
+        with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as writes:
+            with_notation = client.get(live_url + "?include_notation=true")
+            again = client.get(live_url)
+            assert with_notation.status_code == again.status_code == 200
+            writes.assert_not_called()
+        assert with_notation.json()["data"]["source_id"] == payload["source_id"]
+        assert with_notation.json()["data"]["notation"]["musicxml"] == expected.prepared_musicxml.content
+        assert len(session.execute(select(PracticeSourceRecord)).scalars().all()) == 1
+        reserved = client.post("/api/v1/performance-takes/upload-reservations", json={
+            "source": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-100", "artifact_id": row.artifact_id},
+            "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
+            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
+            "client_request_id": "durable-source-reservation",
+        })
+        assert reserved.status_code == 200, reserved.text
+        reservation = session.execute(select(PerformanceTakeUploadReservation)).scalar_one()
+        assert reservation.practice_source_id == row.id
+        assert len(session.execute(select(PracticeSourceRecord)).scalars().all()) == 1
+        take = _create_default_take(session, user_id=user.id, practice_source_id=row.id,
+            client_request_id="saved-source", take_uuid="saved-source-take", media_object_key="take.webm")
+        session.commit()
+        with patch.object(source_service.builder, "build", wraps=source_service.builder.build) as build:
+            saved = client.get(f"/api/v1/performance-takes/{take.take_uuid}/practice-source?include_notation=true")
+            build.assert_not_called()
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["data"] == with_notation.json()["data"]
+        storage.put_bytes(key=row.artifact_object_key, content=b"corrupt", content_type="application/json")
+        with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as writes:
+            corrupt = client.get(live_url)
+            assert corrupt.status_code >= 400
+            writes.assert_not_called()
+        assert storage.read_bytes(row.artifact_object_key) == b"corrupt"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_live_revision_deletion_is_discovered_by_bounded_source_scan(test_env, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
+    session, storage, _, _ = test_env
+    source = _create_default_source(session, storage)
+    source.live_revision_id = 100
+    session.commit()
+    assert practice_source_delete_service.recover_unowned_ready(session, storage_backend=storage.backend_name) == []
+    score = session.get(Score, 10)
+    score.head_revision_id = None
+    session.flush()
+    session.delete(session.get(ScoreRevision, 100))
+    session.commit()
+    session.refresh(source)
+    assert source.live_revision_id is None
+    assert source.source_revision_uuid == DEFAULT_TAKE_REVISION_ID
+    with patch.object(practice_source_delete_service, "enqueue_if_unowned", wraps=practice_source_delete_service.enqueue_if_unowned) as enqueue:
+        due = practice_source_delete_service.recover_and_list_due(session)
+        assert enqueue.call_count == 1
+    session.commit()
+    assert len(due) == 1
+    result = _run_source_deletion(monkeypatch, session, storage, due[0])
+    assert result["status"] == "deleted"
+    assert session.get(PracticeSourceRecord, source.id) is None
+
+
+@pytest.mark.parametrize("terminal", ["CANCELLED", "EXPIRED", "COMPLETED"])
+def test_terminal_reservation_does_not_retain_orphan_source(test_env, monkeypatch, terminal):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
+    session, storage, user, _ = test_env
+    source = _create_default_source(session, storage)
+    take = _create_default_take(session, user_id=user.id, practice_source_id=source.id,
+        client_request_id="terminal-source", take_uuid="terminal-source-take", media_object_key="terminal.webm")
+    reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    reservation.practice_source_id = source.id
+    reservation.status = terminal
+    session.delete(take)
+    session.commit()
+    due = practice_source_delete_service.recover_and_list_due(session)
+    session.commit()
+    assert len(due) == 1
+    assert _run_source_deletion(monkeypatch, session, storage, due[0])["status"] == "deleted"
+    session.refresh(reservation)
+    assert reservation.practice_source_id is None
+
+
+def test_source_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
+    from app.core.config import settings
+    session, storage, _, _ = test_env
+    for index in range(3):
+        _create_default_source(session, storage, source_revision_uuid=f"orphan-{index}")
+    session.commit()
+    monkeypatch.setattr(settings, "PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE", 2)
+    assert len(practice_source_delete_service.recover_unowned_ready(session, storage_backend=storage.backend_name)) == 2
+    assert len(session.execute(select(PracticeSourceRecord).where(PracticeSourceRecord.status == "READY")).scalars().all()) == 1
+
+
+@pytest.mark.parametrize("failure_point", ["WRITE", "READ_BACK"])
+def test_incomplete_creation_releases_live_link_for_durable_cleanup(test_env, monkeypatch, failure_point):
+    session, storage, _, _ = test_env
+    source = _canonical_source("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
+    repository = PracticeSourceRepository(storage)
+    original_put = storage.put_bytes
+    original_read = storage.read_bytes
+
+    def put(**kwargs):
+        if failure_point == "WRITE" and kwargs["key"].endswith("artifact.json"):
+            raise ConnectionError("Source object write unavailable")
+        return original_put(**kwargs)
+
+    def read(key):
+        value = original_read(key)
+        return b"invalid read-back" if failure_point == "READ_BACK" else value
+
+    with patch.object(storage, "put_bytes", side_effect=put), patch.object(storage, "read_bytes", side_effect=read):
+        with pytest.raises(ValidationException) as caught:
+            _run_async(repository.get_or_create(AsyncSessionAdapter(session), source, live_revision_id=100))
+    assert caught.value.details["reason"] == "practice_source_storage_write_failed"
+    row = session.execute(select(PracticeSourceRecord)).scalar_one()
+    assert row.status == "DELETING"
+    assert row.live_revision_id is None
+    assert session.get(ScoreRevision, 100) is not None
+    outbox = session.execute(select(PracticeSourceDeleteOutbox)).scalar_one()
+    assert _run_source_deletion(monkeypatch, session, storage, outbox.outbox_uuid)["status"] == "deleted"
+
+
+@pytest.mark.parametrize("status", ["RESERVED", "FINALIZING"])
+def test_active_reservation_retains_source_after_revision_deletion(test_env, status):
+    session, storage, user, _ = test_env
+    source = _create_default_source(session, storage)
+    source.live_revision_id = 100
+    take = _create_default_take(session, user_id=user.id, practice_source_id=source.id,
+        client_request_id="active-source", take_uuid="active-source-take", media_object_key="active.webm")
+    reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    reservation.practice_source_id = source.id
+    reservation.status = status
+    session.delete(take)
+    score = session.get(Score, 10)
+    score.head_revision_id = None
+    session.flush()
+    session.delete(session.get(ScoreRevision, 100))
+    session.commit()
+    session.refresh(source)
+    assert source.live_revision_id is None
+    assert practice_source_delete_service.recover_unowned_ready(session, storage_backend=storage.backend_name) == []
+    assert source.status == "READY"
+
+
+def test_source_deletion_dispatch_publishes_registered_durable_operation(test_env, monkeypatch):
+    from app.worker.dispatch import practice_source_deletion as dispatch
+    session, storage, _, _ = test_env
+    source = _create_default_source(session, storage)
+    outbox = practice_source_delete_service.enqueue_if_unowned(session, source.id, storage_backend=storage.backend_name)
+    session.commit()
+    monkeypatch.setattr(dispatch, "get_worker_db", lambda: _mock_worker_db(session))
+    with patch.object(dispatch, "send_durable_task", return_value=True) as send:
+        assert dispatch.dispatch_practice_source_deletion(outbox.outbox_uuid)
+    assert send.call_args.kwargs["task_name"] == "app.worker.tasks.practice_source_deletion_task"
+    assert send.call_args.kwargs["operation_kind"] == "practice_source_deletion"
+    assert send.call_args.kwargs["task_kwargs"] == {"outbox_uuid": outbox.outbox_uuid}

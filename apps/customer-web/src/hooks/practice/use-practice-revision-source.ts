@@ -83,7 +83,7 @@ export function usePracticeRevisionSource(
   });
 }
 
-export function usePracticeSnapshotSource(takeId: string, identity: {
+export function usePerformanceTakePracticeSource(takeId: string, identity: {
   scoreId: string; revisionId: string; artifactId: string;
 }, { loadNotation, enabled = true }: { loadNotation: boolean; enabled?: boolean }) {
   return useSourceQuery({

@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.exceptions import ValidationException
-from app.db.models import User, StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
+from app.db.models import StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.db.models.storage_usage import StorageUsageReservation
@@ -34,10 +34,6 @@ async def setup_source(postgres_source):
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as db:
         db.add(
-            User(id=1, email="reserve@example.com", display_name="Reserve", password_hash="test")
-        )
-        await db.flush()
-        db.add(
             StorageUsageAccount(
                 user_id=1,
                 plan_code="FREE",
@@ -52,13 +48,14 @@ async def setup_source(postgres_source):
             )
         )
         await db.commit()
-        snapshot = await repository.materialize(db, bundle)
+        reference, verified_source = await repository.get_or_create(db, bundle, live_revision_id=repository.test_revision_id)
     source = PracticeSourceService(repository=repository, storage=storage)
-    source.pin_source = AsyncMock(
+    source.resolve_source = AsyncMock(
         return_value=SimpleNamespace(
-            snapshot=snapshot,
-            score_db_id=None,
-            revision_db_id=None,
+            source_ref=reference,
+            source=verified_source,
+            score_db_id=1,
+            revision_db_id=repository.test_revision_id,
             score_id=bundle.score_id,
             revision_id=bundle.revision_id,
             score_title="Reserved score",

@@ -18,7 +18,8 @@ from sqlmodel import SQLModel
 
 import app.db.models  # noqa: F401 -- register the durable reference graph
 from app.core.exceptions import ValidationException
-from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
+from app.db.models.practice_source import PracticeSourceRecord
+from app.db.models import User, Score, ScoreRevision
 from app.modules.practice.source.builder import PracticeSourceBuilder
 from app.modules.practice.source.repository import PracticeSourceRepository
 from app.storage.local import LocalFileStorage
@@ -47,7 +48,7 @@ async def postgres_source(tmp_path):
             table.to_metadata(metadata)
         async with engine.begin() as connection:
             await connection.run_sync(metadata.create_all)
-        bundle = await asyncio.to_thread(
+        source = await asyncio.to_thread(
             PracticeSourceBuilder().build,
             score_id=str(uuid4()),
             revision_id=str(uuid4()),
@@ -55,8 +56,29 @@ async def postgres_source(tmp_path):
                 Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
             ).read_bytes(),
         )
+        async with AsyncSession(engine) as seed:
+            user = User(email="source@example.com", display_name="Source", password_hash="test")
+            seed.add(user)
+            await seed.flush()
+            score = Score(score_uuid=source.score_id, owner_user_id=user.id, title="Source")
+            seed.add(score)
+            await seed.flush()
+            revision = ScoreRevision(
+                revision_uuid=source.revision_id,
+                score_id=score.id,
+                revision_number=1,
+                content_hash="test",
+                origin="OMR",
+                created_by_user_id=user.id,
+            )
+            seed.add(revision)
+            await seed.flush()
+            revision_id = revision.id
+            await seed.commit()
         storage = LocalFileStorage(str(tmp_path))
-        yield engine, PracticeSourceRepository(storage), bundle, storage
+        repository = PracticeSourceRepository(storage)
+        repository.test_revision_id = revision_id
+        yield engine, repository, source, storage
     finally:
         await engine.dispose()
         async with admin.begin() as connection:
@@ -66,18 +88,20 @@ async def postgres_source(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cached_ready_cannot_admit_committed_deleting(postgres_source):
-    engine, repository, bundle, _ = postgres_source
+    engine, repository, source, _ = postgres_source
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as creator:
-        ref = await repository.materialize(creator, bundle)
+        (ref, _) = await repository.get_or_create(
+            creator, source, live_revision_id=repository.test_revision_id
+        )
     async with sessions() as a, sessions() as b:
-        cached = await a.get(PracticeSourceSnapshot, ref.id)
+        cached = await a.get(PracticeSourceRecord, ref.id)
         assert cached.status == "READY"
         await a.commit()  # retains the identity-map value
         row = (
             await b.execute(
-                select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == ref.id)
+                select(PracticeSourceRecord)
+                .where(PracticeSourceRecord.id == ref.id)
                 .with_for_update()
             )
         ).scalar_one()
@@ -88,12 +112,12 @@ async def test_cached_ready_cannot_admit_committed_deleting(postgres_source):
             await repository.require_ready(a, ref.id, lock=True)
         assert await repository.find_ready(a, ref.id) is None
         with pytest.raises(ValidationException):
-            await repository.read_bundle(a, ref.id)
+            await repository.read(a, ref.id)
         with pytest.raises(ValidationException):
-            await repository.materialize(a, bundle)
+            await repository.get_or_create(a, source, live_revision_id=repository.test_revision_id)
         assert (
             await b.execute(
-                select(PracticeSourceSnapshot.status).where(PracticeSourceSnapshot.id == ref.id)
+                select(PracticeSourceRecord.status).where(PracticeSourceRecord.id == ref.id)
             )
         ).scalar_one() == "DELETING"
 
@@ -101,7 +125,7 @@ async def test_cached_ready_cannot_admit_committed_deleting(postgres_source):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("transition", ["DELETING", "EXPIRED"])
 async def test_cached_creator_cannot_ready_ineligible_database_row(postgres_source, transition):
-    engine, repository, bundle, storage = postgres_source
+    engine, repository, source, storage = postgres_source
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     writing, resume = Event(), Event()
     original_put = storage.put_bytes
@@ -114,18 +138,20 @@ async def test_cached_creator_cannot_ready_ineligible_database_row(postgres_sour
 
     storage.put_bytes = blocked_put
     async with sessions() as a, sessions() as b:
-        task = asyncio.create_task(repository.materialize(a, bundle))
+        task = asyncio.create_task(
+            repository.get_or_create(a, source, live_revision_id=repository.test_revision_id)
+        )
         try:
             assert await asyncio.to_thread(writing.wait, 15)
             cached = next(
-                row for row in a.identity_map.values() if isinstance(row, PracticeSourceSnapshot)
+                row for row in a.identity_map.values() if isinstance(row, PracticeSourceRecord)
             )
             assert cached.status == "CREATING"
             await a.commit()  # leave a retained CREATING object without a transaction lock
             row = (
                 await b.execute(
-                    select(PracticeSourceSnapshot)
-                    .where(PracticeSourceSnapshot.id == cached.id)
+                    select(PracticeSourceRecord)
+                    .where(PracticeSourceRecord.id == cached.id)
                     .with_for_update()
                 )
             ).scalar_one()
@@ -140,13 +166,13 @@ async def test_cached_creator_cannot_ready_ineligible_database_row(postgres_sour
             resume.set()
         with pytest.raises(ValidationException) as caught:
             await asyncio.wait_for(task, 15)
-        assert caught.value.details["reason"] == "source_snapshot_creation_lease_expired"
-        assert (await b.execute(select(PracticeSourceSnapshot.status))).scalar_one() == "DELETING"
+        assert caught.value.details["reason"] == "practice_source_creation_lease_expired"
+        assert (await b.execute(select(PracticeSourceRecord.status))).scalar_one() == "DELETING"
 
 
 @pytest.mark.asyncio
-async def test_two_creators_race_one_fingerprint_and_reuse_exact_ready_bundle(postgres_source):
-    engine, repository, bundle, storage = postgres_source
+async def test_two_creators_race_one_source_identity_and_reuse_exact_ready_source(postgres_source):
+    engine, repository, source, storage = postgres_source
     barrier = asyncio.Barrier(2)
     writing, resume = Event(), Event()
     loser_done = asyncio.Event()
@@ -158,7 +184,7 @@ async def test_two_creators_race_one_fingerprint_and_reuse_exact_ready_bundle(po
 
         async def execute(self, statement, *args, **kwargs):
             result = await super().execute(statement, *args, **kwargs)
-            if self.first_lookup and "source_fingerprint =" in str(statement):
+            if self.first_lookup and "source_id =" in str(statement):
                 self.first_lookup = False
                 await asyncio.wait_for(barrier.wait(), 15)
             return result
@@ -175,7 +201,9 @@ async def test_two_creators_race_one_fingerprint_and_reuse_exact_ready_bundle(po
     async def create():
         async with RacingSession(engine, expire_on_commit=False) as session:
             try:
-                return await repository.materialize(session, bundle)
+                return await repository.get_or_create(
+                    session, source, live_revision_id=repository.test_revision_id
+                )
             except ValidationException as error:
                 loser_done.set()
                 return error
@@ -191,38 +219,83 @@ async def test_two_creators_race_one_fingerprint_and_reuse_exact_ready_bundle(po
     failures = [value for value in outcomes if isinstance(value, ValidationException)]
     refs = [value for value in outcomes if not isinstance(value, Exception)]
     assert len(failures) == len(refs) == 1
-    assert failures[0].details["reason"] == "source_snapshot_not_ready"
+    assert failures[0].details["reason"] == "practice_source_not_ready"
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        row = (await session.execute(select(PracticeSourceSnapshot))).scalar_one()
+        row = (await session.execute(select(PracticeSourceRecord))).scalar_one()
         assert row.status == "READY"
-        assert row.source_fingerprint == bundle.source_id
-        assert row.prepared_musicxml_sha256 == bundle.prepared_musicxml.sha256
-        assert row.artifact_sha256 == bundle.artifact.representation.sha256
-        assert storage.read_bytes(row.prepared_musicxml_object_key) == bundle.prepared_musicxml.data
-        assert storage.read_bytes(row.artifact_object_key) == bundle.artifact.representation.data
-        assert await repository.materialize(session, bundle) == refs[0]
-        assert await repository.read_bundle(session, refs[0].id) == bundle
+        assert row.source_id == source.source_id
+        assert row.prepared_musicxml_sha256 == source.prepared_musicxml.sha256
+        assert row.artifact_sha256 == source.artifact.representation.sha256
+        assert storage.read_bytes(row.prepared_musicxml_object_key) == source.prepared_musicxml.data
+        assert storage.read_bytes(row.artifact_object_key) == source.artifact.representation.data
+        assert (
+            await repository.get_or_create(
+                session, source, live_revision_id=repository.test_revision_id
+            )
+            == refs[0]
+        )
+        assert await repository.read(session, refs[0][0].id) == source
     assert len(writes) == 2
 
 
 @pytest.mark.asyncio
 async def test_eligible_row_refreshes_cached_representation_attributes(postgres_source):
-    engine, repository, bundle, _ = postgres_source
+    engine, repository, source, _ = postgres_source
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as creator:
-        ref = await repository.materialize(creator, bundle)
+        (ref, _) = await repository.get_or_create(
+            creator, source, live_revision_id=repository.test_revision_id
+        )
     async with sessions() as a, sessions() as b:
-        cached = await a.get(PracticeSourceSnapshot, ref.id)
+        cached = await a.get(PracticeSourceRecord, ref.id)
         checksum = cached.artifact_sha256
         await a.commit()
         await b.execute(
-            update(PracticeSourceSnapshot)
-            .where(PracticeSourceSnapshot.id == ref.id)
+            update(PracticeSourceRecord)
+            .where(PracticeSourceRecord.id == ref.id)
             .values(artifact_sha256="0" * 64)
         )
         await b.commit()
         assert cached.artifact_sha256 == checksum
         with pytest.raises(ValidationException) as caught:
-            await repository.read_bundle(a, ref.id)
+            await repository.read(a, ref.id)
         assert caught.value.details["reason"] == "artifact_checksum_mismatch"
         assert cached.artifact_sha256 == "0" * 64
+
+
+@pytest.mark.asyncio
+async def test_revision_fk_release_and_orphan_scan_use_current_database_ownership(postgres_source):
+    from app.modules.practice.source.retention import practice_source_delete_service
+    from sqlalchemy import delete
+
+    engine, repository, source, storage = postgres_source
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as a, sessions() as b:
+        reference, _ = await repository.get_or_create(
+            a, source, live_revision_id=repository.test_revision_id
+        )
+        cached = await a.get(PracticeSourceRecord, reference.id)
+        assert cached.live_revision_id == repository.test_revision_id
+        await a.commit()
+        assert (
+            await b.run_sync(
+                lambda db: practice_source_delete_service.recover_unowned_ready(
+                    db, storage_backend=storage.backend_name
+                )
+            )
+            == []
+        )
+        await b.execute(
+            delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id)
+        )
+        await b.commit()
+        assert cached.live_revision_id == repository.test_revision_id
+        due = await a.run_sync(
+            lambda db: practice_source_delete_service.recover_unowned_ready(
+                db, storage_backend=storage.backend_name
+            )
+        )
+        await a.commit()
+        assert len(due) == 1
+        assert cached.status == "DELETING"
+        assert cached.live_revision_id is None

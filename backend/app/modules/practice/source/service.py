@@ -19,9 +19,8 @@ from app.storage import FileStorage, file_storage
 from .builder import PracticeSourceBuilder
 from .domain import (
     AuthorizedPracticeSource,
-    PinnedPracticeSource,
-    PracticeSourceBundle,
-    PracticeSourceSnapshotRef,
+    PracticeSource,
+    PracticeSourceRef,
 )
 from .repository import PracticeSourceRepository
 from .schemas import (
@@ -32,7 +31,7 @@ from .schemas import (
 
 
 class PracticeSourceService:
-    """Authorize revision source, derive one bundle and own its durable materialization."""
+    """Authorize revision source, resolve one immutable durable PracticeSource."""
 
     def __init__(
         self,
@@ -49,7 +48,7 @@ class PracticeSourceService:
         self.builder = builder or PracticeSourceBuilder()
         self.repository = repository or PracticeSourceRepository(self.storage)
 
-    async def get_source(
+    async def resolve_source(
         self, db: AsyncSession, score_uuid: str, user_id: int, revision_uuid: str
     ) -> AuthorizedPracticeSource:
         access, path = await self._authorized_musicxml_path(
@@ -57,7 +56,7 @@ class PracticeSourceService:
         )
         try:
             canonical = await asyncio.to_thread(path.read_bytes)
-            bundle = await asyncio.to_thread(
+            candidate = await asyncio.to_thread(
                 self.builder.build,
                 score_id=access.score.score_uuid,
                 revision_id=access.revision.revision_uuid,
@@ -79,11 +78,14 @@ class PracticeSourceService:
             raise ExternalServiceException(
                 service="practice_source", code=ErrorCode.PRACTICE_SOURCE_FAILED
             ) from error
+        score_db_id = require_persisted_id(access.score.id, entity="score")
+        revision_db_id = require_persisted_id(access.revision.id, entity="score revision")
+        score_title = access.score.title
+        source_ref, source = await self.repository.get_or_create(
+            db, candidate, live_revision_id=revision_db_id
+        )
         return AuthorizedPracticeSource(
-            bundle,
-            require_persisted_id(access.score.id, entity="score"),
-            require_persisted_id(access.revision.id, entity="score revision"),
-            access.score.title,
+            source, source_ref, score_db_id, revision_db_id, score_title
         )
 
     async def _authorized_musicxml_path(
@@ -103,11 +105,11 @@ class PracticeSourceService:
         return access, Path(path)
 
     @staticmethod
-    def source_read(bundle: PracticeSourceBundle, *, include_notation: bool) -> PracticeSourceRead:
+    def source_read(source: PracticeSource, *, include_notation: bool) -> PracticeSourceRead:
         return PracticeSourceRead(
-            source_id=bundle.source_id,
-            artifact=PracticeScoreArtifactRead.model_validate(bundle.artifact.value),
-            notation=PracticeSourceNotationRead(musicxml=bundle.prepared_musicxml.content)
+            source_id=source.source_id,
+            artifact=PracticeScoreArtifactRead.model_validate(source.artifact.value),
+            notation=PracticeSourceNotationRead(musicxml=source.prepared_musicxml.content)
             if include_notation
             else None,
         )
@@ -121,67 +123,33 @@ class PracticeSourceService:
         *,
         include_notation: bool = False,
     ) -> PracticeSourceRead:
-        authorized = await self.get_source(db, score_uuid, user_id, revision_uuid)
-        return self.source_read(authorized.bundle, include_notation=include_notation)
+        authorized = await self.resolve_source(db, score_uuid, user_id, revision_uuid)
+        return self.source_read(authorized.source, include_notation=include_notation)
 
-    async def pin_source(
-        self,
-        db: AsyncSession,
-        *,
-        user_id: int,
-        score_id: str,
-        revision_id: str,
-        expected_artifact_id: str,
-    ) -> PinnedPracticeSource:
-        try:
-            authorized = await self.get_source(db, score_id, user_id, revision_id)
-        except ResourceNotFoundException as error:
-            if error.code == ErrorCode.REVISION_NOT_FOUND:
-                raise ValidationException(
-                    ErrorCode.VALIDATION_ERROR, field="revision_id"
-                ) from error
-            raise
-        bundle = authorized.bundle
-        if bundle.artifact.artifact_id != expected_artifact_id:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="artifact_id",
-                details={"reason": "source_artifact_identity_mismatch"},
-            )
-        snapshot = await self.repository.materialize(db, bundle)
-        return PinnedPracticeSource(
-            snapshot,
-            authorized.score_db_id,
-            authorized.revision_db_id,
-            bundle.score_id,
-            bundle.revision_id,
-            authorized.score_title,
-        )
+    async def require_source(
+        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceRef:
+        return await self.repository.require_ready(db, practice_source_id, lock=lock)
 
-    async def snapshot(
-        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshotRef:
-        return await self.repository.require_ready(db, snapshot_id, lock=lock)
+    async def find_source(
+        self, db: AsyncSession, practice_source_id: int | None
+    ) -> PracticeSourceRef | None:
+        return await self.repository.find_ready(db, practice_source_id)
 
-    async def find_snapshot(
-        self, db: AsyncSession, snapshot_id: int | None
-    ) -> PracticeSourceSnapshotRef | None:
-        return await self.repository.find_ready(db, snapshot_id)
-
-    async def list_snapshots(
-        self, db: AsyncSession, ids: set[int]
-    ) -> dict[int, PracticeSourceSnapshotRef]:
+    async def list_sources(self, db: AsyncSession, ids: set[int]) -> dict[int, PracticeSourceRef]:
         return await self.repository.list_ready(db, ids)
 
-    async def release_snapshot(self, db: AsyncSession, snapshot_id: int | None) -> None:
-        await self.repository.enqueue_if_unreferenced(db, snapshot_id)
+    async def release_source_reference(
+        self, db: AsyncSession, practice_source_id: int | None
+    ) -> None:
+        await self.repository.enqueue_if_unowned(db, practice_source_id)
 
-    async def read_snapshot(
+    async def read_source_by_id(
         self,
         db: AsyncSession,
-        snapshot_id: int | None,
+        practice_source_id: int | None,
         *,
         include_notation: bool = False,
     ) -> PracticeSourceRead:
-        bundle = await self.repository.read_bundle(db, snapshot_id)
-        return self.source_read(bundle, include_notation=include_notation)
+        source = await self.repository.read(db, practice_source_id)
+        return self.source_read(source, include_notation=include_notation)

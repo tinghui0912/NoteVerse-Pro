@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from alembic import command
 from alembic.config import Config
 
-from app.db.models import User, PracticeSourceSnapshot
+from app.db.models import User
 from app.utils.timezone import utc_now_naive
 
 
@@ -46,7 +46,9 @@ def test_0054_preserves_rows_identities_statuses_and_unique_lineage(monkeypatch)
             user = User(
                 email="migration@example.com", display_name="Migration", password_hash="test"
             )
-            snapshot = PracticeSourceSnapshot(
+            source_values = dict(
+                snapshot_uuid=str(uuid4()),
+                created_at=utc_now_naive(),
                 source_fingerprint="fingerprint",
                 source_score_uuid=str(uuid4()),
                 source_revision_uuid=str(uuid4()),
@@ -60,11 +62,13 @@ def test_0054_preserves_rows_identities_statuses_and_unique_lineage(monkeypatch)
                 artifact_byte_size=10,
                 status="READY",
             )
-            db.add_all([user, snapshot])
+            db.add(user)
             db.commit()
             db.refresh(user)
-            db.refresh(snapshot)
-            user_id, snapshot_id = user.id, snapshot.id
+            user_id = user.id
+        source_table = sa.Table("practice_source_snapshots", sa.MetaData(), autoload_with=engine)
+        with engine.begin() as connection:
+            snapshot_id = connection.execute(source_table.insert().values(**source_values).returning(source_table.c.id)).scalar_one()
         metadata = sa.MetaData()
         authorizations = sa.Table(
             "performance_take_upload_authorizations", metadata, autoload_with=engine

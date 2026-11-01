@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ValidationException
 from app.db.model_utils import require_persisted_id
-from app.db.models.practice_source_snapshot import (
-    PracticeSourceSnapshot,
-    PracticeSourceSnapshotStatus,
+from app.db.models import Score, ScoreRevision
+from app.db.models.practice_source import (
+    PracticeSourceRecord,
+    PracticeSourceStatus,
 )
 from app.shared.constants import ErrorCode
 from app.storage.base import FileStorage
@@ -19,14 +20,14 @@ from app.utils.timezone import utc_now_naive
 from app.modules.practice.score.artifact import canonical_practice_artifact_bytes
 from .domain import (
     PracticeSourceArtifact,
-    PracticeSourceBundle,
+    PracticeSource,
     PracticeSourceRepresentation,
-    PracticeSourceSnapshotRef,
+    PracticeSourceRef,
 )
 from .schemas import PracticeScoreArtifactRead
-from .retention import practice_source_snapshot_delete_service
+from .retention import practice_source_delete_service
 
-SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS = 15 * 60
+SOURCE_CREATION_LEASE_SECONDS = 15 * 60
 
 
 class PracticeSourceRepository:
@@ -34,141 +35,160 @@ class PracticeSourceRepository:
         self.storage = storage
 
     @staticmethod
-    def _reference(snapshot: PracticeSourceSnapshot) -> PracticeSourceSnapshotRef:
-        return PracticeSourceSnapshotRef(
-            require_persisted_id(snapshot.id, entity="source snapshot"),
-            snapshot.source_fingerprint,
-            snapshot.source_score_uuid,
-            snapshot.source_revision_uuid,
-            snapshot.artifact_id,
+    def _reference(source: PracticeSourceRecord) -> PracticeSourceRef:
+        return PracticeSourceRef(
+            require_persisted_id(source.id, entity="practice source"),
+            source.source_id,
+            source.source_score_uuid,
+            source.source_revision_uuid,
+            source.artifact_id,
         )
 
-    async def materialize(
-        self, db: AsyncSession, bundle: PracticeSourceBundle
-    ) -> PracticeSourceSnapshotRef:
-        fingerprint = bundle.source_id
-        musicxml_bytes, artifact_bytes = (
-            bundle.prepared_musicxml.data,
-            bundle.artifact.representation.data,
-        )
-        musicxml_sha, artifact_sha = (
-            bundle.prepared_musicxml.sha256,
-            bundle.artifact.representation.sha256,
-        )
-        existing_id = await self._id_for_fingerprint(db, fingerprint)
+    async def get_or_create(
+        self,
+        db: AsyncSession,
+        source: PracticeSource,
+        *,
+        live_revision_id: int,
+    ) -> tuple[PracticeSourceRef, PracticeSource]:
+        await self._lock_revision(db, live_revision_id, source.score_id, source.revision_id)
+        source_id = source.source_id
+        existing_id = await self._id_for_source_id(db, source_id)
         if existing_id is not None:
-            return await self._reuse_ready(db, existing_id)
-
-        musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
-        artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
-        snapshot = PracticeSourceSnapshot(
-            source_fingerprint=fingerprint,
-            source_score_uuid=bundle.score_id,
-            source_revision_uuid=bundle.revision_id,
-            artifact_id=bundle.artifact.artifact_id,
-            artifact_schema_version=bundle.artifact.schema_version,
+            return await self._reuse_ready(db, existing_id, source, live_revision_id)
+        musicxml_key = f"practice-sources/{source_id}/score.musicxml"
+        artifact_key = f"practice-sources/{source_id}/artifact.json"
+        row = PracticeSourceRecord(
+            source_id=source_id,
+            live_revision_id=live_revision_id,
+            source_score_uuid=source.score_id,
+            source_revision_uuid=source.revision_id,
+            artifact_id=source.artifact.artifact_id,
+            artifact_schema_version=source.artifact.schema_version,
             prepared_musicxml_object_key=musicxml_key,
-            prepared_musicxml_sha256=musicxml_sha,
-            prepared_musicxml_byte_size=len(musicxml_bytes),
+            prepared_musicxml_sha256=source.prepared_musicxml.sha256,
+            prepared_musicxml_byte_size=source.prepared_musicxml.byte_size,
             artifact_object_key=artifact_key,
-            artifact_sha256=artifact_sha,
-            artifact_byte_size=len(artifact_bytes),
-            status=PracticeSourceSnapshotStatus.CREATING.value,
-            creation_expires_at=utc_now_naive()
-            + timedelta(seconds=SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS),
+            artifact_sha256=source.artifact.representation.sha256,
+            artifact_byte_size=source.artifact.representation.byte_size,
+            status=PracticeSourceStatus.CREATING.value,
+            creation_expires_at=utc_now_naive() + timedelta(seconds=SOURCE_CREATION_LEASE_SECONDS),
         )
         try:
             async with db.begin_nested():
-                db.add(snapshot)
+                db.add(row)
                 await db.flush()
         except IntegrityError:
-            existing_id = await self._id_for_fingerprint(db, fingerprint)
+            existing_id = await self._id_for_source_id(db, source_id)
             if existing_id is not None:
-                return await self._reuse_ready(db, existing_id)
+                return await self._reuse_ready(db, existing_id, source, live_revision_id)
             raise
         await db.commit()
-        await db.refresh(snapshot)
-
+        row_id = require_persisted_id(row.id, entity="practice source")
         try:
-            await asyncio.to_thread(
-                self.storage.put_bytes,
-                key=musicxml_key,
-                content=musicxml_bytes,
-                content_type=bundle.prepared_musicxml.mime_type,
-            )
-            await asyncio.to_thread(
-                self.storage.put_bytes,
-                key=artifact_key,
-                content=artifact_bytes,
-                content_type="application/json",
-            )
-            for key, expected in [(musicxml_key, musicxml_bytes), (artifact_key, artifact_bytes)]:
-                if await asyncio.to_thread(self.storage.read_bytes, key) != expected:
+            for key, representation in [
+                (musicxml_key, source.prepared_musicxml),
+                (artifact_key, source.artifact.representation),
+            ]:
+                await asyncio.to_thread(
+                    self.storage.put_bytes,
+                    key=key,
+                    content=representation.data,
+                    content_type=representation.mime_type,
+                )
+                if await asyncio.to_thread(self.storage.read_bytes, key) != representation.data:
                     raise ValueError("Practice source storage read-back mismatch")
         except Exception as error:
-            await self.enqueue_if_unreferenced(db, snapshot.id)
-            await db.commit()
+            await self._discard_creation(db, row_id)
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                field="source_snapshot",
-                details={"reason": "source_snapshot_storage_write_failed"},
+                field="practice_source",
+                details={"reason": "practice_source_storage_write_failed"},
             ) from error
-
-        now = utc_now_naive()
-        locked_snapshot = (
+        locked = (
             await db.execute(
-                select(PracticeSourceSnapshot)
+                select(PracticeSourceRecord)
                 .where(
-                    PracticeSourceSnapshot.id == snapshot.id,
-                    PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.CREATING.value,
-                    PracticeSourceSnapshot.creation_expires_at.is_not(None),
-                    PracticeSourceSnapshot.creation_expires_at > now,
+                    PracticeSourceRecord.id == row_id,
+                    PracticeSourceRecord.status == PracticeSourceStatus.CREATING.value,
+                    PracticeSourceRecord.creation_expires_at.is_not(None),
+                    PracticeSourceRecord.creation_expires_at > utc_now_naive(),
                 )
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
-        if locked_snapshot is None:
-            await self.enqueue_if_unreferenced(db, snapshot.id)
-            await db.commit()
+        if locked is None:
+            await self._discard_creation(db, row_id)
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
-                field="source_snapshot",
-                details={"reason": "source_snapshot_creation_lease_expired"},
+                field="practice_source",
+                details={"reason": "practice_source_creation_lease_expired"},
             )
-
-        snapshot = locked_snapshot
-        snapshot.status = PracticeSourceSnapshotStatus.READY.value
-        snapshot.creation_expires_at = None
+        locked.status, locked.creation_expires_at = PracticeSourceStatus.READY.value, None
         await db.commit()
-        await db.refresh(snapshot)
-        await self.read_bundle(db, snapshot.id)
-        return self._reference(snapshot)
+        return await self._reuse_ready(db, row_id, source, live_revision_id)
 
-    async def _id_for_fingerprint(self, db: AsyncSession, fingerprint: str) -> int | None:
+    async def _discard_creation(self, db: AsyncSession, practice_source_id: int) -> None:
+        await db.run_sync(
+            lambda sync_db: practice_source_delete_service.discard_creation(
+                sync_db, practice_source_id, storage_backend=self.storage.backend_name
+            )
+        )
+        await db.commit()
+
+    @staticmethod
+    async def _lock_revision(
+        db: AsyncSession, revision_id: int, score_uuid: str, revision_uuid: str
+    ) -> None:
+        eligible = (
+            await db.execute(
+                select(ScoreRevision.id)
+                .join(Score, Score.id == ScoreRevision.score_id)
+                .where(
+                    ScoreRevision.id == revision_id,
+                    ScoreRevision.revision_uuid == revision_uuid,
+                    Score.score_uuid == score_uuid,
+                )
+                .with_for_update(read=True, key_share=True)
+            )
+        ).scalar_one_or_none()
+        if eligible is None:
+            raise ValidationException(ErrorCode.REVISION_NOT_FOUND, field="revision_id")
+
+    async def _id_for_source_id(self, db: AsyncSession, source_id: str) -> int | None:
         return (
             await db.execute(
-                select(PracticeSourceSnapshot.id).where(
-                    PracticeSourceSnapshot.source_fingerprint == fingerprint
-                )
+                select(PracticeSourceRecord.id).where(PracticeSourceRecord.source_id == source_id)
             )
         ).scalar_one_or_none()
 
-    async def _reuse_ready(self, db: AsyncSession, snapshot_id: int) -> PracticeSourceSnapshotRef:
-        row = await self._require_ready_row(db, snapshot_id, lock=True)
-        await self._read_verified_bundle(row)
-        return self._reference(row)
+    async def _reuse_ready(
+        self,
+        db: AsyncSession,
+        practice_source_id: int,
+        source: PracticeSource,
+        live_revision_id: int,
+    ) -> tuple[PracticeSourceRef, PracticeSource]:
+        await self._lock_revision(db, live_revision_id, source.score_id, source.revision_id)
+        row = await self._require_ready_row(db, practice_source_id, lock=True)
+        verified = await self._read_verified_source(row)
+        row.live_revision_id = live_revision_id
+        await db.flush()
+        reference = self._reference(row)
+        await db.commit()
+        return reference, verified
 
     async def _ready_row(
-        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshot | None:
-        if snapshot_id is None:
+        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceRecord | None:
+        if practice_source_id is None:
             return None
         stmt = (
-            select(PracticeSourceSnapshot)
+            select(PracticeSourceRecord)
             .where(
-                PracticeSourceSnapshot.id == snapshot_id,
-                PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.READY.value,
+                PracticeSourceRecord.id == practice_source_id,
+                PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
             )
             .execution_options(populate_existing=True)
         )
@@ -177,40 +197,38 @@ class PracticeSourceRepository:
         return (await db.execute(stmt)).scalar_one_or_none()
 
     async def _require_ready_row(
-        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshot:
-        row = await self._ready_row(db, snapshot_id, lock=lock)
+        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceRecord:
+        row = await self._ready_row(db, practice_source_id, lock=lock)
         if row is None:
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE if lock else ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot" if lock else "source_snapshot_id",
-                details={"reason": "source_snapshot_not_ready"},
+                field="practice_source" if lock else "practice_source_id",
+                details={"reason": "practice_source_not_ready"},
             )
         return row
 
     async def find_ready(
-        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshotRef | None:
-        row = await self._ready_row(db, snapshot_id, lock=lock)
+        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceRef | None:
+        row = await self._ready_row(db, practice_source_id, lock=lock)
         return self._reference(row) if row is not None else None
 
     async def require_ready(
-        self, db: AsyncSession, snapshot_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceSnapshotRef:
-        return self._reference(await self._require_ready_row(db, snapshot_id, lock=lock))
+        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
+    ) -> PracticeSourceRef:
+        return self._reference(await self._require_ready_row(db, practice_source_id, lock=lock))
 
-    async def list_ready(
-        self, db: AsyncSession, ids: set[int]
-    ) -> dict[int, PracticeSourceSnapshotRef]:
+    async def list_ready(self, db: AsyncSession, ids: set[int]) -> dict[int, PracticeSourceRef]:
         if not ids:
             return {}
         rows = (
             (
                 await db.execute(
-                    select(PracticeSourceSnapshot)
+                    select(PracticeSourceRecord)
                     .where(
-                        PracticeSourceSnapshot.id.in_(ids),
-                        PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.READY.value,
+                        PracticeSourceRecord.id.in_(ids),
+                        PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
                     )
                     .execution_options(populate_existing=True)
                 )
@@ -220,16 +238,16 @@ class PracticeSourceRepository:
         )
         return {ref.id: ref for row in rows for ref in [self._reference(row)]}
 
-    async def enqueue_if_unreferenced(self, db: AsyncSession, snapshot_id: int | None) -> None:
-        await practice_source_snapshot_delete_service.enqueue_if_unreferenced_async(
-            db, snapshot_id, storage_backend=self.storage.backend_name
+    async def enqueue_if_unowned(self, db: AsyncSession, practice_source_id: int | None) -> None:
+        await practice_source_delete_service.enqueue_if_unowned_async(
+            db, practice_source_id, storage_backend=self.storage.backend_name
         )
 
-    async def read_bundle(self, db: AsyncSession, snapshot_id: int | None) -> PracticeSourceBundle:
-        row = await self._require_ready_row(db, snapshot_id, lock=True)
-        return await self._read_verified_bundle(row)
+    async def read(self, db: AsyncSession, practice_source_id: int | None) -> PracticeSource:
+        row = await self._require_ready_row(db, practice_source_id, lock=True)
+        return await self._read_verified_source(row)
 
-    async def _read_verified_bundle(self, row: PracticeSourceSnapshot) -> PracticeSourceBundle:
+    async def _read_verified_source(self, row: PracticeSourceRecord) -> PracticeSource:
         xml = PracticeSourceRepresentation(
             await asyncio.to_thread(self.storage.read_bytes, row.prepared_musicxml_object_key),
             "application/vnd.recordare.musicxml+xml",
@@ -249,7 +267,7 @@ class PracticeSourceRepository:
         ]:
             if representation.sha256 != expected_sha or representation.byte_size != expected_size:
                 raise ValidationException(
-                    ErrorCode.VALIDATION_ERROR, field="source_snapshot", details={"reason": reason}
+                    ErrorCode.VALIDATION_ERROR, field="practice_source", details={"reason": reason}
                 )
         artifact = PracticeScoreArtifactRead.model_validate_json(data.data)
         if (
@@ -261,19 +279,19 @@ class PracticeSourceRepository:
         ):
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot",
+                field="practice_source",
                 details={"reason": "artifact_identity_mismatch"},
             )
-        bundle = PracticeSourceBundle(
+        source = PracticeSource(
             row.source_score_uuid,
             row.source_revision_uuid,
             xml,
             PracticeSourceArtifact(data, artifact.artifactId, artifact.schemaVersion),
         )
-        if bundle.source_id != row.source_fingerprint:
+        if source.source_id != row.source_id:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
-                field="source_snapshot",
+                field="practice_source",
                 details={"reason": "source_identity_mismatch"},
             )
-        return bundle
+        return source

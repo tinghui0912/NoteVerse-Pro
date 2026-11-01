@@ -12,7 +12,7 @@ from app.db.models.score_access import AccessOrigin
 from app.modules.practice.source.builder import PracticeSourceBuilder
 from app.modules.practice.source.domain import (
     PracticeSourceRepresentation,
-    PracticeSourceSnapshotRef,
+    PracticeSourceRef,
 )
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
@@ -21,34 +21,37 @@ from app.modules.practice.score.compiler.musicxml import compile_practice_score
 FIXTURE = Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
 
 
-def test_bundle_prepares_once_and_artifact_uses_the_exact_prepared_notation():
+def test_source_value_prepares_once_and_artifact_uses_the_exact_prepared_notation():
     builder = PracticeSourceBuilder()
     with (
         patch(
             "app.modules.practice.source.builder.prepare_musicxml_ids_for_practice",
             wraps=prepare_musicxml_ids_for_practice,
         ) as prepare,
-        patch("app.modules.practice.source.builder.compile_practice_score", wraps=compile_practice_score) as compile_score,
+        patch(
+            "app.modules.practice.source.builder.compile_practice_score",
+            wraps=compile_practice_score,
+        ) as compile_score,
     ):
-        bundle = builder.build(
+        source_value = builder.build(
             score_id="score-1", revision_id="revision-1", canonical_musicxml=FIXTURE.read_bytes()
         )
     prepare.assert_called_once()
-    compile_score.assert_called_once_with(bundle.prepared_musicxml.data)
+    compile_score.assert_called_once_with(source_value.prepared_musicxml.data)
     ids = {
         note.attrib["id"]
-        for note in ET.fromstring(bundle.prepared_musicxml.data).iter("note")
+        for note in ET.fromstring(source_value.prepared_musicxml.data).iter("note")
         if "id" in note.attrib
     }
-    assert {note["renderNoteId"] for note in bundle.artifact.value["notes"]} <= ids
-    assert bundle.artifact.value["notes"]
-    assert bundle.prepared_musicxml.byte_size == len(bundle.prepared_musicxml.data)
+    assert {note["renderNoteId"] for note in source_value.artifact.value["notes"]} <= ids
+    assert source_value.artifact.value["notes"]
+    assert source_value.prepared_musicxml.byte_size == len(source_value.prepared_musicxml.data)
     # Consumers receive detached values; canonical immutable bytes own the artifact.
-    bundle.artifact.value["notes"].clear()
-    assert bundle.artifact.value["notes"]
+    source_value.artifact.value["notes"].clear()
+    assert source_value.artifact.value["notes"]
 
 
-def test_bundle_identity_is_deterministic_and_covers_both_representations():
+def test_source_value_identity_is_deterministic_and_covers_both_representations():
     builder = PracticeSourceBuilder()
     first = builder.build(score_id="s", revision_id="r", canonical_musicxml=FIXTURE.read_bytes())
     second = builder.build(score_id="s", revision_id="r", canonical_musicxml=FIXTURE.read_bytes())
@@ -76,7 +79,7 @@ def test_bundle_identity_is_deterministic_and_covers_both_representations():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("include_notation", [False, True])
-async def test_source_request_builds_one_authorized_bundle(include_notation):
+async def test_source_request_builds_one_authorized_source_value(include_notation):
     access_policy = Mock()
     access_policy.authorize = AsyncMock(
         return_value=SimpleNamespace(
@@ -90,8 +93,24 @@ async def test_source_request_builds_one_authorized_bundle(include_notation):
     assets.canonical_source = AsyncMock(return_value=SimpleNamespace(storage_key="score.musicxml"))
     storage = Mock()
     storage.materialize_to_local.return_value = str(FIXTURE)
+    repository = Mock()
+
+    async def persist(db, candidate, *, live_revision_id):
+        assert live_revision_id == 201
+        return PracticeSourceRef(
+            303,
+            candidate.source_id,
+            candidate.score_id,
+            candidate.revision_id,
+            candidate.artifact.artifact_id,
+        ), candidate
+
+    repository.get_or_create = AsyncMock(side_effect=persist)
     service = PracticeSourceService(
-        access_policy=access_policy, asset_repository=assets, storage=storage
+        access_policy=access_policy,
+        asset_repository=assets,
+        storage=storage,
+        repository=repository,
     )
     with patch.object(service.builder, "build", wraps=service.builder.build) as build:
         source = await service.read_source(
@@ -110,45 +129,26 @@ async def test_source_request_builds_one_authorized_bundle(include_notation):
         }
         assert {note.renderNoteId for note in source.artifact.notes} <= ids
 
-    access_policy.authorize.reset_mock()
-    service.repository.materialize = AsyncMock(
-        return_value=PracticeSourceSnapshotRef(
-            303,
-            source.source_id,
-            "score-1",
-            "revision-1",
-            source.artifact.artifactId,
-        )
-    )
-    pinned = await service.pin_source(
-        AsyncMock(),
-        user_id=1,
-        score_id="score-1",
-        revision_id="revision-1",
-        expected_artifact_id=source.artifact.artifactId,
-    )
-    access_policy.authorize.assert_awaited_once()
-    assert (pinned.score_db_id, pinned.revision_db_id, pinned.score_title) == (101, 201, "Score")
-    assert pinned.snapshot.source_id == source.source_id
-    pinned_bundle = service.repository.materialize.await_args.args[1]
-    assert pinned_bundle.source_id == source.source_id
+    repository.get_or_create.assert_awaited_once()
+    persisted = repository.get_or_create.await_args.args[1]
+    assert source.source_id == persisted.source_id
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("include_notation", [False, True])
-async def test_snapshot_request_reads_one_verified_bundle(include_notation):
-    bundle = PracticeSourceBuilder().build(
+async def test_durable_request_reads_one_verified_source_value(include_notation):
+    source_value = PracticeSourceBuilder().build(
         score_id="s", revision_id="r", canonical_musicxml=FIXTURE.read_bytes()
     )
     repository = Mock()
-    repository.read_bundle = AsyncMock(return_value=bundle)
+    repository.read = AsyncMock(return_value=source_value)
     service = PracticeSourceService(repository=repository)
     db = AsyncMock()
-    source = await service.read_snapshot(db, 42, include_notation=include_notation)
-    repository.read_bundle.assert_awaited_once_with(db, 42)
-    assert source.source_id == bundle.source_id
-    assert source.artifact.artifactId == bundle.artifact.artifact_id
+    source = await service.read_source_by_id(db, 42, include_notation=include_notation)
+    repository.read.assert_awaited_once_with(db, 42)
+    assert source.source_id == source_value.source_id
+    assert source.artifact.artifactId == source_value.artifact.artifact_id
     if include_notation:
-        assert source.notation.musicxml == bundle.prepared_musicxml.content
+        assert source.notation.musicxml == source_value.prepared_musicxml.content
     else:
         assert source.notation is None

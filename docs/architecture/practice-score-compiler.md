@@ -84,5 +84,5 @@ The schemaVersion 1 artifact serializer owns canonical JSON and artifact content
 The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/` supplies
 both artifact behavior tests and the repository contract checker. The committed
 browser fixture verifies the compiled notation/event/moment projection against that
-transport contract. Source bundle identity and durable materialization
+transport contract. Canonical source identity and durable verification
 are described by [Practice Source](practice-source.md).

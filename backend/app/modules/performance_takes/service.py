@@ -53,7 +53,7 @@ from app.modules.practice.source.schemas import (
     PracticeSourceRead,
 )
 from app.modules.practice.source.service import PracticeSourceService
-from app.modules.practice.source.domain import PracticeSourceSnapshotRef
+from app.modules.practice.source.domain import PracticeSourceRef
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
@@ -278,7 +278,7 @@ class PerformanceTakeService:
         self,
         take: PerformanceTake,
         *,
-        snapshot: PracticeSourceSnapshotRef,
+        source_ref: PracticeSourceRef,
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
@@ -311,9 +311,9 @@ class PerformanceTakeService:
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
-            source_score_id=snapshot.source_score_uuid,
-            source_revision_id=snapshot.source_revision_uuid,
-            source_artifact_id=snapshot.artifact_id,
+            source_score_id=source_ref.source_score_uuid,
+            source_revision_id=source_ref.source_revision_uuid,
+            source_artifact_id=source_ref.artifact_id,
             score_title_snapshot=score_title_snapshot,
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
@@ -394,7 +394,7 @@ class PerformanceTakeService:
         reservation: PerformanceTakeUploadReservation,
         take: PerformanceTake,
     ) -> PerformanceTakeUploadReservationRead:
-        snapshot = await self.practice_source_service.snapshot(db, take.source_snapshot_id)
+        source_ref = await self.practice_source_service.require_source(db, take.practice_source_id)
         score = (
             await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         )
@@ -403,7 +403,7 @@ class PerformanceTakeService:
             reservation,
             take=self._to_read_dto(
                 take,
-                snapshot=snapshot,
+                source_ref=source_ref,
                 score=score,
                 can_open_score=can_open_score,
             ),
@@ -551,9 +551,9 @@ class PerformanceTakeService:
         reservation: PerformanceTakeUploadReservation,
     ) -> str:
         now = utc_now_naive()
-        source_snapshot_id = reservation.source_snapshot_id
+        practice_source_id = reservation.practice_source_id
         reservation.status = PerformanceTakeUploadReservationStatus.EXPIRED.value
-        reservation.source_snapshot_id = None
+        reservation.practice_source_id = None
         reservation.staging_cleanup_after = _max_datetime(
             reservation.staging_cleanup_after,
             reservation.last_put_url_expires_at,
@@ -563,7 +563,7 @@ class PerformanceTakeService:
         await self.storage_usage_service.release_reservation(
             db, reservation.storage_reservation_id, auto_commit=False
         )
-        await self.practice_source_service.release_snapshot(db, source_snapshot_id)
+        await self.practice_source_service.release_source_reference(db, practice_source_id)
         await db.commit()
         return reservation.staging_object_key
 
@@ -655,14 +655,17 @@ class PerformanceTakeService:
         )
         if existing is not None:
             return await self._replay_reservation(db, existing, metadata)
-        pinned = await self.practice_source_service.pin_source(
-            db,
-            user_id=user_id,
-            score_id=metadata.source.score_id,
-            revision_id=metadata.source.revision_id,
-            expected_artifact_id=metadata.source.artifact_id,
-        )
-        snapshot = await self.practice_source_service.snapshot(db, pinned.snapshot.id, lock=True)
+        try:
+            authorized_source = await self.practice_source_service.resolve_source(
+                db, metadata.source.score_id, user_id, metadata.source.revision_id)
+        except ResourceNotFoundException as error:
+            if error.code == ErrorCode.REVISION_NOT_FOUND:
+                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id") from error
+            raise
+        if authorized_source.source_ref.artifact_id != metadata.source.artifact_id:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="artifact_id",
+                details={"reason": "source_artifact_identity_mismatch"})
+        source_ref = await self.practice_source_service.require_source(db, authorized_source.source_ref.id, lock=True)
         take_uuid = str(uuid4())
         staging_key = _build_staging_object_key(user_id, take_uuid, media.mime_type)
         upload_target = self.storage.upload_url(
@@ -685,14 +688,14 @@ class PerformanceTakeService:
         put_expiry = self._put_url_expires_at(now)
         reservation = PerformanceTakeUploadReservation(
             user_id=user_id,
-            source_snapshot_id=snapshot.id,
+            practice_source_id=source_ref.id,
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
-            score_id=pinned.score_db_id,
-            score_uuid=pinned.score_id,
-            score_title=pinned.score_title,
-            revision_id=pinned.revision_db_id,
-            revision_uuid=pinned.revision_id,
+            score_id=authorized_source.score_db_id,
+            score_uuid=authorized_source.source.score_id,
+            score_title=authorized_source.score_title,
+            revision_id=authorized_source.revision_db_id,
+            revision_uuid=authorized_source.source.revision_id,
             artifact_id=metadata.source.artifact_id,
             scope_type=metadata.scope.kind,
             scope_start_beat=metadata.scope.start_beat,
@@ -751,9 +754,9 @@ class PerformanceTakeService:
             == PerformanceTakeUploadReservationStatus.RESERVED.value
         ):
             now = utc_now_naive()
-            source_snapshot_id = reservation.source_snapshot_id
+            practice_source_id = reservation.practice_source_id
             reservation.status = PerformanceTakeUploadReservationStatus.CANCELLED.value
-            reservation.source_snapshot_id = None
+            reservation.practice_source_id = None
             reservation.staging_cleanup_after = _max_datetime(
                 reservation.staging_cleanup_after,
                 reservation.last_put_url_expires_at,
@@ -764,7 +767,7 @@ class PerformanceTakeService:
             await self.storage_usage_service.release_reservation(
                 db, reservation.storage_reservation_id, auto_commit=False
             )
-            await self.practice_source_service.release_snapshot(db, source_snapshot_id)
+            await self.practice_source_service.release_source_reference(db, practice_source_id)
             await db.commit()
         if (
             staging_key is not None
@@ -889,7 +892,7 @@ class PerformanceTakeService:
         reservation_snapshot = {
             "take_uuid": reservation.take_uuid,
             "user_id": reservation.user_id,
-            "source_snapshot_id": reservation.source_snapshot_id,
+            "practice_source_id": reservation.practice_source_id,
             "score_id": reservation.score_id,
             "score_uuid": reservation.score_uuid,
             "score_title": reservation.score_title,
@@ -933,9 +936,9 @@ class PerformanceTakeService:
                 == PerformanceTakeUploadReservationStatus.FINALIZING.value
                 and reservation.finalizing_token == finalizing_token
             ):
-                source_snapshot_id = reservation.source_snapshot_id
+                practice_source_id = reservation.practice_source_id
                 reservation.status = PerformanceTakeUploadReservationStatus.EXPIRED.value
-                reservation.source_snapshot_id = None
+                reservation.practice_source_id = None
                 reservation.finalizing_token = None
                 reservation.finalizing_expires_at = None
                 if reservation.finalizing_object_key:
@@ -956,7 +959,7 @@ class PerformanceTakeService:
                     reservation.storage_reservation_id,
                     auto_commit=False,
                 )
-                await self.practice_source_service.release_snapshot(db, source_snapshot_id)
+                await self.practice_source_service.release_source_reference(db, practice_source_id)
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
@@ -1058,24 +1061,24 @@ class PerformanceTakeService:
             raise
         log_stage("candidate_hash_complete", started_at=finalize_started)
 
-        # The reservation pins source durability. Live score access controls only
+        # The reservation retains the durable source. Live score access controls only
         # the optional navigation link, not admission of this reserved save.
-        async def load_pinned_source_and_live_score() -> tuple[
-            PracticeSourceSnapshotRef | None,
+        async def load_source_reference_and_live_score() -> tuple[
+            PracticeSourceRef | None,
             Score | None,
         ]:
-            pinned_snapshot = await self.practice_source_service.find_snapshot(
-                db, reservation_snapshot["source_snapshot_id"]
+            source_ref = await self.practice_source_service.find_source(
+                db, reservation_snapshot["practice_source_id"]
             )
             linked_score = (
                 await db.get(Score, reservation_snapshot["score_id"])
                 if reservation_snapshot["score_id"]
                 else None
             )
-            return pinned_snapshot, linked_score
+            return source_ref, linked_score
 
         try:
-            snapshot, score = await load_pinned_source_and_live_score()
+            source_ref, score = await load_source_reference_and_live_score()
         except Exception as error:
             if not _is_transient_db_disconnect(error):
                 raise
@@ -1092,9 +1095,9 @@ class PerformanceTakeService:
                 "performance_take.finalize.db_reconnect_retry",
                 extra={"take_uuid": take_uuid, "stage": "db_finalize_started"},
             )
-            snapshot, score = await load_pinned_source_and_live_score()
+            source_ref, score = await load_source_reference_and_live_score()
         log_stage("db_finalize_started", started_at=finalize_started)
-        if snapshot is None:
+        if source_ref is None:
             await self._record_failed_candidate_final(
                 db,
                 user_id=user_id,
@@ -1102,7 +1105,7 @@ class PerformanceTakeService:
                 candidate_key=candidate_key,
             )
             await self._delete_candidate_final_async(candidate_key)
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="practice_source_id")
 
         can_open_score = await self._can_open_score(db, user_id, score)
         score_db_id: int | None = score.id if score is not None else None
@@ -1142,14 +1145,14 @@ class PerformanceTakeService:
 
         if reservation.expires_at < utc_now_naive():
             await self._delete_candidate_final_async(candidate_key)
-            source_snapshot_id = reservation.source_snapshot_id
+            practice_source_id = reservation.practice_source_id
             reservation.orphan_final_object_keys = _append_orphan_final_key(
                 reservation.orphan_final_object_keys,
                 candidate_key,
                 unknown_outcome=False,
             )
             reservation.status = PerformanceTakeUploadReservationStatus.EXPIRED.value
-            reservation.source_snapshot_id = None
+            reservation.practice_source_id = None
             reservation.finalizing_token = None
             reservation.finalizing_expires_at = None
             reservation.finalizing_object_key = None
@@ -1164,7 +1167,7 @@ class PerformanceTakeService:
                 reservation.storage_reservation_id,
                 auto_commit=False,
             )
-            await self.practice_source_service.release_snapshot(db, source_snapshot_id)
+            await self.practice_source_service.release_source_reference(db, practice_source_id)
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
@@ -1172,7 +1175,7 @@ class PerformanceTakeService:
         take = PerformanceTake(
             take_uuid=reservation_snapshot["take_uuid"],
             user_id=reservation.user_id,
-            source_snapshot_id=snapshot.id,
+            practice_source_id=source_ref.id,
             linked_score_id=score_db_id,
             score_title_snapshot=score_title_out,
             upload_reservation_id=reservation.id,
@@ -1193,7 +1196,7 @@ class PerformanceTakeService:
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         reservation.status = PerformanceTakeUploadReservationStatus.COMPLETED.value
-        reservation.source_snapshot_id = None
+        reservation.practice_source_id = None
         reservation.finalizing_token = None
         reservation.finalizing_expires_at = None
         reservation.finalizing_object_key = None
@@ -1241,7 +1244,7 @@ class PerformanceTakeService:
 
         return self._to_read_dto(
             created,
-            snapshot=snapshot,
+            source_ref=source_ref,
             score=score,
             can_open_score=can_open_score,
         )
@@ -1276,22 +1279,22 @@ class PerformanceTakeService:
                 if s.id is not None:
                     score_map[s.id] = s
 
-        snapshot_ids = {item.source_snapshot_id for item in items}
-        snapshot_map = await self.practice_source_service.list_snapshots(db, snapshot_ids)
+        source_ids = {item.practice_source_id for item in items}
+        source_map = await self.practice_source_service.list_sources(db, source_ids)
 
         read_items: list[PerformanceTakeRead] = []
         for item in items:
             score_obj = (
                 score_map.get(item.linked_score_id) if item.linked_score_id is not None else None
             )
-            snapshot = snapshot_map.get(item.source_snapshot_id)
-            if snapshot is None:
+            source_ref = source_map.get(item.practice_source_id)
+            if source_ref is None:
                 continue
             can_open_score = await self._can_open_score(db, user_id, score_obj)
             read_items.append(
                 self._to_read_dto(
                     item,
-                    snapshot=snapshot,
+                    source_ref=source_ref,
                     score=score_obj,
                     can_open_score=can_open_score,
                 )
@@ -1318,14 +1321,14 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        snapshot = await self.practice_source_service.snapshot(db, take.source_snapshot_id)
+        source_ref = await self.practice_source_service.require_source(db, take.practice_source_id)
         score = (
             await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         )
         can_open_score = await self._can_open_score(db, user_id, score)
 
         return self._to_read_dto(
-            take, snapshot=snapshot, score=score, can_open_score=can_open_score
+            take, source_ref=source_ref, score=score, can_open_score=can_open_score
         )
 
     async def get_playback_url(
@@ -1410,8 +1413,8 @@ class PerformanceTakeService:
             raise ResourceNotFoundException(
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
-        return await self.practice_source_service.read_snapshot(
-            db, take.source_snapshot_id, include_notation=include_notation
+        return await self.practice_source_service.read_source_by_id(
+            db, take.practice_source_id, include_notation=include_notation
         )
 
     async def delete_take(

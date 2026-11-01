@@ -8,14 +8,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeUploadReservation,
     PerformanceTakeUploadReservationStatus,
-    PracticeSourceSnapshot,
-    PracticeSourceSnapshotStatus,
-    PracticeSourceSnapshotDeleteOutbox,
-    PracticeSourceSnapshotDeleteOutboxStatus,
+    PracticeSourceRecord,
+    PracticeSourceStatus,
+    PracticeSourceDeleteOutbox,
+    PracticeSourceDeleteOutboxStatus,
 )
 from app.modules.async_operations.delivery_policy import (
     delivery_lease_expired,
@@ -37,10 +38,10 @@ TERMINAL_RESERVATION_STATUSES = {
 
 
 @dataclass(frozen=True)
-class PracticeSourceSnapshotDeletePayload:
+class PracticeSourceDeletePayload:
     outbox_uuid: str
-    source_snapshot_id: int | None
-    snapshot_uuid: str
+    practice_source_id: int | None
+    source_id: str
     storage_backend: str
     prepared_musicxml_object_key: str
     artifact_object_key: str
@@ -48,66 +49,100 @@ class PracticeSourceSnapshotDeletePayload:
     max_attempts: int
 
 
-class PracticeSourceSnapshotDeleteService:
-    async def enqueue_if_unreferenced_async(
-        self, db: AsyncSession, snapshot_id: int | None, *, storage_backend: str
+class PracticeSourceDeleteService:
+    async def enqueue_if_unowned_async(
+        self, db: AsyncSession, practice_source_id: int | None, *, storage_backend: str
     ) -> None:
         await db.run_sync(
-            lambda sync_db: self.enqueue_if_unreferenced(
-                sync_db, snapshot_id, storage_backend=storage_backend
+            lambda sync_db: self.enqueue_if_unowned(
+                sync_db, practice_source_id, storage_backend=storage_backend
             )
         )
 
-    def active_reference_count(self, db: Session, snapshot_id: int) -> int:
+    def active_reference_count(self, db: Session, practice_source_id: int) -> int:
         take_refs = db.execute(
             select(func.count(PerformanceTake.id)).where(
-                PerformanceTake.source_snapshot_id == snapshot_id
+                PerformanceTake.practice_source_id == practice_source_id
             )
         ).scalar_one()
         reservation_refs = db.execute(
             select(func.count(PerformanceTakeUploadReservation.id)).where(
-                PerformanceTakeUploadReservation.source_snapshot_id == snapshot_id,
+                PerformanceTakeUploadReservation.practice_source_id == practice_source_id,
                 PerformanceTakeUploadReservation.status.notin_(list(TERMINAL_RESERVATION_STATUSES)),
             )
         ).scalar_one()
         return int(take_refs) + int(reservation_refs)
 
-    def enqueue_if_unreferenced(
+    def enqueue_if_unowned(
         self,
         db: Session,
-        snapshot_id: int | None,
+        practice_source_id: int | None,
         *,
         storage_backend: str,
-    ) -> PracticeSourceSnapshotDeleteOutbox | None:
-        if snapshot_id is None:
+    ) -> PracticeSourceDeleteOutbox | None:
+        if practice_source_id is None:
             return None
-        snapshot = db.execute(
-            select(PracticeSourceSnapshot)
-            .where(PracticeSourceSnapshot.id == snapshot_id)
+        source = db.execute(
+            select(PracticeSourceRecord)
+            .where(PracticeSourceRecord.id == practice_source_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if snapshot is None:
+        if source is None:
             return None
-        if self.active_reference_count(db, snapshot_id) > 0:
+        if self.has_owner(db, source):
             return None
-        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
-        snapshot.creation_expires_at = None
+        if source.status == PracticeSourceStatus.DELETING.value:
+            return db.execute(
+                select(PracticeSourceDeleteOutbox).where(
+                    PracticeSourceDeleteOutbox.practice_source_id == practice_source_id,
+                    PracticeSourceDeleteOutbox.status
+                    != PracticeSourceDeleteOutboxStatus.COMPLETED.value,
+                )
+            ).scalar_one_or_none()
+        if source.status != PracticeSourceStatus.READY.value:
+            return None
+        return self._enqueue(db, source, storage_backend=storage_backend)
+
+    def discard_creation(
+        self, db: Session, practice_source_id: int, *, storage_backend: str
+    ) -> PracticeSourceDeleteOutbox | None:
+        source = db.execute(
+            select(PracticeSourceRecord)
+            .where(
+                PracticeSourceRecord.id == practice_source_id,
+                PracticeSourceRecord.status == PracticeSourceStatus.CREATING.value,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
+        if source is None or self.active_reference_count(db, practice_source_id) > 0:
+            return None
+        # Incomplete representations do not retain a usable live source.
+        source.live_revision_id = None
+        return self._enqueue(db, source, storage_backend=storage_backend)
+
+    def _enqueue(
+        self, db: Session, source: PracticeSourceRecord, *, storage_backend: str
+    ) -> PracticeSourceDeleteOutbox:
+        source.status = PracticeSourceStatus.DELETING.value
+        source.creation_expires_at = None
         existing = db.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
-                PracticeSourceSnapshotDeleteOutbox.snapshot_uuid == snapshot.snapshot_uuid,
-                PracticeSourceSnapshotDeleteOutbox.status
-                != PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value,
+            select(PracticeSourceDeleteOutbox).where(
+                PracticeSourceDeleteOutbox.source_id == source.source_id,
+                PracticeSourceDeleteOutbox.status
+                != PracticeSourceDeleteOutboxStatus.COMPLETED.value,
             )
         ).scalar_one_or_none()
         if existing is not None:
             return existing
-        outbox = PracticeSourceSnapshotDeleteOutbox(
-            source_snapshot_id=snapshot.id,
-            snapshot_uuid=snapshot.snapshot_uuid,
+        outbox = PracticeSourceDeleteOutbox(
+            practice_source_id=source.id,
+            source_id=source.source_id,
             storage_backend=storage_backend,
-            prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
-            artifact_object_key=snapshot.artifact_object_key,
-            status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
+            prepared_musicxml_object_key=source.prepared_musicxml_object_key,
+            artifact_object_key=source.artifact_object_key,
+            status=PracticeSourceDeleteOutboxStatus.PENDING.value,
             max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
         )
         db.add(outbox)
@@ -121,62 +156,112 @@ class PracticeSourceSnapshotDeleteService:
         storage_backend: str,
     ) -> list[str]:
         now = utc_now_naive()
-        stale_snapshots = list(
+        stale_sources = list(
             db.execute(
-                select(PracticeSourceSnapshot)
+                select(PracticeSourceRecord)
                 .where(
-                    PracticeSourceSnapshot.status == PracticeSourceSnapshotStatus.CREATING.value,
-                    PracticeSourceSnapshot.creation_expires_at.is_not(None),
-                    PracticeSourceSnapshot.creation_expires_at <= now,
+                    PracticeSourceRecord.status == PracticeSourceStatus.CREATING.value,
+                    PracticeSourceRecord.creation_expires_at.is_not(None),
+                    PracticeSourceRecord.creation_expires_at <= now,
                 )
-                .with_for_update()
+                .limit(settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE)
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             ).scalars()
         )
         outbox_ids: list[str] = []
-        for snapshot in stale_snapshots:
-            outbox = self.enqueue_if_unreferenced(
+        for source in stale_sources:
+            outbox = self.discard_creation(
                 db,
-                snapshot.id,
+                source.id,
                 storage_backend=storage_backend,
             )
             if outbox is not None:
                 outbox_ids.append(outbox.outbox_uuid)
         return outbox_ids
 
+    def recover_unowned_ready(self, db: Session, *, storage_backend: str) -> list[str]:
+        refs = (
+            select(PerformanceTake.id)
+            .where(PerformanceTake.practice_source_id == PracticeSourceRecord.id)
+            .exists()
+        )
+        reservations = (
+            select(PerformanceTakeUploadReservation.id)
+            .where(
+                PerformanceTakeUploadReservation.practice_source_id == PracticeSourceRecord.id,
+                PerformanceTakeUploadReservation.status.notin_(list(TERMINAL_RESERVATION_STATUSES)),
+            )
+            .exists()
+        )
+        rows = (
+            db.execute(
+                select(PracticeSourceRecord)
+                .where(
+                    PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
+                    PracticeSourceRecord.live_revision_id.is_(None),
+                    ~refs,
+                    ~reservations,
+                )
+                .order_by(PracticeSourceRecord.id)
+                .limit(settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE)
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
+            )
+            .scalars()
+            .all()
+        )
+        return [
+            outbox.outbox_uuid
+            for row in rows
+            if (outbox := self.enqueue_if_unowned(db, row.id, storage_backend=storage_backend))
+            is not None
+        ]
+
+    def has_owner(self, db: Session, source: PracticeSourceRecord) -> bool:
+        return (
+            source.live_revision_id is not None
+            or self.active_reference_count(
+                db, require_persisted_id(source.id, entity="practice source")
+            )
+            > 0
+        )
+
     def claim(
         self,
         db: Session,
         outbox_uuid: str,
-    ) -> PracticeSourceSnapshotDeletePayload | None:
+    ) -> PracticeSourceDeletePayload | None:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None or _status_value(outbox.status) in {
-            PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value,
-            PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value,
+            PracticeSourceDeleteOutboxStatus.PROCESSING.value,
+            PracticeSourceDeleteOutboxStatus.COMPLETED.value,
         }:
             return None
         if (
-            _status_value(outbox.status) == PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
+            _status_value(outbox.status) == PracticeSourceDeleteOutboxStatus.FAILED.value
             and outbox.next_attempt_at > utc_now_naive()
         ):
             return None
         if outbox.attempt_count >= settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS:
             return None
 
-        if outbox.source_snapshot_id is not None:
-            db.execute(
-                select(PracticeSourceSnapshot)
-                .where(PracticeSourceSnapshot.id == outbox.source_snapshot_id)
+        if outbox.practice_source_id is not None:
+            source = db.execute(
+                select(PracticeSourceRecord)
+                .where(PracticeSourceRecord.id == outbox.practice_source_id)
                 .with_for_update()
+                .execution_options(populate_existing=True)
             ).scalar_one_or_none()
-        if (
-            outbox.source_snapshot_id is not None
-            and self.active_reference_count(db, outbox.source_snapshot_id) > 0
-        ):
-            outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
-            outbox.completed_at = utc_now_naive()
-            outbox.last_error = None
-            outbox.updated_at = utc_now_naive()
-            return None
+            if source is not None and (
+                self.has_owner(db, source) or source.status != PracticeSourceStatus.DELETING.value
+            ):
+                outbox.status = PracticeSourceDeleteOutboxStatus.COMPLETED.value
+                outbox.completed_at = utc_now_naive()
+                outbox.last_error = (
+                    "Source deletion cancelled: source has an owner or is not DELETING"
+                )
+                return None
 
         attempt = outbox.attempt_count + 1
         payload = replace(
@@ -185,7 +270,7 @@ class PracticeSourceSnapshotDeleteService:
             max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
         )
         now = utc_now_naive()
-        outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value
+        outbox.status = PracticeSourceDeleteOutboxStatus.PROCESSING.value
         outbox.attempt_count += 1
         outbox.started_at = now
         outbox.updated_at = now
@@ -195,19 +280,16 @@ class PracticeSourceSnapshotDeleteService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if _status_value(outbox.status) == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value:
+        if _status_value(outbox.status) == PracticeSourceDeleteOutboxStatus.COMPLETED.value:
             if attempt is not None and outbox.attempt_count != attempt:
                 return False
             return True
-        if (
-            _status_value(outbox.status)
-            != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value
-        ):
+        if _status_value(outbox.status) != PracticeSourceDeleteOutboxStatus.PROCESSING.value:
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
         now = utc_now_naive()
-        outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
+        outbox.status = PracticeSourceDeleteOutboxStatus.COMPLETED.value
         outbox.completed_at = now
         outbox.last_error = None
         outbox.updated_at = now
@@ -224,10 +306,7 @@ class PracticeSourceSnapshotDeleteService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if (
-            _status_value(outbox.status)
-            != PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value
-        ):
+        if _status_value(outbox.status) != PracticeSourceDeleteOutboxStatus.PROCESSING.value:
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
@@ -236,7 +315,7 @@ class PracticeSourceSnapshotDeleteService:
             attempt_count=outbox.attempt_count,
         )
         now = utc_now_naive()
-        outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
+        outbox.status = PracticeSourceDeleteOutboxStatus.FAILED.value
         outbox.next_attempt_at = now + timedelta(seconds=delay)
         outbox.last_error = error[:4000]
         outbox.updated_at = now
@@ -247,7 +326,7 @@ class PracticeSourceSnapshotDeleteService:
         if outbox is None or not self._is_dispatchable(outbox):
             return False
         now = utc_now_naive()
-        outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.DISPATCHED.value
+        outbox.status = PracticeSourceDeleteOutboxStatus.DISPATCHED.value
         outbox.dispatched_at = now
         outbox.updated_at = now
         return True
@@ -256,70 +335,70 @@ class PracticeSourceSnapshotDeleteService:
         outbox = self._get(db, outbox_uuid)
         if (
             outbox is None
-            or _status_value(outbox.status)
-            != PracticeSourceSnapshotDeleteOutboxStatus.DISPATCHED.value
+            or _status_value(outbox.status) != PracticeSourceDeleteOutboxStatus.DISPATCHED.value
         ):
             return
-        outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value
+        outbox.status = PracticeSourceDeleteOutboxStatus.PENDING.value
         outbox.dispatched_at = None
         outbox.last_error = error[:4000]
         outbox.updated_at = utc_now_naive()
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
         self.recover_stale_creating(db, storage_backend=settings.FILE_STORAGE_BACKEND)
+        self.recover_unowned_ready(db, storage_backend=settings.FILE_STORAGE_BACKEND)
+        now = utc_now_naive()
         stale = db.execute(
-            select(PracticeSourceSnapshotDeleteOutbox).where(
+            select(PracticeSourceDeleteOutbox).where(
                 or_(
-                    PracticeSourceSnapshotDeleteOutbox.status
-                    == PracticeSourceSnapshotDeleteOutboxStatus.DISPATCHED.value,
-                    PracticeSourceSnapshotDeleteOutbox.status
-                    == PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value,
+                    PracticeSourceDeleteOutbox.status
+                    == PracticeSourceDeleteOutboxStatus.DISPATCHED.value,
+                    PracticeSourceDeleteOutbox.status
+                    == PracticeSourceDeleteOutboxStatus.PROCESSING.value,
                 )
             )
         ).scalars()
         for outbox in stale:
             if delivery_lease_expired(
                 status=outbox.status,
-                dispatched_status=PracticeSourceSnapshotDeleteOutboxStatus.DISPATCHED.value,
-                processing_status=PracticeSourceSnapshotDeleteOutboxStatus.PROCESSING.value,
+                dispatched_status=PracticeSourceDeleteOutboxStatus.DISPATCHED.value,
+                processing_status=PracticeSourceDeleteOutboxStatus.PROCESSING.value,
                 dispatched_at=outbox.dispatched_at,
                 started_at=outbox.started_at,
                 now=now,
                 dispatch_timeout_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
                 processing_timeout_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
             ):
-                outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
+                outbox.status = PracticeSourceDeleteOutboxStatus.FAILED.value
                 outbox.next_attempt_at = now
-                outbox.last_error = "Practice source snapshot deletion lease expired"
+                outbox.last_error = "Practice source deletion lease expired"
                 outbox.updated_at = now
 
         due = db.execute(
-            select(PracticeSourceSnapshotDeleteOutbox.outbox_uuid)
+            select(PracticeSourceDeleteOutbox.outbox_uuid)
             .where(
-                PracticeSourceSnapshotDeleteOutbox.status.in_(
+                PracticeSourceDeleteOutbox.status.in_(
                     [
-                        PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
-                        PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value,
+                        PracticeSourceDeleteOutboxStatus.PENDING.value,
+                        PracticeSourceDeleteOutboxStatus.FAILED.value,
                     ]
                 ),
-                PracticeSourceSnapshotDeleteOutbox.next_attempt_at <= now,
-                PracticeSourceSnapshotDeleteOutbox.attempt_count
+                PracticeSourceDeleteOutbox.next_attempt_at <= now,
+                PracticeSourceDeleteOutbox.attempt_count
                 < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
             )
-            .order_by(PracticeSourceSnapshotDeleteOutbox.created_at)
+            .order_by(PracticeSourceDeleteOutbox.created_at)
             .limit(settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE)
         )
         return list(due.scalars())
 
     @staticmethod
     def _build_payload(
-        outbox: PracticeSourceSnapshotDeleteOutbox,
-    ) -> PracticeSourceSnapshotDeletePayload:
-        return PracticeSourceSnapshotDeletePayload(
+        outbox: PracticeSourceDeleteOutbox,
+    ) -> PracticeSourceDeletePayload:
+        return PracticeSourceDeletePayload(
             outbox_uuid=outbox.outbox_uuid,
-            source_snapshot_id=outbox.source_snapshot_id,
-            snapshot_uuid=outbox.snapshot_uuid,
+            practice_source_id=outbox.practice_source_id,
+            source_id=outbox.source_id,
             storage_backend=outbox.storage_backend,
             prepared_musicxml_object_key=outbox.prepared_musicxml_object_key,
             artifact_object_key=outbox.artifact_object_key,
@@ -333,25 +412,25 @@ class PracticeSourceSnapshotDeleteService:
         outbox_uuid: str,
         *,
         lock: bool = False,
-    ) -> PracticeSourceSnapshotDeleteOutbox | None:
-        statement = select(PracticeSourceSnapshotDeleteOutbox).where(
-            PracticeSourceSnapshotDeleteOutbox.outbox_uuid == outbox_uuid
+    ) -> PracticeSourceDeleteOutbox | None:
+        statement = select(PracticeSourceDeleteOutbox).where(
+            PracticeSourceDeleteOutbox.outbox_uuid == outbox_uuid
         )
         if lock:
             statement = statement.with_for_update()
-        return db.execute(statement).scalar_one_or_none()
+        return db.execute(statement.execution_options(populate_existing=True)).scalar_one_or_none()
 
     @staticmethod
-    def _is_dispatchable(outbox: PracticeSourceSnapshotDeleteOutbox) -> bool:
+    def _is_dispatchable(outbox: PracticeSourceDeleteOutbox) -> bool:
         return (
             _status_value(outbox.status)
             in {
-                PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
-                PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value,
+                PracticeSourceDeleteOutboxStatus.PENDING.value,
+                PracticeSourceDeleteOutboxStatus.FAILED.value,
             }
             and outbox.attempt_count < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
             and outbox.next_attempt_at <= utc_now_naive()
         )
 
 
-practice_source_snapshot_delete_service = PracticeSourceSnapshotDeleteService()
+practice_source_delete_service = PracticeSourceDeleteService()

@@ -56,3 +56,14 @@ def test_source_domain_is_independent_of_transport_and_persistence():
         not node.module or not node.module.startswith(("pydantic", "sqlalchemy", "fastapi", "app."))
         for node in imports("modules/practice/source/domain.py")
     )
+
+
+def test_source_service_delegates_durable_ownership_to_repository():
+    dependencies = {node.module for node in imports("modules/practice/source/service.py")}
+    assert {"repository", "builder", "domain"} <= dependencies
+    repository = {node.module for node in imports("modules/practice/source/repository.py")}
+    assert {"app.storage.base", "app.db.models.practice_source", "domain"} <= repository
+    assert not any(
+        module and module.startswith(("fastapi", "app.modules.performance_takes"))
+        for module in repository
+    )

@@ -59,11 +59,11 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             nullable=False,
         )
     )
-    source_snapshot_id: Optional[int] = Field(
+    practice_source_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
+            ForeignKey("practice_sources.id", ondelete="RESTRICT", name="fk_take_upload_reservation_practice_source"),
             index=True,
             nullable=True,
         ),

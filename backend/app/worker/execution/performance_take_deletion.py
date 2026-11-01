@@ -18,7 +18,7 @@ from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
 from app.modules.practice.source.retention import (
-    practice_source_snapshot_delete_service,
+    practice_source_delete_service,
 )
 from app.modules.storage_usage.service import storage_usage_service
 from app.pipeline.context import CeleryTaskLike
@@ -104,9 +104,8 @@ def execute_performance_take_deletion_task(
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
         # 2. In a short database transaction, delete only the take record and
-        # enqueue snapshot GC if this was the last durable reference. Snapshot
-        # storage deletion is handled by its own durable worker outside this
-        # take transaction.
+        # let Source retention enqueue GC when no live revision, Take or active
+        # reservation owns the source. Its durable worker owns representation deletion.
         with get_worker_db() as db:
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)
@@ -163,12 +162,12 @@ def execute_performance_take_deletion_task(
                         "performance take deletion payload does not match locked take: "
                         f"{payload.take_uuid}"
                     )
-                source_snapshot_id = take.source_snapshot_id
+                practice_source_id = take.practice_source_id
                 db.delete(take)
                 db.flush()
-                practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+                practice_source_delete_service.enqueue_if_unowned(
                     db,
-                    source_snapshot_id,
+                    practice_source_id,
                     storage_backend=payload.storage_backend,
                 )
                 storage_usage_service.record_release_sync(

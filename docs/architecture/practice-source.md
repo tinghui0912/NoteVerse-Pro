@@ -1,32 +1,35 @@
 # Practice Source
 
-Practice Source combines a semantic artifact, optional prepared-MusicXML notation,
-and one source identity for an authorized immutable score revision.
+PracticeSource is one immutable durable source: a semantic artifact, a prepared-MusicXML
+notation representation, and one canonical source_id. HTTP consumers may omit notation
+from the response; both representations are always durably verified.
 
 ## Ownership
 
 ```text
 ScoreRevision canonical MusicXML
   -> PracticeSourceService: authorize and resolve revision
-  -> PracticeSourceBuilder: prepare notation and construct bundle
-  -> immutable PracticeSourceBundle
-       -> source response: artifact + optional notation + source_id
-       -> PracticeSourceRepository -> PracticeSourceSnapshot
+  -> PracticeSourceBuilder: construct immutable PracticeSource
+  -> PracticeSourceRepository: get/create and verify durable READY source
+  -> same source_id
+       -> live Setup / Practice
+       -> saved PerformanceTake
 ```
 
 The backend package `app/modules/practice/source/` owns domain values, construction,
-transport, persistence and retention. The service returns authorized score/revision
-metadata together with the bundle or pinned snapshot reference. Consumers use that
-resolution throughout the calling operation.
+transport, persistence and retention. `AuthorizedPracticeSource` returns the verified
+source, its `PracticeSourceRef` and authorized score/revision metadata together.
+`PracticeSourceRef.id` identifies the internal database row; `source_id` identifies
+its immutable canonical contents. PerformanceTake consumes the public service.
 
 ## Construction and Identity
 
-`PracticeSourceBuilder` prepares MusicXML note IDs exactly once per bundle build.
+`PracticeSourceBuilder` prepares MusicXML note IDs exactly once per source build.
 The resulting UTF-8 bytes are both the notation representation and the input to the
 [Practice score compiler](practice-score-compiler.md). Meter, tempo and artifact
 construction refer to the exact notation IDs delivered to the browser.
 
-The frozen bundle contains score/revision identity, prepared MusicXML bytes and a
+The frozen PracticeSource contains score/revision identity, prepared MusicXML bytes and a
 frozen artifact representation with canonical JSON bytes. Artifact values exposed to
 consumers are detached projections of those immutable bytes. The score-domain
 `canonical_practice_artifact_bytes` primitive owns JSON serialization: sorted keys,
@@ -39,9 +42,9 @@ score_id | revision_id | artifact_id | artifact_schema_version |
 prepared_musicxml_sha256 | canonical_artifact_sha256
 ```
 
-The durable `source_fingerprint` is this same identity. Equal revision/source inputs
+The unique `practice_sources.source_id` stores this identity. Equal revision/source inputs
 produce equal representation bytes and source IDs. A representation checksum change
-changes the source ID. Including notation in the response does not change the bundle
+changes the source ID. Including notation in the response does not change the source
 identity. HTTP formatting is not the canonical representation checksum input.
 
 ## Source Resource and Browser Consumers
@@ -53,7 +56,8 @@ GET /practice/scores/{score_id}/revisions/{revision_id}/source
     ?include_notation=false
 ```
 
-One request authorizes and resolves one revision and builds one bundle. The response is:
+One request authorizes one revision, constructs one candidate and obtains the verified
+READY durable source through the repository before returning. The response is:
 
 ```text
 {
@@ -77,7 +81,7 @@ Continuous consume the validated semantic artifact.
 parses the artifact once and validates requested score/revision identity. Its cache
 identity includes the notation option. It exposes `sourceId`, `artifact`, `musicXml`
 and `sourceQuery`. `usePracticeSource` adapts score-route access and revision pinning
-to that query owner. `usePracticeSnapshotSource` uses the same envelope parser for
+to that query owner. `usePerformanceTakePracticeSource` uses the same envelope parser for
 saved takes and additionally validates the take's artifact identity. Practice domains
 remain independent of API clients and generated transport DTOs.
 
@@ -100,54 +104,87 @@ PracticeExecutionOwner. Mode controllers and pure execution projections consume
 resolved truth without re-traversing the full artifact contract. See
 [session planning and execution](practice-session-planning.md).
 
-## Durable Materialization and Admission
+## Durable Admission and Verification
 
-`PracticeSourceRepository` consumes a complete bundle. It owns fingerprint lookup,
-object keys, the CREATING lease, exact representation writes/read-back, concurrent
-creation admission and the READY transition. Reads verify checksums, byte sizes,
-artifact structure, score/revision/artifact identity, canonical artifact bytes and
-bundle fingerprint before exposing the source.
+`PracticeSourceRepository.get_or_create` accepts a canonical PracticeSource and the
+resolved live revision database identity. It owns source_id lookup, unique creation,
+object keys, the CREATING lease, exact representation writes/read-back and the READY
+transition. Live responses always consume the repository's verified durable read.
+Existing source reuse performs the same verification and does not rewrite objects.
+Corruption fails closed; live revision contents do not repair durable storage.
 
-The database owns lifecycle admission. READY queries filter by READY in SQL and
-populate current row attributes. Verified reads use that eligible row under a lock
-throughout verification. Fingerprint reuse and unique-create collisions use the same
-READY admission. The final creation query locks only a CREATING row with a non-null,
-unexpired lease and populates its current attributes. Cached ORM state cannot admit
-a DELETING row or restore an ineligible creator to READY.
+Representation objects use these exact keys:
 
-`PracticeSourceSnapshot` is a durable materialization of the immutable bundle. Its
-table and foreign keys model that relationship directly. Storage identity is
-independent of the continued existence of the live Score row.
+```text
+practice-sources/{source_id}/score.musicxml
+practice-sources/{source_id}/artifact.json
+```
 
-Practice Source retention owns reference checks, deletion outbox and worker policy.
-PerformanceTake rows and active upload reservations retain snapshots. Ineligible
-state, races and storage failures fail closed. Outbox retries preserve durable cleanup
-ownership. PostgreSQL tests use independent sessions and controlled synchronization
-to exercise cached state, lease expiry and simultaneous fingerprint creation.
+Every durable read verifies MusicXML/artifact SHA-256 and byte size, artifact schema,
+score/revision/artifact identity, canonical artifact JSON bytes and source_id
+recomputation. The database owns lifecycle admission: READY queries filter in SQL,
+refresh ORM attributes and lock the eligible row throughout verification. Concurrent
+unique-source creation admits only a READY source. Final creation admission locks a
+CREATING row with a non-null unexpired lease and freshly populated values.
+
+`PracticeSourceRecord` persists in `practice_sources`. Its bigint primary key is the
+internal foreign-key target; its unique source_id is the public canonical identity.
+Immutable source_score_uuid/source_revision_uuid describe the source independently
+of live score rows. The nullable live_revision_id foreign key references ScoreRevision
+with ON DELETE SET NULL. Repository resolution binds that owner under revision and
+source locks, so a live response cannot leave its source unowned.
+
+## Retention and Deletion
+
+A READY source is retained by any of these current owners:
+
+- its live ScoreRevision;
+- a PerformanceTake;
+- an active RESERVED or FINALIZING upload reservation.
+
+READY deletion eligibility requires live_revision_id IS NULL and no Take or active
+reservation references. Revision deletion releases its live ownership through the
+foreign key. Score code has no Practice cleanup dependency. The durable maintenance
+poller performs a bounded orphan-source scan independently of Take deletion.
+Terminal reservations do not retain sources; completed Takes own their references.
+
+Failed or expired CREATING sources have a separate cleanup path. Incomplete
+representations have no usable live source ownership and can enter DELETING even
+while their originating revision exists. Creation lease admission prevents a stale
+creator from restoring an ineligible source to READY.
+
+Practice Source owns `PracticeSourceDeleteOutbox` in `practice_source_delete_outbox`
+and the `practice_source_deletion` worker/dispatch operation. The outbox retains
+canonical source_id and exact representation keys. A worker claims an attempt,
+rechecks lifecycle and all owners under current source/outbox locks before object
+I/O, deletes the exact objects and source row, and completes the outbox. The locks
+fence reference admission and attempt replacement through deletion. New ownership
+cancels or fails cleanup safely. Storage failures remain retryable through the outbox.
 
 ## Performance Take
 
-PerformanceTake authorizes access to the take, identifies its source snapshot and
-calls the public Practice Source service. An immutable upload reservation pins a source through
-that service and consumes the returned score, revision, artifact and snapshot
-identities. Media upload/finalization and take ownership belong to PerformanceTake;
-source construction, hashing, object writes, validation and retention belong to
-Practice Source. Reservation creation supplies source and save metadata once. Finalize
-identifies the public upload reservation and consumes its pinned source without live-score
-admission. A completed Take retains the snapshot; the reservation releases its temporary
-reference. Its upload UUID is distinct from the internal storage-quota reservation handle.
+An upload reservation resolves the requested score/revision/artifact through
+PracticeSourceService.resolve_source, checks artifact identity and retains the same
+canonical durable source using practice_source_id. The reservation also captures
+score title and save metadata. Finalization consumes its admitted reference without
+live score admission; a completed Take becomes the durable source owner.
+
+PerformanceTake owns media upload/finalization and take authorization. Source
+construction, serialization, hashing, object persistence, verification and retention
+belong to Practice Source. Saved-source access authorizes the Take and delegates its
+practice_source_id to PracticeSourceService.read_source_by_id.
 
 ```text
 GET /performance-takes/{take_id}/practice-source?include_notation=true
 ```
 
-The saved-source route returns the same envelope and verifies one snapshot bundle
-per request. Saved-take presentation requests notation. Snapshot reads remain available
-after live score deletion while a durable take retains the snapshot.
+The saved route returns the same PracticeSourceRead envelope and verifies the same
+durable representations once per request. Take-owned source reads remain available
+after live score/revision deletion. Saved presentation requests prepared notation.
 
 The [artifact contract](practice-moment-artifact.md) owns schemaVersion 1 notation/moment
-semantics. Source representation ownership does not define evaluation, timing,
-resource budgets or recording evidence semantics.
+semantics. Source persistence does not define evaluation, timing, resource budgets
+or recording evidence semantics.
 
 ## Frontend Failure Contract
 

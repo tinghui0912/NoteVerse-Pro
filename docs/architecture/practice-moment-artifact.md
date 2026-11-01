@@ -85,9 +85,10 @@ The customer OpenAPI schema and generated browser DTOs describe schemaVersion 1.
 Committed backend/browser fixture tests verify deterministic payload agreement.
 
 [Practice Source](practice-source.md) supplies the domain artifact and optional
-prepared-MusicXML notation in one `/source` envelope with one source_id. Artifact content determines artifactId. PracticeSourceSnapshot
-materializes schemaVersion 1, exact score/revision/artifact IDs, prepared XML/artifact
-checksums and immutable object contents. PerformanceTake references that durable source.
+prepared-MusicXML notation in one `/source` envelope with one source_id. Artifact content determines artifactId. PracticeSourceRecord
+persists the verified READY durable source with exact score/revision/artifact IDs and
+representation checksums. Live and saved consumers read that same source; its ownership
+and retention are defined by the Source contract.
 
 STEP uses schema9/runtime step-piano-key-learning-v12; its target, attempt and evidence
 snapshots carry numeric keys. Result schema7 binds canonical scope group identities

@@ -11,6 +11,11 @@ Canonical Practice Source (sourceId + parsed artifact)
        -> Continuous execution
 ```
 
+Canonical Practice Source resolution returns a verified READY durable source. Live
+revision ownership retains it for Setup/Practice; Take and active reservation references
+retain that same source independently of revision deletion. [Practice Source](practice-source.md)
+owns persistence and verification. Session planning consumes its identity and artifact.
+
 ## Intent and Plan
 
 `planning/execution-intent.ts` defines the learner/application choices before Start:

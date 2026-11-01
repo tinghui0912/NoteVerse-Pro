@@ -13,13 +13,14 @@ resources and shows an in-place score-unavailable state. Device readiness remain
 ## Execution and Inputs
 
 Practice execution is browser-local. The backend Practice Source service authorizes
-one revision and builds an immutable source bundle containing schemaVersion 1 artifact and
+one revision and resolves one verified READY durable PracticeSource containing schemaVersion 1 artifact and
 prepared notation representations. One `/source` request returns `source_id`, the
 artifact, and optional prepared-MusicXML notation. The revision-source hook owns one
 query and runtime artifact parsing. Setup requests `include_notation=false` and
 receives no MusicXML. Practice and Review request `include_notation=true` for Verovio
 presentation; notation is not an evaluation/domain input. [Practice Source](practice-source.md)
-owns deterministic construction, snapshot persistence and retention.
+owns deterministic construction, durable verification and retention by live revision, Take
+and active upload reservation. Live and saved consumers read the same source identity.
 The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
 Cold-start offline availability depends on asset and application caching.
@@ -1039,7 +1040,7 @@ Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
 stream; MIDI+AUDIO owns a separate microphone acquisition. VIDEO uses camera video
 and the appropriate audio clone. Each owner releases only its own resources.
 
-Saved Performance Take archives AUDIO/VIDEO media with source snapshot identity,
+Saved Performance Take archives AUDIO/VIDEO media with durable source identity,
 scope, tempo and recording timebase. It does not persist Practice assignment,
 derived target summaries, metrics or implementation provenance. Review Save Recording is an
 explicit user action that reads only a READY recording and archive metadata.
@@ -1104,14 +1105,14 @@ completed local recording -> immutable upload reservation -> direct binary uploa
 `POST /performance-takes/upload-reservations` captures client_request_id, source,
 media, scope, tempo plan and recording timebase once. Source contains score/revision/
 artifact identity; media contains kind, canonical MIME, byte size and duration. The
-reservation pins the exact Practice Source snapshot and score title. Client-request
+reservation retains the exact canonical durable PracticeSource and captures score title. Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
 reservation/take identities; different metadata conflicts. RESERVED replay can refresh
 the signed upload target. FINALIZING replay provides state, and COMPLETED replay returns
 the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
-It consumes persisted reservation metadata and the pinned source. Live score deletion,
+It consumes persisted reservation metadata and its durable source reference. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 reservation. Both routes use the user-scoped public upload UUID, independently of the

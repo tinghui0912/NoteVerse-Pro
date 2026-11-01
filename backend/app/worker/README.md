@@ -47,3 +47,13 @@ evolve independently.
    when the job deletes, expires, or enforces retention policy.
 5. Add focused tests around the owning module instead of testing internals
    through `tasks.py`.
+
+## Durable Practice Source cleanup
+
+`practice_source_deletion_task` executes a `PracticeSourceDeleteOutbox` attempt.
+The maintenance dispatcher polls bounded orphan READY sources and expired CREATING
+sources independently of Take deletion. Live revision ownership, Takes and active
+upload reservations retain READY sources. Claim and locked execution both recheck
+ownership before exact representation deletion. Source retention owns this policy;
+score/revision deletion only releases the live foreign key through ON DELETE SET NULL.
+See [Practice Source](../../../docs/architecture/practice-source.md).

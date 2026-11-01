@@ -82,10 +82,10 @@ from .performance_take import (
     PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
 )
-from .practice_source_snapshot import PracticeSourceSnapshot, PracticeSourceSnapshotStatus
-from .practice_source_snapshot_delete_outbox import (
-    PracticeSourceSnapshotDeleteOutbox,
-    PracticeSourceSnapshotDeleteOutboxStatus,
+from .practice_source import PracticeSourceRecord, PracticeSourceStatus
+from .practice_source_delete_outbox import (
+    PracticeSourceDeleteOutbox,
+    PracticeSourceDeleteOutboxStatus,
 )
 from .performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
@@ -173,10 +173,10 @@ __all__ = [
     "PerformanceTake",
     "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",
-    "PracticeSourceSnapshot",
-    "PracticeSourceSnapshotStatus",
-    "PracticeSourceSnapshotDeleteOutbox",
-    "PracticeSourceSnapshotDeleteOutboxStatus",
+    "PracticeSourceRecord",
+    "PracticeSourceStatus",
+    "PracticeSourceDeleteOutbox",
+    "PracticeSourceDeleteOutboxStatus",
     "PerformanceTakeUploadReservation",
     "PerformanceTakeUploadReservationStatus",
     "PerformanceTakeDeleteOutbox",

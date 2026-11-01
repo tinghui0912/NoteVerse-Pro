@@ -10,13 +10,13 @@ from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_score_artifact_from_timeline,
 )
-from .domain import PracticeSourceArtifact, PracticeSourceBundle, PracticeSourceRepresentation
+from .domain import PracticeSourceArtifact, PracticeSource, PracticeSourceRepresentation
 
 
 class PracticeSourceBuilder:
     def build(
         self, *, score_id: str, revision_id: str, canonical_musicxml: bytes
-    ) -> PracticeSourceBundle:
+    ) -> PracticeSource:
         try:
             prepared = prepare_musicxml_ids_for_practice(canonical_musicxml.decode("utf-8")).encode(
                 "utf-8"
@@ -31,7 +31,7 @@ class PracticeSourceBuilder:
             revision_id=revision_id,
             score_tempo_segments=compiled.tempo_segments,
         )
-        return PracticeSourceBundle(
+        return PracticeSource(
             score_id,
             revision_id,
             PracticeSourceRepresentation(prepared, "application/vnd.recordare.musicxml+xml"),

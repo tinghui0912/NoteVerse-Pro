@@ -55,10 +55,10 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    source_snapshot_id: int = Field(
+    practice_source_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
+            ForeignKey("practice_sources.id", ondelete="RESTRICT", name="fk_performance_takes_practice_source"),
             index=True,
             nullable=False,
         ),

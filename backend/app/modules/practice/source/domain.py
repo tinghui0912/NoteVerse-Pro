@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 
-def source_fingerprint(
+def calculate_source_id(
     score_id: str,
     revision_id: str,
     artifact_id: str,
@@ -14,7 +14,7 @@ def source_fingerprint(
     musicxml_sha256: str,
     artifact_sha256: str,
 ) -> str:
-    """Content identity shared by live bundles and durable snapshot materializations."""
+    """Canonical identity of immutable Practice source representations."""
     return hashlib.sha256(
         "|".join(
             (
@@ -60,7 +60,7 @@ class PracticeSourceArtifact:
 
 
 @dataclass(frozen=True)
-class PracticeSourceBundle:
+class PracticeSource:
     score_id: str
     revision_id: str
     prepared_musicxml: PracticeSourceRepresentation
@@ -68,7 +68,7 @@ class PracticeSourceBundle:
 
     @property
     def source_id(self) -> str:
-        return source_fingerprint(
+        return calculate_source_id(
             self.score_id,
             self.revision_id,
             self.artifact.artifact_id,
@@ -79,7 +79,7 @@ class PracticeSourceBundle:
 
 
 @dataclass(frozen=True)
-class PracticeSourceSnapshotRef:
+class PracticeSourceRef:
     id: int
     source_id: str
     source_score_uuid: str
@@ -89,17 +89,8 @@ class PracticeSourceSnapshotRef:
 
 @dataclass(frozen=True)
 class AuthorizedPracticeSource:
-    bundle: PracticeSourceBundle
+    source: PracticeSource
+    source_ref: PracticeSourceRef
     score_db_id: int
     revision_db_id: int
-    score_title: str
-
-
-@dataclass(frozen=True)
-class PinnedPracticeSource:
-    snapshot: PracticeSourceSnapshotRef
-    score_db_id: int
-    revision_db_id: int
-    score_id: str
-    revision_id: str
     score_title: str
