@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-import enum
 from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import (
     BigInteger,
     Column,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -20,21 +20,26 @@ from sqlalchemy import (
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
+from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
-
-
-class PerformanceTakeUploadReservationStatus(str, enum.Enum):
-    RESERVED = "RESERVED"
-    FINALIZING = "FINALIZING"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    EXPIRED = "EXPIRED"
 
 
 class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_take_upload_reservations"
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('RESERVED','FINALIZING','COMPLETED','CANCELLED','EXPIRED')",
+            name="ck_take_reservation_status",
+        ),
+        CheckConstraint(
+            "(status IN ('RESERVED','FINALIZING') AND practice_source_id IS NOT NULL) OR (status IN ('COMPLETED','CANCELLED','EXPIRED') AND practice_source_id IS NULL)",
+            name="ck_take_reservation_source_owner",
+        ),
+        CheckConstraint(
+            "(status = 'FINALIZING' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != 'FINALIZING' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
+            name="ck_take_reservation_finalize_lease",
+        ),
         UniqueConstraint(
             "user_id",
             "client_request_id",
@@ -113,9 +118,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     media_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
     staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
-    final_object_key: Optional[str] = Field(
-        default=None, sa_column=Column(String(768), nullable=True)
-    )
+
     storage_reservation_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
     expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
     last_put_url_expires_at: Optional[datetime] = Field(
@@ -130,17 +133,14 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         default=None,
         sa_column=Column(DateTime, nullable=True),
     )
-    final_cleanup_completed_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(DateTime, nullable=True),
-    )
+
     finalizing_object_key: Optional[str] = Field(
         default=None,
         sa_column=Column(String(768), nullable=True),
     )
-    orphan_final_object_keys: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
+    orphan_final_object_keys: str = Field(
+        default="[]",
+        sa_column=Column(Text, nullable=False, default="[]"),
     )
     finalizing_token: Optional[str] = Field(
         default=None,
@@ -151,11 +151,11 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         sa_column=Column(DateTime, nullable=True),
     )
     status: str = Field(
-        default=PerformanceTakeUploadReservationStatus.RESERVED.value,
+        default=UploadReservationStatus.RESERVED.value,
         sa_column=Column(
             String(24),
             nullable=False,
-            default=PerformanceTakeUploadReservationStatus.RESERVED.value,
+            default=UploadReservationStatus.RESERVED.value,
         ),
     )
     created_at: datetime = Field(

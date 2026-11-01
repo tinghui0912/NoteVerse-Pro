@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.performance_takes.upload_reservation.domain import SOURCE_OWNING_STATUSES
+
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
@@ -12,7 +14,6 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeUploadReservation,
-    PerformanceTakeUploadReservationStatus,
     PracticeSourceRecord,
     PracticeSourceStatus,
     PracticeSourceDeleteOutbox,
@@ -28,13 +29,6 @@ from app.utils.timezone import utc_now_naive
 def _status_value(status: object) -> str:
     value = getattr(status, "value", status)
     return str(value)
-
-
-TERMINAL_RESERVATION_STATUSES = {
-    PerformanceTakeUploadReservationStatus.COMPLETED.value,
-    PerformanceTakeUploadReservationStatus.CANCELLED.value,
-    PerformanceTakeUploadReservationStatus.EXPIRED.value,
-}
 
 
 @dataclass(frozen=True)
@@ -68,7 +62,7 @@ class PracticeSourceDeleteService:
         reservation_refs = db.execute(
             select(func.count(PerformanceTakeUploadReservation.id)).where(
                 PerformanceTakeUploadReservation.practice_source_id == practice_source_id,
-                PerformanceTakeUploadReservation.status.notin_(list(TERMINAL_RESERVATION_STATUSES)),
+                PerformanceTakeUploadReservation.status.in_([status.value for status in SOURCE_OWNING_STATUSES]),
             )
         ).scalar_one()
         return int(take_refs) + int(reservation_refs)
@@ -190,7 +184,7 @@ class PracticeSourceDeleteService:
             select(PerformanceTakeUploadReservation.id)
             .where(
                 PerformanceTakeUploadReservation.practice_source_id == PracticeSourceRecord.id,
-                PerformanceTakeUploadReservation.status.notin_(list(TERMINAL_RESERVATION_STATUSES)),
+                PerformanceTakeUploadReservation.status.in_([status.value for status in SOURCE_OWNING_STATUSES]),
             )
             .exists()
         )

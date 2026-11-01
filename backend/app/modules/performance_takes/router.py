@@ -9,7 +9,11 @@ from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.performance_takes.dependencies import get_performance_take_service
+from app.modules.performance_takes.dependencies import (
+    get_performance_take_service,
+    get_performance_take_upload_service,
+)
+from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.schemas import (
     PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
@@ -37,7 +41,7 @@ async def reserve_take_upload(
     request: PerformanceTakeUploadReservationRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    service: PerformanceTakeUploadService = Depends(get_performance_take_upload_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.reserve_upload(db, user_id, request)
@@ -52,7 +56,7 @@ async def cancel_take_upload_reservation(
     reservation_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    service: PerformanceTakeUploadService = Depends(get_performance_take_upload_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     await service.cancel_upload_reservation(db, user_id, reservation_id)
@@ -68,7 +72,7 @@ async def finalize_take(
     http_request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    service: PerformanceTakeUploadService = Depends(get_performance_take_upload_service),
 ):
     if await http_request.body():
         raise ValidationException(ErrorCode.VALIDATION_ERROR, field="body")

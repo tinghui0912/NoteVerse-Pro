@@ -6,7 +6,7 @@ from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.main import app
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
-from app.modules.performance_takes.service import PerformanceTakeService
+from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 
 
 def test_upload_reservation_owns_idempotency_and_unique_take_lineage():
@@ -37,7 +37,7 @@ def test_upload_reservation_owns_idempotency_and_unique_take_lineage():
 
 
 def test_finalize_contract_consumes_only_user_scoped_reservation_identity():
-    assert list(inspect.signature(PerformanceTakeService.finalize_take).parameters) == [
+    assert list(inspect.signature(PerformanceTakeUploadService.finalize_take).parameters) == [
         "self",
         "db",
         "user_id",
@@ -84,13 +84,11 @@ def test_source_lineage_is_owned_by_the_exact_source_foreign_key():
         "media_byte_size",
         "storage_backend",
         "staging_object_key",
-        "final_object_key",
         "storage_reservation_id",
         "expires_at",
         "last_put_url_expires_at",
         "staging_cleanup_after",
         "staging_cleanup_completed_at",
-        "final_cleanup_completed_at",
         "finalizing_object_key",
         "orphan_final_object_keys",
         "finalizing_token",

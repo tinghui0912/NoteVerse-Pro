@@ -4,18 +4,16 @@ from __future__ import annotations
 
 import sys
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.models import (
     PracticeSourceRecord,
-    PerformanceTakeUploadReservation,
     PracticeSourceDeleteOutboxStatus,
 )
 from app.db.sync_session import get_worker_db
 from app.modules.practice.source.retention import (
     practice_source_delete_service,
-    TERMINAL_RESERVATION_STATUSES,
 )
 from app.storage import file_storage
 from app.worker.task_runtime import (
@@ -100,16 +98,6 @@ def execute_practice_source_deletion_task(
                 if source is not None:
                     if practice_source_delete_service.has_owner(db, source):
                         raise RuntimeError("Practice source deletion ownership invariant violated")
-                    db.execute(
-                        update(PerformanceTakeUploadReservation)
-                        .where(
-                            PerformanceTakeUploadReservation.practice_source_id == source.id,
-                            PerformanceTakeUploadReservation.status.in_(
-                                list(TERMINAL_RESERVATION_STATUSES)
-                            ),
-                        )
-                        .values(practice_source_id=None)
-                    )
                     db.delete(source)
                     db.flush()
                 if not practice_source_delete_service.complete(

@@ -972,10 +972,14 @@ the saved Take. The nested upload target is an ephemeral URL/method/headers/expi
 It copies persisted canonical scope/tempo and recording evidence without replanning. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
-reservation. Both routes use the user-scoped public upload UUID, independently of the
+RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETED
+and EXPIRED cannot report successful cancellation. Both routes use the user-scoped public upload UUID, independently of the
 backend-internal `storage_reservation_id` quota handle. Object keys remain server-owned.
 
-Reservation states are RESERVED, FINALIZING, COMPLETED, CANCELLED and EXPIRED.
+UploadReservation is a persisted lifecycle aggregate. Its states are RESERVED,
+FINALIZING, COMPLETED, CANCELLED and EXPIRED.
+[Reservation architecture](performance-take-reservations.md) defines lifecycle,
+persistence, cleanup and object ownership.
 A unique, non-null Take foreign key establishes one reservation to at most one Take.
 The Take owns its durable media/metadata snapshot and source reference. Reservation
 completion releases its temporary source retention. Playback/listing read the Take's

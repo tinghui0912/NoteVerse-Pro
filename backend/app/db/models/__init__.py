@@ -89,7 +89,6 @@ from .practice_source_delete_outbox import (
 )
 from .performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
-    PerformanceTakeUploadReservationStatus,
 )
 from .performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
@@ -178,7 +177,6 @@ __all__ = [
     "PracticeSourceDeleteOutbox",
     "PracticeSourceDeleteOutboxStatus",
     "PerformanceTakeUploadReservation",
-    "PerformanceTakeUploadReservationStatus",
     "PerformanceTakeDeleteOutbox",
     "PerformanceTakeDeleteOutboxStatus",
 ]

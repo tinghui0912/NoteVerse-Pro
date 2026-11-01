@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.modules.performance_takes.upload_reservation.cleanup import upload_reservation_cleanup_service
+
 from app.core.logger import logger
 from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
@@ -89,7 +91,7 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
         cleanup_errors = 0
         try:
             with get_worker_db() as db:
-                cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+                cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
                     db, file_storage, storage_usage_service
                 )
                 db.commit()

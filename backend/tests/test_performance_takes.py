@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.modules.performance_takes.upload_reservation.cleanup import upload_reservation_cleanup_service
+
+from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus, UploadReservationLifecycle, OrphanFinalCandidate, FinalizeLease
+from app.modules.performance_takes.upload_reservation.persistence import initialize_lifecycle, lifecycle_from_row, apply_transition, encode_orphan_candidates
+
 import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -28,7 +33,6 @@ from app.db.models import (
     PerformanceTakeDeleteOutboxStatus,
     PerformanceTakeMediaKind,
     PerformanceTakeUploadReservation,
-    PerformanceTakeUploadReservationStatus,
     PracticeSourceRecord,
     PracticeSourceDeleteOutbox,
     PracticeSourceDeleteOutboxStatus,
@@ -50,9 +54,10 @@ from app.modules.practice.source.retention import (
     practice_source_delete_service,
 )
 from app.modules.performance_takes.dependencies import (
-    get_performance_take_service,
+    get_performance_take_service, get_performance_take_upload_service,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
+from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.source.repository import PracticeSourceRepository
@@ -141,9 +146,9 @@ def _performance_take_service(
     session: Session,
     storage: LocalFileStorage,
     storage_usage_service: StorageUsageService | None = None,
-) -> PerformanceTakeService:
+) -> PerformanceTakeUploadService:
     _create_default_source(session, storage, live_revision_id=100)
-    return PerformanceTakeService(
+    return PerformanceTakeUploadService(
         storage=storage,
         storage_usage_service=storage_usage_service,
         practice_source_service=PracticeSourceService(storage=storage),
@@ -230,11 +235,17 @@ def _create_default_take(
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key=media_object_key + ".staging",
-        final_object_key=media_object_key,
         storage_reservation_id="quota-" + take_uuid,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None),
         status="COMPLETED",
     )
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    state = UploadReservationLifecycle.reserved(practice_source_id=practice_source_id,
+        expires_at=now + timedelta(hours=1), put_expires_at=now + timedelta(minutes=10))
+    state = state.begin_finalize(lease=FinalizeLease("fixture-token", media_object_key,
+        now + timedelta(minutes=15)), now=now).after
+    initialize_lifecycle(reservation, state.complete(token="fixture-token",
+        object_key=media_object_key, now=now).after)
     session.add(reservation)
     session.flush()
     take = PerformanceTake(
@@ -693,7 +704,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -829,7 +841,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         )
         auth.staging_cleanup_after = auth.last_put_url_expires_at
         session.commit()
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -980,7 +992,8 @@ def test_score_access_and_validation(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1052,7 +1065,8 @@ def test_cross_user_score_permission(test_env):
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1113,7 +1127,8 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1277,7 +1292,8 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1357,7 +1373,8 @@ def test_quota_rejection(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1394,7 +1411,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1447,7 +1465,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         )
         auth.staging_cleanup_after = auth.last_put_url_expires_at
         session.commit()
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -1491,7 +1509,8 @@ def test_pagination(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1559,7 +1578,8 @@ def test_audio_container_magic_bytes_validation(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1657,7 +1677,8 @@ def test_finalize_safe_retry_idempotency(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1747,7 +1768,8 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1814,7 +1836,8 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
     try:
@@ -1914,7 +1937,8 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: mutating_storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1973,7 +1997,8 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2060,10 +2085,9 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-reserve/recording.webm",
-        final_object_key="performance-takes/1/finalizing-reserve/token.webm",
         finalizing_object_key="performance-takes/1/finalizing-reserve/token.webm",
         storage_reservation_id="reservation-finalizing-reserve",
-        status=PerformanceTakeUploadReservationStatus.FINALIZING,
+        status=UploadReservationStatus.FINALIZING,
         expires_at=now + timedelta(minutes=10),
         last_put_url_expires_at=now + timedelta(minutes=10),
         staging_cleanup_after=now + timedelta(minutes=10),
@@ -2115,7 +2139,8 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2157,7 +2182,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         session.commit()
 
         # Background maintenance task cleans expired reservations
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -2171,7 +2196,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         assert account.reserved_bytes == 0
 
         session.refresh(auth)
-        assert auth.status == PerformanceTakeUploadReservationStatus.EXPIRED
+        assert auth.status == UploadReservationStatus.EXPIRED
         assert auth.practice_source_id is None
         assert session.execute(select(PracticeSourceDeleteOutbox).where(
             PracticeSourceDeleteOutbox.practice_source_id == practice_source_id
@@ -2202,7 +2227,8 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2241,7 +2267,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             raise RuntimeError("storage temporarily unavailable")
 
         monkeypatch.setattr(storage, "delete", fail_delete)
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -2254,10 +2280,10 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
         session.refresh(account)
         assert account.reserved_bytes == 0
         session.refresh(auth)
-        assert auth.status == PerformanceTakeUploadReservationStatus.EXPIRED
+        assert auth.status == UploadReservationStatus.EXPIRED
 
         monkeypatch.setattr(storage, "delete", original_delete)
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -2285,7 +2311,8 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2318,7 +2345,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
                 PerformanceTakeUploadReservation.client_request_id == "req-late-put-cleanup"
             )
         ).scalar_one()
-        final_bytes = storage.read_bytes(auth.final_object_key)
+        final_bytes = storage.read_bytes(session.execute(select(PerformanceTake.media_object_key).where(PerformanceTake.upload_reservation_id == auth.id)).scalar_one())
 
         # A still-valid old presigned PUT can recreate staging after the successful save.
         storage.put_bytes(
@@ -2332,7 +2359,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
@@ -2341,9 +2368,9 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
 
         assert cleaned_count == 1
         assert not storage.exists(staging_key)
-        assert storage.read_bytes(auth.final_object_key) == final_bytes
+        assert storage.read_bytes(session.execute(select(PerformanceTake.media_object_key).where(PerformanceTake.upload_reservation_id == auth.id)).scalar_one()) == final_bytes
         session.refresh(auth)
-        assert auth.status == PerformanceTakeUploadReservationStatus.COMPLETED
+        assert auth.status == UploadReservationStatus.COMPLETED
     finally:
         app.dependency_overrides.clear()
 
@@ -2363,7 +2390,8 @@ def test_score_deleted_between_auth_and_finalize_uses_durable_source(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2447,7 +2475,8 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2482,7 +2511,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
                 PerformanceTakeUploadReservation.take_uuid == take_id
             )
         ).scalar_one()
-        assert auth_row.status == PerformanceTakeUploadReservationStatus.COMPLETED
+        assert auth_row.status == UploadReservationStatus.COMPLETED
         assert auth_row.practice_source_id is None
         take_row = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
@@ -2719,7 +2748,8 @@ def test_reservation_rejects_source_pending_gc(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
     try:
@@ -2812,9 +2842,8 @@ def test_source_gc_does_not_restore_ready_if_reference_appears_before_claim(test
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend=storage.backend_name,
         staging_object_key="performance-takes/staging/gc-race.webm",
-        final_object_key="performance-takes/final/gc-race.webm",
         storage_reservation_id="reservation-gc-race",
-        status=PerformanceTakeUploadReservationStatus.RESERVED.value,
+        status=UploadReservationStatus.RESERVED.value,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
         last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
         + timedelta(minutes=5),
@@ -2878,9 +2907,8 @@ def test_source_worker_preserves_objects_if_reference_appears_after_claim(
             media_byte_size=len(VALID_WEBM_BYTES),
             storage_backend=storage.backend_name,
             staging_object_key="performance-takes/staging/active-ref-after-delete.webm",
-            final_object_key="performance-takes/final/active-ref-after-delete.webm",
             storage_reservation_id="reservation-active-ref-after-delete",
-            status=PerformanceTakeUploadReservationStatus.RESERVED.value,
+            status=UploadReservationStatus.RESERVED.value,
             expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
             last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
             + timedelta(minutes=5),
@@ -3015,9 +3043,8 @@ def test_source_gc_waits_for_active_reservation_after_last_take_deleted(test_env
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend=storage.backend_name,
         staging_object_key="performance-takes/staging/gc-active-auth.webm",
-        final_object_key="performance-takes/final/gc-active-auth.webm",
         storage_reservation_id="reservation-gc-active-auth",
-        status=PerformanceTakeUploadReservationStatus.RESERVED.value,
+        status=UploadReservationStatus.RESERVED.value,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
         last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
         + timedelta(minutes=5),
@@ -3041,8 +3068,8 @@ def test_source_gc_waits_for_active_reservation_after_last_take_deleted(test_env
         is None
     )
 
-    auth.status = PerformanceTakeUploadReservationStatus.CANCELLED
-    auth.practice_source_id = None
+    apply_transition(auth, lifecycle_from_row(auth).cancel(now=datetime.now(timezone.utc).replace(tzinfo=None)),
+        now=datetime.now(timezone.utc).replace(tzinfo=None))
     session.flush()
     outbox = practice_source_delete_service.enqueue_if_unowned(
         session,
@@ -3072,7 +3099,8 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
     try:
@@ -3102,8 +3130,8 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
         ).scalar_one()
         source = session.get(PracticeSourceRecord, auth.practice_source_id)
         assert source is not None
-        auth.status = PerformanceTakeUploadReservationStatus.CANCELLED.value
-        auth.practice_source_id = None
+        apply_transition(auth, lifecycle_from_row(auth).cancel(now=datetime.now(timezone.utc).replace(tzinfo=None)),
+            now=datetime.now(timezone.utc).replace(tzinfo=None))
         source.status = PracticeSourceStatus.DELETING.value
         session.commit()
 
@@ -3222,7 +3250,8 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -3265,7 +3294,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
 
-        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_reservations(
+        cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
             session,
             storage=LockAssertingStorage(storage),
             storage_usage_service=storage_usage_svc,
@@ -3275,7 +3304,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
         assert cleaned_count == 1
         assert not storage.exists(auth.staging_object_key)
         session.refresh(auth)
-        assert auth.status == PerformanceTakeUploadReservationStatus.EXPIRED
+        assert auth.status == UploadReservationStatus.EXPIRED
     finally:
         app.dependency_overrides.clear()
 
@@ -3289,9 +3318,8 @@ def _expired_cleanup_auth(
     final_key: str,
 ) -> PerformanceTakeUploadReservation:
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
-    return PerformanceTakeUploadReservation(
+    row = PerformanceTakeUploadReservation(
         user_id=user_id,
-        practice_source_id=practice_source_id,
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
         linked_score_id=10,
@@ -3311,13 +3339,18 @@ def _expired_cleanup_auth(
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key=staging_key,
-        final_object_key=final_key,
         storage_reservation_id=f"reservation-{client_request_id}",
-        status=PerformanceTakeUploadReservationStatus.EXPIRED,
         expires_at=expired_at,
         last_put_url_expires_at=expired_at,
         staging_cleanup_after=expired_at,
     )
+
+    state = UploadReservationLifecycle.reserved(practice_source_id=practice_source_id,
+        expires_at=expired_at, put_expires_at=expired_at)
+    state = state.expire(now=expired_at).after
+    state = state.remember_uncertain_candidate(key=final_key, now=expired_at).after
+    initialize_lifecycle(row, state)
+    return row
 
 
 def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_env):
@@ -3333,7 +3366,7 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
         staging_key=staging_key,
         final_key=final_key,
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
+    auth.orphan_final_object_keys = "[]"
     session.add(auth)
     session.commit()
 
@@ -3344,14 +3377,14 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
         def delete(self, key: str) -> bool:
             return False
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=DeleteFalseStorage(storage),
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
 
-    assert cleaned == 1
+    assert cleaned == 0
     assert storage.exists(staging_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is None
@@ -3370,7 +3403,7 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
         staging_key=staging_key,
         final_key=final_key,
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
+    auth.orphan_final_object_keys = "[]"
     session.add(auth)
     session.commit()
 
@@ -3381,14 +3414,14 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
         def delete(self, key: str) -> bool:
             return True
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=DeleteLiesStorage(storage),
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
 
-    assert cleaned == 1
+    assert cleaned == 0
     assert storage.exists(staging_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is None
@@ -3407,7 +3440,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
         staging_key=staging_key,
         final_key=final_key,
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
+    auth.orphan_final_object_keys = "[]"
     session.add(auth)
     session.commit()
 
@@ -3425,14 +3458,14 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
                 raise RuntimeError("head temporarily unavailable")
             return super().exists(key)
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=HeadFailsAfterDeleteStorage(storage),
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
 
-    assert cleaned == 1
+    assert cleaned == 0
     assert not storage.exists(staging_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is None
@@ -3465,9 +3498,9 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
-        final_object_key="performance-takes/1/lease-expired/recording.webm",
+        finalizing_object_key="performance-takes/1/lease-expired/recording.webm",
         storage_reservation_id="reservation-lease-expired",
-        status=PerformanceTakeUploadReservationStatus.FINALIZING,
+        status=UploadReservationStatus.FINALIZING,
         expires_at=expired + timedelta(hours=2),
         finalizing_token="expired-token",
         finalizing_expires_at=expired,
@@ -3501,7 +3534,7 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
         final_key="performance-takes/1/already-completed/recording.webm",
     )
     auth.staging_cleanup_completed_at = past
-    auth.final_cleanup_completed_at = past
+    auth.orphan_final_object_keys = "[]"
     session.add(auth)
     session.commit()
 
@@ -3512,7 +3545,7 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
         def delete(self, key: str) -> bool:
             raise AssertionError(f"storage should not be touched for {key}")
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=FailsOnAccessStorage(),
         storage_usage_service=StorageUsageService(),
@@ -3534,10 +3567,8 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
         staging_key="staging/performance-takes/1/orphan-final-only/recording.webm",
         final_key="performance-takes/1/orphan-final-only/current.webm",
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    auth.final_cleanup_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    auth.orphan_final_object_keys = f'["{orphan_key}"]'
+    auth.orphan_final_object_keys = encode_orphan_candidates((OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1)),))
     session.add(auth)
     session.commit()
 
@@ -3555,7 +3586,7 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
             touched.append(f"delete:{key}")
             return super().delete(key)
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=TrackingStorage(storage),
         storage_usage_service=StorageUsageService(),
@@ -3566,8 +3597,7 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
     assert not storage.exists(orphan_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is not None
-    assert auth.final_cleanup_completed_at is not None
-    assert auth.orphan_final_object_keys is None
+    assert auth.orphan_final_object_keys == "[]"
     assert all(auth.staging_object_key not in item for item in touched)
     assert any(orphan_key in item for item in touched)
 
@@ -3584,22 +3614,20 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
         staging_key="staging/performance-takes/1/orphan-late/recording.webm",
         final_key="performance-takes/1/orphan-late/current.webm",
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = now
-    auth.final_cleanup_completed_at = now
     auth.orphan_final_object_keys = (
         f'[{{"key":"{orphan_key}","remove_after":"{(now + timedelta(minutes=10)).isoformat()}"}}]'
     )
     session.add(auth)
     session.commit()
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
-    assert cleaned == 1
+    assert cleaned == 0
     session.refresh(auth)
     assert orphan_key in (auth.orphan_final_object_keys or "")
 
@@ -3609,7 +3637,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
     )
     session.commit()
 
-    cleaned_after_grace = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned_after_grace = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
@@ -3619,7 +3647,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
     assert cleaned_after_grace == 1
     assert not storage.exists(orphan_key)
     session.refresh(auth)
-    assert auth.orphan_final_object_keys is None
+    assert auth.orphan_final_object_keys == "[]"
 
 
 def test_reservation_cleanup_removes_absent_known_orphan(test_env):
@@ -3634,14 +3662,12 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
         staging_key="staging/performance-takes/1/absent-known/recording.webm",
         final_key="performance-takes/1/absent-known/current.webm",
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = now
-    auth.final_cleanup_completed_at = now
-    auth.orphan_final_object_keys = f'["{orphan_key}"]'
+    auth.orphan_final_object_keys = encode_orphan_candidates((OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1)),))
     session.add(auth)
     session.commit()
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
@@ -3650,7 +3676,7 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
 
     assert cleaned == 1
     session.refresh(auth)
-    assert auth.orphan_final_object_keys is None
+    assert auth.orphan_final_object_keys == "[]"
 
 
 def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
@@ -3668,9 +3694,7 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
         staging_key="staging/performance-takes/1/two-orphans/recording.webm",
         final_key="performance-takes/1/two-orphans/current.webm",
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = now
-    auth.final_cleanup_completed_at = now
     auth.orphan_final_object_keys = (
         "["
         f'{{"key":"{removable_key}","remove_after":"{(now - timedelta(minutes=1)).isoformat()}"}},'
@@ -3680,7 +3704,7 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
     session.add(auth)
     session.commit()
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
@@ -3707,9 +3731,7 @@ def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extend
         staging_key="staging/performance-takes/1/remove-after-extended/recording.webm",
         final_key="performance-takes/1/remove-after-extended/current.webm",
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = now
-    auth.final_cleanup_completed_at = now
     extended_until = now + timedelta(minutes=20)
     auth.orphan_final_object_keys = (
         f'[{{"key":"{orphan_key}","remove_after":"{extended_until.isoformat()}"}}]'
@@ -3717,11 +3739,10 @@ def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extend
     session.add(auth)
     session.commit()
 
-    removed = performance_take_delete_outbox_service._remove_reservation_orphan_final_keys(
-        session,
-        auth.id,
-        (orphan_key,),
-    )
+    transition = lifecycle_from_row(auth).finish_cleanup(now=now,
+        absent_candidates=frozenset({orphan_key}))
+    removed = transition.before != transition.after
+    apply_transition(auth, transition, now=now)
     session.commit()
 
     assert removed is False
@@ -3743,44 +3764,22 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
         staging_key="staging/performance-takes/1/referenced-orphan/recording.webm",
         final_key=referenced_key,
     )
-    auth.status = PerformanceTakeUploadReservationStatus.COMPLETED
     auth.staging_cleanup_completed_at = now
-    auth.final_cleanup_completed_at = now
-    auth.orphan_final_object_keys = f'["{referenced_key}"]'
+    auth.orphan_final_object_keys = encode_orphan_candidates((OrphanFinalCandidate(referenced_key, datetime(2020, 1, 1)),))
     session.add(auth)
     session.flush()
-    session.add(
-        PerformanceTake(
-            take_uuid="take-referenced-orphan",
-            user_id=user_1.id,
-            practice_source_id=source.id,
-            linked_score_id=10,
-            score_title_snapshot="Referenced orphan",
-            upload_reservation_id=auth.id,
-            media_kind=PerformanceTakeMediaKind.AUDIO,
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
-            media_object_key=referenced_key,
-            storage_backend="local",
-            duration_ms=1000,
-            scope_type="FULL",
-            scope_start_beat=0.0,
-            scope_terminal_beat=4.0,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
-        )
-    )
+    _create_default_take(session, user_id=user_1.id, practice_source_id=source.id,
+        client_request_id="referenced-take", take_uuid="separate-reference", media_object_key=referenced_key)
     session.commit()
 
-    cleaned = performance_take_delete_outbox_service.cleanup_expired_reservations(
+    cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
 
-    assert cleaned == 1
+    assert cleaned == 0
     assert storage.exists(referenced_key)
     session.refresh(auth)
     assert referenced_key in (auth.orphan_final_object_keys or "")
@@ -3813,10 +3812,9 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
-        final_object_key=candidate_key,
         finalizing_object_key=candidate_key,
         storage_reservation_id="reservation-finalizing-expired",
-        status=PerformanceTakeUploadReservationStatus.FINALIZING,
+        status=UploadReservationStatus.FINALIZING,
         expires_at=now + timedelta(minutes=10),
         last_put_url_expires_at=now + timedelta(minutes=10),
         staging_cleanup_after=now + timedelta(minutes=10),
@@ -3826,7 +3824,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     session.add(auth)
     session.commit()
 
-    performance_take_delete_outbox_service.cleanup_expired_reservations(
+    upload_reservation_cleanup_service.cleanup_expired_reservations(
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
@@ -3834,7 +3832,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     session.commit()
 
     session.refresh(auth)
-    assert auth.status == PerformanceTakeUploadReservationStatus.RESERVED
+    assert auth.status == UploadReservationStatus.RESERVED
     assert auth.finalizing_token is None
     assert auth.finalizing_object_key is None
     assert candidate_key in (auth.orphan_final_object_keys or "")
@@ -3857,7 +3855,8 @@ def test_worker_handles_already_absent_object_idempotently(
     app.dependency_overrides[get_current_user] = lambda: user_1
     app.dependency_overrides[get_file_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -4231,7 +4230,8 @@ def _reservation_client(session, storage, user):
 
     app.dependency_overrides[get_db] = db
     app.dependency_overrides[get_current_user] = lambda: user
-    app.dependency_overrides[get_performance_take_service] = lambda: service
+    app.dependency_overrides[get_performance_take_service] = lambda: service.takes
+    app.dependency_overrides[get_performance_take_upload_service] = lambda: service
     try:
         yield PerformanceTakeTestClient(app), service
     finally:
@@ -4366,7 +4366,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
     test_env, monkeypatch, committed
 ):
     from contextlib import asynccontextmanager
-    import app.modules.performance_takes.service as service_module
+    import app.modules.performance_takes.upload_reservation.service as service_module
 
     session, storage, user, _ = test_env
     with _reservation_client(session, storage, user) as (client, _):
@@ -4440,7 +4440,7 @@ def test_live_and_saved_consumers_share_verified_durable_source(test_env):
     assets = Mock()
     assets.canonical_source = AsyncMock(return_value=SimpleNamespace(storage_key="canonical.musicxml"))
     source_service = PracticeSourceService(storage=storage, asset_repository=assets)
-    take_service = PerformanceTakeService(storage=storage, practice_source_service=source_service)
+    take_service = PerformanceTakeUploadService(storage=storage, practice_source_service=source_service)
 
     async def override_db():
         yield AsyncSessionAdapter(session)
@@ -4449,7 +4449,7 @@ def test_live_and_saved_consumers_share_verified_durable_source(test_env):
         get_db: override_db,
         get_current_user: lambda: user,
         get_practice_source_service: lambda: source_service,
-        get_performance_take_service: lambda: take_service,
+        get_performance_take_service: lambda: take_service.takes, get_performance_take_upload_service: lambda: take_service,
     })
     client = PerformanceTakeTestClient(app)
     live_url = "/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/source"
@@ -4547,8 +4547,15 @@ def test_terminal_reservation_does_not_retain_orphan_source(test_env, monkeypatc
     take = _create_default_take(session, user_id=user.id, practice_source_id=source.id,
         client_request_id="terminal-source", take_uuid="terminal-source-take", media_object_key="terminal.webm")
     reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
-    reservation.practice_source_id = source.id
-    reservation.status = terminal
+    state = UploadReservationLifecycle.reserved(practice_source_id=source.id,
+        expires_at=datetime(2020, 1, 1), put_expires_at=datetime(2020, 1, 1))
+    if terminal == "COMPLETED":
+        state = lifecycle_from_row(reservation)
+    elif terminal == "CANCELLED":
+        state = state.cancel(now=datetime(2020, 1, 1)).after
+    else:
+        state = state.expire(now=datetime(2020, 1, 1)).after
+    initialize_lifecycle(reservation, state)
     session.delete(take)
     session.commit()
     due = practice_source_delete_service.recover_and_list_due(session)
@@ -4607,8 +4614,13 @@ def test_active_reservation_retains_source_after_revision_deletion(test_env, sta
     take = _create_default_take(session, user_id=user.id, practice_source_id=source.id,
         client_request_id="active-source", take_uuid="active-source-take", media_object_key="active.webm")
     reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
-    reservation.practice_source_id = source.id
-    reservation.status = status
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    state = UploadReservationLifecycle.reserved(practice_source_id=source.id,
+        expires_at=now + timedelta(hours=1), put_expires_at=now + timedelta(minutes=10))
+    if status == "FINALIZING":
+        from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
+        state = state.begin_finalize(lease=FinalizeLease("token", "candidate", now + timedelta(minutes=15)), now=now).after
+    initialize_lifecycle(reservation, state)
     session.delete(take)
     score = session.get(Score, 10)
     score.head_revision_id = None
@@ -4649,11 +4661,11 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
     assets = Mock()
     assets.canonical_source = AsyncMock(return_value=SimpleNamespace(storage_key="exact-canonical.xml"))
     source_service = PracticeSourceService(storage=storage, asset_repository=assets)
-    take_service = PerformanceTakeService(storage=storage, practice_source_service=source_service)
+    take_service = PerformanceTakeUploadService(storage=storage, practice_source_service=source_service)
     async def override_db():
         yield AsyncSessionAdapter(session)
     app.dependency_overrides.update({get_db: override_db, get_current_user: lambda: user,
-        get_practice_source_service: lambda: source_service, get_performance_take_service: lambda: take_service})
+        get_practice_source_service: lambda: source_service, get_performance_take_service: lambda: take_service.takes, get_performance_take_upload_service: lambda: take_service})
     client = PerformanceTakeTestClient(app)
     try:
         admitted = client.get("/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/source?include_notation=true")
@@ -4784,7 +4796,7 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
         session.delete(session.get(ScoreRevision, 100))
         session.commit()
         storage.put_bytes(key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-        with patch.object(service.practice_source_service, "authorize_source_by_source_id", side_effect=AssertionError("Admitted reservation owns source")), patch("app.modules.performance_takes.service.resolve_practice_score_plan", side_effect=AssertionError("Replay and finalize consume persisted truth")):
+        with patch.object(service.practice_source_service, "authorize_source_by_source_id", side_effect=AssertionError("Admitted reservation owns source")), patch("app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan", side_effect=AssertionError("Replay and finalize consume persisted truth")):
             replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert replay.status_code == 200, replay.text
             assert replay.json()["data"]["resolved_tempo_plan"] == expected_tempo
@@ -4806,3 +4818,51 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
         read = client.get(f"/api/v1/performance-takes/{take['take_id']}")
         assert read.status_code == 200
         assert read.json()["data"]["tempo_plan"] == expected_tempo
+
+
+@pytest.mark.parametrize("status", ["FINALIZING", "COMPLETED"])
+def test_cancel_rejects_nonpending_reservation_without_claiming_success(test_env, status):
+    session, storage, user, _ = test_env
+    with _reservation_client(session, storage, user) as (client, service):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=_upload_intent())
+        data = response.json()["data"]
+        row = session.execute(select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.reservation_uuid == data["reservation_id"])).scalar_one()
+        if status == "COMPLETED":
+            storage.put_bytes(key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm")
+            assert client.post(f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize").status_code == 200
+        else:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            transition = lifecycle_from_row(row).begin_finalize(lease=FinalizeLease("active", "active-key", now + timedelta(minutes=15)), now=now)
+            apply_transition(row, transition, now=now)
+            session.commit()
+        cancelled = client.delete(f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}")
+        assert cancelled.status_code == 422
+        session.refresh(row)
+        assert row.status == status
+
+
+def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(test_env):
+    from app.modules.performance_takes.upload_reservation.domain import ReservationInvariantError
+    session, storage, user, _ = test_env
+    source = _create_default_source(session, storage)
+    take = _create_default_take(session, user_id=user.id, practice_source_id=source.id,
+        client_request_id="corrupt-state", take_uuid="corrupt-state", media_object_key="durable-object")
+    row = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    # Deliberate cross-row corruption: individual tuple constraints cannot enforce
+    # atomic Take creation. Cleanup must reject it instead of repairing it.
+    row.status = "RESERVED"
+    row.practice_source_id = source.id
+    row.expires_at = datetime(2020, 1, 1)
+    session.commit()
+    with pytest.raises(ReservationInvariantError, match="atomic"):
+        upload_reservation_cleanup_service.cleanup_expired_reservations(session, storage, StorageUsageService())
+    session.rollback()
+    session.refresh(row)
+    assert row.status == "RESERVED" and row.practice_source_id == source.id
+    service = _performance_take_service(session=session, storage=storage)
+    from app.modules.performance_takes.schemas import PerformanceTakeUploadMetadata
+    metadata = PerformanceTakeUploadMetadata.model_validate({key: value for key, value in _upload_intent().items()
+        if key != "client_request_id"})
+    with pytest.raises(ReservationInvariantError, match="atomic"):
+        _run_async(service._replay_reservation(AsyncSessionAdapter(session), row, metadata))
