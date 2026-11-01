@@ -87,7 +87,7 @@ STEP and Continuous controllers retain their distinct domain and pipeline owners
 They consume admitted plans, browser roots and the read-only root-health port.
 Pure runtime components consume resolved projections without full score traversal.
 Common local snapshots expose sourceId, resolved scope/tempo and current metronome
-state. Continuous natural Result7 uses the executed scope/tempo without re-resolution.
+state. Continuous natural Result8 uses the executed scope/tempo without re-resolution.
 
 ## Preparation and Score Admission
 
@@ -184,7 +184,7 @@ Resource planning defines requirements and bindings, not acquisition or Start/En
 lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
 construction.
 
-Artifact schemaVersion 1, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema7,
+Artifact schemaVersion 1, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema8,
 count-in policy, timing/recognition/resource values and acoustic identities are their
 current contracts. See the [product contract](practice-product-contract.md) and
 [Practice Source](practice-source.md).
@@ -293,3 +293,13 @@ Metronome pulse-grid policy uses a step of `4 / denominator`, with downbeats and
 indices derived from the same admitted meter and measure-duration helper. Invalid
 meter invariants fail closed. Continuous PerformanceClock owns the actual countdown;
 MetronomeRuntime consumes its live sync point. STEP has no Count-In.
+
+## Executed Source Provenance
+
+PracticeSessionPlan.sourceId is the admitted canonical durable source identity.
+Local STEP and Continuous session snapshots retain it. Natural Continuous completion
+verifies session/artifact descriptive identity and copies session.sourceId verbatim
+into Result schema8. Completion storage preserves that exact value. Review loads and
+checks the exact source by this identity; save sends only source_id as Source lineage.
+Source authorization and retention belong to [Practice Source](practice-source.md).
+Scope and tempo save inputs retain their current client-owned contract.

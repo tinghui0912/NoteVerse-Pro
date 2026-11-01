@@ -7,10 +7,10 @@ import type { PracticeInputSource } from '@/lib/practice/kernel/session';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
 
-export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 7;
+export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 8;
 export type ContinuousPerformanceResult = Readonly<{
   schemaVersion: typeof CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION;
-  localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
+  sourceId: string; localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
   scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
   inputSource: PracticeInputSource; activeElapsedMs: number;
   evaluation: CompletedContinuousEvaluation;
@@ -18,7 +18,7 @@ export type ContinuousPerformanceResult = Readonly<{
 }>;
 
 type ResultCreation = Readonly<{
-  localSessionId: string; artifact: PracticeScoreArtifact; scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
+  sourceId: string; localSessionId: string; artifact: PracticeScoreArtifact; scope: Readonly<ResolvedPracticeScope>; tempoPlan: ResolvedPracticeTempoPlan;
   inputSource: PracticeInputSource; activeElapsedMs: number; evaluation: CompletedContinuousEvaluation;
   evidenceProvenance: ContinuousEvidenceProvenance; completedAt: string;
 }>;
@@ -34,7 +34,7 @@ export function createContinuousPerformanceResult(options: ResultCreation): Cont
     }
   }
   const value: ContinuousPerformanceResult = {
-    schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, localSessionId: options.localSessionId,
+    schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, sourceId: options.sourceId, localSessionId: options.localSessionId,
     scoreId: options.artifact.scoreId, revisionId: options.artifact.revisionId, artifactId: options.artifact.artifactId,
     scope, tempoPlan: options.tempoPlan, inputSource: options.inputSource, activeElapsedMs: options.activeElapsedMs,
     evaluation: options.evaluation,
@@ -48,11 +48,11 @@ export function createContinuousPerformanceResult(options: ResultCreation): Cont
 export function assertContinuousPerformanceResult(value: unknown): asserts value is ContinuousPerformanceResult {
   assertJsonValue(value);
   const result = value as ContinuousPerformanceResult;
-  const keys = ['schemaVersion', 'localSessionId', 'scoreId', 'revisionId', 'artifactId', 'scope', 'tempoPlan', 'inputSource',
+  const keys = ['schemaVersion', 'sourceId', 'localSessionId', 'scoreId', 'revisionId', 'artifactId', 'scope', 'tempoPlan', 'inputSource',
     'activeElapsedMs', 'evaluation', 'evidenceProvenance', 'completedAt'];
   if (!result || Object.keys(result).sort().join() !== keys.sort().join() || result.schemaVersion !== CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION
     || !['MIDI', 'MICROPHONE'].includes(result.inputSource)
-    || ![result.localSessionId, result.scoreId, result.revisionId, result.artifactId].every(id => typeof id === 'string' && id.length > 0)
+    || ![result.sourceId, result.localSessionId, result.scoreId, result.revisionId, result.artifactId].every(id => typeof id === 'string' && id.length > 0)
     || !Number.isFinite(result.activeElapsedMs) || result.activeElapsedMs < 0
     || typeof result.completedAt !== 'string' || !Number.isFinite(Date.parse(result.completedAt))
     || new Date(result.completedAt).toISOString() !== result.completedAt) throw new Error('Continuous result identity is invalid.');

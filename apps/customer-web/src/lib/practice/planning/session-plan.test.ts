@@ -94,7 +94,7 @@ it('Continuous clock, evaluator, snapshot and natural Result consume executed re
     evaluation: session.completedEvaluation(), evidenceProvenance: midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID),
     recording: { status: 'NOT_RECORDED' }, completedAt: '2026-10-30T00:00:00.000Z' });
   expect(completion.result.scope).toEqual(plan.scope); expect(completion.result.tempoPlan).toEqual(plan.tempoPlan);
-  expect(completion.result.schemaVersion).toBe(7); expect(completion.result).not.toHaveProperty('sourceId');
+  expect(completion.result.schemaVersion).toBe(8); expect(completion.result.sourceId).toBe(plan.sourceId);
   expect(completion.result.evaluation.status).toBe('COMPLETE');
   if (completion.result.evaluation.status === 'COMPLETE') {
     expect(completion.result.evaluation.assignment.groups.map(group => group.groupId)).toEqual(

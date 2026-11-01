@@ -94,7 +94,7 @@ it('real Continuous completion publishes one handoff through the owner and Retry
   await act(async () => { await result.current.start(); }); const controller = started.mock.contexts[0] as ContinuousPracticeController;
   await act(async () => { r.clock.advance(60000); controller.refresh(); });
   await waitFor(() => expect(result.current.lifecycle).toBe('COMPLETED'));
-  expect(r.completion).toHaveBeenCalledOnce(); expect(continuousCompletionStore.getCompletion()?.result.schemaVersion).toBe(7);
+  expect(r.completion).toHaveBeenCalledOnce(); expect(continuousCompletionStore.getCompletion()?.result.schemaVersion).toBe(8);
   expect(continuousCompletionStore.getCompletion()?.result.scope).toEqual(result.current.executedPlan?.scope);
   await act(async () => { await result.current.retry(); }); expect(started).toHaveBeenCalledTimes(2);
   expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(r.health.listenerCount()).toBe(1); unmount();

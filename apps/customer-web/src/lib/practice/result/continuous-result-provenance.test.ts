@@ -18,7 +18,7 @@ describe('session-level evidence identity', () => {
         sourceSampleRateHz: rate, sourceAdapterIdentitySha256: sourceIdentity(rate).identitySha256 });
       const parsed: unknown = JSON.parse(JSON.stringify(result));
       expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
-      expect(result.schemaVersion).toBe(7);
+      expect(result.schemaVersion).toBe(8);
       expect(ACOUSTIC_ANALYSIS_IDENTITY.identityName).toBe(acousticCoreIdentity.identityName);
       expect(Object.isFrozen(ACOUSTIC_ANALYSIS_IDENTITY)).toBe(true);
     }

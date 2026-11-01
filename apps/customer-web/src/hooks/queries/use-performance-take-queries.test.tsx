@@ -51,9 +51,7 @@ const recordingTimebase: RecordingTimebase = {
 
 function createInput() {
   return {
-    scoreId: 'score-1',
-    revisionId: 'revision-1',
-    artifactId: 'artifact-1',
+    sourceId: 'source-1',
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
     mediaBlob: new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
@@ -71,6 +69,7 @@ function createInput() {
 
 const savedTake: PerformanceTakeRead = {
   take_id: 'take-1',
+  source_id: 'source-1',
   source_score_id: 'score-1',
   score_title_snapshot: 'Etude',
   source_revision_id: 'revision-1',
@@ -94,7 +93,7 @@ function reservation(status: PerformanceTakeUploadReservationRead['status'] = 'R
   return {
     reservation_id: 'upload-reservation-1', take_id: savedTake.take_id, status,
     metadata: {
-      source: { score_id: input.scoreId, revision_id: input.revisionId, artifact_id: input.artifactId },
+      source: { source_id: 'source-1' },
       media: { kind: input.mediaKind, byte_size: input.mediaBlob.size, mime_type: input.mimeType, duration_ms: input.durationMs },
       scope: { kind: 'FULL', start_beat: 0, terminal_beat: 4 }, tempo_plan: tempoPlan, recording_timebase: recordingTimebase,
     },

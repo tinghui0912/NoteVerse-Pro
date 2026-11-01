@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { usePracticeRevisionSource } from '@/hooks/practice/use-practice-revision-source';
+import { usePracticeSourceById } from '@/hooks/practice/use-practice-revision-source';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
@@ -107,22 +107,22 @@ export default function PracticeReviewPage({
 
   const isValidCompletion = Boolean(result && result.scoreId === id);
 
-  const selectedRevisionId = result?.revisionId ?? undefined;
-
-  const source = usePracticeRevisionSource(id, selectedRevisionId, {
+  const source = usePracticeSourceById(result?.sourceId ?? '', {
+    scoreId: result?.scoreId ?? '', revisionId: result?.revisionId ?? '', artifactId: result?.artifactId ?? '',
+  }, {
     loadNotation: true, enabled: isValidCompletion && Boolean(id),
   });
   const xmlContent = source.musicXml;
   const isLoadingXml = source.isLoading;
   const artifact = source.artifact;
-  const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, xmlAvailable: Boolean(xmlContent), scoreId: id }),
-    [artifact, result, xmlContent, id]);
+  const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, sourceId: source.sourceId, xmlAvailable: Boolean(xmlContent), scoreId: id }),
+    [artifact, result, xmlContent, id, source.sourceId]);
   const isRevisionMismatched = scoreState.status === 'IDENTITY_MISMATCH';
   const isScoreIdentityConfirmed = scoreState.status === 'READY';
   const shareVideoSession = useMemo(() => {
     if (!completion || !artifact || scoreState.status !== 'READY') return null;
-    try { return createShareVideoSessionFromCompletion(completion, artifact); } catch { return null; }
-  }, [artifact, completion, scoreState]);
+    try { return createShareVideoSessionFromCompletion(completion, { sourceId: source.sourceId!, artifact }); } catch { return null; }
+  }, [artifact, completion, scoreState, source.sourceId]);
 
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
@@ -321,9 +321,7 @@ export default function PracticeReviewPage({
 
     try {
       await saveRecordingMutation.mutateAsync({
-        scoreId: id,
-        revisionId: result.revisionId,
-        artifactId: result.artifactId,
+        sourceId: result.sourceId,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         mediaBlob: saveMedia.blob,
@@ -354,7 +352,7 @@ export default function PracticeReviewPage({
         err instanceof Error ? err.message : t('saveRecordingFailed')
       );
     }
-  }, [result, id, saveMedia, saveRecordingMutation, saveRecordingStatus, t]);
+  }, [result, saveMedia, saveRecordingMutation, saveRecordingStatus, t]);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     continuousCompletionStore.clearCompletion();

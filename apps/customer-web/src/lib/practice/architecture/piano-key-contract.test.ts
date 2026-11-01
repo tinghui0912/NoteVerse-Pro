@@ -30,7 +30,7 @@ describe('canonical Practice ownership', () => {
   });
   it('declares artifact and Result schemas at their domain owners', () => {
     expect(read('apps/customer-web/src/lib/practice/kernel/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
-    expect(read('apps/customer-web/src/lib/practice/result/continuous-performance-result.ts')).toContain('CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 7');
+    expect(read('apps/customer-web/src/lib/practice/result/continuous-performance-result.ts')).toContain('CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 8');
     expect(read('backend/app/modules/practice/source/schemas.py')).toContain('schemaVersion: Literal[1]');
 
   });

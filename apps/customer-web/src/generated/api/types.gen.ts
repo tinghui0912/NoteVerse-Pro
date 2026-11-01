@@ -3176,6 +3176,10 @@ export type PerformanceTakeRead = {
      */
     source_artifact_id: string;
     /**
+     * Source Id
+     */
+    source_id: string;
+    /**
      * Source Revision Id
      */
     source_revision_id: string;
@@ -3195,17 +3199,9 @@ export type PerformanceTakeRead = {
  */
 export type PerformanceTakeSourceIdentity = {
     /**
-     * Artifact Id
+     * Source Id
      */
-    artifact_id: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
+    source_id: string;
 };
 
 /**
@@ -6375,6 +6371,41 @@ export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResp
 };
 
 export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponse = ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses[keyof ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses];
+
+export type ReadExactSourceApiV1PracticeSourcesSourceIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Source Id
+         */
+        source_id: string;
+    };
+    query?: {
+        /**
+         * Include Notation
+         */
+        include_notation?: boolean;
+    };
+    url: '/api/v1/practice/sources/{source_id}';
+};
+
+export type ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReadExactSourceApiV1PracticeSourcesSourceIdGetError = ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors[keyof ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors];
+
+export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeSourceRead;
+};
+
+export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponse = ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses[keyof ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses];
 
 export type GetPublicScoreApiV1PublicationsSlugGetData = {
     body?: never;

@@ -78,9 +78,7 @@ class RecordingTimebase(StrictPerformanceTakeModel):
 
 
 class PerformanceTakeSourceIdentity(StrictPerformanceTakeModel):
-    score_id: str = Field(min_length=1, max_length=64)
-    revision_id: str = Field(min_length=1, max_length=64)
-    artifact_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
 
 
 class PerformanceTakeMediaMetadata(StrictPerformanceTakeModel):
@@ -134,6 +132,7 @@ class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
 
 class PerformanceTakeRead(StrictPerformanceTakeModel):
     take_id: str
+    source_id: str
     source_score_id: str
     source_revision_id: str
     source_artifact_id: str

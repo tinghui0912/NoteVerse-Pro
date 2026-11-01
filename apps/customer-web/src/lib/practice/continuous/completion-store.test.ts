@@ -12,6 +12,7 @@ describe('atomic Continuous completion handoff', () => {
     const unsubscribe = continuousCompletionStore.subscribe(completion => notifications.push(completion));
     continuousCompletionStore.setCompletion({ result, recording });
     const saved = continuousCompletionStore.getCompletion()!;
+    expect(saved.result.sourceId).toBe(result.sourceId);
     expect(notifications).toEqual([null, saved]); expect(saved.result).toEqual(result); expect(saved.recording).toEqual(recording);
     recording.timebase.activeSegments[0].perfEndMs = 2000;
     expect(saved.recording.status === 'READY' && saved.recording.timebase.activeSegments[0].perfEndMs).toBe(1000);

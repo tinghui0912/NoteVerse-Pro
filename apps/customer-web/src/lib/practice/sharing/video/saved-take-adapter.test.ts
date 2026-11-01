@@ -13,7 +13,7 @@ describe('share video session saved-take parsing', () => {
     const result = createShareVideoSessionFromSavedTake(
       take,
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -31,14 +31,14 @@ describe('share video session saved-take parsing', () => {
       createShareVideoSessionFromSavedTake(
         { ...take, media_kind: 'AUDIO' },
         new Blob(['audio']),
-        artifact
+        { sourceId: take.source_id, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'video_required' });
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, deletion_status: 'DELETING' },
         new Blob(['video']),
-        artifact
+        { sourceId: take.source_id, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'take_deleting' });
   });
@@ -48,13 +48,13 @@ describe('share video session saved-take parsing', () => {
       createShareVideoSessionFromSavedTake(
         take,
         new Blob(['video'], { type: 'video/webm' }),
-        { ...artifact, artifactId: 'different-artifact' }
+        { sourceId: take.source_id, artifact: { ...artifact, artifactId: 'different-artifact' } }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
   });
 
   it('keeps empty saved media unavailable without constructing a share session', () => {
-    expect(createShareVideoSessionFromSavedTake(take, new Blob([]), artifact)).toEqual({
+    expect(createShareVideoSessionFromSavedTake(take, new Blob([]), { sourceId: take.source_id, artifact: artifact })).toEqual({
       status: 'temporarily_unavailable',
       reason: 'empty_media',
     });
@@ -68,7 +68,7 @@ describe('share video session saved-take parsing', () => {
     expect(createShareVideoSessionFromSavedTake(
       { ...take, ...patch },
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     )).toEqual({ status: 'unsupported', reason });
   });
 
@@ -111,7 +111,7 @@ describe('share video session saved-take parsing', () => {
           scope_end_group_id: 'group-2',
         },
         new Blob(['video'], { type: 'video/webm' }),
-        artifact
+        { sourceId: take.source_id, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_mismatch' });
   });
@@ -120,7 +120,7 @@ describe('share video session saved-take parsing', () => {
     const result = createShareVideoSessionFromSavedTake(
       take,
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -134,7 +134,7 @@ describe('share video session saved-take parsing', () => {
       createShareVideoSessionFromSavedTake(
         { ...take, scope_type: 'RANGE' },
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_missing' });
   });
@@ -143,7 +143,7 @@ describe('share video session saved-take parsing', () => {
     const result = createShareVideoSessionFromSavedTake(
       { ...take, scope_type: 'FULL' },
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     );
     expect(result.status).toBe('supported');
   });
@@ -157,7 +157,7 @@ describe('share video session saved-take parsing', () => {
         scope_end_group_id: 'group-2',
       },
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -177,7 +177,7 @@ describe('share video session saved-take parsing', () => {
         scope_end_group_id: 'missing-group',
       },
       new Blob(['video'], { type: 'video/webm' }),
-      artifact
+      { sourceId: take.source_id, artifact: artifact }
     );
     expect(result).toMatchObject({
       status: 'unsupported',

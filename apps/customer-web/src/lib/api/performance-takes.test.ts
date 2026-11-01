@@ -7,7 +7,7 @@ beforeEach(() => vi.clearAllMocks());
 
 it('reserves one structured immutable save request', () => {
   const request: PerformanceTakeUploadReservationRequest = {
-    client_request_id: 'request', source: { score_id: 'score', revision_id: 'revision', artifact_id: 'artifact' },
+    client_request_id: 'request', source: { source_id: 'source-1' },
     media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm', duration_ms: 1000 },
     scope: { kind: 'FULL', start_beat: 0, terminal_beat: 4 },
     tempo_plan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }] },

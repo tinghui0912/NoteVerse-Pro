@@ -152,3 +152,33 @@ async def test_durable_request_reads_one_verified_source_value(include_notation)
         assert source.notation.musicxml == source_value.prepared_musicxml.content
     else:
         assert source.notation is None
+
+
+@pytest.mark.asyncio
+async def test_exact_source_authorization_requires_consistent_live_owner():
+    from app.core.exceptions import ValidationException
+    from app.modules.practice.source.repository import PracticeSourceResolution
+
+    source = PracticeSourceBuilder().build(
+        score_id="score-1", revision_id="revision-1", canonical_musicxml=FIXTURE.read_bytes()
+    )
+    repository = Mock()
+    reference = PracticeSourceRef(
+        303, source.source_id, source.score_id, source.revision_id, source.artifact.artifact_id
+    )
+    repository.require_ready_by_source_id = AsyncMock(
+        return_value=PracticeSourceResolution(reference, 201)
+    )
+    repository.read_by_source_id = AsyncMock(return_value=source)
+    policy = Mock()
+    policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=101, score_uuid="score-1"),
+            revision=SimpleNamespace(id=202, score_id=101, revision_uuid="revision-1"),
+        )
+    )
+    service = PracticeSourceService(repository=repository, access_policy=policy)
+    with pytest.raises(ValidationException) as caught:
+        await service.authorize_source_by_source_id(AsyncMock(), 1, source.source_id)
+    assert caught.value.details["reason"] == "practice_source_owner_mismatch"
+    repository.read_by_source_id.assert_not_awaited()

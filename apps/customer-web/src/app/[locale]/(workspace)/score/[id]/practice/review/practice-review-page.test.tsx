@@ -189,8 +189,8 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
 let currentMockArtifact = createMockArtifact();
 
 vi.mock('@/hooks/practice/use-practice-revision-source', () => ({
-  usePracticeRevisionSource: vi.fn(() => ({
-    artifact: currentMockArtifact,
+  usePracticeSourceById: vi.fn(() => ({
+    sourceId: 'source-fixture', artifact: currentMockArtifact,
     musicXml: currentMockScoreState === 'unavailable' ? null : '<score-partwise></score-partwise>',
     isLoading: currentMockScoreState === 'loading',
   })),
@@ -388,7 +388,7 @@ describe('PracticeReviewPage', () => {
 
   it('renders expired empty state when completion scoreId does not match url', () => {
     continuousCompletionStore.setCompletion({
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-OTHER',
         scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
@@ -408,7 +408,7 @@ describe('PracticeReviewPage', () => {
 
   it('renders full review report with player when valid completion has audio READY', () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -486,7 +486,7 @@ describe('PracticeReviewPage', () => {
     const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
 
     const completionWithChordsAndOutcomes: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -618,7 +618,7 @@ describe('PracticeReviewPage', () => {
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
 
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -681,7 +681,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps replay and a clear notice when completed evaluation is unavailable, without aggregate cards', () => {
-    const result = continuousResultFixture({ localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+    const result = continuousResultFixture({ sourceId: 'source-fixture', localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
       scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
@@ -697,7 +697,7 @@ describe('PracticeReviewPage', () => {
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -740,7 +740,7 @@ describe('PracticeReviewPage', () => {
 
   it('handles save performance flow with success state', async () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-save',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -780,10 +780,8 @@ describe('PracticeReviewPage', () => {
 
     expect(saveMutationMock.mutateAsync).toHaveBeenCalled();
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
-    expect(saveCall.scoreId).toBe('score-123');
-    expect(saveCall.revisionId).toBe('rev-1');
+    expect(saveCall.sourceId).toBe('source-fixture');
     expect(saveCall.scope).toMatchObject({ kind: 'FULL' });
-    expect(saveCall.artifactId).toBe('art-1');
     expect(saveCall.mediaKind).toBe('AUDIO');
     expect(saveCall.mediaBlob).toBeDefined();
     for (const key of ['result', 'evaluation', 'metrics', 'assignment', 'interpretation', 'provenance']) expect(saveCall).not.toHaveProperty(key);
@@ -807,7 +805,7 @@ describe('PracticeReviewPage', () => {
 
     const videoBlob = new Blob(['video'], { type: 'video/webm' });
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({
+      result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-video-save',
         scoreId: 'score-123',
         revisionId: 'rev-1',
@@ -1072,7 +1070,7 @@ function createVideoCompletion({
   mimeType?: string;
 } = {}): ContinuousPracticeCompletion {
   return {
-    result: continuousResultFixture({
+    result: continuousResultFixture({ sourceId: 'source-fixture',
       localSessionId: 'sess-video',
       scoreId: 'score-123',
       revisionId: 'rev-1',

@@ -94,3 +94,10 @@ it('STEP snapshots contain only current learning interaction state', () => {
     'attemptState', 'activeAttempt', 'pendingPostVerdict', 'canAcceptAttempt',
   ].sort());
 });
+
+it('retains canonical source provenance in the STEP session snapshot', () => {
+  const plan = stepSessionPlan(artifact);
+  const runtime = new StepPracticeRuntime({ ...plan, clock: new ManualClock() });
+  expect(runtime.snapshot().sourceId).toBe(plan.sourceId);
+  expect(runtime.snapshot().localSessionId).not.toBe(plan.sourceId);
+});

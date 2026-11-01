@@ -20,7 +20,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, create_engine
 
 from app.api.deps import get_current_user, get_db
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
@@ -57,12 +57,10 @@ from app.modules.performance_takes.schemas import PerformanceTakeUploadReservati
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.source.repository import PracticeSourceRepository
 from app.modules.practice.source.domain import (
-    AuthorizedPracticeSource,
     PracticeSource,
     PracticeSourceRepresentation,
     PracticeSourceArtifact,
 )
-from app.modules.score_access.policy import ScoreAction
 from app.modules.practice.score.artifact import canonical_practice_artifact_bytes
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
@@ -95,23 +93,6 @@ DEFAULT_TAKE_RECORDING_TIMEBASE = {
 }
 
 
-class _FakePracticeSourceService(PracticeSourceService):
-    async def resolve_source(self, db, score_uuid: str, user_id: int, revision_uuid: str):
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
-        )
-        reference, source = await self.repository.get_or_create(
-            db, _canonical_source(score_uuid, revision_uuid, DEFAULT_TAKE_ARTIFACT_ID),
-            live_revision_id=access.revision.id,
-        )
-        return AuthorizedPracticeSource(
-            source, reference,
-            access.score.id,
-            access.revision.id,
-            access.score.title,
-        )
-
-
 def _canonical_source(score_id, revision_id, artifact_id):
     value = _source_artifact_payload(score_id, revision_id, artifact_id)
     return PracticeSource(
@@ -129,6 +110,10 @@ def _canonical_source(score_id, revision_id, artifact_id):
             value["schemaVersion"],
         ),
     )
+
+
+def _source_id():
+    return _canonical_source("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID).source_id
 
 
 def _source_artifact_payload(score_id: str, revision_id: str, artifact_id: str):
@@ -153,13 +138,15 @@ def _source_artifact_payload(score_id: str, revision_id: str, artifact_id: str):
 
 def _performance_take_service(
     *,
+    session: Session,
     storage: LocalFileStorage,
     storage_usage_service: StorageUsageService | None = None,
 ) -> PerformanceTakeService:
+    _create_default_source(session, storage, live_revision_id=100)
     return PerformanceTakeService(
         storage=storage,
         storage_usage_service=storage_usage_service,
-        practice_source_service=_FakePracticeSourceService(storage=storage),
+        practice_source_service=PracticeSourceService(storage=storage),
     )
 
 
@@ -170,6 +157,7 @@ def _create_default_source(
     source_score_uuid: str = "score-uuid-10",
     source_revision_uuid: str = DEFAULT_TAKE_REVISION_ID,
     artifact_id: str = DEFAULT_TAKE_ARTIFACT_ID,
+    live_revision_id: int | None = None,
 ) -> PracticeSourceRecord:
     source_value = _canonical_source(source_score_uuid, source_revision_uuid, artifact_id)
     musicxml_bytes = source_value.prepared_musicxml.data
@@ -193,6 +181,7 @@ def _create_default_source(
     )
     storage.put_bytes(key=artifact_key, content=artifact_bytes, content_type="application/json")
     source = PracticeSourceRecord(
+        live_revision_id=live_revision_id,
         source_id=source_id,
         source_score_uuid=source_score_uuid,
         source_revision_uuid=source_revision_uuid,
@@ -222,15 +211,14 @@ def _create_default_take(
     media_object_key: str,
     linked_score_id: int | None = 10,
 ) -> PerformanceTake:
-    source = session.get(PracticeSourceRecord, practice_source_id)
     reservation = PerformanceTakeUploadReservation(
         user_id=user_id,
         client_request_id=client_request_id,
         take_uuid=take_uuid,
-        score_uuid=source.source_score_uuid,
+
         score_title="Moonlight Sonata",
-        revision_uuid=source.source_revision_uuid,
-        artifact_id=source.artifact_id,
+
+
         scope_type="FULL",
         scope_start_beat=0,
         scope_terminal_beat=4,
@@ -386,11 +374,7 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
     request = PerformanceTakeUploadReservationRequest.model_validate(
         _reservation_request_payload(
             {
-                "source": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-                },
+                "source": {"source_id": _source_id()},
                 "media": {
                     "kind": "AUDIO",
                     "byte_size": len(VALID_WEBM_BYTES),
@@ -480,11 +464,7 @@ def _reservation_request_payload(payload):
     if not isinstance(payload, dict):
         return payload
     value = dict(payload)
-    value["source"] = {
-        "revision_id": DEFAULT_TAKE_REVISION_ID,
-        "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-        **value.get("source", {}),
-    }
+    value.setdefault("source", {"source_id": _source_id()})
     value["media"] = {"kind": "AUDIO", **value.get("media", {})}
     value["scope"] = {"kind": "FULL", **value.get("scope", {})}
     value.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
@@ -705,7 +685,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -726,11 +706,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         media_size = len(media_content)
 
         auth_req = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": "revision-uuid-100",
-                "artifact_id": "art-1",
-            },
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": media_size, "mime_type": "audio/webm", "duration_ms": 15000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 16.0},
             "client_request_id": "req-001",
@@ -759,6 +735,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         staging_object_key = _staging_key(session, auth_data["reservation_id"])
         assert take_id
         assert reservation_id
+        assert auth_data["metadata"]["source"] == {"source_id": _source_id()}
         assert upload_url.startswith("https://oss.example.com/")
         assert staging_object_key.startswith("staging/performance-takes/")
 
@@ -789,6 +766,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
         assert take_data["take_id"] == take_id
+        assert take_data["source_id"] == _source_id()
         assert take_data["source_score_id"] == "score-uuid-10"
         assert take_data["source_revision_id"] == "revision-uuid-100"
         assert take_data["score_title_snapshot"] == "Moonlight Sonata"
@@ -832,7 +810,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert read.call_count == 1
         assert res_source.status_code == 200, res_source.text
         source_data = res_source.json()["data"]
-        assert source_data["source_id"] == source.source_id
+        assert source_data["source_id"] == take_data["source_id"] == source.source_id
         assert "<score-partwise" in source_data["notation"]["musicxml"]
         assert source_data["artifact"]["scoreId"] == "score-uuid-10"
         assert source_data["artifact"]["revisionId"] == "revision-uuid-100"
@@ -997,7 +975,7 @@ def test_score_access_and_validation(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1015,11 +993,7 @@ def test_score_access_and_validation(test_env):
     try:
         # Invalid mime type rejected
         req_bad_mime = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": 1024, "mime_type": "video/mp4", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-bad-mime",
@@ -1031,7 +1005,7 @@ def test_score_access_and_validation(test_env):
 
         # Invalid beat scope (start >= terminal)
         req_bad_scope = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 4.0, "terminal_beat": 4.0},
             "client_request_id": "req-bad-scope",
@@ -1039,13 +1013,9 @@ def test_score_access_and_validation(test_env):
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_bad_scope)
         assert res.status_code == 422
 
-        # Nonexistent score UUID returns 404
+        # A missing exact source fails closed
         req_bad_score = {
-            "source": {
-                "score_id": "nonexistent-score-uuid",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": "nonexistent-source"},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-bad-score",
@@ -1053,75 +1023,32 @@ def test_score_access_and_validation(test_env):
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_bad_score)
-        assert res.status_code == 404
-
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_unrelated_revision_rejected(test_env):
-    session, storage, user_1, user_2 = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-
-    try:
-        # Create score 20 with revision 200
-        score_2 = Score(
-            id=20,
-            score_uuid="score-uuid-20",
-            owner_user_id=1,
-            title="Fur Elise",
-            deletion_status=ScoreDeletionStatus.ACTIVE,
-        )
-        session.add(score_2)
-        session.flush()
-
-        revision_2 = ScoreRevision(
-            id=200,
-            revision_uuid="revision-uuid-200",
-            score_id=20,
-            revision_number=1,
-            content_hash="hash200",
-            origin=RevisionOrigin.OMR,
-            created_by_user_id=1,
-        )
-        session.add(revision_2)
-        session.flush()
-        score_2.head_revision_id = 200
-        session.commit()
-
-        # Try to reserve with score-uuid-10 and unrelated revision-uuid-200
-        req_unrelated = {
-            "source": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-200"},
-            "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
-            "client_request_id": "req-unrelated-rev",
-        }
-        res = client.post("/api/v1/performance-takes/upload-reservations", json=req_unrelated)
         assert res.status_code == 422
+
     finally:
         app.dependency_overrides.clear()
+
+
+def test_unowned_source_cannot_start_a_new_reservation(test_env):
+    session, storage, user, _ = test_env
+    service = _performance_take_service(session=session, storage=storage)
+    source = session.execute(select(PracticeSourceRecord)).scalar_one()
+    source.live_revision_id = None
+    session.commit()
+    with pytest.raises(ResourceNotFoundException):
+        _run_async(service.reserve_upload(AsyncSessionAdapter(session), user.id,
+            PerformanceTakeUploadReservationRequest.model_validate(_reservation_request_payload({
+                "source": {"source_id": source.source_id}, "client_request_id": "unowned-source",
+                "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
+                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
+            }))))
 
 
 def test_cross_user_score_permission(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1161,14 +1088,11 @@ def test_cross_user_score_permission(test_env):
         score_user2.head_revision_id = 300
         session.commit()
 
-        # User 1 cannot reserve upload on User 2's private score
+        private_source = _create_default_source(session, storage, source_score_uuid="score-uuid-user2", source_revision_uuid="revision-uuid-user2", live_revision_id=300)
+        # User 1 cannot reserve upload on User 2's private source
         app.dependency_overrides[get_current_user] = lambda: user_1
         req_unauth = {
-            "source": {
-                "score_id": "score-uuid-user2",
-                "revision_id": "revision-uuid-user2",
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": private_source.source_id},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-cross-user-auth",
@@ -1183,7 +1107,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
     lifecycle_svc = ScoreLifecycleService(storage=storage)
@@ -1204,7 +1128,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-100"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 10000},
             "scope": {"start_beat": 0.0, "terminal_beat": 8.0},
             "client_request_id": "req-real-delete-01",
@@ -1348,7 +1272,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1367,7 +1291,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-idemp-del",
@@ -1428,7 +1352,7 @@ def test_quota_rejection(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1449,7 +1373,7 @@ def test_quota_rejection(test_env):
         session.commit()
         excessive_size = 2 * 1024 * 1024
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": excessive_size, "mime_type": "audio/webm", "duration_ms": 60000},
             "scope": {"start_beat": 0.0, "terminal_beat": 16.0},
             "client_request_id": "req-huge",
@@ -1465,7 +1389,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1482,11 +1406,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
 
     try:
         auth_req = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": 5000, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-cancel-01",
@@ -1566,7 +1486,7 @@ def test_pagination(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1587,7 +1507,7 @@ def test_pagination(test_env):
             content = VALID_WEBM_BYTES + f"-take-{i}".encode()
             size = len(content)
             auth_req = {
-                "source": {"score_id": "score-uuid-10"},
+                "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
                 "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
                 "client_request_id": f"req-page-{i}",
@@ -1634,7 +1554,7 @@ def test_audio_container_magic_bytes_validation(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1653,7 +1573,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         # 1. Invalid container header rejected with 422 media_mime_type
         bad_content = b"INVALID_MAGIC_BYTES_1234567890"
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {
                 "byte_size": len(bad_content),
                 "mime_type": "audio/webm",
@@ -1683,7 +1603,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         # 2. Valid OGG container: b"OggS..."
         ogg_content = b"OggS" + b"\x00" * 40
         auth_ogg = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": len(ogg_content), "mime_type": "audio/ogg", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-ogg-magic",
@@ -1705,7 +1625,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         # 3. Valid WAV container: b"RIFF....WAVE..."
         wav_content = b"RIFF" + b"\x24\x00\x00\x00" + b"WAVEfmt " + b"\x00" * 32
         auth_wav = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": len(wav_content), "mime_type": "audio/wav", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-wav-magic",
@@ -1732,7 +1652,7 @@ def test_finalize_safe_retry_idempotency(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1751,7 +1671,7 @@ def test_finalize_safe_retry_idempotency(test_env):
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-safe-retry-01",
@@ -1807,7 +1727,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1840,7 +1760,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     try:
         content = VALID_WEBM_BYTES
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {
                 "kind": "VIDEO",
                 "byte_size": len(content),
@@ -1889,7 +1809,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -1921,11 +1841,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             "segments": [{"startBeat": 0, "bpm": 96, "source": "MUSICXML"}],
         }
         request = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": "revision-uuid-100",
-                "artifact_id": "art-1",
-            },
+            "source": {"source_id": _source_id()},
             "media": {
                 "kind": "VIDEO",
                 "byte_size": len(content),
@@ -1999,7 +1915,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
     mutating_storage = MutatingCopyStorage(storage)
     mutating_storage.upload_url = storage.upload_url  # type: ignore[assignment]
     take_svc = _performance_take_service(
-        storage=mutating_storage,
+        session=session, storage=mutating_storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2016,7 +1932,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
 
     try:
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {
                 "byte_size": len(first_content),
                 "mime_type": "audio/webm",
@@ -2058,7 +1974,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2076,7 +1992,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     try:
         content = b"\x1a\x45\xdf\xa3" + b"fake-browser-video-with-audio"
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {
                 "kind": "VIDEO",
                 "byte_size": len(content),
@@ -2139,12 +2055,12 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         practice_source_id=source.id,
         client_request_id="req-finalizing-reserve",
         take_uuid="take-finalizing-reserve",
-        score_id=10,
-        score_uuid="score-uuid-10",
+        linked_score_id=10,
+
         score_title="Moonlight Sonata",
-        revision_id=100,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -2169,7 +2085,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     session.add(auth)
     session.commit()
 
-    take_svc = _performance_take_service(storage=_storage)
+    take_svc = _performance_take_service(session=session, storage=_storage)
     response = _run_async(
         take_svc.reserve_upload(
             AsyncSessionAdapter(session),
@@ -2177,7 +2093,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
             PerformanceTakeUploadReservationRequest.model_validate(
                 _reservation_request_payload(
                     {
-                        "source": {"score_id": "score-uuid-10"},
+                        "source": {"source_id": _source_id()},
                         "client_request_id": "req-finalizing-reserve",
                         "media": {
                             "byte_size": len(VALID_WEBM_BYTES),
@@ -2200,7 +2116,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2219,11 +2135,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-abandoned-01",
@@ -2291,7 +2203,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2311,7 +2223,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
         res_auth = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
-                "source": {"score_id": "score-uuid-10"},
+                "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
                 "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
                 "client_request_id": "req-expired-delete-retry",
@@ -2374,7 +2286,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2395,7 +2307,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         res_auth = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
-                "source": {"score_id": "score-uuid-10"},
+                "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
                 "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
                 "client_request_id": "req-late-put-cleanup",
@@ -2452,7 +2364,7 @@ def test_score_deleted_between_auth_and_finalize_uses_durable_source(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2471,7 +2383,7 @@ def test_score_deleted_between_auth_and_finalize_uses_durable_source(test_env):
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-100"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-score-del-midway",
@@ -2536,7 +2448,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2555,11 +2467,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-del-retry",
@@ -2746,99 +2654,6 @@ def test_source_gc_marks_snapshot_deleting_until_completed(test_env):
     assert source.status == PracticeSourceStatus.DELETING.value
 
 
-def test_source_creation_storage_failure_has_durable_cleanup(
-    test_env,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session, storage, user_1, _ = test_env
-
-    class ArtifactWriteFailsStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
-
-        def upload_url(
-            self,
-            key: str,
-            *,
-            content_type: str,
-            checksum_sha256: str = "",
-        ) -> DirectUploadTarget:
-            return DirectUploadTarget(
-                upload_url=f"https://oss.example.com/{key}",
-                upload_method="PUT",
-                upload_headers={"content-type": content_type},
-            )
-
-        def put_bytes(self, *, key: str, content: bytes, content_type: str) -> None:
-            if key.endswith("/artifact.json"):
-                raise ConnectionError("artifact source write failed")
-            super().put_bytes(key=key, content=content, content_type=content_type)
-
-    failing_storage = ArtifactWriteFailsStorage(storage)
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        storage=failing_storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: failing_storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-    try:
-        res_auth = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                "source": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-                },
-                "media": {
-                    "byte_size": len(VALID_WEBM_BYTES),
-                    "mime_type": "audio/webm",
-                    "duration_ms": 5000,
-                },
-                "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-source-create-storage-fail",
-                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
-                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-            },
-        )
-        assert res_auth.status_code >= 400
-
-        source = session.execute(select(PracticeSourceRecord)).scalar_one()
-        assert source.status == PracticeSourceStatus.DELETING.value
-        assert source.live_revision_id is None
-        assert storage.exists(source.prepared_musicxml_object_key)
-        assert not storage.exists(source.artifact_object_key)
-        outbox = session.execute(
-            select(PracticeSourceDeleteOutbox).where(
-                PracticeSourceDeleteOutbox.practice_source_id == source.id
-            )
-        ).scalar_one()
-        assert outbox.status == PracticeSourceDeleteOutboxStatus.PENDING
-
-        result = _run_source_deletion(
-            monkeypatch,
-            session,
-            storage,
-            outbox.outbox_uuid,
-        )
-        assert result["status"] == "deleted"
-        assert session.get(PracticeSourceRecord, source.id) is None
-        assert not storage.exists(source.prepared_musicxml_object_key)
-        assert not storage.exists(source.artifact_object_key)
-    finally:
-        app.dependency_overrides.clear()
-
-
 def test_stale_creating_snapshot_recovery_cleans_partial_objects(
     test_env,
     monkeypatch: pytest.MonkeyPatch,
@@ -2905,7 +2720,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -2923,11 +2738,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
         first_response = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
-                "source": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-                },
+                "source": {"source_id": _source_id()},
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
@@ -2954,11 +2765,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
         response = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
-                "source": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-                },
+                "source": {"source_id": _source_id()},
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
@@ -2981,91 +2788,6 @@ def test_reservation_rejects_source_pending_gc(test_env):
         app.dependency_overrides.clear()
 
 
-def test_reservation_creator_cannot_ready_source_after_stale_recovery(test_env):
-    session, storage, user_1, _ = test_env
-    storage_usage_svc = StorageUsageService()
-    original_put_bytes = storage.put_bytes
-    put_count = 0
-
-    def put_bytes_with_stale_recovery(*, key: str, content: bytes, content_type: str | None = None):
-        nonlocal put_count
-        stored = original_put_bytes(key=key, content=content, content_type=content_type)
-        if key.startswith("practice-sources/"):
-            put_count += 1
-        if put_count == 2:
-            source = session.execute(select(PracticeSourceRecord)).scalar_one()
-            source.status = PracticeSourceStatus.DELETING.value
-            source.creation_expires_at = None
-            session.add(
-                PracticeSourceDeleteOutbox(
-                    practice_source_id=source.id,
-                    source_id=source.source_id,
-                    storage_backend=storage.backend_name,
-                    prepared_musicxml_object_key=source.prepared_musicxml_object_key,
-                    artifact_object_key=source.artifact_object_key,
-                    status=PracticeSourceDeleteOutboxStatus.PENDING.value,
-                    max_attempts=5,
-                )
-            )
-            session.commit()
-        return stored
-
-    storage.put_bytes = put_bytes_with_stale_recovery  # type: ignore[assignment]
-    take_svc = _performance_take_service(
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-    try:
-        response = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                "source": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-                },
-                "media": {
-                    "byte_size": len(VALID_WEBM_BYTES),
-                    "mime_type": "audio/webm",
-                    "duration_ms": 5000,
-                },
-                "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-                "client_request_id": "req-source-stale-creator",
-                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
-                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-            },
-        )
-        assert response.status_code >= 400
-        source = session.execute(select(PracticeSourceRecord)).scalar_one()
-        assert source.status == PracticeSourceStatus.DELETING.value
-        assert source.creation_expires_at is None
-        assert (
-            session.execute(
-                select(PerformanceTakeUploadReservation).where(
-                    PerformanceTakeUploadReservation.client_request_id
-                    == "req-source-stale-creator"
-                )
-            ).scalar_one_or_none()
-            is None
-        )
-        outboxes = session.execute(select(PracticeSourceDeleteOutbox)).scalars().all()
-        assert len(outboxes) == 1
-    finally:
-        storage.put_bytes = original_put_bytes  # type: ignore[assignment]
-        app.dependency_overrides.clear()
-
-
 def test_source_gc_does_not_restore_ready_if_reference_appears_before_claim(test_env):
     session, storage, user_1, _ = test_env
     source = _create_default_source(session, storage)
@@ -3083,12 +2805,12 @@ def test_source_gc_does_not_restore_ready_if_reference_appears_before_claim(test
         practice_source_id=practice_source_id,
         client_request_id="req-source-gc-race",
         take_uuid="take-source-gc-race",
-        score_id=None,
-        score_uuid="score-uuid-10",
+        linked_score_id=None,
+
         score_title="Moonlight Sonata",
-        revision_id=None,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -3149,12 +2871,12 @@ def test_source_worker_preserves_objects_if_reference_appears_after_claim(
             practice_source_id=source.id,
             client_request_id="req-source-active-ref-after-delete",
             take_uuid="take-source-active-ref-after-delete",
-            score_id=None,
-            score_uuid="score-uuid-10",
+            linked_score_id=None,
+
             score_title="Moonlight Sonata",
-            revision_id=None,
-            revision_uuid=DEFAULT_TAKE_REVISION_ID,
-            artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
             scope_type="FULL",
             scope_start_beat=0.0,
             scope_terminal_beat=4.0,
@@ -3286,12 +3008,12 @@ def test_source_gc_waits_for_active_reservation_after_last_take_deleted(test_env
         practice_source_id=source.id,
         client_request_id="gc-active-auth",
         take_uuid="take-gc-active-auth-pending",
-        score_id=None,
-        score_uuid="score-uuid-10",
+        linked_score_id=None,
+
         score_title="Moonlight Sonata",
-        revision_id=None,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -3351,7 +3073,7 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -3367,11 +3089,7 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
     client = PerformanceTakeTestClient(app)
     try:
         base_request = {
-            "source": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
-            },
+            "source": {"source_id": _source_id()},
             "media": {
                 "byte_size": len(VALID_WEBM_BYTES),
                 "mime_type": "audio/webm",
@@ -3505,7 +3223,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -3535,7 +3253,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
         res_auth = client.post(
             "/api/v1/performance-takes/upload-reservations",
             json={
-                "source": {"score_id": "score-uuid-10"},
+                "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
                 "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
                 "client_request_id": "req-expired-no-lock-delete",
@@ -3588,12 +3306,12 @@ def _expired_cleanup_auth(
         practice_source_id=practice_source_id,
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
-        score_id=10,
-        score_uuid="score-uuid-10",
+        linked_score_id=10,
+
         score_title="Cleanup test",
-        revision_id=100,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -3734,7 +3452,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
 
 def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_env):
     session, _storage, user_1, _ = test_env
-    take_svc = _performance_take_service(storage=_storage)
+    take_svc = _performance_take_service(session=session, storage=_storage)
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
     source = _create_default_source(session, _storage)
     auth = PerformanceTakeUploadReservation(
@@ -3742,12 +3460,12 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         practice_source_id=source.id,
         client_request_id="lease-expired-before-copy",
         take_uuid="take-lease-expired-before-copy",
-        score_id=10,
-        score_uuid="score-uuid-10",
+        linked_score_id=10,
+
         score_title="Lease test",
-        revision_id=100,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -4090,12 +3808,12 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         practice_source_id=source.id,
         client_request_id="finalizing-expired-retry",
         take_uuid="finalizing-expired",
-        score_id=10,
-        score_uuid="score-uuid-10",
+        linked_score_id=10,
+
         score_title="Finalizing retry",
-        revision_id=100,
-        revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+
+
+
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
@@ -4140,7 +3858,7 @@ def test_worker_handles_already_absent_object_idempotently(
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
-        storage=storage,
+        session=session, storage=storage,
         storage_usage_service=storage_usage_svc,
     )
 
@@ -4159,7 +3877,7 @@ def test_worker_handles_already_absent_object_idempotently(
         content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
             "client_request_id": "req-oss-idemp",
@@ -4518,7 +4236,7 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
 
 @contextmanager
 def _reservation_client(session, storage, user):
-    service = _performance_take_service(storage=storage)
+    service = _performance_take_service(session=session, storage=storage)
 
     async def db():
         yield AsyncSessionAdapter(session)
@@ -4536,7 +4254,7 @@ def _upload_intent():
     return _reservation_request_payload(
         {
             "client_request_id": "immutable-video",
-            "source": {"score_id": "score-uuid-10"},
+            "source": {"source_id": _source_id()},
             "media": {
                 "kind": "VIDEO",
                 "byte_size": len(VALID_WEBM_BYTES),
@@ -4618,8 +4336,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
 @pytest.mark.parametrize(
     "part, field, changed",
     [
-        ("source", "revision_id", "another-revision"),
-        ("source", "artifact_id", "another-artifact"),
+        ("source", "source_id", "another-source"),
         ("media", "byte_size", len(VALID_WEBM_BYTES) + 1),
         ("scope", "end_group_id", "another-group"),
         ("tempo_plan", "selection", {"mode": "SCORE"}),
@@ -4778,7 +4495,7 @@ def test_live_and_saved_consumers_share_verified_durable_source(test_env):
         assert with_notation.json()["data"]["notation"]["musicxml"] == expected.prepared_musicxml.content
         assert len(session.execute(select(PracticeSourceRecord)).scalars().all()) == 1
         reserved = client.post("/api/v1/performance-takes/upload-reservations", json={
-            "source": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-100", "artifact_id": row.artifact_id},
+            "source": {"source_id": row.source_id},
             "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
             "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
             "client_request_id": "durable-source-reservation",
@@ -4926,3 +4643,96 @@ def test_source_deletion_dispatch_publishes_registered_durable_operation(test_en
     assert send.call_args.kwargs["task_name"] == "app.worker.tasks.practice_source_deletion_task"
     assert send.call_args.kwargs["operation_kind"] == "practice_source_deletion"
     assert send.call_args.kwargs["task_kwargs"] == {"outbox_uuid": outbox.outbox_uuid}
+
+
+
+def test_exact_source_authorization_preserves_admitted_representation_identity(test_env):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+    from app.modules.practice.source.router import get_practice_source_service
+    from app.modules.practice.source.builder import PracticeSourceBuilder
+
+    session, storage, user, other_user = test_env
+    canonical = (Path(__file__).parent / "fixtures/musicxml/canonical-practice-score.musicxml").read_bytes()
+    storage.put_bytes(key="exact-canonical.xml", content=canonical, content_type="application/xml")
+    assets = Mock()
+    assets.canonical_source = AsyncMock(return_value=SimpleNamespace(storage_key="exact-canonical.xml"))
+    source_service = PracticeSourceService(storage=storage, asset_repository=assets)
+    take_service = PerformanceTakeService(storage=storage, practice_source_service=source_service)
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+    app.dependency_overrides.update({get_db: override_db, get_current_user: lambda: user,
+        get_practice_source_service: lambda: source_service, get_performance_take_service: lambda: take_service})
+    client = PerformanceTakeTestClient(app)
+    try:
+        admitted = client.get("/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/source?include_notation=true")
+        assert admitted.status_code == 200
+        payload = admitted.json()["data"]
+        a = session.execute(select(PracticeSourceRecord)).scalar_one()
+        exact_url = f"/api/v1/practice/sources/{a.source_id}?include_notation=true"
+        candidate = PracticeSourceBuilder().build(score_id="score-uuid-10", revision_id="revision-uuid-100", canonical_musicxml=canonical)
+        different = replace(candidate, prepared_musicxml=replace(candidate.prepared_musicxml, data=candidate.prepared_musicxml.data + b"\n"))
+        ref_b, _ = _run_async(source_service.repository.get_or_create(AsyncSessionAdapter(session), different, live_revision_id=100))
+        assert ref_b.source_id != a.source_id
+        assert ref_b.artifact_id == a.artifact_id
+        with patch.object(source_service.builder, "build", side_effect=AssertionError("Exact reads do not compile")), patch.object(source_service, "resolve_source", side_effect=AssertionError("Exact reads do not resolve revisions")):
+            exact = client.get(exact_url)
+            assert exact.status_code == 200, exact.text
+            assert exact.json()["data"] == payload
+            reserved = client.post("/api/v1/performance-takes/upload-reservations", json={
+                "source": {"source_id": a.source_id}, "client_request_id": "exact-A",
+                "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
+                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+            assert reserved.status_code == 200, reserved.text
+            request_id = reserved.json()["data"]["reservation_id"]
+            reservation = session.execute(select(PerformanceTakeUploadReservation)).scalar_one()
+            assert reservation.practice_source_id == a.id
+            assert reserved.json()["data"]["metadata"]["source"] == {"source_id": a.source_id}
+            reservation_b = client.post("/api/v1/performance-takes/upload-reservations", json={
+                "source": {"source_id": ref_b.source_id}, "client_request_id": "exact-B",
+                "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
+                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+            assert reservation_b.status_code == 200
+            assert session.execute(select(PerformanceTakeUploadReservation.practice_source_id).where(PerformanceTakeUploadReservation.client_request_id == "exact-B")).scalar_one() == ref_b.id
+            staging = _staging_key(session, request_id)
+            storage.put_bytes(key=staging, content=VALID_WEBM_BYTES, content_type="audio/webm")
+            finalized = client.post(f"/api/v1/performance-takes/upload-reservations/{request_id}/finalize")
+            assert finalized.status_code == 200, finalized.text
+            take_payload = finalized.json()["data"]
+            assert take_payload["source_id"] == a.source_id
+            take = session.execute(select(PerformanceTake)).scalar_one()
+            assert take.practice_source_id == a.id
+            assert client.get(f"/api/v1/performance-takes/{take.take_uuid}/practice-source?include_notation=true").json()["data"] == payload
+        # Current compiler output does not choose an exact-source read.
+        with patch.object(source_service.builder, "build", return_value=different) as build:
+            assert client.get(exact_url).json()["data"] == payload
+            build.assert_not_called()
+        assert client.get("/api/v1/practice/sources/nonexistent").status_code >= 400
+        app.dependency_overrides[get_current_user] = lambda: other_user
+        assert client.get(exact_url).status_code == 403
+        app.dependency_overrides[get_current_user] = lambda: user
+        a.status = "DELETING"
+        session.commit()
+        assert client.get(exact_url).status_code >= 400
+        assert client.post("/api/v1/performance-takes/upload-reservations", json={
+            "source": {"source_id": a.source_id}, "client_request_id": "not-ready",
+            "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}}).status_code >= 400
+        a.status = "READY"
+        score = session.get(Score, 10)
+        score.head_revision_id = None
+        session.flush()
+        session.delete(session.get(ScoreRevision, 100))
+        session.commit()
+        session.refresh(a)
+        assert a.live_revision_id is None
+        assert client.get(exact_url).status_code == 404
+        assert client.get(f"/api/v1/performance-takes/{take.take_uuid}/practice-source?include_notation=true").json()["data"] == payload
+        denied_save = client.post("/api/v1/performance-takes/upload-reservations", json={
+            "source": {"source_id": a.source_id}, "client_request_id": "deleted-live-owner",
+            "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+        assert denied_save.status_code == 404
+    finally:
+        app.dependency_overrides.clear()

@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 from threading import Event
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select, func
@@ -48,30 +46,17 @@ async def setup_source(postgres_source):
             )
         )
         await db.commit()
-        reference, verified_source = await repository.get_or_create(db, bundle, live_revision_id=repository.test_revision_id)
-    source = PracticeSourceService(repository=repository, storage=storage)
-    source.resolve_source = AsyncMock(
-        return_value=SimpleNamespace(
-            source_ref=reference,
-            source=verified_source,
-            score_db_id=1,
-            revision_db_id=repository.test_revision_id,
-            score_id=bundle.score_id,
-            revision_id=bundle.revision_id,
-            score_title="Reserved score",
+        reference, verified_source = await repository.get_or_create(
+            db, bundle, live_revision_id=repository.test_revision_id
         )
-    )
+    source = PracticeSourceService(repository=repository, storage=storage)
     storage.upload_url = lambda **kwargs: DirectUploadTarget(
         upload_url="https://upload.example/target", upload_method="PUT", upload_headers={}
     )
     request = PerformanceTakeUploadReservationRequest.model_validate(
         {
             "client_request_id": "same-request",
-            "source": {
-                "score_id": bundle.score_id,
-                "revision_id": bundle.revision_id,
-                "artifact_id": bundle.artifact.artifact_id,
-            },
+            "source": {"source_id": bundle.source_id},
             "media": {
                 "kind": "AUDIO",
                 "mime_type": "audio/webm",
@@ -198,3 +183,68 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             assert candidates[0] != take.media_object_key
         account = await db.get(StorageUsageAccount, 1)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+
+
+@pytest.mark.asyncio
+async def test_exact_source_admission_lock_fences_owner_release_until_reservation_commit(
+    postgres_source,
+):
+    from sqlalchemy import delete, text
+    from app.db.models import ScoreRevision, PracticeSourceRecord
+    from app.modules.practice.source.retention import practice_source_delete_service
+
+    sessions, source, storage, request = await setup_source(postgres_source)
+    service = PerformanceTakeService(storage=storage, practice_source_service=source)
+    admitted, release = asyncio.Event(), asyncio.Event()
+    authorize = source.authorize_source_by_source_id
+
+    async def held_authorize(*args, **kwargs):
+        value = await authorize(*args, **kwargs)
+        admitted.set()
+        await asyncio.wait_for(release.wait(), 15)
+        return value
+
+    source.authorize_source_by_source_id = held_authorize
+    async with sessions() as a, sessions() as b, sessions() as observer:
+        pid = await b.scalar(text("SELECT pg_backend_pid()"))
+        reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
+        await asyncio.wait_for(admitted.wait(), 15)
+        deletion = asyncio.create_task(
+            b.execute(
+                delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id)
+            )
+        )
+        try:
+
+            async def wait_for_row_lock():
+                while (
+                    await observer.scalar(
+                        text("SELECT wait_event_type FROM pg_stat_activity WHERE pid = :pid"),
+                        {"pid": pid},
+                    )
+                    != "Lock"
+                ):
+                    await observer.commit()
+                    await asyncio.sleep(0.01)
+
+            await asyncio.wait_for(wait_for_row_lock(), 15)
+            assert not deletion.done()
+        finally:
+            release.set()
+        result = await asyncio.wait_for(reserve, 15)
+        await asyncio.wait_for(deletion, 15)
+        await b.commit()
+        row = (await b.execute(select(PracticeSourceRecord))).scalar_one()
+        assert row.live_revision_id is None
+        reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
+        assert reservation.practice_source_id == row.id
+        assert result.metadata.source.source_id == row.source_id == request.source.source_id
+        assert (
+            await b.run_sync(
+                lambda db: practice_source_delete_service.recover_unowned_ready(
+                    db, storage_backend=storage.backend_name
+                )
+            )
+            == []
+        )
+        assert row.status == "READY"

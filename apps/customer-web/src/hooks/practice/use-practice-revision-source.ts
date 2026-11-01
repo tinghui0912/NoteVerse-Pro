@@ -9,7 +9,9 @@ import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { queryKeys } from '@/lib/query-client';
 import { parsePracticeScoreArtifact, PracticeScoreContractError } from '@/lib/practice/kernel/artifact';
 
-type SourceIdentity = { scoreId: string; revisionId: string; artifactId?: string };
+type SourceIdentity =
+  | { kind: 'REVISION'; scoreId: string; revisionId: string }
+  | { kind: 'EXACT'; sourceId: string; scoreId: string; revisionId: string; artifactId: string };
 
 
 /** Maps one source envelope into the runtime artifact and optional presentation notation. */
@@ -17,9 +19,12 @@ function parseSource(value: PracticeSourceRead | undefined, identity: SourceIden
   if (!value || typeof value.source_id !== 'string' || !value.source_id) {
     throw new PracticeScoreContractError('Practice source identity missing');
   }
+  if (identity.kind === 'EXACT' && (typeof identity.sourceId !== 'string' || !identity.sourceId || value.source_id !== identity.sourceId)) {
+    throw new PracticeScoreContractError('Practice source identity mismatch');
+  }
   const artifact = parsePracticeScoreArtifact(value.artifact);
   if (artifact.scoreId !== identity.scoreId || artifact.revisionId !== identity.revisionId
-    || (identity.artifactId !== undefined && artifact.artifactId !== identity.artifactId)) {
+    || (identity.kind === 'EXACT' && artifact.artifactId !== identity.artifactId)) {
     throw new PracticeScoreContractError('Practice source artifact identity mismatch');
   }
   const notation = value.notation;
@@ -76,18 +81,27 @@ export function usePracticeRevisionSource(
 ) {
   const revision = revisionId ?? '';
   return useSourceQuery({
-    identity: { scoreId, revisionId: revision },
+    identity: { kind: 'REVISION', scoreId, revisionId: revision },
     enabled: enabled && Boolean(scoreId && revision), loadNotation,
     queryKey: queryKeys.practice.source(scoreId, revision, loadNotation),
     request: signal => practiceApi.getPracticeSource(scoreId, revision, loadNotation, signal),
   });
 }
 
+export function usePracticeSourceById(sourceId: string, identity: { scoreId: string; revisionId: string; artifactId: string },
+  { loadNotation, enabled = true }: { loadNotation: boolean; enabled?: boolean }) {
+  return useSourceQuery({
+    identity: { ...identity, kind: 'EXACT', sourceId }, enabled: enabled && Boolean(sourceId), loadNotation,
+    queryKey: queryKeys.practice.sourceById(sourceId, loadNotation),
+    request: signal => practiceApi.getPracticeSourceById(sourceId, loadNotation, signal),
+  });
+}
+
 export function usePerformanceTakePracticeSource(takeId: string, identity: {
-  scoreId: string; revisionId: string; artifactId: string;
+  sourceId: string; scoreId: string; revisionId: string; artifactId: string;
 }, { loadNotation, enabled = true }: { loadNotation: boolean; enabled?: boolean }) {
   return useSourceQuery({
-    identity, enabled: enabled && Boolean(takeId), loadNotation,
+    identity: { ...identity, kind: 'EXACT' }, enabled: enabled && Boolean(takeId), loadNotation,
     queryKey: queryKeys.performanceTakes.practiceSource(takeId, loadNotation),
     request: signal => performanceTakesApi.getPracticeSource(takeId, loadNotation, signal),
   });

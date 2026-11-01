@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import dataclass
 from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -28,6 +29,12 @@ from .schemas import PracticeScoreArtifactRead
 from .retention import practice_source_delete_service
 
 SOURCE_CREATION_LEASE_SECONDS = 15 * 60
+
+
+@dataclass(frozen=True)
+class PracticeSourceResolution:
+    source_ref: PracticeSourceRef
+    live_revision_id: int | None
 
 
 class PracticeSourceRepository:
@@ -237,6 +244,38 @@ class PracticeSourceRepository:
             .all()
         )
         return {ref.id: ref for row in rows for ref in [self._reference(row)]}
+
+    async def _ready_row_by_source_id(
+        self, db: AsyncSession, source_id: str, *, lock: bool
+    ) -> PracticeSourceRecord:
+        statement = (
+            select(PracticeSourceRecord)
+            .where(
+                PracticeSourceRecord.source_id == source_id,
+                PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
+            )
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            statement = statement.with_for_update()
+        row = (await db.execute(statement)).scalar_one_or_none()
+        if row is None:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="source_id",
+                details={"reason": "practice_source_not_ready"},
+            )
+        return row
+
+    async def require_ready_by_source_id(
+        self, db: AsyncSession, source_id: str, *, lock: bool = False
+    ) -> PracticeSourceResolution:
+        row = await self._ready_row_by_source_id(db, source_id, lock=lock)
+        return PracticeSourceResolution(self._reference(row), row.live_revision_id)
+
+    async def read_by_source_id(self, db: AsyncSession, source_id: str) -> PracticeSource:
+        row = await self._ready_row_by_source_id(db, source_id, lock=True)
+        return await self._read_verified_source(row)
 
     async def enqueue_if_unowned(self, db: AsyncSession, practice_source_id: int | None) -> None:
         await practice_source_delete_service.enqueue_if_unowned_async(

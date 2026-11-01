@@ -161,12 +161,38 @@ I/O, deletes the exact objects and source row, and completes the outbox. The loc
 fence reference admission and attempt replacement through deletion. New ownership
 cancels or fails cleanup safely. Storage failures remain retryable through the outbox.
 
+## Exact Source Access and Provenance
+
+`sourceId` is admitted once and propagated verbatim through the session plan, local
+execution, Continuous Result schema8, completion, Review and save request. It is
+never reconstructed downstream from descriptive score/revision/artifact identities.
+`localSessionId` identifies browser execution; takeId identifies a saved performance;
+Share Video sessionId identifies presentation/export. Each is distinct from sourceId.
+
+```text
+GET /practice/sources/{source_id}?include_notation=true
+```
+
+The exact-source route reads an existing READY durable source and does not compile
+or resolve revision contents. Source possession is not authorization. The service
+requires a live_revision_id, applies Score Practice access policy to persisted
+score/revision provenance and verifies that the authorized revision is the live owner.
+The repository refreshes and locks READY state, then verifies the exact stored bytes.
+Review requests Result.sourceId and verifies the envelope source_id plus artifact
+score/revision/artifact projections. Shared source-envelope parsing owns these checks.
+
+Ordinary exact-source access and new save admission fail closed after live revision
+deletion. A saved Take authorizes its source through Take ownership and remains
+readable independently of the live revision. Active reservations retain their admitted
+source through finalization.
+
 ## Performance Take
 
-An upload reservation resolves the requested score/revision/artifact through
-PracticeSourceService.resolve_source, checks artifact identity and retains the same
-canonical durable source using practice_source_id. The reservation also captures
-score title and save metadata. Finalization consumes its admitted reference without
+An upload reservation accepts only source: { source_id }. PracticeSourceService
+locks and authorizes that exact existing READY source, retaining the lock through
+reservation reference creation and commit. Reservation practice_source_id is the sole
+immutable Source lineage; linked_score_id is optional live navigation, and score_title
+is presentation history. The reservation captures save metadata. Finalization consumes its admitted reference without
 live score admission; a completed Take becomes the durable source owner.
 
 PerformanceTake owns media upload/finalization and take authorization. Source
@@ -181,6 +207,9 @@ GET /performance-takes/{take_id}/practice-source?include_notation=true
 The saved route returns the same PracticeSourceRead envelope and verifies the same
 durable representations once per request. Take-owned source reads remain available
 after live score/revision deletion. Saved presentation requests prepared notation.
+PerformanceTakeRead.source_id and descriptive source_score_id/source_revision_id/
+source_artifact_id come from its SourceRef. RESERVED/FINALIZING replay metadata uses
+the reservation SourceRef; COMPLETED replay uses the completed Take SourceRef.
 
 The [artifact contract](practice-moment-artifact.md) owns schemaVersion 1 notation/moment
 semantics. Source persistence does not define evaluation, timing, resource budgets

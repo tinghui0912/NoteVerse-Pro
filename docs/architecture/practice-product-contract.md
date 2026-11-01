@@ -352,7 +352,7 @@ readiness/device/application boundaries. The plan contains immutable resource
 requirements/bindings; acquired objects and health state belong to those runtime owners.
 
 Common local snapshots contain sourceId, resolved scope/tempo and current metronome
-state. Natural Continuous completion creates Result7 from those executed resolved
+state. Natural Continuous completion creates Result8 from those executed resolved
 values. See [session planning](practice-session-planning.md) for contracts and ownership.
 
 ## Domain Ownership
@@ -543,7 +543,7 @@ repository files. A Node-side recursive attestation test checks those source and
 assets separately: text uses UTF-8 with CRLF normalized to LF only, while binary
 coefficients use exact raw bytes. Browser identity validation does not read or fetch
 repository source. The core hash and source-adapter composite hashes bind the
-selected implementation and asset attestations. Result schema7 retains the configured
+selected implementation and asset attestations. Result schema8 retains the configured
 acoustic identity values in its evidence provenance.
 
 `practice/acoustic/continuous` projects source observations into performance time
@@ -883,7 +883,7 @@ Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
 COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
 for internal diagnostics; that does not make it eligible for a learner Result.
 
-Result validation accepts the exact schema7 fields and configured provenance.
+Result validation accepts the exact schema8 fields and configured provenance.
 Unknown fields and unsupported schema/policy identities fail closed.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
 or active duration. Score annotations, playhead and share-score rendering require
@@ -989,7 +989,7 @@ Count-In only when the intervention caused the pause; an existing user pause nee
 an explicit later Resume. Accepted degradation is a quiet valid performance, not an
 input/start ERROR. No worker retry or publication can revive analysis. Completed
 natural evaluation has the exact UNAVAILABLE shape with reason
-`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema7
+`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema8
 binds the configured assignment and evidence provenance. Healthy media finalizes normally;
 Review retains replay/save/share and its unavailable notice without target colors.
 
@@ -1103,8 +1103,8 @@ completed local recording -> immutable upload reservation -> direct binary uploa
 ```
 
 `POST /performance-takes/upload-reservations` captures client_request_id, source,
-media, scope, tempo plan and recording timebase once. Source contains score/revision/
-artifact identity; media contains kind, canonical MIME, byte size and duration. The
+media, scope, tempo plan and recording timebase once. Source contains only
+canonical source_id; media contains kind, canonical MIME, byte size and duration. The
 reservation retains the exact canonical durable PracticeSource and captures score title. Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
 reservation/take identities; different metadata conflicts. RESERVED replay can refresh
@@ -1197,3 +1197,14 @@ Continuous PerformanceClock owns count-in: the current policy gives 3/4 three be
 and three pulses, 6/8 three beats and six pulses, and 2/2 four beats and two pulses.
 These are execution policies defined by [session planning](practice-session-planning.md).
 STEP has no count-in.
+
+## Exact Source Provenance
+
+Continuous Result schema8 retains required sourceId from the executed session.
+Completion, Review and save carry it verbatim. Review reads the exact durable source,
+validates sourceId and descriptive artifact identity, and saves source: { source_id }.
+A Take exposes its source_id with server-derived score/revision/artifact descriptions.
+Ordinary exact-source access and new save admission require live revision access;
+Take-owned saved-source reads remain available after revision deletion. The
+[Practice Source contract](practice-source.md) defines authorization and retention.
+Share Video distinguishes its sessionId from canonical sourceId.

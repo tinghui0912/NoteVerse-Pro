@@ -7,18 +7,19 @@ import { cursorScopeFromResolvedPracticeScope, resolvePracticeScopeCursorNoteIds
 
 export function createShareVideoSessionFromCompletion(
   completion: Readonly<{
-    result: Readonly<{ localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
+    result: Readonly<{ sourceId: string; localSessionId: string; scoreId: string; revisionId: string; artifactId: string;
       scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan }>;
     recording: PerformanceRecording;
   }>,
-  artifact: PracticeScoreArtifact
+  source: { sourceId: string; artifact: PracticeScoreArtifact }
 ): ShareVideoSession {
   const { result, recording } = completion;
+  const { artifact } = source;
   if (recording.status !== 'READY' || recording.kind !== 'VIDEO') {
     throw new Error('Share video requires a ready video recording.');
   }
   if (
-    artifact.scoreId !== result.scoreId ||
+    !result.sourceId || source.sourceId !== result.sourceId || artifact.scoreId !== result.scoreId ||
     artifact.revisionId !== result.revisionId ||
     artifact.artifactId !== result.artifactId
   ) {
@@ -29,7 +30,8 @@ export function createShareVideoSessionFromCompletion(
     resolvePracticeScopeCursorNoteIds(artifact, result.scope)
   );
   return {
-    sourceId: result.localSessionId,
+    sessionId: result.localSessionId,
+    sourceId: result.sourceId,
     scoreIdentity: {
       scoreId: result.scoreId,
       revisionId: result.revisionId,

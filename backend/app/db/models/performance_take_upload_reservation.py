@@ -63,43 +63,29 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("practice_sources.id", ondelete="RESTRICT", name="fk_take_upload_reservation_practice_source"),
+            ForeignKey(
+                "practice_sources.id",
+                ondelete="RESTRICT",
+                name="fk_take_upload_reservation_practice_source",
+            ),
             index=True,
             nullable=True,
         ),
     )
     client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
     take_uuid: str = Field(sa_column=Column(String(36), index=True, nullable=False))
-    score_id: Optional[int] = Field(
+    linked_score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="SET NULL"),
+            ForeignKey(
+                "scores.id", ondelete="SET NULL", name="fk_take_upload_reservation_linked_score"
+            ),
             index=True,
             nullable=True,
         ),
     )
-    score_uuid: str = Field(
-        sa_column=Column(String(36), nullable=False),
-    )
-    score_title: str = Field(
-        sa_column=Column(String(255), nullable=False),
-    )
-    revision_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="SET NULL"),
-            index=True,
-            nullable=True,
-        ),
-    )
-    revision_uuid: str = Field(
-        sa_column=Column(String(36), nullable=False),
-    )
-    artifact_id: str = Field(
-        sa_column=Column(String(128), nullable=False),
-    )
+    score_title: str = Field(sa_column=Column(String(255), nullable=False))
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )

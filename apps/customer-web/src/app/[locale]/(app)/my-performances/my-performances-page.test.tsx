@@ -159,6 +159,7 @@ const recordingTimebase: RecordingTimebase = {
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
   deletion_status: 'ACTIVE',
   take_id: `take-${i + 1}`,
+  source_id: 'source-1',
   source_score_id: `score-uuid-${i + 1}`,
   score_title_snapshot: `Score Title ${i + 1}`,
   source_revision_id: `rev-uuid-${i + 1}`,
@@ -349,6 +350,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-deleted-score',
+              source_id: 'source-1',
               source_score_id: 'score-retained-source',
               score_title_snapshot: 'Sonata Allegro Op. 57',
               media_kind: 'AUDIO',
@@ -393,6 +395,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-deleted-score',
+              source_id: 'source-1',
               source_score_id: 'score-retained-source',
               score_title_snapshot: 'Sonata Allegro Op. 57',
               media_kind: 'AUDIO',
@@ -435,6 +438,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
+              source_id: 'source-1',
               source_score_id: 'score-uuid-1',
               score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',
@@ -486,6 +490,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-video-1',
+              source_id: 'source-1',
               source_score_id: 'score-uuid-1',
               score_title_snapshot: 'Score Title 1',
               media_kind: 'VIDEO',
@@ -531,6 +536,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
+              source_id: 'source-1',
               source_score_id: 'score-uuid-1',
               score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',
@@ -599,6 +605,7 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
+              source_id: 'source-1',
               source_score_id: 'score-uuid-1',
               score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',

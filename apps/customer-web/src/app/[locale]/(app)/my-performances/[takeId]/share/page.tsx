@@ -79,7 +79,7 @@ export default function HistoricalPerformanceSharePage() {
   const isBaseEligible = Boolean(take && hasSavedTakeShareVideoMetadata(take));
 
   const source = usePerformanceTakePracticeSource(takeId, {
-    scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
+    sourceId: take?.source_id ?? '', scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
     artifactId: take?.source_artifact_id ?? '',
   }, { loadNotation: true, enabled: isBaseEligible });
   const sourceQuery = source.sourceQuery;
@@ -135,9 +135,9 @@ export default function HistoricalPerformanceSharePage() {
     return createShareVideoSessionFromSavedTake(
       take,
       mediaBlob,
-      artifact
+      { sourceId: source.sourceId!, artifact }
     );
-  }, [artifact, isSourceReady, mediaBlob, take]);
+  }, [artifact, isSourceReady, mediaBlob, take, source.sourceId]);
   const session =
     sessionEligibility?.status === 'supported'
       ? sessionEligibility.session

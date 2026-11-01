@@ -41,3 +41,20 @@ async def read_source(
         include_notation=include_notation,
     )
     return success_response(data=result)
+
+
+@router.get("/sources/{source_id}", response_model=APIResponse[PracticeSourceRead])
+async def read_exact_source(
+    source_id: str,
+    include_notation: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_source_service: PracticeSourceService = Depends(get_practice_source_service),
+):
+    result = await practice_source_service.read_exact_source(
+        db,
+        require_persisted_id(current_user.id, entity="user"),
+        source_id,
+        include_notation=include_notation,
+    )
+    return success_response(data=result)

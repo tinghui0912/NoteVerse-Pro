@@ -14,6 +14,7 @@ export const recordingTimebase: RecordingTimebase = {
 
 export const take: PerformanceTakeRead = {
   take_id: 'take-1',
+  source_id: 'source-1',
   source_score_id: 'score-1',
   source_revision_id: 'revision-1',
   source_artifact_id: 'artifact-1',

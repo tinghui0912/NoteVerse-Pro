@@ -19,8 +19,8 @@ describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion compositio
       ? { ...configuration, inputSource, createClockEvidence: id => new ContinuousMidiEvidence(id) }
       : { ...configuration, inputSource });
     session.start();
-    const completion = () => createNaturalContinuousCompletion({
-      session: session.snapshotSession(), artifact,
+    const completion = (identity: Partial<ReturnType<typeof session.snapshotSession>> = {}) => createNaturalContinuousCompletion({
+      session: { ...session.snapshotSession(), ...identity }, artifact,
       evaluation: unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),
       evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(48000),
       recording: { status: 'NOT_RECORDED' }, completedAt: '2026-10-26T00:00:00.000Z',
@@ -37,6 +37,11 @@ describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion compositio
     expect(s.session.snapshotSession().completionReason).toBe('SCOPE_COMPLETED');
     const completion = s.completion();
     expect(completion.result.inputSource).toBe(inputSource);
+    expect(completion.result.sourceId).toBe(s.session.snapshotSession().sourceId);
+    expect(s.completion({ sourceId: 'exact-admitted-source' }).result.sourceId).toBe('exact-admitted-source');
+    for (const identity of [{ sourceId: '' }, { scoreId: 'other' }, { revisionId: 'other' }, { artifactId: 'other' }]) {
+      expect(() => s.completion(identity)).toThrow('source identity mismatch');
+    }
     expect(completion.recording).toEqual({ status: 'NOT_RECORDED' });
     expect(Object.isFrozen(completion)).toBe(true);
   });

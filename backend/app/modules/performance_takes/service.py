@@ -311,6 +311,7 @@ class PerformanceTakeService:
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
+            source_id=source_ref.source_id,
             source_score_id=source_ref.source_score_uuid,
             source_revision_id=source_ref.source_revision_uuid,
             source_artifact_id=source_ref.artifact_id,
@@ -335,6 +336,7 @@ class PerformanceTakeService:
     @staticmethod
     def _reservation_metadata(
         reservation: PerformanceTakeUploadReservation,
+        source_ref: PracticeSourceRef,
     ) -> PerformanceTakeUploadMetadata:
         scope = {
             "kind": reservation.scope_type,
@@ -348,11 +350,7 @@ class PerformanceTakeService:
             )
         return PerformanceTakeUploadMetadata.model_validate(
             {
-                "source": {
-                    "score_id": reservation.score_uuid,
-                    "revision_id": reservation.revision_uuid,
-                    "artifact_id": reservation.artifact_id,
-                },
+                "source": {"source_id": source_ref.source_id},
                 "media": {
                     "kind": reservation.media_kind,
                     "byte_size": reservation.media_byte_size,
@@ -369,6 +367,7 @@ class PerformanceTakeService:
         self,
         reservation: PerformanceTakeUploadReservation,
         *,
+        source_ref: PracticeSourceRef,
         upload_target=None,
         take: PerformanceTakeRead | None = None,
     ) -> PerformanceTakeUploadReservationRead:
@@ -376,7 +375,7 @@ class PerformanceTakeService:
             reservation_id=reservation.reservation_uuid,
             take_id=reservation.take_uuid,
             status=reservation.status,
-            metadata=self._reservation_metadata(reservation),
+            metadata=self._reservation_metadata(reservation, source_ref),
             upload_target=PerformanceTakeUploadTarget(
                 url=upload_target.upload_url,
                 method=upload_target.upload_method,
@@ -401,6 +400,7 @@ class PerformanceTakeService:
         can_open_score = await self._can_open_score(db, take.user_id, score)
         return self._reservation_read(
             reservation,
+            source_ref=source_ref,
             take=self._to_read_dto(
                 take,
                 source_ref=source_ref,
@@ -573,25 +573,44 @@ class PerformanceTakeService:
         reservation: PerformanceTakeUploadReservation,
         metadata: PerformanceTakeUploadMetadata,
     ) -> PerformanceTakeUploadReservationRead:
-        # One normalized comparison owns client-request idempotency.
-        if self._reservation_metadata(reservation) != metadata:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="client_request_id",
-                details={"reason": "client_request_id_reuse_conflict"},
-            )
         status = _status_value(reservation.status)
+        completed_take = None
         if status == PerformanceTakeUploadReservationStatus.COMPLETED.value:
-            take = await self.repository.get_by_reservation(db, reservation.user_id, reservation.id)
-            if take is None:
+            completed_take = await self.repository.get_by_reservation(
+                db, reservation.user_id, reservation.id
+            )
+            if completed_take is None:
                 raise ValidationException(
                     ErrorCode.VALIDATION_ERROR,
                     field="status",
                     details={"reason": "completed_reservation_missing_take"},
                 )
-            return await self._completed_reservation_response(db, reservation, take)
+            source_ref = await self.practice_source_service.require_source(
+                db, completed_take.practice_source_id
+            )
+        elif status in {
+            PerformanceTakeUploadReservationStatus.RESERVED.value,
+            PerformanceTakeUploadReservationStatus.FINALIZING.value,
+        }:
+            source_ref = await self.practice_source_service.require_source(
+                db, reservation.practice_source_id
+            )
+        else:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="client_request_id",
+                details={"reason": f"client_request_id_{status.lower()}"},
+            )
+        if self._reservation_metadata(reservation, source_ref) != metadata:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="client_request_id",
+                details={"reason": "client_request_id_reuse_conflict"},
+            )
+        if completed_take is not None:
+            return await self._completed_reservation_response(db, reservation, completed_take)
         if status == PerformanceTakeUploadReservationStatus.FINALIZING.value:
-            return self._reservation_read(reservation)
+            return self._reservation_read(reservation, source_ref=source_ref)
         if status != PerformanceTakeUploadReservationStatus.RESERVED.value:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -622,7 +641,9 @@ class PerformanceTakeService:
         )
         reservation.updated_at = now
         await db.commit()
-        return self._reservation_read(reservation, upload_target=upload_target)
+        return self._reservation_read(
+            reservation, source_ref=source_ref, upload_target=upload_target
+        )
 
     async def reserve_upload(
         self,
@@ -655,17 +676,10 @@ class PerformanceTakeService:
         )
         if existing is not None:
             return await self._replay_reservation(db, existing, metadata)
-        try:
-            authorized_source = await self.practice_source_service.resolve_source(
-                db, metadata.source.score_id, user_id, metadata.source.revision_id)
-        except ResourceNotFoundException as error:
-            if error.code == ErrorCode.REVISION_NOT_FOUND:
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id") from error
-            raise
-        if authorized_source.source_ref.artifact_id != metadata.source.artifact_id:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="artifact_id",
-                details={"reason": "source_artifact_identity_mismatch"})
-        source_ref = await self.practice_source_service.require_source(db, authorized_source.source_ref.id, lock=True)
+        authorized_source = await self.practice_source_service.authorize_source_by_source_id(
+            db, user_id, metadata.source.source_id
+        )
+        source_ref = authorized_source.source_ref
         take_uuid = str(uuid4())
         staging_key = _build_staging_object_key(user_id, take_uuid, media.mime_type)
         upload_target = self.storage.upload_url(
@@ -691,12 +705,8 @@ class PerformanceTakeService:
             practice_source_id=source_ref.id,
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
-            score_id=authorized_source.score_db_id,
-            score_uuid=authorized_source.source.score_id,
+            linked_score_id=authorized_source.score_db_id,
             score_title=authorized_source.score_title,
-            revision_id=authorized_source.revision_db_id,
-            revision_uuid=authorized_source.source.revision_id,
-            artifact_id=metadata.source.artifact_id,
             scope_type=metadata.scope.kind,
             scope_start_beat=metadata.scope.start_beat,
             scope_terminal_beat=metadata.scope.terminal_beat,
@@ -734,7 +744,9 @@ class PerformanceTakeService:
             if winner is None:
                 raise
             return await self._replay_reservation(db, winner, metadata)
-        return self._reservation_read(reservation, upload_target=upload_target)
+        return self._reservation_read(
+            reservation, source_ref=source_ref, upload_target=upload_target
+        )
 
     async def cancel_upload_reservation(
         self,
@@ -893,12 +905,8 @@ class PerformanceTakeService:
             "take_uuid": reservation.take_uuid,
             "user_id": reservation.user_id,
             "practice_source_id": reservation.practice_source_id,
-            "score_id": reservation.score_id,
-            "score_uuid": reservation.score_uuid,
+            "linked_score_id": reservation.linked_score_id,
             "score_title": reservation.score_title,
-            "revision_id": reservation.revision_id,
-            "revision_uuid": reservation.revision_uuid,
-            "artifact_id": reservation.artifact_id,
             "media_kind": reservation.media_kind,
             "media_mime_type": reservation.media_mime_type,
             "media_byte_size": reservation.media_byte_size,
@@ -1071,8 +1079,8 @@ class PerformanceTakeService:
                 db, reservation_snapshot["practice_source_id"]
             )
             linked_score = (
-                await db.get(Score, reservation_snapshot["score_id"])
-                if reservation_snapshot["score_id"]
+                await db.get(Score, reservation_snapshot["linked_score_id"])
+                if reservation_snapshot["linked_score_id"]
                 else None
             )
             return source_ref, linked_score

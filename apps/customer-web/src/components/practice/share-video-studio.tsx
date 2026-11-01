@@ -164,7 +164,7 @@ export function ShareVideoStudio({
   const [orientationPreference, setOrientationPreference] = useState<{
     sessionId: string;
     value: VideoOrientation;
-  }>({ sessionId: session?.sourceId ?? '', value: 'landscape' });
+  }>({ sessionId: session?.sessionId ?? '', value: 'landscape' });
   const manualOrientationSessionRef = useRef<string | null>(null);
   const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
@@ -183,11 +183,11 @@ export function ShareVideoStudio({
     if (!video || !session) return;
 
     const syncOrientationFromMetadata = () => {
-      if (manualOrientationSessionRef.current === session.sourceId) {
+      if (manualOrientationSessionRef.current === session.sessionId) {
         return;
       }
       setOrientationPreference({
-        sessionId: session.sourceId,
+        sessionId: session.sessionId,
         value: initialShareVideoOrientation(video),
       });
     };
@@ -198,7 +198,7 @@ export function ShareVideoStudio({
   }, [replayVideo, session]);
 
   const videoOrientation =
-    session && orientationPreference.sessionId === session.sourceId
+    session && orientationPreference.sessionId === session.sessionId
       ? orientationPreference.value
       : initialShareVideoOrientation(replayVideo);
 
@@ -389,8 +389,8 @@ export function ShareVideoStudio({
               icon={RectangleHorizontal}
               onClick={() => {
                 if (!session) return;
-                manualOrientationSessionRef.current = session.sourceId;
-                setOrientationPreference({ sessionId: session.sourceId, value: 'landscape' });
+                manualOrientationSessionRef.current = session.sessionId;
+                setOrientationPreference({ sessionId: session.sessionId, value: 'landscape' });
               }}
               testId="share-orientation-landscape"
             />
@@ -401,8 +401,8 @@ export function ShareVideoStudio({
               icon={RectangleVertical}
               onClick={() => {
                 if (!session) return;
-                manualOrientationSessionRef.current = session.sourceId;
-                setOrientationPreference({ sessionId: session.sourceId, value: 'portrait' });
+                manualOrientationSessionRef.current = session.sessionId;
+                setOrientationPreference({ sessionId: session.sessionId, value: 'portrait' });
               }}
               testId="share-orientation-portrait"
             />

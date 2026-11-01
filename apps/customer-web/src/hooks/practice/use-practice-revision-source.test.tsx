@@ -5,9 +5,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import * as artifactContract from '@/lib/practice/kernel/artifact';
-import { usePracticeRevisionSource, usePerformanceTakePracticeSource } from './use-practice-revision-source';
-const api = vi.hoisted(() => ({ source: vi.fn(), savedSource: vi.fn() }));
-vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSource: (...args: unknown[]) => api.source(...args) } }));
+import { usePracticeSourceById, usePracticeRevisionSource, usePerformanceTakePracticeSource } from './use-practice-revision-source';
+const api = vi.hoisted(() => ({ exact: vi.fn(), source: vi.fn(), savedSource: vi.fn() }));
+vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSourceById: (...args: unknown[]) => api.exact(...args), getPracticeSource: (...args: unknown[]) => api.source(...args) } }));
 vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { getPracticeSource: (...args: unknown[]) => api.savedSource(...args) } }));
 function harness() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -19,6 +19,7 @@ function envelope(loadNotation: boolean) {
 }
 beforeEach(() => {
   vi.restoreAllMocks(); vi.resetAllMocks();
+  api.exact.mockImplementation(async (_sourceId, loadNotation) => envelope(loadNotation));
   api.source.mockImplementation(async (_score, _revision, loadNotation) => envelope(loadNotation));
   api.savedSource.mockImplementation(async (_take, loadNotation) => envelope(loadNotation));
 });
@@ -39,6 +40,7 @@ it.each(['Practice', 'Review'])('%s consumes one parsed source envelope with not
 });
 it('withholds source until the single request completes', async () => {
   let resolve!: (value: unknown) => void;
+  api.exact.mockImplementation(async (_sourceId, loadNotation) => envelope(loadNotation));
   api.source.mockImplementation(() => new Promise(r => { resolve = r; }));
   const { result } = renderHook(() => usePracticeRevisionSource('score', 'revision', { loadNotation: true }), { wrapper: harness() });
   expect(result.current.artifact).toBeNull(); expect(result.current.musicXml).toBeNull();
@@ -85,13 +87,13 @@ it('does not request a source without a pinned revision', () => {
   expect(api.source).not.toHaveBeenCalled();
 });
 it('saved take rendering requests one verified source with notation', async () => {
-  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', { sourceId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
   await waitFor(() => expect(result.current.musicXml).toBe('<score />'));
   expect(api.savedSource).toHaveBeenCalledExactlyOnceWith('take', true, expect.any(AbortSignal));
   expect(api.source).not.toHaveBeenCalled();
 });
 it.each(['scoreId', 'revisionId', 'artifactId'])('rejects saved source %s mismatch', async field => {
-  const identity = { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [field]: 'other' };
+  const identity = { sourceId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [field]: 'other' };
   const { result } = renderHook(() => usePerformanceTakePracticeSource('take', identity, { loadNotation: true }), { wrapper: harness() });
   await waitFor(() => expect(result.current.invalid).toBe(true));
   expect(result.current.artifact).toBeNull(); expect(result.current.musicXml).toBeNull();
@@ -103,4 +105,37 @@ it('Source failures carry a closed invalid/load distinction and original transpo
   await waitFor(()=>expect(result.current.isError).toBe(true));
   expect(result.current.error).toMatchObject({kind:'SOURCE',code:'LOAD_FAILED',cause});
   expect(result.current.transportError).toBe(cause); expect(result.current.invalid).toBe(false);
+});
+
+it('Review loads the requested exact source through one query and parser', async () => {
+  const parser = vi.spyOn(artifactContract, 'parsePracticeScoreArtifact');
+  const identity = { scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId };
+  const { result } = renderHook(() => usePracticeSourceById('source-1', identity, { loadNotation: true }), { wrapper: harness() });
+  await waitFor(() => expect(result.current.sourceId).toBe('source-1'));
+  expect(api.exact).toHaveBeenCalledExactlyOnceWith('source-1', true, expect.any(AbortSignal));
+  expect(api.source).not.toHaveBeenCalled();
+  expect(parser).toHaveBeenCalledOnce();
+});
+it.each(['sourceId', 'scoreId', 'revisionId', 'artifactId'] as const)('exact source fails closed on %s mismatch', async key => {
+  const identity = { sourceId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [key]: 'different' };
+  const { result } = renderHook(() => usePracticeSourceById(identity.sourceId, identity, { loadNotation: true }), { wrapper: harness() });
+  await waitFor(() => expect(result.current.invalid).toBe(true));
+  expect(result.current.artifact).toBeNull();
+});
+it('saved Take rejects a different source with identical artifact projections', async () => {
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', { sourceId: 'different', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
+  await waitFor(() => expect(result.current.invalid).toBe(true));
+});
+
+it.each(['', undefined])('saved Take requires its canonical source identity at runtime: %s', async sourceId => {
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', { sourceId: sourceId as string, scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, { loadNotation: true }), { wrapper: harness() });
+  await waitFor(() => expect(result.current.invalid).toBe(true));
+  expect(result.current.artifact).toBeNull();
+});
+
+it.each(['scoreId', 'revisionId', 'artifactId'] as const)('saved Take requires its descriptive %s projection at runtime', async key => {
+  const identity = { sourceId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [key]: undefined as unknown as string };
+  const { result } = renderHook(() => usePerformanceTakePracticeSource('take', identity, { loadNotation: true }), { wrapper: harness() });
+  await waitFor(() => expect(result.current.invalid).toBe(true));
+  expect(result.current.artifact).toBeNull();
 });

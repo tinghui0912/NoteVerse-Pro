@@ -91,7 +91,7 @@ representation checksums. Live and saved consumers read that same source; its ow
 and retention are defined by the Source contract.
 
 STEP uses schema9/runtime step-piano-key-learning-v12; its target, attempt and evidence
-snapshots carry numeric keys. Result schema7 binds canonical scope group identities
+snapshots carry numeric keys. Result schema8 binds canonical scope group identities
 and source-specific evidence provenance. These contracts are described by the
 [product contract](practice-product-contract.md).
 

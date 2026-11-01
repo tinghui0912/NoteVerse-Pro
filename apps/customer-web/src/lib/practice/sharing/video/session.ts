@@ -4,6 +4,7 @@ import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
 export type ShareVideoSession = {
+  sessionId: string;
   sourceId: string;
   scoreIdentity: {
     scoreId: string;

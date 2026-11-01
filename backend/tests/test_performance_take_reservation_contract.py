@@ -52,3 +52,51 @@ def test_finalize_contract_consumes_only_user_scoped_reservation_identity():
         for parameter in operation["parameters"]
         if parameter["in"] in {"path", "query"}
     ] == [("reservation_id", "path")]
+
+
+def test_source_lineage_is_owned_by_the_exact_source_foreign_key():
+    from app.modules.performance_takes.schemas import (
+        PerformanceTakeSourceIdentity,
+        PerformanceTakeRead,
+    )
+
+    assert set(PerformanceTakeSourceIdentity.model_fields) == {"source_id"}
+    assert PerformanceTakeRead.model_fields["source_id"].is_required()
+    expected = {
+        "id",
+        "reservation_uuid",
+        "user_id",
+        "practice_source_id",
+        "client_request_id",
+        "take_uuid",
+        "linked_score_id",
+        "score_title",
+        "scope_type",
+        "scope_start_beat",
+        "scope_terminal_beat",
+        "scope_start_group_id",
+        "scope_end_group_id",
+        "tempo_plan",
+        "recording_timebase",
+        "duration_ms",
+        "media_kind",
+        "media_mime_type",
+        "media_byte_size",
+        "storage_backend",
+        "staging_object_key",
+        "final_object_key",
+        "storage_reservation_id",
+        "expires_at",
+        "last_put_url_expires_at",
+        "staging_cleanup_after",
+        "staging_cleanup_completed_at",
+        "final_cleanup_completed_at",
+        "finalizing_object_key",
+        "orphan_final_object_keys",
+        "finalizing_token",
+        "finalizing_expires_at",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+    assert set(PerformanceTakeUploadReservation.__table__.columns.keys()) == expected

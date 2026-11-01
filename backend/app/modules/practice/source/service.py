@@ -126,6 +126,52 @@ class PracticeSourceService:
         authorized = await self.resolve_source(db, score_uuid, user_id, revision_uuid)
         return self.source_read(authorized.source, include_notation=include_notation)
 
+    async def authorize_source_by_source_id(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        source_id: str,
+    ) -> AuthorizedPracticeSource:
+        # The READY source lock fences live-owner release and reference admission until caller commit.
+        resolution = await self.repository.require_ready_by_source_id(db, source_id, lock=True)
+        reference = resolution.source_ref
+        if resolution.live_revision_id is None:
+            raise ResourceNotFoundException(
+                "practice_source", source_id, ErrorCode.RESOURCE_NOT_FOUND
+            )
+        access = await self.access_policy.authorize(
+            db,
+            reference.source_score_uuid,
+            ScoreAction.PRACTICE,
+            user_id=user_id,
+            revision_uuid=reference.source_revision_uuid,
+        )
+        if (
+            access.revision.id != resolution.live_revision_id
+            or access.score.score_uuid != reference.source_score_uuid
+            or access.revision.revision_uuid != reference.source_revision_uuid
+            or access.revision.score_id != access.score.id
+        ):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="source_id",
+                details={"reason": "practice_source_owner_mismatch"},
+            )
+        source = await self.repository.read_by_source_id(db, source_id)
+        return AuthorizedPracticeSource(
+            source,
+            reference,
+            require_persisted_id(access.score.id, entity="score"),
+            require_persisted_id(access.revision.id, entity="score revision"),
+            access.score.title,
+        )
+
+    async def read_exact_source(
+        self, db: AsyncSession, user_id: int, source_id: str, *, include_notation: bool = False
+    ) -> PracticeSourceRead:
+        authorized = await self.authorize_source_by_source_id(db, user_id, source_id)
+        return self.source_read(authorized.source, include_notation=include_notation)
+
     async def require_source(
         self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
     ) -> PracticeSourceRef:

@@ -86,6 +86,7 @@ export const queryKeys = {
     },
     practice: {
         all: ['practice'] as const,
+        sourceById: (sourceId: string, includeNotation: boolean) => ['practice', 'source-by-id', { sourceId, includeNotation }] as const,
         source: (scoreId: string, revisionId: string, includeNotation: boolean) =>
             ['practice', 'source', { scoreId, revisionId, includeNotation }] as const,
     },

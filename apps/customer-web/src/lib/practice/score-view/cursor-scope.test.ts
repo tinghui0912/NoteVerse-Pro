@@ -41,7 +41,7 @@ function adapter() {
 
 function session(allowedNoteIds: string[]): ShareVideoSession {
   return {
-    sourceId: 'session',
+    sessionId: 'session', sourceId: 'source-1',
     scoreIdentity: { scoreId: 'score', revisionId: 'revision', artifactId: 'artifact' },
     video: {
       status: 'READY',

@@ -11,7 +11,7 @@
 | Timing | Continuous timing provenance and segmented clock | Event-time mapping and explicit no-calibration policy |
 | Admission/liveness | resource policy, capture/worker/engine/controllers | Resource retention, readiness, failure and intervention behavior |
 
-Result schema7 evidenceProvenance identifies the configured evidence-producing stack.
+Result schema8 evidenceProvenance identifies the configured evidence-producing stack.
 It does not claim full execution replay, workload headroom, latency calibration or
 physical-device recognition accuracy. COMPLETE identifies the stack that produced
 accepted evidence, including possible silence. UNAVAILABLE identifies the stack

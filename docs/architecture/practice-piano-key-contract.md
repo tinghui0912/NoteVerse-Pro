@@ -66,7 +66,7 @@ Continuous uses same-key inclusive±250ms matching: maximum cardinality, minimum
 absolute error, then earliest chronological noncrossing ownership. All accepted
 observations are retained. Assignment identity is
 CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5; MIDI evidence identity is
-MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3. Result schema7 binds evidence
+MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3. Result schema8 binds evidence
 and timing provenance. Acoustic implementation identities have their separate
 [selected-source boundary](practice-acoustic-identity-boundary.md).
 

@@ -6316,6 +6316,10 @@
             "title": "Source Artifact Id",
             "type": "string"
           },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
           "source_revision_id": {
             "title": "Source Revision Id",
             "type": "string"
@@ -6334,6 +6338,7 @@
         },
         "required": [
           "take_id",
+          "source_id",
           "source_score_id",
           "source_revision_id",
           "source_artifact_id",
@@ -6355,29 +6360,15 @@
       "PerformanceTakeSourceIdentity": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
+          "source_id": {
             "maxLength": 128,
             "minLength": 1,
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "revision_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "score_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Score Id",
+            "title": "Source Id",
             "type": "string"
           }
         },
         "required": [
-          "score_id",
-          "revision_id",
-          "artifact_id"
+          "source_id"
         ],
         "title": "PerformanceTakeSourceIdentity",
         "type": "object"
@@ -12528,6 +12519,74 @@
           }
         },
         "summary": "Read Source",
+        "tags": [
+          "Practice Sources"
+        ]
+      }
+    },
+    "/api/v1/practice/sources/{source_id}": {
+      "get": {
+        "operationId": "read_exact_source_api_v1_practice_sources__source_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_notation",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Notation",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeSourceRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Exact Source",
         "tags": [
           "Practice Sources"
         ]

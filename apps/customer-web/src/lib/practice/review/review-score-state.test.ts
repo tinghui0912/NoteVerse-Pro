@@ -7,7 +7,7 @@ import { resolveReviewScoreState } from './review-score-state';
 describe('Review score rendering authority', () => {
   const result = canonicalContinuousResultFixture();
   const resolve = (source: PracticeScoreArtifact | null = artifact, xmlAvailable = true) =>
-    resolveReviewScoreState({ result, artifact: source, xmlAvailable, scoreId: result.scoreId });
+    resolveReviewScoreState({ sourceId: result.sourceId, result, artifact: source, xmlAvailable, scoreId: result.scoreId });
   it('confirms the current score identity without recomputing completed evaluation', () => {
     expect(resolve()).toMatchObject({ status: 'READY', scope: { kind: 'FULL' } });
     const evaluation = result.evaluation; resolve(); expect(result.evaluation).toBe(evaluation);
@@ -20,6 +20,11 @@ describe('Review score rendering authority', () => {
     expect(resolve(null)).toMatchObject({ status: 'SOURCE_UNAVAILABLE' });
     expect(resolve(artifact, false)).toMatchObject({ status: 'SOURCE_UNAVAILABLE' });
     const ranged = { ...result, scope: { ...result.scope, kind: 'RANGE' as const, startGroupId: 'missing', endGroupId: 'missing', startIndex: 500, endIndex: 501 } };
-    expect(resolveReviewScoreState({ result: ranged, artifact, xmlAvailable: true, scoreId: result.scoreId })).toMatchObject({ status: 'SCOPE_INVALID' });
+    expect(resolveReviewScoreState({ sourceId: result.sourceId, result: ranged, artifact, xmlAvailable: true, scoreId: result.scoreId })).toMatchObject({ status: 'SCOPE_INVALID' });
   });
+});
+
+it('rejects a different source even with identical descriptive artifact identity', () => {
+  const result = canonicalContinuousResultFixture();
+  expect(resolveReviewScoreState({ result, artifact, sourceId: 'another', xmlAvailable: true, scoreId: result.scoreId })).toMatchObject({ status: 'IDENTITY_MISMATCH' });
 });

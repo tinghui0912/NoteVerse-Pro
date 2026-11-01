@@ -56,8 +56,9 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
 export function createShareVideoSessionFromSavedTake(
   take: PerformanceTakeRead,
   videoBlob: Blob,
-  artifact: PracticeScoreArtifact
+  source: { sourceId: string; artifact: PracticeScoreArtifact }
 ): SavedTakeEligibility {
+  const { artifact } = source;
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
   }
@@ -68,7 +69,7 @@ export function createShareVideoSessionFromSavedTake(
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
   }
   if (
-    artifact.scoreId !== take.source_score_id ||
+    !take.source_id || source.sourceId !== take.source_id || artifact.scoreId !== take.source_score_id ||
     artifact.revisionId !== take.source_revision_id ||
     artifact.artifactId !== take.source_artifact_id
   ) {
@@ -130,7 +131,8 @@ export function createShareVideoSessionFromSavedTake(
     return {
       status: 'supported',
       session: {
-        sourceId: take.take_id,
+        sessionId: take.take_id,
+        sourceId: take.source_id,
         scoreIdentity: {
           scoreId: take.source_score_id,
           revisionId: take.source_revision_id,

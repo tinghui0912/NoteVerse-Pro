@@ -18,7 +18,7 @@ function resultWithRetainedEvidence() {
     { observationId: 'non-target', pianoKey: 71, performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
     { observationId: 'unattributed', pianoKey: 76, performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
   evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-  return createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+  return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
 }
 
 describe('parsed Result delegates retained local truth validation', () => {
@@ -81,12 +81,12 @@ describe('immutable Continuous product result', () => {
     evaluator.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 10000, availabilitySessionTimeMs: 3000 });
     const evaluation = evaluator.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
-    expect(() => createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
+    expect(() => createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
   });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities and complete assignment integrity', inputSource => {
     const result = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(result));
-    expect(parsed.schemaVersion).toBe(7);
+    expect(parsed.schemaVersion).toBe(8);
     expect(parsed.evidenceProvenance.timing.calibrationApplied).toBe(false);
     expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
     expect(parsed).toEqual(result);
@@ -131,12 +131,12 @@ describe('immutable Continuous product result', () => {
     evaluator.publish({ publicationId: 'evidence', sessionDomainId: localSessionId, observations: [observation],
       analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000 });
     evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+    const result = createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
     const parsed = JSON.parse(JSON.stringify(result)); assertContinuousPerformanceResult(parsed);
     expect(parsed.evaluation.status).toBe('COMPLETE');
     if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
     expect(parsed.evaluation.assignment.observations).toEqual([observation]);
-    expect(parsed.schemaVersion).toBe(7);
+    expect(parsed.schemaVersion).toBe(8);
     expect(parsed.evaluation.assignment.completion).toMatchObject({ performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
     expect(parsed.evaluation.assignment.groups[0].strikes[0].finality.finalizationSessionTimeMs).toBe(3000);
     expect(parsed.evidenceProvenance.timing).toMatchObject({ calibrationApplied: false,
@@ -154,8 +154,21 @@ describe('immutable Continuous product result', () => {
   it('unavailable range retains its original canonical scope', () => {
     const base = canonicalContinuousResultFixture('MICROPHONE', 48000, false);
     const group = artifact.moments[3];
-    const result = createContinuousPerformanceResult({ artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId } }).scope, inputSource: base.inputSource, tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+    const result = createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId } }).scope, inputSource: base.inputSource, tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
     expect(result.evaluation.status).toBe('UNAVAILABLE'); expect(result).not.toHaveProperty('metrics');
     expect(result.scope).toMatchObject({ kind: 'RANGE', startIndex: 3, endIndex: 3 });
+  });
+});
+
+
+describe('canonical source provenance', () => {
+  it('requires an exact nonempty source identity and preserves it through JSON', () => {
+    const value = canonicalContinuousResultFixture();
+    expect(JSON.parse(JSON.stringify(value)).sourceId).toBe(value.sourceId);
+    for (const invalid of [{ ...value, sourceId: '' }, { ...value, sourceId: undefined },
+      Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'sourceId')),
+      { ...value, unknown: true }, { ...value, schemaVersion: 7 }]) {
+      expect(() => assertContinuousPerformanceResult(invalid)).toThrow();
+    }
   });
 });

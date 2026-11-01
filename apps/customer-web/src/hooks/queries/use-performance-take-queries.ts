@@ -50,9 +50,7 @@ export function useDeletePerformanceTake() {
 }
 
 export interface SavePerformanceTakeInput {
-  scoreId: string;
-  revisionId: string;
-  artifactId: string;
+  sourceId: string;
   clientRequestId: string;
   mediaKind: 'AUDIO' | 'VIDEO';
   mediaBlob: Blob;
@@ -83,9 +81,7 @@ export function useSavePerformanceTake() {
       const request: PerformanceTakeUploadReservationRequest = {
         client_request_id: input.clientRequestId,
         source: {
-          score_id: input.scoreId,
-          revision_id: input.revisionId,
-          artifact_id: input.artifactId,
+          source_id: input.sourceId,
         },
         media: {
           kind: input.mediaKind,

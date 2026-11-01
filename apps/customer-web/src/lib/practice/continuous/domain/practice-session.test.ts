@@ -103,7 +103,7 @@ describe('explicit semantic MIDI progression', () => {
       }
     }
     const evaluation = session.completedEvaluation(); if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ artifact, localSessionId: session.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: h.tempoPlan, activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation, evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
+    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, localSessionId: session.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: h.tempoPlan, activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation, evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
     return { publications, evaluation, result, callCount };
   }
   it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities and completed assignment', reason => {

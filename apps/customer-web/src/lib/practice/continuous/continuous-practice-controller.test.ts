@@ -662,7 +662,7 @@ describe('Continuous application owner', () => {
     await f.feed(controller.snapshot().transport!.countInRemainingMs + 5000); await controller.abandon();
     expect(controller.snapshot().session).toBe('COMPLETE');
     const completion = controller.snapshot().completed!;
-    expect(completion.result).toMatchObject({ schemaVersion: 7, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
+    expect(completion.result).toMatchObject({ schemaVersion: 8, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
       assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completedContinuousTargetFeedback(completion.result.evaluation)).toEqual({ targets: [] });
     expect(completion.recording.status).toBe('READY'); expect(complete).toHaveBeenCalledOnce();
@@ -1263,7 +1263,7 @@ it('R14 silent INFER after tailReady settles natural FINALIZING with healthy rec
     expect(engine.snapshot().state).toBe('FAILED'); expect(service.terminate).toHaveBeenCalledOnce();
     expect(controller.snapshot()).toMatchObject({ session: 'COMPLETE', analysisIntervention: null, resourceIntervention: null });
     const completed = controller.snapshot().completed!;
-    expect(completed.result).toMatchObject({ schemaVersion: 7, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
+    expect(completed.result).toMatchObject({ schemaVersion: 8, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completed.result.evidenceProvenance).toEqual(microphoneEvidenceProvenance(48000));
     expect(completedContinuousTargetFeedback(completed.result.evaluation)).toEqual({ targets: [] });
     expect(completed.recording.status).toBe('READY'); expect(callback).toHaveBeenCalledOnce();

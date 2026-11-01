@@ -6,11 +6,11 @@ export type ReviewScoreState =
   | { status: 'READY'; scope: CursorScope }
   | { status: 'SOURCE_UNAVAILABLE' | 'IDENTITY_MISMATCH' | 'SCOPE_INVALID'; reason: string };
 
-export function resolveReviewScoreState({ result, artifact, xmlAvailable, scoreId }: {
+export function resolveReviewScoreState({ result, artifact, sourceId, xmlAvailable, scoreId }: {
   result: ContinuousPerformanceResult | null; artifact: PracticeScoreArtifact | null;
-  xmlAvailable: boolean; scoreId: string;
+  xmlAvailable: boolean; scoreId: string; sourceId: string | null;
 }): ReviewScoreState {
-  if (result && artifact && (result.scoreId !== scoreId || artifact.scoreId !== result.scoreId
+  if (result && artifact && (!sourceId || sourceId !== result.sourceId || result.scoreId !== scoreId || artifact.scoreId !== result.scoreId
     || artifact.revisionId !== result.revisionId || artifact.artifactId !== result.artifactId)) {
     return { status: 'IDENTITY_MISMATCH', reason: 'score_identity_mismatch' };
   }

@@ -19,7 +19,7 @@ function createSession(
   overrides: Partial<ShareVideoSession> = {}
 ): ShareVideoSession {
   return {
-    sourceId: 'session-1',
+    sessionId: 'session-1', sourceId: 'source-1',
     scoreIdentity: {
       scoreId: 'score-1',
       revisionId: 'rev-1',
