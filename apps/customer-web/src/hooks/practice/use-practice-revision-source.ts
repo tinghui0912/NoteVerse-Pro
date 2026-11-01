@@ -35,28 +35,36 @@ function parseSource(value: PracticeSourceRead | undefined, identity: SourceIden
   return { sourceId: value.source_id, artifact, musicXml: notation?.musicxml ?? null };
 }
 
-function useSourceQuery(options: {
+type SourceQueryOptions = {
   identity: SourceIdentity;
   enabled: boolean;
   loadNotation: boolean;
   queryKey: readonly unknown[];
   request: (signal: AbortSignal) => Promise<ApiResponse<PracticeSourceRead>>;
-}) {
+};
+
+/** One transport/parser boundary for both cached reads and fresh preparation. */
+async function requestSource(options: SourceQueryOptions, signal: AbortSignal) {
+  try {
+    signal.throwIfAborted();
+    const response = await options.request(signal);
+    signal.throwIfAborted();
+    return parseSource(response.data, options.identity, options.loadNotation);
+  } catch (cause) {
+    signal.throwIfAborted();
+    if (cause instanceof SourceFailure) throw cause;
+    const invalid = cause instanceof PracticeScoreContractError || Boolean(cause && typeof cause === 'object'
+      && 'code' in cause && cause.code === 'practice_score_invalid');
+    throw new SourceFailure(invalid ? 'INVALID_SCORE' : 'LOAD_FAILED', { cause });
+  }
+}
+
+function useSourceQuery(options: SourceQueryOptions) {
   const client = useQueryClient();
   const queryKey = [...options.queryKey, options.identity];
   const sourceQuery = useQuery({
     queryKey,
-    queryFn: async ({ signal }) => {
-      try {
-        const response = await options.request(signal);
-        return parseSource(response.data, options.identity, options.loadNotation);
-      } catch (cause) {
-        if (cause instanceof SourceFailure) throw cause;
-        const invalid = cause instanceof PracticeScoreContractError || Boolean(cause && typeof cause === 'object'
-          && 'code' in cause && cause.code === 'practice_score_invalid');
-        throw new SourceFailure(invalid ? 'INVALID_SCORE' : 'LOAD_FAILED', { cause });
-      }
-    },
+    queryFn: ({ signal }) => requestSource(options, signal),
     enabled: options.enabled,
     staleTime: Infinity,
     ...(options.enabled ? {} : { retry: false }),
@@ -72,7 +80,12 @@ function useSourceQuery(options: {
       signal.throwIfAborted();
       await client.cancelQueries({ queryKey, exact: true });
       signal.throwIfAborted();
-      const response = await sourceQuery.refetch();
+      const response = await client.fetchQuery({
+        queryKey,
+        queryFn: ({ signal: querySignal }) => requestSource(options, AbortSignal.any([signal, querySignal])),
+        staleTime: 0,
+        retry: false,
+      });
       signal.throwIfAborted();
       return response;
     },

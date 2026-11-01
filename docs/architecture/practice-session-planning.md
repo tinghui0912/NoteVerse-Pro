@@ -125,6 +125,14 @@ health atomically. Entering Setup retires any admitted binding before another co
 Unmount, revision/resource configuration replacement and superseding commands fence
 pending work; late acquisitions are closed rather than published.
 
+Fresh Source transport combines the command signal with query cancellation and always
+requests current admission instead of using cached success. Retiring the command
+aborts its HTTP request. Recording preflight consumes that same command signal: abort
+settles the probe, clears its timeout, detaches recorder handlers and best-effort stops
+an active recorder. Validation then releases all temporary cloned tracks immediately;
+the resource binding alone releases retained originals. Late probe callbacks cannot
+publish into a subsequent transaction.
+
 Practice uses `usePracticeSourceById` with the admission's complete expected identity,
 never revision resolution. Missing memory admission, including full reload/direct entry,
 shows Setup required with no Source fallback, device acquisition, inference or controller.

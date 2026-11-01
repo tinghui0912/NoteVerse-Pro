@@ -11,6 +11,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import * as artifactContract from '@/lib/practice/kernel/artifact';
 
+import * as bindingOwner from '@/lib/practice/device/practice-resource-binding';
+import { recordingProbeFixture } from '@/lib/practice/__fixtures__/recording-probe';
 import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import { browserDevicePlatform } from '@/lib/practice/device/browser-device-platform';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
@@ -33,7 +35,7 @@ beforeEach(() => {
   admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
   admission.request.mockReset().mockImplementation(async () => { admission.events.push('source'); return envelope(); });
 });
-afterEach(() => { localStorage.clear(); navigation.replace.mockReset(); navigation.push.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { localStorage.clear(); navigation.replace.mockReset(); navigation.push.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 function stream() {
   const stop=vi.fn(); const track=Object.assign(new EventTarget(), {kind:'audio',readyState:'live',muted:false,stop});
   const media={getTracks:()=>[track],getAudioTracks:()=>[track],getVideoTracks:()=>[]} as unknown as MediaStream;
@@ -93,9 +95,12 @@ it('acoustic validation borrows the retained microphone, and a smoke failure clo
   expect(r.platform.validateCapture).toHaveBeenCalledWith(r.microphone.media,expect.any(AbortSignal));expect(r.acquireStream).toHaveBeenCalledOnce();expect(r.microphone.stop).toHaveBeenCalledOnce();expect(r.workspace.preparedPractice).toBeNull();expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('source wait locks selectors, fences double click and prevents commit after unmount',async()=>{
-  let resolve!:(value:ReturnType<typeof envelope>)=>void;admission.request.mockImplementation(()=>new Promise(r=>{resolve=r;}));const r=await setup();selectMidi();await start();
+  const construct=vi.spyOn(bindingOwner,'PracticeResourceBinding');
+  let transport!:AbortSignal;let resolve!:(value:ReturnType<typeof envelope>)=>void;admission.request.mockImplementation((_score,_revision,_notation,signal:AbortSignal)=>{transport=signal;return new Promise(r=>{resolve=r;});});const r=await setup();selectMidi();await start();
   expect(button()).toBeDisabled();expect(screen.getByRole('button',{name:'Microphone'})).toBeDisabled();fireEvent.click(button());expect(admission.request).toHaveBeenCalledOnce();
-  r.view.unmount();await act(async()=>{resolve(envelope());});expect(r.acquireMidi).not.toHaveBeenCalled();expect(navigation.replace).not.toHaveBeenCalled();
+  r.view.unmount();expect(transport.aborted).toBe(true);
+  await act(async()=>{resolve(envelope());});expect(construct).not.toHaveBeenCalled();expect(r.workspace.preparedPractice).toBeNull();
+  expect(r.acquireMidi).not.toHaveBeenCalled();expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('unmount during acquisition closes a late stream and cannot navigate',async()=>{
   const r=await setup();let resolve!:(s:MediaStream)=>void;r.acquireStream.mockImplementation(()=>new Promise(done=>{resolve=done;}));
@@ -123,4 +128,33 @@ it('resource configuration replacement aborts a validating transaction and close
   act(()=>r.workspace.updateProfile({...r.workspace.profile,inputSource:'MIDI'}));
   expect(r.microphone.stop).toHaveBeenCalledOnce();await act(async()=>{finish();});
   expect(r.workspace.preparedPractice).toBeNull();expect(navigation.replace).not.toHaveBeenCalled();
+});
+
+it('superseded recording validation releases A immediately, lets B commit and ignores late A callbacks',async()=>{
+  const r=await setup(),probe=recordingProbeFixture(),first=probe.root('audio'),second=probe.root('audio'),camera=probe.root('video');
+  r.acquireStream.mockResolvedValueOnce(first.stream).mockResolvedValueOnce(second.stream).mockResolvedValueOnce(camera.stream);
+  fireEvent.click(screen.getByRole('button',{name:/Continuous play/}));fireEvent.click(screen.getByRole('button',{name:'MIDI keyboard'}));fireEvent.click(screen.getByRole('button',{name:'Audio'}));
+  vi.useFakeTimers();const time=Date.now();
+  const open=vi.spyOn(PracticeResourceBinding.prototype,'open');
+  await act(async()=>{fireEvent.click(button());await vi.advanceTimersByTimeAsync(0);});
+  expect(probe.instances).toHaveLength(1);const a=probe.instances[0],lateStop=a.onstop!,lateError=a.onerror!;
+  const bindingA=open.mock.contexts[0] as PracticeResourceBinding;expect(bindingA.borrowRoots()!.recordingMicrophone).toBe(first.stream);
+  expect(button()).toBeDisabled();expect(r.workspace.preparedPractice).toBeNull();
+  await act(async()=>{r.workspace.updateProfile({...r.workspace.profile,continuous:{...r.workspace.profile.continuous,recordingMode:'VIDEO'}});await vi.advanceTimersByTimeAsync(0);});
+  expect(a).toMatchObject({onstop:null,onerror:null,ondataavailable:null});expect(a.stop).toHaveBeenCalledTimes(2);
+  expect(first.track.clones[0].stop).toHaveBeenCalledOnce();expect(first.track.stop).toHaveBeenCalledOnce();expect(bindingA.snapshot().state).toBe('CLOSED');
+  expect(screen.getByRole('button',{name:'Video'})).toHaveAttribute('aria-pressed','true');
+  expect(screen.queryByRole('alert')).toBeNull();expect(button()).toBeEnabled();
+  admission.request.mockResolvedValueOnce({data:{...envelope().data,source_id:'source-B'}});
+  await act(async()=>{fireEvent.click(button());await vi.advanceTimersByTimeAsync(0);});
+  expect(probe.instances).toHaveLength(2);const b=probe.instances[1];b.completeOnStop=true;
+  await act(async()=>{b.stop();await vi.advanceTimersByTimeAsync(0);});
+  const prepared=r.workspace.preparedPractice!;expect(prepared.admission.source.sourceId).toBe('source-B');
+  expect(prepared.binding.borrowRoots()!.recordingMicrophone).toBe(second.stream);expect(prepared.binding.snapshot().state).toBe('READY');
+  for(const root of [second,camera]){expect(root.track.clones[0].stop).toHaveBeenCalledOnce();expect(root.track.stop).not.toHaveBeenCalled();}
+  expect(r.acquireStream).toHaveBeenCalledTimes(3);
+  expect(Date.now()).toBe(time);expect(navigation.replace).toHaveBeenCalledExactlyOnceWith('/score/score-id/practice?practiceRevisionId=revision-id');
+  await act(async()=>{lateError();lateStop();await vi.advanceTimersByTimeAsync(0);});
+  expect(r.workspace.preparedPractice).toBe(prepared);for(const root of [second,camera])expect(root.track.stop).not.toHaveBeenCalled();expect(screen.queryByRole('alert')).toBeNull();
+  expect(navigation.replace).toHaveBeenCalledOnce();
 });

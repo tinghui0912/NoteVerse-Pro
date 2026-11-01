@@ -9,8 +9,7 @@ import { usePracticeSourceById, usePracticeRevisionSource, usePerformanceTakePra
 const api = vi.hoisted(() => ({ exact: vi.fn(), source: vi.fn(), savedSource: vi.fn() }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSourceById: (...args: unknown[]) => api.exact(...args), getPracticeSource: (...args: unknown[]) => api.source(...args) } }));
 vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { getPracticeSource: (...args: unknown[]) => api.savedSource(...args) } }));
-function harness() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function harness(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return function Wrapper({ children }: { children: ReactNode }) { return <QueryClientProvider client={client}>{children}</QueryClientProvider>; };
 }
 function envelope(loadNotation: boolean) {
@@ -142,14 +141,39 @@ it.each(['scoreId', 'revisionId', 'artifactId'] as const)('saved Take requires i
 
 it('explicit fresh admission cancels an in-flight query and never reuses cached success',async()=>{
   let resolve!:(value:ReturnType<typeof envelope>)=>void;
-  api.source.mockImplementationOnce(()=>new Promise(done=>{resolve=done;}));
-  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false,enabled:false}),{wrapper:harness()});
+  api.source.mockImplementationOnce(()=>new Promise(done=>{resolve=done;})).mockResolvedValueOnce({data:{...envelope(false).data,source_id:'source-B'}});
+  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false,enabled:false}),{wrapper:harness(client)});
   const firstCommand=new AbortController();
   const first=result.current.loadFresh(firstCommand.signal).catch(error=>error);
   await waitFor(()=>expect(api.source).toHaveBeenCalledOnce());const firstSignal=api.source.mock.calls[0][3] as AbortSignal;
   firstCommand.abort();
-  await act(async()=>{const next=await result.current.loadFresh(new AbortController().signal);expect(next.data?.sourceId).toBe('source-1');});
+  expect(firstSignal.aborted).toBe(true); // Caller abort reaches transport before any new query cancellation.
+  await act(async()=>{const next=await result.current.loadFresh(new AbortController().signal);expect(next.sourceId).toBe('source-B');});
+  const secondSignal=api.source.mock.calls[1][3] as AbortSignal;
+  expect(secondSignal).not.toBe(firstSignal);expect(secondSignal.aborted).toBe(false);
   expect(firstSignal.aborted).toBe(true);expect(api.source).toHaveBeenCalledTimes(2);
   await act(async()=>{resolve(envelope(false));await first;});
+  expect(client.getQueriesData({})).toEqual([[expect.any(Array),expect.objectContaining({sourceId:'source-B'})]]);
   await act(async()=>{await result.current.loadFresh(new AbortController().signal);});expect(api.source).toHaveBeenCalledTimes(3);
+});
+
+it.each(['caller','query'] as const)('%s cancellation aborts the actual fresh Source transport without a replacement request',async owner=>{
+  const client=new QueryClient({defaultOptions:{queries:{retry:false}}}),command=new AbortController();
+  api.source.mockImplementationOnce((_score,_revision,_notation,signal:AbortSignal)=>new Promise((_resolve,reject)=>{
+    signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
+  }));
+  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false,enabled:false}),{wrapper:harness(client)});
+  const pending=result.current.loadFresh(command.signal).catch(error=>error);
+  await waitFor(()=>expect(api.source).toHaveBeenCalledOnce());const transport=api.source.mock.calls[0][3] as AbortSignal;
+  expect(transport.aborted).toBe(false);
+  await act(async()=>{if(owner==='caller')command.abort();else await client.cancelQueries();await pending;});
+  expect(transport.aborted).toBe(true);expect(command.signal.aborted).toBe(owner==='caller');
+  expect(api.source).toHaveBeenCalledOnce();expect(result.current.sourceQuery.data).toBeUndefined();
+});
+it('an already-aborted fresh command starts no transport even when cache contains admitted data',async()=>{
+  const {result}=renderHook(()=>usePracticeRevisionSource('score','revision',{loadNotation:false}),{wrapper:harness()});
+  await waitFor(()=>expect(result.current.artifact).not.toBeNull());const command=new AbortController();command.abort();
+  await expect(result.current.loadFresh(command.signal)).rejects.toBe(command.signal.reason);
+  expect(api.source).toHaveBeenCalledOnce();
 });

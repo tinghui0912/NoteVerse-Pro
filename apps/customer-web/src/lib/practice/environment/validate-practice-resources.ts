@@ -40,7 +40,7 @@ export async function validatePracticeResources(options: {
     try {
       for (const track of roots[recording.audioRoot]?.getAudioTracks() ?? []) clones.push(track.clone());
       if (recording.mode === 'VIDEO') for (const track of roots[recording.videoRoot]?.getVideoTracks() ?? []) clones.push(track.clone());
-      await probeRecording(recording.mode, new MediaStream(clones)); signal.throwIfAborted();
+      await probeRecording(recording.mode, new MediaStream(clones), signal); signal.throwIfAborted();
       onComponent(recording.mode === 'VIDEO' ? 'videoRecording' : 'audioRecording');
     } finally { for (const track of clones) track.stop(); }
   }

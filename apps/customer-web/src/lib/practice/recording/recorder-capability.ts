@@ -13,7 +13,8 @@ export function recordingOptions(mode: Exclude<PracticeRecordingMode, 'OFF'>): M
 }
 
 /** A capability probe owns no recording artifact or retained chunks. */
-export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>, stream: MediaStream): Promise<void> {
+export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>, stream: MediaStream, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
   if (!stream.getAudioTracks().some(track => track.readyState === 'live')
     || (mode === 'VIDEO' && !stream.getVideoTracks().some(track => track.readyState === 'live'))) {
     throw new RecordingFailure('RECORDING_TRACKS_UNAVAILABLE');
@@ -21,12 +22,18 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
   let recorder: MediaRecorder;
   try { recorder = new MediaRecorder(stream, recordingOptions(mode)); } catch (cause) { throw recordingBrowserFailure(cause); }
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const abort = () => finish(signal.reason);
     const timer = setTimeout(() => finish(new RecordingFailure('RECORDING_PROBE_TIMEOUT')), 5000);
-    const finish = (error?: Error) => {
-      clearTimeout(timer); recorder.onstop = null; recorder.onerror = null; recorder.ondataavailable = null;
+    const finish = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer); signal.removeEventListener('abort', abort); recorder.onstop = null; recorder.onerror = null; recorder.ondataavailable = null;
       try { if (recorder.state !== 'inactive') recorder.stop(); } catch { /* Teardown preserves probe error. */ }
-      if (error) reject(error); else resolve();
+      if (error !== undefined) reject(error); else resolve();
     };
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) { abort(); return; }
     recorder.onerror = () => finish(new RecordingFailure('RECORDING_PROBE_FAILED'));
     recorder.onstop = () => finish();
     try { recorder.start(); recorder.stop(); } catch { finish(new RecordingFailure('RECORDING_PROBE_FAILED')); }

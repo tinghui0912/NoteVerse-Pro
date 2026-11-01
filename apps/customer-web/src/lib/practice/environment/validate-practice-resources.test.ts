@@ -1,3 +1,6 @@
+import { recordingProbeFixture } from '../__fixtures__/recording-probe';
+import { PracticeResourceBinding } from '../device/practice-resource-binding';
+import { midiDeviceFixture } from '../__fixtures__/device-roots';
 import { afterEach,expect,it,vi } from 'vitest';
 import { validatePracticeResources } from './validate-practice-resources';
 import { PracticeEnvironment } from './practice-environment';
@@ -5,7 +8,7 @@ import { planPracticeResources } from '../planning/resource-plan';
 import { borrowedDevices } from '../__fixtures__/device-roots';
 import * as recording from '../recording/recorder-capability';
 vi.mock('../input-capability',()=>({evaluatePracticeInputCapabilities:()=>({}),getSelectedInputCapability:()=>({supported:true})}));
-afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
+afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();vi.useRealTimers();});
 function root(kind:'audio'|'video') {
  const clones:{stop:ReturnType<typeof vi.fn>}[]=[];
  const track={kind,readyState:'live',muted:false,stop:vi.fn(),clone:vi.fn(()=>{const clone={kind,readyState:'live',stop:vi.fn()};clones.push(clone);return clone;})};
@@ -29,4 +32,22 @@ it('recording probe failure still stops only cloned tracks, never retained origi
  vi.spyOn(recording,'probeRecording').mockRejectedValue(new Error('probe'));
  await expect(validatePracticeResources({plan:planPracticeResources({mode:'CONTINUOUS_PLAY',inputSource:'MIDI',recordingMode:'VIDEO'}),roots:borrowedDevices(null,mic.stream,camera.stream),environment,signal:new AbortController().signal,onComponent:vi.fn()})).rejects.toThrow('probe');
  for(const original of [mic,camera]){expect(original.track.stop).not.toHaveBeenCalled();expect(original.clones[0].stop).toHaveBeenCalledOnce();}await environment.dispose();
+});
+
+it('abort releases recording clones immediately; retained roots are released only by the binding',async()=>{
+  vi.useFakeTimers();const r=recordingProbeFixture(),microphone=r.root('audio'),camera=r.root('video');
+  const plan=planPracticeResources({mode:'CONTINUOUS_PLAY',inputSource:'MIDI',recordingMode:'VIDEO'});
+  const binding=new PracticeResourceBinding(plan,{acquireMidi:async()=>midiDeviceFixture().access,
+    acquireStream:async root=>root==='camera'?camera.stream:microphone.stream});
+  await binding.open();const environment=new PracticeEnvironment(),controller=new AbortController(),ready=vi.fn();
+  const pending=validatePracticeResources({plan,roots:binding.borrowRoots()!,environment,signal:controller.signal,onComponent:ready});
+  const recorder=r.instances[0],lateStop=recorder.onstop!,lateError=recorder.onerror!;
+  expect(recorder.state).toBe('recording');const reason=new DOMException('retired','AbortError');
+  const rejected=expect(pending).rejects.toBe(reason);controller.abort(reason);await rejected;
+  expect(vi.getTimerCount()).toBe(0);expect(recorder.stop).toHaveBeenCalledTimes(2);
+  expect(recorder).toMatchObject({onstop:null,onerror:null,ondataavailable:null});
+  for(const root of [microphone,camera]){expect(root.track.clones[0].stop).toHaveBeenCalledOnce();expect(root.track.stop).not.toHaveBeenCalled();}
+  expect(binding.snapshot().state).toBe('READY');const calls=ready.mock.calls.length;lateStop();lateError();expect(ready).toHaveBeenCalledTimes(calls);
+  binding.close();for(const root of [microphone,camera])expect(root.track.stop).toHaveBeenCalledOnce();
+  await environment.dispose();
 });

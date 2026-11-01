@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { recordingProbeFixture } from '../__fixtures__/recording-probe';
 import { probeRecording, recordingOptions } from './recorder-capability';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -19,20 +20,20 @@ function rig() {
   return { instances, Recorder, stream };
 }
 it('probes real start/stop with the canonical video MIME and retains neither chunks nor listeners', async () => {
-  const r = rig(); await probeRecording('VIDEO', r.stream);
+  const r = rig(); await probeRecording('VIDEO', r.stream, new AbortController().signal);
   expect(r.instances).toHaveLength(1);
   expect(r.instances[0].options).toEqual(recordingOptions('VIDEO'));
   expect(r.instances[0].start).toHaveBeenCalledOnce(); expect(r.instances[0].stop).toHaveBeenCalledOnce();
   expect(r.instances[0]).toMatchObject({ state: 'inactive', onstop: null, onerror: null, ondataavailable: null });
 });
 it('audio uses the browser default MIME and rejects missing live audio before construction', async () => {
-  const r = rig(); await probeRecording('AUDIO', r.stream); expect(r.instances[0].options).toBeUndefined();
-  await expect(probeRecording('AUDIO', { ...r.stream, getAudioTracks: () => [] } as MediaStream)).rejects.toThrow('TRACKS_UNAVAILABLE');
+  const r = rig(); await probeRecording('AUDIO', r.stream, new AbortController().signal); expect(r.instances[0].options).toBeUndefined();
+  await expect(probeRecording('AUDIO', { ...r.stream, getAudioTracks: () => [] } as MediaStream, new AbortController().signal)).rejects.toThrow('TRACKS_UNAVAILABLE');
   expect(r.instances).toHaveLength(1);
 });
 it('unsupported recording fails instead of substituting a different mode', async () => {
   const r = rig(); r.Recorder.isTypeSupported.mockReturnValue(false);
-  await expect(probeRecording('VIDEO', r.stream)).rejects.toThrow('VIDEO_RECORDER_UNSUPPORTED');
+  await expect(probeRecording('VIDEO', r.stream, new AbortController().signal)).rejects.toThrow('VIDEO_RECORDER_UNSUPPORTED');
   expect(r.instances).toHaveLength(0);
   vi.stubGlobal('MediaRecorder', undefined);
   expect(() => recordingOptions('AUDIO')).toThrow('MEDIA_RECORDER_UNSUPPORTED');
@@ -44,9 +45,31 @@ it('a stalled recorder is stopped and detached at the probe timeout', async () =
   vi.stubGlobal('MediaRecorder', class extends Native {
     constructor(stream: MediaStream, options?: MediaRecorderOptions) { super(stream, options); this.stop = vi.fn(); }
   });
-  const pending = probeRecording('AUDIO', r.stream);
+  const pending = probeRecording('AUDIO', r.stream, new AbortController().signal);
   const rejected = expect(pending).rejects.toThrow('RECORDING_PROBE_TIMEOUT');
   await vi.advanceTimersByTimeAsync(5000); await rejected;
   expect(r.instances[0].onstop).toBeNull(); expect(r.instances[0].onerror).toBeNull();
   expect(r.instances[0].stop).toHaveBeenCalledTimes(2);
+});
+
+it('already-aborted preflight constructs no recorder or timeout',async()=>{
+  vi.useFakeTimers();const r=rig(),controller=new AbortController();controller.abort();
+  await expect(probeRecording('AUDIO',r.stream,controller.signal)).rejects.toBe(controller.signal.reason);
+  expect(r.instances).toHaveLength(0);expect(vi.getTimerCount()).toBe(0);
+});
+it.each([false,true])('abort settles a stalled probe without advancing time, even when stop throws=%s',async throws=>{
+  vi.useFakeTimers();const r=recordingProbeFixture(),root=r.root('audio'),controller=new AbortController();
+  const detach=vi.spyOn(controller.signal,'removeEventListener');
+  const pending=probeRecording('AUDIO',root.stream,controller.signal),recorder=r.instances[0];
+  const lateStop=recorder.onstop!,lateError=recorder.onerror!;
+  expect(vi.getTimerCount()).toBe(1);expect(recorder.state).toBe('recording');
+  if(throws)recorder.stop.mockImplementationOnce(()=>{throw new Error('native stop failed');});
+  const reason=new DOMException('preparation retired','AbortError');
+  const rejected=expect(pending).rejects.toBe(reason);
+  controller.abort(reason);await rejected;
+  expect(vi.getTimerCount()).toBe(0);expect(recorder.stop).toHaveBeenCalledTimes(2);
+  expect(detach).toHaveBeenCalledExactlyOnceWith('abort',expect.any(Function));
+  expect(recorder).toMatchObject({onstop:null,onerror:null,ondataavailable:null});
+  lateStop();lateError();expect(recorder.stop).toHaveBeenCalledTimes(2);
+  expect(root.track.stop).not.toHaveBeenCalled();
 });

@@ -56,7 +56,6 @@ export default function PracticeSetupPage() {
     try {
       const admitted = await source.loadFresh(command.signal);
       if (!active()) return;
-      if (admitted.isError || !admitted.data) throw admitted.error;
       failure = 'RESOURCES';
       const resources = planPracticeResources(configuration);
       setPreparation({ ...captured, stage: 'ACQUIRING', failure: null });
@@ -75,7 +74,7 @@ export default function PracticeSetupPage() {
           onProgress: progress => { if (active()) setPreparation(previous => previous ? { ...previous, progress } : previous); },
         });
         if (!active()) return;
-        const { sourceId, artifact } = admitted.data;
+        const { sourceId, artifact } = admitted;
         const admission = Object.freeze({ source: Object.freeze({ sourceId, scoreId: artifact.scoreId,
           revisionId: artifact.revisionId, artifactId: artifact.artifactId }), configuration: Object.freeze({
           mode: configuration.mode, inputSource: configuration.inputSource, recordingMode: configuration.recordingMode,
