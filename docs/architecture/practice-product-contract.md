@@ -866,7 +866,7 @@ retain causal metadata separately from observations and user recordings.
 ## Continuous Result Artifact
 
 `result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-7: local session and score/revision/artifact identities, resolved scope, tempo plan,
+8: admitted sourceId, local session and score/revision/artifact identities, resolved scope, tempo plan,
 input source, active performance duration, completed evaluation, evidence
 provenance and ISO UTC completion time. The result is pure, deeply immutable and
 JSON-serializable. It contains no recording or browser-media resource. STEP creates
@@ -1103,16 +1103,23 @@ completed local recording -> immutable upload reservation -> direct binary uploa
 ```
 
 `POST /performance-takes/upload-reservations` captures client_request_id, source,
-media, scope, tempo plan and recording timebase once. Source contains only
+media, scope selection, tempo selection and recording timebase once. Source contains only
 canonical source_id; media contains kind, canonical MIME, byte size and duration. The
-reservation retains the exact canonical durable PracticeSource and captures score title. Client-request
+reservation retains the exact canonical durable PracticeSource and captures score title.
+Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
+the server derives durable beats and tempo segments from that exact Source.
+Response metadata describes intent/evidence; resolved_scope and resolved_tempo_plan
+describe the accepted canonical plan. Before upload and before saved success, the
+browser verifies agreement with its executed Result8. Plan mismatch fails closed;
+a new RESERVED mismatch is cancelled best-effort without media upload.
+Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
 reservation/take identities; different metadata conflicts. RESERVED replay can refresh
 the signed upload target. FINALIZING replay provides state, and COMPLETED replay returns
 the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
-It consumes persisted reservation metadata and its durable source reference. Live score deletion,
+It copies persisted canonical scope/tempo and recording evidence without replanning. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 reservation. Both routes use the user-scoped public upload UUID, independently of the

@@ -63,11 +63,8 @@ async def setup_source(postgres_source):
                 "byte_size": len(MEDIA),
                 "duration_ms": 1000,
             },
-            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
-            "tempo_plan": {
-                "selection": {"mode": "SCORE"},
-                "segments": [{"startBeat": 0, "bpm": 120, "source": "MUSICXML"}],
-            },
+            "scope": {'kind': "FULL"},
+            "tempo_selection": {"mode": "SCORE"},
             "recording_timebase": {
                 "nominalMediaDurationMs": 1000,
                 "activeSegments": [

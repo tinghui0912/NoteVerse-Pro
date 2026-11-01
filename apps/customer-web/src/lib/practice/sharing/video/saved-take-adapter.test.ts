@@ -185,3 +185,14 @@ describe('share video session saved-take parsing', () => {
     });
   });
 });
+
+
+it('uses validated durable scope beats and tempo without replacing saved values', () => {
+  const persisted = { ...take, scope_terminal_beat: take.scope_terminal_beat - 0.0000001 };
+  const result = createShareVideoSessionFromSavedTake(persisted, new Blob(['video']), { sourceId: take.source_id, artifact });
+  expect(result.status).toBe('supported');
+  if (result.status === 'supported') {
+    expect(result.session.scope.terminalBeat).toBe(persisted.scope_terminal_beat);
+    expect(result.session.tempoPlan).toEqual(take.tempo_plan);
+  }
+});

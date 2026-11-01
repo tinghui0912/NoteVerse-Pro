@@ -24,6 +24,8 @@ def test_take_source_dependencies_are_public_service_and_value_contracts():
         "app.modules.practice.source.service",
         "app.modules.practice.source.domain",
         "app.modules.practice.source.schemas",
+        "app.modules.practice.planning.score_plan",
+        "app.modules.practice.score.domain",
     }
 
 
@@ -67,3 +69,18 @@ def test_source_service_delegates_durable_ownership_to_repository():
         module and module.startswith(("fastapi", "app.modules.performance_takes"))
         for module in repository
     )
+
+
+def test_durable_planning_depends_only_on_score_domain_and_standard_library():
+    planning = ROOT / "modules/practice/planning"
+    for path in planning.rglob("*.py"):
+        for node in imports(path.relative_to(ROOT)):
+            assert not node.level
+            if node.module and node.module.startswith("app."):
+                assert node.module.startswith("app.modules.practice.score.")
+            else:
+                assert node.module in {"__future__", "dataclasses", "typing"}
+    service = ast.parse((ROOT / "modules/performance_takes/service.py").read_text())
+    calls = [node for node in ast.walk(service) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name) and node.func.id == "resolve_practice_score_plan"]
+    assert len(calls) == 1

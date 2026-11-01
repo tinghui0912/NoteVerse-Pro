@@ -1,3 +1,5 @@
+import { resolvePracticeScope } from '../../src/lib/practice/kernel/scope';
+import { resolvePracticeTempoPlan } from '../../src/lib/practice/kernel/tempo';
 import type { PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
 import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
@@ -296,28 +298,40 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   // Mock Performance Takes Routes
   const takesDatabase: PerformanceTakeRead[] = [];
   let reservedRequest: PerformanceTakeUploadReservationRequest;
+  function acceptedPlan(request: PerformanceTakeUploadReservationRequest) {
+    const scope = resolvePracticeScope(testArtifact, request.scope.kind === 'FULL'
+      ? { kind: 'FULL' }
+      : { kind: 'RANGE', startGroupId: request.scope.start_group_id, endGroupId: request.scope.end_group_id });
+    return {
+      resolved_scope: { kind: scope.kind, start_beat: scope.startBeat, terminal_beat: scope.terminalBeat,
+        ...(scope.kind === 'RANGE' ? { start_group_id: scope.startGroupId, end_group_id: scope.endGroupId } : {}) },
+      resolved_tempo_plan: resolvePracticeTempoPlan(testArtifact, request.tempo_selection),
+    };
+  }
   await page.route('**/api/v1/performance-takes/upload-reservations', route => {
     reservedRequest = route.request().postDataJSON();
-    const { source, media, scope, tempo_plan, recording_timebase } = reservedRequest;
+    const { source, media, scope, tempo_selection, recording_timebase } = reservedRequest;
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
-      metadata: { source, media, scope, tempo_plan, recording_timebase },
+      metadata: { source, media, scope, tempo_selection, recording_timebase },
+      ...acceptedPlan(reservedRequest),
       upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
     }) });
   });
   await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize', route => {
     expect(route.request().postData()).toBeNull();
-    const { source, media, scope, tempo_plan, recording_timebase } = reservedRequest;
+    const { source, media, scope, recording_timebase } = reservedRequest;
+    const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
     const take: PerformanceTakeRead = {
       take_id: 'take-e2e-1', source_id: source.source_id, source_score_id: testArtifact.scoreId, source_revision_id: testArtifact.revisionId,
       source_artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
       media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
-      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_beat: scope.start_beat,
-      scope_terminal_beat: scope.terminal_beat,
+      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_beat: resolved_scope.start_beat,
+      scope_terminal_beat: resolved_scope.terminal_beat,
       scope_start_group_id: scope.kind === 'RANGE' ? scope.start_group_id : null,
       scope_end_group_id: scope.kind === 'RANGE' ? scope.end_group_id : null,
-      tempo_plan, recording_timebase, created_at: '2026-09-20T12:00:00Z',
+      tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map(segment => ({ ...segment })) }, recording_timebase, created_at: '2026-09-20T12:00:00Z',
     };
     takesDatabase.push(take);
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });

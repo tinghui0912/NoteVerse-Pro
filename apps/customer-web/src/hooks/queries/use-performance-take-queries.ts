@@ -6,6 +6,8 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type RecordingTimebase,
+  type PerformanceTakeRead,
+  type PerformanceTakeUploadReservationRead,
   type PerformanceTakeTempoPlan,
   type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
@@ -92,24 +94,31 @@ export function useSavePerformanceTake() {
         scope: input.scope.kind === 'RANGE'
           ? {
               kind: 'RANGE',
-              start_beat: input.scope.startBeat,
-              terminal_beat: input.scope.terminalBeat,
               start_group_id: input.scope.startGroupId,
               end_group_id: input.scope.endGroupId,
             }
           : {
               kind: 'FULL',
-              start_beat: input.scope.startBeat,
-              terminal_beat: input.scope.terminalBeat,
             },
-        tempo_plan: input.tempoPlan,
+        tempo_selection: input.tempoPlan.selection,
         recording_timebase: input.recordingTimebase,
       };
       const response = await performanceTakesApi.reserveUpload(request);
       const reservation = response.data;
       if (!reservation) throw new Error('Upload reservation is unavailable');
+      if (!reservationMatchesExecution(reservation, input)) {
+        if (reservation.status === 'RESERVED') {
+          try {
+            await performanceTakesApi.cancelUploadReservation(reservation.reservation_id);
+          } catch {
+            // Expiry processing retains cleanup ownership if cancellation is unavailable.
+          }
+        }
+        throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
+      }
       if (reservation.status === 'COMPLETED') {
         if (!reservation.take) throw new Error('Completed reservation has no saved take');
+        assertTakeMatchesExecution(reservation.take, input);
         return reservation.take;
       }
       if (reservation.status === 'RESERVED') {
@@ -128,6 +137,7 @@ export function useSavePerformanceTake() {
       }
       // Unknown finalize outcomes retain the reservation for an idempotent retry.
       const finalized = await performanceTakesApi.finalizeTake(reservation.reservation_id);
+      assertTakeMatchesExecution(finalized.data, input);
       return finalized.data;
     },
     onSuccess: () => {
@@ -135,4 +145,50 @@ export function useSavePerformanceTake() {
       queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.all });
     },
   });
+}
+
+function tempoMatchesExecution(
+  actual: PerformanceTakeTempoPlan | undefined,
+  expected: PerformanceTakeTempoPlan,
+): boolean {
+  if (!actual?.selection || !Array.isArray(actual.segments)) return false;
+  if (actual.selection.mode !== expected.selection.mode) return false;
+  if (
+    expected.selection.mode === 'CUSTOM_FIXED_BPM' &&
+    (actual.selection.mode !== 'CUSTOM_FIXED_BPM' || actual.selection.bpm !== expected.selection.bpm)
+  ) return false;
+  return actual.segments.length === expected.segments.length &&
+    actual.segments.every((segment, index) => {
+      const executed = expected.segments[index];
+      return segment?.startBeat === executed.startBeat &&
+        segment.bpm === executed.bpm && segment.source === executed.source;
+    });
+}
+
+function reservationMatchesExecution(
+  reservation: PerformanceTakeUploadReservationRead,
+  input: SavePerformanceTakeInput,
+): boolean {
+  const scope = reservation.resolved_scope;
+  return reservation.metadata?.source?.source_id === input.sourceId && Boolean(scope) &&
+    scope.kind === input.scope.kind && scope.start_beat === input.scope.startBeat &&
+    scope.terminal_beat === input.scope.terminalBeat &&
+    (input.scope.kind !== 'RANGE' || (scope.kind === 'RANGE' &&
+      scope.start_group_id === input.scope.startGroupId && scope.end_group_id === input.scope.endGroupId)) &&
+    tempoMatchesExecution(reservation.resolved_tempo_plan, input.tempoPlan);
+}
+
+function assertTakeMatchesExecution(
+  take: PerformanceTakeRead | undefined,
+  input: SavePerformanceTakeInput,
+): asserts take is PerformanceTakeRead {
+  if (
+    !take || take.source_id !== input.sourceId || take.scope_type !== input.scope.kind ||
+    take.scope_start_beat !== input.scope.startBeat || take.scope_terminal_beat !== input.scope.terminalBeat ||
+    (input.scope.kind === 'RANGE' && (take.scope_start_group_id !== input.scope.startGroupId ||
+      take.scope_end_group_id !== input.scope.endGroupId)) ||
+    !tempoMatchesExecution(take.tempo_plan, input.tempoPlan)
+  ) {
+    throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
+  }
 }

@@ -9,8 +9,8 @@ it('reserves one structured immutable save request', () => {
   const request: PerformanceTakeUploadReservationRequest = {
     client_request_id: 'request', source: { source_id: 'source-1' },
     media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm', duration_ms: 1000 },
-    scope: { kind: 'FULL', start_beat: 0, terminal_beat: 4 },
-    tempo_plan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }] },
+    scope: { kind: 'FULL' },
+    tempo_selection: { mode: 'SCORE' },
     recording_timebase: { nominalMediaDurationMs: 1000, activeSegments: [{ perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 }] },
   };
   performanceTakesApi.reserveUpload(request);

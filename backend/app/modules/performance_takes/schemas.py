@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.modules.practice.planning.score_plan import MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM
 
 
 class StrictPerformanceTakeModel(BaseModel):
@@ -16,7 +17,9 @@ class ScoreTempoPlanSelection(StrictPerformanceTakeModel):
 
 class CustomFixedBpmTempoPlanSelection(StrictPerformanceTakeModel):
     mode: Literal["CUSTOM_FIXED_BPM"]
-    bpm: float = Field(gt=0)
+    bpm: float = Field(
+        strict=True, ge=MIN_PRACTICE_TEMPO_BPM, le=MAX_PRACTICE_TEMPO_BPM, allow_inf_nan=False
+    )
 
 
 TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection
@@ -88,13 +91,23 @@ class PerformanceTakeMediaMetadata(StrictPerformanceTakeModel):
     duration_ms: int = Field(ge=0)
 
 
-class PerformanceTakeFullScope(StrictPerformanceTakeModel):
+class PerformanceTakeFullScopeSelection(StrictPerformanceTakeModel):
+    kind: Literal["FULL"]
+
+
+class PerformanceTakeRangeScopeSelection(StrictPerformanceTakeModel):
+    kind: Literal["RANGE"]
+    start_group_id: str = Field(min_length=1, max_length=128)
+    end_group_id: str = Field(min_length=1, max_length=128)
+
+
+class PerformanceTakeResolvedFullScope(StrictPerformanceTakeModel):
     kind: Literal["FULL"]
     start_beat: float = Field(ge=0)
     terminal_beat: float = Field(gt=0)
 
 
-class PerformanceTakeRangeScope(StrictPerformanceTakeModel):
+class PerformanceTakeResolvedRangeScope(StrictPerformanceTakeModel):
     kind: Literal["RANGE"]
     start_beat: float = Field(ge=0)
     terminal_beat: float = Field(gt=0)
@@ -105,8 +118,10 @@ class PerformanceTakeRangeScope(StrictPerformanceTakeModel):
 class PerformanceTakeUploadMetadata(StrictPerformanceTakeModel):
     source: PerformanceTakeSourceIdentity
     media: PerformanceTakeMediaMetadata
-    scope: PerformanceTakeFullScope | PerformanceTakeRangeScope = Field(discriminator="kind")
-    tempo_plan: PerformanceTakeTempoPlan
+    scope: PerformanceTakeFullScopeSelection | PerformanceTakeRangeScopeSelection = Field(
+        discriminator="kind"
+    )
+    tempo_selection: TempoPlanSelection = Field(discriminator="mode")
     recording_timebase: RecordingTimebase
 
 
@@ -126,6 +141,10 @@ class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
     take_id: str
     status: Literal["RESERVED", "FINALIZING", "COMPLETED"]
     metadata: PerformanceTakeUploadMetadata
+    resolved_scope: PerformanceTakeResolvedFullScope | PerformanceTakeResolvedRangeScope = Field(
+        discriminator="kind"
+    )
+    resolved_tempo_plan: PerformanceTakeTempoPlan
     upload_target: PerformanceTakeUploadTarget | None = None
     take: Optional["PerformanceTakeRead"] = None
 

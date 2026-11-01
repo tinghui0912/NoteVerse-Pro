@@ -30,7 +30,7 @@ def test_upload_reservation_owns_idempotency_and_unique_take_lineage():
         "source",
         "media",
         "scope",
-        "tempo_plan",
+        "tempo_selection",
         "recording_timebase",
         "client_request_id",
     }
@@ -100,3 +100,36 @@ def test_source_lineage_is_owned_by_the_exact_source_foreign_key():
         "updated_at",
     }
     assert set(PerformanceTakeUploadReservation.__table__.columns.keys()) == expected
+
+
+
+def test_request_exposes_selection_and_evidence_while_response_exposes_resolved_truth():
+    from app.modules.performance_takes.schemas import (
+        PerformanceTakeFullScopeSelection, PerformanceTakeRangeScopeSelection,
+        PerformanceTakeUploadReservationRead,
+    )
+    assert set(PerformanceTakeFullScopeSelection.model_fields) == {"kind"}
+    assert set(PerformanceTakeRangeScopeSelection.model_fields) == {"kind", "start_group_id", "end_group_id"}
+    assert {"resolved_scope", "resolved_tempo_plan"} <= set(PerformanceTakeUploadReservationRead.model_fields)
+
+
+def test_strict_request_rejects_writable_resolved_facts():
+    import copy
+    import pytest
+    from pydantic import ValidationError
+    payload = {
+        "client_request_id": "intent", "source": {"source_id": "source"},
+        "media": {"kind": "AUDIO", "byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+        "scope": {"kind": "FULL"}, "tempo_selection": {"mode": "SCORE"},
+        "recording_timebase": {"nominalMediaDurationMs": 1000, "activeSegments": [{"perfStartMs": 0, "perfEndMs": 1000, "mediaStartMs": 0, "mediaEndMs": 1000}]},
+    }
+    original = copy.deepcopy(payload)
+    assert PerformanceTakeUploadReservationRequest.model_validate(payload).scope.kind == "FULL"
+    assert payload == original
+    for fields in [
+        {"scope": {"kind": "FULL", "start_beat": 999, "terminal_beat": 1000}},
+        {"tempo_plan": {"selection": {"mode": "SCORE"}, "segments": [{"startBeat": 0, "bpm": 200, "source": "CUSTOM"}]}},
+        {"tempo_selection": {"mode": "SCORE", "segments": []}},
+    ]:
+        with pytest.raises(ValidationError):
+            PerformanceTakeUploadReservationRequest.model_validate({**payload, **fields})

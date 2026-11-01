@@ -2981,21 +2981,13 @@ export type PerformanceTakeDeleteResponse = {
 };
 
 /**
- * PerformanceTakeFullScope
+ * PerformanceTakeFullScopeSelection
  */
-export type PerformanceTakeFullScope = {
+export type PerformanceTakeFullScopeSelection = {
     /**
      * Kind
      */
     kind: 'FULL';
-    /**
-     * Start Beat
-     */
-    start_beat: number;
-    /**
-     * Terminal Beat
-     */
-    terminal_beat: number;
 };
 
 /**
@@ -3085,9 +3077,9 @@ export type PerformanceTakePlaybackRead = {
 };
 
 /**
- * PerformanceTakeRangeScope
+ * PerformanceTakeRangeScopeSelection
  */
-export type PerformanceTakeRangeScope = {
+export type PerformanceTakeRangeScopeSelection = {
     /**
      * End Group Id
      */
@@ -3097,17 +3089,9 @@ export type PerformanceTakeRangeScope = {
      */
     kind: 'RANGE';
     /**
-     * Start Beat
-     */
-    start_beat: number;
-    /**
      * Start Group Id
      */
     start_group_id: string;
-    /**
-     * Terminal Beat
-     */
-    terminal_beat: number;
 };
 
 /**
@@ -3195,6 +3179,50 @@ export type PerformanceTakeRead = {
 };
 
 /**
+ * PerformanceTakeResolvedFullScope
+ */
+export type PerformanceTakeResolvedFullScope = {
+    /**
+     * Kind
+     */
+    kind: 'FULL';
+    /**
+     * Start Beat
+     */
+    start_beat: number;
+    /**
+     * Terminal Beat
+     */
+    terminal_beat: number;
+};
+
+/**
+ * PerformanceTakeResolvedRangeScope
+ */
+export type PerformanceTakeResolvedRangeScope = {
+    /**
+     * End Group Id
+     */
+    end_group_id: string;
+    /**
+     * Kind
+     */
+    kind: 'RANGE';
+    /**
+     * Start Beat
+     */
+    start_beat: number;
+    /**
+     * Start Group Id
+     */
+    start_group_id: string;
+    /**
+     * Terminal Beat
+     */
+    terminal_beat: number;
+};
+
+/**
  * PerformanceTakeSourceIdentity
  */
 export type PerformanceTakeSourceIdentity = {
@@ -3251,11 +3279,18 @@ export type PerformanceTakeUploadMetadata = {
      */
     scope: ({
         kind: 'FULL';
-    } & PerformanceTakeFullScope) | ({
+    } & PerformanceTakeFullScopeSelection) | ({
         kind: 'RANGE';
-    } & PerformanceTakeRangeScope);
+    } & PerformanceTakeRangeScopeSelection);
     source: PerformanceTakeSourceIdentity;
-    tempo_plan: PerformanceTakeTempoPlan;
+    /**
+     * Tempo Selection
+     */
+    tempo_selection: ({
+        mode: 'SCORE';
+    } & ScoreTempoPlanSelection) | ({
+        mode: 'CUSTOM_FIXED_BPM';
+    } & CustomFixedBpmTempoPlanSelection);
 };
 
 /**
@@ -3267,6 +3302,15 @@ export type PerformanceTakeUploadReservationRead = {
      * Reservation Id
      */
     reservation_id: string;
+    /**
+     * Resolved Scope
+     */
+    resolved_scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeResolvedFullScope) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeResolvedRangeScope);
+    resolved_tempo_plan: PerformanceTakeTempoPlan;
     /**
      * Status
      */
@@ -3294,11 +3338,18 @@ export type PerformanceTakeUploadReservationRequest = {
      */
     scope: ({
         kind: 'FULL';
-    } & PerformanceTakeFullScope) | ({
+    } & PerformanceTakeFullScopeSelection) | ({
         kind: 'RANGE';
-    } & PerformanceTakeRangeScope);
+    } & PerformanceTakeRangeScopeSelection);
     source: PerformanceTakeSourceIdentity;
-    tempo_plan: PerformanceTakeTempoPlan;
+    /**
+     * Tempo Selection
+     */
+    tempo_selection: ({
+        mode: 'SCORE';
+    } & ScoreTempoPlanSelection) | ({
+        mode: 'CUSTOM_FIXED_BPM';
+    } & CustomFixedBpmTempoPlanSelection);
 };
 
 /**

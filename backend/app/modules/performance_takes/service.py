@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 from datetime import datetime, timedelta
 import hashlib
 import hmac
@@ -54,6 +55,18 @@ from app.modules.practice.source.schemas import (
 )
 from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.source.domain import PracticeSourceRef
+from app.modules.practice.planning.score_plan import (
+    PlanningMoment,
+    PracticePlanningScore,
+    FullScopeSelection,
+    RangeScopeSelection,
+    ScoreTempoSelection,
+    CustomTempoSelection,
+    PracticePlanningError,
+    resolve_practice_score_plan,
+)
+from app.modules.practice.score.domain import PracticeTempoSegment
+
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
@@ -340,8 +353,6 @@ class PerformanceTakeService:
     ) -> PerformanceTakeUploadMetadata:
         scope = {
             "kind": reservation.scope_type,
-            "start_beat": reservation.scope_start_beat,
-            "terminal_beat": reservation.scope_terminal_beat,
         }
         if reservation.scope_type == "RANGE":
             scope.update(
@@ -358,10 +369,24 @@ class PerformanceTakeService:
                     "duration_ms": reservation.duration_ms,
                 },
                 "scope": scope,
-                "tempo_plan": json.loads(reservation.tempo_plan),
+                "tempo_selection": json.loads(reservation.tempo_plan)["selection"],
                 "recording_timebase": json.loads(reservation.recording_timebase),
             }
         )
+
+    @staticmethod
+    def _reservation_resolved_scope(reservation: PerformanceTakeUploadReservation) -> dict:
+        scope = {
+            "kind": reservation.scope_type,
+            "start_beat": reservation.scope_start_beat,
+            "terminal_beat": reservation.scope_terminal_beat,
+        }
+        if reservation.scope_type == "RANGE":
+            scope.update(
+                start_group_id=reservation.scope_start_group_id,
+                end_group_id=reservation.scope_end_group_id,
+            )
+        return scope
 
     def _reservation_read(
         self,
@@ -376,6 +401,8 @@ class PerformanceTakeService:
             take_id=reservation.take_uuid,
             status=reservation.status,
             metadata=self._reservation_metadata(reservation, source_ref),
+            resolved_scope=self._reservation_resolved_scope(reservation),
+            resolved_tempo_plan=json.loads(reservation.tempo_plan),
             upload_target=PerformanceTakeUploadTarget(
                 url=upload_target.upload_url,
                 method=upload_target.upload_method,
@@ -658,13 +685,11 @@ class PerformanceTakeService:
         media.mime_type = _clean_mime_type(media.mime_type)
         if media.mime_type not in _supported_mimes_for_kind(media.kind):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        if metadata.scope.terminal_beat <= metadata.scope.start_beat:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="scope_terminal_beat")
         if not 0 < media.duration_ms <= MAX_TAKE_DURATION_MS:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="duration_ms")
         if not 0 < media.byte_size <= MAX_TAKE_MEDIA_BYTES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
-        _json_snapshot(metadata.tempo_plan)
+        _json_snapshot(metadata.tempo_selection)
         _json_snapshot(metadata.recording_timebase)
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
@@ -680,6 +705,41 @@ class PerformanceTakeService:
             db, user_id, metadata.source.source_id
         )
         source_ref = authorized_source.source_ref
+        artifact = authorized_source.source.artifact.value
+        score = PracticePlanningScore(
+            tuple(
+                PlanningMoment(moment["groupId"], moment["onsetBeat"], moment["canonicalEndBeat"])
+                for moment in artifact["moments"]
+            ),
+            artifact["scoreEndBeat"],
+            tuple(
+                PracticeTempoSegment(segment["startBeat"], segment["bpm"])
+                for segment in artifact["scoreTempoSegments"]
+            ),
+        )
+        scope_selection = (
+            FullScopeSelection()
+            if metadata.scope.kind == "FULL"
+            else RangeScopeSelection(metadata.scope.start_group_id, metadata.scope.end_group_id)
+        )
+        tempo_selection = (
+            ScoreTempoSelection()
+            if metadata.tempo_selection.mode == "SCORE"
+            else CustomTempoSelection(metadata.tempo_selection.bpm)
+        )
+        try:
+            plan = resolve_practice_score_plan(score, scope_selection, tempo_selection)
+        except PracticePlanningError as error:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field=error.field) from error
+        tempo_plan = PerformanceTakeTempoPlan.model_validate(
+            {
+                "selection": asdict(plan.tempo_plan.selection),
+                "segments": [
+                    {"startBeat": segment.start_beat, "bpm": segment.bpm, "source": segment.source}
+                    for segment in plan.tempo_plan.segments
+                ],
+            }
+        )
         take_uuid = str(uuid4())
         staging_key = _build_staging_object_key(user_id, take_uuid, media.mime_type)
         upload_target = self.storage.upload_url(
@@ -707,16 +767,12 @@ class PerformanceTakeService:
             take_uuid=take_uuid,
             linked_score_id=authorized_source.score_db_id,
             score_title=authorized_source.score_title,
-            scope_type=metadata.scope.kind,
-            scope_start_beat=metadata.scope.start_beat,
-            scope_terminal_beat=metadata.scope.terminal_beat,
-            scope_start_group_id=metadata.scope.start_group_id
-            if metadata.scope.kind == "RANGE"
-            else None,
-            scope_end_group_id=metadata.scope.end_group_id
-            if metadata.scope.kind == "RANGE"
-            else None,
-            tempo_plan=_json_snapshot(metadata.tempo_plan),
+            scope_type=plan.scope.kind,
+            scope_start_beat=plan.scope.start_beat,
+            scope_terminal_beat=plan.scope.terminal_beat,
+            scope_start_group_id=plan.scope.start_group_id,
+            scope_end_group_id=plan.scope.end_group_id,
+            tempo_plan=_json_snapshot(tempo_plan),
             recording_timebase=_json_snapshot(metadata.recording_timebase),
             duration_ms=media.duration_ms,
             media_kind=media.kind,

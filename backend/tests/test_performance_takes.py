@@ -370,7 +370,7 @@ def _create_take_delete_outbox(
     return outbox
 
 
-def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
+def test_performance_take_schema_accepts_score_tempo_selection() -> None:
     request = PerformanceTakeUploadReservationRequest.model_validate(
         _reservation_request_payload(
             {
@@ -381,18 +381,15 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
                     "mime_type": "audio/webm",
                     "duration_ms": 5000,
                 },
-                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 16},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-product-default-tempo",
-                "tempo_plan": {
-                    "selection": {"mode": "SCORE"},
-                    "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
-                },
+                "tempo_selection": {"mode": "SCORE"},
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             }
         )
     )
 
-    assert request.tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
+    assert request.tempo_selection.mode == "SCORE"
 
 
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
@@ -467,7 +464,7 @@ def _reservation_request_payload(payload):
     value.setdefault("source", {"source_id": _source_id()})
     value["media"] = {"kind": "AUDIO", **value.get("media", {})}
     value["scope"] = {"kind": "FULL", **value.get("scope", {})}
-    value.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
+    value.setdefault("tempo_selection", DEFAULT_TAKE_TEMPO_PLAN["selection"])
     value.setdefault("recording_timebase", DEFAULT_TAKE_RECORDING_TIMEBASE)
     return value
 
@@ -708,12 +705,9 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": media_size, "mime_type": "audio/webm", "duration_ms": 15000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 16.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-001",
-            "tempo_plan": {
-                "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
-                "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
-            },
+            "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
             "recording_timebase": {
                 "nominalMediaDurationMs": 15000,
                 "activeSegments": [
@@ -995,15 +989,15 @@ def test_score_access_and_validation(test_env):
         req_bad_mime = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": 1024, "mime_type": "video/mp4", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-mime",
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_bad_mime)
         assert res.status_code == 422
 
-        # Invalid beat scope (start >= terminal)
+        # Resolved beat fields are not writable request facts
         req_bad_scope = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
@@ -1017,9 +1011,9 @@ def test_score_access_and_validation(test_env):
         req_bad_score = {
             "source": {"source_id": "nonexistent-source"},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-score",
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_bad_score)
@@ -1040,7 +1034,7 @@ def test_unowned_source_cannot_start_a_new_reservation(test_env):
             PerformanceTakeUploadReservationRequest.model_validate(_reservation_request_payload({
                 "source": {"source_id": source.source_id}, "client_request_id": "unowned-source",
                 "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
+                "scope": {"kind": "FULL"},
             }))))
 
 
@@ -1094,7 +1088,7 @@ def test_cross_user_score_permission(test_env):
         req_unauth = {
             "source": {"source_id": private_source.source_id},
             "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-cross-user-auth",
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_unauth)
@@ -1130,7 +1124,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 10000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 8.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-real-delete-01",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1293,7 +1287,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-idemp-del",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1375,7 +1369,7 @@ def test_quota_rejection(test_env):
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": excessive_size, "mime_type": "audio/webm", "duration_ms": 60000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 16.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-huge",
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1408,9 +1402,9 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": 5000, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-cancel-01",
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1509,9 +1503,9 @@ def test_pagination(test_env):
             auth_req = {
                 "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": f"req-page-{i}",
-                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             }
             res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1579,7 +1573,7 @@ def test_audio_container_magic_bytes_validation(test_env):
                 "mime_type": "audio/webm",
                 "duration_ms": 5000,
             },
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-magic",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1605,7 +1599,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         auth_ogg = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": len(ogg_content), "mime_type": "audio/ogg", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-ogg-magic",
         }
         res_auth_ogg = client.post("/api/v1/performance-takes/upload-reservations", json=auth_ogg)
@@ -1627,7 +1621,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         auth_wav = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": len(wav_content), "mime_type": "audio/wav", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-wav-magic",
         }
         res_auth_wav = client.post("/api/v1/performance-takes/upload-reservations", json=auth_wav)
@@ -1673,7 +1667,7 @@ def test_finalize_safe_retry_idempotency(test_env):
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-safe-retry-01",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1767,7 +1761,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
                 "mime_type": "video/webm",
                 "duration_ms": 5000,
             },
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-post-storage-disconnect",
         }
         res_auth = client.post(
@@ -1838,7 +1832,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         }
         tempo_plan = {
             "selection": {"mode": "SCORE"},
-            "segments": [{"startBeat": 0, "bpm": 96, "source": "MUSICXML"}],
+            "segments": [{"startBeat": 0, "bpm": 120, "source": "MUSICXML"}],
         }
         request = {
             "source": {"source_id": _source_id()},
@@ -1848,15 +1842,9 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
                 "mime_type": "video/webm",
                 "duration_ms": 5000,
             },
-            "scope": {
-                "kind": "RANGE",
-                "start_beat": 4,
-                "terminal_beat": 8,
-                "start_group_id": "group-2",
-                "end_group_id": "group-4",
-            },
+            "scope": {"kind": "RANGE", "start_group_id": "entry-2.0-1aede64d62ef", "end_group_id": "entry-4.5-547c4de8e393"},
             "client_request_id": "req-range-video-scope-identity",
-            "tempo_plan": tempo_plan,
+            "tempo_selection": tempo_plan["selection"],
             "recording_timebase": recording_timebase,
         }
         res_auth = client.post(
@@ -1879,10 +1867,10 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
         assert take_data["scope_type"] == "RANGE"
-        assert take_data["scope_start_beat"] == 4
-        assert take_data["scope_terminal_beat"] == 8
-        assert take_data["scope_start_group_id"] == "group-2"
-        assert take_data["scope_end_group_id"] == "group-4"
+        assert take_data["scope_start_beat"] == 2
+        assert take_data["scope_terminal_beat"] == 16
+        assert take_data["scope_start_group_id"] == "entry-2.0-1aede64d62ef"
+        assert take_data["scope_end_group_id"] == "entry-4.5-547c4de8e393"
         assert "scopeIdentity" not in take_data["recording_timebase"]
         assert take_data["tempo_plan"] == tempo_plan
         assert session.execute(
@@ -1938,7 +1926,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
                 "mime_type": "audio/webm",
                 "duration_ms": 5000,
             },
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-staging-rewrite",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -1999,7 +1987,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
                 "mime_type": "video/webm",
                 "duration_ms": 5000,
             },
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-video-save",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -2100,7 +2088,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
                             "mime_type": "audio/webm",
                             "duration_ms": 1000,
                         },
-                        "scope": {"start_beat": 0, "terminal_beat": 4},
+                        "scope": {"kind": "FULL"},
                     }
                 )
             ),
@@ -2137,9 +2125,9 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-abandoned-01",
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -2225,7 +2213,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             json={
                 "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-expired-delete-retry",
             },
         )
@@ -2309,7 +2297,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
             json={
                 "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-late-put-cleanup",
             },
         )
@@ -2385,7 +2373,7 @@ def test_score_deleted_between_auth_and_finalize_uses_durable_source(test_env):
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-score-del-midway",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -2469,9 +2457,9 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-del-retry",
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -2744,9 +2732,9 @@ def test_reservation_rejects_source_pending_gc(test_env):
                     "mime_type": "audio/webm",
                     "duration_ms": 5000,
                 },
-                "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-source-pending-gc-first",
-                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
         )
@@ -2771,9 +2759,9 @@ def test_reservation_rejects_source_pending_gc(test_env):
                     "mime_type": "audio/webm",
                     "duration_ms": 5000,
                 },
-                "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-source-pending-gc",
-                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             },
         )
@@ -3095,8 +3083,8 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
                 "mime_type": "audio/webm",
                 "duration_ms": 5000,
             },
-            "scope": {"kind": "FULL", "start_beat": 0.0, "terminal_beat": 4.0},
-            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "scope": {"kind": "FULL"},
+            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
             "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         first = client.post(
@@ -3255,7 +3243,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
             json={
                 "source": {"source_id": _source_id()},
                 "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+                "scope": {"kind": "FULL"},
                 "client_request_id": "req-expired-no-lock-delete",
             },
         )
@@ -3879,7 +3867,7 @@ def test_worker_handles_already_absent_object_idempotently(
         auth_req = {
             "source": {"source_id": _source_id()},
             "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"start_beat": 0.0, "terminal_beat": 4.0},
+            "scope": {"kind": "FULL"},
             "client_request_id": "req-oss-idemp",
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
@@ -4261,13 +4249,7 @@ def _upload_intent():
                 "mime_type": "video/webm",
                 "duration_ms": 5000,
             },
-            "scope": {
-                "kind": "RANGE",
-                "start_beat": 0,
-                "terminal_beat": 16,
-                "start_group_id": "group-0",
-                "end_group_id": "group-5",
-            },
+            "scope": {"kind": "RANGE", "start_group_id": "entry-0.0-05162c611506", "end_group_id": "entry-4.5-547c4de8e393"},
         }
     )
 
@@ -4318,7 +4300,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         assert data["media_kind"] == "VIDEO"
         assert data["scope_start_group_id"] == request["scope"]["start_group_id"]
         assert data["scope_end_group_id"] == request["scope"]["end_group_id"]
-        assert data["tempo_plan"] == request["tempo_plan"]
+        assert data["tempo_plan"] == first["resolved_tempo_plan"]
         assert data["recording_timebase"] == request["recording_timebase"]
         take = session.execute(
             select(PerformanceTake).where(PerformanceTake.upload_reservation_id == row.id)
@@ -4339,7 +4321,11 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         ("source", "source_id", "another-source"),
         ("media", "byte_size", len(VALID_WEBM_BYTES) + 1),
         ("scope", "end_group_id", "another-group"),
-        ("tempo_plan", "selection", {"mode": "SCORE"}),
+        ("scope", "start_group_id", "another-start"),
+        ("scope", "kind", "FULL"),
+        ("tempo_selection", "bpm", 120.1),
+        ("media", "duration_ms", 5001),
+        ("tempo_selection", "mode", "SCORE"),
         (
             "recording_timebase",
             "activeSegments",
@@ -4358,6 +4344,10 @@ def test_reservation_client_request_metadata_conflicts_only_at_reserve(
             == 200
         )
         request[part] = {**request[part], field: changed}
+        if part == "tempo_selection" and field == "mode":
+            request[part].pop("bpm")
+        if part == "scope" and field == "kind":
+            request[part] = {"kind": changed}
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 422
         with pytest.raises(ValidationException) as failure:
@@ -4497,7 +4487,7 @@ def test_live_and_saved_consumers_share_verified_durable_source(test_env):
         reserved = client.post("/api/v1/performance-takes/upload-reservations", json={
             "source": {"source_id": row.source_id},
             "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
-            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4},
+            "scope": {"kind": "FULL"},
             "client_request_id": "durable-source-reservation",
         })
         assert reserved.status_code == 200, reserved.text
@@ -4683,7 +4673,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
             reserved = client.post("/api/v1/performance-takes/upload-reservations", json={
                 "source": {"source_id": a.source_id}, "client_request_id": "exact-A",
                 "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+                "scope": {"kind": "FULL"}})
             assert reserved.status_code == 200, reserved.text
             request_id = reserved.json()["data"]["reservation_id"]
             reservation = session.execute(select(PerformanceTakeUploadReservation)).scalar_one()
@@ -4692,7 +4682,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
             reservation_b = client.post("/api/v1/performance-takes/upload-reservations", json={
                 "source": {"source_id": ref_b.source_id}, "client_request_id": "exact-B",
                 "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000},
-                "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+                "scope": {"kind": "FULL"}})
             assert reservation_b.status_code == 200
             assert session.execute(select(PerformanceTakeUploadReservation.practice_source_id).where(PerformanceTakeUploadReservation.client_request_id == "exact-B")).scalar_one() == ref_b.id
             staging = _staging_key(session, request_id)
@@ -4718,7 +4708,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
         assert client.post("/api/v1/performance-takes/upload-reservations", json={
             "source": {"source_id": a.source_id}, "client_request_id": "not-ready",
             "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
-            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}}).status_code >= 400
+            "scope": {"kind": "FULL"}}).status_code >= 400
         a.status = "READY"
         score = session.get(Score, 10)
         score.head_revision_id = None
@@ -4732,7 +4722,87 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
         denied_save = client.post("/api/v1/performance-takes/upload-reservations", json={
             "source": {"source_id": a.source_id}, "client_request_id": "deleted-live-owner",
             "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
-            "scope": {"kind": "FULL", "start_beat": 0, "terminal_beat": 4}})
+            "scope": {"kind": "FULL"}})
         assert denied_save.status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize("scope_kind,tempo_case", [
+    ("FULL", "SCORE"), ("RANGE", "SCORE"), ("RANGE", "CUSTOM"),
+    ("FULL", "NO_TEMPO"), ("FULL", "DELAYED_TEMPO"),
+])
+def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kind, tempo_case):
+    from app.modules.practice.source.builder import PracticeSourceBuilder
+
+    session, storage, user, _ = test_env
+    xml = (Path(__file__).parent / "fixtures/musicxml/canonical-practice-score.musicxml").read_bytes()
+    if tempo_case == "NO_TEMPO":
+        xml = xml.replace(b'<direction><sound tempo="120"/></direction>', b'').replace(b'<direction><sound tempo="90"/></direction>', b'')
+    elif tempo_case == "DELAYED_TEMPO":
+        xml = xml.replace(b'<direction><sound tempo="120"/></direction>', b'')
+    source = PracticeSourceBuilder().build(score_id="score-uuid-10", revision_id=DEFAULT_TAKE_REVISION_ID, canonical_musicxml=xml)
+    ref, _ = _run_async(PracticeSourceRepository(storage).get_or_create(AsyncSessionAdapter(session), source, live_revision_id=100))
+    artifact = source.artifact.value
+    with _reservation_client(session, storage, user) as (client, service):
+        scope = {"kind": "FULL"} if scope_kind == "FULL" else {
+            "kind": "RANGE", "start_group_id": artifact["moments"][2]["groupId"], "end_group_id": artifact["moments"][2]["groupId"]}
+        selection = {"mode": "CUSTOM_FIXED_BPM", "bpm": 80.5} if tempo_case == "CUSTOM" else {"mode": "SCORE"}
+        request = _reservation_request_payload({"source": {"source_id": ref.source_id}, "client_request_id": "derived-plan", "scope": scope, "tempo_selection": selection,
+            "media": {"byte_size": len(VALID_WEBM_BYTES), "mime_type": "audio/webm", "duration_ms": 5000}})
+        with patch.object(service.practice_source_service.builder, "build", side_effect=AssertionError("Save consumes exact source")), patch.object(service.practice_source_service, "resolve_source", side_effect=AssertionError("Save consumes exact source")):
+            response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        assert response.status_code == 200, response.text
+        accepted = response.json()["data"]
+        row = session.execute(select(PerformanceTakeUploadReservation).where(PerformanceTakeUploadReservation.reservation_uuid == accepted["reservation_id"])).scalar_one()
+        expected_scope = {"kind": scope_kind, "start_beat": 0, "terminal_beat": 6}
+        if scope_kind == "RANGE":
+            expected_scope = {**scope, "start_beat": 2, "terminal_beat": 4.5}
+        if tempo_case == "CUSTOM":
+            segments = [{"startBeat": 0, "bpm": 81, "source": "CUSTOM"}]
+        elif tempo_case == "NO_TEMPO":
+            segments = [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}]
+        elif tempo_case == "DELAYED_TEMPO":
+            segments = [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}, {"startBeat": 3, "bpm": 90, "source": "MUSICXML"}]
+        else:
+            segments = [{"startBeat": 0, "bpm": 120, "source": "MUSICXML"}, {"startBeat": 3, "bpm": 90, "source": "MUSICXML"}]
+        expected_tempo = {"selection": selection, "segments": segments}
+        assert accepted["metadata"] == {key: value for key, value in request.items() if key != "client_request_id"}
+        assert accepted["resolved_scope"] == expected_scope
+        assert accepted["resolved_tempo_plan"] == expected_tempo == json.loads(row.tempo_plan)
+        assert (row.scope_start_beat, row.scope_terminal_beat) == (expected_scope["start_beat"], expected_scope["terminal_beat"])
+        assert row.practice_source_id == ref.id
+        if scope_kind == "FULL":
+            assert row.scope_start_group_id is row.scope_end_group_id is None
+        # Another legitimate selection retains the same exact immutable source lineage.
+        other = client.post("/api/v1/performance-takes/upload-reservations", json={**request, "client_request_id": "other-plan", "scope": {"kind": "FULL"}, "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 100}})
+        assert other.status_code == 200, other.text
+        assert {value.practice_source_id for value in session.execute(select(PerformanceTakeUploadReservation)).scalars()} == {ref.id}
+        score = session.get(Score, 10)
+        score.head_revision_id = None
+        session.flush()
+        session.delete(session.get(ScoreRevision, 100))
+        session.commit()
+        storage.put_bytes(key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+        with patch.object(service.practice_source_service, "authorize_source_by_source_id", side_effect=AssertionError("Admitted reservation owns source")), patch("app.modules.performance_takes.service.resolve_practice_score_plan", side_effect=AssertionError("Replay and finalize consume persisted truth")):
+            replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+            assert replay.status_code == 200, replay.text
+            assert replay.json()["data"]["resolved_tempo_plan"] == expected_tempo
+            finalized = client.post(f"/api/v1/performance-takes/upload-reservations/{row.reservation_uuid}/finalize")
+            assert finalized.status_code == 200, finalized.text
+            take = finalized.json()["data"]
+            completed = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+            assert completed.status_code == 200, completed.text
+            assert completed.json()["data"]["take"] == take
+        assert take["source_id"] == ref.source_id
+        assert take["scope_start_beat"] == row.scope_start_beat
+        assert take["scope_terminal_beat"] == row.scope_terminal_beat
+        assert take["tempo_plan"] == expected_tempo
+        saved = session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take["take_id"])).scalar_one()
+        assert saved.practice_source_id == ref.id
+        assert saved.scope_start_beat == row.scope_start_beat
+        assert saved.scope_terminal_beat == row.scope_terminal_beat
+        assert saved.tempo_plan == row.tempo_plan
+        read = client.get(f"/api/v1/performance-takes/{take['take_id']}")
+        assert read.status_code == 200
+        assert read.json()["data"]["tempo_plan"] == expected_tempo

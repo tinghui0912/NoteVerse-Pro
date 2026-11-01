@@ -1,0 +1,1033 @@
+{
+  "cases": [
+    {
+      "name": "FULL starts at first moment and ends at score extent",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 80,
+              "source": "PRODUCT_DEFAULT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "single RANGE keeps sounding tie endpoint",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "g0",
+        "endGroupId": "g0"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "RANGE",
+          "startBeat": 2.5,
+          "terminalBeat": 10,
+          "startGroupId": "g0",
+          "endGroupId": "g0"
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 80,
+              "source": "PRODUCT_DEFAULT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "multiple moment RANGE",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "g1",
+        "endGroupId": "g2"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "RANGE",
+          "startBeat": 4,
+          "terminalBeat": 12,
+          "startGroupId": "g1",
+          "endGroupId": "g2"
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 80,
+              "source": "PRODUCT_DEFAULT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unknown range",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "missing",
+        "endGroupId": "g2"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "error": "scope"
+    },
+    {
+      "name": "reversed range",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "g2",
+        "endGroupId": "g0"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "error": "scope"
+    },
+    {
+      "name": "empty range",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "",
+        "endGroupId": "g1"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "error": "scope"
+    },
+    {
+      "name": "SCORE delayed",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": [
+          {
+            "startBeat": 4,
+            "bpm": 100
+          }
+        ]
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 80,
+              "source": "PRODUCT_DEFAULT"
+            },
+            {
+              "startBeat": 4,
+              "bpm": 100,
+              "source": "MUSICXML"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "SCORE initial",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": [
+          {
+            "startBeat": 0,
+            "bpm": 120
+          }
+        ]
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 120,
+              "source": "MUSICXML"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "SCORE changes",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": [
+          {
+            "startBeat": 0,
+            "bpm": 100
+          },
+          {
+            "startBeat": 5,
+            "bpm": 90
+          },
+          {
+            "startBeat": 11,
+            "bpm": 110
+          }
+        ]
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 100,
+              "source": "MUSICXML"
+            },
+            {
+              "startBeat": 5,
+              "bpm": 90,
+              "source": "MUSICXML"
+            },
+            {
+              "startBeat": 11,
+              "bpm": 110,
+              "source": "MUSICXML"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "RANGE retains score-wide tempo changes",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": [
+          {
+            "startBeat": 0,
+            "bpm": 100
+          },
+          {
+            "startBeat": 11,
+            "bpm": 90
+          }
+        ]
+      },
+      "scope": {
+        "kind": "RANGE",
+        "startGroupId": "g1",
+        "endGroupId": "g1"
+      },
+      "tempoSelection": {
+        "mode": "SCORE"
+      },
+      "expected": {
+        "scope": {
+          "kind": "RANGE",
+          "startBeat": 4,
+          "terminalBeat": 6,
+          "startGroupId": "g1",
+          "endGroupId": "g1"
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "SCORE"
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 100,
+              "source": "MUSICXML"
+            },
+            {
+              "startBeat": 11,
+              "bpm": 90,
+              "source": "MUSICXML"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 120",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 120
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 120
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 120,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 40",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 40
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 40
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 40,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 240",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 240
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 240
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 240,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 80.5",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 80.5
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 80.5
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 81,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 81.5",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 81.5
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 81.5
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 82,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 40.5",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 40.5
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 40.5
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 41,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 239.5",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 239.5
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 239.5
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 240,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 80.49999999999999",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 80.49999999999999
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 80.49999999999999
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 80,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 80.50000000000001",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 80.50000000000001
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startBeat": 2.5,
+          "terminalBeat": 16
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 80.50000000000001
+          },
+          "segments": [
+            {
+              "startBeat": 0,
+              "bpm": 81,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM invalid 39.99",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 39.99
+      },
+      "error": "tempo_selection"
+    },
+    {
+      "name": "CUSTOM invalid 240.01",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetBeat": 2.5,
+            "canonicalEndBeat": 10
+          },
+          {
+            "groupId": "g1",
+            "onsetBeat": 4,
+            "canonicalEndBeat": 6
+          },
+          {
+            "groupId": "g2",
+            "onsetBeat": 9,
+            "canonicalEndBeat": 12
+          }
+        ],
+        "scoreEndBeat": 16,
+        "scoreTempoSegments": []
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 240.01
+      },
+      "error": "tempo_selection"
+    }
+  ]
+}

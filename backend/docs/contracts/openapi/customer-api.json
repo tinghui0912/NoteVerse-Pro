@@ -3599,7 +3599,8 @@
         "additionalProperties": false,
         "properties": {
           "bpm": {
-            "exclusiveMinimum": 0.0,
+            "maximum": 240.0,
+            "minimum": 40.0,
             "title": "Bpm",
             "type": "number"
           },
@@ -6034,31 +6035,19 @@
         "title": "PerformanceTakeDeleteResponse",
         "type": "object"
       },
-      "PerformanceTakeFullScope": {
+      "PerformanceTakeFullScopeSelection": {
         "additionalProperties": false,
         "properties": {
           "kind": {
             "const": "FULL",
             "title": "Kind",
             "type": "string"
-          },
-          "start_beat": {
-            "minimum": 0.0,
-            "title": "Start Beat",
-            "type": "number"
-          },
-          "terminal_beat": {
-            "exclusiveMinimum": 0.0,
-            "title": "Terminal Beat",
-            "type": "number"
           }
         },
         "required": [
-          "kind",
-          "start_beat",
-          "terminal_beat"
+          "kind"
         ],
-        "title": "PerformanceTakeFullScope",
+        "title": "PerformanceTakeFullScopeSelection",
         "type": "object"
       },
       "PerformanceTakeListResponse": {
@@ -6184,7 +6173,7 @@
         "title": "PerformanceTakePlaybackRead",
         "type": "object"
       },
-      "PerformanceTakeRangeScope": {
+      "PerformanceTakeRangeScopeSelection": {
         "additionalProperties": false,
         "properties": {
           "end_group_id": {
@@ -6198,31 +6187,19 @@
             "title": "Kind",
             "type": "string"
           },
-          "start_beat": {
-            "minimum": 0.0,
-            "title": "Start Beat",
-            "type": "number"
-          },
           "start_group_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Start Group Id",
             "type": "string"
-          },
-          "terminal_beat": {
-            "exclusiveMinimum": 0.0,
-            "title": "Terminal Beat",
-            "type": "number"
           }
         },
         "required": [
           "kind",
-          "start_beat",
-          "terminal_beat",
           "start_group_id",
           "end_group_id"
         ],
-        "title": "PerformanceTakeRangeScope",
+        "title": "PerformanceTakeRangeScopeSelection",
         "type": "object"
       },
       "PerformanceTakeRead": {
@@ -6357,6 +6334,74 @@
         "title": "PerformanceTakeRead",
         "type": "object"
       },
+      "PerformanceTakeResolvedFullScope": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "FULL",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start_beat": {
+            "minimum": 0.0,
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Terminal Beat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "start_beat",
+          "terminal_beat"
+        ],
+        "title": "PerformanceTakeResolvedFullScope",
+        "type": "object"
+      },
+      "PerformanceTakeResolvedRangeScope": {
+        "additionalProperties": false,
+        "properties": {
+          "end_group_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "End Group Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "RANGE",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start_beat": {
+            "minimum": 0.0,
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "start_group_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Start Group Id",
+            "type": "string"
+          },
+          "terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Terminal Beat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "start_beat",
+          "terminal_beat",
+          "start_group_id",
+          "end_group_id"
+        ],
+        "title": "PerformanceTakeResolvedRangeScope",
+        "type": "object"
+      },
       "PerformanceTakeSourceIdentity": {
         "additionalProperties": false,
         "properties": {
@@ -6449,17 +6494,17 @@
           "scope": {
             "discriminator": {
               "mapping": {
-                "FULL": "#/components/schemas/PerformanceTakeFullScope",
-                "RANGE": "#/components/schemas/PerformanceTakeRangeScope"
+                "FULL": "#/components/schemas/PerformanceTakeFullScopeSelection",
+                "RANGE": "#/components/schemas/PerformanceTakeRangeScopeSelection"
               },
               "propertyName": "kind"
             },
             "oneOf": [
               {
-                "$ref": "#/components/schemas/PerformanceTakeFullScope"
+                "$ref": "#/components/schemas/PerformanceTakeFullScopeSelection"
               },
               {
-                "$ref": "#/components/schemas/PerformanceTakeRangeScope"
+                "$ref": "#/components/schemas/PerformanceTakeRangeScopeSelection"
               }
             ],
             "title": "Scope"
@@ -6467,15 +6512,30 @@
           "source": {
             "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
           },
-          "tempo_plan": {
-            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
+          "tempo_selection": {
+            "discriminator": {
+              "mapping": {
+                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
+                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              {
+                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
+              }
+            ],
+            "title": "Tempo Selection"
           }
         },
         "required": [
           "source",
           "media",
           "scope",
-          "tempo_plan",
+          "tempo_selection",
           "recording_timebase"
         ],
         "title": "PerformanceTakeUploadMetadata",
@@ -6490,6 +6550,27 @@
           "reservation_id": {
             "title": "Reservation Id",
             "type": "string"
+          },
+          "resolved_scope": {
+            "discriminator": {
+              "mapping": {
+                "FULL": "#/components/schemas/PerformanceTakeResolvedFullScope",
+                "RANGE": "#/components/schemas/PerformanceTakeResolvedRangeScope"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeResolvedFullScope"
+              },
+              {
+                "$ref": "#/components/schemas/PerformanceTakeResolvedRangeScope"
+              }
+            ],
+            "title": "Resolved Scope"
+          },
+          "resolved_tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           },
           "status": {
             "enum": [
@@ -6529,7 +6610,9 @@
           "reservation_id",
           "take_id",
           "status",
-          "metadata"
+          "metadata",
+          "resolved_scope",
+          "resolved_tempo_plan"
         ],
         "title": "PerformanceTakeUploadReservationRead",
         "type": "object"
@@ -6552,17 +6635,17 @@
           "scope": {
             "discriminator": {
               "mapping": {
-                "FULL": "#/components/schemas/PerformanceTakeFullScope",
-                "RANGE": "#/components/schemas/PerformanceTakeRangeScope"
+                "FULL": "#/components/schemas/PerformanceTakeFullScopeSelection",
+                "RANGE": "#/components/schemas/PerformanceTakeRangeScopeSelection"
               },
               "propertyName": "kind"
             },
             "oneOf": [
               {
-                "$ref": "#/components/schemas/PerformanceTakeFullScope"
+                "$ref": "#/components/schemas/PerformanceTakeFullScopeSelection"
               },
               {
-                "$ref": "#/components/schemas/PerformanceTakeRangeScope"
+                "$ref": "#/components/schemas/PerformanceTakeRangeScopeSelection"
               }
             ],
             "title": "Scope"
@@ -6570,15 +6653,30 @@
           "source": {
             "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
           },
-          "tempo_plan": {
-            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
+          "tempo_selection": {
+            "discriminator": {
+              "mapping": {
+                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
+                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              {
+                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
+              }
+            ],
+            "title": "Tempo Selection"
           }
         },
         "required": [
           "source",
           "media",
           "scope",
-          "tempo_plan",
+          "tempo_selection",
           "recording_timebase",
           "client_request_id"
         ],

@@ -302,4 +302,27 @@ verifies session/artifact descriptive identity and copies session.sourceId verba
 into Result schema8. Completion storage preserves that exact value. Review loads and
 checks the exact source by this identity; save sends only source_id as Source lineage.
 Source authorization and retention belong to [Practice Source](practice-source.md).
-Scope and tempo save inputs retain their current client-owned contract.
+
+## Durable Save Planning
+
+Browser planning owns live execution truth. A save submits the admitted sourceId,
+FULL or RANGE moment selection, tempo selection and media/recording evidence.
+`app/modules/practice/planning/score_plan.py` owns pure server planning from the
+verified exact Source artifact. FULL spans the first moment onset to scoreEndBeat;
+RANGE spans its selected start onset to its selected end canonicalEndBeat.
+
+The server resolves a score-wide tempo plan: missing initial MusicXML tempo uses
+PRODUCT_DEFAULT 80 BPM; explicit segments remain MUSICXML. CUSTOM_FIXED_BPM accepts
+finite 40–240 BPM, retains the raw selection and rounds the segment BPM upward at
+positive half-integers, matching browser Math.round. Scope does not trim tempo.
+
+Both language implementations consume the same concrete expected
+[planning cases](../../contracts/practice/score-planning-cases.json). The reservation
+response separates intent metadata from resolved_scope and resolved_tempo_plan.
+Before media upload, the browser compares that canonical response with Result8's
+executed source/scope/tempo. A mismatch fails closed and best-effort cancels a new
+RESERVED upload. Completed replay and finalize responses also require agreement.
+
+Reservation persistence owns the resolved save truth. Replay compares the stored
+intent/evidence without new authorization or planning; finalize transfers the saved
+scope/tempo unchanged to the Take, including after live revision deletion.

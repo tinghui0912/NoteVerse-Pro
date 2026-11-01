@@ -192,7 +192,10 @@ An upload reservation accepts only source: { source_id }. PracticeSourceService
 locks and authorizes that exact existing READY source, retaining the lock through
 reservation reference creation and commit. Reservation practice_source_id is the sole
 immutable Source lineage; linked_score_id is optional live navigation, and score_title
-is presentation history. The reservation captures save metadata. Finalization consumes its admitted reference without
+is presentation history. The reservation accepts scope/tempo selections and recording/media evidence.
+Pure [Practice planning](practice-session-planning.md#durable-save-planning) derives
+canonical durable scope and tempo from the verified exact Source, without rebuilding
+or resolving a revision. Finalization consumes its admitted reference without
 live score admission; a completed Take becomes the durable source owner.
 
 PerformanceTake owns media upload/finalization and take authorization. Source

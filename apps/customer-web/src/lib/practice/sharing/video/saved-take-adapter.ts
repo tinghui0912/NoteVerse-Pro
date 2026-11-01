@@ -121,6 +121,12 @@ export function createShareVideoSessionFromSavedTake(
     } else {
       resolvedPracticeScope = resolvePracticeScope(artifact, { kind: 'FULL' });
     }
+    // The Source validates group identity; persisted Take beats remain the saved truth.
+    if (Math.abs(resolvedPracticeScope.startBeat - scopeStartBeat) > 1e-6 ||
+        Math.abs(resolvedPracticeScope.terminalBeat - scopeTerminalBeat) > 1e-6) {
+      return { status: 'unsupported', reason: 'scope_identity_mismatch' };
+    }
+    resolvedPracticeScope = { ...resolvedPracticeScope, startBeat: scopeStartBeat, terminalBeat: scopeTerminalBeat };
     const resolvedScope = resolvePracticeScopeCursorNoteIds(
       artifact,
       resolvedPracticeScope
