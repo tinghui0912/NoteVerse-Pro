@@ -20,15 +20,17 @@ Canonical source content, visual render output, playable output and queryable me
 5. Revision creation stores the canonical source transactionally with the revision.
 6. Render assets, playback assets, and metadata are rebuildable from the canonical source and
    are produced asynchronously after revision creation.
-7. Score detail and list read models may expose the latest available derived assets, including
-   fallback assets from a previous revision when the current revision is still generating.
+7. Score detail and list read models expose only the current head's derived assets.
+   Missing head presentation uses neutral placeholders. Only the head and active Guest
+   Preview pins protect render/audio assets; other historical presentation is disposable.
 8. Guest Preview exposes only its pinned revision’s rendered pages and generated audio.
    It delivers no revision sources and never falls back to another revision. Active
    previews retain their pinned presentation assets within the Score lifetime.
 9. Import-job review artifacts remain job-scoped pipeline artifacts until the user confirms
    the review and creates a score revision.
-10. Verovio page count is render/layout information. UI may display unknown while render and
-   metadata rebuilds are pending or failed.
+10. Verovio page count is render/layout information. Pending presentation uses a neutral
+    skeleton; unavailable presentation uses a dash. Derived status has no visible error,
+    preparation message or Retry action. Accessibility labels remain.
 
 ## Storage contract
 

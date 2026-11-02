@@ -71,7 +71,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
   const audioAsset = score.derived_assets.audio;
   const audioRevisionId = playableAudioRevisionId(
     score.derived_assets,
-    score.capabilities.can_practice
+    score.capabilities.can_practice,
+    score.head_revision_id
   );
   const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
   const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
@@ -144,7 +145,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
           <ScoreDetailHero
             title={scoreTitle}
-            thumbnailUrl={scoreThumbnailUrl(previewAsset.asset_id)}
+            thumbnailUrl={previewAsset.status === 'ready' ? scoreThumbnailUrl(previewAsset.asset_id) : null}
+            thumbnailLoading={imagePreparing}
             playbackAudioSrc={playbackAudioSrc}
             playbackEnabled={Boolean(playbackAudioSrc)}
             playbackLoading={audioPreparing}

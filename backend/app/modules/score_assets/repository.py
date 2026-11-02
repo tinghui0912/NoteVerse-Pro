@@ -21,20 +21,14 @@ ScoreAssetRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 
 
 class ScoreAssetRepository:
-    async def get_source(
-        self, db: AsyncSession, source_uuid: str
-    ) -> ScoreRevisionSource | None:
+    async def get_source(self, db: AsyncSession, source_uuid: str) -> ScoreRevisionSource | None:
         return (
             await db.execute(
-                select(ScoreRevisionSource).where(
-                    ScoreRevisionSource.source_uuid == source_uuid
-                )
+                select(ScoreRevisionSource).where(ScoreRevisionSource.source_uuid == source_uuid)
             )
         ).scalar_one_or_none()
 
-    async def get_render_asset(
-        self, db: AsyncSession, asset_uuid: str
-    ) -> ScoreRenderAsset | None:
+    async def get_render_asset(self, db: AsyncSession, asset_uuid: str) -> ScoreRenderAsset | None:
         return (
             await db.execute(
                 select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == asset_uuid)
@@ -150,54 +144,6 @@ class ScoreAssetRepository:
                 .limit(1)
             )
         ).scalar_one_or_none()
-
-    async def fallback_rendered_page_asset(
-        self, db: AsyncSession, score_id: int, head_revision_id: int
-    ) -> tuple[ScoreRenderAsset, ScoreRevision] | None:
-        row = (
-            await db.execute(
-                select(ScoreRenderAsset, ScoreRevision)
-                .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
-                .where(
-                    ScoreRevision.score_id == score_id,
-                    ScoreRevision.id != head_revision_id,
-                    ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
-                )
-                .order_by(
-                    col(ScoreRevision.revision_number).desc(),
-                    col(ScoreRenderAsset.page_number).asc(),
-                    col(ScoreRenderAsset.created_at).asc(),
-                )
-                .limit(1)
-            )
-        ).first()
-        return (row[0], row[1]) if row else None
-
-    async def fallback_playback_asset(
-        self,
-        db: AsyncSession,
-        score_id: int,
-        head_revision_id: int,
-        *,
-        kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
-    ) -> tuple[ScorePlaybackAsset, ScoreRevision] | None:
-        row = (
-            await db.execute(
-                select(ScorePlaybackAsset, ScoreRevision)
-                .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-                .where(
-                    ScoreRevision.score_id == score_id,
-                    ScoreRevision.id != head_revision_id,
-                    ScorePlaybackAsset.kind == kind,
-                )
-                .order_by(
-                    col(ScoreRevision.revision_number).desc(),
-                    col(ScorePlaybackAsset.created_at).asc(),
-                )
-                .limit(1)
-            )
-        ).first()
-        return (row[0], row[1]) if row else None
 
     async def revision_for_asset(
         self, db: AsyncSession, asset: ScoreAssetRecord

@@ -3,6 +3,7 @@
 import { Music } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
+import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 import { cn } from '@/lib/utils';
 
 interface ScoreThumbnailProps {
@@ -16,10 +17,10 @@ export function ScoreThumbnail({
   thumbnailRenderAssetId,
   className,
 }: ScoreThumbnailProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedAssetId, setFailedAssetId] = useState<string | null>(null);
   const src =
-    thumbnailRenderAssetId && !failed
-      ? `/api/v1/render-assets/${encodeURIComponent(thumbnailRenderAssetId)}/download`
+    thumbnailRenderAssetId && thumbnailRenderAssetId !== failedAssetId
+      ? scoreThumbnailUrl(thumbnailRenderAssetId)
       : null;
 
   return (
@@ -37,7 +38,7 @@ export function ScoreThumbnail({
           sizes="(min-width: 1024px) 280px, 50vw"
           className="object-contain p-2"
           unoptimized
-          onError={() => setFailed(true)}
+          onError={() => setFailedAssetId(thumbnailRenderAssetId ?? null)}
         />
       ) : (
         <Music className="h-10 w-10 text-muted-foreground" />

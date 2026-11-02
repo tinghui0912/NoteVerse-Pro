@@ -42,8 +42,6 @@ DerivedAssetStatus = Literal["pending", "processing", "ready", "unavailable"]
 class ScoreDerivedAssetRead(BaseModel):
     status: DerivedAssetStatus
     asset_id: str | None
-    revision_id: str | None
-    is_fallback: bool
 
 
 class ScoreDerivedAssetsRead(BaseModel):

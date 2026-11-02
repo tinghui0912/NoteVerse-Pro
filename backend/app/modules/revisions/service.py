@@ -24,7 +24,7 @@ from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFo
 from app.modules.notifications.service import NotificationService
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.revisions.derived_asset_retention_service import (
-    derived_asset_retention_service,
+    DerivedAssetRetentionService,
 )
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.revisions.read_model import RevisionReadModel
@@ -59,6 +59,7 @@ class RevisionService:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
+        self.derived_asset_retention = DerivedAssetRetentionService(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
         self.read_model = read_model or RevisionReadModel()
@@ -214,10 +215,9 @@ class RevisionService:
                 user_id=user_id,
                 storage=self.storage,
             )
-            await derived_asset_retention_service.cleanup_for_score_best_effort(
+            await self.derived_asset_retention.cleanup_for_score_best_effort(
                 db,
                 score_id=score_id,
-                head_revision_id=revision_id,
             )
             return await self._read(db, revision)
         except Exception:
@@ -398,10 +398,9 @@ class RevisionService:
                 user_id=user_id,
                 storage=self.storage,
             )
-            await derived_asset_retention_service.cleanup_for_score_best_effort(
+            await self.derived_asset_retention.cleanup_for_score_best_effort(
                 db,
                 score_id=score_id,
-                head_revision_id=revision_id,
             )
             return await self._read(db, revision)
         except Exception:

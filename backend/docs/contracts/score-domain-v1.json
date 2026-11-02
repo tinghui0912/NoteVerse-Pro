@@ -68,6 +68,9 @@
   "invariants": {
     "revision_is_immutable": true,
     "revision_is_complete_snapshot": true,
+    "score_presentation_is_head_exact": true,
+    "derived_asset_retention_is_demand_owned": true,
+    "historical_revision_without_preview_has_no_presentation_owner": true,
     "revision_has_persistent_parent_link": false,
     "revision_has_persistent_base_link": false,
     "restore_provenance_uses_revision_event": true,

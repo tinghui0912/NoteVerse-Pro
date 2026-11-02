@@ -115,7 +115,7 @@ def work_rows(db, number):
     )
 
 
-def test_recent_history_is_not_generation_demand_and_never_runs_generators(revisions, monkeypatch):
+def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(revisions, monkeypatch):
     db, storage, score, rows = revisions
     from app.worker.execution import render_outbox, playback_outbox
 

@@ -20,8 +20,6 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
         "ScoreDerivedAssetRead": {
             "status",
             "asset_id",
-            "revision_id",
-            "is_fallback",
         },
         "ScoreRead": {
             "score_id",

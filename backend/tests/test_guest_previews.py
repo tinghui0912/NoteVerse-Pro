@@ -352,9 +352,7 @@ async def test_active_preview_retains_exact_presentation_until_pin_ends(
     created = await previews.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
     add_head_b(session, score)
     cleanup = DerivedAssetRetentionService(storage)
-    options = dict(
-        score_id=score.id, head_revision_id=score.head_revision_id, retain_recent_revisions=0
-    )
+    options = dict(score_id=score.id)
 
     async def run_cleanup():
         if cleanup_mode == "sync":
@@ -376,5 +374,6 @@ async def test_active_preview_retains_exact_presentation_until_pin_ends(
         session.add(row)
         session.commit()
     result = await run_cleanup()
-    assert result.rendered_pages_deleted == result.playback_assets_deleted == 1
+    expected_deletions = 0 if end_pin == "revoked" else 1
+    assert result.rendered_pages_deleted == result.playback_assets_deleted == expected_deletions
     assert not storage.exists(page_key)

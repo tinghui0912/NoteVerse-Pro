@@ -122,7 +122,6 @@ def test_settings_compose_render_asset_delivery_policy() -> None:
     settings = Settings()
 
     assert settings.RENDER_OUTBOX_MAX_ATTEMPTS > 0
-    assert settings.DERIVED_ASSET_RETAIN_RECENT_REVISIONS >= 0
 
 
 def test_settings_compose_playback_delivery_policy() -> None:

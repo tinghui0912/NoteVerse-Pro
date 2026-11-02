@@ -3993,14 +3993,6 @@ export type ScoreDerivedAssetRead = {
      */
     asset_id: string | null;
     /**
-     * Is Fallback
-     */
-    is_fallback: boolean;
-    /**
-     * Revision Id
-     */
-    revision_id: string | null;
-    /**
      * Status
      */
     status: 'pending' | 'processing' | 'ready' | 'unavailable';

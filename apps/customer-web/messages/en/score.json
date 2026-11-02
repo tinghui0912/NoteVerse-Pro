@@ -21,7 +21,6 @@
   "measureCount": "Measures",
   "keySignature": "Key signature",
   "pageCount": "{count, plural, one {# page} other {# pages}}",
-  "pageCountUnknown": "Unknown",
   "breadcrumbLabel": "Breadcrumb",
   "libraryBreadcrumb": "My Library",
   "actionsTitle": "Actions",

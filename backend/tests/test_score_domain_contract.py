@@ -28,6 +28,9 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
     }
     assert invariants["revision_is_immutable"] is True
     assert invariants["revision_is_complete_snapshot"] is True
+    assert invariants["score_presentation_is_head_exact"] is True
+    assert invariants["derived_asset_retention_is_demand_owned"] is True
+    assert invariants["historical_revision_without_preview_has_no_presentation_owner"] is True
     assert invariants["restore_provenance_uses_revision_event"] is True
     assert invariants["revision_history_is_linear"] is True
     assert invariants["revision_save_requires_expected_head"] is True

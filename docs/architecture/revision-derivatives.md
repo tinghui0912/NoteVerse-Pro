@@ -11,10 +11,26 @@ is demanded only for the current head or a revision pinned by a non-revoked Gues
 whose expiry is in the future. A recent historical revision without a live pin has no
 generation demand.
 
-The existing ten-revision derived-asset retention window controls garbage collection of
-already-created assets. It creates no generation demand. Head, recent-history retention,
-active Preview exclusions and daily cleanup retain their existing policy. Canonical
-MusicXML and PracticeSource ownership are independent of presentation scheduling.
+Derived-asset retention protects exactly the current head and active Guest Preview pins.
+Other historical presentation rows, storage objects and derived usage are eligible for
+cleanup immediately, even while the new head's render/audio are pending. Canonical
+MusicXML snapshots and PracticeSource ownership are independent and remain durable.
+
+Post-save/restore cleanup and post-commit Preview revoke/delete cleanup are best effort.
+The daily Beat pass reconciles expired pins and remaining disposable presentation.
+Cleanup locks Score and reads its current head plus active pins; callers supply no head
+snapshot or history-window policy.
+
+ScoreRead describes only current-head presentation and exposes `status` and `asset_id`.
+Missing head images/audio never select another revision. Generic playback delivery is
+exact to its requested revision; Guest Preview remains exact to its pinned revision.
+
+Score Detail and My Scores use neutral placeholders for missing head presentation.
+Pending/processing can show visual progress; unavailable uses a non-spinning neutral
+control. No derived-state visible error/status copy, hover tooltip, toast or Retry action
+is provided. Accessibility labels remain. Realtime readiness invalidation reveals the
+new head asset naturally. Explicit owner downloads remain revision-exact; canonical
+MusicXML download does not wait for derived presentation.
 
 ## Durable production
 

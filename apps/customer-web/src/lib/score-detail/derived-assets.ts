@@ -2,12 +2,13 @@ import type { ScoreDerivedAssetRead, ScoreDerivedAssetsRead } from '@/generated/
 
 export function playableAudioRevisionId(
   derivedAssets: ScoreDerivedAssetsRead,
-  canPractice: boolean
+  canPractice: boolean,
+  headRevisionId: string | null | undefined
 ) {
   if (!canPractice) return null;
   if (!derivedAssets.audio.asset_id) return null;
-  if (derivedAssets.audio.status !== 'ready' || derivedAssets.audio.is_fallback) return null;
-  return derivedAssets.audio.revision_id;
+  if (derivedAssets.audio.status !== 'ready') return null;
+  return headRevisionId || null;
 }
 
 export function isDerivedAssetPreparing(status: ScoreDerivedAssetRead['status']) {

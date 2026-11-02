@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.config import settings
 from app.core.logger import logger
 from app.db.models import (
     Score,
@@ -49,23 +48,17 @@ class DerivedAssetRetentionService:
         db: AsyncSession,
         *,
         score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
     ) -> DerivedAssetRetentionResult:
         try:
             return await self.cleanup_for_score(
                 db,
                 score_id=score_id,
-                head_revision_id=head_revision_id,
-                retain_recent_revisions=retain_recent_revisions,
             )
         except Exception as exc:
             await db.rollback()
             logger.bind(
                 event="derived_asset_retention.cleanup_failed",
                 score_id=score_id,
-                head_revision_id=head_revision_id,
-                retain_recent_revisions=retain_recent_revisions,
             ).opt(exception=exc).warning("Derived asset retention cleanup failed")
             return DerivedAssetRetentionResult()
 
@@ -74,30 +67,31 @@ class DerivedAssetRetentionService:
         db: AsyncSession,
         *,
         score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
     ) -> DerivedAssetRetentionResult:
-        keep_ids = await self._revision_ids_to_keep(
-            db,
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain_recent_revisions,
+        score = (await db.execute(self._score_for_cleanup_statement(score_id))).scalar_one_or_none()
+        if score is None:
+            return DerivedAssetRetentionResult()
+        protected_ids = set(
+            (await db.execute(self._protected_revision_ids_statement(score_id))).scalars()
         )
         rendered_pages = list(
             (
                 await db.execute(
-                    self._stale_rendered_pages_statement(score_id=score_id, keep_ids=keep_ids)
+                    self._stale_rendered_pages_statement(
+                        score_id=score_id, protected_ids=protected_ids
+                    )
                 )
             ).scalars()
         )
         playback_assets = list(
             (
                 await db.execute(
-                    self._stale_playback_assets_statement(score_id=score_id, keep_ids=keep_ids)
+                    self._stale_playback_assets_statement(
+                        score_id=score_id, protected_ids=protected_ids
+                    )
                 )
             ).scalars()
         )
-        score = await db.get(Score, score_id)
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
             (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
@@ -144,17 +138,14 @@ class DerivedAssetRetentionService:
     def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
         scores = list(
             db.execute(
-                select(Score.id, Score.head_revision_id).where(
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE
-                )
-            ).all()
+                select(Score.id).where(Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+            ).scalars()
         )
         total = DerivedAssetRetentionResult()
-        for score_id, head_revision_id in scores:
+        for score_id in scores:
             result = self.cleanup_for_score_sync(
                 db,
                 score_id=score_id,
-                head_revision_id=head_revision_id,
             )
             total = DerivedAssetRetentionResult(
                 rendered_pages_deleted=total.rendered_pages_deleted + result.rendered_pages_deleted,
@@ -170,26 +161,23 @@ class DerivedAssetRetentionService:
         db: Session,
         *,
         score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
     ) -> DerivedAssetRetentionResult:
-        keep_ids = self._revision_ids_to_keep_sync(
-            db,
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain_recent_revisions,
-        )
+        score = db.execute(self._score_for_cleanup_statement(score_id)).scalar_one_or_none()
+        if score is None:
+            return DerivedAssetRetentionResult()
+        protected_ids = set(db.execute(self._protected_revision_ids_statement(score_id)).scalars())
         rendered_pages = list(
             db.execute(
-                self._stale_rendered_pages_statement(score_id=score_id, keep_ids=keep_ids)
+                self._stale_rendered_pages_statement(score_id=score_id, protected_ids=protected_ids)
             ).scalars()
         )
         playback_assets = list(
             db.execute(
-                self._stale_playback_assets_statement(score_id=score_id, keep_ids=keep_ids)
+                self._stale_playback_assets_statement(
+                    score_id=score_id, protected_ids=protected_ids
+                )
             ).scalars()
         )
-        score = db.get(Score, score_id)
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
             (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
@@ -233,98 +221,48 @@ class DerivedAssetRetentionService:
             storage_objects_deleted=deleted_objects,
         )
 
-    async def _revision_ids_to_keep(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None,
-    ) -> set[int]:
-        retain = self._retain_count(retain_recent_revisions)
-        keep_ids = {head_revision_id} if head_revision_id is not None else set()
-        if retain == 0:
-            return keep_ids
-        statement = self._recent_historical_revisions_statement(
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain,
-        )
-        keep_ids.update((await db.execute(statement)).scalars().all())
-        return keep_ids
-
-    def _revision_ids_to_keep_sync(
-        self,
-        db: Session,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None,
-    ) -> set[int]:
-        retain = self._retain_count(retain_recent_revisions)
-        keep_ids = {head_revision_id} if head_revision_id is not None else set()
-        if retain == 0:
-            return keep_ids
-        statement = self._recent_historical_revisions_statement(
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain,
-        )
-        keep_ids.update(db.execute(statement).scalars().all())
-        return keep_ids
-
     @staticmethod
-    def _retain_count(retain_recent_revisions: int | None) -> int:
-        retain = (
-            settings.DERIVED_ASSET_RETAIN_RECENT_REVISIONS
-            if retain_recent_revisions is None
-            else retain_recent_revisions
-        )
-        if retain < 0:
-            raise ValueError("retain_recent_revisions must be non-negative")
-        return retain
-
-    @staticmethod
-    def _recent_historical_revisions_statement(
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int,
-    ):
-        statement = select(ScoreRevision.id).where(ScoreRevision.score_id == score_id)
-        if head_revision_id is not None:
-            statement = statement.where(ScoreRevision.id != head_revision_id)
-        return statement.order_by(col(ScoreRevision.revision_number).desc()).limit(
-            retain_recent_revisions
+    def _score_for_cleanup_statement(score_id: int):
+        # Same Score lock as Preview pin establishment and head changes.
+        return (
+            select(Score)
+            .where(Score.id == score_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
     @staticmethod
-    def _stale_rendered_pages_statement(*, score_id: int, keep_ids: set[int]):
+    def _protected_revision_ids_statement(score_id: int):
+        head = select(Score.head_revision_id).where(
+            Score.id == score_id, col(Score.head_revision_id).is_not(None)
+        )
+        return head.union(_active_preview_revisions(score_id))
+
+    @staticmethod
+    def _stale_rendered_pages_statement(*, score_id: int, protected_ids: set[int]):
         statement = (
             select(ScoreRenderAsset)
             .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
             .where(
                 ScoreRevision.score_id == score_id,
                 ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
-                col(ScoreRenderAsset.revision_id).not_in(_active_preview_revisions(score_id)),
             )
         )
-        if keep_ids:
-            statement = statement.where(col(ScoreRenderAsset.revision_id).not_in(keep_ids))
+        if protected_ids:
+            statement = statement.where(col(ScoreRenderAsset.revision_id).not_in(protected_ids))
         return statement
 
     @staticmethod
-    def _stale_playback_assets_statement(*, score_id: int, keep_ids: set[int]):
+    def _stale_playback_assets_statement(*, score_id: int, protected_ids: set[int]):
         statement = (
             select(ScorePlaybackAsset)
             .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
             .where(
                 ScoreRevision.score_id == score_id,
-                col(ScorePlaybackAsset.revision_id).not_in(_active_preview_revisions(score_id)),
             )
         )
-        if keep_ids:
-            statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(keep_ids))
+        if protected_ids:
+            statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(protected_ids))
         return statement
 
     def _delete_storage_objects(self, storage_keys: list[str]) -> int:

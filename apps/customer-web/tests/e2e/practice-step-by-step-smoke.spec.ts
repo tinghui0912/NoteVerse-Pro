@@ -198,8 +198,8 @@ async function setupPracticeMocks(
         metadata: null,
 
         derived_assets: {
-          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
-          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+          preview: { status: 'ready', asset_id: null },
+          audio: { status: 'unavailable', asset_id: null },
         },
         capabilities: {
           can_view: true,

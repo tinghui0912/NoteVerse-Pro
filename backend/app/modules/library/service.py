@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -130,11 +130,7 @@ class LibraryService:
     ) -> LibraryFolderRead:
         parent = await self._optional_folder(db, user_id, request.parent_folder_id)
         folders = await self.repository.folders(db, user_id)
-        parent_id = (
-            require_persisted_id(parent.id, entity="library folder")
-            if parent
-            else None
-        )
+        parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
         if folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
         now = utc_now_naive()
@@ -175,8 +171,7 @@ class LibraryService:
             if parent_id == folder_id or parent_id in descendant_folder_ids(folders, folder_id):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
             if (
-                folder_level(folders, parent_id)
-                + subtree_height(folders, folder_id)
+                folder_level(folders, parent_id) + subtree_height(folders, folder_id)
                 > self.MAX_FOLDER_LEVEL
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
@@ -212,9 +207,7 @@ class LibraryService:
             if child_id in descendant_ids or child_id == folder_id:
                 child.deleted_at = now
                 child.updated_at = now
-        for entry in await self.repository.entries_in_folder_ids(
-            db, user_id, affected_folder_ids
-        ):
+        for entry in await self.repository.entries_in_folder_ids(db, user_id, affected_folder_ids):
             if request.mode == FolderDeleteMode.TRASH_CONTENTS:
                 entry.deleted_at = now
             else:
@@ -278,16 +271,12 @@ class LibraryService:
     async def batch_set_favorite(
         self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
     ) -> int:
-        return await self._batch_update_entries(
-            db, user_id, request.entry_ids, favorite=True
-        )
+        return await self._batch_update_entries(db, user_id, request.entry_ids, favorite=True)
 
     async def batch_trash(
         self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
     ) -> int:
-        return await self._batch_update_entries(
-            db, user_id, request.entry_ids, trash=True
-        )
+        return await self._batch_update_entries(db, user_id, request.entry_ids, trash=True)
 
     async def batch_set_practice_state(
         self, db: AsyncSession, user_id: int, request: LibraryEntryBatchPracticeStateRequest
@@ -388,20 +377,16 @@ class LibraryService:
             )
         except UnauthorizedException:
             available = False
-        head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
+        head = (
+            await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
+        )
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
-            await score_derived_assets(
-                db, self.asset_repository, score_id=score_id, revision=head
-            )
+            await score_derived_assets(db, self.asset_repository, revision=head)
             if head
             else ScoreDerivedAssetsRead(
-                preview=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
-                audio=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
+                preview=ScoreDerivedAssetRead(status="pending", asset_id=None),
+                audio=ScoreDerivedAssetRead(status="pending", asset_id=None),
             )
         )
         return LibraryEntryRead(
@@ -423,9 +408,7 @@ class LibraryService:
                 )
             ],
             metadata=(
-                MetadataProjectionService.to_read(head, projection)
-                if head and projection
-                else None
+                MetadataProjectionService.to_read(head, projection) if head and projection else None
             ),
             is_favorite=entry.is_favorite,
             practice_state=entry.practice_state,
@@ -487,5 +470,3 @@ class LibraryService:
             return None
         folder = await db.get(ScoreLibraryFolder, folder_id)
         return folder.folder_uuid if folder else None
-
-

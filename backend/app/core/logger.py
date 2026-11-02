@@ -165,7 +165,7 @@ class StructuredLogFieldPolicy:
             "progression_mode", "public_code", "queue_decision", "raw_beat",
             "realtime_guidance", "reason", "recipient_user_id",
             "region_count", "rejected", "request_id", "resource_id", "resource_type",
-            "retain_recent_revisions", "revision_id", "rms", "rms_gate", "row_count",
+            "revision_id", "rms", "rms_gate", "row_count",
             "row_index", "runtime_reason", "runtime_role", "scheduler_job", "score_id",
             "session_id", "sample_rate", "spectral_flatness", "spectral_flux",
             "start_expected_group_id", "start_feature_confidence",

@@ -220,15 +220,11 @@ class ScoreService:
         )
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
-            await score_derived_assets(db, self.asset_repository, score_id=score_id, revision=head)
+            await score_derived_assets(db, self.asset_repository, revision=head)
             if head
             else ScoreDerivedAssetsRead(
-                preview=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
-                audio=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
+                preview=ScoreDerivedAssetRead(status="pending", asset_id=None),
+                audio=ScoreDerivedAssetRead(status="pending", asset_id=None),
             )
         )
         if in_library is None:

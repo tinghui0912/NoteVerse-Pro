@@ -9,8 +9,8 @@ test('My Scores keeps owned scores, processing, review and failed views with lib
     score_id: 'owned-score', title: 'Owned sonata', taxonomy_tags: [], version: 1,
     head_revision_id: 'revision', in_library: false, metadata: null, input_assets: [],
     derived_assets: {
-      preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-      audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+      preview: { status: 'pending', asset_id: null },
+      audio: { status: 'pending', asset_id: null },
     },
     capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_guest_previews: true,
       can_manage_members: true, can_download: true, can_practice: true },
@@ -49,4 +49,27 @@ test('My Scores keeps owned scores, processing, review and failed views with lib
     expect(new URL(url).searchParams.has('view')).toBe(false);
     expect(new URL(url).searchParams.get('page')).toBe('1');
   }
+});
+
+
+test('My Scores shows a neutral current-head thumbnail until exact presentation is ready', async ({ page }) => {
+  await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
+  let ready=false;
+  await page.route('**/api/v1/my-scores?*', route => route.fulfill({ json: { success:true,
+    data:[{ score_id:'head-score', title:'Head owned score', taxonomy_tags:[], version:2, head_revision_id:'r2',
+      metadata:null, input_assets:[], in_library:false, created_at:'2026-06-20T00:00:00Z', updated_at:'2026-06-21T00:00:00Z',
+      capabilities:{can_view:true,can_edit:true,can_delete:true,can_manage_guest_previews:true,can_manage_members:true,can_download:true,can_practice:true},
+      derived_assets:{preview:{status:ready?'ready':'pending',asset_id:ready?'r2-image':null},audio:{status:'pending',asset_id:null}}}],
+    pagination:{total:1,page:1,page_size:20,total_pages:1} } }));
+  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({json:{success:true,data:[],pagination:{total:0,page:1,page_size:20,total_pages:0}}}));
+  const images: string[]=[];
+  await page.route('**/api/v1/render-assets/*/view', route => { images.push(route.request().url()); return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"/>'}); });
+  await page.goto('/en/my-scores');
+  await expect(page.getByRole('heading',{name:'Head owned score'})).toBeVisible();
+  expect(images).toEqual([]);
+  ready=true;
+  await page.reload();
+  await expect(page.getByRole('img', {name:'Head owned score',exact:true})).toBeVisible();
+  await expect(page.getByRole('img', {name:'Head owned score',exact:true})).toHaveJSProperty('src',new URL('/api/v1/render-assets/r2-image/view', page.url()).href);
+  expect(images.every(url=>url.includes('/r2-image/view'))).toBe(true);
 });

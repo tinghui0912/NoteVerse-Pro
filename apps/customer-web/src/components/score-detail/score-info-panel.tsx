@@ -91,11 +91,9 @@ export function ScoreInfoPanel({
   const selectedTags = optimistic?.serverKey === serverKey ? optimistic.tags : serverTags;
   const selectedKeys = new Set(selectedTags.map(taxonomyTagKey));
   const availableTags = SCORE_GENRE_TAGS.filter((tag) => !selectedKeys.has(taxonomyTagKey(tag)));
-  const imageCountLabel = imageCount > 0
-    ? t('pageCount', { count: imageCount })
-    : imageCountStatus === 'pending' || imageCountStatus === 'processing' || imageCountStatus === 'unavailable'
-      ? t('pageCountUnknown')
-      : t('pageCount', { count: imageCount });
+  const imageCountLabel = imageCountStatus === 'pending' || imageCountStatus === 'processing'
+    ? <span aria-label={t('totalPages')} className="inline-block h-4 w-12 animate-pulse rounded bg-muted" />
+    : imageCountStatus === 'unavailable' ? '-' : t('pageCount', { count: imageCount });
 
   useEffect(() => {
     if (editing) {

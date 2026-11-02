@@ -25,6 +25,7 @@ from app.modules.guest_previews.schemas import (
 )
 from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
 from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.revisions.derived_asset_retention_service import DerivedAssetRetentionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetDelivery
@@ -119,13 +120,22 @@ class GuestPreviewService:
         if preview.revoked_at is None:
             preview.revoked_at = utc_now_naive()
             db.add(preview)
-            await db.commit()
-            await db.refresh(preview)
+        score_id = preview.score_id
+        await db.commit()
+        await DerivedAssetRetentionService(storage=self.storage).cleanup_for_score_best_effort(
+            db, score_id=score_id
+        )
+        await db.refresh(preview)
         return self._read(preview)
 
     async def delete(self, db: AsyncSession, preview_uuid: str, user_id: int) -> None:
-        await db.delete(await self._managed(db, preview_uuid, user_id))
+        preview = await self._managed(db, preview_uuid, user_id)
+        score_id = preview.score_id
+        await db.delete(preview)
         await db.commit()
+        await DerivedAssetRetentionService(storage=self.storage).cleanup_for_score_best_effort(
+            db, score_id=score_id
+        )
 
     async def read(self, db: AsyncSession, token: str) -> GuestPreviewRead:
         preview, score = await self._authorize(db, token)
@@ -163,7 +173,6 @@ class GuestPreviewService:
 
     async def audio(self, db: AsyncSession, token: str) -> PlaybackDelivery:
         preview, _ = await self._authorize(db, token)
-        # No score_id fallback: a bearer grant authorizes exactly its pinned revision.
         return await self.playback.delivery_for_revision(db, preview.revision_id)
 
     async def _authorize(

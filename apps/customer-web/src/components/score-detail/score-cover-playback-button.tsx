@@ -65,8 +65,7 @@ export function ScoreCoverPlaybackButton({
     <>
       <button
         type="button"
-        aria-label={loading ? t('playbackPreparing') : audioPlaying ? t('pauseScore') : t('playScore')}
-        title={loading ? t('playbackPreparing') : unavailable ? t('playbackUnavailable') : undefined}
+        aria-label={loading ? t('playbackPreparing') : unavailable ? t('playbackUnavailable') : audioPlaying ? t('pauseScore') : t('playScore')}
         className={cn(
           'inline-flex h-11 w-11 items-center justify-center rounded-xl bg-black/60 text-white shadow-lg backdrop-blur transition hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-70',
           className

@@ -4,14 +4,12 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PlaybackAssetKind,
     ScorePlaybackAsset,
-    ScoreRevision,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
@@ -57,8 +55,6 @@ class PlaybackDeliveryReadModel:
         self,
         db: AsyncSession,
         revision_id: int,
-        *,
-        score_id: int | None = None,
     ) -> PlaybackDelivery:
         asset = (
             await db.execute(
@@ -68,25 +64,6 @@ class PlaybackDeliveryReadModel:
                 )
             )
         ).scalar_one_or_none()
-        if (asset is None or not self.storage.exists(asset.storage_key)) and score_id is not None:
-            fallback = (
-                await db.execute(
-                    select(ScorePlaybackAsset)
-                    .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-                    .where(
-                        ScoreRevision.score_id == score_id,
-                        ScoreRevision.id != revision_id,
-                        ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
-                    )
-                    .order_by(
-                        col(ScoreRevision.revision_number).desc(),
-                        col(ScorePlaybackAsset.created_at).asc(),
-                    )
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-            if fallback is not None and self.storage.exists(fallback.storage_key):
-                asset = fallback
         if asset is None or not self.storage.exists(asset.storage_key):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
         return PlaybackDelivery(

@@ -7702,21 +7702,6 @@
             ],
             "title": "Asset Id"
           },
-          "is_fallback": {
-            "title": "Is Fallback",
-            "type": "boolean"
-          },
-          "revision_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revision Id"
-          },
           "status": {
             "enum": [
               "pending",
@@ -7730,9 +7715,7 @@
         },
         "required": [
           "status",
-          "asset_id",
-          "revision_id",
-          "is_fallback"
+          "asset_id"
         ],
         "title": "ScoreDerivedAssetRead",
         "type": "object"

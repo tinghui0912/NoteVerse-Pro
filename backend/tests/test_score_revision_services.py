@@ -958,7 +958,7 @@ async def test_review_confirm_creates_active_score_once(
 
 
 @pytest.mark.asyncio
-async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending(
+async def test_score_detail_describes_only_head_presentation(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1030,9 +1030,7 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
     )
 
     assert detail.head_revision_id == "revision-new"
-    assert detail.derived_assets.preview.asset_id == "old-thumbnail"
-    assert detail.derived_assets.preview.revision_id == "revision-old"
-    assert detail.derived_assets.preview.is_fallback is True
+    assert detail.derived_assets.preview.asset_id is None
     assert detail.derived_assets.preview.status == "processing"
     assert detail.derived_assets.audio.status == "pending"
 
@@ -1361,7 +1359,7 @@ async def test_revision_note_can_be_added_updated_and_cleared(
 
 
 @pytest.mark.asyncio
-async def test_derived_asset_retention_keeps_current_and_recent_history(
+async def test_derived_asset_retention_protects_current_head_only(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1460,20 +1458,18 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
     result = await service.cleanup_for_score(  # type: ignore[arg-type]
         AsyncSessionAdapter(session),
         score_id=34,
-        head_revision_id=require_persisted_id(score.head_revision_id, entity="score revision"),
-        retain_recent_revisions=2,
     )
 
-    assert result.rendered_pages_deleted == 2
-    assert result.playback_assets_deleted == 2
-    assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 3
-    assert count_rows(session, ScorePlaybackAsset) == 3
+    assert result.rendered_pages_deleted == 4
+    assert result.playback_assets_deleted == 4
+    assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 1
+    assert count_rows(session, ScorePlaybackAsset) == 1
     assert count_rows(session, ScoreRevisionSource, format=RevisionSourceFormat.MUSICXML) == 5
-    for number in (1, 2):
+    for number in (1, 2, 3, 4):
         assert not storage.exists(stored_keys[f"render-{number}"])
         assert not storage.exists(stored_keys[f"audio-{number}"])
         assert storage.exists(stored_keys[f"xml-{number}"])
-    for number in (3, 4, 5):
+    for number in (5,):
         assert storage.exists(stored_keys[f"render-{number}"])
         assert storage.exists(stored_keys[f"audio-{number}"])
         assert storage.exists(stored_keys[f"xml-{number}"])
