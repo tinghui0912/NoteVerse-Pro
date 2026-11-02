@@ -6,6 +6,9 @@ import { PracticeEnvironment } from '@/lib/practice/environment/practice-environ
 import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import { PRACTICE_PREFERENCES_KEY } from '@/lib/practice/configuration/preference-storage';
 const route = vi.hoisted(() => ({ path: '/score/s/practice/setup' }));
 vi.mock('next/navigation', () => ({ usePathname: () => route.path }));
@@ -23,7 +26,7 @@ async function rig() {
     let transaction!: AbortController; act(() => { transaction = current.beginPreparation(); });
     const midi = midiDeviceFixture(), binding = new PracticeResourceBinding(planPracticeResources(current.configuration!), { acquireMidi: async () => midi.access, acquireStream: vi.fn() });
     await binding.open();
-    const admission = Object.freeze({ source: Object.freeze({ sourceId:'source', scoreId:'s', revisionId:'r', artifactId:'a' }), configuration: Object.freeze({mode:profile.mode, inputSource:profile.inputSource, recordingMode:'OFF' as const}) });
+    const admission = Object.freeze({ source: Object.freeze({ sourceId:'source-fixture', artifact:{...(fixture as PracticeScoreArtifact), scoreId:'s', revisionId:'r'}, musicXml:'<score />' }), configuration: Object.freeze({mode:current.configuration!.mode, inputSource:current.configuration!.inputSource, recordingMode:current.configuration!.recordingMode}) });
     return { transaction, value: Object.freeze({ admission, binding }), midi };
   };
   return { get current() { return current; }, view, tree, prepare, environment };
@@ -60,4 +63,27 @@ it('superseding a preparation fences its commit and closes a stale binding', asy
   act(()=>{expect(r.current.commitPreparedPractice(first.value,first.transaction)).toBe(false); expect(r.current.commitPreparedPractice(second.value,second.transaction)).toBe(true);});
   expect(first.value.binding.snapshot().state).toBe('CLOSED');expect(r.current.preparedPractice).toBe(second.value);
   act(()=>r.current.clearPreparedPractice());expect(second.value.binding.borrowRoots()).toBeNull();expect(r.current.preparedPractice).toBeNull();
+});
+
+it('View Review atomically retains canonical references and releases roots; the same-route render preserves the handoff', async () => {
+  route.path='/score/s/practice'; const r=await rig();act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));const p=await r.prepare();
+  act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  const result={...canonicalContinuousResultFixture(),scoreId:'s',revisionId:'r'}, recording={status:'NOT_RECORDED' as const};
+  act(()=>{r.current.handoffToReview({result,recording});});
+  const session=r.current.reviewSession!;
+  expect(session.result).toBe(result); expect(session.recording).toBe(recording);
+  expect(session.artifact).toBe(p.value.admission.source.artifact); expect(session.musicXml).toBe('<score />');
+  expect(r.current.preparedPractice).toBeNull(); expect(p.value.binding.snapshot().state).toBe('CLOSED');
+  r.view.rerender(r.tree()); await act(async()=>{}); expect(r.current.reviewSession).toBe(session);
+  route.path='/score/s/practice/review';r.view.rerender(r.tree());await act(async()=>{}); expect(r.current.reviewSession).toBe(session);
+  route.path='/score/s/practice';r.view.rerender(r.tree());await waitFor(()=>expect(r.current.reviewSession).toBeNull());
+  route.path='/score/s/practice/review';r.view.rerender(r.tree());await act(async()=>{}); expect(r.current.reviewSession).toBeNull();
+});
+it('invalid handoff preserves the prepared transaction; explicit clear drops only Review references', async () => {
+  route.path='/score/s/practice';const r=await rig();act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));const p=await r.prepare();act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  const result={...canonicalContinuousResultFixture(),scoreId:'s',revisionId:'r'}, recording={status:'NOT_RECORDED' as const};
+  expect(()=>r.current.handoffToReview({result:{...result,sourceId:'wrong'},recording})).toThrow();
+  expect(r.current.preparedPractice).toBe(p.value);expect(p.value.binding.borrowRoots()).not.toBeNull();expect(r.current.reviewSession).toBeNull();
+  act(()=>{r.current.handoffToReview({result,recording});});expect(r.current.reviewSession).not.toBeNull();
+  act(()=>r.current.clearReviewSession());expect(r.current.reviewSession).toBeNull();
 });

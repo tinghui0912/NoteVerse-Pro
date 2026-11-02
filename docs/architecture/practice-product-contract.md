@@ -15,12 +15,11 @@ resources and shows an in-place score-unavailable state. Physical health remains
 Practice execution is browser-local. The backend Practice Source service authorizes
 one revision and resolves one verified READY durable PracticeSource containing schemaVersion 1 artifact and
 prepared notation representations. One `/source` request returns `source_id`, the
-artifact, and optional prepared-MusicXML notation. The revision-source hook owns one
-query and runtime artifact parsing. Setup requests `include_notation=false` and
-receives no MusicXML. Practice and Review request `include_notation=true` for Verovio
-presentation; notation is not an evaluation/domain input. [Practice Source](practice-source.md)
-owns deterministic construction, durable verification and retention by live revision, Take
-and active upload reservation. Live and saved consumers read the same source identity.
+artifact and prepared-MusicXML notation. Setup Start Practice admits this complete
+representation once. PreparedPractice owns it for browser-local execution; Practice
+and Review do not re-read Source or Score capability. Notation is a presentation input,
+not an evaluation input. [Practice Source](practice-source.md) owns server construction,
+verification and retention by live revision, Take and active reservation.
 The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
 Cold-start offline availability depends on asset and application caching.
@@ -77,7 +76,8 @@ The explicit Setup command acquires the live roots that the admitted Practice ex
 Successful preparation does not create a persistent readiness flag.
 It creates a retained resource binding plus exact Source admission.
 
-Practice exact-reads the admitted sourceId. Direct entry or full reload has no retained
+Practice uses the admitted representation and verifies URL identity locally. Direct
+entry or full reload has no retained
 admission and shows Setup required, with no Source fallback or physical acquisition.
 User navigation back to Setup retains the pinned revision and releases the binding.
 Review also releases physical resources; its Retry opens Setup for a fresh command.
@@ -902,16 +902,18 @@ Completion, Review mount and Review exit never create a PerformanceTake.
 artifact. The controller terminates transport, freezes recording, drains acoustic
 tail work, finalizes evaluation/media, creates the result and completes resource
 cleanup before publishing the atomic completion and notifying completion listeners.
-The store validates both artifacts and publishes neither half independently.
+PracticeExecutionOwner exposes that exact payload only for the current completed
+Continuous attempt; STEP exposes no Continuous completion.
 
 Analysis-unavailable can coexist with READY recording; complete evaluation
 can coexist with UNAVAILABLE recording. Neither failure invents or discards the other
 artifact's truth. The handoff is transient application state, not durable persistence.
 
-The cross-mode Practice composition owner invalidates an existing completion on the
-explicit creation of a new session owner, including a STEP session. Ordinary renders
-and Review subscription do not clear it. STEP itself imports neither result/recording
-contexts nor the Continuous completion store.
+End, Retry and new attempt execution remove the old completion from the execution
+view. View Review is an explicit workspace transition: it validates completion/source
+identity, retains result, recording, artifact and MusicXML as one TransientReviewSession,
+and releases the prepared physical binding before navigation. Try Again creates no
+Review handoff. Artifact, MusicXML and Blob references are reused without byte copies.
 
 ## Natural Completion and Abandonment
 
@@ -933,12 +935,14 @@ wins a later End; End before that latch wins over subsequent timer/publication w
 
 ## Ephemeral Practice Report
 
-Continuous Practice Reports are browser-local products of the most recent natural
-completion. The in-memory completion store and current Review page retain the result;
-new session start invalidates the handoff. No localStorage, sessionStorage, IndexedDB,
-backend result API, database or serialized URL persists it. Reload or reopen without
-that handoff shows the temporary-review-expired state. Saved PerformanceTake media
-never reconstructs a Practice Report.
+Continuous Practice Reports are browser-local products of an explicitly handed-off
+natural completion. The workspace owns the transient ReviewSession. Review and its
+current local composite/export require no Source read, cache entry or current Score
+access. Score/Revision deletion blocks future admission but does not revoke the
+admitted browser flow. Explicit exit, Setup/Practice route entry and provider disposal
+end the handoff. No localStorage, sessionStorage, IndexedDB, backend result API,
+database or serialized URL persists it. Direct visit/reload shows expired Review and
+performs no Source recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
@@ -1021,23 +1025,21 @@ with their respective group and beat/scope input contracts. Rendering options,
 cursor dimensions, staff mapping, colors and scroll thresholds are owned by the
 score-view primitives.
 
-`review/` consumes the current transient completion. review-score-state.ts gates
-annotations, playhead and share-score rendering on exact score/revision/artifact
-identity and a valid cursor scope. Missing/mismatched score content does not change
-retained evaluation, tempo, input, duration or scope metadata. review-replay.ts
-projects READY media and delegates synchronization to the recording timebase;
-review-view-model.ts projects duration, tempo, scope and input-source metadata only.
-The route owns queries, subscriptions, save-recording mutation, navigation, leave
-confirmation and ShareVideoStudio state. Pure review modules do not access network
-or storage. Save Recording remains an explicit media-only action.
+`review/` consumes the workspace TransientReviewSession. Its constructor guarantees
+atomic source/result/artifact identity and complete notation. review-score-state.ts
+projects cursor scope; Verovio owns rendering failures. review-replay.ts delegates
+synchronization to recording timebase; review-view-model.ts projects result metadata.
+The route owns save-recording mutation, navigation, leave confirmation and
+ShareVideoStudio state, with no Source query or subscription. Save Recording remains
+an explicit server operation and new save admission requires live Source authorization.
 
-`sharing/video/session.ts` defines a source-neutral score/scope/tempo/video/timebase
-contract. current-completion-adapter.ts accepts only the necessary completion
-metadata and media; saved-take-adapter.ts alone knows the backend PerformanceTake
-entity and parses its archived scope/tempo/timebase. Both produce the same session
-for preview, rendering and export, without a downstream source switch. Sharing
-imports no result, evaluation, review or Practice capture owner. Its output recorder
-belongs to the export pipeline. Floating-score styling is share-template policy.
+`sharing/video/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
+The current-completion adapter consumes the transient handoff; the saved-Take adapter
+parses backend archive metadata and its authorized source. Both provide the same
+session to source-neutral preview/render/export consumers. The current adapter's
+Review input is type-only; downstream render/export owns no result/evaluation/Practice
+capture lifecycle. The output recorder belongs to export. Floating-score styling is
+share-template policy.
 
 Share score snapshots consume canonical decoration constants and remove report
 classes and existing active/playhead nodes from the frozen clone only. Live Review
@@ -1062,8 +1064,8 @@ STEP has no count-in.
 ## Exact Source Provenance
 
 Continuous Result schema8 retains required sourceId from the executed session.
-Completion, Review and save carry it verbatim. Review reads the exact durable source,
-validates sourceId and descriptive artifact identity, and saves source: { source_id }.
+Completion, the explicit Review handoff and save carry it verbatim. Review uses its
+admitted artifact and MusicXML, and save submits source: { source_id }.
 A Take exposes its source_id with server-derived score/revision/artifact descriptions.
 Ordinary exact-source access and new save admission require live revision access;
 Take-owned saved-source reads remain available after revision deletion. The

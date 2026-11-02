@@ -6,6 +6,8 @@ import { readPracticePreferences, writePracticePreferences } from '@/lib/practic
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { matchesPreparationConfiguration, type PreparedPractice } from '@/lib/practice/preparation/prepared-practice';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
+import { createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
+import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
 
@@ -18,6 +20,8 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const [tempoSelection, setTempoSelection] = useState<PracticeTempoSelection>({ mode: 'SCORE' });
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [preparedPractice, setPreparedPractice] = useState<PreparedPractice | null>(null);
+  const [reviewSession, setReviewSession] = useState<TransientReviewSession | null>(null);
+  const clearReviewSession = useCallback(() => setReviewSession(null), []);
   const prepared = useRef<PreparedPractice | null>(null);
   const preparation = useRef<AbortController | null>(null);
   const configurationRef = useRef<ReturnType<typeof resolvePracticeConfiguration>>(resolvePracticeConfiguration(profile));
@@ -27,16 +31,22 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
     setPreparedPractice(null);
   }, []);
   useEffect(() => {
-    if (pathname?.endsWith('/practice')) return;
+    // Route entry invalidates handoffs; a handoff created before navigation survives
+    // rerenders on the unchanged Practice route.
     let current = true;
-    queueMicrotask(() => { if (current) clearPreparedPractice(); });
+    queueMicrotask(() => {
+      if (!current) return;
+      if (!pathname?.endsWith('/review')) clearReviewSession();
+      if (!pathname?.endsWith('/practice')) clearPreparedPractice();
+    });
     return () => { current = false; };
-  }, [pathname, clearPreparedPractice]);
+  }, [pathname, clearPreparedPractice, clearReviewSession]);
   const beginPreparation = useCallback(() => {
+    clearReviewSession();
     clearPreparedPractice();
     const transaction = new AbortController(); preparation.current = transaction;
     return transaction;
-  }, [clearPreparedPractice]);
+  }, [clearPreparedPractice, clearReviewSession]);
   const commitPreparedPractice = useCallback((value: PreparedPractice, transaction: AbortController) => {
     const resolution = configurationRef.current;
     if (preparation.current !== transaction || transaction.signal.aborted
@@ -48,6 +58,16 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
     prepared.current = value; preparation.current = null; setPreparedPractice(value);
     return true;
   }, []);
+  const handoffToReview = useCallback((completion: ContinuousPracticeCompletion) => {
+    if (!prepared.current || prepared.current.admission.configuration.mode !== 'CONTINUOUS_PLAY'
+      || completion.result.inputSource !== prepared.current.admission.configuration.inputSource) {
+      throw new Error('Matching prepared Continuous Practice required for Review handoff.');
+    }
+    const session = createTransientReviewSession(completion, prepared.current.admission.source);
+    clearPreparedPractice();
+    setReviewSession(session);
+    return session;
+  }, [clearPreparedPractice]);
   const lifetime = useRef(0);
   const releaseEnvironment = useCallback(() => {
     const retiring = ++lifetime.current;
@@ -81,6 +101,7 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const configuration = resolution.status === 'COMPLETE' ? resolution.configuration : null;
   const resourcePlan = useMemo(() => configuration ? planPracticeResources(configuration) : null, [configuration]);
   return { profile, updateProfile, hydrated, configuration, resolution, resourcePlan, environment,
+    reviewSession, handoffToReview, clearReviewSession,
     preparedPractice, beginPreparation, commitPreparedPractice, clearPreparedPractice,
     scope, setScope, tempoSelection, setTempoSelection, metronomeEnabled, setMetronomeEnabled };
 }

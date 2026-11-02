@@ -84,12 +84,6 @@ export const queryKeys = {
         all: ['review'] as const,
         detail: (jobId: string) => ['review', 'detail', { jobId }] as const,
     },
-    practice: {
-        all: ['practice'] as const,
-        sourceById: (sourceId: string, includeNotation: boolean) => ['practice', 'source-by-id', { sourceId, includeNotation }] as const,
-        source: (scoreId: string, revisionId: string, includeNotation: boolean) =>
-            ['practice', 'source', { scoreId, revisionId, includeNotation }] as const,
-    },
     storageUsage: {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,

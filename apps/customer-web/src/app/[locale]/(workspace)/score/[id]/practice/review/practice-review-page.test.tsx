@@ -1,3 +1,4 @@
+import { createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 // @vitest-environment jsdom
@@ -36,7 +37,6 @@ const translationMocks = vi.hoisted(() => {
     takeScopeBeats: '第 {start} - {end} 拍',
     reviewCompletedAt: '完成时间：{time}',
     reviewLoadingScore: '正在加载乐谱...',
-    reviewScoreUnavailable: '乐谱未加载',
     performanceOutcomes: '音符匹配结果',
     performanceDetails: '演奏详情',
     evaluationUnavailableDesc: '本次演奏的识别分析不可用，仍可回放录制。',
@@ -46,8 +46,6 @@ const translationMocks = vi.hoisted(() => {
     mismatchGroupCount: '错音音符组',
     unobservedGroupCount: '未观察到音符组',
     totalGroupCount: '总目标音符组',
-    scoreRevisionMismatchTitle: '乐谱版本不一致',
-    scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留录制回放和演奏信息。',
     audioPlaybackFailed: '本次录音不可回放',
     saveRecording: '保存录制',
     recordingSaved: '已保存',
@@ -173,10 +171,9 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
   useSavePerformanceTake: () => saveMutationMock,
 }));
 
-let currentMockScoreState: 'ready' | 'loading' | 'unavailable' = 'ready';
 
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 1, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+  schemaVersion: 1 as const, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
    scoreEndBeat: 20,
   notes: Array.from({ length: 5 }, (_, i) => ({ noteId: `note-${i+1}`, eventId: `event-${i+1}`, pianoKey: 60, renderNoteId: `n-${i+1}`, measureNumber: '1', staffId: '', voiceId: '', tieTypes: [] })),
   events: Array.from({ length: 5 }, (_, i) => ({ eventId: `event-${i+1}`, onsetBeat: i*4, durationBeats: 4 })),
@@ -188,13 +185,13 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
 
 let currentMockArtifact = createMockArtifact();
 
-vi.mock('@/hooks/practice/use-practice-revision-source', () => ({
-  usePracticeSourceById: vi.fn(() => ({
-    sourceId: 'source-fixture', artifact: currentMockArtifact,
-    musicXml: currentMockScoreState === 'unavailable' ? null : '<score-partwise></score-partwise>',
-    isLoading: currentMockScoreState === 'loading',
-  })),
-}));
+const reviewWorkspace = { reviewSession: null as TransientReviewSession | null, clearReviewSession: vi.fn(() => { reviewWorkspace.reviewSession = null; }) };
+vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => reviewWorkspace }));
+function provideReview(completion: ContinuousPracticeCompletion) {
+  reviewWorkspace.reviewSession = createTransientReviewSession(completion, {
+    sourceId: completion.result.sourceId, artifact: currentMockArtifact, musicXml: '<score-partwise></score-partwise>',
+  });
+}
 
 vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
   VerovioScoreViewer: ({ onRendered, isLoading, xmlContent, loadingContent, emptyContent }: {
@@ -234,9 +231,6 @@ vi.mock('@/lib/practice/sharing/video/export', () => ({
 }));
 
 import PracticeReviewPage from './page';
-import {
-  continuousCompletionStore,
-} from '@/lib/practice/continuous/completion-store';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { completedEvaluationFixture, finality } from '@/lib/practice/__fixtures__/continuous-evaluation';
 import { EvaluationAnnotationController } from '@/lib/practice/score-view/evaluation-annotations';
@@ -296,9 +290,8 @@ describe('PracticeReviewPage', () => {
   beforeEach(() => {
     translationMocks.locale = 'zh';
     translationMocks.practice = translationMocks.defaultPractice;
-    currentMockScoreState = 'ready';
     navigationMocks.push.mockClear();
-    continuousCompletionStore.clearCompletion();
+    reviewWorkspace.reviewSession = null;
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
@@ -345,9 +338,7 @@ describe('PracticeReviewPage', () => {
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup');
   });
 
-  it.each((['en', 'zh'] as const).flatMap(locale =>
-    (['ready', 'loading', 'unavailable'] as const).map(scoreState => ({ locale, scoreState }))
-  ))('localizes the $locale SCORE/RANGE review with score state $scoreState', async ({ locale, scoreState }) => {
+  it.each(['en', 'zh'] as const)('localizes the %s SCORE/RANGE review from its complete handoff', async locale => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
     translationMocks.locale = locale;
     translationMocks.practice = createTranslator({
@@ -355,9 +346,8 @@ describe('PracticeReviewPage', () => {
       messages: (locale === 'en' ? englishPractice : chinesePractice) as Record<string, string>,
       onError: error => { throw error; },
     });
-    currentMockScoreState = scoreState;
     const completion = createVideoCompletion();
-    continuousCompletionStore.setCompletion({
+    provideReview({
       ...completion,
       result: { ...completion.result, scope: {
         kind: 'RANGE', startIndex: 1, endIndex: 1, startGroupId: 'g-2', endGroupId: 'g-2',
@@ -373,21 +363,16 @@ describe('PracticeReviewPage', () => {
       hour: 'numeric', minute: '2-digit', second: '2-digit',
     }).format(new Date(completion.result.completedAt));
     expect(screen.getByText(locale === 'en' ? `Completed at ${completedTime}` : `完成时间：${completedTime}`)).toBeInTheDocument();
-    if (scoreState === 'loading') {
-      expect(screen.getByText(locale === 'en' ? 'Loading score...' : '正在加载乐谱...')).toBeInTheDocument();
-    } else if (scoreState === 'unavailable') {
-      expect(screen.getByText(locale === 'en' ? 'Score unavailable' : '乐谱未加载')).toBeInTheDocument();
-    } else {
-      expect(screen.getByTestId('mock-verovio-viewer')).toBeInTheDocument();
-    }
+    expect(screen.getByTestId('mock-verovio-viewer')).toBeInTheDocument();
     if (locale === 'en') {
       expect(view.container.textContent).not.toMatch(/原曲速度|拍|完成时间|正在加载乐谱|乐谱未加载/);
     }
     expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('renders expired empty state when completion scoreId does not match url', () => {
-    continuousCompletionStore.setCompletion({
+  it('renders expired empty state when handoff scoreId does not match url', () => {
+    currentMockArtifact = createMockArtifact({ scoreId: 'score-OTHER' });
+    provideReview({
       result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-OTHER',
@@ -456,7 +441,7 @@ describe('PracticeReviewPage', () => {
       }
     };
 
-    continuousCompletionStore.setCompletion(validCompletion);
+    provideReview(validCompletion);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -478,7 +463,7 @@ describe('PracticeReviewPage', () => {
     const retryButton = screen.getByRole('button', { name: /重弹一次/i });
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
-    expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(reviewWorkspace.reviewSession).toBeNull();
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup?practiceRevisionId=rev-1');
   });
 
@@ -582,7 +567,7 @@ describe('PracticeReviewPage', () => {
       }
     };
 
-    continuousCompletionStore.setCompletion(completionWithChordsAndOutcomes);
+    provideReview(completionWithChordsAndOutcomes);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -611,75 +596,6 @@ describe('PracticeReviewPage', () => {
     expect(annotations.unsupportedNoteIds).not.toContain('note-a4');
   });
 
-  it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
-    const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
-
-    // Artifact has revision 'rev-2', while completion has revision 'rev-1'
-    currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
-
-    const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
-        localSessionId: 'sess-1',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-        tempoPlan: {
-          selection: { mode: 'SCORE' },
-          segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
-        },
-        inputSource: 'MICROPHONE',
-        activeElapsedMs: 3000,
-        evaluation: completeEvaluation([
-          {
-            expectedGroupId: 'g-1',
-            performanceTimeMs: 0,
-            confidence: 0.9,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-1', pianoKey: 60, renderNoteIds: ['n-1'], result: 'MATCHED' }],
-            unattributedKeys: [],
-            renderNoteIds: ['n-1'],
-            measureNumbers: ['1'],
-          },
-        ]),
-        completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: {
-        status: 'READY',
-        kind: 'AUDIO',
-        blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
-        mimeType: 'audio/webm',
-        durationMs: 3000,
-        timebase: {
-          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-          nominalMediaDurationMs: 3000,
-        }
-      }
-    };
-
-    continuousCompletionStore.setCompletion(validCompletion);
-
-    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-
-    // Warning banner rendered
-    expect(screen.getByText('乐谱版本不一致')).toBeDefined();
-    expect(
-      screen.getByText(
-        '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留录制回放和演奏信息。'
-      )
-    ).toBeDefined();
-
-    // Score annotations are cleared
-    expect(applySpy).toHaveBeenCalled();
-    const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
-    expect(lastCall[1].supportedNoteIds).toEqual([]);
-    expect(lastCall[1].unsupportedNoteIds).toEqual([]);
-
-    // Revision mismatch disables annotations, while replay metadata remains useful.
-    expect(screen.queryByRole('region', { name: '目标音识别' })).toBeNull();
-    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
-    expect(screen.getByText('演奏时长')).toBeDefined();
-  });
-
   it('keeps replay and a clear notice when completed evaluation is unavailable, without aggregate cards', () => {
     const result = continuousResultFixture({ sourceId: 'source-fixture', localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
       scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
@@ -687,7 +603,7 @@ describe('PracticeReviewPage', () => {
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
       evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
-    continuousCompletionStore.setCompletion({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
+    provideReview({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
@@ -717,7 +633,7 @@ describe('PracticeReviewPage', () => {
       }
     };
 
-    continuousCompletionStore.setCompletion(validCompletion);
+    provideReview(validCompletion);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -730,8 +646,8 @@ describe('PracticeReviewPage', () => {
     expect(saveBtn.hasAttribute('disabled')).toBe(true);
   });
 
-  it('disables score queries when completion is absent', () => {
-    continuousCompletionStore.clearCompletion();
+  it('renders expired Review without a handoff', () => {
+    reviewWorkspace.reviewSession = null;
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -767,7 +683,7 @@ describe('PracticeReviewPage', () => {
       }
     };
 
-    continuousCompletionStore.setCompletion(validCompletion);
+    provideReview(validCompletion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-abc' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -832,7 +748,7 @@ describe('PracticeReviewPage', () => {
       }
     };
 
-    continuousCompletionStore.setCompletion(validCompletion);
+    provideReview(validCompletion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -868,7 +784,7 @@ describe('PracticeReviewPage', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const videoBlob = new Blob(['raw-video'], { type: 'video/webm' });
     const completion = createVideoCompletion({ videoBlob });
-    continuousCompletionStore.setCompletion(completion);
+    provideReview(completion);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -892,26 +808,6 @@ describe('PracticeReviewPage', () => {
     expect(saveMutationMock.mutateAsync.mock.calls[0][0].mediaKind).toBe('VIDEO');
   });
 
-  it('disables score plus video export when score identity is mismatched and keeps raw video export available', () => {
-    Object.defineProperty(URL, 'createObjectURL', {
-      configurable: true,
-      value: vi.fn(() => 'blob:raw-video'),
-    });
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      configurable: true,
-      value: vi.fn(),
-    });
-    currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
-    continuousCompletionStore.setCompletion(createVideoCompletion());
-
-    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    expect(screen.getByTestId('share-video-studio-unavailable')).toBeInTheDocument();
-    expect(screen.queryByTestId('open-share-video-studio')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
-    expect(URL.createObjectURL).toHaveBeenCalled();
-    expect(shareVideoMocks.exportShareVideo).not.toHaveBeenCalled();
-  });
-
   it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
     const resolveExportRef: Array<
       (value: { blob: Blob; mimeType: string; durationMs: number }) => void
@@ -924,7 +820,7 @@ describe('PracticeReviewPage', () => {
         });
       }
     );
-    continuousCompletionStore.setCompletion(createVideoCompletion());
+    provideReview(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
@@ -960,7 +856,7 @@ describe('PracticeReviewPage', () => {
     shareVideoMocks.exportShareVideo.mockRejectedValueOnce(
       new Error('encoder failed')
     );
-    continuousCompletionStore.setCompletion(createVideoCompletion());
+    provideReview(createVideoCompletion());
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -986,7 +882,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    continuousCompletionStore.setCompletion(
+    provideReview(
       createVideoCompletion({
         videoBlob: new Blob(['mp4-video'], { type: 'video/mp4' }),
         mimeType: 'video/mp4',
@@ -1004,7 +900,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps video orientation and score presentation independent when deriving export configs', async () => {
-    continuousCompletionStore.setCompletion(createVideoCompletion());
+    provideReview(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -1041,7 +937,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps share selections when the studio is collapsed and reopened', () => {
-    continuousCompletionStore.setCompletion(createVideoCompletion());
+    provideReview(createVideoCompletion());
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     fireEvent.click(screen.getByTestId('open-share-video-studio'));

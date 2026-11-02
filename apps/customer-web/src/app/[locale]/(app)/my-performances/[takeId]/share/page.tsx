@@ -18,7 +18,7 @@ import {
   downloadPerformanceTakeMediaBlob,
 } from '@/lib/api/performance-takes';
 import { ApiError } from '@/lib/api-client';
-import { usePerformanceTakePracticeSource } from '@/hooks/practice/use-practice-revision-source';
+import { usePerformanceTakePracticeSource } from '@/hooks/practice/use-performance-take-practice-source';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
@@ -81,7 +81,7 @@ export default function HistoricalPerformanceSharePage() {
   const source = usePerformanceTakePracticeSource(takeId, {
     sourceId: take?.source_id ?? '', scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
     artifactId: take?.source_artifact_id ?? '',
-  }, { loadNotation: true, enabled: isBaseEligible });
+  }, { enabled: isBaseEligible });
   const sourceQuery = source.sourceQuery;
   const artifact = source.artifact;
 

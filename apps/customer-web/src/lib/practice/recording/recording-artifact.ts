@@ -5,7 +5,7 @@ export type PerformanceRecording =
   | Readonly<{ status: 'UNAVAILABLE'; reason: string }>
   | Readonly<{ status: 'READY'; kind: 'AUDIO' | 'VIDEO'; blob: Blob; mimeType: string; durationMs: number; timebase: RecordingTimebaseMapping }>;
 
-function assertPerformanceRecording(recording: PerformanceRecording): void {
+export function assertPerformanceRecording(recording: PerformanceRecording): void {
   if (recording.status === 'NOT_RECORDED' && Object.keys(recording).join() === 'status') return;
   if (recording.status === 'UNAVAILABLE' && typeof recording.reason === 'string' && recording.reason.length > 0
     && Object.keys(recording).sort().join() === 'reason,status') return;

@@ -452,7 +452,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  await page.route(/\/api\/v1\/practice\/(?:scores\/[^/]+\/revisions\/[^/]+\/source|sources\/source-1)(?:\?.*)?$/, route =>
+  await page.route(/\/api\/v1\/practice\/scores\/[^/]+\/revisions\/[^/]+\/source(?:\?.*)?$/, route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1646,7 +1646,7 @@ test('Setup microphone admission retains the exact stream across Start, End and 
   await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'重弹一次',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   expect(await witness()).toMatchObject({acquisitions:1,captures:4,same:true,live:true});
-  expect(sourceRequests).toEqual([`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source`,'/api/v1/practice/sources/source-1']);
+  expect(sourceRequests).toEqual([`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source`]);
   await testInfo.attach('same-microphone-source',{body:JSON.stringify({resources:await witness(),sourceRequests}),contentType:'application/json'});
 });
 
@@ -1668,4 +1668,48 @@ test('acoustic smoke failure rolls back the same acquired microphone before navi
   expect((await mediaState(page)).requests).toHaveLength(1);
   expect(await page.evaluate(()=>{const m=(window as unknown as {__practiceMedia:MediaMock}).__practiceMedia;return m.captureRoots.length===1&&m.captureRoots[0]===m.audioStreams[0]&&m.audioStreams[0].getTracks().every(t=>t.readyState==='ended');})).toBe(true);
   await expect(page).toHaveURL(/\/practice\/setup\?/);await expect(page.getByRole('button',{name:'开始',exact:true})).toHaveCount(0);
+});
+
+test('one complete Setup admission survives Score deletion through Practice, Review and local export; reload expires it', async ({ page }, testInfo) => {
+  await setupContinuousPracticeMocks(page, { camera: 'READY' });
+  const sourceRequests: string[] = [], scoreRequests: string[] = [];
+  page.on('request', request => {
+    const url=new URL(request.url());
+    if(url.pathname.startsWith('/api/v1/practice/') && url.pathname.includes('/source')) sourceRequests.push(request.url());
+    if(url.pathname===`/api/v1/scores/${scoreId}`)scoreRequests.push(request.url());
+  });
+  await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
+  await selectPracticeConfiguration(page,'CONTINUOUS','MIDI','VIDEO');
+  expect(sourceRequests).toEqual([]);
+  expect(await preparePracticeSetup(page)).toBe('READY');
+  expect(sourceRequests).toHaveLength(1);
+  const admitted=new URL(sourceRequests[0]);
+  expect(admitted.pathname).toBe(`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source`);
+  expect(admitted.searchParams.get('include_notation')).toBe('true');
+  const admittedScoreReads=scoreRequests.length;
+  // Any new authorization/read fails: the current browser flow already owns its input.
+  await page.route('**/api/v1/practice/**', route=>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
+  await page.route(`**/api/v1/scores/${scoreId}`, route=>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
+  await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'开始',exact:true}).click();
+  await expect(page.getByRole('button',{name:'查看报告',exact:true})).toBeVisible({timeout:15000});
+  await page.getByRole('button',{name:'查看报告',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'临时演奏报告'})).toBeVisible();
+  await expect(page.locator('[data-practice-review-page] svg[overflow="visible"]')).toBeVisible();
+  await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
+  await page.getByRole('button',{name:'回放',exact:true}).click();
+  await expect.poll(()=>page.locator('video').first().evaluate(video=>(video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'暂停',exact:true}).click();
+  await page.getByTestId('open-share-video-studio').click();
+  await expect(page.getByTestId('generate-share-video')).toBeEnabled();
+  const download=page.waitForEvent('download');
+  await page.getByTestId('generate-share-video').click();
+  const exported=await download;
+  expect(await exported.failure()).toBeNull();
+  await expect(page.getByTestId('share-video-export-success')).toBeVisible();
+  expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);
+  await testInfo.attach('admitted-source-flow',{body:JSON.stringify({sourceRequests,scoreRequests,exported:exported.suggestedFilename()}),contentType:'application/json'});
+  await page.reload();
+  await expect(page.getByText('本次临时报告已失效', { exact: true })).toBeVisible();
+  expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);
 });

@@ -38,8 +38,8 @@ This bounded composition-local memo is semantic data, not a resource lease or se
 lifecycle owner.
 
 The Practice page constructs the intent from resolved configuration and committed
-workspace scope/tempo/metronome choices. The source query supplies sourceId and the
-parsed artifact. Page controls read the candidate plan's resolved projections.
+workspace scope/tempo/metronome choices. PreparedPractice supplies its owned sourceId
+and parsed artifact without a query. Page controls read the candidate plan's resolved projections.
 
 ## Explicit Execution Ownership
 
@@ -73,8 +73,9 @@ Intervention End creates no independent readiness state.
 Natural scope completion notifies once and retains completed presentation. Retry is
 a deliberate command that fully releases the completed attempt and starts one fresh
 controller directly. It does not reacquire retained roots or repeat preflight.
-The owner clears the transient Continuous completion handoff only at genuine new
-attempt construction and publishes it only from the current natural completion.
+The execution view exposes the exact current Continuous completion after natural
+completion; STEP exposes null. End, Retry and new execution remove the old completion
+from that view. A stale callback cannot restore it. No global completion storage exists.
 
 The owner holds one release chain. A new controller waits for old disposal and any
 late preparation to settle. Generation plus selected-controller identity fences
@@ -98,18 +99,19 @@ explicit Start Practice -> fresh revision Source admission
                         -> acquire PracticeResourceBinding
                         -> validate SAME roots and acoustic/recording pipelines
                         -> atomically commit PreparedPractice
-                        -> Practice exact-read admitted sourceId
+                        -> Practice borrows admitted artifact and MusicXML
 Practice Start -> PracticeExecutionOwner -> selected attempt borrows SAME roots
 ```
 
 Setup mounts without Source admission or physical acquisition. The command captures
 pinned revision and resource configuration, locks selectors and fences asynchronous
-completion with an abort signal. Source admission uses `usePracticeRevisionSource`
+completion with an abort signal. Source admission uses `admitPracticeSource`
 and the canonical strict parser before any acquisition. Invalid revision admission
 blocks this command; transient source failure remains retryable through the same CTA.
 
-`PracticePreparationAdmission` is immutable: exact sourceId/scoreId/revisionId/artifactId
-and mode/inputSource/recordingMode. `PreparedPractice` pairs that admission with its
+`PracticePreparationAdmission` is immutable: a complete AdmittedPracticeSource
+(sourceId, artifact, musicXml) and mode/inputSource/recordingMode. The artifact alone
+owns score/revision/artifact IDs. `PreparedPractice` pairs that admission with its
 retained `PracticeResourceBinding` from the same successful transaction. It exists only
 in workspace memory. Scope, tempo, metronome and live feedback do not identify this
 admission. Resource choices change it; candidate musical/presentation edits do not.
@@ -125,24 +127,42 @@ health atomically. Entering Setup retires any admitted binding before another co
 Unmount, revision/resource configuration replacement and superseding commands fence
 pending work; late acquisitions are closed rather than published.
 
-Fresh Source transport combines the command signal with query cancellation and always
-requests current admission instead of using cached success. Retiring the command
+Fresh Source transport consumes the command signal directly and always requests
+current admission without using a query cache. Retiring the command
 aborts its HTTP request. Recording preflight consumes that same command signal: abort
 settles the probe, clears its timeout, detaches recorder handlers and best-effort stops
 an active recorder. Validation then releases all temporary cloned tracks immediately;
 the resource binding alone releases retained originals. Late probe callbacks cannot
 publish into a subsequent transaction.
 
-Practice uses `usePracticeSourceById` with the admission's complete expected identity,
-never revision resolution. Missing memory admission, including full reload/direct entry,
-shows Setup required with no Source fallback, device acquisition, inference or controller.
-Loading, Source contract/load failure and access denial fail closed in place. Navigation
-is user-directed. Review Retry returns to pinned Setup for a fresh physical binding.
+Practice uses only PreparedPractice, browser URL identity and resource configuration.
+It verifies route score/revision against the admitted artifact and makes no Source or
+Score-detail request. Direct entry/reload without the memory-only admission shows
+Setup required without acquisition, inference or controller construction.
 
-Practice Start checks matching admission, strict exact Source, healthy retained roots,
-complete range and candidate plan. Acoustic inference acquisition additionally requires
-the engine's actual READY_IDLE lifecycle. This is not aggregate workspace readiness.
-Planning owns semantic scope/tempo resolution; execution consumes the admitted plan.
+Practice Start checks matching admission, healthy retained roots, valid candidate
+scope/tempo and the engine's actual acquisition lifecycle. Capability validation belongs
+to Setup. Candidate musical/presentation edits do not replace the physical binding.
+
+## Explicit Transient Review Handoff
+
+The execution owner retains `{ result, recording }` for its current natural Continuous
+completion. Try Again creates no ReviewSession. Only View Review calls the workspace's
+`handoffToReview(completion)` command. The command checks sourceId and artifact identity,
+validates the result/recording, and builds `{ result, recording, artifact, musicXml }`
+using the same canonical references and Blob. It releases PreparedPractice's binding
+before navigation and retains the handoff in workspace memory.
+
+Review consumes that complete TransientReviewSession, not a Source query. Scope
+projection and Verovio render errors remain presentation failures; a second server
+source or revision cannot replace admitted notation. Replay, annotations and current
+local composite/export use the owned representation even after Score/Revision deletion.
+
+Explicit Review exit clears the handoff. Route entry into Setup or Practice also
+invalidates it, including browser Back; unchanged-route renders between handoff and
+Review navigation preserve it. Provider disposal releases browser references. A direct
+Review visit/reload has no handoff and is expired, with no recovery read or persistence.
+Review Retry opens pinned Setup for a fresh admission and physical binding.
 
 ## Resource Planning and Lifetimes
 
@@ -209,7 +229,7 @@ Physical roots may fail after successful preparation; such a failure is an event
 Attempt End, natural completion and same-page Retry retain the binding. Entering
 Setup, Review, leaving the route family, configuration replacement or explicit
 abandonment closes it exactly once. Review navigation releases physical roots before
-routing; Review needs only the durable Source. Pipeline faults do not close the binding.
+routing; Review owns only its transient handoff. Pipeline faults do not close the binding.
 
 Resource planning defines requirements and bindings, not acquisition or Start/End
 lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
@@ -330,8 +350,8 @@ MetronomeRuntime consumes its live sync point. STEP has no Count-In.
 PracticeSessionPlan.sourceId is the admitted canonical durable source identity.
 Local STEP and Continuous session snapshots retain it. Natural Continuous completion
 verifies session/artifact descriptive identity and copies session.sourceId verbatim
-into Result schema8. Completion storage preserves that exact value. Review loads and
-checks the exact source by this identity; save sends only source_id as Source lineage.
+into Result schema8. The explicit workspace Review handoff validates and preserves
+that identity with the admitted artifact and notation; save sends only source_id as Source lineage.
 Source authorization and retention belong to [Practice Source](practice-source.md).
 
 ## Durable Save Planning

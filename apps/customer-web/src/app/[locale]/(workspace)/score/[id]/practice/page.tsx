@@ -4,8 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
-import { usePracticeRouteScore } from '@/hooks/practice/use-practice-route-score';
-import { usePracticeSourceById } from '@/hooks/practice/use-practice-revision-source';
+import { useSearchParams } from 'next/navigation';
 import { matchesPreparationConfiguration } from '@/lib/practice/preparation/prepared-practice';
 import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
 import { usePracticeResourceBinding } from '@/hooks/practice/use-practice-resource-binding';
@@ -24,12 +23,8 @@ import { ResourceInterruptionDialog } from '@/components/practice/resource-inter
 import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeDeviceStatusPopover } from '@/components/practice/practice-device-status-popover';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
-import { ResourceLoadError } from '@/components/states';
-import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
-import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
-import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
 import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
 import { projectPracticeMomentViews, type PracticeMomentView } from '@/lib/practice/score-view/moment-view';
@@ -79,8 +74,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
   const t = useTranslations('practice');
-  const common = useTranslations('common');
-  const errors = useTranslations('errors');
   const router = useRouter();
 
   // Mode and settings
@@ -92,24 +85,15 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
 
-  // Score details and assets
-  const route = usePracticeRouteScore(id);
+  const selectedRevisionId = useSearchParams().get('practiceRevisionId') ?? undefined;
   const prepared = workspace.preparedPractice;
   const admission = prepared?.admission;
-  const matching = Boolean(admission && admission.source.scoreId === id && admission.source.revisionId === route.revisionId
+  const matching = Boolean(admission && admission.source.artifact.scoreId === id
+    && admission.source.artifact.revisionId === selectedRevisionId
     && matchesPreparationConfiguration(admission, workspace.configuration));
-  const source = usePracticeSourceById(matching ? admission!.source.sourceId : '', {
-    scoreId: id, revisionId: admission?.source.revisionId ?? '', artifactId: admission?.source.artifactId ?? '',
-  }, { loadNotation: true, enabled: matching && route.canPractice });
-  const { artifact } = source;
-  const { scoreQuery } = route;
-  const canEnterPractice = route.canPractice;
-  const scoreCapabilities = scoreQuery.data?.data?.capabilities;
-  const selectedRevisionId = route.revisionId ?? undefined;
-
-  const xmlContent = source.musicXml;
-  const sourceAdmitted = Boolean(artifact && source.sourceId && selectedRevisionId && xmlContent)
-    && !source.invalid && !source.error && !scoreQuery.error && canEnterPractice;
+  const source = matching ? admission!.source : null;
+  const artifact = source?.artifact ?? null;
+  const xmlContent = source?.musicXml ?? null;
 
   // Range interaction projects canonical moment notation references.
   const expectedGroups: readonly PracticeMomentView[] = useMemo(
@@ -128,9 +112,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       recordingMode: configuration.recordingMode, scope: Object.freeze({ ...practiceScope }),
       tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeExecutionIntent;
   }, [configuration, practiceScope, tempoSelection, metronomeEnabled]);
-  const plan = useMemo(() => sourceAdmitted && artifact && source.sourceId && executionIntent
-    ? planPracticeSession({ sourceId: source.sourceId, artifact }, executionIntent) : null,
-    [artifact, source.sourceId, executionIntent, planPracticeSession, sourceAdmitted]);
+  const plan = useMemo(() => source && executionIntent
+    ? planPracticeSession(source, executionIntent) : null,
+    [source, executionIntent, planPracticeSession]);
 
   const device = usePracticeResourceBinding(matching ? prepared!.binding : null);
   const acousticState = useSyncExternalStore(workspace.environment.subscribeAcoustic, workspace.environment.acousticState, workspace.environment.acousticState);
@@ -140,7 +124,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   // Capability preflight belongs to Setup; this projects the admitted selected input only.
   const selectedInputCapability = matching ? { supported: true as const, status: 'AVAILABLE' as const } : undefined;
-  const canPreparePractice = sourceAdmitted && Boolean(plan) && !range.isIncomplete && !range.isSelecting
+  const canPreparePractice = Boolean(plan) && !range.isIncomplete && !range.isSelecting
     && matching && devicesReady && (plan?.resources.analysis.kind !== 'ACOUSTIC' || acousticState === 'READY_IDLE');
   // Local Practice orchestration
   const execution = usePracticeExecution({
@@ -168,17 +152,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     [execution, setMetronomeEnabled]
   );
 
-  const isLoadingXml = scoreQuery.isLoading || source.isLoading;
-  const isResourceLoading =
-    scoreQuery.isLoading || (matching && source.isLoading);
-  const loadError = scoreQuery.error ?? source.error;
-  const resourceMissingAfterLoad = !isResourceLoading && matching && !loadError && (!selectedRevisionId || !xmlContent || !artifact);
-  const loadErrorDescription = loadError
-    ? userFacingErrorMessage(errors, scoreQuery.error ?? source.transportError, common('loadFailedDescription'))
-    : resourceMissingAfterLoad
-      ? common('loadFailedDescription')
-      : null;
-
   const goToPracticeSetup = () => {
     setIsSettingsOpen(false);
     workspace.clearPreparedPractice();
@@ -192,9 +165,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const handleViewSummary = useCallback(() => {
     setIsCompletionDialogOpen(false);
-    workspace.clearPreparedPractice();
+    if (!execution.completion) throw new Error('Continuous completion required for Review.');
+    workspace.handoffToReview(execution.completion);
     router.push(`/score/${id}/practice/review`);
-  }, [id, router, workspace]);
+  }, [id, router, workspace, execution.completion]);
 
   const handleAdjustSelectedSection = async () => {
     setIsCompletionDialogOpen(false);
@@ -241,7 +215,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const handleEnd = async () => { await execution.end(); };
   const controlSurfaceProps = {
-      isLoading: isLoadingXml,
+      isLoading: false,
       isPreparingSession: execution.inputState === 'STARTING',
       canPrepareSession: canPreparePractice && execution.canStart,
       selectedInputCapability,
@@ -300,47 +274,12 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     </ScoreSurface>
   );
 
-  if (!canEnterPractice) {
-    return renderFrame(<WorkspaceAccessDenied title={t('accessDeniedTitle')} description={t('accessDeniedDesc')}
-      backHref={`/score/${id}`} backLabel={common('back')} />);
-  }
-
-  if (source.invalid) {
-    return renderFrame(<p role="alert" className="p-6">{t('scoreInvalid')}</p>);
-  }
-
-  if (isResourceLoading) {
-    return renderFrame(
-      <ResourceLoading label={common('loadingScoreData')} />
-    );
-  }
-
-  if (loadErrorDescription) {
-    return renderFrame(
-      <ResourceLoadError
-        title={common('loadFailed')}
-        description={loadErrorDescription}
-        actionLabel={common('back')}
-        onAction={() => router.back()}
-      />
-    );
-  }
-
   if (!configuration || !workspace.hydrated || !matching) {
     return renderFrame(<p role="status" className="p-6">{t('setupRequired')}</p>);
   }
 
   return renderFrame(
     <>
-      {scoreCapabilities && !scoreCapabilities.can_practice ? (
-        <WorkspaceAccessDenied
-          title={t('accessDeniedTitle')}
-          description={t('accessDeniedDesc')}
-          backHref={`/score/${id}`}
-          backLabel={common('back')}
-        />
-      ) : (
-        <>
           <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
             <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
               <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
@@ -349,7 +288,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                     className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
                     sessionStatus={practiceSessionStatus}
                     xmlContent={xmlContent}
-                    isLoadingXml={isLoadingXml}
+                    isLoadingXml={false}
                     lifecycle={execution.lifecycle}
                     sessionMode={configuration.mode}
                     activeStepGroup={execution.activeStepGroup}
@@ -431,8 +370,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             onRetry={handleRetry}
             onAdjustSection={range.isRangeScopeReady ? handleAdjustSelectedSection : undefined}
           />
-        </>
-      )}
     </>
   );
 }

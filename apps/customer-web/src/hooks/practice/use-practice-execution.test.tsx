@@ -2,7 +2,7 @@ import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/_
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { usePracticeExecution } from './use-practice-execution';
 import { stepSessionPlan, continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
@@ -15,10 +15,8 @@ import { ContinuousPracticeController } from '@/lib/practice/continuous/continuo
 import * as stepPlatform from '@/lib/practice/step/step-platform';
 import * as continuousPlatform from '@/lib/practice/continuous/continuous-platform';
 import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
-import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
 const artifact = fixture as PracticeScoreArtifact;
 afterEach(() => vi.restoreAllMocks());
-beforeEach(() => continuousCompletionStore.clearCompletion());
 function rig() {
   const health = rootHealthFixture(), clock = new ManualClock(100), borrowRoots = vi.fn(() => borrowedDevices());
   const meter = observeMetronomeRuntime();
@@ -94,8 +92,8 @@ it('real Continuous completion publishes one handoff through the owner and Retry
   await act(async () => { await result.current.start(); }); const controller = started.mock.contexts[0] as ContinuousPracticeController;
   await act(async () => { r.clock.advance(60000); controller.refresh(); });
   await waitFor(() => expect(result.current.lifecycle).toBe('COMPLETED'));
-  expect(r.completion).toHaveBeenCalledOnce(); expect(continuousCompletionStore.getCompletion()?.result.schemaVersion).toBe(8);
-  expect(continuousCompletionStore.getCompletion()?.result.scope).toEqual(result.current.executedPlan?.scope);
+  expect(r.completion).toHaveBeenCalledOnce(); expect(result.current.completion?.result.schemaVersion).toBe(8);
+  expect(result.current.completion?.result.scope).toEqual(result.current.executedPlan?.scope);
   await act(async () => { await result.current.retry(); }); expect(started).toHaveBeenCalledTimes(2);
-  expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(r.health.listenerCount()).toBe(1); unmount();
+  expect(result.current.completion).toBeNull(); expect(r.health.listenerCount()).toBe(1); unmount();
 });

@@ -7,7 +7,6 @@ import { borrowedDevices } from '../__fixtures__/device-roots';
 import { canonicalContinuousResultFixture } from '../__fixtures__/continuous-result';
 import artifactJson from '../__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '../kernel/artifact';
-import { continuousCompletionStore } from '../continuous/completion-store';
 import * as stepPlatform from '../step/step-platform';
 import * as continuousPlatform from '../continuous/continuous-platform';
 import { ManualClock } from '../kernel/timebase';
@@ -15,19 +14,19 @@ import { ManualClock } from '../kernel/timebase';
 const artifact = artifactJson as PracticeScoreArtifact;
 const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 const deferred = () => { let resolve!: () => void; const promise = new Promise<void>(r => { resolve = r; }); return { promise, resolve }; };
-beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.restoreAllMocks(); });
 function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
   const health = rootHealthFixture(), created: { options: Parameters<PracticeExecutionFactories['step']>[0] | Parameters<PracticeExecutionFactories['continuous']>[0];
     controller: ReturnType<PracticeExecutionFactories['step']> & ReturnType<PracticeExecutionFactories['continuous']>;
-    emit(): void; complete(): void; stale(): void; disposeGate: ReturnType<typeof deferred> | null; startGate: ReturnType<typeof deferred> | null }[] = [];
+    completion: import('../continuous/completion').ContinuousPracticeCompletion; emit(): void; complete(): void; stale(): void; disposeGate: ReturnType<typeof deferred> | null; startGate: ReturnType<typeof deferred> | null }[] = [];
   const create = (options: Parameters<PracticeExecutionFactories['step']>[0] | Parameters<PracticeExecutionFactories['continuous']>[0]) => {
     let state = 'IDLE', session = 'IDLE', detachHealth: (() => void) | undefined;
     const subscribers = new Set<() => void>();
     const savedCallbacks: (() => void)[] = [];
     let disposed = false;
-    const result = canonicalContinuousResultFixture();
+    const result = canonicalContinuousResultFixture(), payload = { result, recording: { status: 'NOT_RECORDED' as const } };
     const sessionSnapshot = { completionReason: 'SCOPE_COMPLETED' as const, localSessionId: `session-${created.length}` };
-    const item = { options, controller: null as never, emit: () => subscribers.forEach(f => f()),
+    const item = { options, completion: payload, controller: null as never, emit: () => subscribers.forEach(f => f()),
       complete: () => { state = 'ENDED'; session = 'COMPLETE'; item.emit(); options.onNaturalCompletion?.(sessionSnapshot as never); },
       stale: () => { savedCallbacks.forEach(f => f()); options.onNaturalCompletion?.(sessionSnapshot as never); },
       disposeGate: null as ReturnType<typeof deferred> | null, startGate: null as ReturnType<typeof deferred> | null };
@@ -41,7 +40,7 @@ function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
         ? { state, error: null, analysisIntervention: null, infrastructureIntervention: null, stepInteractionPhase: 'READY', canAcceptAttempt: true,
           pendingPostVerdict: null, activeStepGroup: options.plan.artifact.moments[options.plan.scope.startIndex], sessionSnapshot, lastSnapshot: sessionSnapshot }
         : { session, transport: session === 'ACTIVE' ? { state: 'RUNNING', performanceTimeMs: 5 } : null, analysis: 'NOT_REQUIRED', inputError: null,
-          recording: null, evaluation: null, analysisIntervention: null, resourceIntervention: null, completed: session === 'COMPLETE' ? { result, recording: { status: 'NOT_RECORDED' } } : null },
+          recording: null, evaluation: null, analysisIntervention: null, resourceIntervention: null, completed: session === 'COMPLETE' ? payload : null },
       setMetronomeEnabled: vi.fn(), skip: vi.fn(), pause: vi.fn(), resume: vi.fn(), continueWithoutAnalysis: vi.fn(async () => {}),
       continueWithoutRecording: vi.fn(), continueAfterRecovery: vi.fn(() => true),
     } as unknown as ReturnType<PracticeExecutionFactories['step']> & ReturnType<PracticeExecutionFactories['continuous']>;
@@ -85,10 +84,10 @@ it.each(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as const)('%s natural completion not
   const r = rig(mode), completed = vi.fn(); r.owner.setCompletionListener(completed); await r.owner.start();
   const first = r.created[0]; first.complete(); first.complete();
   expect(r.owner.snapshot().lifecycle).toBe('COMPLETED'); expect(completed).toHaveBeenCalledOnce(); expect(r.created).toHaveLength(1);
-  if (mode === 'CONTINUOUS_PLAY') expect(continuousCompletionStore.getCompletion()).not.toBeNull();
+  expect(r.owner.snapshot().completion).toBe(mode === 'CONTINUOUS_PLAY' ? first.completion : null);
   first.disposeGate = deferred(); const retry = r.owner.retry(), duplicate = r.owner.retry(); expect(duplicate).toBe(retry);
   await tick(); expect(r.created).toHaveLength(1); first.disposeGate.resolve(); await retry;
-  expect(r.created).toHaveLength(2); expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(r.health.listenerCount()).toBe(1);
+  expect(r.created).toHaveLength(2); expect(r.owner.snapshot().completion).toBeNull(); expect(r.health.listenerCount()).toBe(1);
   await r.owner.dispose();
 });
 it('release serialization fences Start pending + End + new Start and all stale callbacks', async () => {
@@ -121,12 +120,13 @@ it('an immediate End cancels Start before construction and invalid admission can
   r.owner.setCandidate(r.plan, false, 'score/revision'); await r.owner.start(); await r.owner.retry(); expect(r.created).toHaveLength(0);
   r.owner.setCandidate(null, true, 'score/revision'); await r.owner.start(); expect(r.created).toHaveLength(0); await r.owner.dispose();
 });
-it('candidate editing and blocked starts preserve a Continuous handoff; a genuine STEP Start clears it', async () => {
-  const r = rig(); continuousCompletionStore.setCompletion({ result: canonicalContinuousResultFixture(), recording: { status: 'NOT_RECORDED' } });
-  const saved = continuousCompletionStore.getCompletion(); r.owner.setCandidate(r.plan, false, 'score/revision');
-  await r.owner.start(); expect(continuousCompletionStore.getCompletion()).toBe(saved);
-  r.owner.setCandidate(r.plan, true, 'score/revision'); expect(continuousCompletionStore.getCompletion()).toBe(saved);
-  await r.owner.start(); expect(continuousCompletionStore.getCompletion()).toBeNull(); await r.owner.dispose();
+it('completion belongs only to the current Continuous attempt and stale callbacks cannot restore it after End', async () => {
+  const r=rig('CONTINUOUS_PLAY');expect(r.owner.snapshot().completion).toBeNull();await r.owner.start();const first=r.created[0];
+  first.complete();const payload=r.owner.snapshot().completion;expect(payload).toBe(first.completion);
+  r.owner.setCandidate(r.plan,true,'score/revision');expect(r.owner.snapshot().completion).toBe(payload);
+  await r.owner.end();expect(r.owner.snapshot().completion).toBeNull();first.stale();expect(r.owner.snapshot().completion).toBeNull();
+  await r.owner.start();expect(r.owner.snapshot().completion).toBeNull();first.stale();expect(r.owner.snapshot().completion).toBeNull();
+  await r.owner.dispose();
 });
 it('cleanup failure remains visible and prevents overlapping replacement ownership', async () => {
   const r = rig(); await r.owner.start(); vi.mocked(r.created[0].controller.dispose).mockRejectedValueOnce(new Error('STEP_RESOURCE_CLEANUP_FAILED'));

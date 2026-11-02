@@ -203,7 +203,7 @@ describe('route shell groups', () => {
     expect(securityPanel).toContain('SectionErrorState');
     expect(sessionsPanel).toContain('SectionErrorState');
 
-    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, publicScorePage, practicePage, invitePage]) {
+    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, publicScorePage, invitePage]) {
       expect(source).toContain('ResourceLoadError');
     }
 
@@ -211,7 +211,8 @@ describe('route shell groups', () => {
     expect(publicScorePage).toContain('userFacingErrorMessage');
     expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
 
-    expect(practicePage).toContain('scoreQuery.error ?? source.error');
+    expect(practicePage).toContain('workspace.preparedPractice');
+    expect(practicePage).toContain("t('setupRequired')");
     expect(practicePage).toContain('canPreparePractice');
     expect(practiceControls).toContain('canPrepareSession');
   });
@@ -258,7 +259,7 @@ describe('route shell groups', () => {
     expect(publicScorePage).toContain("common('loadingPublicScore')");
     expect(sharePage).toContain("common('loadingShareData')");
     expect(invitePage).toContain("common('loadingInvite')");
-    expect(practicePage).toContain("common('loadingScoreData')");
+    expect(practicePage).toContain('PracticeScoreViewer');
     expect(myScoresPage).toContain("t('loading')");
     expect(libraryPage).toContain("t('loadingEntries')");
     expect(librarySidebar).toContain("t('loadingFolders')");
@@ -269,7 +270,7 @@ describe('route shell groups', () => {
     expect(practiceScoreViewer).toContain('PreviewLoading');
     expect(reviewScoreComparison).toContain('PreviewLoading');
 
-    for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage, practicePage]) {
+    for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage]) {
       expect(source).toContain('ResourceLoading');
     }
 

@@ -5,7 +5,7 @@ import { StepPracticeController, type StepControllerOptions } from '@/lib/practi
 import { ContinuousPracticeController, type ContinuousControllerOptions } from '@/lib/practice/continuous/continuous-practice-controller';
 import { browserStepPlatform } from '@/lib/practice/step/step-platform';
 import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-platform';
-import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
+import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
 import type { PracticeSessionPlan } from '@/lib/practice/planning/session-plan';
@@ -40,6 +40,7 @@ type CommonView = Readonly<{
   executedPlan: PracticeSessionPlan | null; canStart: boolean;
 }>;
 type StepView = CommonView & Readonly<{
+  completion: null;
   mode: 'STEP_BY_STEP'; inputError: StepApplicationErrorCode | null;
   activeStepGroup: ReturnType<typeof projectPracticeMomentView> | null;
   stepInteractionPhase: ReturnType<StepController['snapshot']>['stepInteractionPhase'];
@@ -50,6 +51,7 @@ type StepView = CommonView & Readonly<{
   performanceClock: null; performanceEvaluation: null; recordingIndicator: null;
 }>;
 type ContinuousView = CommonView & Readonly<{
+  completion: ContinuousPracticeCompletion | null;
   mode: 'CONTINUOUS_PLAY'; inputError: ContinuousErrorCode | null; activeStepGroup: null;
   performanceClock: ReturnType<ContinuousController['snapshot']>['transport'];
   performanceEvaluation: ReturnType<ContinuousController['snapshot']>['evaluation'];
@@ -112,8 +114,6 @@ export class PracticeExecutionOwner {
       if (!this.admitted) throw plan.resources.input.kind === 'MIDI' ? new MidiFailure('ACCESS_UNAVAILABLE') : new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
       const devices = this.ports.borrowRoots();
       if (!devices) throw plan.resources.input.kind === 'MIDI' ? new MidiFailure('ACCESS_UNAVAILABLE') : new DeviceFailure('UNAVAILABLE', 'MICROPHONE');
-      // A new attempt invalidates the handoff; candidate editing and rendering do not.
-      continuousCompletionStore.clearCompletion();
       const completed = (snapshot: Completion) => this.complete(token, snapshot);
       const shared = { devices, rootHealth: this.ports.rootHealth, startupTimings, onNaturalCompletion: completed };
       const selected = plan.mode === 'STEP_BY_STEP'
@@ -139,12 +139,11 @@ export class PracticeExecutionOwner {
   private complete(token: number, snapshot: Completion): void {
     const owned = this.owned;
     if (!this.current(token) || !owned || owned.token !== token || owned.completed || snapshot.completionReason !== 'SCOPE_COMPLETED') return;
-    owned.completed = true;
     if (owned.mode === 'CONTINUOUS_PLAY') {
       const completion = owned.controller.snapshot().completed;
       if (!completion) throw new Error('Continuous completion is unavailable.');
-      continuousCompletionStore.setCompletion(completion);
     }
+    owned.completed = true;
     this.publish(); this.completionListener?.(snapshot);
   }
   /** Detach/fence immediately; cleanup may settle asynchronously while READY waits for release. */
@@ -202,7 +201,7 @@ export class PracticeExecutionOwner {
       const lifecycle: PracticeExecutionLifecycle = owned.completed ? 'COMPLETED' : this.error?.mode === 'CONTINUOUS_PLAY' ? 'ERROR' : snapshot.session === 'FINALIZING' ? 'FINALIZING'
         : ['FAILED', 'FAILED_BEFORE_START'].includes(snapshot.session) ? 'ERROR'
         : this.startingPlan || snapshot.session === 'PREPARING' ? 'PREPARING' : snapshot.transport?.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE';
-      return Object.freeze({ ...common, mode: 'CONTINUOUS_PLAY', lifecycle, inputError: error,
+      return Object.freeze({ ...common, completion: owned.completed ? snapshot.completed : null, mode: 'CONTINUOUS_PLAY', lifecycle, inputError: error,
         inputState: lifecycle === 'PREPARING' ? 'STARTING' : error || lifecycle === 'ERROR' ? 'ERROR' : lifecycle === 'ACTIVE' ? 'RUNNING' : 'IDLE',
         activeStepGroup: null, performanceClock: snapshot.transport, performanceEvaluation: snapshot.evaluation,
         recordingIndicator: snapshot.recording?.indicatorVisible ? Math.floor(snapshot.recording.elapsedMs / 1000) : null,
@@ -215,9 +214,9 @@ export class PracticeExecutionOwner {
     const lifecycle: PracticeExecutionLifecycle = owned?.completed ? 'COMPLETED' : this.startingPlan ? 'PREPARING' : error ? 'ERROR' : owned ? 'ACTIVE' : 'READY';
     const base = { ...common, lifecycle, inputError: error,
       inputState: (lifecycle === 'PREPARING' ? 'STARTING' : error ? 'ERROR' : lifecycle === 'ACTIVE' ? 'RUNNING' : 'IDLE') as LocalPracticeInputState };
-    if (plan?.mode === 'CONTINUOUS_PLAY') return Object.freeze({ ...base, mode: 'CONTINUOUS_PLAY', inputError: continuousError, activeStepGroup: null,
+    if (plan?.mode === 'CONTINUOUS_PLAY') return Object.freeze({ ...base, completion: null, mode: 'CONTINUOUS_PLAY', inputError: continuousError, activeStepGroup: null,
       performanceClock: null, performanceEvaluation: null, recordingIndicator: null, analysisIntervention: null, resourceIntervention: null });
-    return Object.freeze({ ...base, mode: 'STEP_BY_STEP', inputError: stepError, activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.artifact, snapshot.activeStepGroup) : null,
+    return Object.freeze({ ...base, completion: null, mode: 'STEP_BY_STEP', inputError: stepError, activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.artifact, snapshot.activeStepGroup) : null,
       stepInteractionPhase: snapshot?.stepInteractionPhase ?? null, pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,
       canAcceptAttempt: snapshot?.canAcceptAttempt ?? false, analysisIntervention: snapshot?.analysisIntervention ?? null,
       infrastructureIntervention: snapshot?.infrastructureIntervention ?? null, performanceClock: null, performanceEvaluation: null, recordingIndicator: null });

@@ -53,7 +53,7 @@ The authenticated live route is:
 
 ```text
 GET /practice/scores/{score_id}/revisions/{revision_id}/source
-    ?include_notation=false
+    ?include_notation=true
 ```
 
 One request authorizes one revision, constructs one candidate and obtains the verified
@@ -70,41 +70,36 @@ READY durable source through the repository before returning. The response is:
 }
 ```
 
-`include_notation=false` returns `notation=null`. Setup requests that representation only
-when the user presses Start Practice, forcing a fresh request on every command.
-`include_notation=true` includes the exact prepared Practice MusicXML. Practice and
-Review request notation for browser presentation consumers such as Verovio.
-Notation is a rendering representation, not an evaluation/domain input. STEP and
-Continuous consume the validated semantic artifact.
-
-`usePracticeRevisionSource` owns one network query, maps the generated source DTO,
-parses the artifact once and validates requested score/revision identity. Its cache
-identity includes the notation option. It exposes `sourceId`, `artifact`, `musicXml`
-and `sourceQuery`. `usePracticeRouteScore` owns metadata access and URL revision pinning only.
-Setup invokes the revision query explicitly; Practice exact-reads PreparedPractice sourceId
-with score/revision/artifact identity validation. `usePerformanceTakePracticeSource` uses the same envelope parser for
-saved takes and additionally validates the take's artifact identity. Practice domains
-remain independent of API clients and generated transport DTOs.
+Setup Start Practice requests `include_notation=true` and admits the complete sourceId,
+artifact and prepared MusicXML in one fresh request. `source/admit-practice-source.ts`
+passes the command's AbortSignal directly to transport. `source/source-envelope.ts`
+strictly parses the artifact, checks requested revision identity and requires notation.
+It freezes the admitted representation without copying its artifact graph.
+`usePracticeRouteScore` supplies metadata and revision pinning on Setup only.
+The saved-Take source hook uses the same envelope boundary and verifies the Take's
+canonical sourceId and descriptive identities.
 
 ## Browser Score Admission and Execution
 
-The source projection's strict `parsePracticeScoreArtifact()` call owns revision-wide
-score correctness. It returns the runtime artifact or invalid-source state. Setup performs
-no Source request on mount or configuration edits. Its explicit Start Practice command
-refetches the pinned revision through this parser before live resource acquisition and same-root validation. Invalid revision admission disables that command for the pinned revision;
-transient load failure remains retryable. Acquisition never runs after Source failure.
-Successful preparation pairs exact Source admission with a retained physical binding.
-Practice exact-reads that sourceId through the same parser; it never selects Source from
-revision identity again. Without the memory-only handoff it shows Setup required and
-requests no Source. Absent/failed/invalid Source cannot create an attempt controller. These
-states render in place; they never automatically route to Setup. Score revision pinning
-remains part of the Source query identity.
+Setup mounts and configuration edits perform no Source admission. Its explicit command
+admits the complete pinned representation before physical acquisition and same-root
+validation. Invalid score admission blocks the pinned revision; a transient load failure
+remains retryable through the same CTA. Source failure permits no physical acquisition.
 
-Planning consumes the admitted artifact, checks its own intent/sourceId/scope/tempo
-inputs and produces a candidate plan. Explicit Start captures that plan in the single
-PracticeExecutionOwner. Mode controllers and pure execution projections consume
-resolved truth without re-traversing the full artifact contract. See
-[session planning and execution](practice-session-planning.md).
+PreparedPractice explicitly owns that browser-local representation and its retained
+ResourceBinding. Artifact owns score/revision/artifact identity. Practice checks URL and
+configuration against these admitted facts and never re-reads Source or Score capability.
+Planning and controllers borrow the admitted representation. A direct Practice visit or
+reload has no PreparedPractice, performs no Source read and shows Setup required.
+
+The current execution owns its Continuous completion. View Review explicitly hands
+that payload and the admitted artifact/MusicXML to a workspace-owned
+TransientReviewSession and releases physical roots. Review and its current local
+composite/export read only that handoff. Deleting a Score or Revision blocks a future
+admission, but does not revoke an already admitted browser transaction. No React Query
+cache, persisted browser state or server source read reconstructs that transaction.
+Direct Review reload is expired. [Session planning](practice-session-planning.md)
+owns these browser lifetimes and transition ordering.
 
 ## Durable Admission and Verification
 
@@ -180,8 +175,9 @@ or resolve revision contents. Source possession is not authorization. The servic
 requires a live_revision_id, applies Score Practice access policy to persisted
 score/revision provenance and verifies that the authorized revision is the live owner.
 The repository refreshes and locks READY state, then verifies the exact stored bytes.
-Review requests Result.sourceId and verifies the envelope source_id plus artifact
-score/revision/artifact projections. Shared source-envelope parsing owns these checks.
+This endpoint authorizes server reads independently of browser handoff ownership.
+An admitted Practice/Review flow does not call it. Shared source-envelope parsing
+validates the current saved-Take browser read.
 
 Ordinary exact-source access and new save admission fail closed after live revision
 deletion. A saved Take authorizes its source through Take ownership and remains
@@ -222,11 +218,11 @@ or recording evidence semantics.
 
 ## Frontend Failure Contract
 
-The source query exposes `SourceFailure.INVALID_SCORE` for deterministic parser,
+The Source envelope boundary exposes `SourceFailure.INVALID_SCORE` for deterministic parser,
 identity or notation contract failures, and `SourceFailure.LOAD_FAILED` for transport
 or service failures. The original cause is retained for diagnostics and safe API-code
 formatting. Setup stops before qualification on either failure; load failure is retryable
-through Start Practice. Practice presents failure in place. The shared strict parser
+through Start Practice. The shared strict parser
 remains the full score admission authority. See [failure boundaries](practice-failures.md).
 
 ## Score Admission

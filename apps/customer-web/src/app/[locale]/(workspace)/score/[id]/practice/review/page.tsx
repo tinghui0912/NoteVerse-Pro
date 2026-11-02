@@ -38,10 +38,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { usePracticeSourceById } from '@/hooks/practice/use-practice-revision-source';
+import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
-import { continuousCompletionStore } from '@/lib/practice/continuous/completion-store';
-import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
   EvaluationAnnotationController,
@@ -94,35 +92,20 @@ export default function PracticeReviewPage({
   const format = useFormatter();
   const router = useRouter();
 
-  const [completion, setCompletion] = useState<ContinuousPracticeCompletion | null>(() =>
-    continuousCompletionStore.getCompletion()
-  );
-
-  useEffect(() => {
-    return continuousCompletionStore.subscribe(setCompletion);
-  }, []);
-
-  const result = completion?.result ?? null;
-  const recording = completion?.recording ?? null;
-
+  const workspace = usePracticeWorkspace();
+  const reviewSession = workspace.reviewSession;
+  const result = reviewSession?.result ?? null;
+  const recording = reviewSession?.recording ?? null;
+  const artifact = reviewSession?.artifact ?? null;
+  const xmlContent = reviewSession?.musicXml ?? null;
   const isValidCompletion = Boolean(result && result.scoreId === id);
-
-  const source = usePracticeSourceById(result?.sourceId ?? '', {
-    scoreId: result?.scoreId ?? '', revisionId: result?.revisionId ?? '', artifactId: result?.artifactId ?? '',
-  }, {
-    loadNotation: true, enabled: isValidCompletion && Boolean(id),
-  });
-  const xmlContent = source.musicXml;
-  const isLoadingXml = source.isLoading;
-  const artifact = source.artifact;
-  const scoreState = useMemo(() => resolveReviewScoreState({ result, artifact, sourceId: source.sourceId, xmlAvailable: Boolean(xmlContent), scoreId: id }),
-    [artifact, result, xmlContent, id, source.sourceId]);
-  const isRevisionMismatched = scoreState.status === 'IDENTITY_MISMATCH';
-  const isScoreIdentityConfirmed = scoreState.status === 'READY';
+  const scoreState = useMemo(() => reviewSession ? resolveReviewScoreState(reviewSession) : null, [reviewSession]);
+  const isScoreIdentityConfirmed = isValidCompletion && scoreState?.status === 'READY';
   const shareVideoSession = useMemo(() => {
-    if (!completion || !artifact || scoreState.status !== 'READY') return null;
-    try { return createShareVideoSessionFromCompletion(completion, { sourceId: source.sourceId!, artifact }); } catch { return null; }
-  }, [artifact, completion, scoreState, source.sourceId]);
+    if (!reviewSession || reviewSession.recording.status !== 'READY' || reviewSession.recording.kind !== 'VIDEO'
+      || scoreState?.status !== 'READY') return null;
+    return createShareVideoSessionFromCompletion(reviewSession);
+  }, [reviewSession, scoreState]);
 
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
@@ -190,7 +173,7 @@ export default function PracticeReviewPage({
         replayTimeMs === null ||
         recording?.status !== 'READY' ||
         !isScoreIdentityConfirmed ||
-        scoreState.status !== 'READY'
+        scoreState?.status !== 'READY'
       ) {
         playheadController.clear(container);
         return;
@@ -355,9 +338,9 @@ export default function PracticeReviewPage({
   }, [result, saveMedia, saveRecordingMutation, saveRecordingStatus, t]);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
-    continuousCompletionStore.clearCompletion();
+    workspace.clearReviewSession();
     router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.revisionId));
-  }, [id, router, result?.revisionId]);
+  }, [id, router, result?.revisionId, workspace]);
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {
@@ -481,19 +464,6 @@ export default function PracticeReviewPage({
         }
       />
 
-      {/* Revision Mismatch Warning */}
-      {isRevisionMismatched && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 text-amber-900 dark:text-amber-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-            <h4 className="text-sm font-semibold">{t('scoreRevisionMismatchTitle')}</h4>
-          </div>
-          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300 pl-7">
-            {t('scoreRevisionMismatchDesc')}
-          </p>
-        </div>
-      )}
-
       {result.evaluation.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
         : result.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
 
@@ -548,7 +518,7 @@ export default function PracticeReviewPage({
           <CardContent className="p-4">
             <VerovioScoreViewer
               xmlContent={xmlContent}
-              isLoading={isLoadingXml}
+              emptyContent={null}
               adapterFactory={adapterFactory}
               pageDataAttribute="data-practice-review-page"
               onRendered={handleScoreRendered}
@@ -558,9 +528,6 @@ export default function PracticeReviewPage({
               svgClassName="practice-summary-score-svg"
               loadingContent={
                 <PreviewLoading label={t('reviewLoadingScore')} className="min-h-80" />
-              }
-              emptyContent={
-                <EmptyState title={t('reviewScoreUnavailable')} className="min-h-80" />
               }
               renderError={(message) => (
                 <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">

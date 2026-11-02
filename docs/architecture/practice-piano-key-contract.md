@@ -30,10 +30,11 @@ Generated DTOs describe transport; the kernel parser owns revision-wide semantic
 admission. Planning and mode execution consume that admitted runtime artifact.
 
 `usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
-command invokes `usePracticeRevisionSource` for fresh artifact-only admission before
+command invokes `admitPracticeSource` for fresh complete Source admission before
 resource acquisition. Its successful PreparedPractice handoff carries exact sourceId
-and retained roots. Practice exact-reads that source through the same canonical parser.
-Without handoff it shows Setup required; invalid admitted Source fails closed in place.
+and retained roots. Practice and Review reuse that admitted representation without
+Source reads.
+Without handoff it shows Setup required. Invalid Source fails Setup admission before acquisition.
 Score correctness and retained physical health have distinct owners.
 
 ## Source adapters

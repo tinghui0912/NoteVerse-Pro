@@ -216,11 +216,7 @@ async function setupPracticeMocks(
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  for (const sourcePath of [
-    `**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`,
-    '**/api/v1/practice/sources/source-1*',
-  ]) {
-    await page.route(sourcePath, route =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`, route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -229,7 +225,6 @@ async function setupPracticeMocks(
             ? { musicxml: selectableMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
       })
     );
-  }
 
   // Mock the practice-acoustic-robust-browser@v1 access contract.
   await page.route(`**${practiceModelAccessPath}`, (route) => {

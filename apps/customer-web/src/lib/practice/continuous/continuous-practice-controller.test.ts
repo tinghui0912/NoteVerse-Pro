@@ -29,7 +29,6 @@ import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bri
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { PerformanceRecorder } from '../recording/performance-recorder';
-import { continuousCompletionStore } from './completion-store';
 import { ContinuousMidiEvidence } from './input/midi-evidence';
 import * as scopeContract from '../kernel/scope';
 import * as tempoContract from '../kernel/tempo';
@@ -114,7 +113,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     bridge: () => bridge!, midiOptions: () => midiOptions! };
 }
 
-beforeEach(() => { continuousCompletionStore.clearCompletion(); vi.useFakeTimers(); vi.stubGlobal('MediaRecorder', Recorder);
+beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('MediaRecorder', Recorder);
   vi.stubGlobal('MediaStream', class { constructor(private tracks: MediaStreamTrack[]) {}
     getTracks() { return this.tracks; } getAudioTracks() { return this.tracks.filter(t => t.kind === 'audio'); }
     getVideoTracks() { return this.tracks.filter(t => t.kind === 'video'); }
@@ -256,7 +255,7 @@ describe('Continuous application owner', () => {
         expect(controller.snapshot().transport?.state).toBe('PAUSED'); expect(controller.continueAfterRecovery()).toBe(true);
         expect(controller.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME' });
       } else expect(controller.continueAfterRecovery()).toBe(false);
-      expect(continuousCompletionStore.getCompletion()).toBeNull(); await controller.abandon(); await controller.dispose();
+      await controller.abandon(); await controller.dispose();
       expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
     });
   }
@@ -310,7 +309,6 @@ describe('Continuous application owner', () => {
   });
   for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize-throw', 'recorder-finalize', 'recorder-cleanup']) {
     it(`settles ${fault} failure without COMPLETE, unhandled rejection or double cleanup`, async () => {
-      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
       const f = environment(); const recorder = new PerformanceRecorder('AUDIO');
       f.platform.createRecorder = () => recorder;
       const controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
@@ -327,9 +325,9 @@ describe('Continuous application owner', () => {
       await f.feed(1200);
       const completion = controller.abandon(); await f.feed(400); await completion;
       expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().completed).toBeNull();
-      expect(store).not.toHaveBeenCalled(); expect(f.root.audio.stop).not.toHaveBeenCalled();
+      expect(f.root.audio.stop).not.toHaveBeenCalled();
       expect(f.worker.dispose).toHaveBeenCalledTimes(1); expect(f.context.close).toHaveBeenCalledTimes(1);
-      await controller.dispose(); expect(f.worker.dispose).toHaveBeenCalledTimes(1); store.mockRestore();
+      await controller.dispose(); expect(f.worker.dispose).toHaveBeenCalledTimes(1);
     });
   }
   it('fresh controller after fatal source loss uses fresh owned resources', async () => {
@@ -353,7 +351,7 @@ describe('Continuous application owner', () => {
   it('MIDI AUDIO fails before Start when its borrowed recording root is lost', async () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException('private browser detail', 'NotAllowedError'); });
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
-    const store = vi.spyOn(continuousCompletionStore, 'setCompletion'), callback = vi.fn();
+    const callback = vi.fn();
     const f = environment(); f.root.audio.stop(); const controller = f.create('MIDI', 4, 'AUDIO', callback);
     try {
       await controller.start();
@@ -369,8 +367,7 @@ describe('Continuous application owner', () => {
       expect(f.platform.createMetronomeAudio).not.toHaveBeenCalled();
       f.clock.set(10000); controller.refresh();
       expect(controller.snapshot().completed).toBeNull(); expect(callback).not.toHaveBeenCalled();
-      expect(store).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
-    } finally { await controller.dispose(); store.mockRestore(); }
+    } finally { await controller.dispose();  }
   });
 
   it('MIDI AUDIO track loss after Start preserves evaluation and completes with unavailable recording', async () => {
@@ -391,7 +388,7 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().session).toBe('COMPLETE');
     expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
     expect(controller.snapshot().completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: 'AUDIO_TRACK_ENDED' });
-    expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(controller.snapshot().completed).not.toBeNull();
+     expect(controller.snapshot().completed).not.toBeNull();
     await controller.dispose();
   });
 
@@ -431,7 +428,6 @@ describe('Continuous application owner', () => {
     await controller.abandon(); await controller.dispose(); f.root.copies.at(-1)!.audio.dispatchEvent(new Event('mute'));
     f.clock.set(20000); controller.refresh(); expect(controller.snapshot().completed).toBeNull();
     expect(controller.snapshot().resourceIntervention).toBeNull(); expect(callback).not.toHaveBeenCalled();
-    expect(continuousCompletionStore.getCompletion()).toBeNull();
   });
   it('microphone recording clone fault freezes evidence at the canonical pause boundary without disposing the warm lease', async () => {
     const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
@@ -457,7 +453,6 @@ describe('Continuous application owner', () => {
     it(input + ' VIDEO rejects a preview track that died before admission without acoustic misclassification', async () => {
       const f = environment(), camera = stream(true), callback = vi.fn();
       camera.media.getTracks().find(track => track.kind === kind)!.stop();
-      const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
       const controller = f.create(input, 4, 'VIDEO', callback, camera.media);
       await controller.start();
       // Recording audio always comes from its dedicated audio root, never camera audio.
@@ -467,13 +462,13 @@ describe('Continuous application owner', () => {
       } else {
         expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
           completed: null, evaluation: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
-        expect(callback).not.toHaveBeenCalled(); expect(store).not.toHaveBeenCalled();
+        expect(callback).not.toHaveBeenCalled();
       }
       if (input === 'MICROPHONE') {
         expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.root.audio.stop).not.toHaveBeenCalled();
         expect(f.context.close).toHaveBeenCalledOnce();
       }
-      await controller.dispose(); store.mockRestore();
+      await controller.dispose();
     });
   }
 
@@ -509,7 +504,7 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
       evaluation: null, completed: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
     expect(f.meter.start).not.toHaveBeenCalled(); expect(f.meter.dispose).toHaveBeenCalledOnce();
-    expect(callback).not.toHaveBeenCalled(); expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(callback).not.toHaveBeenCalled();
     expect(recordingStream!.getTracks().every(track => track.readyState === 'ended')).toBe(true);
     expect(camera.media.getTracks().every(track => track.readyState === 'live')).toBe(true);
     await controller.dispose();
@@ -528,7 +523,6 @@ describe('Continuous application owner', () => {
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => f.root.media) } });
     const recorder = new PerformanceRecorder('AUDIO');
     const freeze = vi.spyOn(recorder, 'freeze'), finalize = vi.spyOn(recorder, 'finalize');
-    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
     f.platform.createRecorder = () => recorder;
     const controller = f.create('MIDI', 0, 'AUDIO');
     try {
@@ -539,7 +533,7 @@ describe('Continuous application owner', () => {
       if (outcome === 'TIMEOUT') {
         await vi.advanceTimersByTimeAsync(1499);
         expect(controller.snapshot().session).toBe('FINALIZING');
-        expect(store).not.toHaveBeenCalled();
+
         await vi.advanceTimersByTimeAsync(1);
       }
       await completion;
@@ -551,10 +545,9 @@ describe('Continuous application owner', () => {
       const completed = controller.snapshot().completed;
       expect(completed?.result.evaluation.status).toBe('COMPLETE');
       expect(completed?.recording).toEqual({ status: 'UNAVAILABLE', reason: outcome === 'FAILED' ? 'RECORDER_STOP_FAILED' : 'RECORDER_STOP_TIMEOUT' });
-      expect(store).not.toHaveBeenCalled();
-      expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(completed!.recording).toBeDefined();
+      expect(completed!.recording).toBeDefined();
     } finally {
-      await controller.dispose(); freeze.mockRestore(); finalize.mockRestore(); store.mockRestore(); continuousCompletionStore.clearCompletion();
+      await controller.dispose(); freeze.mockRestore(); finalize.mockRestore();
     }
   });
   it('MIDI pause/resume preserves clock identity and abandonment discards the result', async () => {
@@ -627,7 +620,6 @@ describe('Continuous application owner', () => {
     expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(0);
     expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(-Infinity);
     expect(controller.snapshot().completed).toBeNull();
-    expect(continuousCompletionStore.getCompletion()).toBeNull();
     await controller.dispose();
   });
   for (const paused of [false, true]) it(`terminal analysis failure pauses exactly once and respects ${paused ? 'USER' : 'INTERVENTION'} origin`, async () => {
@@ -738,7 +730,7 @@ describe('Continuous application owner', () => {
     expect(incident==='analysis'?controller.snapshot().analysisIntervention:controller.snapshot().resourceIntervention).not.toBeNull();
     await controller.dispose();staleFailure?.(new Error('AFTER_UNMOUNT'));await f.feed(1500);await controller.dispose();
     expect(controller.snapshot()).toMatchObject({session:'DISPOSED',completed:null,analysisIntervention:null,resourceIntervention:null});
-    expect(done).not.toHaveBeenCalled();expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(done).not.toHaveBeenCalled();
     expect(f.worker.dispose).toHaveBeenCalledOnce();expect(f.context.close).toHaveBeenCalledOnce();expect(f.root.audio.stop).not.toHaveBeenCalled();
   });
   it('Restart releases the interrupted attempt once and starts a fresh identity, inference lease and recording', async () => {
@@ -850,7 +842,6 @@ for (const transport of ['COUNT_IN', 'RUNNING', 'PAUSED'] as const) {
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => f.root.media) } });
     const recorder = new PerformanceRecorder(mode);
     const finalize = vi.spyOn(recorder, 'finalize');
-    const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
     f.platform.createRecorder = () => recorder;
     const controller = f.create(source, transport === 'COUNT_IN' ? 1 : 0, mode, callback, camera.media);
     await controller.start();
@@ -870,11 +861,10 @@ for (const transport of ['COUNT_IN', 'RUNNING', 'PAUSED'] as const) {
     lateData?.({ data: new Blob(['late chunk']) });
     expect(Reflect.get(recorder, 'chunks')).toEqual([]);
     expect(completedEvaluation).not.toHaveBeenCalled(); expect(finalize).not.toHaveBeenCalled();
-    expect(store).not.toHaveBeenCalled(); expect(callback).not.toHaveBeenCalled();
-    expect(continuousCompletionStore.getCompletion()).toBeNull();
+    expect(callback).not.toHaveBeenCalled();
     await expect(recorder.finalize()).rejects.toThrow('RECORDING_DISCARDED');
     expect(camera.audio.stop).not.toHaveBeenCalled(); // Borrowed page preview remains page-owned.
-    await controller.dispose(); store.mockRestore();
+    await controller.dispose();
   });
 }
 
@@ -884,19 +874,18 @@ it('End before the scope latch wins even when the clock has passed the terminal 
   // No transport refresh has latched the terminal transition yet.
   await controller.abandon(); controller.refresh(); await vi.advanceTimersByTimeAsync(100);
   expect(controller.snapshot().completed).toBeNull(); expect(callback).not.toHaveBeenCalled();
-  expect(continuousCompletionStore.getCompletion()).toBeNull(); await controller.dispose();
+  await controller.dispose();
 });
 
 it('the formally latched natural completion wins a later End and publishes exactly once', async () => {
   const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 0, 'OFF', callback);
-  const store = vi.spyOn(continuousCompletionStore, 'setCompletion');
   await controller.start(); f.clock.set(1300);
   Reflect.get(controller, 'session').advanceToNow(); // Explicit domain latch, before application refresh.
   await controller.abandon(); await controller.abandon(); controller.refresh();
   expect(controller.snapshot().session).toBe('COMPLETE');
   expect(controller.snapshot().completed?.result).toBeDefined();
   expect(callback).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ completionReason: 'SCOPE_COMPLETED' }));
-  expect(store).not.toHaveBeenCalled(); await controller.dispose(); store.mockRestore();
+  await controller.dispose();
 });
 
 it('late acoustic inference after abandonment cannot publish completion or mutate the next owner', async () => {
@@ -912,7 +901,6 @@ it('late acoustic inference after abandonment cannot publish completion or mutat
   const next = environment(), fresh = next.create('MIDI'); await fresh.start();
   await f.feed(1000);
   expect(callback).not.toHaveBeenCalled(); expect(controller.snapshot().completed).toBeNull();
-  expect(continuousCompletionStore.getCompletion()).toBeNull();
   expect(fresh.snapshot()).toMatchObject({ session: 'ACTIVE', completed: null });
   await fresh.abandon(); await controller.dispose(); await fresh.dispose();
 });
@@ -933,7 +921,6 @@ it.each(['MIDI', 'MICROPHONE'] as const)('VIDEO %s Start after abandonment creat
   expect(Reflect.get(fresh, 'recorder')).not.toBe(oldRecorder);
   for (const track of oldTracks) expect(track.readyState).toBe('ended');
   for (const track of camera.media.getTracks()) expect(track.readyState).toBe('live');
-  expect(continuousCompletionStore.getCompletion()).toBeNull();
   await fresh.abandon(); await firstOwner.dispose(); await fresh.dispose();
 });
 
@@ -1143,7 +1130,7 @@ it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before 
     expect(f.worker.dispose).toHaveBeenCalledOnce(); expect(f.context.close).toHaveBeenCalledOnce();
     expect(f.meter.dispose).toHaveBeenCalledOnce(); expect(f.root.copies[0].audio.stop).toHaveBeenCalledOnce();
     expect(f.root.audio.readyState).toBe('live'); expect(f.root.audio.stop).not.toHaveBeenCalled();
-    expect(continuousCompletionStore.getCompletion()).toBeNull(); expect(callback).not.toHaveBeenCalled();
+    expect(callback).not.toHaveBeenCalled();
     // Reuse the healthy borrowed device, not any attempt-owned graph/session/lease.
     const fresh = environment(48000, f.root, 2048), next = fresh.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
     try {

@@ -14,9 +14,4 @@ async function getPracticeSource(
   );
 }
 
-async function getPracticeSourceById(sourceId: string, includeNotation: boolean, signal?: AbortSignal): Promise<ApiResponse<PracticeSourceRead>> {
-  return apiClient.get<ApiResponse<PracticeSourceRead>>(`/practice/sources/${encodeURIComponent(sourceId)}`,
-    { include_notation: includeNotation }, { signal });
-}
-
-export const practiceApi = { getPracticeSource, getPracticeSourceById };
+export const practiceApi = { getPracticeSource };

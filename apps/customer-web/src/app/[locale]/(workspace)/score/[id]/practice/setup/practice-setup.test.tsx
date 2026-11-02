@@ -29,7 +29,7 @@ const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock('@/i18n/routing', () => ({ useRouter: () => navigation }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }), usePathname: () => '/score/score-id/practice/setup',
   useSearchParams: () => new URLSearchParams(admission.revision ? `practiceRevisionId=${admission.revision}` : ''), useRouter: () => navigation }));
-function envelope() { return { data: { source_id: 'source', artifact: { ...fixture, scoreId: 'score-id', revisionId: admission.revision ?? 'head-id' }, notation: null } }; }
+function envelope() { return { data: { source_id: 'source', artifact: { ...fixture, scoreId: 'score-id', revisionId: admission.revision ?? 'head-id' }, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } }; }
 
 beforeEach(() => {
   admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
@@ -65,9 +65,10 @@ it('mount/configuration edits admit no source, acquire no physical roots and sta
 });
 it('fresh Source parse precedes one physical acquisition, SAME-root validation, atomic commit and pinned navigation',async()=>{
   const parse=vi.spyOn(artifactContract,'parsePracticeScoreArtifact'),r=await setup();selectMidi();await start();
+  expect(admission.request).toHaveBeenCalledExactlyOnceWith('score-id','revision-id',true,expect.any(AbortSignal));
   expect(admission.events).toEqual(['source','acquire','capability']);expect(parse).toHaveBeenCalledOnce();expect(r.acquireMidi).toHaveBeenCalledOnce();
   expect(r.workspace.preparedPractice!.binding.borrowRoots()!.midi).toBe(r.midi.access);
-  expect(r.workspace.preparedPractice!.admission).toEqual({source:{sourceId:'source',scoreId:'score-id',revisionId:'revision-id',artifactId:fixture.artifactId},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
+  expect(r.workspace.preparedPractice!.admission).toEqual({source:{sourceId:'source',artifact:envelope().data.artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
   expect(Object.isFrozen(r.workspace.preparedPractice!.admission.source)).toBe(true);
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
 });

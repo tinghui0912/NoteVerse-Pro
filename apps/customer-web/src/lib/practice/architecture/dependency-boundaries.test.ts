@@ -97,8 +97,10 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
       && edge.bindings.every(name => name === 'ContinuousTargetFeedback');
   }
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'kernel/', 'score-view/'].some(owner => target.startsWith(owner))
-    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)));
+    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)
+    || edge.typeOnly && ['source/admitted-practice-source.ts','continuous/completion.ts'].includes(target)));
   if (source.startsWith('sharing/video/')) {
+    if (source === 'sharing/video/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
     if (edge.specifier === 'react') return source === 'sharing/video/preview.tsx';
     if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'sharing/video/saved-take-adapter.ts' && edge.typeOnly;
     return Boolean(target && (target.startsWith('sharing/video/') || target.startsWith('kernel/')
@@ -265,7 +267,7 @@ describe('Practice bounded domain dependencies', () => {
       const artifact = imports(path.join(practiceRoot, owner)).find(edge => edge.target?.endsWith('/kernel/artifact.ts'));
       expect(artifact?.bindings.every(name => ['PracticeScoreArtifact', 'roundBeat', 'notesForIds', 'attackNoteIds'].includes(name))).toBe(true);
     }
-    const source = imports(path.join(sourceRoot, 'hooks/practice/use-practice-revision-source.ts'));
+    const source = imports(path.join(practiceRoot, 'source/source-envelope.ts'));
     expect(source.find(edge => edge.target?.endsWith('/kernel/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);
   });
 
@@ -358,7 +360,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const [owner, forbidden] of [
       ['result', ['recording/performance-recorder', 'step/domain/runtime']],
       ['recording', ['result/continuous-performance-result', 'continuous/domain/evaluation/target-feedback', 'step/domain/runtime']],
-      ['step', ['result/continuous-performance-result', 'recording/recording-artifact', 'continuous/completion-store']],
+      ['step', ['result/continuous-performance-result', 'recording/recording-artifact', 'continuous/completion']],
     ] as const) {
       const file = path.join(practiceRoot, owner, 'boundary-probe.ts');
       for (const target of forbidden) for (const statement of [
@@ -400,7 +402,7 @@ describe('Practice bounded domain dependencies', () => {
   it('exposes concrete result/recording owners with explicit entry points', () => {
     for (const file of ['result/continuous-performance-result.ts',
       'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-recorder.ts',
-      'recording/performance-replay.ts', 'continuous/completion.ts', 'continuous/completion-store.ts']) {
+      'recording/performance-replay.ts', 'continuous/completion.ts', 'review/transient-review-session.ts']) {
       expect(existsSync(path.join(practiceRoot, file)), file).toBe(true);
     }
 
@@ -485,7 +487,7 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('keeps sharing source-neutral through transitive imports and renderer exports', () => {
+  it('keeps sharing render/export source-neutral and confines Review input types to its adapter', () => {
     for (const start of files.filter(file => relative(file).startsWith('sharing/video/'))) {
       const visited = new Set<string>();
       const visit = (file: string) => {
@@ -494,6 +496,8 @@ describe('Practice bounded domain dependencies', () => {
         for (const edge of sourceGraph.get(file) ?? []) {
           if (!edge.target) continue;
           const target = relative(edge.target);
+          if (relative(file) === 'sharing/video/current-completion-adapter.ts' && edge.typeOnly
+            && target === 'review/transient-review-session.ts') continue;
           expect(['result/', 'continuous/', 'step/', 'review/'].some(owner => target.startsWith(owner)), relative(start) + ' -> ' + target).toBe(false);
           if (sourceGraph.has(edge.target)) visit(edge.target);
         }
@@ -875,14 +879,14 @@ it('Setup commands compose fresh source, retained acquisition, validation, atomi
   const source = ts.createSourceFile(file, readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const calls: string[]=[];
   const inspect = (node: ts.Node) => { if (ts.isCallExpression(node)) calls.push(node.expression.getText(source)); ts.forEachChild(node, inspect); }; inspect(source);
-  const order = ['source.loadFresh','planPracticeResources','binding.open','validatePracticeResources','commitPreparedPractice','router.replace'];
+  const order = ['admitPracticeSource','planPracticeResources','binding.open','validatePracticeResources','commitPreparedPractice','router.replace'];
   expect(order.map(name=>calls.indexOf(name))).toEqual([...order.map(name=>calls.indexOf(name))].sort((a,b)=>a-b));
   for(const name of order) expect(calls.filter(call=>call===name)).toHaveLength(1);
   const page = path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const pageEdges=imports(page);
-  expect(pageEdges.some(edge=>edge.bindings.includes('usePracticeSourceById'))).toBe(true);
+  expect(pageEdges.some(edge=>edge.bindings.includes('usePracticeWorkspace'))).toBe(true);
   expect(pageEdges.some(edge=>edge.bindings.includes('usePracticeResourceBinding'))).toBe(true);
-  expect(pageEdges.filter(edge=>edge.bindings.includes('usePracticeRevisionSource'))).toEqual([]);
+
   const workspace=ts.createSourceFile('workspace.tsx',readFileSync(path.join(sourceRoot,'contexts/practice-workspace-context.tsx'),'utf8'),ts.ScriptTarget.Latest,true);
   const returned:string[]=[];
   const visit=(node:ts.Node)=>{if(ts.isReturnStatement(node)&&node.expression&&ts.isObjectLiteralExpression(node.expression)) returned.push(...node.expression.properties.map(p=>p.name?.getText(workspace)??''));ts.forEachChild(node,visit);};visit(workspace);
@@ -946,4 +950,21 @@ it('R03 boundary admission is read only by capture/control ownership, never sour
   }
   expect([...owners].sort()).toEqual(['acoustic/continuous/capture-bridge.ts', 'acoustic/runtime/resource-policy.ts']);
   expect([...readers]).toEqual(['acoustic/continuous/capture-bridge.ts']);
+});
+
+it('browser execution and Review consume workspace-owned representations rather than Source transport',()=>{
+  const executionPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+  const reviewPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/review/page.tsx');
+  const transportOwners=['lib/practice/source/admit-practice-source.ts','lib/practice/source/source-envelope.ts',
+    'lib/api/practice.ts','hooks/practice/use-performance-take-practice-source.ts','hooks/queries/use-score-queries.ts']
+    .map(file=>normalize(path.join(sourceRoot,file)));
+  for(const file of [executionPage,reviewPage,...productionFiles(path.join(practiceRoot,'review'))]) {
+    for(const edge of imports(file).filter(edge=>!edge.typeOnly)) expect(transportOwners,`${file}: ${edge.specifier}`).not.toContain(edge.target);
+  }
+  expect(imports(reviewPage).some(edge=>edge.bindings.includes('usePracticeWorkspace'))).toBe(true);
+  const setup=normalize(path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx'));
+  for(const [file,edges] of sourceGraph) if(edges.some(edge=>!edge.typeOnly&&edge.bindings.includes('admitPracticeSource'))) expect(file).toBe(setup);
+  const prepared=path.join(practiceRoot,'preparation/prepared-practice.ts');
+  expect(imports(prepared).some(edge=>edge.typeOnly&&edge.bindings.includes('AdmittedPracticeSource'))).toBe(true);
+  expect(imports(path.join(practiceRoot,'sharing/video/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
 });

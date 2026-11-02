@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
 import { usePracticeRouteScore } from '@/hooks/practice/use-practice-route-score';
-import { usePracticeRevisionSource } from '@/hooks/practice/use-practice-revision-source';
+import { admitPracticeSource } from '@/lib/practice/source/admit-practice-source';
 import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import { validatePracticeResources } from '@/lib/practice/environment/validate-practice-resources';
 import { SourceFailure } from '@/lib/practice/failure/causal-failure';
@@ -29,7 +29,6 @@ export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
   const params = useParams<{ id: string }>(), router = useRouter();
   const route = usePracticeRouteScore(params.id);
-  const source = { ...route, ...usePracticeRevisionSource(params.id, route.revisionId, { loadNotation: false, enabled: false }) };
   const { profile, updateProfile, configuration, resourcePlan, environment, beginPreparation, commitPreparedPractice, clearPreparedPractice } = workspace;
   const [preparation, setPreparation] = useState<Preparation | null>(null);
   const [invalidRevision, setInvalidRevision] = useState<string | null>(null);
@@ -37,15 +36,15 @@ export default function PracticeSetupPage() {
   useEffect(() => {
     clearPreparedPractice();
     return () => { transaction.current?.abort(); transaction.current = null; };
-  }, [params.id, source.revisionId, configuration?.mode, configuration?.inputSource, configuration?.recordingMode, clearPreparedPractice]);
-  const current = preparation?.revisionId === source.revisionId && preparation?.configuration === configuration ? preparation : null;
+  }, [params.id, route.revisionId, configuration?.mode, configuration?.inputSource, configuration?.recordingMode, clearPreparedPractice]);
+  const current = preparation?.revisionId === route.revisionId && preparation?.configuration === configuration ? preparation : null;
   const checking = current?.stage === 'SOURCE' || current?.stage === 'ACQUIRING' || current?.stage === 'VALIDATING';
-  const invalid = invalidRevision !== null && invalidRevision === source.revisionId;
+  const invalid = invalidRevision !== null && invalidRevision === route.revisionId;
   const currentRequirements = resourcePlan?.qualification ?? [];
   const prepare = async () => {
-    const revisionId = source.revisionId;
+    const revisionId = route.revisionId;
     if (transaction.current || invalid || !workspace.hydrated || !configuration
-      || !revisionId || !source.pinned || !source.canPractice || source.scoreQuery.isError) return;
+      || !revisionId || !route.pinned || !route.canPractice || route.scoreQuery.isError) return;
     const command = beginPreparation(); transaction.current = command;
     const captured = { revisionId, configuration };
     const active = () => transaction.current === command && !command.signal.aborted;
@@ -54,7 +53,7 @@ export default function PracticeSetupPage() {
     let failure: Preparation['failure'] = 'SOURCE';
     setPreparation({ ...captured, stage: 'SOURCE', failure: null });
     try {
-      const admitted = await source.loadFresh(command.signal);
+      const admitted = await admitPracticeSource(params.id, revisionId, command.signal);
       if (!active()) return;
       failure = 'RESOURCES';
       const resources = planPracticeResources(configuration);
@@ -74,9 +73,7 @@ export default function PracticeSetupPage() {
           onProgress: progress => { if (active()) setPreparation(previous => previous ? { ...previous, progress } : previous); },
         });
         if (!active()) return;
-        const { sourceId, artifact } = admitted;
-        const admission = Object.freeze({ source: Object.freeze({ sourceId, scoreId: artifact.scoreId,
-          revisionId: artifact.revisionId, artifactId: artifact.artifactId }), configuration: Object.freeze({
+        const admission = Object.freeze({ source: admitted, configuration: Object.freeze({
           mode: configuration.mode, inputSource: configuration.inputSource, recordingMode: configuration.recordingMode,
         }) });
         committed = commitPreparedPractice(Object.freeze({ admission, binding }), command);
@@ -103,8 +100,8 @@ export default function PracticeSetupPage() {
     <h1 className="text-2xl font-semibold">{t('setupTitle')}</h1>
     <p>{t('setupDescription')}</p>
     {invalid ? <p role="alert">{t('scoreInvalid')}</p>
-      : !source.canPractice ? <p role="alert">{t('accessDeniedDesc')}</p>
-      : current?.failure === 'SOURCE' || source.scoreQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
+      : !route.canPractice ? <p role="alert">{t('accessDeniedDesc')}</p>
+      : current?.failure === 'SOURCE' || route.scoreQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
       : current?.stage === 'SOURCE' ? <p role="status">{t('scoreLoading')}</p> : null}
     <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsMode')}</legend>
       {(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as PracticeMode[]).map(mode => <button key={mode} type="button"
@@ -131,7 +128,7 @@ export default function PracticeSetupPage() {
       {current?.failure === 'RESOURCES' && <p role="alert">{t('setupFailure')}</p>}
     </section>
     <button type="button" className="rounded bg-orange-600 px-5 py-3 text-white disabled:opacity-50"
-      disabled={invalid || !source.revisionId || !source.canPractice || source.scoreQuery.isError || !configuration || checking || !workspace.hydrated}
+      disabled={invalid || !route.revisionId || !route.canPractice || route.scoreQuery.isError || !configuration || checking || !workspace.hydrated}
       aria-busy={checking} onClick={() => { void prepare(); }}>{t('setupStartPractice')}</button>
   </main>;
 }
