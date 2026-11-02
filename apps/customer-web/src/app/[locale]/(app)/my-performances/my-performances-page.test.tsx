@@ -26,6 +26,7 @@ vi.mock('@/hooks/use-toast', () => ({
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
     myPerformances: '我的演奏',
+    videoExportOpenAction: '导出乐谱视频',
     noPerformancesTitle: '暂无已保存的演奏',
     noPerformancesDesc: '在连贯演奏结束后，点击“保存演奏”，你的录音就会保存在这里。',
     deletePerformanceTake: '删除演奏',
@@ -483,7 +484,7 @@ describe('MyPerformancesPage', () => {
     expect(mockPlaybackQuery.refetch).toHaveBeenCalled();
   });
 
-  it('uses video replay and video download copy for VIDEO takes', () => {
+  it('offers raw video replay/download and the local video export route', () => {
     mockQueryOverride = {
       data: {
         data: {
@@ -499,7 +500,7 @@ describe('MyPerformancesPage', () => {
               duration_ms: 60000,
               scope_type: 'FULL',
               scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_terminal_beat: 16,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
@@ -524,6 +525,8 @@ describe('MyPerformancesPage', () => {
     render(<MyPerformancesPage />);
 
     expect(screen.getByTestId('download-take-take-video-1')).toHaveTextContent('下载视频');
+    expect(screen.getByTestId('video-export-take-take-video-1')).toHaveAttribute('href', '/my-performances/take-video-1/video-export');
+    expect(screen.getByTestId('video-export-take-take-video-1')).toHaveTextContent('导出乐谱视频');
     fireEvent.click(screen.getByTestId('play-take-take-video-1'));
 
     expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();

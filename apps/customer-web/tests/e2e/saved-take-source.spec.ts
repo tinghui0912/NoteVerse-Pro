@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { take, artifact } from '../../src/lib/practice/sharing/video/__fixtures__/saved-take';
+import { take, artifact } from '../../src/lib/practice/video-export/__fixtures__/saved-take';
 import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
 const musicXml = `<?xml version="1.0" encoding="utf-8"?>
@@ -40,7 +40,9 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     }));
     await page.route('**/api/v1/performance-takes/take-1/media', route => route.fulfill({ status: 200, contentType: 'video/webm', body: media }));
     const sourceRequests: string[] = [];
+    const exportWrites: string[] = [];
     page.on('request', request => {
+      if (['POST', 'PUT'].includes(request.method())) exportWrites.push(request.url());
       const path = new URL(request.url()).pathname;
       if (path.includes('/practice-source') || path.startsWith('/api/v1/practice/sources/')) sourceRequests.push(request.url());
     });
@@ -51,7 +53,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
           notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } },
       }),
     }));
-    await page.goto('/en/my-performances/take-1/share');
+    await page.goto('/en/my-performances/take-1/video-export');
     const video = page.locator('video');
     await expect(video).toBeVisible();
     await video.evaluate(element => (element as HTMLVideoElement).play());
@@ -62,10 +64,10 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     const raw = await download;
     expect(await readFile((await raw.path())!)).toEqual(media);
     if (sourceState === 'LIVE') {
-      await expect(page.getByTestId('generate-share-video')).toBeEnabled();
+      await expect(page.getByTestId('generate-video-export')).toBeEnabled();
     } else {
       await expect(page.getByText('The exact score source is no longer available for score-based video export. Your original recording remains available.')).toBeVisible();
-      await expect(page.getByTestId('generate-share-video')).toHaveCount(0);
+      await expect(page.getByTestId('generate-video-export')).toHaveCount(0);
     }
     // Saved export is an ordinary query: the application's one error retry keeps
     // requesting this same exact identity, never a Take-owned or alternate source.
@@ -74,5 +76,6 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
       expect(new URL(request).pathname).toBe('/api/v1/practice/sources/source-1');
       expect(new URL(request).searchParams.get('include_notation')).toBe('true');
     }
+    expect(exportWrites).toEqual([]);
   });
 }

@@ -79,14 +79,14 @@ export async function prepareScorePageCache(
     ? pageNodes
     : Array.from(scoreContainer.querySelectorAll<HTMLElement>('[data-score-page]'));
   if (pages.length === 0) {
-    throw new Error('share_video_export_failed:score_page_unavailable');
+    throw new Error('video_export_failed:score_page_unavailable');
   }
 
   const snapshots = pages
     .map(snapshotPage)
     .filter((snapshot): snapshot is PageSnapshot => snapshot !== null);
   if (snapshots.length === 0) {
-    throw new Error('share_video_export_failed:score_page_unavailable');
+    throw new Error('video_export_failed:score_page_unavailable');
   }
 
   const cache: ScorePageCache = new Map();
@@ -159,7 +159,7 @@ async function buildEventScoreImage(
     return page.image;
   }
   const host = document.createElement('div');
-  host.setAttribute('data-share-video-export-host', 'true');
+  host.setAttribute('data-video-export-host', 'true');
   Object.assign(host.style, {
     position: 'fixed',
     left: '-100000px',
@@ -175,7 +175,7 @@ async function buildEventScoreImage(
   template.innerHTML = page.baseSvgText;
   const svg = template.content.querySelector<SVGSVGElement>('svg');
   if (!svg) {
-    throw new Error('share_video_export_failed:event_score_svg_unavailable');
+    throw new Error('video_export_failed:event_score_svg_unavailable');
   }
   svg.setAttribute('width', String(page.viewBox.width));
   svg.setAttribute('height', String(page.viewBox.height));
@@ -189,11 +189,11 @@ async function buildEventScoreImage(
   try {
     const result = applyPlayheadCursor(host, noteIds);
     if (!result.geometry) {
-      throw new Error('share_video_export_failed:event_score_cursor_unavailable');
+      throw new Error('video_export_failed:event_score_cursor_unavailable');
     }
     const cursorCount = svg.querySelectorAll(`[${SCORE_DECORATIONS.cursorAttribute}]`).length;
     if (cursorCount < 1 || cursorCount > 2) {
-      throw new Error('share_video_export_failed:event_score_cursor_count');
+      throw new Error('video_export_failed:event_score_cursor_count');
     }
     const svgText = new XMLSerializer().serializeToString(svg);
     const image = await eventImageLoader(svgText);
@@ -511,7 +511,7 @@ function loadImageFromSvg(svgText: string): Promise<HTMLImageElement> {
     const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }));
     const image = new Image();
     image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
-    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('share_video_export_failed:score_image_decode')); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('video_export_failed:score_image_decode')); };
     image.src = url;
   });
 }

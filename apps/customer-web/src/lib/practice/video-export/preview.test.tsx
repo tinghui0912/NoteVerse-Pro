@@ -1,13 +1,21 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from '@testing-library/react';
+import { render as renderComponent, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ShareVideoSession } from './session';
+import { NextIntlClientProvider } from 'next-intl';
+import englishPractice from '@/../messages/en/practice.json';
+import chinesePractice from '@/../messages/zh/practice.json';
+
+const render = (ui: React.ReactNode) => renderComponent(ui, {
+  wrapper: ({ children }) => <NextIntlClientProvider locale="en" messages={{ practice: englishPractice }}>{children}</NextIntlClientProvider>,
+});
+
+import type { VideoExportSession } from './session';
 
 const mocks = vi.hoisted(() => ({
   prepareScorePageCache: vi.fn(async () => new Map()),
-  renderShareVideoFrameAtTime: vi.fn(async (_options: unknown) => undefined),
+  renderVideoExportFrameAtTime: vi.fn(async (_options: unknown) => undefined),
 }));
 
 vi.mock('./score-model', () => ({
@@ -16,17 +24,17 @@ vi.mock('./score-model', () => ({
 }));
 
 vi.mock('./frame-renderer', () => ({
-  renderShareVideoFrameAtTime: mocks.renderShareVideoFrameAtTime,
+  renderVideoExportFrameAtTime: mocks.renderVideoExportFrameAtTime,
 }));
 
 vi.mock('./playback-position', () => ({
-  resolveShareVideoPlaybackPosition: vi.fn(() => null),
+  resolveVideoExportPlaybackPosition: vi.fn(() => null),
 }));
 
-import { ShareVideoPreview } from './preview';
+import { VideoExportPreview } from './preview';
 import { captureReplayVideoFrame } from './preview';
 
-const session: ShareVideoSession = {
+const session: VideoExportSession = {
   sessionId: 'session-1', sourceId: 'source-1',
   scoreIdentity: { scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1' },
   scope: { kind: 'FULL', startBeat: 0, terminalBeat: 16 },
@@ -49,13 +57,41 @@ const session: ShareVideoSession = {
   },
 };
 
-describe('ShareVideoPreview', () => {
+describe('VideoExportPreview', () => {
   beforeEach(() => {
     mocks.prepareScorePageCache.mockClear();
-    mocks.renderShareVideoFrameAtTime.mockClear();
+    mocks.renderVideoExportFrameAtTime.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       drawImage: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
+  });
+
+  it.each([['en', englishPractice], ['zh', chinesePractice]] as const)('uses %s messages for the preview controls', async (locale, messages) => {
+    const { getByText, getByLabelText, container } = renderComponent(
+      <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
+        <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
+          adapter={{} as never} scoreEndBeat={16} mediaTimeMs={0}
+          config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
+      </NextIntlClientProvider>
+    );
+    await waitFor(() => expect(getByText(messages.videoExportPreviewSyncDesc)).toBeVisible());
+    expect(getByLabelText(messages.videoExportPreviewCanvasLabel)).toBeInTheDocument();
+    expect(getByText(messages.videoExportPreviewSavePng)).toBeVisible();
+    if (locale === 'en') expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+  });
+
+  it.each([['en', englishPractice], ['zh', chinesePractice]] as const)('uses %s messages for preview failure and retry', async (locale, messages) => {
+    mocks.prepareScorePageCache.mockRejectedValueOnce(null);
+    const { getByText, getByRole, container } = renderComponent(
+      <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
+        <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
+          adapter={{} as never} scoreEndBeat={16} mediaTimeMs={0}
+          config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
+      </NextIntlClientProvider>
+    );
+    await waitFor(() => expect(getByText(messages.videoExportPreviewScoreFailed)).toBeVisible());
+    expect(getByRole('button', { name: messages.videoExportPreviewRetry })).toBeVisible();
+    if (locale === 'en') expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
   it('rerenders a paused current frame when the template changes without controlling replay media', async () => {
@@ -73,7 +109,7 @@ describe('ShareVideoPreview', () => {
 
     const scoreContainer = document.createElement('div');
     const { rerender } = render(
-      <ShareVideoPreview
+      <VideoExportPreview
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
@@ -85,12 +121,12 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderShareVideoFrameAtTime).toHaveBeenCalled();
+      expect(mocks.renderVideoExportFrameAtTime).toHaveBeenCalled();
     });
-    const firstCallCount = mocks.renderShareVideoFrameAtTime.mock.calls.length;
+    const firstCallCount = mocks.renderVideoExportFrameAtTime.mock.calls.length;
 
     rerender(
-      <ShareVideoPreview
+      <VideoExportPreview
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
@@ -102,12 +138,12 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderShareVideoFrameAtTime.mock.calls.length).toBeGreaterThan(
+      expect(mocks.renderVideoExportFrameAtTime.mock.calls.length).toBeGreaterThan(
         firstCallCount
       );
     });
     expect(
-      mocks.renderShareVideoFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
       mediaTimeMs: 1250,
       sourceVideoFrame: expect.any(HTMLCanvasElement),
@@ -117,10 +153,10 @@ describe('ShareVideoPreview', () => {
       },
     });
 
-    const portraitCallCount = mocks.renderShareVideoFrameAtTime.mock.calls.length;
+    const portraitCallCount = mocks.renderVideoExportFrameAtTime.mock.calls.length;
 
     rerender(
-      <ShareVideoPreview
+      <VideoExportPreview
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
@@ -135,12 +171,12 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderShareVideoFrameAtTime.mock.calls.length).toBeGreaterThan(
+      expect(mocks.renderVideoExportFrameAtTime.mock.calls.length).toBeGreaterThan(
         portraitCallCount
       );
     });
     expect(
-      mocks.renderShareVideoFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
       sourceVideoFrame: expect.any(HTMLCanvasElement),
       layout: {
@@ -169,7 +205,7 @@ describe('ShareVideoPreview', () => {
     Object.defineProperty(video, 'seeking', { configurable: true, value: false });
 
     const renderGate: { resolve: (() => void) | null } = { resolve: null };
-    mocks.renderShareVideoFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
+    mocks.renderVideoExportFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
       const options = rawOptions as { mediaTimeMs: number };
       expect(options.mediaTimeMs).toBe(1050);
       sourceAdvanced = true;
@@ -180,7 +216,7 @@ describe('ShareVideoPreview', () => {
 
     const onFrameCommitted = vi.fn();
     render(
-      <ShareVideoPreview
+      <VideoExportPreview
         session={session}
         scoreContainer={document.createElement('div')}
         adapter={{} as never}
@@ -193,7 +229,7 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderShareVideoFrameAtTime).toHaveBeenCalled();
+      expect(mocks.renderVideoExportFrameAtTime).toHaveBeenCalled();
     });
     renderGate.resolve?.();
 

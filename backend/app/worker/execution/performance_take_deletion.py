@@ -100,9 +100,8 @@ def execute_performance_take_deletion_task(
             ).opt(exception=True).error("performance_take_deletion.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
-        # 2. In a short database transaction, delete only the take record and
-        # let Source retention enqueue GC when no live revision, Take or active
-        # reservation owns the source. Its durable worker owns representation deletion.
+        # 2. Delete only the Take media/row and release its storage usage.
+        # PracticeSource lifetime is independent and belongs to ScoreRevision.
         with get_worker_db() as db:
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)

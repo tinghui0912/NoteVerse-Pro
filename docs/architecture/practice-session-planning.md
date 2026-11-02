@@ -388,3 +388,12 @@ provenance and canonical plan into PerformanceTake without Source reads or repla
 PracticeSource follows ScoreRevision lifetime only. Take owns raw media and historical
 provenance, not retrievable score content. Saved local score-based export requires a
 currently authorized generic exact-source read; raw media remains independently usable.
+
+## Browser-local Video Export
+
+VideoExport consumes a source-neutral VideoExportSession containing sessionId, sourceId,
+score identity, video, scope, tempo and recording timebase. The current Review adapter
+uses the transient admitted representation; it initiates no Source read. The saved
+Take adapter uses generic exact-source authorization for optional score-based export.
+Both feed the same clean-score preview/render pipeline and browser Blob download.
+Export creates no server asset and grants no sharing access.

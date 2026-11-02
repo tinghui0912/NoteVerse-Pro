@@ -69,7 +69,7 @@ const domain = (file: string) => file.startsWith('kernel/') ? 'kernel'
 function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
-  const presentationOwners = ['score-view/', 'review/', 'sharing/'];
+  const presentationOwners = ['score-view/', 'review/', 'video-export/'];
   if (source.startsWith('failure/')) return Boolean(target?.startsWith('failure/'));
   if (target?.startsWith('failure/')) return !domain(source) && !source.startsWith('planning/') && !source.startsWith('result/');
   if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'kernel/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
@@ -99,11 +99,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'kernel/', 'score-view/'].some(owner => target.startsWith(owner))
     || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)
     || edge.typeOnly && ['source/admitted-practice-source.ts','continuous/completion.ts'].includes(target)));
-  if (source.startsWith('sharing/video/')) {
-    if (source === 'sharing/video/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
-    if (edge.specifier === 'react') return source === 'sharing/video/preview.tsx';
-    if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'sharing/video/saved-take-adapter.ts' && edge.typeOnly;
-    return Boolean(target && (target.startsWith('sharing/video/') || target.startsWith('kernel/')
+  if (source.startsWith('video-export/')) {
+    if (source === 'video-export/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
+    if (['react', 'next-intl'].includes(edge.specifier)) return source === 'video-export/preview.tsx';
+    if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'video-export/saved-take-adapter.ts' && edge.typeOnly;
+    return Boolean(target && (target.startsWith('video-export/') || target.startsWith('kernel/')
       || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'score-view/verovio-adapter.ts',
         'score-view/playhead-cursor.ts', 'score-view/scope-timing.ts', 'score-view/decorations.ts', 'score-view/cursor-scope.ts'].includes(target)));
   }
@@ -129,6 +129,27 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
+  it('separates local video export routes and adapters from external Score Sharing', () => {
+    const saved = path.join(sourceRoot, 'app/[locale]/(app)/my-performances/[takeId]/video-export/page.tsx');
+    const externalShare = path.join(sourceRoot, 'app/[locale]/(external)/share/[shareId]/page.tsx');
+    expect(existsSync(saved)).toBe(true);
+    expect(existsSync(externalShare)).toBe(true);
+    const savedBindings = imports(saved).flatMap(edge => edge.bindings);
+    expect(savedBindings).toEqual(expect.arrayContaining([
+      'VideoExportStudio', 'createVideoExportSessionFromSavedTake', 'useSavedTakeExportSource',
+    ]));
+    const review = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review/page.tsx');
+    expect(imports(review).flatMap(edge => edge.bindings)).toEqual(expect.arrayContaining([
+      'VideoExportStudio', 'createVideoExportSessionFromCompletion',
+    ]));
+    for (const file of files.filter(file => relative(file).startsWith('video-export/'))) {
+      for (const edge of imports(file)) {
+        if (edge.typeOnly) continue;
+        expect(edge.target?.startsWith(normalize(path.join(sourceRoot, 'lib/api')) + '/')).toBeFalsy();
+        expect(edge.target?.startsWith(normalize(path.join(sourceRoot, 'hooks/share')) + '/')).toBeFalsy();
+      }
+    }
+  });
   it('keeps source publication identity and stream chronology independent of product domains', () => {
     const file = path.join(practiceRoot, 'acoustic/runtime/source-publication.ts');
     for (const target of ['step/step-acoustic-attempt-assembler', 'step/domain/runtime', 'continuous/domain/evaluation/assignment-finalizer', 'kernel/artifact']) {
@@ -413,8 +434,8 @@ describe('Practice bounded domain dependencies', () => {
       if (edge.bindings.includes('createContinuousPerformanceResult')) {
         expect(relative(file)).toBe('continuous/natural-completion.ts');
       }
-      const share = relative(file).startsWith('sharing/video/');
-      if (share && edge.target) {
+      const videoExport = relative(file).startsWith('video-export/');
+      if (videoExport && edge.target) {
         const target = relative(edge.target);
         expect(target.startsWith('result/') || target.startsWith('continuous/'), file + ' -> ' + target).toBe(false);
       }
@@ -447,16 +468,16 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('keeps rendering, review and sharing under their concrete owners with presentation dependency direction', () => {
+  it('keeps rendering, review and video export under their concrete owners with presentation dependency direction', () => {
     const viewer = normalize(path.join(sourceRoot, 'components/practice/practice-score-viewer.tsx'));
     for (const edge of sourceGraph.get(viewer)!) {
       if (!edge.target) continue;
       const target = relative(edge.target);
-      expect(['review/', 'sharing/', 'result/', 'recording/'].some(owner => target.startsWith(owner)), edge.specifier).toBe(false);
+      expect(['review/', 'video-export/', 'result/', 'recording/'].some(owner => target.startsWith(owner)), edge.specifier).toBe(false);
     }
-    const studio = normalize(path.join(sourceRoot, 'components/practice/share-video-studio.tsx'));
+    const studio = normalize(path.join(sourceRoot, 'components/practice/video-export-studio.tsx'));
     for (const edge of sourceGraph.get(studio)!) {
-      if (edge.target && relative(edge.target).startsWith('sharing/')) expect(['session.ts', 'export.ts', 'templates.ts', 'preview.tsx']).toContain(path.basename(edge.target));
+      if (edge.target && relative(edge.target).startsWith('video-export/')) expect(['session.ts', 'export.ts', 'templates.ts', 'preview.tsx']).toContain(path.basename(edge.target));
     }
   });
 
@@ -464,15 +485,15 @@ describe('Practice bounded domain dependencies', () => {
     for (const source of ['kernel/artifact.ts', 'step/domain/runtime.ts', 'continuous/domain/practice-session.ts',
       'step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts', 'acoustic/runtime/source-publication.ts',
       'result/continuous-performance-result.ts', 'recording/recording-artifact.ts']) {
-      for (const target of ['score-view/decorations', 'review/review-view-model', 'sharing/video/session']) {
+      for (const target of ['score-view/decorations', 'review/review-view-model', 'video-export/session']) {
         const file = path.join(practiceRoot, source);
         expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
       }
     }
-    for (const source of ['score-view/dom.ts', 'review/review-replay.ts', 'sharing/video/session.ts', 'sharing/video/current-completion-adapter.ts']) {
+    for (const source of ['score-view/dom.ts', 'review/review-replay.ts', 'video-export/session.ts', 'video-export/current-completion-adapter.ts']) {
       const file = path.join(practiceRoot, source);
-      for (const target of ['continuous/domain/evaluation/evaluation-types', 'recording/performance-recorder', 'sharing/video/export']) {
-        if (source.startsWith('sharing/') && target === 'sharing/video/export') continue;
+      for (const target of ['continuous/domain/evaluation/evaluation-types', 'recording/performance-recorder', 'video-export/export']) {
+        if (source.startsWith('video-export/') && target === 'video-export/export') continue;
         expect(dependencyAllowed(file, imports(file, `import type { Contract } from '@/lib/practice/${target}';`)[0])).toBe(false);
       }
       expect(dependencyAllowed(file, imports(file, "import type { PerformanceTakeRead } from '@/lib/api/performance-takes';")[0])).toBe(false);
@@ -487,8 +508,8 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('keeps sharing render/export source-neutral and confines Review input types to its adapter', () => {
-    for (const start of files.filter(file => relative(file).startsWith('sharing/video/'))) {
+  it('keeps video export rendering source-neutral and confines Review input types to its adapter', () => {
+    for (const start of files.filter(file => relative(file).startsWith('video-export/'))) {
       const visited = new Set<string>();
       const visit = (file: string) => {
         if (visited.has(file)) return;
@@ -496,7 +517,7 @@ describe('Practice bounded domain dependencies', () => {
         for (const edge of sourceGraph.get(file) ?? []) {
           if (!edge.target) continue;
           const target = relative(edge.target);
-          if (relative(file) === 'sharing/video/current-completion-adapter.ts' && edge.typeOnly
+          if (relative(file) === 'video-export/current-completion-adapter.ts' && edge.typeOnly
             && target === 'review/transient-review-session.ts') continue;
           expect(['result/', 'continuous/', 'step/', 'review/'].some(owner => target.startsWith(owner)), relative(start) + ' -> ' + target).toBe(false);
           if (sourceGraph.has(edge.target)) visit(edge.target);
@@ -573,7 +594,7 @@ describe('Practice bounded domain dependencies', () => {
 it('timing calibration cannot enter transport, target feedback or presentation', () => {
   const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts',
     'continuous/domain/evaluation/target-feedback.ts'].includes(relative(file))
-    || /^(score-view|review|sharing)\//.test(relative(file))),
+    || /^(score-view|review|video-export)\//.test(relative(file))),
     ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review'))];
   for (const start of forbidden) {
     // Type-only artifact contracts are allowed; executable timing policy does not belong in these owners.
@@ -966,5 +987,5 @@ it('browser execution and Review consume workspace-owned representations rather 
   for(const [file,edges] of sourceGraph) if(edges.some(edge=>!edge.typeOnly&&edge.bindings.includes('admitPracticeSource'))) expect(file).toBe(setup);
   const prepared=path.join(practiceRoot,'preparation/prepared-practice.ts');
   expect(imports(prepared).some(edge=>edge.typeOnly&&edge.bindings.includes('AdmittedPracticeSource'))).toBe(true);
-  expect(imports(path.join(practiceRoot,'sharing/video/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
+  expect(imports(path.join(practiceRoot,'video-export/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
 });

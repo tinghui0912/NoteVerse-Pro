@@ -3,7 +3,7 @@ import type { RecordingTimebaseMapping } from '@/lib/practice/recording/recordin
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
-export type ShareVideoSession = {
+export type VideoExportSession = {
   sessionId: string;
   sourceId: string;
   scoreIdentity: {

@@ -1,8 +1,8 @@
 import { createTransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import { expect, it } from 'vitest';
-import { createShareVideoSessionFromCompletion } from './current-completion-adapter';
-import { createShareVideoSessionFromSavedTake } from './saved-take-adapter';
+import { createVideoExportSessionFromCompletion } from './current-completion-adapter';
+import { createVideoExportSessionFromSavedTake } from './saved-take-adapter';
 import { take, artifact } from './__fixtures__/saved-take';
 import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
 import { parseSavedTempoPlan, parseSavedRecordingTimebase } from './saved-take-adapter';
@@ -15,21 +15,21 @@ const completion = {
 };
 const handoff=createTransientReviewSession(completion,{sourceId:take.source_id,artifact,musicXml:'<score />'});
 it('current and saved media converge on the same neutral downstream session', () => {
-  const current = createShareVideoSessionFromCompletion(handoff);
-  const saved = createShareVideoSessionFromSavedTake(take, blob, { sourceId: take.source_id, artifact: artifact });
+  const current = createVideoExportSessionFromCompletion(handoff);
+  const saved = createVideoExportSessionFromSavedTake(take, blob, { sourceId: take.source_id, artifact: artifact });
   expect(saved.status).toBe('supported');
   if (saved.status !== 'supported') throw new Error('Expected supported take');
   expect(current).toEqual(saved.session);
   for (const key of ['evaluation', 'metrics', 'provenance', 'result']) expect(current).not.toHaveProperty(key);
 });
 it('refuses missing or non-video current media', () => {
-  expect(() => createShareVideoSessionFromCompletion({ ...handoff, recording: { status: 'NOT_RECORDED' } })).toThrow('ready video');
-  expect(() => createShareVideoSessionFromCompletion({ ...handoff, recording: { ...completion.recording, kind: 'AUDIO' } })).toThrow('ready video');
+  expect(() => createVideoExportSessionFromCompletion({ ...handoff, recording: { status: 'NOT_RECORDED' } })).toThrow('ready video');
+  expect(() => createVideoExportSessionFromCompletion({ ...handoff, recording: { ...completion.recording, kind: 'AUDIO' } })).toThrow('ready video');
 });
 
-it('keeps share session identity distinct from exact source provenance', () => {
-  const current = createShareVideoSessionFromCompletion(handoff);
+it('keeps export session identity distinct from exact source provenance', () => {
+  const current = createVideoExportSessionFromCompletion(handoff);
   expect(current.sessionId).toBe(completion.result.localSessionId);
   expect(current.sourceId).toBe(take.source_id);
-  expect(createShareVideoSessionFromSavedTake(take, blob, { sourceId: 'different', artifact })).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
+  expect(createVideoExportSessionFromSavedTake(take, blob, { sourceId: 'different', artifact })).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
 });

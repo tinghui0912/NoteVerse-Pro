@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getShareVideoLayout } from './templates';
+import { getVideoExportLayout } from './templates';
 import { resolveFloatingScoreRect } from './frame-renderer';
 
-describe('share video templates', () => {
+describe('video export templates', () => {
   it('keeps landscape output at 16:9 with separate full-frame panels', () => {
-    const layout = getShareVideoLayout({
+    const layout = getVideoExportLayout({
       orientation: 'landscape',
       presentation: { kind: 'split' },
     });
@@ -15,7 +15,7 @@ describe('share video templates', () => {
   });
 
   it('keeps portrait output at 9:16 with stacked panels', () => {
-    const layout = getShareVideoLayout({
+    const layout = getVideoExportLayout({
       orientation: 'portrait',
       presentation: { kind: 'split' },
     });
@@ -27,7 +27,7 @@ describe('share video templates', () => {
     for (const orientation of ['landscape', 'portrait'] as const) {
       for (const size of ['small', 'medium', 'large'] as const) {
         for (const position of ['top', 'bottom'] as const) {
-          const layout = getShareVideoLayout({
+          const layout = getVideoExportLayout({
             orientation,
             presentation: { kind: 'floating', position, size },
           });
@@ -45,11 +45,11 @@ describe('share video templates', () => {
   });
 
   it('uses the actual contained video width for floating score size', () => {
-    const small = getShareVideoLayout({
+    const small = getVideoExportLayout({
       orientation: 'landscape',
       presentation: { kind: 'floating', position: 'top', size: 'small' },
     });
-    const large = getShareVideoLayout({
+    const large = getVideoExportLayout({
       orientation: 'landscape',
       presentation: { kind: 'floating', position: 'top', size: 'large' },
     });
@@ -68,7 +68,7 @@ describe('share video templates', () => {
     const videoDrawRect = { x: 0, y: 437.5, width: 720, height: 405 };
     const viewport = { x: 0, y: 0, width: 1000, height: 200 };
     for (const position of ['top', 'bottom'] as const) {
-      const layout = getShareVideoLayout({
+      const layout = getVideoExportLayout({
         orientation: 'portrait',
         presentation: { kind: 'floating', position, size: 'medium' },
       });

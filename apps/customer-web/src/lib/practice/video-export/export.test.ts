@@ -3,21 +3,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  composeShareVideoOutputStream,
+  composeVideoExportOutputStream,
   drawExportFrame,
-  getShareVideoExportReadiness,
-  selectSupportedShareVideoMimeType,
+  getVideoExportReadiness,
+  selectSupportedVideoExportMimeType,
 } from './export';
-import { resolveShareVideoPlaybackPosition } from './playback-position';
-import { renderShareVideoFrameAtTime } from './frame-renderer';
+import { resolveVideoExportPlaybackPosition } from './playback-position';
+import { renderVideoExportFrameAtTime } from './frame-renderer';
 import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from '@/lib/practice/score-view/playhead-cursor';
 import { getEventScoreImage, prepareScorePageCache } from './score-model';
-import { getShareVideoLayout } from './templates';
-import type { ShareVideoSession } from './session';
+import { getVideoExportLayout } from './templates';
+import type { VideoExportSession } from './session';
 
 function createSession(
-  overrides: Partial<ShareVideoSession> = {}
-): ShareVideoSession {
+  overrides: Partial<VideoExportSession> = {}
+): VideoExportSession {
   return {
     sessionId: 'session-1', sourceId: 'source-1',
     scoreIdentity: {
@@ -52,7 +52,7 @@ function createSession(
       ],
     },
     ...overrides,
-  } as ShareVideoSession;
+  } as VideoExportSession;
 }
 
 function createAdapter() {
@@ -165,7 +165,7 @@ function installIdentitySvgGeometry(container: HTMLElement) {
   });
 }
 
-describe('share-video video export helpers', () => {
+describe('video-export video export helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -176,7 +176,7 @@ describe('share-video video export helpers', () => {
     };
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 
-    expect(selectSupportedShareVideoMimeType()).toBe('video/webm;codecs=vp8,opus');
+    expect(selectSupportedVideoExportMimeType()).toBe('video/webm;codecs=vp8,opus');
   });
 
   it('reports unsupported encoding when MediaRecorder cannot encode WebM', () => {
@@ -185,7 +185,7 @@ describe('share-video video export helpers', () => {
     };
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 
-    expect(selectSupportedShareVideoMimeType()).toBeNull();
+    expect(selectSupportedVideoExportMimeType()).toBeNull();
   });
 
   it('blocks export when video, score identity, score DOM, timebase, or encoder are unavailable', () => {
@@ -200,7 +200,7 @@ describe('share-video video export helpers', () => {
     });
 
     expect(
-      getShareVideoExportReadiness({
+      getVideoExportReadiness({
         session: null,
         isScoreIdentityConfirmed: true,
         xmlContent: '<score/>',
@@ -209,7 +209,7 @@ describe('share-video video export helpers', () => {
     ).toEqual({ ok: false, reason: 'video_not_ready' });
 
     expect(
-      getShareVideoExportReadiness({
+      getVideoExportReadiness({
         session: createSession(),
         isScoreIdentityConfirmed: false,
         xmlContent: '<score/>',
@@ -218,7 +218,7 @@ describe('share-video video export helpers', () => {
     ).toEqual({ ok: false, reason: 'score_identity_mismatch' });
 
     expect(
-      getShareVideoExportReadiness({
+      getVideoExportReadiness({
         session: createSession(),
         isScoreIdentityConfirmed: true,
         xmlContent: null,
@@ -227,7 +227,7 @@ describe('share-video video export helpers', () => {
     ).toEqual({ ok: false, reason: 'score_not_ready' });
 
     expect(
-      getShareVideoExportReadiness({
+      getVideoExportReadiness({
         session: createSession({
           recordingTimebase: {
             nominalMediaDurationMs: 0,
@@ -245,7 +245,7 @@ describe('share-video video export helpers', () => {
     const session = createSession();
     const adapter = createAdapter();
 
-    const firstSegment = resolveShareVideoPlaybackPosition({
+    const firstSegment = resolveVideoExportPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 1000,
@@ -256,7 +256,7 @@ describe('share-video video export helpers', () => {
     expect(firstSegment?.pageNumber).toBe(1);
     expect(firstSegment?.noteIds).toEqual(['note-page-1']);
 
-    const afterPause = resolveShareVideoPlaybackPosition({
+    const afterPause = resolveVideoExportPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 4000,
@@ -272,7 +272,7 @@ describe('share-video video export helpers', () => {
     const session = createSession();
     const adapter = createAdapter();
 
-    const frame = resolveShareVideoPlaybackPosition({
+    const frame = resolveVideoExportPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 5000,
@@ -301,7 +301,7 @@ describe('share-video video export helpers', () => {
     });
     vi.stubGlobal('MediaStream', mediaStreamSpy);
 
-    const result = composeShareVideoOutputStream(canvasStream, audioStream) as unknown as {
+    const result = composeVideoExportOutputStream(canvasStream, audioStream) as unknown as {
       tracks: MediaStreamTrack[];
     };
 
@@ -322,7 +322,7 @@ describe('share-video video export helpers', () => {
     expect(loadImage).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['data-practice-review-page', 'data-score-page'])('freezes clean share score through %s without changing live Review annotations', async pageAttribute => {
+  it.each(['data-practice-review-page', 'data-score-page'])('freezes clean export score through %s without changing live Review annotations', async pageAttribute => {
     const container = createScoreContainer();
     for (const page of container.querySelectorAll('[data-practice-review-page]')) {
       page.setAttribute(pageAttribute, page.getAttribute('data-practice-review-page')!);
@@ -753,7 +753,7 @@ describe('share-video video export helpers', () => {
       configurable: true,
       value: () => ctx,
     });
-    const diagnostics = await renderShareVideoFrameAtTime({
+    const diagnostics = await renderVideoExportFrameAtTime({
       mediaTimeMs: 1000,
       scoreModel: cache,
       playbackTimeline: {
@@ -786,7 +786,7 @@ describe('share-video video export helpers', () => {
     const container = createScoreContainer();
     const cache = await prepareScorePageCache(container, async () => makeImage());
     const outputCanvas = document.createElement('canvas');
-    const layout = getShareVideoLayout({
+    const layout = getVideoExportLayout({
       orientation: 'landscape',
       presentation: { kind: 'floating', position: 'top', size: 'medium' },
     });
@@ -798,7 +798,7 @@ describe('share-video video export helpers', () => {
       value: () => ctx,
     });
 
-    const diagnostics = await renderShareVideoFrameAtTime({
+    const diagnostics = await renderVideoExportFrameAtTime({
       mediaTimeMs: 1000,
       scoreModel: cache,
       playbackTimeline: {
@@ -890,7 +890,7 @@ describe('share-video video export helpers', () => {
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })).rejects.toThrow('share_video_export_failed:playback_event_geometry_unavailable');
+      })).rejects.toThrow('video_export_failed:playback_event_geometry_unavailable');
   });
 
   it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {

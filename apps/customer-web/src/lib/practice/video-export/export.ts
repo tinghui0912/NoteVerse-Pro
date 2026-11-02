@@ -1,8 +1,8 @@
-import { resolveShareVideoPlaybackPosition } from './playback-position';
-import { renderShareVideoFrameAtTime } from './frame-renderer';
+import { resolveVideoExportPlaybackPosition } from './playback-position';
+import { renderVideoExportFrameAtTime } from './frame-renderer';
 import {
-  getShareVideoLayout,
-  type ShareVideoConfig,
+  getVideoExportLayout,
+  type VideoExportConfig,
 } from './templates';
 import {
   findStablePageNumber,
@@ -12,21 +12,21 @@ import {
   type ScorePageCache,
 } from './score-model';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
-import type { ShareVideoSession } from './session';
+import type { VideoExportSession } from './session';
 
 const EXPORT_FPS = 30;
 
-const SHARE_VIDEO_MIME_CANDIDATES = [
+const VIDEO_EXPORT_MIME_CANDIDATES = [
   'video/webm;codecs=vp9,opus',
   'video/webm;codecs=vp8,opus',
   'video/webm',
 ];
 
-export type ShareVideoExportReadiness =
+export type VideoExportReadiness =
   | { ok: true; mimeType: string }
-  | { ok: false; reason: ShareVideoExportBlockReason };
+  | { ok: false; reason: VideoExportBlockReason };
 
-export type ShareVideoExportBlockReason =
+export type VideoExportBlockReason =
   | 'video_not_ready'
   | 'empty_video'
   | 'score_identity_mismatch'
@@ -35,26 +35,26 @@ export type ShareVideoExportBlockReason =
   | 'media_recorder_unsupported'
   | 'canvas_capture_unsupported';
 
-type ShareVideoExportProgress = {
+type VideoExportProgress = {
   mediaTimeMs: number;
   durationMs: number;
   ratio: number;
 };
 
-export type ShareVideoExportResult = {
+export type VideoExportResult = {
   blob: Blob;
   mimeType: string;
   durationMs: number;
 };
 
-export type ShareVideoExportOptions = {
-  session: ShareVideoSession;
+export type VideoExportOptions = {
+  session: VideoExportSession;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   signal?: AbortSignal;
-  onProgress?: (progress: ShareVideoExportProgress) => void;
-  config?: ShareVideoConfig;
+  onProgress?: (progress: VideoExportProgress) => void;
+  config?: VideoExportConfig;
 };
 
 type FrameRenderState = {
@@ -63,29 +63,29 @@ type FrameRenderState = {
   stagingCtx: CanvasRenderingContext2D;
 };
 
-export function selectSupportedShareVideoMimeType(): string | null {
+export function selectSupportedVideoExportMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') {
     return null;
   }
   if (typeof MediaRecorder.isTypeSupported !== 'function') {
     return 'video/webm';
   }
-  return SHARE_VIDEO_MIME_CANDIDATES.find((candidate) =>
+  return VIDEO_EXPORT_MIME_CANDIDATES.find((candidate) =>
     MediaRecorder.isTypeSupported(candidate)
   ) ?? null;
 }
 
-export function getShareVideoExportReadiness({
+export function getVideoExportReadiness({
   session,
   isScoreIdentityConfirmed,
   xmlContent,
   scoreContainer,
 }: {
-  session: ShareVideoSession | null;
+  session: VideoExportSession | null;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   scoreContainer: HTMLElement | null;
-}): ShareVideoExportReadiness {
+}): VideoExportReadiness {
   if (!session?.video || session.video.status !== 'READY') {
     return { ok: false, reason: 'video_not_ready' };
   }
@@ -101,7 +101,7 @@ export function getShareVideoExportReadiness({
   if (!session.recordingTimebase?.activeSegments?.length) {
     return { ok: false, reason: 'timebase_unavailable' };
   }
-  const mimeType = selectSupportedShareVideoMimeType();
+  const mimeType = selectSupportedVideoExportMimeType();
   if (!mimeType) {
     return { ok: false, reason: 'media_recorder_unsupported' };
   }
@@ -111,7 +111,7 @@ export function getShareVideoExportReadiness({
   return { ok: true, mimeType };
 }
 
-export function composeShareVideoOutputStream(
+export function composeVideoExportOutputStream(
   canvasStream: MediaStream,
   audioStream: MediaStream
 ): MediaStream {
@@ -121,7 +121,7 @@ export function composeShareVideoOutputStream(
   ]);
 }
 
-export async function exportShareVideo({
+export async function exportVideo({
   session,
   scoreContainer,
   adapter,
@@ -129,28 +129,28 @@ export async function exportShareVideo({
   signal,
   onProgress,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
-}: ShareVideoExportOptions): Promise<ShareVideoExportResult> {
-  const readiness = getShareVideoExportReadiness({
+}: VideoExportOptions): Promise<VideoExportResult> {
+  const readiness = getVideoExportReadiness({
     session,
     isScoreIdentityConfirmed: true,
     xmlContent: 'ready',
     scoreContainer,
   });
   if (!readiness.ok) {
-    throw new Error(`share_video_export_unavailable:${readiness.reason}`);
+    throw new Error(`video_export_unavailable:${readiness.reason}`);
   }
   if (session.video.status !== 'READY') {
-    throw new Error('share_video_export_unavailable:video_not_ready');
+    throw new Error('video_export_unavailable:video_not_ready');
   }
   const sourceVideo = session.video;
-  const layout = getShareVideoLayout(config);
+  const layout = getVideoExportLayout(config);
 
   const canvas = document.createElement('canvas');
   canvas.width = layout.width;
   canvas.height = layout.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error('share_video_export_unavailable:canvas_context');
+    throw new Error('video_export_unavailable:canvas_context');
   }
 
   const video = document.createElement('video');
@@ -170,7 +170,7 @@ export async function exportShareVideo({
     await waitForVideoMetadata(video, signal);
     await waitForVideoFrame(video, signal);
     if (!video.videoWidth || !video.videoHeight) {
-      throw new Error('share_video_export_failed:video_decode');
+      throw new Error('video_export_failed:video_decode');
     }
 
     const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
@@ -181,7 +181,7 @@ export async function exportShareVideo({
     stagingCanvas.height = layout.height;
     const stagingCtx = stagingCanvas.getContext('2d');
     if (!stagingCtx) {
-      throw new Error('share_video_export_unavailable:canvas_context');
+      throw new Error('video_export_unavailable:canvas_context');
     }
     const frameState: FrameRenderState = {
       scorePages,
@@ -209,34 +209,34 @@ export async function exportShareVideo({
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) {
-      throw new Error('share_video_export_failed:audio_context_unavailable');
+      throw new Error('video_export_failed:audio_context_unavailable');
     }
     audioContext = new AudioContextCtor();
     const source = audioContext.createMediaElementSource(video);
     const audioDestination = audioContext.createMediaStreamDestination();
     source.connect(audioDestination);
     if (audioDestination.stream.getAudioTracks().length === 0) {
-      throw new Error('share_video_export_failed:audio_track_missing');
+      throw new Error('video_export_failed:audio_track_missing');
     }
 
     canvasStream = canvas.captureStream(EXPORT_FPS);
-    outputStream = composeShareVideoOutputStream(canvasStream, audioDestination.stream);
+    outputStream = composeVideoExportOutputStream(canvasStream, audioDestination.stream);
     if (outputStream.getAudioTracks().length === 0) {
-      throw new Error('share_video_export_failed:audio_track_missing');
+      throw new Error('video_export_failed:audio_track_missing');
     }
 
     const chunks: Blob[] = [];
     recorder = new MediaRecorder(outputStream, { mimeType: readiness.mimeType });
     let wasAborted = false;
     let rejectExport: ((reason?: unknown) => void) | null = null;
-    const result = new Promise<ShareVideoExportResult>((resolve, reject) => {
+    const result = new Promise<VideoExportResult>((resolve, reject) => {
       rejectExport = reject;
       recorder!.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           chunks.push(event.data);
         }
       };
-      recorder!.onerror = () => reject(new Error('share_video_export_failed:encoding'));
+      recorder!.onerror = () => reject(new Error('video_export_failed:encoding'));
       recorder!.onstop = () => {
         if (wasAborted || signal?.aborted) {
           reject(new DOMException('Export cancelled', 'AbortError'));
@@ -244,7 +244,7 @@ export async function exportShareVideo({
         }
         const blob = new Blob(chunks, { type: readiness.mimeType });
         if (blob.size <= 0) {
-          reject(new Error('share_video_export_failed:empty_output'));
+          reject(new Error('video_export_failed:empty_output'));
           return;
         }
         resolve({
@@ -320,7 +320,7 @@ export async function exportShareVideo({
         });
         const frameWaitMs = performance.now() - frameStartedAt;
         if (frameWaitMs > 250) {
-          failExport(new Error('share_video_export_failed:frame_prepare_timeout'));
+          failExport(new Error('video_export_failed:frame_prepare_timeout'));
           return;
         }
         void prefetchUpcomingEventImage({
@@ -378,12 +378,12 @@ async function prefetchUpcomingEventImage({
 }: {
   mediaTimeMs: number;
   video: HTMLVideoElement;
-  session: ShareVideoSession;
+  session: VideoExportSession;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   scorePages: ScorePageCache;
 }) {
-  const position = resolveShareVideoPlaybackPosition({
+  const position = resolveVideoExportPlaybackPosition({
     session,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
@@ -410,19 +410,19 @@ export async function drawExportFrame({
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
-  session: ShareVideoSession;
+  session: VideoExportSession;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
-  config?: ShareVideoConfig;
+  config?: VideoExportConfig;
 }): Promise<void> {
-  const layout = getShareVideoLayout(config);
+  const layout = getVideoExportLayout(config);
 
-  await renderShareVideoFrameAtTime({
+  await renderVideoExportFrameAtTime({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     scoreModel: frameState.scorePages,
     playbackTimeline: {
-      resolve: (mediaTimeMs) => resolveShareVideoPlaybackPosition({
+      resolve: (mediaTimeMs) => resolveVideoExportPlaybackPosition({
         session,
         adapter,
         pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
@@ -464,7 +464,7 @@ function waitForVideoMetadata(video: HTMLVideoElement, signal?: AbortSignal): Pr
     };
     const onError = () => {
       cleanup();
-      reject(new Error('share_video_export_failed:video_decode'));
+      reject(new Error('video_export_failed:video_decode'));
     };
     const onAbort = () => {
       cleanup();
@@ -493,7 +493,7 @@ function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promi
     };
     const onError = () => {
       cleanup();
-      reject(new Error('share_video_export_failed:video_decode'));
+      reject(new Error('video_export_failed:video_decode'));
     };
     const onAbort = () => {
       cleanup();

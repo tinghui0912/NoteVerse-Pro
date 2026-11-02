@@ -16,24 +16,24 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShareVideoPreview } from '@/lib/practice/sharing/video/preview';
-import type { ShareVideoConfig } from '@/lib/practice/sharing/video/templates';
+import { VideoExportPreview } from '@/lib/practice/video-export/preview';
+import type { VideoExportConfig } from '@/lib/practice/video-export/templates';
 import {
-  exportShareVideo,
-  getShareVideoExportReadiness,
-  type ShareVideoExportBlockReason,
-} from '@/lib/practice/sharing/video/export';
+  exportVideo,
+  getVideoExportReadiness,
+  type VideoExportBlockReason,
+} from '@/lib/practice/video-export/export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
-import type { ShareVideoSession } from '@/lib/practice/sharing/video/session';
+import type { VideoExportSession } from '@/lib/practice/video-export/session';
 
-const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
+const FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
 type VideoOrientation = 'landscape' | 'portrait';
 type ScorePresentation = 'split' | 'floating';
 type FloatingPosition = 'top' | 'bottom';
 type FloatingSize = 'small' | 'medium' | 'large';
 
-export function initialShareVideoOrientation(
+export function initialVideoExportOrientation(
   video: Pick<HTMLVideoElement, 'videoWidth' | 'videoHeight'> | null
 ): VideoOrientation {
   if (video && video.videoWidth > 0 && video.videoHeight > 0) {
@@ -54,9 +54,9 @@ function extensionForMime(mimeType: string): string {
   return cleaned === 'video/mp4' ? 'mp4' : 'webm';
 }
 
-function shareVideoBlockReasonToMessage(
+function videoExportBlockReasonToMessage(
   t: (key: string) => string,
-  reason: ShareVideoExportBlockReason
+  reason: VideoExportBlockReason
 ) {
   switch (reason) {
     case 'video_not_ready':
@@ -74,7 +74,7 @@ function shareVideoBlockReasonToMessage(
   }
 }
 
-function ShareChoiceCard({
+function VideoExportChoiceCard({
   selected,
   title,
   description,
@@ -131,7 +131,7 @@ function ShareChoiceCard({
   );
 }
 
-export function ShareVideoStudio({
+export function VideoExportStudio({
   session,
   scoreContainer,
   adapter,
@@ -146,7 +146,7 @@ export function ShareVideoStudio({
   onExportingChange,
   collapsible = true,
 }: {
-  session: ShareVideoSession | null;
+  session: VideoExportSession | null;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -188,7 +188,7 @@ export function ShareVideoStudio({
       }
       setOrientationPreference({
         sessionId: session.sessionId,
-        value: initialShareVideoOrientation(video),
+        value: initialVideoExportOrientation(video),
       });
     };
 
@@ -200,9 +200,9 @@ export function ShareVideoStudio({
   const videoOrientation =
     session && orientationPreference.sessionId === session.sessionId
       ? orientationPreference.value
-      : initialShareVideoOrientation(replayVideo);
+      : initialVideoExportOrientation(replayVideo);
 
-  const shareConfig = useMemo<ShareVideoConfig>(() => {
+  const videoExportConfig = useMemo<VideoExportConfig>(() => {
     if (scorePresentation === 'floating') {
       return {
         orientation: videoOrientation,
@@ -219,20 +219,20 @@ export function ShareVideoStudio({
     };
   }, [floatingPosition, floatingSize, scorePresentation, videoOrientation]);
 
-  const shareConfigSummary = useMemo(() => {
+  const videoExportConfigSummary = useMemo(() => {
     const orientationLabel =
       videoOrientation === 'landscape'
-        ? t('shareLandscapeTitle')
-        : t('sharePortraitTitle');
+        ? t('videoExportLandscapeTitle')
+        : t('videoExportPortraitTitle');
     const presentationLabel =
-      scorePresentation === 'floating' ? t('shareFloatingTitle') : t('shareSplitTitle');
+      scorePresentation === 'floating' ? t('videoExportFloatingTitle') : t('videoExportSplitTitle');
     return scorePresentation === 'floating'
-      ? t('shareTemplateSummary', {
+      ? t('videoExportTemplateSummary', {
           orientation: orientationLabel,
           presentation: presentationLabel,
-          position: floatingPosition === 'top' ? t('shareTop') : t('shareBottom'),
+          position: floatingPosition === 'top' ? t('videoExportTop') : t('videoExportBottom'),
         })
-      : t('shareTemplateSummaryWithoutPosition', {
+      : t('videoExportTemplateSummaryWithoutPosition', {
           orientation: orientationLabel,
           presentation: presentationLabel,
         });
@@ -240,7 +240,7 @@ export function ShareVideoStudio({
 
   const readiness = useMemo(
     () =>
-      getShareVideoExportReadiness({
+      getVideoExportReadiness({
         session,
         isScoreIdentityConfirmed,
         xmlContent,
@@ -268,14 +268,14 @@ export function ShareVideoStudio({
     setSplitExportError(null);
 
     try {
-      const result = await exportShareVideo({
+      const result = await exportVideo({
         session,
         scoreContainer,
         adapter,
         scoreEndBeat,
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
-        config: shareConfig,
+        config: videoExportConfig,
       });
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
@@ -304,7 +304,7 @@ export function ShareVideoStudio({
     readiness.ok,
     scoreContainer,
     scoreEndBeat,
-    shareConfig,
+    videoExportConfig,
     splitExportStatus,
     t,
     onExportingChange,
@@ -324,10 +324,10 @@ export function ShareVideoStudio({
 
   if (!session) {
     return (
-      <Card className="rounded-lg bg-card" data-testid="share-video-studio-unavailable">
+      <Card className="rounded-lg bg-card" data-testid="video-export-studio-unavailable">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">
-            {t('sharePerformanceVideoTitle')}
+            {t('videoExportTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -341,15 +341,15 @@ export function ShareVideoStudio({
 
   if (!open) {
     return (
-      <Card className="rounded-lg bg-card" data-testid="share-video-entry-card">
+      <Card className="rounded-lg bg-card" data-testid="video-export-entry-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">{t('makeShareVideoTitle')}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t('makeShareVideoDesc')}</p>
+          <CardTitle className="text-sm font-semibold">{t('videoExportEntryTitle')}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t('videoExportEntryDesc')}</p>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => onOpenChange(true)} data-testid="open-share-video-studio">
+          <Button onClick={() => onOpenChange(true)} data-testid="open-video-export-studio">
             <Clapperboard className="mr-1.5 h-4 w-4" />
-            {t('makeShareVideoAction')}
+            {t('videoExportOpenAction')}
           </Button>
         </CardContent>
       </Card>
@@ -357,11 +357,11 @@ export function ShareVideoStudio({
   }
 
   return (
-    <Card className="rounded-lg bg-card" data-testid="share-video-studio">
+    <Card className="rounded-lg bg-card" data-testid="video-export-studio">
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
         <div>
-          <CardTitle className="text-sm font-semibold">{t('sharePerformanceVideoTitle')}</CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">{t('sharePerformanceVideoDesc')}</p>
+          <CardTitle className="text-sm font-semibold">{t('videoExportTitle')}</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">{t('videoExportDesc')}</p>
         </div>
         {collapsible ? (
           <Button
@@ -369,69 +369,69 @@ export function ShareVideoStudio({
             variant="ghost"
             disabled={splitExportStatus === 'exporting'}
             onClick={() => onOpenChange(false)}
-            data-testid="collapse-share-video-studio"
+            data-testid="collapse-video-export-studio"
           >
-            {t('collapseShareVideoStudio')}
+            {t('videoExportCollapseStudio')}
           </Button>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('shareVideoOrientationStep')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{t('shareVideoOrientationDesc')}</p>
+            <h3 className="text-sm font-semibold">{t('videoExportOrientationStep')}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t('videoExportOrientationDesc')}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('shareVideoOrientationStep')}>
-            <ShareChoiceCard
+          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportOrientationStep')}>
+            <VideoExportChoiceCard
               selected={videoOrientation === 'landscape'}
-              title={t('shareLandscapeTitle')}
-              description={t('shareLandscapeDesc')}
+              title={t('videoExportLandscapeTitle')}
+              description={t('videoExportLandscapeDesc')}
               icon={RectangleHorizontal}
               onClick={() => {
                 if (!session) return;
                 manualOrientationSessionRef.current = session.sessionId;
                 setOrientationPreference({ sessionId: session.sessionId, value: 'landscape' });
               }}
-              testId="share-orientation-landscape"
+              testId="video-export-orientation-landscape"
             />
-            <ShareChoiceCard
+            <VideoExportChoiceCard
               selected={videoOrientation === 'portrait'}
-              title={t('sharePortraitTitle')}
-              description={t('sharePortraitDesc')}
+              title={t('videoExportPortraitTitle')}
+              description={t('videoExportPortraitDesc')}
               icon={RectangleVertical}
               onClick={() => {
                 if (!session) return;
                 manualOrientationSessionRef.current = session.sessionId;
                 setOrientationPreference({ sessionId: session.sessionId, value: 'portrait' });
               }}
-              testId="share-orientation-portrait"
+              testId="video-export-orientation-portrait"
             />
           </div>
         </section>
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('sharePresentationStep')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{t('sharePresentationDesc')}</p>
+            <h3 className="text-sm font-semibold">{t('videoExportPresentationStep')}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPresentationDesc')}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('sharePresentationStep')}>
-            <ShareChoiceCard
+          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportPresentationStep')}>
+            <VideoExportChoiceCard
               selected={scorePresentation === 'split'}
-              title={t('shareSplitTitle')}
-              description={t('shareSplitDesc')}
+              title={t('videoExportSplitTitle')}
+              description={t('videoExportSplitDesc')}
               icon={Columns2}
               onClick={() => setScorePresentation('split')}
-              testId="share-presentation-split"
+              testId="video-export-presentation-split"
             />
-            {FLOATING_SHARE_TEMPLATE_ENABLED ? (
-              <ShareChoiceCard
+            {FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED ? (
+              <VideoExportChoiceCard
                 selected={scorePresentation === 'floating'}
-                title={t('shareFloatingTitle')}
-                description={t('shareFloatingDesc')}
+                title={t('videoExportFloatingTitle')}
+                description={t('videoExportFloatingDesc')}
                 icon={Layers2}
-                badge={t('shareDevPreview')}
+                badge={t('videoExportDevPreview')}
                 onClick={() => setScorePresentation('floating')}
-                testId="share-presentation-floating"
+                testId="video-export-presentation-floating"
               />
             ) : null}
           </div>
@@ -441,46 +441,46 @@ export function ShareVideoStudio({
           <section className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold">{t('sharePositionStep')}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{t('sharePositionDesc')}</p>
+                <h3 className="text-sm font-semibold">{t('videoExportPositionStep')}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPositionDesc')}</p>
               </div>
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
                 aria-expanded={isFloatingAdvancedOpen}
                 onClick={() => setIsFloatingAdvancedOpen((value) => !value)}
-                data-testid="share-floating-advanced-toggle"
+                data-testid="video-export-floating-advanced-toggle"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                {t('shareAdjustPositionSize')}
+                {t('videoExportAdjustPositionSize')}
                 {isFloatingAdvancedOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('sharePositionStep')}>
-              <ShareChoiceCard
+            <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportPositionStep')}>
+              <VideoExportChoiceCard
                 selected={floatingPosition === 'top'}
-                title={t('shareTop')}
-                description={t('shareTopDesc')}
+                title={t('videoExportTop')}
+                description={t('videoExportTopDesc')}
                 icon={RectangleHorizontal}
                 onClick={() => setFloatingPosition('top')}
-                testId="share-floating-position-top"
+                testId="video-export-floating-position-top"
               />
-              <ShareChoiceCard
+              <VideoExportChoiceCard
                 selected={floatingPosition === 'bottom'}
-                title={t('shareBottom')}
-                description={t('shareBottomDesc')}
+                title={t('videoExportBottom')}
+                description={t('videoExportBottomDesc')}
                 icon={RectangleHorizontal}
                 onClick={() => setFloatingPosition('bottom')}
-                testId="share-floating-position-bottom"
+                testId="video-export-floating-position-bottom"
               />
             </div>
             {isFloatingAdvancedOpen ? (
               <div className="rounded-md border border-border bg-muted/30 p-3">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold">
                   <SlidersHorizontal className="h-4 w-4" />
-                  {t('shareScoreSize')}
+                  {t('videoExportScoreSize')}
                 </div>
-                <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('shareScoreSize')}>
+                <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('videoExportScoreSize')}>
                   {(['small', 'medium', 'large'] as const).map((size) => (
                     <button
                       key={size}
@@ -494,9 +494,9 @@ export function ShareVideoStudio({
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border bg-background hover:border-primary/50',
                       ].join(' ')}
-                      data-testid={`share-floating-size-${size}`}
+                      data-testid={`video-export-floating-size-${size}`}
                     >
-                      {size === 'small' ? t('shareSmall') : size === 'medium' ? t('shareMedium') : t('shareLarge')}
+                      {size === 'small' ? t('videoExportSmall') : size === 'medium' ? t('videoExportMedium') : t('videoExportLarge')}
                     </button>
                   ))}
                 </div>
@@ -508,20 +508,20 @@ export function ShareVideoStudio({
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold">{t('sharePreviewTitle')}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">{t('sharePreviewDesc')}</p>
+              <h3 className="text-sm font-semibold">{t('videoExportPreviewTitle')}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPreviewDesc')}</p>
             </div>
             <span className="text-xs tabular-nums text-muted-foreground">
-              {t('sharePreviewTime', { time: formatDuration(previewFrameTimeMs) })}
+              {t('videoExportPreviewTime', { time: formatDuration(previewFrameTimeMs) })}
             </span>
           </div>
-          <ShareVideoPreview
+          <VideoExportPreview
             session={session}
             scoreContainer={scoreContainer}
             adapter={adapter}
             scoreEndBeat={scoreEndBeat}
             mediaTimeMs={mediaTimeMs}
-            config={shareConfig}
+            config={videoExportConfig}
             isReplayPlaying={isReplayPlaying}
             replayVideo={replayVideo}
             onFrameCommitted={setPreviewFrameTimeMs}
@@ -530,31 +530,31 @@ export function ShareVideoStudio({
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('shareExportTitle')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{shareConfigSummary}</p>
+            <h3 className="text-sm font-semibold">{t('videoExportOutputTitle')}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{videoExportConfigSummary}</p>
           </div>
           {!readiness.ok ? (
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              {shareVideoBlockReasonToMessage(t, readiness.reason)}
+              {videoExportBlockReasonToMessage(t, readiness.reason)}
             </p>
           ) : null}
           <Button
             onClick={handleExport}
             disabled={!readiness.ok || splitExportStatus === 'exporting'}
-            aria-label={t('shareExportAction')}
-            data-testid="generate-share-video"
+            aria-label={t('videoExportAction')}
+            data-testid="generate-video-export"
           >
             {splitExportStatus === 'exporting' ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
               <Clapperboard className="mr-1.5 h-4 w-4" />
             )}
-            {t('shareExportAction')}
+            {t('videoExportAction')}
           </Button>
         </section>
 
         {splitExportStatus === 'exporting' ? (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100" data-testid="share-video-export-progress">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100" data-testid="video-export-progress">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
@@ -572,13 +572,13 @@ export function ShareVideoStudio({
           </div>
         ) : null}
         {splitExportStatus === 'error' ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100" data-testid="share-video-export-error">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100" data-testid="video-export-error">
             <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
             <p className="mt-1 text-xs">{splitExportError ?? t('exportScoreVideoFailedDesc')}</p>
           </div>
         ) : null}
         {splitExportStatus === 'success' ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100" data-testid="share-video-export-success">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100" data-testid="video-export-success">
             <p className="text-sm font-semibold">{t('exportScoreVideoSuccessTitle')}</p>
           </div>
         ) : null}

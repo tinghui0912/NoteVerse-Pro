@@ -1,6 +1,6 @@
 import type { Rect } from './score-camera';
 
-export type ShareVideoConfig = {
+export type VideoExportConfig = {
   orientation: 'landscape' | 'portrait';
   presentation:
     | { kind: 'split' }
@@ -11,7 +11,7 @@ export type ShareVideoConfig = {
       };
 };
 
-export type ShareVideoLayout = {
+export type VideoExportLayout = {
   width: number;
   height: number;
   scoreRect: Rect;
@@ -29,7 +29,7 @@ const GAP = 24;
 const BACKGROUND = '#0f172a';
 const SCORE_BACKGROUND = '#ffffff';
 
-export function getShareVideoLayout(config: ShareVideoConfig): ShareVideoLayout {
+export function getVideoExportLayout(config: VideoExportConfig): VideoExportLayout {
   if (config.presentation.kind === 'split' && config.orientation === 'portrait') {
     const width = 720;
     const height = 1280;

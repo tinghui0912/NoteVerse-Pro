@@ -50,8 +50,8 @@ import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapte
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
 import { reviewReplay, reviewReplayMusicalBeat } from '@/lib/practice/review/review-replay';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
-import { ShareVideoStudio } from '@/components/practice/share-video-studio';
-import { createShareVideoSessionFromCompletion } from '@/lib/practice/sharing/video/current-completion-adapter';
+import { VideoExportStudio } from '@/components/practice/video-export-studio';
+import { createVideoExportSessionFromCompletion } from '@/lib/practice/video-export/current-completion-adapter';
 import type { PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
 
 
@@ -101,10 +101,10 @@ export default function PracticeReviewPage({
   const isValidCompletion = Boolean(result && result.scoreId === id);
   const scoreState = useMemo(() => reviewSession ? resolveReviewScoreState(reviewSession) : null, [reviewSession]);
   const isScoreIdentityConfirmed = isValidCompletion && scoreState?.status === 'READY';
-  const shareVideoSession = useMemo(() => {
+  const videoExportSession = useMemo(() => {
     if (!reviewSession || reviewSession.recording.status !== 'READY' || reviewSession.recording.kind !== 'VIDEO'
       || scoreState?.status !== 'READY') return null;
-    return createShareVideoSessionFromCompletion(reviewSession);
+    return createVideoExportSessionFromCompletion(reviewSession);
   }, [reviewSession, scoreState]);
 
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
@@ -115,14 +115,14 @@ export default function PracticeReviewPage({
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const scoreRenderRevisionRef = useRef(0);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
-  const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
+  const [videoExportPreviewTimeMs, setVideoExportPreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const latestReplayTimeMsRef = useRef(0);
   const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
-  const [isShareStudioOpen, setIsShareStudioOpen] = useState(false);
-  const [isShareExporting, setIsShareExporting] = useState(false);
+  const [isVideoExportStudioOpen, setIsVideoExportStudioOpen] = useState(false);
+  const [isVideoExporting, setIsVideoExporting] = useState(false);
 
   const scoreNoteAnnotations = useMemo(() => {
     if (!isScoreIdentityConfirmed || !result?.evaluation) {
@@ -203,13 +203,13 @@ export default function PracticeReviewPage({
   const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
     setIsReplayPlaying(playing);
     if (!playing) {
-      setSharePreviewTimeMs(latestReplayTimeMsRef.current);
+      setVideoExportPreviewTimeMs(latestReplayTimeMsRef.current);
     }
   }, []);
 
   const handleReplaySeekCommitted = useCallback((replayTimeMs: number) => {
     latestReplayTimeMsRef.current = Math.max(0, replayTimeMs);
-    setSharePreviewTimeMs(Math.max(0, replayTimeMs));
+    setVideoExportPreviewTimeMs(Math.max(0, replayTimeMs));
   }, []);
 
   useEffect(() => {
@@ -349,13 +349,13 @@ export default function PracticeReviewPage({
           saveRecordingStatus !== 'saved' &&
           !hasExportedOriginalMedia
       );
-      if (hasUncommittedMedia || isShareExporting) {
+      if (hasUncommittedMedia || isVideoExporting) {
         setLeaveIntent(target);
         return;
       }
       performLeave(target);
     },
-    [recording, hasExportedOriginalMedia, isShareExporting, performLeave, saveRecordingStatus]
+    [recording, hasExportedOriginalMedia, isVideoExporting, performLeave, saveRecordingStatus]
   );
 
   const handleRestart = useCallback(() => {
@@ -371,7 +371,7 @@ export default function PracticeReviewPage({
       saveRecordingStatus !== 'saved' &&
       !hasExportedOriginalMedia
   );
-  const leaveReviewDescription = isShareExporting
+  const leaveReviewDescription = isVideoExporting
     ? hasUncommittedReviewMedia
       ? t('leaveReviewWhileExportingAndUnsavedDesc')
       : t('leaveReviewWhileExportingDesc')
@@ -641,20 +641,20 @@ export default function PracticeReviewPage({
       </Card>
 
       {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
-        <ShareVideoStudio
+        <VideoExportStudio
           key={result.localSessionId}
-          session={shareVideoSession}
+          session={videoExportSession}
           scoreContainer={scoreContainer}
           adapter={adapter}
           scoreEndBeat={artifact?.scoreEndBeat ?? result.scope.terminalBeat}
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
-          mediaTimeMs={sharePreviewTimeMs}
+          mediaTimeMs={videoExportPreviewTimeMs}
           isReplayPlaying={isReplayPlaying}
           replayVideo={replayVideo}
-          open={isShareStudioOpen}
-          onOpenChange={setIsShareStudioOpen}
-          onExportingChange={setIsShareExporting}
+          open={isVideoExportStudioOpen}
+          onOpenChange={setIsVideoExportStudioOpen}
+          onExportingChange={setIsVideoExporting}
         />
       ) : null}
       <AlertDialog

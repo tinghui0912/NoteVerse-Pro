@@ -60,7 +60,7 @@ controls and presentation preferences, with no inline editors for readiness-affe
 configuration. Unavailable admission stays on Practice with explicit Setup navigation;
 an active recording intervention keeps the current attempt while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
 not Setup. The switch controls score feedback visibility independently of readiness,
-session identity, inference, evaluation, Review and Share Video. The preference
+session identity, inference, evaluation, Review and VideoExport. The preference
 persists with the profile and defaults to OFF.
 
 ## Preparation, Resource Binding and Attempt Lifetimes
@@ -185,7 +185,7 @@ Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/unsupported decorations while retaining score, range
 and playhead. Evaluation and natural Result production operate independently of
 the feedback setting. ON/OFF does not restart a session or engine. Review always
-shows completed feedback; Share Video always uses its clean-score contract.
+shows completed feedback; VideoExport always uses its clean-score contract.
 
 ## Session Planning
 
@@ -678,7 +678,7 @@ Intervention contract below.
 
 Continuous Review is replay-first, not a statistics dashboard. No learner-facing
 aggregate performance metrics artifact exists. Review keeps synchronized replay,
-score/playhead, completed annotations, useful metadata and recording/save/share
+score/playhead, completed annotations, useful metadata and recording/save/export
 and retry/back actions; it does not display outcome/extra counts, percentages,
 grades or scores.
 
@@ -737,7 +737,7 @@ for internal diagnostics; that does not make it eligible for a learner Result.
 Result validation accepts the exact schema8 fields and configured provenance.
 Unknown fields and unsupported schema/policy identities fail closed.
 A score revision mismatch does not alter retained evaluation, input, scope, tempo
-or active duration. Score annotations, playhead and share-score rendering require
+or active duration. Score annotations, playhead and video-export score rendering require
 confirmed artifact identity independently of recording replay.
 
 ## Evaluation / Evidence Provenance
@@ -841,7 +841,7 @@ input/start ERROR. No worker retry or publication can revive analysis. Completed
 natural evaluation has the exact UNAVAILABLE shape with reason
 `CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema8
 binds the configured assignment and evidence provenance. Healthy media finalizes normally;
-Review retains replay/save/share and its unavailable notice without target colors.
+Review retains replay/save/export and its unavailable notice without target colors.
 
 Acoustic analysis release neither closes the controller AudioContext nor stops the
 borrowed root stream, metronome or recorder. Analysis-source health consumption is
@@ -946,7 +946,7 @@ performs no Source recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
-My Performances is a saved media archive with playback/download/share actions,
+My Performances is a saved media archive with playback/download/video-export actions,
 without learner report statistics or saved learner-report navigation.
 
 ## PerformanceTake Upload Reservation
@@ -999,17 +999,22 @@ release the internal quota hold. Finalize retry returns the same Take and commit
 additional quota. Final object ownership and immutable metadata do not depend on a
 second client payload.
 
-## Clean Share-Video Score
+## Clean Video Export Score
+
+VideoExport is a browser-local composition/download capability. Its transient output
+is downloaded to the user's device. It owns no durable server asset and grants no
+sharing access. PerformanceTake owns the raw recording; Score Sharing is a separate
+authorization domain. Saved exports use `/my-performances/{takeId}/video-export`.
 
 Review annotations remain ephemeral presentation of result.evaluation, with the
-same supported/green and unsupported/red targets as live Practice. Share Video contains a clean musical score and its
+same supported/green and unsupported/red targets as live Practice. VideoExport contains a clean musical score and its
 own playback cursor, never report annotations. Snapshot preparation strips report
 classes and existing active/playhead decorations from the cloned SVG only. Live
 Review annotations remain intact. Current recordings and saved takes share this
-clean-score contract; ShareVideoSession contains score/scope/tempo/media/timebase,
+clean-score contract; VideoExportSession contains score/scope/tempo/media/timebase,
 without evaluation or metrics.
 
-## Score View, Review and Sharing Ownership
+## Score View, Review and VideoExport Ownership
 
 `score-view/` owns the Practice Verovio adapter, render identity, DOM render-ID
 lookup, cursor geometry, viewport scrolling, range overlay and evaluation note
@@ -1030,18 +1035,18 @@ atomic source/result/artifact identity and complete notation. review-score-state
 projects cursor scope; Verovio owns rendering failures. review-replay.ts delegates
 synchronization to recording timebase; review-view-model.ts projects result metadata.
 The route owns save-recording mutation, navigation, leave confirmation and
-ShareVideoStudio state, with no Source query or subscription. Save Recording remains
+VideoExportStudio state, with no Source query or subscription. Save Recording remains
 an explicit server operation and new save admission requires live Source authorization.
 
-`sharing/video/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
+`video-export/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
 The current-completion adapter consumes the transient handoff; the saved-Take adapter
 parses backend archive metadata and its authorized source. Both provide the same
 session to source-neutral preview/render/export consumers. The current adapter's
 Review input is type-only; downstream render/export owns no result/evaluation/Practice
 capture lifecycle. The output recorder belongs to export. Floating-score styling is
-share-template policy.
+video-export presentation policy.
 
-Share score snapshots consume canonical decoration constants and remove report
+VideoExport score snapshots consume canonical decoration constants and remove report
 classes and existing active/playhead nodes from the frozen clone only. Live Review
 annotations remain untouched; export inserts only its own playback cursor. Sharing
 retains 30fps, MIME preference, geometry, audio extraction, frame prefetch and abort
@@ -1071,4 +1076,4 @@ Ordinary exact-source access and new save admission require live revision access
 Raw Take playback/download survive deletion; optional saved score-based export requires
 current generic exact-source authorization. The
 [Practice Source contract](practice-source.md) defines authorization and retention.
-Share Video distinguishes its sessionId from canonical sourceId.
+VideoExport distinguishes its sessionId from canonical sourceId.

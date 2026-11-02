@@ -1,11 +1,11 @@
 import type { TransientReviewSession } from '@/lib/practice/review/transient-review-session';
-import type { ShareVideoSession } from './session';
+import type { VideoExportSession } from './session';
 import { cursorScopeFromResolvedPracticeScope, resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 
-export function createShareVideoSessionFromCompletion(session: TransientReviewSession): ShareVideoSession {
+export function createVideoExportSessionFromCompletion(session: TransientReviewSession): VideoExportSession {
   const { result, recording, artifact } = session;
   if (recording.status !== 'READY' || recording.kind !== 'VIDEO') {
-    throw new Error('Share video requires a ready video recording.');
+    throw new Error('Video export requires a ready video recording.');
   }
   const scope = cursorScopeFromResolvedPracticeScope(
     result.scope,

@@ -1700,13 +1700,19 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   await page.getByRole('button',{name:'回放',exact:true}).click();
   await expect.poll(()=>page.locator('video').first().evaluate(video=>(video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
   await page.getByRole('button',{name:'暂停',exact:true}).click();
-  await page.getByTestId('open-share-video-studio').click();
-  await expect(page.getByTestId('generate-share-video')).toBeEnabled();
+  const exportWrites: string[] = [];
+  page.on('request', request => {
+    if (['POST', 'PUT'].includes(request.method())) exportWrites.push(request.url());
+  });
+  await page.getByTestId('open-video-export-studio').click();
+  await expect(page.getByTestId('generate-video-export')).toBeEnabled();
   const download=page.waitForEvent('download');
-  await page.getByTestId('generate-share-video').click();
+  await page.getByTestId('generate-video-export').click();
   const exported=await download;
   expect(await exported.failure()).toBeNull();
-  await expect(page.getByTestId('share-video-export-success')).toBeVisible();
+  await expect(page.getByTestId('video-export-success')).toBeVisible();
+  expect(exportWrites).toEqual([]);
+  await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
   expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);
   await testInfo.attach('admitted-source-flow',{body:JSON.stringify({sourceRequests,scoreRequests,exported:exported.suggestedFilename()}),contentType:'application/json'});
   await page.reload();

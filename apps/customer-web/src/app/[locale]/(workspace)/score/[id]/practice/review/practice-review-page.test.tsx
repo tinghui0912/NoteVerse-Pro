@@ -15,6 +15,17 @@ const navigationMocks = vi.hoisted(() => ({
 
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
+    videoExportPreviewCanvasLabel: "当前时间点画面预览",
+    videoExportPreviewPreparing: "预览准备中...",
+    videoExportPreviewSyncDesc: "预览与回放同步，不改变原始演奏录像。",
+    videoExportPreviewSavePng: "保存当前预览 PNG",
+    videoExportPreviewRetry: "重试预览",
+    videoExportPreviewFailed: "视频预览失败",
+    videoExportPreviewScoreFailed: "无法准备乐谱预览",
+    videoExportPreviewCanvasFailed: "无法创建预览画布",
+    videoExportPreviewDecodeFailed: "无法解码当前回放画面",
+    videoExportPreviewFrameBufferFailed: "无法创建预览帧缓冲区",
+
     reviewTitle: '临时演奏报告',
     reviewExpiredTitle: '本次临时报告已失效',
     reviewExpiredDesc: '临时演奏报告仅在本次演奏结束后保留于当前页面会话中。刷新页面或重新打开后已失效。',
@@ -72,48 +83,48 @@ const translationMocks = vi.hoisted(() => {
     saveRecordingVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
     retryPractice: '重弹一次',
     playback: '练习回放',
-    makeShareVideoTitle: '制作分享视频',
-    makeShareVideoDesc: '将动态乐谱加入演奏画面，制作适合分享的视频。',
-    makeShareVideoAction: '制作分享视频',
-    collapseShareVideoStudio: '收起制作工具',
-    sharePerformanceVideoTitle: '分享演奏视频',
-    sharePerformanceVideoDesc: '将动态乐谱与原始演奏合成为分享视频。',
-    shareVideoOrientationStep: '1. 视频比例',
-    shareVideoOrientationDesc: '选择发布视频的画布方向。',
-    shareLandscapeTitle: '横版 16:9',
-    shareLandscapeDesc: '适合横向演奏视频。',
-    sharePortraitTitle: '竖版 9:16',
-    sharePortraitDesc: '适合手机竖屏分享。',
-    sharePresentationStep: '2. 乐谱呈现方式',
-    sharePresentationDesc: '选择乐谱与演奏画面的组合方式。',
-    shareSplitTitle: '分屏',
-    shareSplitDesc: '完整乐谱与演奏对照。',
-    shareFloatingTitle: '悬浮乐谱',
-    shareFloatingDesc: '演奏为主，动态乐谱叠加。',
-    shareDevPreview: '开发预览',
-    sharePositionStep: '3. 乐谱位置',
-    sharePositionDesc: '悬浮乐谱会遮挡部分演奏画面。',
-    shareAdjustPositionSize: '调整位置与大小',
-    shareTop: '顶部',
-    shareTopDesc: '靠近画面上方。',
-    shareBottom: '底部',
-    shareBottomDesc: '靠近画面下方。',
-    shareScoreSize: '乐谱大小',
-    shareSmall: '小',
-    shareMedium: '中',
-    shareLarge: '大',
-    sharePreviewTitle: '实时合成预览',
-    sharePreviewDesc: '与原始演奏回放同步。',
-    sharePreviewTime: '预览时间：{time}',
-    shareExportTitle: '导出视频',
-    shareExportAction: '生成并下载分享视频',
-    shareTemplateSummary: '{orientation} · {presentation} · {position} · 原始音轨',
-    shareTemplateSummaryWithoutPosition: '{orientation} · {presentation} · 原始音轨',
+    videoExportEntryTitle: '导出乐谱视频',
+    videoExportEntryDesc: '在本地将动态乐谱与演奏画面合成并下载。',
+    videoExportOpenAction: '导出乐谱视频',
+    videoExportCollapseStudio: '收起制作工具',
+    videoExportTitle: '乐谱视频导出',
+    videoExportDesc: '在浏览器中将动态乐谱与演奏画面合成为视频并下载。导出不会上传或发布视频。',
+    videoExportOrientationStep: '1. 视频比例',
+    videoExportOrientationDesc: '选择导出视频的画布方向。',
+    videoExportLandscapeTitle: '横版 16:9',
+    videoExportLandscapeDesc: '适合横向演奏视频。',
+    videoExportPortraitTitle: '竖版 9:16',
+    videoExportPortraitDesc: '适合手机和竖屏视频。',
+    videoExportPresentationStep: '2. 乐谱呈现方式',
+    videoExportPresentationDesc: '选择乐谱与演奏画面的组合方式。',
+    videoExportSplitTitle: '分屏',
+    videoExportSplitDesc: '完整乐谱与演奏对照。',
+    videoExportFloatingTitle: '悬浮乐谱',
+    videoExportFloatingDesc: '演奏为主，动态乐谱叠加。',
+    videoExportDevPreview: '开发预览',
+    videoExportPositionStep: '3. 乐谱位置',
+    videoExportPositionDesc: '悬浮乐谱会遮挡下方部分演奏画面，请确认未挡住您希望展示的手部、键盘或人物。',
+    videoExportAdjustPositionSize: '调整位置与大小',
+    videoExportTop: '顶部',
+    videoExportTopDesc: '靠近演奏画面上方。',
+    videoExportBottom: '底部',
+    videoExportBottomDesc: '靠近演奏画面下方。',
+    videoExportScoreSize: '乐谱大小',
+    videoExportSmall: '小',
+    videoExportMedium: '中',
+    videoExportLarge: '大',
+    videoExportPreviewTitle: '实时合成预览',
+    videoExportPreviewDesc: '与原始演奏回放同步。',
+    videoExportPreviewTime: '预览时间：{time}',
+    videoExportOutputTitle: '导出视频',
+    videoExportAction: '生成并下载视频',
+    videoExportTemplateSummary: '{orientation} · {presentation} · {position} · 原始音轨',
+    videoExportTemplateSummaryWithoutPosition: '{orientation} · {presentation} · 原始音轨',
     leaveReviewTitle: '离开临时演奏报告？',
-    leaveReviewDesc: '这份临时演奏报告离开后可能无法再次访问。分享视频下载不等于保存原始演奏。',
-    leaveReviewUnsavedMediaDesc: '原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；分享视频下载不等于保存原始演奏。',
-    leaveReviewWhileExportingDesc: '分享视频正在生成。确认离开会取消当前合成任务；分享视频下载不等于保存原始演奏。',
-    leaveReviewWhileExportingAndUnsavedDesc: '分享视频正在生成，确认离开会取消当前合成任务；同时，原始录音或录像尚未保存为正式演奏，离开后这份临时媒体可能无法再次访问。',
+    leaveReviewDesc: '这份临时演奏报告离开后可能无法再次访问。合成视频下载不等于保存原始演奏。',
+    leaveReviewUnsavedMediaDesc: '原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；合成视频下载不等于保存原始演奏。',
+    leaveReviewWhileExportingDesc: '合成视频正在生成。确认离开会取消当前合成任务；合成视频下载不等于保存原始演奏。',
+    leaveReviewWhileExportingAndUnsavedDesc: '合成视频正在生成，确认离开会取消当前合成任务；同时，原始录音或录像尚未保存为正式演奏，离开后这份临时媒体可能无法再次访问。',
     leaveReviewContinue: '继续查看',
     leaveReviewConfirm: '确认离开',
   };
@@ -220,14 +231,14 @@ vi.mock('@/components/practice/performance-replay-player', () => ({
   },
 }));
 
-const shareVideoMocks = vi.hoisted(() => ({
-  exportShareVideo: vi.fn(),
-  getShareVideoExportReadiness: vi.fn(),
+const videoExportMocks = vi.hoisted(() => ({
+  exportVideo: vi.fn(),
+  getVideoExportReadiness: vi.fn(),
 }));
 
-vi.mock('@/lib/practice/sharing/video/export', () => ({
-  exportShareVideo: shareVideoMocks.exportShareVideo,
-  getShareVideoExportReadiness: shareVideoMocks.getShareVideoExportReadiness,
+vi.mock('@/lib/practice/video-export/export', () => ({
+  exportVideo: videoExportMocks.exportVideo,
+  getVideoExportReadiness: videoExportMocks.getVideoExportReadiness,
 }));
 
 import PracticeReviewPage from './page';
@@ -295,13 +306,13 @@ describe('PracticeReviewPage', () => {
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
-    shareVideoMocks.exportShareVideo.mockReset();
-    shareVideoMocks.exportShareVideo.mockResolvedValue({
-      blob: new Blob(['share-video'], { type: 'video/webm' }),
+    videoExportMocks.exportVideo.mockReset();
+    videoExportMocks.exportVideo.mockResolvedValue({
+      blob: new Blob(['video-export'], { type: 'video/webm' }),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
-    shareVideoMocks.getShareVideoExportReadiness.mockImplementation(
+    videoExportMocks.getVideoExportReadiness.mockImplementation(
       ({
         completion,
         session,
@@ -772,7 +783,7 @@ describe('PracticeReviewPage', () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn((blob: Blob) =>
-        blob.type === 'video/webm' && blob.size === 12 ? 'blob:share-video-export' : 'blob:raw-video'
+        blob.type === 'video/webm' && blob.size === 12 ? 'blob:video-export' : 'blob:raw-video'
       ),
     });
     Object.defineProperty(URL, 'revokeObjectURL', {
@@ -788,12 +799,12 @@ describe('PracticeReviewPage', () => {
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
 
-    fireEvent.click(screen.getByTestId('generate-share-video'));
+    fireEvent.click(screen.getByTestId('generate-video-export'));
 
     await waitFor(() => {
-      expect(shareVideoMocks.exportShareVideo).toHaveBeenCalled();
+      expect(videoExportMocks.exportVideo).toHaveBeenCalled();
     });
     expect(createObjectURL).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'video/webm' })
@@ -812,7 +823,7 @@ describe('PracticeReviewPage', () => {
     const resolveExportRef: Array<
       (value: { blob: Blob; mimeType: string; durationMs: number }) => void
     > = [];
-    shareVideoMocks.exportShareVideo.mockImplementation(
+    videoExportMocks.exportVideo.mockImplementation(
       (_options: { signal: AbortSignal; onProgress?: (progress: { ratio: number }) => void }) => {
         _options.onProgress?.({ ratio: 0.25 });
         return new Promise((resolve) => {
@@ -823,22 +834,22 @@ describe('PracticeReviewPage', () => {
     provideReview(createVideoCompletion());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
 
-    const exportButton = screen.getByTestId('generate-share-video');
+    const exportButton = screen.getByTestId('generate-video-export');
     fireEvent.click(exportButton);
     fireEvent.click(exportButton);
 
-    await screen.findByTestId('share-video-export-progress');
-    expect(shareVideoMocks.exportShareVideo).toHaveBeenCalledTimes(1);
+    await screen.findByTestId('video-export-progress');
+    expect(videoExportMocks.exportVideo).toHaveBeenCalledTimes(1);
     expect(exportButton).toBeDisabled();
 
-    const signal = shareVideoMocks.exportShareVideo.mock.calls[0][0].signal as AbortSignal;
+    const signal = videoExportMocks.exportVideo.mock.calls[0][0].signal as AbortSignal;
     fireEvent.click(screen.getByRole('button', { name: '取消合成' }));
     expect(signal.aborted).toBe(true);
 
     resolveExportRef[0]?.({
-      blob: new Blob(['share-video'], { type: 'video/webm' }),
+      blob: new Blob(['video-export'], { type: 'video/webm' }),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
@@ -853,17 +864,17 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    shareVideoMocks.exportShareVideo.mockRejectedValueOnce(
+    videoExportMocks.exportVideo.mockRejectedValueOnce(
       new Error('encoder failed')
     );
     provideReview(createVideoCompletion());
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
-    fireEvent.click(screen.getByTestId('generate-share-video'));
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId('generate-video-export'));
 
-    await screen.findByTestId('share-video-export-error');
+    await screen.findByTestId('video-export-error');
     expect(screen.getByText('encoder failed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
@@ -905,56 +916,56 @@ describe('PracticeReviewPage', () => {
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     expect(screen.getByTestId('original-performance-card')).toBeInTheDocument();
-    expect(screen.getByTestId('share-video-entry-card')).toBeInTheDocument();
-    expect(screen.queryByTestId('share-video-studio')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
-    expect(screen.getByTestId('share-video-studio')).toBeInTheDocument();
+    expect(screen.getByTestId('video-export-entry-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('video-export-studio')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    expect(screen.getByTestId('video-export-studio')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('share-orientation-portrait'));
-    fireEvent.click(screen.getByTestId('share-presentation-floating'));
-    fireEvent.click(screen.getByTestId('share-floating-advanced-toggle'));
-    fireEvent.click(screen.getByTestId('share-floating-position-bottom'));
-    fireEvent.click(screen.getByTestId('share-floating-size-large'));
+    fireEvent.click(screen.getByTestId('video-export-orientation-portrait'));
+    fireEvent.click(screen.getByTestId('video-export-presentation-floating'));
+    fireEvent.click(screen.getByTestId('video-export-floating-advanced-toggle'));
+    fireEvent.click(screen.getByTestId('video-export-floating-position-bottom'));
+    fireEvent.click(screen.getByTestId('video-export-floating-size-large'));
 
-    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(screen.getByTestId('generate-share-video'));
-    await waitFor(() => expect(shareVideoMocks.exportShareVideo).toHaveBeenCalled());
-    expect(shareVideoMocks.exportShareVideo.mock.calls.at(-1)?.[0].config).toEqual({
+    fireEvent.click(screen.getByTestId('generate-video-export'));
+    await waitFor(() => expect(videoExportMocks.exportVideo).toHaveBeenCalled());
+    expect(videoExportMocks.exportVideo.mock.calls.at(-1)?.[0].config).toEqual({
       orientation: 'portrait',
       presentation: { kind: 'floating', position: 'bottom', size: 'large' },
     });
 
-    fireEvent.click(screen.getByTestId('share-presentation-split'));
-    fireEvent.click(screen.getByTestId('generate-share-video'));
-    await waitFor(() => expect(shareVideoMocks.exportShareVideo).toHaveBeenCalledTimes(2));
-    expect(shareVideoMocks.exportShareVideo.mock.calls.at(-1)?.[0].config).toEqual({
+    fireEvent.click(screen.getByTestId('video-export-presentation-split'));
+    fireEvent.click(screen.getByTestId('generate-video-export'));
+    await waitFor(() => expect(videoExportMocks.exportVideo).toHaveBeenCalledTimes(2));
+    expect(videoExportMocks.exportVideo.mock.calls.at(-1)?.[0].config).toEqual({
       orientation: 'portrait',
       presentation: { kind: 'split' },
     });
-    expect(screen.queryByTestId('share-floating-position-bottom')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('video-export-floating-position-bottom')).not.toBeInTheDocument();
   });
 
-  it('keeps share selections when the studio is collapsed and reopened', () => {
+  it('keeps export selections when the studio is collapsed and reopened', () => {
     provideReview(createVideoCompletion());
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
-    fireEvent.click(screen.getByTestId('share-orientation-portrait'));
-    fireEvent.click(screen.getByTestId('share-presentation-floating'));
-    fireEvent.click(screen.getByTestId('share-floating-advanced-toggle'));
-    fireEvent.click(screen.getByTestId('share-floating-position-bottom'));
-    fireEvent.click(screen.getByTestId('share-floating-size-large'));
-    fireEvent.click(screen.getByTestId('collapse-share-video-studio'));
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId('video-export-orientation-portrait'));
+    fireEvent.click(screen.getByTestId('video-export-presentation-floating'));
+    fireEvent.click(screen.getByTestId('video-export-floating-advanced-toggle'));
+    fireEvent.click(screen.getByTestId('video-export-floating-position-bottom'));
+    fireEvent.click(screen.getByTestId('video-export-floating-size-large'));
+    fireEvent.click(screen.getByTestId('collapse-video-export-studio'));
 
-    expect(screen.getByTestId('share-video-entry-card')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    expect(screen.getByTestId('video-export-entry-card')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
 
-    expect(screen.getByTestId('share-orientation-portrait')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('share-presentation-floating')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-orientation-portrait')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-presentation-floating')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('video-export-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

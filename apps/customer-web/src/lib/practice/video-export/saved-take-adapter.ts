@@ -7,7 +7,7 @@ import type {
 import { assertRecordingTimebase, type RecordingTimebaseMapping } from '@/lib/practice/recording/recording-timebase';
 import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { PracticeTempoSegmentSource, ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import type { ShareVideoSession } from './session';
+import type { VideoExportSession } from './session';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
@@ -16,11 +16,11 @@ import { cursorScopeFromResolvedPracticeScope, type CursorScope } from '@/lib/pr
 type ParsedRecordingTimebase = RecordingTimebaseMapping;
 
 export type SavedTakeEligibility =
-  | { status: 'supported'; session: ShareVideoSession }
+  | { status: 'supported'; session: VideoExportSession }
   | { status: 'unsupported'; reason: string }
   | { status: 'temporarily_unavailable'; reason: string };
 
-export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boolean {
+export function hasSavedTakeVideoExportMetadata(take: PerformanceTakeRead): boolean {
   if (
     take.deletion_status === 'DELETING' ||
     take.media_kind !== 'VIDEO'
@@ -53,7 +53,7 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
   }
 }
 
-export function createShareVideoSessionFromSavedTake(
+export function createVideoExportSessionFromSavedTake(
   take: PerformanceTakeRead,
   videoBlob: Blob,
   source: { sourceId: string; artifact: PracticeScoreArtifact }

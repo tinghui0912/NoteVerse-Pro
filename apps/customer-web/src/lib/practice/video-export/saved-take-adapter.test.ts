@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  createShareVideoSessionFromSavedTake,
+  createVideoExportSessionFromSavedTake,
   parseSavedRecordingTimebase,
   parseSavedTempoPlan,
 } from './saved-take-adapter';
 
 import { take, artifact, tempoPlan, recordingTimebase } from './__fixtures__/saved-take';
 
-describe('share video session saved-take parsing', () => {
+describe('video export session saved-take parsing', () => {
   it('creates a session only from complete saved-video metadata', () => {
-    const result = createShareVideoSessionFromSavedTake(
+    const result = createVideoExportSessionFromSavedTake(
       take,
       new Blob(['video'], { type: 'video/webm' }),
       { sourceId: take.source_id, artifact: artifact }
@@ -28,14 +28,14 @@ describe('share video session saved-take parsing', () => {
 
   it('classifies audio and deleting takes as unsupported', () => {
     expect(
-      createShareVideoSessionFromSavedTake(
+      createVideoExportSessionFromSavedTake(
         { ...take, media_kind: 'AUDIO' },
         new Blob(['audio']),
         { sourceId: take.source_id, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'video_required' });
     expect(
-      createShareVideoSessionFromSavedTake(
+      createVideoExportSessionFromSavedTake(
         { ...take, deletion_status: 'DELETING' },
         new Blob(['video']),
         { sourceId: take.source_id, artifact: artifact }
@@ -45,7 +45,7 @@ describe('share video session saved-take parsing', () => {
 
   it('enforces exact artifact identity inside the saved-take adapter', () => {
     expect(
-      createShareVideoSessionFromSavedTake(
+      createVideoExportSessionFromSavedTake(
         take,
         new Blob(['video'], { type: 'video/webm' }),
         { sourceId: take.source_id, artifact: { ...artifact, artifactId: 'different-artifact' } }
@@ -53,8 +53,8 @@ describe('share video session saved-take parsing', () => {
     ).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
   });
 
-  it('keeps empty saved media unavailable without constructing a share session', () => {
-    expect(createShareVideoSessionFromSavedTake(take, new Blob([]), { sourceId: take.source_id, artifact: artifact })).toEqual({
+  it('keeps empty saved media unavailable without constructing a export session', () => {
+    expect(createVideoExportSessionFromSavedTake(take, new Blob([]), { sourceId: take.source_id, artifact: artifact })).toEqual({
       status: 'temporarily_unavailable',
       reason: 'empty_media',
     });
@@ -65,7 +65,7 @@ describe('share video session saved-take parsing', () => {
     { field: 'tempo', patch: { tempo_plan: { ...take.tempo_plan, segments: [] } }, reason: 'tempo_plan_segments_missing' },
     { field: 'timebase', patch: { recording_timebase: { ...take.recording_timebase, activeSegments: [] } }, reason: 'recording_timebase_segments_missing' },
   ])('fails closed on invalid saved $field metadata at the adapter boundary', ({ patch, reason }) => {
-    expect(createShareVideoSessionFromSavedTake(
+    expect(createVideoExportSessionFromSavedTake(
       { ...take, ...patch },
       new Blob(['video'], { type: 'video/webm' }),
       { sourceId: take.source_id, artifact: artifact }
@@ -102,7 +102,7 @@ describe('share video session saved-take parsing', () => {
 
   it('requires the persisted range identity to agree with the saved range start', () => {
     expect(
-      createShareVideoSessionFromSavedTake(
+      createVideoExportSessionFromSavedTake(
         {
           ...take,
           scope_type: 'RANGE',
@@ -117,7 +117,7 @@ describe('share video session saved-take parsing', () => {
   });
 
   it('does not claim the database duration is the decoded media duration', () => {
-    const result = createShareVideoSessionFromSavedTake(
+    const result = createVideoExportSessionFromSavedTake(
       take,
       new Blob(['video'], { type: 'video/webm' }),
       { sourceId: take.source_id, artifact: artifact }
@@ -131,7 +131,7 @@ describe('share video session saved-take parsing', () => {
 
   it('rejects a RANGE take without exact scope identity', () => {
     expect(
-      createShareVideoSessionFromSavedTake(
+      createVideoExportSessionFromSavedTake(
         { ...take, scope_type: 'RANGE' },
       new Blob(['video'], { type: 'video/webm' }),
       { sourceId: take.source_id, artifact: artifact }
@@ -140,7 +140,7 @@ describe('share video session saved-take parsing', () => {
   });
 
   it('does not require scope identity for FULL takes', () => {
-    const result = createShareVideoSessionFromSavedTake(
+    const result = createVideoExportSessionFromSavedTake(
       { ...take, scope_type: 'FULL' },
       new Blob(['video'], { type: 'video/webm' }),
       { sourceId: take.source_id, artifact: artifact }
@@ -149,7 +149,7 @@ describe('share video session saved-take parsing', () => {
   });
 
   it('resolves and validates exact scope identity for RANGE takes', () => {
-    const result = createShareVideoSessionFromSavedTake(
+    const result = createVideoExportSessionFromSavedTake(
       {
         ...take,
         scope_type: 'RANGE',
@@ -169,7 +169,7 @@ describe('share video session saved-take parsing', () => {
   });
 
   it('rejects RANGE scope identity that does not match the exact artifact', () => {
-    const result = createShareVideoSessionFromSavedTake(
+    const result = createVideoExportSessionFromSavedTake(
       {
         ...take,
         scope_type: 'RANGE',
@@ -189,7 +189,7 @@ describe('share video session saved-take parsing', () => {
 
 it('uses validated durable scope beats and tempo without replacing saved values', () => {
   const persisted = { ...take, scope_terminal_beat: take.scope_terminal_beat - 0.0000001 };
-  const result = createShareVideoSessionFromSavedTake(persisted, new Blob(['video']), { sourceId: take.source_id, artifact });
+  const result = createVideoExportSessionFromSavedTake(persisted, new Blob(['video']), { sourceId: take.source_id, artifact });
   expect(result.status).toBe('supported');
   if (result.status === 'supported') {
     expect(result.session.scope.terminalBeat).toBe(persisted.scope_terminal_beat);

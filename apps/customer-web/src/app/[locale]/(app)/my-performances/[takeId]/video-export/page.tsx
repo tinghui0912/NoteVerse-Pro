@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { PageHeader } from '@/components/page';
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
-import { ShareVideoStudio } from '@/components/practice/share-video-studio';
+import { VideoExportStudio } from '@/components/practice/video-export-studio';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,9 +21,9 @@ import { ApiError } from '@/lib/api-client';
 import { useSavedTakeExportSource } from '@/hooks/practice/use-saved-take-export-source';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
-  createShareVideoSessionFromSavedTake,
-  hasSavedTakeShareVideoMetadata,
-} from '@/lib/practice/sharing/video/saved-take-adapter';
+  createVideoExportSessionFromSavedTake,
+  hasSavedTakeVideoExportMetadata,
+} from '@/lib/practice/video-export/saved-take-adapter';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -35,7 +35,7 @@ function isPermanentResourceError(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 403 || error.status === 404);
 }
 
-function HistoricalTakeUnavailable({
+function SavedTakeExportUnavailable({
   message,
   backLabel,
   onBack,
@@ -69,14 +69,14 @@ function HistoricalTakeUnavailable({
   );
 }
 
-export default function HistoricalPerformanceSharePage() {
+export default function SavedPerformanceVideoExportPage() {
   const params = useParams();
   const router = useRouter();
   const t = useTranslations('practice');
   const takeId = takeIdFromParams(params);
   const takeQuery = usePerformanceTakeDetail(takeId);
   const take = takeQuery.data?.data ?? null;
-  const isBaseEligible = Boolean(take && hasSavedTakeShareVideoMetadata(take));
+  const isBaseEligible = Boolean(take && hasSavedTakeVideoExportMetadata(take));
 
   const source = useSavedTakeExportSource({
     sourceId: take?.source_id ?? '', scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
@@ -120,7 +120,7 @@ export default function HistoricalPerformanceSharePage() {
         if (!controller.signal.aborted) {
           setMediaErrorPermanent(isPermanentResourceError(error));
           setMediaError(
-            t('historicalShareMediaUnavailable')
+            t('savedTakeVideoExportMediaUnavailable')
           );
         }
       });
@@ -132,7 +132,7 @@ export default function HistoricalPerformanceSharePage() {
   const isSourceReady = Boolean(source.artifact && source.musicXml);
   const sessionEligibility = useMemo(() => {
     if (!take || !mediaBlob || !artifact || !isSourceReady) return null;
-    return createShareVideoSessionFromSavedTake(
+    return createVideoExportSessionFromSavedTake(
       take,
       mediaBlob,
       { sourceId: source.sourceId!, artifact }
@@ -164,17 +164,17 @@ export default function HistoricalPerformanceSharePage() {
   }
   if (takeQuery.isError || !take) {
     return (
-      <HistoricalTakeUnavailable
+      <SavedTakeExportUnavailable
         message={
           isPermanentResourceError(takeQuery.error)
-            ? t('historicalShareUnavailable')
-            : t('historicalShareTemporaryUnavailable')
+            ? t('savedTakeVideoExportUnavailable')
+            : t('savedTakeVideoExportTemporaryUnavailable')
         }
-        backLabel={t('historicalShareBack')}
+        backLabel={t('savedTakeVideoExportBack')}
         retryLabel={
           isPermanentResourceError(takeQuery.error)
             ? undefined
-            : t('historicalShareRetry')
+            : t('savedTakeVideoExportRetry')
         }
         onRetry={
           isPermanentResourceError(takeQuery.error)
@@ -185,25 +185,25 @@ export default function HistoricalPerformanceSharePage() {
       />
     );
   }
-  if (!hasSavedTakeShareVideoMetadata(take)) {
+  if (!hasSavedTakeVideoExportMetadata(take)) {
     return (
-      <HistoricalTakeUnavailable
-        message={t('historicalShareUnavailable')}
-        backLabel={t('historicalShareBack')}
+      <SavedTakeExportUnavailable
+        message={t('savedTakeVideoExportUnavailable')}
+        backLabel={t('savedTakeVideoExportBack')}
         onBack={() => router.push('/my-performances')}
       />
     );
   }
   if (mediaError) {
     return (
-      <HistoricalTakeUnavailable
+      <SavedTakeExportUnavailable
         message={
           mediaErrorPermanent
-            ? t('historicalShareUnavailable')
-            : t('historicalShareTemporaryUnavailable')
+            ? t('savedTakeVideoExportUnavailable')
+            : t('savedTakeVideoExportTemporaryUnavailable')
         }
-        backLabel={t('historicalShareBack')}
-        retryLabel={mediaErrorPermanent ? undefined : t('historicalShareRetry')}
+        backLabel={t('savedTakeVideoExportBack')}
+        retryLabel={mediaErrorPermanent ? undefined : t('savedTakeVideoExportRetry')}
         onRetry={
           mediaErrorPermanent
             ? undefined
@@ -224,26 +224,26 @@ export default function HistoricalPerformanceSharePage() {
   if (!replay) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <PageHeader title={t('historicalShareTitle')} />
+        <PageHeader title={t('savedTakeVideoExportTitle')} />
         <Card>
           <CardContent className="flex min-h-48 flex-col items-center justify-center gap-3 p-8 text-sm text-muted-foreground">
             {mediaProgress.totalBytes ? (
               <p>
-                {t('historicalShareLoadingMedia', {
+                {t('savedTakeVideoExportLoadingMedia', {
                   progress: ` ${Math.round(
                     (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
                   )}%`,
                 })}
               </p>
             ) : (
-              <p>{t('historicalShareLoadingMedia', { progress: '' })}</p>
+              <p>{t('savedTakeVideoExportLoadingMedia', { progress: '' })}</p>
             )}
             {mediaProgress.totalBytes ? (
               <progress
                 className="h-2 w-full max-w-sm"
                 value={Math.min(mediaProgress.loadedBytes, mediaProgress.totalBytes)}
                 max={mediaProgress.totalBytes}
-                aria-label={t('historicalShareLoadingMedia', {
+                aria-label={t('savedTakeVideoExportLoadingMedia', {
                   progress: `${Math.round(
                     (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
                   )}%`,
@@ -252,7 +252,7 @@ export default function HistoricalPerformanceSharePage() {
             ) : (
               <Loader2 className="h-5 w-5 animate-spin" />
             )}
-            {!mediaBlob ? null : <p>{t('historicalSharePreparing')}</p>}
+            {!mediaBlob ? null : <p>{t('savedTakeVideoExportPreparing')}</p>}
           </CardContent>
         </Card>
       </div>
@@ -262,12 +262,12 @@ export default function HistoricalPerformanceSharePage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
-        title={t('historicalShareTitle')}
+        title={t('savedTakeVideoExportTitle')}
         description={take.score_title_snapshot}
         actions={
           <Button variant="outline" onClick={() => router.push('/my-performances')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('historicalShareBack')}
+            {t('savedTakeVideoExportBack')}
           </Button>
         }
       />
@@ -275,7 +275,7 @@ export default function HistoricalPerformanceSharePage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">{t('historicalShareRecording')}</CardTitle>
+            <CardTitle className="text-sm">{t('savedTakeVideoExportRecording')}</CardTitle>
           </CardHeader>
           <CardContent>
             <PerformanceReplayPlayer
@@ -297,12 +297,12 @@ export default function HistoricalPerformanceSharePage() {
         </Card>
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-sm">{t('historicalShareScore')}</CardTitle>
+            <CardTitle className="text-sm">{t('savedTakeVideoExportScore')}</CardTitle>
           </CardHeader>
           <CardContent>
             {exportUnavailable || source.isError ? <div className="space-y-3 p-8" role="status">
-              <p>{t(exportUnavailable ? 'historicalShareRevisionUnavailable' : 'historicalShareTemporaryUnavailable')}</p>
-              {!exportUnavailable && <Button onClick={() => { void sourceQuery.refetch(); }}>{t('historicalShareRetry')}</Button>}
+              <p>{t(exportUnavailable ? 'savedTakeVideoExportRevisionUnavailable' : 'savedTakeVideoExportTemporaryUnavailable')}</p>
+              {!exportUnavailable && <Button onClick={() => { void sourceQuery.refetch(); }}>{t('savedTakeVideoExportRetry')}</Button>}
             </div> : <VerovioScoreViewer
               isLoading={source.isLoading}
               xmlContent={xmlContent}
@@ -312,15 +312,15 @@ export default function HistoricalPerformanceSharePage() {
               pagesClassName="gap-4 p-4"
               pageClassName="w-full overflow-hidden bg-white"
               svgClassName="w-full"
-              loadingContent={<div className="p-8 text-sm text-muted-foreground">{t('historicalShareLoading')}</div>}
-              emptyContent={<div className="p-8 text-sm text-muted-foreground">{t('historicalShareEmptyScore')}</div>}
+              loadingContent={<div className="p-8 text-sm text-muted-foreground">{t('savedTakeVideoExportLoading')}</div>}
+              emptyContent={<div className="p-8 text-sm text-muted-foreground">{t('savedTakeVideoExportEmptyScore')}</div>}
               renderError={(message) => <div className="p-8 text-sm text-destructive">{message}</div>}
             />}
           </CardContent>
         </Card>
       </div>
 
-      {session && artifact && xmlContent && <ShareVideoStudio
+      {session && artifact && xmlContent && <VideoExportStudio
         session={session}
         scoreContainer={scoreContainer}
         adapter={adapter}

@@ -30,7 +30,7 @@ import {
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
-import { hasSavedTakeShareVideoMetadata } from '@/lib/practice/sharing/video/saved-take-adapter';
+import { hasSavedTakeVideoExportMetadata } from '@/lib/practice/video-export/saved-take-adapter';
 import { useToast } from '@/hooks/use-toast';
 
 const DELETE_POLL_INTERVAL_MS = 2500;
@@ -259,13 +259,13 @@ function PerformanceTakeCard({
                     : t('downloadRecording')}
               </Button>
 
-              {hasSavedTakeShareVideoMetadata(take) ? (
+              {hasSavedTakeVideoExportMetadata(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
-                    href={`/my-performances/${take.take_id}/share`}
-                    data-testid={`share-take-${take.take_id}`}
+                    href={`/my-performances/${take.take_id}/video-export`}
+                    data-testid={`video-export-take-${take.take_id}`}
                   >
-                    {t('makeShareVideoAction')}
+                    {t('videoExportOpenAction')}
                   </Link>
                 </Button>
               ) : null}

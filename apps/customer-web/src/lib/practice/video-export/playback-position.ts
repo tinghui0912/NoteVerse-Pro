@@ -1,11 +1,11 @@
 import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
 import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
-import type { ShareVideoSession } from './session';
+import type { VideoExportSession } from './session';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
-export type ResolveShareVideoPlaybackPositionInput = {
-  session: ShareVideoSession;
+export type ResolveVideoExportPlaybackPositionInput = {
+  session: VideoExportSession;
   adapter: Pick<
     PracticeVerovioAdapter,
     'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
@@ -16,21 +16,21 @@ export type ResolveShareVideoPlaybackPositionInput = {
   scoreEndBeat: number;
 };
 
-export type ShareVideoPlaybackPosition = {
+export type VideoExportPlaybackPosition = {
   perfTimeMs: number;
   musicalBeat: number;
   pageNumber: number;
   noteIds: string[];
 };
 
-export function resolveShareVideoPlaybackPosition({
+export function resolveVideoExportPlaybackPosition({
   session,
   adapter,
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
   scoreEndBeat,
-}: ResolveShareVideoPlaybackPositionInput): ShareVideoPlaybackPosition | null {
+}: ResolveVideoExportPlaybackPositionInput): VideoExportPlaybackPosition | null {
   const perfTimeMs = mediaTimeToPerformanceTimeMs(
     mediaTimeMs,
     session.recordingTimebase,

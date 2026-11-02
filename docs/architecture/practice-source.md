@@ -159,7 +159,10 @@ cancels or fails cleanup safely. Storage failures remain retryable through the o
 execution, Continuous Result schema8, completion, Review and save request. It is
 never reconstructed downstream from descriptive score/revision/artifact identities.
 `localSessionId` identifies browser execution; takeId identifies a saved performance;
-Share Video sessionId identifies presentation/export. Each is distinct from sourceId.
+VideoExport sessionId identifies browser-local composition/export. Each is distinct
+from sourceId. Current Review VideoExport consumes its transient admitted inputs;
+saved Take VideoExport requires the generic live authorization below. Neither export
+creates a server asset or grants sharing access.
 
 ```text
 GET /practice/sources/{source_id}?include_notation=true

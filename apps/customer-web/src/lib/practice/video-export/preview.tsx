@@ -1,23 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
-import type { ShareVideoSession } from './session';
-import { renderShareVideoFrameAtTime } from './frame-renderer';
+import type { VideoExportSession } from './session';
+import { renderVideoExportFrameAtTime } from './frame-renderer';
 import {
   findStablePageNumber,
   prepareScorePageCache,
   type ScorePageCache,
 } from './score-model';
-import { resolveShareVideoPlaybackPosition } from './playback-position';
-import { getShareVideoLayout, type ShareVideoConfig } from './templates';
+import { resolveVideoExportPlaybackPosition } from './playback-position';
+import { getVideoExportLayout, type VideoExportConfig } from './templates';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 type PreviewStatus = 'idle' | 'preparing' | 'ready' | 'error';
 
 type PreviewRequest = {
   mediaTimeMs: number;
-  config: ShareVideoConfig;
+  config: VideoExportConfig;
   configVersion: number;
 };
 
@@ -32,7 +33,7 @@ type RenderableVideo = HTMLVideoElement & {
  * The preview is a view of the replay player's video element. It never owns
  * media playback, seeks, audio, or an object URL of its own.
  */
-export function ShareVideoPreview({
+export function VideoExportPreview({
   session,
   scoreContainer,
   adapter,
@@ -43,16 +44,17 @@ export function ShareVideoPreview({
   replayVideo,
   onFrameCommitted,
 }: {
-  session: ShareVideoSession;
+  session: VideoExportSession;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   mediaTimeMs: number;
-  config: ShareVideoConfig;
+  config: VideoExportConfig;
   isReplayPlaying?: boolean;
   replayVideo: HTMLVideoElement | null;
   onFrameCommitted?: (mediaTimeMs: number) => void;
 }) {
+  const t = useTranslations('practice');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stagingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sourceFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -82,7 +84,7 @@ export function ShareVideoPreview({
     const url = canvas.toDataURL('image/png');
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `noteverse-share-preview-${Date.now()}.png`;
+    anchor.download = `noteverse-video-export-preview-${Date.now()}.png`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -100,7 +102,7 @@ export function ShareVideoPreview({
     }
   }, [replayVideo]);
 
-  const commitStagingFrame = useCallback((layout: ReturnType<typeof getShareVideoLayout>) => {
+  const commitStagingFrame = useCallback((layout: ReturnType<typeof getVideoExportLayout>) => {
     const visibleCanvas = canvasRef.current;
     const stagingCanvas = stagingCanvasRef.current;
     if (!visibleCanvas || !stagingCanvas || disposedRef.current) return;
@@ -109,9 +111,9 @@ export function ShareVideoPreview({
       visibleCanvas.height = layout.height;
     }
     const context = visibleCanvas.getContext('2d');
-    if (!context) throw new Error('分享视频预览无法创建显示画布');
+    if (!context) throw new Error(t('videoExportPreviewCanvasFailed'));
     context.drawImage(stagingCanvas, 0, 0);
-  }, []);
+  }, [t]);
 
   const drainPreviewQueue = useCallback(async () => {
     if (activeRenderRef.current || disposedRef.current) return;
@@ -125,7 +127,7 @@ export function ShareVideoPreview({
         const stagingCanvas = stagingCanvasRef.current;
         if (!scorePages || !sourceVideo || !stagingCanvas) continue;
 
-        const layout = getShareVideoLayout(request.config);
+        const layout = getVideoExportLayout(request.config);
         if (stagingCanvas.width !== layout.width || stagingCanvas.height !== layout.height) {
           stagingCanvas.width = layout.width;
           stagingCanvas.height = layout.height;
@@ -133,19 +135,19 @@ export function ShareVideoPreview({
 
         try {
           if (!isPlayingRef.current) {
-            await waitForReplayVideoFrame(sourceVideo);
+            await waitForReplayVideoFrame(sourceVideo, t('videoExportPreviewDecodeFailed'));
           }
           const frozenSource = captureReplayVideoFrame(
             sourceVideo,
             sourceFrameCanvasRef
           );
           const renderMediaTimeMs = frozenSource.mediaTimeMs;
-          await renderShareVideoFrameAtTime({
+          await renderVideoExportFrameAtTime({
             mediaTimeMs: renderMediaTimeMs,
             scoreModel: scorePages,
             playbackTimeline: {
               resolve: (timeMs) =>
-                resolveShareVideoPlaybackPosition({
+                resolveVideoExportPlaybackPosition({
                   session,
                   adapter,
                   pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
@@ -179,14 +181,17 @@ export function ShareVideoPreview({
           ) {
             continue;
           }
-          setError(cause instanceof Error ? cause.message : '分享视频预览失败');
+          setError(cause instanceof Error
+            ? cause.message === 'video_export_preview_frame_buffer'
+              ? t('videoExportPreviewFrameBufferFailed') : cause.message
+            : t('videoExportPreviewFailed'));
           setStatus('error');
         }
       }
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndBeat]);
+  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndBeat, t]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {
@@ -228,7 +233,7 @@ export function ShareVideoPreview({
       } catch (cause) {
         if (!cancelled && !disposedRef.current) {
           setStatus('error');
-          setError(cause instanceof Error ? cause.message : '分享视频预览无法准备乐谱');
+          setError(cause instanceof Error ? cause.message : t('videoExportPreviewScoreFailed'));
         }
       }
     };
@@ -257,6 +262,7 @@ export function ShareVideoPreview({
     retryNonce,
     scoreContainer,
     config.presentation.kind,
+    t,
   ]);
 
   useEffect(() => {
@@ -326,36 +332,36 @@ export function ShareVideoPreview({
         <canvas
           ref={canvasRef}
           className="block h-auto max-h-[min(55dvh,480px)] max-w-full w-auto"
-          aria-label="当前时间点画面预览"
+          aria-label={t('videoExportPreviewCanvasLabel')}
         />
         <canvas ref={stagingCanvasRef} className="hidden" aria-hidden="true" />
       </div>
       {status === 'preparing' ? (
-        <p className="text-xs text-muted-foreground">预览准备中...</p>
+        <p className="text-xs text-muted-foreground">{t('videoExportPreviewPreparing')}</p>
       ) : null}
       {status === 'ready' && !error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <p>分享预览与回放同步，不改变原始演奏录像。</p>
+          <p>{t('videoExportPreviewSyncDesc')}</p>
           {isDebugPreviewExportEnabled ? (
             <button
               type="button"
               className="underline underline-offset-2"
               onClick={handleSavePreviewPng}
             >
-              保存当前预览 PNG
+              {t('videoExportPreviewSavePng')}
             </button>
           ) : null}
         </div>
       ) : null}
       {status === 'error' ? (
         <div className="flex items-center justify-between gap-3 text-xs text-destructive">
-          <p>{error ?? '分享视频预览失败'}</p>
+          <p>{error ?? t('videoExportPreviewFailed')}</p>
           <button
             type="button"
             className="shrink-0 underline underline-offset-2"
             onClick={() => setRetryNonce((nonce) => nonce + 1)}
           >
-            重试预览
+            {t('videoExportPreviewRetry')}
           </button>
         </div>
       ) : null}
@@ -363,7 +369,7 @@ export function ShareVideoPreview({
   );
 }
 
-function waitForReplayVideoFrame(video: HTMLVideoElement): Promise<void> {
+function waitForReplayVideoFrame(video: HTMLVideoElement, decodeError: string): Promise<void> {
   if (!video.seeking && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
     return Promise.resolve();
   }
@@ -374,7 +380,7 @@ function waitForReplayVideoFrame(video: HTMLVideoElement): Promise<void> {
     };
     const onError = () => {
       cleanup();
-      reject(new Error('分享视频预览无法解码当前回放画面'));
+      reject(new Error(decodeError));
     };
     const cleanup = () => {
       video.removeEventListener('seeked', onReady);
@@ -400,7 +406,7 @@ export function captureReplayVideoFrame(
   if (canvas.height !== height) canvas.height = height;
   const context = canvas.getContext('2d');
   if (!context) {
-    throw new Error('分享视频预览无法创建视频帧缓冲区');
+    throw new Error('video_export_preview_frame_buffer');
   }
   const currentTime = video.currentTime;
   const currentTimeMs = Number.isFinite(currentTime) && currentTime >= 0

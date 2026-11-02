@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import { resolveShareVideoPlaybackPosition } from '@/lib/practice/sharing/video/playback-position';
-import type { ShareVideoSession } from '@/lib/practice/sharing/video/session';
+import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
+import type { VideoExportSession } from '@/lib/practice/video-export/session';
 import { PracticeVerovioAdapter } from './verovio-adapter';
 
 function artifact(): PracticeScoreArtifact {
@@ -39,7 +39,7 @@ function adapter() {
   return instance;
 }
 
-function session(allowedNoteIds: string[]): ShareVideoSession {
+function session(allowedNoteIds: string[]): VideoExportSession {
   return {
     sessionId: 'session', sourceId: 'source-1',
     scoreIdentity: { scoreId: 'score', revisionId: 'revision', artifactId: 'artifact' },
@@ -105,8 +105,8 @@ describe('cursor selection scope', () => {
     ).toEqual(['nA', 'nB']);
   });
 
-  it('share frame resolution uses the cursor selection scope in terminal tail', () => {
-    const frame = resolveShareVideoPlaybackPosition({
+  it('video export frame resolution uses the cursor selection scope in terminal tail', () => {
+    const frame = resolveVideoExportPlaybackPosition({
       session: session(['nA']),
       adapter: {
         getCursorTimelineEntryForBeatRange: adapter().getCursorTimelineEntryForBeatRange.bind(adapter()),
