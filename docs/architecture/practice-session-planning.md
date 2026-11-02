@@ -377,3 +377,14 @@ RESERVED upload. Completed replay and finalize responses also require agreement.
 Reservation persistence owns the resolved save truth. Replay compares the stored
 intent/evidence without new authorization or planning; finalize transfers the saved
 scope/tempo unchanged to the Take, including after live revision deletion.
+
+## Durable Media Provenance
+
+Save Recording is a new server admission, independent of the browser's admitted flow.
+The server authorizes the exact live Source and resolves durable scope/tempo before
+committing a self-contained UploadReservation. Deletion before this admission denies
+new saves; deletion afterward does not revoke that reservation. Finalize copies its
+provenance and canonical plan into PerformanceTake without Source reads or replanning.
+PracticeSource follows ScoreRevision lifetime only. Take owns raw media and historical
+provenance, not retrievable score content. Saved local score-based export requires a
+currently authorized generic exact-source read; raw media remains independently usable.

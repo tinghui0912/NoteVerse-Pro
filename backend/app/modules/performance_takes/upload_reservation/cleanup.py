@@ -10,7 +10,6 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     apply_transition,
     lifecycle_from_row,
 )
-from app.modules.practice.source.retention import practice_source_delete_service
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
@@ -81,11 +80,6 @@ class UploadReservationCleanupService:
                 if effects.release_storage_reservation:
                     storage_usage_service.release_reservation_sync(
                         db, row.storage_reservation_id, auto_commit=False
-                    )
-                if effects.release_source_reference_id is not None:
-                    db.flush()
-                    practice_source_delete_service.enqueue_if_unowned(
-                        db, effects.release_source_reference_id, storage_backend=row.storage_backend
                     )
                 state = transition.after
                 staging_key = row.staging_object_key if state.can_cleanup_staging(now=now) else None

@@ -33,10 +33,6 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             name="ck_take_reservation_status",
         ),
         CheckConstraint(
-            "(status IN ('RESERVED','FINALIZING') AND practice_source_id IS NOT NULL) OR (status IN ('COMPLETED','CANCELLED','EXPIRED') AND practice_source_id IS NULL)",
-            name="ck_take_reservation_source_owner",
-        ),
-        CheckConstraint(
             "(status = 'FINALIZING' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != 'FINALIZING' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
             name="ck_take_reservation_finalize_lease",
         ),
@@ -64,19 +60,10 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             nullable=False,
         )
     )
-    practice_source_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            bigint_pk_type,
-            ForeignKey(
-                "practice_sources.id",
-                ondelete="RESTRICT",
-                name="fk_take_upload_reservation_practice_source",
-            ),
-            index=True,
-            nullable=True,
-        ),
-    )
+    source_id: str = Field(sa_column=Column(String(128), nullable=False))
+    source_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    source_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    source_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
     take_uuid: str = Field(sa_column=Column(String(36), index=True, nullable=False))
     linked_score_id: Optional[int] = Field(
@@ -90,7 +77,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             nullable=True,
         ),
     )
-    score_title: str = Field(sa_column=Column(String(255), nullable=False))
+    score_title_snapshot: str = Field(sa_column=Column(String(255), nullable=False))
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )

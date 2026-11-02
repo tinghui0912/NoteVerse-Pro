@@ -29,12 +29,6 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeTempoPlan,
     RecordingTimebase,
 )
-from app.modules.practice.source.schemas import (
-    PracticeSourceRead,
-)
-from app.modules.practice.source.service import PracticeSourceService
-from app.modules.practice.source.domain import PracticeSourceRef
-
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
 from app.storage.base import FileStorage
@@ -72,21 +66,15 @@ class PerformanceTakeService:
         repository: PerformanceTakeRepository | None = None,
         storage: FileStorage | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
-        practice_source_service: PracticeSourceService | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.storage = storage
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
-        self.practice_source_service = practice_source_service or PracticeSourceService(
-            access_policy=self.score_access_policy,
-            storage=storage,
-        )
 
     def _to_read_dto(
         self,
         take: PerformanceTake,
         *,
-        source_ref: PracticeSourceRef,
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
@@ -119,10 +107,10 @@ class PerformanceTakeService:
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
-            source_id=source_ref.source_id,
-            source_score_id=source_ref.source_score_uuid,
-            source_revision_id=source_ref.source_revision_uuid,
-            source_artifact_id=source_ref.artifact_id,
+            source_id=take.source_id,
+            source_score_id=take.source_score_uuid,
+            source_revision_id=take.source_revision_uuid,
+            source_artifact_id=take.source_artifact_id,
             score_title_snapshot=score_title_snapshot,
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
@@ -185,22 +173,15 @@ class PerformanceTakeService:
                 if s.id is not None:
                     score_map[s.id] = s
 
-        source_ids = {item.practice_source_id for item in items}
-        source_map = await self.practice_source_service.list_sources(db, source_ids)
-
         read_items: list[PerformanceTakeRead] = []
         for item in items:
             score_obj = (
                 score_map.get(item.linked_score_id) if item.linked_score_id is not None else None
             )
-            source_ref = source_map.get(item.practice_source_id)
-            if source_ref is None:
-                continue
             can_open_score = await self._can_open_score(db, user_id, score_obj)
             read_items.append(
                 self._to_read_dto(
                     item,
-                    source_ref=source_ref,
                     score=score_obj,
                     can_open_score=can_open_score,
                 )
@@ -227,14 +208,13 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        source_ref = await self.practice_source_service.require_source(db, take.practice_source_id)
         score = (
             await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         )
         can_open_score = await self._can_open_score(db, user_id, score)
 
         return self._to_read_dto(
-            take, source_ref=source_ref, score=score, can_open_score=can_open_score
+            take, score=score, can_open_score=can_open_score
         )
 
     async def get_playback_url(
@@ -301,26 +281,6 @@ class PerformanceTakeService:
             take.media_object_key,
             f"performance-{take.take_uuid}.{extension}",
             take.media_mime_type,
-        )
-
-    async def get_practice_source(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        take_id: str,
-        *,
-        include_notation: bool = False,
-    ) -> PracticeSourceRead:
-        take = await self.repository.get_by_uuid(db, user_id, take_id)
-        if (
-            take is None
-            or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value
-        ):
-            raise ResourceNotFoundException(
-                "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
-            )
-        return await self.practice_source_service.read_source_by_id(
-            db, take.practice_source_id, include_notation=include_notation
         )
 
     async def delete_take(

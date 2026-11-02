@@ -13,14 +13,15 @@ ScoreRevision canonical MusicXML
   -> PracticeSourceRepository: get/create and verify durable READY source
   -> same source_id
        -> live Setup / Practice
-       -> saved PerformanceTake
+       -> durable save admission snapshots provenance
 ```
 
 The backend package `app/modules/practice/source/` owns domain values, construction,
 transport, persistence and retention. `AuthorizedPracticeSource` returns the verified
 source, its `PracticeSourceRef` and authorized score/revision metadata together.
 `PracticeSourceRef.id` identifies the internal database row; `source_id` identifies
-its immutable canonical contents. PerformanceTake consumes the public service.
+its immutable canonical contents. The upload service consumes the public service
+only for new durable save admission.
 
 ## Construction and Identity
 
@@ -76,8 +77,8 @@ passes the command's AbortSignal directly to transport. `source/source-envelope.
 strictly parses the artifact, checks requested revision identity and requires notation.
 It freezes the admitted representation without copying its artifact graph.
 `usePracticeRouteScore` supplies metadata and revision pinning on Setup only.
-The saved-Take source hook uses the same envelope boundary and verifies the Take's
-canonical sourceId and descriptive identities.
+The optional saved-Take export loader uses the same envelope boundary and verifies
+canonical sourceId and descriptive identities through generic live authorization.
 
 ## Browser Score Admission and Execution
 
@@ -133,17 +134,11 @@ source locks, so a live response cannot leave its source unowned.
 
 ## Retention and Deletion
 
-A READY source is retained by any of these current owners:
-
-- its live ScoreRevision;
-- a PerformanceTake;
-- an active RESERVED or FINALIZING upload reservation.
-
-READY deletion eligibility requires live_revision_id IS NULL and no Take or active
-reservation references. Revision deletion releases its live ownership through the
-foreign key. Score code has no Practice cleanup dependency. The durable maintenance
-poller performs a bounded orphan-source scan independently of Take deletion.
-Terminal reservations do not retain sources; completed Takes own their references.
+PracticeSource is owned only by ScoreRevision. A READY source is eligible for deletion
+exactly when live_revision_id IS NULL. Take and reservation provenance do not retain
+representations. Revision deletion releases the live foreign key; Score code has no
+Practice cleanup dependency. The maintenance poller discovers orphan READY sources
+in bounded batches independently of Take deletion and reservation cleanup.
 
 Failed or expired CREATING sources have a separate cleanup path. Incomplete
 representations have no usable live source ownership and can enter DELETING even
@@ -153,9 +148,9 @@ creator from restoring an ineligible source to READY.
 Practice Source owns `PracticeSourceDeleteOutbox` in `practice_source_delete_outbox`
 and the `practice_source_deletion` worker/dispatch operation. The outbox retains
 canonical source_id and exact representation keys. A worker claims an attempt,
-rechecks lifecycle and all owners under current source/outbox locks before object
+rechecks lifecycle and live revision ownership under current source/outbox locks before object
 I/O, deletes the exact objects and source row, and completes the outbox. The locks
-fence reference admission and attempt replacement through deletion. New ownership
+fence live revision binding and attempt replacement through deletion. New ownership
 cancels or fails cleanup safely. Storage failures remain retryable through the outbox.
 
 ## Exact Source Access and Provenance
@@ -177,40 +172,41 @@ score/revision provenance and verifies that the authorized revision is the live 
 The repository refreshes and locks READY state, then verifies the exact stored bytes.
 This endpoint authorizes server reads independently of browser handoff ownership.
 An admitted Practice/Review flow does not call it. Shared source-envelope parsing
-validates the current saved-Take browser read.
+validates the current saved-Take browser read. Each saved-export entry requests fresh
+authorization and withholds cached representation data until that read succeeds.
+An unavailable/non-READY exact source is not found; no alternate source is selected.
 
-Ordinary exact-source access and new save admission fail closed after live revision
-deletion. A saved Take authorizes its source through Take ownership and remains
-readable independently of the live revision. Active reservations retain their admitted
-source through finalization.
+Ordinary exact-source access and new save admission fail closed after logical Score
+deletion or revision removal. A saved source_id is an exact historical representation
+fingerprint, not a guaranteed retrievable resource handle. Optional saved-Take local
+score-based export calls the generic exact-source route under current Score/Revision
+access. If unavailable, raw Take playback and download remain usable.
 
-## Performance Take
+## Durable Save Admission
 
-An upload reservation accepts only source: { source_id }. PracticeSourceService
-locks and authorizes that exact existing READY source, retaining the lock through
-reservation reference creation and commit. Reservation practice_source_id is the sole
-immutable Source lineage; linked_score_id is optional live navigation, and score_title
-is presentation history. The reservation accepts scope/tempo selections and recording/media evidence.
-Pure [Practice planning](practice-session-planning.md#durable-save-planning) derives
-canonical durable scope and tempo from the verified exact Source, without rebuilding
-or resolving a revision. Finalization consumes its admitted reference without
-live score admission; a completed Take becomes the durable source owner.
+An upload request submits source: { source_id }, scope/tempo selections and recording/media
+evidence. `PracticeSourceService.authorize_source_for_save` owns lock-bearing admission.
+It obtains locks in Score -> Revision -> selected membership/grant/redemption -> Source
+order. The ordinary read-only ScoreAccessPolicy remains unchanged. Authorization facts
+and READY representation verification stay protected until the reservation commits.
 
-PerformanceTake owns media upload/finalization and take authorization. Source
-construction, serialization, hashing, object persistence, verification and retention
-belong to Practice Source. Saved-source access authorizes the Take and delegates its
-practice_source_id to PracticeSourceService.read_source_by_id.
+A save that holds admission locks commits its snapshot before a waiting Score deletion.
+If deletion commits DELETING first, a new save fails. No browser admission token grants
+server save access after deletion. Pure [Practice planning](practice-session-planning.md#durable-save-planning)
+derives canonical scope/tempo from the exact verified artifact during admission only.
 
-```text
-GET /performance-takes/{take_id}/practice-source?include_notation=true
-```
+UploadReservation persists source_id, source_score_uuid, source_revision_uuid,
+source_artifact_id and score_title_snapshot, alongside server-resolved planning and media
+facts. linked_score_id is optional navigation with ON DELETE SET NULL. A committed
+reservation is self-contained: replay, upload refresh, cancellation, expiry, finalize,
+recovery and cleanup do not read or retain PracticeSource.
 
-The saved route returns the same PracticeSourceRead envelope and verifies the same
-durable representations once per request. Take-owned source reads remain available
-after live score/revision deletion. Saved presentation requests prepared notation.
-PerformanceTakeRead.source_id and descriptive source_score_id/source_revision_id/
-source_artifact_id come from its SourceRef. RESERVED/FINALIZING replay metadata uses
-the reservation SourceRef; COMPLETED replay uses the completed Take SourceRef.
+PerformanceTake owns raw media and the immutable provenance snapshot copied from its
+reservation. Listing, playback, download and deletion use Take ownership alone.
+Finalization never re-reads Source, revision or score title; it copies persisted canonical
+scope/tempo/timebase. A saved Take remains readable after Source GC and Score deletion.
+The [reservation architecture](performance-take-reservations.md) owns upload lifecycle,
+transactional quota effects and media object ownership.
 
 The [artifact contract](practice-moment-artifact.md) owns schemaVersion 1 notation/moment
 semantics. Source persistence does not define evaluation, timing, resource budgets

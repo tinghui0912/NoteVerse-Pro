@@ -84,7 +84,7 @@ def execute_practice_source_deletion_task(
                     ).scalar_one_or_none()
                 if source is not None and (
                     source.status != "DELETING"
-                    or practice_source_delete_service.has_owner(db, source)
+                    or practice_source_delete_service.has_owner(source)
                 ):
                     raise RuntimeError("Practice source deletion ownership invariant violated")
                 if payload.storage_backend != file_storage.backend_name:
@@ -96,7 +96,7 @@ def execute_practice_source_deletion_task(
                     if file_storage.exists(key):
                         raise RuntimeError("Practice source object remains after deletion")
                 if source is not None:
-                    if practice_source_delete_service.has_owner(db, source):
+                    if practice_source_delete_service.has_owner(source):
                         raise RuntimeError("Practice source deletion ownership invariant violated")
                     db.delete(source)
                     db.flush()

@@ -14,17 +14,13 @@ def imports(relative):
     ]
 
 
-def test_take_source_dependencies_are_public_service_and_value_contracts():
-    dependencies = {
-        node.module
-        for node in imports("modules/performance_takes/service.py")
-        if node.module and node.module.startswith("app.modules.practice.")
-    }
-    assert dependencies == {
-        "app.modules.practice.source.service",
-        "app.modules.practice.source.domain",
-        "app.modules.practice.source.schemas",
-    }
+def test_take_library_reads_its_own_provenance_without_source_persistence():
+    dependencies = {node.module for node in imports("modules/performance_takes/service.py") if node.module}
+    assert "app.modules.performance_takes.repository" in dependencies
+    assert not any(module.startswith("app.modules.practice.source") for module in dependencies)
+    retention = {node.module for node in imports("modules/practice/source/retention.py") if node.module}
+    assert not any(module.startswith("app.modules.performance_takes") for module in retention)
+
 
 
 def test_source_builder_consumes_compiler_and_score_projections():

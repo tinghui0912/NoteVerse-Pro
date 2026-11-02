@@ -33,7 +33,7 @@ MEDIA = b"\x1a\x45\xdf\xa3" + b"reserved-recording"
 
 @pytest.mark.parametrize("command", ["cancel", "expire", "expire-finalizing"])
 @pytest.mark.asyncio
-async def test_terminal_transitions_atomically_release_quota_and_exact_source(postgres_source, command):
+async def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(postgres_source, command):
     from unittest.mock import patch
     from app.db.models import PracticeSourceRecord
     from app.utils.timezone import utc_now_naive
@@ -42,15 +42,15 @@ async def test_terminal_transitions_atomically_release_quota_and_exact_source(po
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        source_id = row.practice_source_id
-        assert (await db.get(PracticeSourceRecord, source_id)).status == "READY"
+        source_id = row.source_id
+        assert (await db.scalar(select(PracticeSourceRecord).where(PracticeSourceRecord.source_id == source_id))).status == "READY"
         now = utc_now_naive()
         if command == "expire-finalizing":
             state = lifecycle_from_row(row)
             initialize_lifecycle(row, state.begin_finalize(lease=FinalizeLease("worker-token", "worker-candidate",
                 now + timedelta(minutes=15)), now=now).after)
             await db.commit()
-            assert row.practice_source_id == source_id
+            assert row.source_id == source_id
         if command == "cancel":
             await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
             # Idempotent cancellation does not release quota twice.
@@ -63,7 +63,7 @@ async def test_terminal_transitions_atomically_release_quota_and_exact_source(po
                     sync_db, storage, StorageUsageService()))
         await db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
-        assert row.practice_source_id is None
+        assert row.source_id == source_id
         assert row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
         account = await db.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == account.used_bytes == 0
@@ -79,7 +79,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        source_id = row.practice_source_id
+        source_id = row.source_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await db.commit()
         async def fail_commit(*args, **kwargs):
@@ -90,7 +90,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         await db.rollback()
     async with sessions() as observer:
         row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
-        assert row.status == "FINALIZING" and row.practice_source_id == source_id
+        assert row.status == "FINALIZING" and row.source_id == source_id
         assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
         account = await observer.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
@@ -194,7 +194,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
     async with sessions() as a:
         reserved = await service.reserve_upload(a, 1, request)
         row = await service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
-        source_id = row.practice_source_id
+        source_id = row.source_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await a.commit()
     entered, release = Event(), Event()
@@ -243,7 +243,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         take = await service.repository.get_by_reservation(db, 1, row.id)
         assert take.take_uuid == reserved.take_id and row.status == "COMPLETED"
-        assert row.practice_source_id is None and take.practice_source_id == source_id
+        assert row.source_id == source_id and take.source_id == source_id
         assert row.reservation_uuid != row.storage_reservation_id
         assert storage.read_bytes(take.media_object_key) == MEDIA
         if takeover:
@@ -257,14 +257,14 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
 async def test_exact_source_admission_lock_fences_owner_release_until_reservation_commit(
     postgres_source,
 ):
-    from sqlalchemy import delete, text
-    from app.db.models import ScoreRevision, PracticeSourceRecord
+    from sqlalchemy import delete, text, update
+    from app.db.models import Score, ScoreRevision, PracticeSourceRecord
     from app.modules.practice.source.retention import practice_source_delete_service
 
     sessions, source, storage, request = await setup_source(postgres_source)
     service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
-    authorize = source.authorize_source_by_source_id
+    authorize = source.authorize_source_for_save
 
     async def held_authorize(*args, **kwargs):
         value = await authorize(*args, **kwargs)
@@ -272,16 +272,15 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         await asyncio.wait_for(release.wait(), 15)
         return value
 
-    source.authorize_source_by_source_id = held_authorize
+    source.authorize_source_for_save = held_authorize
     async with sessions() as a, sessions() as b, sessions() as observer:
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
         reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
         await asyncio.wait_for(admitted.wait(), 15)
-        deletion = asyncio.create_task(
-            b.execute(
-                delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id)
-            )
-        )
+        async def delete_revision():
+            await b.execute(update(Score).values(head_revision_id=None))
+            await b.execute(delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id))
+        deletion = asyncio.create_task(delete_revision())
         try:
 
             async def wait_for_row_lock():
@@ -305,14 +304,8 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         row = (await b.execute(select(PracticeSourceRecord))).scalar_one()
         assert row.live_revision_id is None
         reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
-        assert reservation.practice_source_id == row.id
+        assert reservation.source_id == row.source_id
         assert result.metadata.source.source_id == row.source_id == request.source.source_id
-        assert (
-            await b.run_sync(
-                lambda db: practice_source_delete_service.recover_unowned_ready(
-                    db, storage_backend=storage.backend_name
-                )
-            )
-            == []
-        )
-        assert row.status == "READY"
+        assert len(await b.run_sync(lambda db: practice_source_delete_service.recover_unowned_ready(
+            db, storage_backend=storage.backend_name))) == 1
+        assert row.status == "DELETING"

@@ -17,7 +17,7 @@ from sqlalchemy.engine import make_url
 from sqlmodel import SQLModel
 
 import app.db.models  # noqa: F401 -- register the durable reference graph
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models.practice_source import PracticeSourceRecord
 from app.db.models import User, Score, ScoreRevision
 from app.modules.practice.source.builder import PracticeSourceBuilder
@@ -74,6 +74,7 @@ async def postgres_source(tmp_path):
             seed.add(revision)
             await seed.flush()
             revision_id = revision.id
+            score.head_revision_id = revision_id
             await seed.commit()
         storage = LocalFileStorage(str(tmp_path))
         repository = PracticeSourceRepository(storage)
@@ -108,11 +109,10 @@ async def test_cached_ready_cannot_admit_committed_deleting(postgres_source):
         row.status = "DELETING"
         await b.commit()
         assert cached.status == "READY"
-        with pytest.raises(ValidationException):
-            await repository.require_ready(a, ref.id, lock=True)
-        assert await repository.find_ready(a, ref.id) is None
-        with pytest.raises(ValidationException):
-            await repository.read(a, ref.id)
+        with pytest.raises(ResourceNotFoundException):
+            await repository.require_ready_by_source_id(a, ref.source_id, lock=True)
+        with pytest.raises(ResourceNotFoundException):
+            await repository.read_by_source_id(a, ref.source_id)
         with pytest.raises(ValidationException):
             await repository.get_or_create(a, source, live_revision_id=repository.test_revision_id)
         assert (
@@ -234,7 +234,7 @@ async def test_two_creators_race_one_source_identity_and_reuse_exact_ready_sourc
             )
             == refs[0]
         )
-        assert await repository.read(session, refs[0][0].id) == source
+        assert await repository.read_by_source_id(session, refs[0][0].source_id) == source
     assert len(writes) == 2
 
 
@@ -258,7 +258,7 @@ async def test_eligible_row_refreshes_cached_representation_attributes(postgres_
         await b.commit()
         assert cached.artifact_sha256 == checksum
         with pytest.raises(ValidationException) as caught:
-            await repository.read(a, ref.id)
+            await repository.read_by_source_id(a, ref.source_id)
         assert caught.value.details["reason"] == "artifact_checksum_mismatch"
         assert cached.artifact_sha256 == "0" * 64
 
@@ -266,7 +266,7 @@ async def test_eligible_row_refreshes_cached_representation_attributes(postgres_
 @pytest.mark.asyncio
 async def test_revision_fk_release_and_orphan_scan_use_current_database_ownership(postgres_source):
     from app.modules.practice.source.retention import practice_source_delete_service
-    from sqlalchemy import delete
+    from sqlalchemy import delete, update
 
     engine, repository, source, storage = postgres_source
     sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -285,6 +285,7 @@ async def test_revision_fk_release_and_orphan_scan_use_current_database_ownershi
             )
             == []
         )
+        await b.execute(update(Score).values(head_revision_id=None))
         await b.execute(
             delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id)
         )

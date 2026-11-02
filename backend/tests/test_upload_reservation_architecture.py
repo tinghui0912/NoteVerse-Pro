@@ -37,7 +37,6 @@ def test_lifecycle_domain_is_pure_and_owns_status():
 def test_lifecycle_writes_belong_to_persistence_adapter():
     fields = {
         "status",
-        "practice_source_id",
         "finalizing_token",
         "finalizing_object_key",
         "finalizing_expires_at",
@@ -70,7 +69,7 @@ def test_take_library_and_deletion_are_distinct_application_owners():
         PerformanceTakeDeleteOutboxService,
     )
 
-    assert {"list_takes", "get_take", "get_practice_source", "delete_take"} <= set(
+    assert {"list_takes", "get_take", "get_playback_url", "delete_take"} <= set(
         vars(PerformanceTakeService)
     )
     assert {"reserve_upload", "cancel_upload_reservation", "finalize_take"} <= set(

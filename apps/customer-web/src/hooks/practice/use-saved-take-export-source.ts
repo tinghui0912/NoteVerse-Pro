@@ -1,21 +1,22 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { performanceTakesApi } from '@/lib/api/performance-takes';
+import { practiceApi } from '@/lib/api/practice';
 import { queryKeys } from '@/lib/query-client';
 import { SourceFailure } from '@/lib/practice/failure/causal-failure';
 import { readPracticeSource } from '@/lib/practice/source/source-envelope';
 
-export function usePerformanceTakePracticeSource(takeId: string, identity: {
+export function useSavedTakeExportSource(identity: {
   sourceId: string; scoreId: string; revisionId: string; artifactId: string;
 }, { enabled = true }: { enabled?: boolean }) {
   const sourceQuery = useQuery({
-    queryKey: [...queryKeys.performanceTakes.practiceSource(takeId, true), identity],
-    queryFn: ({ signal }) => readPracticeSource(signal => performanceTakesApi.getPracticeSource(takeId, true, signal),
+    queryKey: [...queryKeys.savedTakeExport.source(identity.sourceId), identity],
+    queryFn: ({ signal }) => readPracticeSource(signal => practiceApi.getExactSource(identity.sourceId, signal),
       { ...identity, kind: 'EXACT' }, signal),
-    enabled: enabled && Boolean(takeId), staleTime: Infinity,
+    enabled: enabled && Boolean(identity.sourceId),
+    staleTime: 0, gcTime: 0, refetchOnMount: 'always',
   });
   const error = sourceQuery.error;
-  const source = enabled && !error ? sourceQuery.data : undefined;
+  const source = enabled && !error && !sourceQuery.isFetching ? sourceQuery.data : undefined;
   return { sourceQuery, sourceId: source?.sourceId ?? null, artifact: source?.artifact ?? null,
     musicXml: source?.musicXml ?? null, error, isError: sourceQuery.isError,
     isLoading: enabled && sourceQuery.isLoading,

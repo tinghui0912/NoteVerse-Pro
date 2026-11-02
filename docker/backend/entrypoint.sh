@@ -50,7 +50,6 @@ case "${1:-api}" in
     exec python scripts/check_runtime.py "$@"
     ;;
   migrate)
-    python scripts/repair_unpublished_practice_migration_state.py
     exec alembic upgrade head
     ;;
   bash)

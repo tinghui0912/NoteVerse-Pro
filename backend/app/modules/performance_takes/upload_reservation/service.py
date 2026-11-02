@@ -31,7 +31,6 @@ from app.db.models.performance_take import (
 from app.db.models.performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
 )
-from app.db.models.score import Score
 from app.db.models.storage_usage import StorageUsageCategory
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.domain import (
@@ -55,7 +54,6 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadTarget,
 )
 from app.modules.practice.source.service import PracticeSourceService
-from app.modules.practice.source.domain import PracticeSourceRef
 from app.modules.practice.planning.score_plan import (
     PlanningMoment,
     PracticePlanningScore,
@@ -206,7 +204,6 @@ class PerformanceTakeUploadService:
             repository=repository,
             storage=storage,
             score_access_policy=score_access_policy,
-            practice_source_service=practice_source_service,
         )
         self.storage = storage
         self.storage_usage_service = storage_usage_service or StorageUsageService()
@@ -219,7 +216,6 @@ class PerformanceTakeUploadService:
     @staticmethod
     def _reservation_metadata(
         reservation: PerformanceTakeUploadReservation,
-        source_ref: PracticeSourceRef,
     ) -> PerformanceTakeUploadMetadata:
         scope = {
             "kind": reservation.scope_type,
@@ -231,7 +227,7 @@ class PerformanceTakeUploadService:
             )
         return PerformanceTakeUploadMetadata.model_validate(
             {
-                "source": {"source_id": source_ref.source_id},
+                "source": {"source_id": reservation.source_id},
                 "media": {
                     "kind": reservation.media_kind,
                     "byte_size": reservation.media_byte_size,
@@ -262,7 +258,6 @@ class PerformanceTakeUploadService:
         self,
         reservation: PerformanceTakeUploadReservation,
         *,
-        source_ref: PracticeSourceRef,
         upload_target=None,
         take: PerformanceTakeRead | None = None,
     ) -> PerformanceTakeUploadReservationRead:
@@ -270,7 +265,7 @@ class PerformanceTakeUploadService:
             reservation_id=reservation.reservation_uuid,
             take_id=reservation.take_uuid,
             status=reservation.status,
-            metadata=self._reservation_metadata(reservation, source_ref),
+            metadata=self._reservation_metadata(reservation),
             resolved_scope=self._reservation_resolved_scope(reservation),
             resolved_tempo_plan=json.loads(reservation.tempo_plan),
             upload_target=PerformanceTakeUploadTarget(
@@ -290,10 +285,8 @@ class PerformanceTakeUploadService:
         reservation: PerformanceTakeUploadReservation,
         take: PerformanceTake,
     ) -> PerformanceTakeUploadReservationRead:
-        source_ref = await self.practice_source_service.require_source(db, take.practice_source_id)
         return self._reservation_read(
             reservation,
-            source_ref=source_ref,
             take=await self.takes.get_take(db, take.user_id, take.take_uuid),
         )
 
@@ -319,10 +312,6 @@ class PerformanceTakeUploadService:
                 object_id=reservation.take_uuid,
                 storage_key=effects.commit_storage_object_key,
                 auto_commit=False,
-            )
-        if effects.release_source_reference_id is not None:
-            await self.practice_source_service.release_source_reference(
-                db, effects.release_source_reference_id
             )
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
@@ -457,25 +446,17 @@ class PerformanceTakeUploadService:
             db, reservation.user_id, reservation.id
         )
         state.assert_take_presence(completed_take is not None)
-        if status == UploadReservationStatus.COMPLETED.value:
-            assert completed_take is not None
-            source_ref = await self.practice_source_service.require_source(
-                db, completed_take.practice_source_id
-            )
-        elif status in {
+        if status not in {
             UploadReservationStatus.RESERVED.value,
             UploadReservationStatus.FINALIZING.value,
+            UploadReservationStatus.COMPLETED.value,
         }:
-            source_ref = await self.practice_source_service.require_source(
-                db, reservation.practice_source_id
-            )
-        else:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
-        if self._reservation_metadata(reservation, source_ref) != metadata:
+        if self._reservation_metadata(reservation) != metadata:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
@@ -484,7 +465,7 @@ class PerformanceTakeUploadService:
         if completed_take is not None:
             return await self._completed_reservation_response(db, reservation, completed_take)
         if status == UploadReservationStatus.FINALIZING.value:
-            return self._reservation_read(reservation, source_ref=source_ref)
+            return self._reservation_read(reservation)
         if status != UploadReservationStatus.RESERVED.value:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -518,7 +499,7 @@ class PerformanceTakeUploadService:
         )
         await db.commit()
         return self._reservation_read(
-            reservation, source_ref=source_ref, upload_target=upload_target
+            reservation, upload_target=upload_target
         )
 
     async def reserve_upload(
@@ -550,7 +531,7 @@ class PerformanceTakeUploadService:
         )
         if existing is not None:
             return await self._replay_reservation(db, existing, metadata)
-        authorized_source = await self.practice_source_service.authorize_source_by_source_id(
+        authorized_source = await self.practice_source_service.authorize_source_for_save(
             db, user_id, metadata.source.source_id
         )
         source_ref = authorized_source.source_ref
@@ -614,7 +595,11 @@ class PerformanceTakeUploadService:
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
             linked_score_id=authorized_source.score_db_id,
-            score_title=authorized_source.score_title,
+            source_id=source_ref.source_id,
+            source_score_uuid=source_ref.source_score_uuid,
+            source_revision_uuid=source_ref.source_revision_uuid,
+            source_artifact_id=source_ref.artifact_id,
+            score_title_snapshot=authorized_source.score_title,
             scope_type=plan.scope.kind,
             scope_start_beat=plan.scope.start_beat,
             scope_terminal_beat=plan.scope.terminal_beat,
@@ -633,7 +618,6 @@ class PerformanceTakeUploadService:
         initialize_lifecycle(
             reservation,
             UploadReservationLifecycle.reserved(
-                practice_source_id=source_ref.id,
                 expires_at=now + timedelta(seconds=TAKE_UPLOAD_RESERVATION_SECONDS),
                 put_expires_at=put_expiry,
             ),
@@ -653,7 +637,7 @@ class PerformanceTakeUploadService:
                 raise
             return await self._replay_reservation(db, winner, metadata)
         return self._reservation_read(
-            reservation, source_ref=source_ref, upload_target=upload_target
+            reservation, upload_target=upload_target
         )
 
     async def cancel_upload_reservation(
@@ -761,9 +745,11 @@ class PerformanceTakeUploadService:
         reservation_snapshot = {
             "take_uuid": reservation.take_uuid,
             "user_id": reservation.user_id,
-            "practice_source_id": reservation.practice_source_id,
-            "linked_score_id": reservation.linked_score_id,
-            "score_title": reservation.score_title,
+            "source_id": reservation.source_id,
+            "source_score_uuid": reservation.source_score_uuid,
+            "source_revision_uuid": reservation.source_revision_uuid,
+            "source_artifact_id": reservation.source_artifact_id,
+            "score_title_snapshot": reservation.score_title_snapshot,
             "media_kind": reservation.media_kind,
             "media_mime_type": reservation.media_mime_type,
             "media_byte_size": reservation.media_byte_size,
@@ -908,24 +894,14 @@ class PerformanceTakeUploadService:
             raise
         log_stage("candidate_hash_complete", started_at=finalize_started)
 
-        # The reservation retains the durable source. Live score access controls only
-        # the optional navigation link, not admission of this reserved save.
-        async def load_source_reference_and_live_score() -> tuple[
-            PracticeSourceRef | None,
-            Score | None,
-        ]:
-            source_ref = await self.practice_source_service.find_source(
-                db, reservation_snapshot["practice_source_id"]
+        # Reconnect after a long object copy without re-authorizing admitted metadata.
+        async def lock_reservation() -> PerformanceTakeUploadReservation | None:
+            return await self.repository.get_reservation_by_take_uuid(
+                db, user_id, take_uuid, lock=True
             )
-            linked_score = (
-                await db.get(Score, reservation_snapshot["linked_score_id"])
-                if reservation_snapshot["linked_score_id"]
-                else None
-            )
-            return source_ref, linked_score
 
         try:
-            source_ref, score = await load_source_reference_and_live_score()
+            reservation = await lock_reservation()
         except Exception as error:
             if not _is_transient_db_disconnect(error):
                 raise
@@ -942,24 +918,8 @@ class PerformanceTakeUploadService:
                 "performance_take.finalize.db_reconnect_retry",
                 extra={"take_uuid": take_uuid, "stage": "db_finalize_started"},
             )
-            source_ref, score = await load_source_reference_and_live_score()
+            reservation = await lock_reservation()
         log_stage("db_finalize_started", started_at=finalize_started)
-        if source_ref is None:
-            await self._record_failed_candidate_final(
-                db,
-                user_id=user_id,
-                take_uuid=take_uuid,
-                candidate_key=candidate_key,
-            )
-            await self._delete_candidate_final_async(candidate_key)
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="practice_source_id")
-
-        score_db_id: int | None = score.id if score is not None else None
-        score_title_out = reservation_snapshot["score_title"]
-
-        reservation = await self.repository.get_reservation_by_take_uuid(
-            db, user_id, take_uuid, lock=True
-        )
         if reservation is None:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
         existing_take = await self.repository.get_by_reservation(db, user_id, reservation.id)
@@ -1004,9 +964,12 @@ class PerformanceTakeUploadService:
         take = PerformanceTake(
             take_uuid=reservation_snapshot["take_uuid"],
             user_id=reservation.user_id,
-            practice_source_id=source_ref.id,
-            linked_score_id=score_db_id,
-            score_title_snapshot=score_title_out,
+            source_id=reservation_snapshot["source_id"],
+            source_score_uuid=reservation_snapshot["source_score_uuid"],
+            source_revision_uuid=reservation_snapshot["source_revision_uuid"],
+            source_artifact_id=reservation_snapshot["source_artifact_id"],
+            linked_score_id=reservation.linked_score_id,
+            score_title_snapshot=reservation_snapshot["score_title_snapshot"],
             upload_reservation_id=reservation.id,
             media_kind=PerformanceTakeMediaKind(reservation_snapshot["media_kind"]),
             media_mime_type=reservation_snapshot["media_mime_type"],

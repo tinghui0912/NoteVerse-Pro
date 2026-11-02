@@ -1,19 +1,14 @@
 from __future__ import annotations
 
-from app.modules.performance_takes.upload_reservation.domain import SOURCE_OWNING_STATUSES
 
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    PerformanceTake,
-    PerformanceTakeUploadReservation,
     PracticeSourceRecord,
     PracticeSourceStatus,
     PracticeSourceDeleteOutbox,
@@ -44,29 +39,6 @@ class PracticeSourceDeletePayload:
 
 
 class PracticeSourceDeleteService:
-    async def enqueue_if_unowned_async(
-        self, db: AsyncSession, practice_source_id: int | None, *, storage_backend: str
-    ) -> None:
-        await db.run_sync(
-            lambda sync_db: self.enqueue_if_unowned(
-                sync_db, practice_source_id, storage_backend=storage_backend
-            )
-        )
-
-    def active_reference_count(self, db: Session, practice_source_id: int) -> int:
-        take_refs = db.execute(
-            select(func.count(PerformanceTake.id)).where(
-                PerformanceTake.practice_source_id == practice_source_id
-            )
-        ).scalar_one()
-        reservation_refs = db.execute(
-            select(func.count(PerformanceTakeUploadReservation.id)).where(
-                PerformanceTakeUploadReservation.practice_source_id == practice_source_id,
-                PerformanceTakeUploadReservation.status.in_([status.value for status in SOURCE_OWNING_STATUSES]),
-            )
-        ).scalar_one()
-        return int(take_refs) + int(reservation_refs)
-
     def enqueue_if_unowned(
         self,
         db: Session,
@@ -84,7 +56,7 @@ class PracticeSourceDeleteService:
         ).scalar_one_or_none()
         if source is None:
             return None
-        if self.has_owner(db, source):
+        if self.has_owner(source):
             return None
         if source.status == PracticeSourceStatus.DELETING.value:
             return db.execute(
@@ -110,7 +82,7 @@ class PracticeSourceDeleteService:
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if source is None or self.active_reference_count(db, practice_source_id) > 0:
+        if source is None:
             return None
         # Incomplete representations do not retain a usable live source.
         source.live_revision_id = None
@@ -175,27 +147,12 @@ class PracticeSourceDeleteService:
         return outbox_ids
 
     def recover_unowned_ready(self, db: Session, *, storage_backend: str) -> list[str]:
-        refs = (
-            select(PerformanceTake.id)
-            .where(PerformanceTake.practice_source_id == PracticeSourceRecord.id)
-            .exists()
-        )
-        reservations = (
-            select(PerformanceTakeUploadReservation.id)
-            .where(
-                PerformanceTakeUploadReservation.practice_source_id == PracticeSourceRecord.id,
-                PerformanceTakeUploadReservation.status.in_([status.value for status in SOURCE_OWNING_STATUSES]),
-            )
-            .exists()
-        )
         rows = (
             db.execute(
                 select(PracticeSourceRecord)
                 .where(
                     PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
                     PracticeSourceRecord.live_revision_id.is_(None),
-                    ~refs,
-                    ~reservations,
                 )
                 .order_by(PracticeSourceRecord.id)
                 .limit(settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE)
@@ -212,14 +169,9 @@ class PracticeSourceDeleteService:
             is not None
         ]
 
-    def has_owner(self, db: Session, source: PracticeSourceRecord) -> bool:
-        return (
-            source.live_revision_id is not None
-            or self.active_reference_count(
-                db, require_persisted_id(source.id, entity="practice source")
-            )
-            > 0
-        )
+    @staticmethod
+    def has_owner(source: PracticeSourceRecord) -> bool:
+        return source.live_revision_id is not None
 
     def claim(
         self,
@@ -248,7 +200,7 @@ class PracticeSourceDeleteService:
                 .execution_options(populate_existing=True)
             ).scalar_one_or_none()
             if source is not None and (
-                self.has_owner(db, source) or source.status != PracticeSourceStatus.DELETING.value
+                self.has_owner(source) or source.status != PracticeSourceStatus.DELETING.value
             ):
                 outbox.status = PracticeSourceDeleteOutboxStatus.COMPLETED.value
                 outbox.completed_at = utc_now_naive()

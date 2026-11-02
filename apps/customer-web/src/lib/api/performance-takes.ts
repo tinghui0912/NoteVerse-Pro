@@ -6,7 +6,6 @@ import type {
   PerformanceTakeRead,
   PerformanceTakeUploadReservationRead,
   PerformanceTakeUploadReservationRequest,
-  PracticeSourceRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/generated/api/types.gen';
@@ -20,7 +19,6 @@ export type {
   PerformanceTakeRead,
   PerformanceTakeUploadReservationRead,
   PerformanceTakeUploadReservationRequest,
-  PracticeSourceRead,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 };
@@ -54,12 +52,6 @@ export const performanceTakesApi = {
       `/performance-takes/${takeId}/playback-url`,
       undefined,
       { signal }
-    ),
-  getPracticeSource: (takeId: string, includeNotation: boolean, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PracticeSourceRead>>(
-      `/performance-takes/${takeId}/practice-source`,
-      { include_notation: includeNotation },
-      { signal },
     ),
   downloadMediaBlob: (
     takeId: string,

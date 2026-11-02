@@ -310,7 +310,7 @@
   "historicalShareEmptyScore": "The score is empty",
   "historicalShareLoadFailed": "Unable to load this historical performance.",
   "historicalShareUnavailable": "This historical performance is missing the original video, score revision, or sync data required for dynamic score video production.",
-  "historicalShareRevisionUnavailable": "The score revision for this historical performance could not be reliably restored, so a dynamic score video cannot be created.",
+  "historicalShareRevisionUnavailable": "The exact score source is no longer available for score-based video export. Your original recording remains available.",
   "historicalShareMediaUnavailable": "The historical performance media is temporarily unavailable",
   "historicalShareTemporaryUnavailable": "Temporarily unavailable. Please try again.",
   "historicalShareRetry": "Retry",

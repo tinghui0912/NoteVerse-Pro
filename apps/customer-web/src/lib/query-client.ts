@@ -88,6 +88,9 @@ export const queryKeys = {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,
     },
+    savedTakeExport: {
+        source: (sourceId: string) => ['saved-take-export-source', { sourceId }] as const,
+    },
     performanceTakes: {
         all: ['performance-takes'] as const,
         lists: () => ['performance-takes', 'list'] as const,
@@ -95,7 +98,5 @@ export const queryKeys = {
             ['performance-takes', 'list', params ?? {}] as const,
         detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
         playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,
-        practiceSource: (takeId: string, includeNotation: boolean) =>
-            ['performance-takes', 'practice-source', { takeId, includeNotation }] as const,
     },
 } as const;

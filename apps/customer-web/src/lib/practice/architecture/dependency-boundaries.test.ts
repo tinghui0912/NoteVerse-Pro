@@ -956,7 +956,7 @@ it('browser execution and Review consume workspace-owned representations rather 
   const executionPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const reviewPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/review/page.tsx');
   const transportOwners=['lib/practice/source/admit-practice-source.ts','lib/practice/source/source-envelope.ts',
-    'lib/api/practice.ts','hooks/practice/use-performance-take-practice-source.ts','hooks/queries/use-score-queries.ts']
+    'lib/api/practice.ts','hooks/practice/use-saved-take-export-source.ts','hooks/queries/use-score-queries.ts']
     .map(file=>normalize(path.join(sourceRoot,file)));
   for(const file of [executionPage,reviewPage,...productionFiles(path.join(practiceRoot,'review'))]) {
     for(const edge of imports(file).filter(edge=>!edge.typeOnly)) expect(transportOwners,`${file}: ${edge.specifier}`).not.toContain(edge.target);

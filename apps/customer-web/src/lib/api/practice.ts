@@ -14,4 +14,10 @@ async function getPracticeSource(
   );
 }
 
-export const practiceApi = { getPracticeSource };
+async function getExactSource(sourceId: string, signal: AbortSignal): Promise<ApiResponse<PracticeSourceRead>> {
+  return apiClient.get<ApiResponse<PracticeSourceRead>>(
+    `/practice/sources/${encodeURIComponent(sourceId)}`, { include_notation: true }, { signal },
+  );
+}
+
+export const practiceApi = { getPracticeSource, getExactSource };

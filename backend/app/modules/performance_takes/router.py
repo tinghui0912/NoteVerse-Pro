@@ -22,9 +22,6 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadReservationRead,
     PerformanceTakeUploadReservationRequest,
 )
-from app.modules.practice.source.schemas import (
-    PracticeSourceRead,
-)
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.shared.responses import APIResponse, success_response
 from app.core.exceptions import ValidationException
@@ -147,24 +144,6 @@ async def stream_take_media(
         request=request,
         enable_range=True,
     )
-
-
-@router.get(
-    "/{take_id}/practice-source",
-    response_model=APIResponse[PracticeSourceRead],
-)
-async def get_take_practice_source(
-    take_id: str,
-    include_notation: bool = False,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source(
-        db, user_id, take_id, include_notation=include_notation
-    )
-    return success_response(data=data)
 
 
 @router.delete(

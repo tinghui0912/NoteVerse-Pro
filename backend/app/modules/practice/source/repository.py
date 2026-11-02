@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreRevision
 from app.db.models.practice_source import (
@@ -215,36 +215,6 @@ class PracticeSourceRepository:
             )
         return row
 
-    async def find_ready(
-        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceRef | None:
-        row = await self._ready_row(db, practice_source_id, lock=lock)
-        return self._reference(row) if row is not None else None
-
-    async def require_ready(
-        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceRef:
-        return self._reference(await self._require_ready_row(db, practice_source_id, lock=lock))
-
-    async def list_ready(self, db: AsyncSession, ids: set[int]) -> dict[int, PracticeSourceRef]:
-        if not ids:
-            return {}
-        rows = (
-            (
-                await db.execute(
-                    select(PracticeSourceRecord)
-                    .where(
-                        PracticeSourceRecord.id.in_(ids),
-                        PracticeSourceRecord.status == PracticeSourceStatus.READY.value,
-                    )
-                    .execution_options(populate_existing=True)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        return {ref.id: ref for row in rows for ref in [self._reference(row)]}
-
     async def _ready_row_by_source_id(
         self, db: AsyncSession, source_id: str, *, lock: bool
     ) -> PracticeSourceRecord:
@@ -260,11 +230,7 @@ class PracticeSourceRepository:
             statement = statement.with_for_update()
         row = (await db.execute(statement)).scalar_one_or_none()
         if row is None:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="source_id",
-                details={"reason": "practice_source_not_ready"},
-            )
+            raise ResourceNotFoundException("practice_source", source_id, ErrorCode.RESOURCE_NOT_FOUND)
         return row
 
     async def require_ready_by_source_id(
@@ -275,15 +241,6 @@ class PracticeSourceRepository:
 
     async def read_by_source_id(self, db: AsyncSession, source_id: str) -> PracticeSource:
         row = await self._ready_row_by_source_id(db, source_id, lock=True)
-        return await self._read_verified_source(row)
-
-    async def enqueue_if_unowned(self, db: AsyncSession, practice_source_id: int | None) -> None:
-        await practice_source_delete_service.enqueue_if_unowned_async(
-            db, practice_source_id, storage_backend=self.storage.backend_name
-        )
-
-    async def read(self, db: AsyncSession, practice_source_id: int | None) -> PracticeSource:
-        row = await self._require_ready_row(db, practice_source_id, lock=True)
         return await self._read_verified_source(row)
 
     async def _read_verified_source(self, row: PracticeSourceRecord) -> PracticeSource:

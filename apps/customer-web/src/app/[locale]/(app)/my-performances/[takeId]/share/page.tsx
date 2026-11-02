@@ -18,7 +18,7 @@ import {
   downloadPerformanceTakeMediaBlob,
 } from '@/lib/api/performance-takes';
 import { ApiError } from '@/lib/api-client';
-import { usePerformanceTakePracticeSource } from '@/hooks/practice/use-performance-take-practice-source';
+import { useSavedTakeExportSource } from '@/hooks/practice/use-saved-take-export-source';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
@@ -78,7 +78,7 @@ export default function HistoricalPerformanceSharePage() {
   const take = takeQuery.data?.data ?? null;
   const isBaseEligible = Boolean(take && hasSavedTakeShareVideoMetadata(take));
 
-  const source = usePerformanceTakePracticeSource(takeId, {
+  const source = useSavedTakeExportSource({
     sourceId: take?.source_id ?? '', scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
     artifactId: take?.source_artifact_id ?? '',
   }, { enabled: isBaseEligible });
@@ -144,15 +144,15 @@ export default function HistoricalPerformanceSharePage() {
       : null;
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
-    if (!session) return null;
+    if (!take || !mediaBlob) return null;
     return {
       kind: 'VIDEO_RECORDING',
-      blob: session.video.blob,
-      contentType: session.video.mimeType,
-      byteSize: session.video.blob.size,
-      durationMs: session.video.durationMs,
+      blob: mediaBlob,
+      contentType: take.media_mime_type,
+      byteSize: mediaBlob.size,
+      durationMs: take.duration_ms,
     };
-  }, [session]);
+  }, [take, mediaBlob]);
 
   const xmlContent = source.musicXml;
   if (takeQuery.isLoading) {
@@ -219,51 +219,9 @@ export default function HistoricalPerformanceSharePage() {
       />
     );
   }
-  if (
-    source.invalid
-  ) {
-    return (
-      <HistoricalTakeUnavailable
-        message={t('historicalShareRevisionUnavailable')}
-        backLabel={t('historicalShareBack')}
-        onBack={() => router.push('/my-performances')}
-      />
-    );
-  }
-  if (
-    isPermanentResourceError(source.transportError)
-  ) {
-    return (
-      <HistoricalTakeUnavailable
-        message={t('historicalShareRevisionUnavailable')}
-        backLabel={t('historicalShareBack')}
-        onBack={() => router.push('/my-performances')}
-      />
-    );
-  }
-  if (sessionEligibility?.status === 'unsupported') {
-    return (
-      <HistoricalTakeUnavailable
-        message={t('historicalShareRevisionUnavailable')}
-        backLabel={t('historicalShareBack')}
-        onBack={() => router.push('/my-performances')}
-      />
-    );
-  }
-  if (source.isError) {
-    return (
-      <HistoricalTakeUnavailable
-        message={t('historicalShareTemporaryUnavailable')}
-        backLabel={t('historicalShareBack')}
-        retryLabel={t('historicalShareRetry')}
-        onRetry={() => {
-          void sourceQuery.refetch();
-        }}
-        onBack={() => router.push('/my-performances')}
-      />
-    );
-  }
-  if (!session || !replay || !isSourceReady || !xmlContent || !artifact) {
+  const exportUnavailable = source.invalid || isPermanentResourceError(source.transportError)
+    || sessionEligibility?.status === 'unsupported';
+  if (!replay) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <PageHeader title={t('historicalShareTitle')} />
@@ -322,6 +280,15 @@ export default function HistoricalPerformanceSharePage() {
           <CardContent>
             <PerformanceReplayPlayer
               replay={replay}
+              actions={<Button onClick={() => {
+                const url = URL.createObjectURL(mediaBlob!);
+                try {
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `performance-${take.take_id}.${take.media_mime_type.includes('mp4') ? 'mp4' : 'webm'}`;
+                  link.click();
+                } finally { URL.revokeObjectURL(url); }
+              }}>{t('downloadVideo')}</Button>}
               onReplayTimeChange={(time) => setMediaTimeMs(Math.max(0, time ?? 0))}
               onPlaybackStateChange={setIsReplayPlaying}
               onVideoElementChange={setReplayVideo}
@@ -333,7 +300,11 @@ export default function HistoricalPerformanceSharePage() {
             <CardTitle className="text-sm">{t('historicalShareScore')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <VerovioScoreViewer
+            {exportUnavailable || source.isError ? <div className="space-y-3 p-8" role="status">
+              <p>{t(exportUnavailable ? 'historicalShareRevisionUnavailable' : 'historicalShareTemporaryUnavailable')}</p>
+              {!exportUnavailable && <Button onClick={() => { void sourceQuery.refetch(); }}>{t('historicalShareRetry')}</Button>}
+            </div> : <VerovioScoreViewer
+              isLoading={source.isLoading}
               xmlContent={xmlContent}
               adapterFactory={adapterFactory}
               onRendered={(_renderedAdapter, container) => setScoreContainer(container)}
@@ -344,12 +315,12 @@ export default function HistoricalPerformanceSharePage() {
               loadingContent={<div className="p-8 text-sm text-muted-foreground">{t('historicalShareLoading')}</div>}
               emptyContent={<div className="p-8 text-sm text-muted-foreground">{t('historicalShareEmptyScore')}</div>}
               renderError={(message) => <div className="p-8 text-sm text-destructive">{message}</div>}
-            />
+            />}
           </CardContent>
         </Card>
       </div>
 
-      <ShareVideoStudio
+      {session && artifact && xmlContent && <ShareVideoStudio
         session={session}
         scoreContainer={scoreContainer}
         adapter={adapter}
@@ -362,7 +333,7 @@ export default function HistoricalPerformanceSharePage() {
         open
         collapsible={false}
         onOpenChange={() => undefined}
-      />
+      />}
     </div>
   );
 }

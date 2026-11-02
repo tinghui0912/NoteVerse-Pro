@@ -17,9 +17,6 @@ from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
-from app.modules.practice.source.retention import (
-    practice_source_delete_service,
-)
 from app.modules.storage_usage.service import storage_usage_service
 from app.pipeline.context import CeleryTaskLike
 from app.storage import file_storage
@@ -162,14 +159,8 @@ def execute_performance_take_deletion_task(
                         "performance take deletion payload does not match locked take: "
                         f"{payload.take_uuid}"
                     )
-                practice_source_id = take.practice_source_id
                 db.delete(take)
                 db.flush()
-                practice_source_delete_service.enqueue_if_unowned(
-                    db,
-                    practice_source_id,
-                    storage_backend=payload.storage_backend,
-                )
                 storage_usage_service.record_release_sync(
                     db,
                     user_id=payload.user_id,

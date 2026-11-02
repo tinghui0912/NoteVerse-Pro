@@ -65,7 +65,6 @@ def lifecycle_from_row(row: PerformanceTakeUploadReservation) -> UploadReservati
     )
     return UploadReservationLifecycle(
         status,
-        row.practice_source_id,
         row.expires_at,
         lease,
         decode_orphan_candidates(row.orphan_final_object_keys),
@@ -92,7 +91,6 @@ def apply_transition(
 
 def _write(row: PerformanceTakeUploadReservation, state: UploadReservationLifecycle) -> None:
     row.status = state.status.value
-    row.practice_source_id = state.practice_source_id
     row.expires_at = state.expires_at
     row.finalizing_token = state.lease.token if state.lease else None
     row.finalizing_object_key = state.lease.object_key if state.lease else None

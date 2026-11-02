@@ -17,7 +17,6 @@ NOW = datetime(2026, 11, 1)
 
 def reserved():
     return UploadReservationLifecycle.reserved(
-        practice_source_id=12,
         expires_at=NOW + timedelta(hours=1),
         put_expires_at=NOW + timedelta(minutes=10),
     )
@@ -58,9 +57,6 @@ def test_reserved_commands_and_explicit_effects(command, status, release, commit
     assert transition.after.status is status
     assert transition.effects.release_storage_reservation is release
     assert transition.effects.commit_storage_object_key == commit
-    assert transition.after.owns_source == (status is UploadReservationStatus.FINALIZING)
-    if release:
-        assert transition.effects.release_source_reference_id == 12
 
 
 def test_takeover_requires_expired_lease_and_preserves_unknown_outcome_grace():
@@ -74,11 +70,10 @@ def test_takeover_requires_expired_lease_and_preserves_unknown_outcome_grace():
     assert transition.after.orphan_candidates == (
         OrphanFinalCandidate("candidate", now + UNKNOWN_OUTCOME_GRACE),
     )
-    assert transition.effects.release_source_reference_id is None
 
 
 @pytest.mark.parametrize("unknown", [False, True])
-def test_recovery_validates_identity_and_retains_source(unknown):
+def test_recovery_validates_identity_and_preserves_cleanup(unknown):
     state = finalizing()
     with pytest.raises(ReservationTransitionError):
         state.recover_finalize(
@@ -89,19 +84,17 @@ def test_recovery_validates_identity_and_retains_source(unknown):
     )
     assert transition.after.status is UploadReservationStatus.RESERVED
     assert transition.after.lease is None
-    assert transition.after.practice_source_id == 12
     assert transition.after.orphan_candidates[0].remove_after == (
         NOW + UNKNOWN_OUTCOME_GRACE if unknown else NOW
     )
 
 
-def test_complete_transfers_quota_and_source_ownership_without_orphaning_durable_object():
+def test_complete_commits_quota_without_orphaning_durable_object():
     state = finalizing()
     transition = state.complete(token="token", object_key="candidate", now=NOW)
     assert transition.after.status is UploadReservationStatus.COMPLETED
-    assert transition.after.practice_source_id is None and transition.after.lease is None
+    assert transition.after.lease is None
     assert transition.after.orphan_candidates == ()
-    assert transition.effects.release_source_reference_id == 12
     assert transition.effects.commit_storage_object_key == "candidate"
     assert not transition.effects.release_storage_reservation
     with pytest.raises(ReservationTransitionError):
@@ -114,9 +107,8 @@ def test_finalizing_expiry_releases_holds_and_preserves_candidate_and_staging_ho
     now = NOW + timedelta(hours=2)
     transition = finalizing().expire(now=now)
     assert transition.after.status is UploadReservationStatus.EXPIRED
-    assert transition.after.lease is None and transition.after.practice_source_id is None
+    assert transition.after.lease is None
     assert transition.effects.release_storage_reservation
-    assert transition.effects.release_source_reference_id == 12
     assert transition.after.staging_cleanup_after == now
     assert transition.after.orphan_candidates[0].remove_after == now + UNKNOWN_OUTCOME_GRACE
 
@@ -130,7 +122,7 @@ def test_finalizing_expiry_releases_holds_and_preserves_candidate_and_staging_ho
     ],
 )
 def test_terminal_commands_do_not_reopen_or_claim_cancellation(status):
-    state = UploadReservationLifecycle(status, None, NOW)
+    state = UploadReservationLifecycle(status, NOW)
     for command in [
         lambda: state.begin_finalize(
             lease=FinalizeLease("x", "key", NOW + timedelta(minutes=1)), now=NOW
@@ -153,7 +145,6 @@ def test_refresh_and_cleanup_are_domain_commands():
     expiry = NOW + timedelta(minutes=20)
     refreshed = state.refresh_upload(now=NOW, put_expires_at=expiry).after
     assert refreshed.last_put_url_expires_at == refreshed.staging_cleanup_after == expiry
-    assert refreshed.practice_source_id == state.practice_source_id
     state = state.remember_uncertain_candidate(key="key", now=NOW).after
     state = state.remember_uncertain_candidate(key="key", now=NOW + timedelta(seconds=1)).after
     assert len(state.orphan_candidates) == 1
@@ -169,21 +160,16 @@ def test_refresh_and_cleanup_are_domain_commands():
     assert cleaned.staging_cleanup_completed_at == NOW + timedelta(hours=2)
 
 
-@pytest.mark.parametrize(
-    "status,source,lease",
-    [
-        (UploadReservationStatus.RESERVED, None, None),
-        (UploadReservationStatus.RESERVED, 12, FinalizeLease("t", "k", NOW)),
-        (UploadReservationStatus.FINALIZING, 12, None),
-        (UploadReservationStatus.FINALIZING, None, FinalizeLease("t", "k", NOW)),
-        (UploadReservationStatus.COMPLETED, 12, None),
-        (UploadReservationStatus.CANCELLED, None, FinalizeLease("t", "k", NOW)),
-        (UploadReservationStatus.EXPIRED, None, FinalizeLease("t", "k", NOW)),
-    ],
-)
-def test_invalid_hydration_fails_closed(status, source, lease):
+@pytest.mark.parametrize("status,lease", [
+    (UploadReservationStatus.RESERVED, FinalizeLease("t", "k", NOW)),
+    (UploadReservationStatus.FINALIZING, None),
+    (UploadReservationStatus.COMPLETED, FinalizeLease("t", "k", NOW)),
+    (UploadReservationStatus.CANCELLED, FinalizeLease("t", "k", NOW)),
+    (UploadReservationStatus.EXPIRED, FinalizeLease("t", "k", NOW)),
+])
+def test_invalid_hydration_fails_closed(status, lease):
     with pytest.raises(ReservationInvariantError):
-        UploadReservationLifecycle(status, source, NOW, lease)
+        UploadReservationLifecycle(status, NOW, lease)
 
 
 def test_take_presence_is_an_atomic_invariant():
@@ -191,7 +177,7 @@ def test_take_presence_is_an_atomic_invariant():
         reserved().assert_take_presence(True)
     with pytest.raises(ReservationInvariantError):
         UploadReservationLifecycle(
-            UploadReservationStatus.COMPLETED, None, NOW
+            UploadReservationStatus.COMPLETED, NOW
         ).assert_take_presence(False)
 
 
@@ -212,7 +198,7 @@ def test_partial_row_lease_and_noncanonical_candidate_json_fail_closed():
     )
 
     row = PerformanceTakeUploadReservation(
-        status="FINALIZING", practice_source_id=12, expires_at=NOW, finalizing_token="half"
+        status="FINALIZING", expires_at=NOW, finalizing_token="half"
     )
     with pytest.raises(ReservationInvariantError):
         lifecycle_from_row(row)

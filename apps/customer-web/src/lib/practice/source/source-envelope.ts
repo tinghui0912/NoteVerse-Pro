@@ -9,7 +9,7 @@ type ExpectedSource = { scoreId: string; revisionId: string } & (
   | { kind: 'EXACT'; sourceId: string; artifactId: string }
 );
 
-/** Shared strict envelope boundary for Setup admission and saved-Take reads. */
+/** Shared strict envelope boundary for Setup admission and optional currently authorized export reads. */
 export async function readPracticeSource(
   request: (signal: AbortSignal) => Promise<ApiResponse<PracticeSourceRead>>,
   identity: ExpectedSource,

@@ -6349,41 +6349,6 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
 
 export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
 
-export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetData = {
-    body?: never;
-    path: {
-        /**
-         * Take Id
-         */
-        take_id: string;
-    };
-    query?: {
-        /**
-         * Include Notation
-         */
-        include_notation?: boolean;
-    };
-    url: '/api/v1/performance-takes/{take_id}/practice-source';
-};
-
-export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetError = GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors[keyof GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetErrors];
-
-export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeSourceRead;
-};
-
-export type GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponse = GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses[keyof GetTakePracticeSourceApiV1PerformanceTakesTakeIdPracticeSourceGetResponses];
-
 export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetData = {
     body?: never;
     path: {

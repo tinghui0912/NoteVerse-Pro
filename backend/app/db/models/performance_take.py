@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Column,
+    CheckConstraint,
     DateTime,
     Enum as SAEnum,
     Float,
@@ -37,6 +38,9 @@ class PerformanceTakeDeletionStatus(str, enum.Enum):
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
+        CheckConstraint("deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"),
+        CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_performance_takes_scope_type"),
+        CheckConstraint("media_kind IN ('AUDIO','VIDEO')", name="ck_performance_takes_media_kind"),
         UniqueConstraint("upload_reservation_id", name="uq_performance_takes_upload_reservation"),
         Index("ix_performance_takes_user_created", "user_id", "created_at"),
         Index("ix_performance_takes_user_deletion_status", "user_id", "deletion_status"),
@@ -55,14 +59,10 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    practice_source_id: int = Field(
-        sa_column=Column(
-            bigint_pk_type,
-            ForeignKey("practice_sources.id", ondelete="RESTRICT", name="fk_performance_takes_practice_source"),
-            index=True,
-            nullable=False,
-        ),
-    )
+    source_id: str = Field(sa_column=Column(String(128), nullable=False))
+    source_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    source_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    source_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     linked_score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

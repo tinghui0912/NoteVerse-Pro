@@ -20,9 +20,9 @@ from .builder import PracticeSourceBuilder
 from .domain import (
     AuthorizedPracticeSource,
     PracticeSource,
-    PracticeSourceRef,
 )
-from .repository import PracticeSourceRepository
+from .repository import PracticeSourceRepository, PracticeSourceResolution
+from .save_admission import lock_live_save_access
 from .schemas import (
     PracticeSourceRead,
     PracticeSourceNotationRead,
@@ -132,7 +132,7 @@ class PracticeSourceService:
         user_id: int,
         source_id: str,
     ) -> AuthorizedPracticeSource:
-        # The READY source lock fences live-owner release and reference admission until caller commit.
+        # The READY source lock fences representation deletion during this exact read.
         resolution = await self.repository.require_ready_by_source_id(db, source_id, lock=True)
         reference = resolution.source_ref
         if resolution.live_revision_id is None:
@@ -146,6 +146,27 @@ class PracticeSourceService:
             user_id=user_id,
             revision_uuid=reference.source_revision_uuid,
         )
+        return await self._verified_authorized_source(db, source_id, resolution, access)
+
+    async def authorize_source_for_save(
+        self, db: AsyncSession, user_id: int, source_id: str
+    ) -> AuthorizedPracticeSource:
+        candidate = await self.repository.require_ready_by_source_id(db, source_id)
+        if candidate.live_revision_id is None:
+            raise ResourceNotFoundException("practice_source", source_id, ErrorCode.RESOURCE_NOT_FOUND)
+        access = await lock_live_save_access(
+            db, self.access_policy, user_id=user_id,
+            score_uuid=candidate.source_ref.source_score_uuid,
+            revision_uuid=candidate.source_ref.source_revision_uuid,
+        )
+        resolution = await self.repository.require_ready_by_source_id(db, source_id, lock=True)
+        return await self._verified_authorized_source(db, source_id, resolution, access)
+
+    async def _verified_authorized_source(
+        self, db: AsyncSession, source_id: str,
+        resolution: PracticeSourceResolution, access: ScoreAccessContext,
+    ) -> AuthorizedPracticeSource:
+        reference = resolution.source_ref
         if (
             access.revision.id != resolution.live_revision_id
             or access.score.score_uuid != reference.source_score_uuid
@@ -171,31 +192,3 @@ class PracticeSourceService:
     ) -> PracticeSourceRead:
         authorized = await self.authorize_source_by_source_id(db, user_id, source_id)
         return self.source_read(authorized.source, include_notation=include_notation)
-
-    async def require_source(
-        self, db: AsyncSession, practice_source_id: int | None, *, lock: bool = False
-    ) -> PracticeSourceRef:
-        return await self.repository.require_ready(db, practice_source_id, lock=lock)
-
-    async def find_source(
-        self, db: AsyncSession, practice_source_id: int | None
-    ) -> PracticeSourceRef | None:
-        return await self.repository.find_ready(db, practice_source_id)
-
-    async def list_sources(self, db: AsyncSession, ids: set[int]) -> dict[int, PracticeSourceRef]:
-        return await self.repository.list_ready(db, ids)
-
-    async def release_source_reference(
-        self, db: AsyncSession, practice_source_id: int | None
-    ) -> None:
-        await self.repository.enqueue_if_unowned(db, practice_source_id)
-
-    async def read_source_by_id(
-        self,
-        db: AsyncSession,
-        practice_source_id: int | None,
-        *,
-        include_notation: bool = False,
-    ) -> PracticeSourceRead:
-        source = await self.repository.read(db, practice_source_id)
-        return self.source_read(source, include_notation=include_notation)

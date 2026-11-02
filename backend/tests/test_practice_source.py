@@ -134,25 +134,6 @@ async def test_source_request_builds_one_authorized_source_value(include_notatio
     assert source.source_id == persisted.source_id
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("include_notation", [False, True])
-async def test_durable_request_reads_one_verified_source_value(include_notation):
-    source_value = PracticeSourceBuilder().build(
-        score_id="s", revision_id="r", canonical_musicxml=FIXTURE.read_bytes()
-    )
-    repository = Mock()
-    repository.read = AsyncMock(return_value=source_value)
-    service = PracticeSourceService(repository=repository)
-    db = AsyncMock()
-    source = await service.read_source_by_id(db, 42, include_notation=include_notation)
-    repository.read.assert_awaited_once_with(db, 42)
-    assert source.source_id == source_value.source_id
-    assert source.artifact.artifactId == source_value.artifact.artifact_id
-    if include_notation:
-        assert source.notation.musicxml == source_value.prepared_musicxml.content
-    else:
-        assert source.notation is None
-
 
 @pytest.mark.asyncio
 async def test_exact_source_authorization_requires_consistent_live_owner():

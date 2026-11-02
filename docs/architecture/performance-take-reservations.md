@@ -5,7 +5,7 @@ UploadReservation is a persisted lifecycle aggregate. Its pure owner is
 HTTP DTOs carry intent and recording evidence. `PerformanceTakeUploadService`
 authorizes the exact Source, calls the Practice planner, orchestrates storage IO,
 and executes explicit transition effects. `PerformanceTakeService` owns the durable
-Take library: reads, playback, Source reads, and deletion.
+Take library: reads, playback, download and deletion from its own durable snapshots.
 
 ## Lifecycle and persistence
 
@@ -13,10 +13,10 @@ The domain owns `UploadReservationStatus`, `FinalizeLease`, orphan candidates,
 invariants and transitions. Time, tokens, object keys and lease expiry are explicit
 command inputs. No domain transition accesses a database, storage, HTTP or clock.
 
-RESERVED owns a Source and has no finalize lease. FINALIZING owns a Source and one
-complete token/key/expiry lease. COMPLETED, CANCELLED and EXPIRED own neither a
-Source reference nor a finalize lease. Hydration rejects impossible combinations.
-Database checks enforce the same source-ownership and lease tuples.
+RESERVED has no finalize lease. FINALIZING has one complete token/key/expiry lease.
+COMPLETED, CANCELLED and EXPIRED have no finalize lease. Hydration rejects impossible
+combinations; database checks enforce the same status and lease tuples. The lifecycle
+aggregate knows only upload/storage lifecycle, independently of score and provenance.
 
 `upload_reservation/persistence.py` hydrates and applies lifecycle values. It is the
 only writer of lifecycle ORM columns and the only orphan-candidate JSON codec.
@@ -25,8 +25,7 @@ timestamp. Domain commands deduplicate keys and preserve the longest cleanup gra
 
 Transitions cover upload-capability refresh, finalize acquisition/takeover, fenced
 recovery, expiry, cancellation, completion, and cleanup acknowledgment. Each returns
-before/after values and effects specifying Source-reference release, quota-hold
-release, or quota commit to a completed object. Orphan cleanup ownership is explicit
+before/after values and effects specifying quota-hold release or quota commit to a completed object. Orphan cleanup ownership is explicit
 in the resulting lifecycle value. Application services execute these effects rather
 than inferring them from prior status.
 
@@ -45,11 +44,18 @@ An active finite lease cannot be taken over. Expired takeover assigns a new toke
 and key and retains the old candidate with a thirty-minute unknown-outcome grace.
 Copy and completion both check lease identity; completion also requires a live lease.
 
-Take creation, reservation completion, Source-ownership transfer and quota commit
-share one database transaction. Cancellation/expiry terminate reservation Source
-ownership and release quota in one transaction. The exact Source is retained by
-RESERVED/FINALIZING and then by the completed Take. Replay and finalize do not
-reauthorize a live revision or replan scope/tempo.
+New durable save admission authorizes and verifies a live exact Source under Score,
+Revision, authorization-fact and Source locks. The lock order and delete/admit ordering
+belong to [Practice Source](practice-source.md#durable-save-admission). The reservation
+snapshots source_id, source_score_uuid, source_revision_uuid, source_artifact_id,
+score_title_snapshot and server-resolved scope/tempo. Provenance is immutable metadata,
+not Source ownership. A committed reservation finalizes independently of Source lifetime.
+
+Take creation, reservation completion and quota commit share one database transaction.
+Cancellation/expiry release quota in one transaction. Finalize copies provenance, title,
+resolved scope/tempo and recording timebase without Source reads or replanning. Its live
+navigation FK follows ON DELETE SET NULL; the read projection decides whether navigation
+is currently authorized. PracticeSource has only its ScoreRevision lifecycle owner.
 
 ## Replay, cancellation and recovery
 

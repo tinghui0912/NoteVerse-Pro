@@ -14,11 +14,6 @@ class UploadReservationStatus(str, Enum):
     EXPIRED = "EXPIRED"
 
 
-SOURCE_OWNING_STATUSES = frozenset(
-    {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING}
-)
-
-
 class ReservationInvariantError(ValueError):
     """Persisted lifecycle facts do not describe a possible aggregate."""
 
@@ -62,7 +57,6 @@ class OrphanFinalCandidate:
 
 @dataclass(frozen=True)
 class TransitionEffects:
-    release_source_reference_id: int | None = None
     release_storage_reservation: bool = False
     commit_storage_object_key: str | None = None
 
@@ -77,7 +71,6 @@ class ReservationTransition:
 @dataclass(frozen=True)
 class UploadReservationLifecycle:
     status: UploadReservationStatus
-    practice_source_id: int | None
     expires_at: datetime
     lease: FinalizeLease | None = None
     orphan_candidates: tuple[OrphanFinalCandidate, ...] = ()
@@ -88,8 +81,6 @@ class UploadReservationLifecycle:
     def __post_init__(self) -> None:
         if not isinstance(self.status, UploadReservationStatus):
             raise ReservationInvariantError("Unknown reservation status")
-        if self.owns_source != (self.practice_source_id is not None):
-            raise ReservationInvariantError("Reservation source ownership does not match status")
         if (self.status is UploadReservationStatus.FINALIZING) != (self.lease is not None):
             raise ReservationInvariantError("Finalize lease does not match status")
         keys = [candidate.key for candidate in self.orphan_candidates]
@@ -100,19 +91,14 @@ class UploadReservationLifecycle:
 
     @classmethod
     def reserved(
-        cls, *, practice_source_id: int, expires_at: datetime, put_expires_at: datetime
+        cls, *, expires_at: datetime, put_expires_at: datetime
     ) -> UploadReservationLifecycle:
         return cls(
             UploadReservationStatus.RESERVED,
-            practice_source_id,
             expires_at,
             last_put_url_expires_at=put_expires_at,
             staging_cleanup_after=put_expires_at,
         )
-
-    @property
-    def owns_source(self) -> bool:
-        return self.status in SOURCE_OWNING_STATUSES
 
     def assert_take_presence(self, exists: bool, *, allow_deleted_take: bool = False) -> None:
         if (exists and self.status is not UploadReservationStatus.COMPLETED) or (
@@ -223,7 +209,6 @@ class UploadReservationLifecycle:
         after = replace(
             state,
             status=status,
-            practice_source_id=None,
             lease=None,
             staging_cleanup_after=max(
                 value
@@ -241,7 +226,6 @@ class UploadReservationLifecycle:
         return self._transition(
             after,
             TransitionEffects(
-                release_source_reference_id=self.practice_source_id,
                 release_storage_reservation=completed_key is None,
                 commit_storage_object_key=completed_key,
             ),
@@ -249,7 +233,7 @@ class UploadReservationLifecycle:
 
     def expire(self, *, now: datetime, unknown_outcome: bool = True,
                token: str | None = None, object_key: str | None = None) -> ReservationTransition:
-        if not self.owns_source or self.expires_at > now:
+        if self.status not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING} or self.expires_at > now:
             raise ReservationTransitionError("reservation_not_expired")
         if self.lease is not None and self.lease.expires_at > now:
             if token is None:
@@ -290,7 +274,7 @@ class UploadReservationLifecycle:
 
     def can_cleanup_staging(self, *, now: datetime) -> bool:
         return (
-            not self.owns_source
+            self.status not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING}
             and self.staging_cleanup_completed_at is None
             and self.staging_cleanup_after is not None
             and self.staging_cleanup_after <= now

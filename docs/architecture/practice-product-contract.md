@@ -19,7 +19,7 @@ artifact and prepared-MusicXML notation. Setup Start Practice admits this comple
 representation once. PreparedPractice owns it for browser-local execution; Practice
 and Review do not re-read Source or Score capability. Notation is a presentation input,
 not an evaluation input. [Practice Source](practice-source.md) owns server construction,
-verification and retention by live revision, Take and active reservation.
+verification and retention by its live ScoreRevision only.
 The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
 Cold-start offline availability depends on asset and application caching.
@@ -959,7 +959,7 @@ completed local recording -> immutable upload reservation -> direct binary uploa
 `POST /performance-takes/upload-reservations` captures client_request_id, source,
 media, scope selection, tempo selection and recording timebase once. Source contains only
 canonical source_id; media contains kind, canonical MIME, byte size and duration. The
-reservation retains the exact canonical durable PracticeSource and captures score title.
+reservation snapshots exact source provenance and score title under live save authorization.
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable beats and tempo segments from that exact Source.
 Response metadata describes intent/evidence; resolved_scope and resolved_tempo_plan
@@ -985,8 +985,8 @@ FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 [Reservation architecture](performance-take-reservations.md) defines lifecycle,
 persistence, cleanup and object ownership.
 A unique, non-null Take foreign key establishes one reservation to at most one Take.
-The Take owns its durable media/metadata snapshot and source reference. Reservation
-completion releases its temporary source retention. Playback/listing read the Take's
+The Take owns raw durable media and immutable provenance snapshots, never PracticeSource.
+A committed reservation is self-contained even after Source GC. Playback/listing read the Take's
 metadata directly. The reservation is the sole owner of client_request_id.
 
 Finalization verifies staging existence, size, MIME/container and full SHA-256, copies
@@ -1068,6 +1068,7 @@ Completion, the explicit Review handoff and save carry it verbatim. Review uses 
 admitted artifact and MusicXML, and save submits source: { source_id }.
 A Take exposes its source_id with server-derived score/revision/artifact descriptions.
 Ordinary exact-source access and new save admission require live revision access;
-Take-owned saved-source reads remain available after revision deletion. The
+Raw Take playback/download survive deletion; optional saved score-based export requires
+current generic exact-source authorization. The
 [Practice Source contract](practice-source.md) defines authorization and retention.
 Share Video distinguishes its sessionId from canonical sourceId.

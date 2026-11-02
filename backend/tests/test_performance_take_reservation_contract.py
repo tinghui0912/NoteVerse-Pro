@@ -54,7 +54,7 @@ def test_finalize_contract_consumes_only_user_scoped_reservation_identity():
     ] == [("reservation_id", "path")]
 
 
-def test_source_lineage_is_owned_by_the_exact_source_foreign_key():
+def test_durable_provenance_is_self_contained():
     from app.modules.performance_takes.schemas import (
         PerformanceTakeSourceIdentity,
         PerformanceTakeRead,
@@ -66,11 +66,14 @@ def test_source_lineage_is_owned_by_the_exact_source_foreign_key():
         "id",
         "reservation_uuid",
         "user_id",
-        "practice_source_id",
+        "source_id",
+        "source_score_uuid",
+        "source_revision_uuid",
+        "source_artifact_id",
         "client_request_id",
         "take_uuid",
         "linked_score_id",
-        "score_title",
+        "score_title_snapshot",
         "scope_type",
         "scope_start_beat",
         "scope_terminal_beat",

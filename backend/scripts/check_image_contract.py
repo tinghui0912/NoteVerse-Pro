@@ -94,7 +94,6 @@ def check_migration_packaging() -> None:
     from alembic.script import ScriptDirectory
 
     require_import("alembic.command", "upgrade")
-    require_import("scripts.repair_unpublished_practice_migration_state", "main")
     config = Config(str(BACKEND_ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
     scripts = ScriptDirectory.from_config(config)
