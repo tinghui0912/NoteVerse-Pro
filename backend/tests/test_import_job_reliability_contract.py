@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
-from app.worker.celery_config import celery_app
+from app.task_queue.config import celery_app
 from app.worker.tasks import process_images_job
 
 

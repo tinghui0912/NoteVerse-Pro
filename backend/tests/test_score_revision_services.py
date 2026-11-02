@@ -1592,12 +1592,17 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
         revision_uuid="render-claim-revision",
         title="Render Claim",
     )
+    revision = session.get(ScoreRevision, score.head_revision_id)
+    session.add(ScoreRevisionSource(source_uuid="render-claim-source", revision_id=revision.id,
+        format=RevisionSourceFormat.MUSICXML, storage_backend="local", storage_key="render-claim.musicxml",
+        filename="score.musicxml", mime_type="application/vnd.recordare.musicxml+xml",
+        sha256=revision.content_hash, generator="test", generator_version="1"))
     outbox = RenderOutbox(
         outbox_uuid="render-outbox-claim",
         target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="claim-source",
+        source_fingerprint=revision.content_hash,
         requested_by_user_id=1,
     )
     session.add(outbox)

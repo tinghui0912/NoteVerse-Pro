@@ -45,12 +45,12 @@ def test_dependency_contract_does_not_import_application_or_models(imports):
 
 def test_real_task_contract_missing_registrations_fails(monkeypatch):
     runtime = importlib.import_module("app.core.runtime_checks")
-    fake_config = ModuleType("app.worker.celery_config")
+    fake_config = ModuleType("app.task_queue.config")
     fake_config.celery_app = SimpleNamespace(
         tasks={}, loader=SimpleNamespace(import_default_modules=lambda: None)
     )
     monkeypatch.setitem(contract.sys.modules, "app.worker.tasks", ModuleType("app.worker.tasks"))
-    monkeypatch.setitem(contract.sys.modules, "app.worker.celery_config", fake_config)
+    monkeypatch.setitem(contract.sys.modules, "app.task_queue.config", fake_config)
     monkeypatch.setattr(contract.subprocess, "run", Mock())
     original = contract.importlib.import_module
     monkeypatch.setattr(

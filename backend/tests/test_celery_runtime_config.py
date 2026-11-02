@@ -1,9 +1,9 @@
 from app.core.config import settings
 from app.core.settings.task_reliability import get_task_reliability_settings
 from app.core.settings.worker_runtime import get_worker_runtime_settings
-from app.worker.beat_schedule import build_beat_schedule
-from app.worker.celery_config import celery_app
-from app.worker.celery_runtime_options import build_celery_runtime_options
+from app.task_queue.schedule import build_beat_schedule
+from app.task_queue.config import celery_app
+from app.task_queue.options import build_celery_runtime_options
 
 
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:

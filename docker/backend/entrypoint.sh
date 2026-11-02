@@ -35,14 +35,14 @@ case "${1:-api}" in
   worker)
     export NOTEVERSE_CELERY_IMPORT_TASKS=true
     python scripts/check_runtime.py --role worker
-    exec python -m celery -A app.worker.celery_config:celery_app worker \
+    exec python -m celery -A app.task_queue.config:celery_app worker \
       --loglevel="${CELERY_LOGLEVEL:-info}" \
       --concurrency="${CELERY_WORKER_CONCURRENCY:-1}"
     ;;
   beat)
     python scripts/check_runtime.py --role beat
     exec python -m app.modules.scheduler_lock.beat_leader -- \
-      python -m celery -A app.worker.celery_config:celery_app beat \
+      python -m celery -A app.task_queue.config:celery_app beat \
       --loglevel="${CELERY_LOGLEVEL:-info}"
     ;;
   check)

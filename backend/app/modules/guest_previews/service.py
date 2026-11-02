@@ -4,6 +4,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -23,6 +24,7 @@ from app.modules.guest_previews.schemas import (
     GuestPreviewRead,
 )
 from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
+from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetDelivery
@@ -63,6 +65,26 @@ class GuestPreviewService:
         )
         if expires_at is None or not now < expires_at <= now + timedelta(days=30):
             raise ValidationException(field="expires_at")
+        # Score -> outboxes is also the worker claim lock order. Keep the revision
+        # resolved by this command even when another save has advanced the head.
+        score = (
+            await db.execute(
+                select(Score)
+                .where(Score.id == access.score.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+        derivative_work = await revision_derivative_service.ensure_preview_work(
+            db,
+            score_id=require_persisted_id(score.id, entity="score"),
+            revision_id=require_persisted_id(access.revision.id, entity="revision"),
+            requested_by_user_id=user_id,
+            source_fingerprint=access.revision.content_hash,
+            storage=self.storage,
+        )
         token = secrets.token_urlsafe(32)
         preview = ScoreGuestPreviewGrant(
             score_id=require_persisted_id(access.score.id, entity="score"),
@@ -73,6 +95,7 @@ class GuestPreviewService:
         )
         db.add(preview)
         await db.commit()
+        await revision_derivative_service.dispatch_after_commit(derivative_work)
         await db.refresh(preview)
         return GuestPreviewCreatedRead(**self._read(preview).model_dump(), token=token)
 

@@ -83,9 +83,7 @@ class ReviewService:
     ) -> ReviewConfirmRead:
         job = (
             await db.execute(
-                select(ImportJob)
-                .where(ImportJob.job_uuid == job_uuid)
-                .with_for_update()
+                select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
             )
         ).scalar_one_or_none()
         if not job:
@@ -199,7 +197,7 @@ class ReviewService:
                     extractor_version="pending",
                 )
             )
-            await revision_derivative_service.enqueue(
+            derivative_work = await revision_derivative_service.enqueue(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
@@ -226,6 +224,7 @@ class ReviewService:
             )
             await db.commit()
             business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
@@ -287,9 +286,7 @@ class ReviewService:
     ) -> ImportJobReviewRead:
         job = (
             await db.execute(
-                select(ImportJob)
-                .where(ImportJob.job_uuid == job_uuid)
-                .with_for_update()
+                select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
             )
         ).scalar_one_or_none()
         if not job:
@@ -420,7 +417,11 @@ class ReviewService:
             return request.title.strip()
         options = job.requested_options if isinstance(job.requested_options, dict) else {}
         requested_title = options.get("title")
-        return requested_title.strip() if isinstance(requested_title, str) and requested_title.strip() else "Untitled score"
+        return (
+            requested_title.strip()
+            if isinstance(requested_title, str) and requested_title.strip()
+            else "Untitled score"
+        )
 
     @staticmethod
     def _confirmed_taxonomy_pairs(

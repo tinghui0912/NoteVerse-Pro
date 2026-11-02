@@ -6,8 +6,8 @@ from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
-from app.worker.dispatch.runtime import send_durable_task
-from app.worker.dispatch.tracing import DurableTraceContext
+from app.task_queue.producer import send_durable_task
+from app.task_queue.tracing import DurableTraceContext
 
 
 def dispatch_performance_take_deletion(outbox_uuid: str) -> bool:

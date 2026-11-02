@@ -7,7 +7,7 @@ from typing import Any
 
 from app.core.config import Settings
 from app.core.settings.task_reliability import TaskReliabilitySettings
-from app.worker.beat_schedule import build_beat_schedule
+from app.task_queue.schedule import build_beat_schedule
 
 
 CeleryRuntimeOptions = dict[str, Any]

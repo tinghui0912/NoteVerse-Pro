@@ -56,8 +56,10 @@ def test_score_authorization_services_depend_on_the_central_policy() -> None:
     assert not violations, "Score access architecture violations:\n" + "\n".join(violations)
 
 
-def test_guest_preview_dependencies_are_presentation_and_authorization_only() -> None:
-    allowed_contexts = {"guest_previews", "score_access", "score_assets", "playback"}
+def test_guest_preview_dependencies_own_presentation_authorization_and_demand_provisioning() -> (
+    None
+):
+    allowed_contexts = {"guest_previews", "score_access", "score_assets", "playback", "revisions"}
     for path in (BACKEND_ROOT / "app/modules/guest_previews").glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         contexts = {
@@ -68,3 +70,11 @@ def test_guest_preview_dependencies_are_presentation_and_authorization_only() ->
             and node.module.startswith("app.modules.")
         }
         assert contexts <= allowed_contexts, (path.name, contexts)
+        revision_dependencies = {
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("app.modules.revisions.")
+        }
+        assert revision_dependencies <= {"app.modules.revisions.derivatives"}

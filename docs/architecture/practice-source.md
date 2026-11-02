@@ -230,3 +230,9 @@ The [Practice score compiler](practice-score-compiler.md) owns quarter-note chro
 explicit initial meter admission and physical note placement. The builder consumes
 its compiled facts for meter, tempo and artifact projections. Deterministic invalid
 score input maps to HTTP 422 `practice_score_invalid` at the Source service boundary.
+
+## Presentation generation
+
+Rendered pages and generated audio use [revision presentation demand](revision-derivatives.md).
+That demand and derived-asset retention are independent of canonical PracticeSource
+ownership. Guest Preview does not own PracticeSource.

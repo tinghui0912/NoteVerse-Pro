@@ -6,8 +6,8 @@ from app.db.sync_session import get_worker_db
 from app.modules.practice.source.retention import (
     practice_source_delete_service,
 )
-from app.worker.dispatch.runtime import send_durable_task
-from app.worker.dispatch.tracing import DurableTraceContext
+from app.task_queue.producer import send_durable_task
+from app.task_queue.tracing import DurableTraceContext
 
 
 def dispatch_practice_source_deletion(outbox_uuid: str) -> bool:

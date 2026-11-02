@@ -54,6 +54,13 @@ recorded `score_id`.
 - Practice admissions pin `revision_id`;
 - score-facing DTOs do not expose processing progress as score state.
 
+## Presentation scheduling
+
+Revision transactions persist render/playback outboxes before commit and immediately
+attempt dispatch afterward. Workers generate only for an active Score head or active
+Guest Preview pin; historical retention does not imply generation demand. Beat recovers
+missed deliveries and stale leases. See [revision derivatives](../architecture/revision-derivatives.md).
+
 ## Consequences
 
 - Upload and review can continue to expose processing diagnostics without polluting score

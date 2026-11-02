@@ -171,7 +171,7 @@ class RevisionService:
                     extractor_version="pending",
                 )
             )
-            await revision_derivative_service.enqueue(
+            derivative_work = await revision_derivative_service.enqueue(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
@@ -183,6 +183,7 @@ class RevisionService:
             score.updated_at = utc_now_naive()
             await db.commit()
             business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
@@ -354,7 +355,7 @@ class RevisionService:
                     created_at=utc_now_naive(),
                 )
             )
-            await revision_derivative_service.enqueue(
+            derivative_work = await revision_derivative_service.enqueue(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
@@ -366,6 +367,7 @@ class RevisionService:
             score.updated_at = utc_now_naive()
             await db.commit()
             business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,

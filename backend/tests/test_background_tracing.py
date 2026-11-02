@@ -11,10 +11,10 @@ from opentelemetry.trace import SpanKind
 
 from app.core import background_tracing
 from app.core.logger import get_otel_trace_context, set_otel_trace_context
-from app.worker import celery_config
+from app.task_queue import config as celery_config
 from app.worker.dispatch import import_jobs
-from app.worker.dispatch import runtime as dispatch_runtime
-from app.worker.dispatch.tracing import DurableTraceContext
+from app.task_queue import producer as dispatch_runtime
+from app.task_queue.tracing import DurableTraceContext
 
 
 TRACEPARENT = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01"

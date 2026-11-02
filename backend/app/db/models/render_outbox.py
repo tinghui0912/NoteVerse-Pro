@@ -32,6 +32,7 @@ class RenderOutboxStatus(str, enum.Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    SUPERSEDED = "SUPERSEDED"
 
 
 class RenderTargetType(str, enum.Enum):

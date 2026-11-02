@@ -22,6 +22,7 @@ from app.db.models import (
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.storage import FileStorage, file_storage
 from app.modules.metadata.service import rebuild_metadata_sync
+from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
 from app.utils.timezone import utc_now_naive
@@ -43,9 +44,7 @@ class SyncConfirmedScoreCreationService:
         taxonomy_tags: list[tuple[str, str]] | None = None,
     ) -> str:
         job = db.execute(
-            select(ImportJob)
-            .where(ImportJob.job_uuid == job_uuid)
-            .with_for_update()
+            select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
         ).scalar_one_or_none()
         if not job:
             raise ValueError(f"Import job {job_uuid} not found")
@@ -61,9 +60,7 @@ class SyncConfirmedScoreCreationService:
 
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
-        storage_key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
-        )
+        storage_key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         content_hash = hashlib.sha256(content).hexdigest()
         reservation = storage_usage_service.reserve_sync(
             db,
@@ -107,10 +104,7 @@ class SyncConfirmedScoreCreationService:
                         col(TaxonomyTag.is_active).is_(True),
                     )
                 ).all()
-                tag_ids = {
-                    (category, code): tag_id
-                    for category, code, tag_id in tag_rows
-                }
+                tag_ids = {(category, code): tag_id for category, code, tag_id in tag_rows}
                 missing = [
                     f"{category}:{code}"
                     for category, code in normalized_tags
@@ -166,11 +160,19 @@ class SyncConfirmedScoreCreationService:
                     extractor_version="pending",
                 )
             )
+            derivative_work = revision_derivative_service.enqueue_sync(
+                db,
+                score_id=score_id,
+                revision_id=revision_id,
+                requested_by_user_id=job.user_id,
+                source_fingerprint=content_hash,
+            )
             score.head_revision_id = revision_id
             job.score_id = score_id
             job.updated_at = now
             db.commit()
             business_committed = True
+            revision_derivative_service.dispatch_after_commit_sync(derivative_work)
             storage_usage_service.commit_reservation_sync(
                 db,
                 reservation.reservation_id,

@@ -20,3 +20,15 @@ def exporter_client() -> Iterator[TestClient]:
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def isolated_revision_derivative_relay(monkeypatch):
+    """Business transaction tests do not publish to an external broker.
+
+    Relay protocol tests install their controlled producer explicitly.
+    """
+    from unittest.mock import AsyncMock, Mock
+    from app.modules.revisions.derivatives import revision_derivative_service
+    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", AsyncMock())
+    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit_sync", Mock())

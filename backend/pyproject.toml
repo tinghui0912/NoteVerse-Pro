@@ -173,6 +173,7 @@ files = [
   "app/pipeline",
   "app/processing",
   "app/shared",
+  "app/task_queue",
   "app/utils",
   "app/worker",
 ]

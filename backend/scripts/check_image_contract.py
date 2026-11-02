@@ -123,7 +123,7 @@ def run_contract(role: str) -> list[str]:
         check_migration_packaging()
         evidence.append("migration command/revision imports passed (no database execution)")
     elif role == "beat":
-        require_import("app.worker.celery_config", "celery_app")
+        require_import("app.task_queue.config", "celery_app")
         require_import("app.modules.scheduler_lock.beat_leader", "BeatLeader")
         require_import("app.modules.scheduler_lock.connection", "open_scheduler_lock_connection")
         require_import("psycopg", "connect")

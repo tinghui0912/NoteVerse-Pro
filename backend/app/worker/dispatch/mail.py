@@ -4,8 +4,8 @@ from uuid import uuid4
 
 from app.db.sync_session import get_worker_db
 from app.modules.mail.outbox_service import mail_outbox_service
-from app.worker.dispatch.runtime import send_durable_task
-from app.worker.dispatch.tracing import mail_trace_context
+from app.task_queue.producer import send_durable_task
+from app.task_queue.tracing import mail_trace_context
 
 
 def dispatch_mail_outbox(outbox_uuid: str) -> bool:

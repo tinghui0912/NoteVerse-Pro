@@ -68,12 +68,12 @@ def test_worker_dispatch_modules_delegate_shared_producer_runtime() -> None:
     violations: list[str] = []
 
     for path in (WORKER_ROOT / "dispatch").glob("*.py"):
-        if path.name in {"__init__.py", "runtime.py"}:
+        if path.name == "__init__.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module in {
-                "app.worker.celery_config",
+                "app.task_queue.config",
                 "app.core.background_tracing",
             }:
                 violations.append(f"{path.name}: from {node.module} import ...")
@@ -86,7 +86,7 @@ def test_worker_dispatch_modules_delegate_shared_producer_runtime() -> None:
 
     assert not violations, (
         "worker.dispatch modules must delegate shared producer behavior to "
-        "worker.dispatch.runtime: " + "; ".join(violations)
+        "app.task_queue.producer: " + "; ".join(violations)
     )
 
 

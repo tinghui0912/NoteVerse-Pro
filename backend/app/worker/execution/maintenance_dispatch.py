@@ -43,7 +43,7 @@ def execute_render_outbox_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = render_outbox_service.recover_and_list_due(db)
 
-        from app.worker.dispatch.render_assets import dispatch_render_outbox
+        from app.modules.revisions.dispatch import dispatch_render_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
@@ -58,7 +58,7 @@ def execute_playback_outbox_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = playback_outbox_service.recover_and_list_due(db)
 
-        from app.worker.dispatch.playback_assets import dispatch_playback_outbox
+        from app.modules.revisions.dispatch import dispatch_playback_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}

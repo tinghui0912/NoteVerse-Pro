@@ -30,6 +30,7 @@ def upgrade() -> None:
         "PROCESSING",
         "COMPLETED",
         "FAILED",
+        "SUPERSEDED",
         name="playbackoutboxstatus",
     ).create(bind, checkfirst=True)
     playback_asset_kind = postgresql.ENUM(
@@ -43,6 +44,7 @@ def upgrade() -> None:
         "PROCESSING",
         "COMPLETED",
         "FAILED",
+        "SUPERSEDED",
         name="playbackoutboxstatus",
         create_type=False,
     )

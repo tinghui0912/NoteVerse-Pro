@@ -11,7 +11,7 @@ from sqlmodel import col
 
 from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
-from app.core.logger import get_request_id
+from app.core.logger import get_request_id, logger
 from app.db.models import (
     RenderOutbox,
     RenderOutboxStatus,
@@ -29,6 +29,11 @@ from app.modules.async_operations.delivery_policy import (
 )
 from app.modules.score_assets import render_payloads
 from app.utils.timezone import utc_now_naive
+from app.modules.revisions.presentation_demand import (
+    revision_presentation_demand,
+    lock_presentation_score,
+    RevisionPresentationDemand,
+)
 
 
 async def create_revision_render_outbox(
@@ -42,17 +47,75 @@ async def create_revision_render_outbox(
 ) -> RenderOutbox:
     existing = (
         await db.execute(
-            select(RenderOutbox).where(
+            select(RenderOutbox)
+            .where(
                 RenderOutbox.revision_id == revision_id,
                 RenderOutbox.render_profile == render_profile,
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.status == RenderOutboxStatus.SUPERSEDED:
+            rearm_revision_outbox(existing)
         return existing
 
+    outbox = _new_revision_render_outbox(
+        score_id=score_id,
+        revision_id=revision_id,
+        requested_by_user_id=requested_by_user_id,
+        source_fingerprint=source_fingerprint,
+        render_profile=render_profile,
+    )
+    db.add(outbox)
+    await db.flush()
+    return outbox
+
+
+def create_revision_render_outbox_sync(
+    db: Session,
+    *,
+    score_id: int,
+    revision_id: int,
+    requested_by_user_id: int,
+    source_fingerprint: str,
+    render_profile: str = "default",
+) -> RenderOutbox:
+    existing = db.execute(
+        select(RenderOutbox)
+        .where(
+            RenderOutbox.revision_id == revision_id, RenderOutbox.render_profile == render_profile
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if existing is not None:
+        if existing.status == RenderOutboxStatus.SUPERSEDED:
+            rearm_revision_outbox(existing)
+        return existing
+    outbox = _new_revision_render_outbox(
+        score_id=score_id,
+        revision_id=revision_id,
+        requested_by_user_id=requested_by_user_id,
+        source_fingerprint=source_fingerprint,
+        render_profile=render_profile,
+    )
+    db.add(outbox)
+    db.flush()
+    return outbox
+
+
+def _new_revision_render_outbox(
+    *,
+    score_id: int,
+    revision_id: int,
+    requested_by_user_id: int,
+    source_fingerprint: str,
+    render_profile: str = "default",
+) -> RenderOutbox:
     traceparent, tracestate = get_async_trace_context()
-    outbox = RenderOutbox(
+    return RenderOutbox(
         outbox_uuid=str(uuid.uuid4()),
         target_type=RenderTargetType.SCORE_REVISION,
         score_id=score_id,
@@ -65,9 +128,6 @@ async def create_revision_render_outbox(
         render_profile=render_profile,
         status=RenderOutboxStatus.PENDING,
     )
-    db.add(outbox)
-    await db.flush()
-    return outbox
 
 
 async def create_review_thumbnail_render_outbox(
@@ -149,15 +209,52 @@ class RenderOutboxService:
         self.payload_builder = payload_builder or render_payloads.RenderPayloadBuilder()
 
     def claim(self, db: Session, outbox_uuid: str) -> render_payloads.RenderOutboxPayload | None:
+        target = db.execute(
+            select(RenderOutbox).where(RenderOutbox.outbox_uuid == outbox_uuid)
+        ).scalar_one_or_none()
+        locked_score = (
+            lock_presentation_score(db, target.score_id)
+            if target is not None and target.target_type == RenderTargetType.SCORE_REVISION
+            else None
+        )
         outbox = db.execute(
             select(RenderOutbox)
             .where(RenderOutbox.outbox_uuid == outbox_uuid)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
         if outbox is None or outbox.status in {
             RenderOutboxStatus.PROCESSING,
             RenderOutboxStatus.COMPLETED,
+            RenderOutboxStatus.SUPERSEDED,
         }:
+            return None
+        demand = (
+            revision_presentation_demand(
+                db, locked_score, outbox.revision_id, outbox.source_fingerprint
+            )
+            if outbox.target_type == RenderTargetType.SCORE_REVISION
+            else None
+        )
+        if demand == RevisionPresentationDemand.UNAVAILABLE:
+            self._exhaust_unavailable_resources(outbox)
+            return None
+        if demand == RevisionPresentationDemand.NOT_DEMANDED:
+            outbox.status = RenderOutboxStatus.SUPERSEDED
+            outbox.dispatched_at = None
+            outbox.started_at = None
+            outbox.completed_at = None
+            outbox.next_attempt_at = utc_now_naive()
+            outbox.last_error = None
+            clear_async_diagnostic(outbox)
+            outbox.updated_at = utc_now_naive()
+            logger.bind(
+                event="revision_derivative.superseded",
+                score_id=outbox.score_id,
+                revision_id=outbox.revision_id,
+                outbox_id=outbox.outbox_uuid,
+                operation_kind="render",
+            ).info("revision_derivative.superseded")
             return None
         if outbox.status == RenderOutboxStatus.FAILED and outbox.next_attempt_at > utc_now_naive():
             return None
@@ -286,14 +383,18 @@ class RenderOutboxService:
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
-        stale = db.execute(
-            select(RenderOutbox).where(
-                or_(
-                    RenderOutbox.status == RenderOutboxStatus.DISPATCHED,
-                    RenderOutbox.status == RenderOutboxStatus.PROCESSING,
+        stale = (
+            db.execute(
+                select(RenderOutbox).where(
+                    or_(
+                        RenderOutbox.status == RenderOutboxStatus.DISPATCHED,
+                        RenderOutbox.status == RenderOutboxStatus.PROCESSING,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for outbox in stale:
             if delivery_lease_expired(
                 status=outbox.status,
@@ -319,25 +420,29 @@ class RenderOutboxService:
                 )
                 outbox.updated_at = now
 
-        due = db.execute(
-            select(RenderOutbox.outbox_uuid)
-            .where(
-                col(RenderOutbox.status).in_(
-                    [RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED]
-                ),
-                RenderOutbox.next_attempt_at <= now,
-                RenderOutbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+        due = (
+            db.execute(
+                select(RenderOutbox.outbox_uuid)
+                .where(
+                    col(RenderOutbox.status).in_(
+                        [RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED]
+                    ),
+                    RenderOutbox.next_attempt_at <= now,
+                    RenderOutbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+                )
+                .order_by(RenderOutbox.created_at)
+                .limit(settings.RENDER_OUTBOX_DISPATCH_BATCH_SIZE)
             )
-            .order_by(RenderOutbox.created_at)
-            .limit(settings.RENDER_OUTBOX_DISPATCH_BATCH_SIZE)
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         db.commit()
         return list(due)
 
     @staticmethod
     def _get(db: Session, outbox_uuid: str) -> RenderOutbox | None:
         return db.execute(
-            select(RenderOutbox).where(RenderOutbox.outbox_uuid == outbox_uuid)
+            select(RenderOutbox).where(RenderOutbox.outbox_uuid == outbox_uuid).with_for_update()
         ).scalar_one_or_none()
 
     @staticmethod
@@ -350,3 +455,22 @@ class RenderOutboxService:
 
 
 render_outbox_service = RenderOutboxService()
+
+
+def rearm_revision_outbox(outbox: RenderOutbox) -> None:
+    outbox.status = RenderOutboxStatus.PENDING
+    outbox.dispatched_at = None
+    outbox.started_at = None
+    outbox.completed_at = None
+    outbox.attempt_count = 0
+    outbox.next_attempt_at = utc_now_naive()
+    outbox.last_error = None
+    clear_async_diagnostic(outbox)
+    outbox.updated_at = utc_now_naive()
+    logger.bind(
+        event="revision_derivative.reactivated",
+        score_id=outbox.score_id,
+        revision_id=outbox.revision_id,
+        outbox_id=outbox.outbox_uuid,
+        operation_kind="render",
+    ).info("revision_derivative.reactivated")

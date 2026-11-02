@@ -36,6 +36,7 @@ class PlaybackOutboxStatus(str, enum.Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    SUPERSEDED = "SUPERSEDED"
 
 
 class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]

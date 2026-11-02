@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("render_profile", sa.String(length=128), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "DISPATCHED", "PROCESSING", "COMPLETED", "FAILED", name="renderoutboxstatus"),
+            sa.Enum("PENDING", "DISPATCHED", "PROCESSING", "COMPLETED", "FAILED", "SUPERSEDED", name="renderoutboxstatus"),
             nullable=False,
         ),
         sa.Column("attempt_count", sa.Integer(), nullable=False),

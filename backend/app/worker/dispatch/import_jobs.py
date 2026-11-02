@@ -5,8 +5,8 @@ from uuid import uuid4
 from app.core.logger import logger
 from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
-from app.worker.dispatch.runtime import send_durable_task
-from app.worker.dispatch.tracing import import_trace_context
+from app.task_queue.producer import send_durable_task
+from app.task_queue.tracing import import_trace_context
 
 
 def dispatch_import_job(job_uuid: str) -> bool:

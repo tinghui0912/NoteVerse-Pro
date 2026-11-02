@@ -9,8 +9,8 @@ from opentelemetry.trace import SpanKind
 
 from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
-from app.worker.celery_config import celery_app
-from app.worker.dispatch.tracing import DurableTraceContext
+from app.task_queue.config import celery_app
+from app.task_queue.tracing import DurableTraceContext
 
 
 def send_durable_task(
