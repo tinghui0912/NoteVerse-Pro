@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isArchiveableCaptureMime, normalizeCaptureMime } from './media-policy';
 import { PerformanceRecorder } from './performance-recorder';
 
 function createTrack(kind: 'audio' | 'video' = 'audio') {
@@ -25,6 +26,7 @@ function createStream(tracks = [createTrack('audio')]) {
 }
 
 type MockRecorderBehavior = {
+  mimeType?: string;
   emitStop?: boolean;
   emitData?: boolean;
   throwOnStop?: boolean;
@@ -51,7 +53,9 @@ describe('PerformanceRecorder', () => {
       onstop: (() => void) | null = null;
       onerror: (() => void) | null = null;
 
-      constructor(readonly stream: MediaStream) { lastRecorder = this; }
+      constructor(readonly stream: MediaStream, options?: MediaRecorderOptions) {
+        this.mimeType = behavior.mimeType ?? options?.mimeType ?? 'audio/webm'; lastRecorder = this;
+      }
 
       start() {
         this.state = 'recording';
@@ -59,7 +63,7 @@ describe('PerformanceRecorder', () => {
 
       requestData() {
         if (behavior.emitData) {
-          this.ondataavailable?.({ data: new Blob(['final'], { type: 'audio/webm' }) });
+          this.ondataavailable?.({ data: new Blob(['final'], { type: this.mimeType }) });
         }
       }
 
@@ -88,6 +92,39 @@ describe('PerformanceRecorder', () => {
       writable: true,
       value: MockMediaRecorder,
     });
+  });
+
+  it.each([
+    ['AUDIO', 'audio/webm;codecs=opus'], ['AUDIO', 'audio/mp4'], ['AUDIO', 'audio/ogg'],
+    ['AUDIO', 'audio/wav'], ['AUDIO', 'audio/x-wav'],
+    ['VIDEO', 'video/webm;codecs=vp8,opus'], ['VIDEO', 'video/mp4;codecs=avc1'],
+    ['AUDIO', 'audio/unknown'], ['VIDEO', 'video/quicktime'], ['VIDEO', 'audio/mp4'], ['AUDIO', ''],
+  ] as const)('finalizes %s actual MIME %s only when it is archiveable', async (mode, mimeType) => {
+    behavior.mimeType = mimeType;
+    vi.stubGlobal('MediaStream', class {
+      constructor(private tracks: MediaStreamTrack[]) {}
+      getTracks() { return this.tracks; }
+      getAudioTracks() { return this.tracks.filter(track => track.kind === 'audio'); }
+      getVideoTracks() { return this.tracks.filter(track => track.kind === 'video'); }
+      clone() { return createStream(this.tracks.map(track => createTrack(track.kind as 'audio' | 'video'))); }
+    });
+    try {
+      const recorder = new PerformanceRecorder(mode);
+      await recorder.prepare({ audioRoot: createStream(), cameraStream: createStream([createTrack('video')]) });
+      recorder.startIfReady(0); await recorder.freeze(1000);
+      const result = await recorder.finalize();
+      if (isArchiveableCaptureMime(mode, mimeType)) {
+        expect(result.status).toBe('READY');
+        if (result.status !== 'READY') throw new Error('Expected capture');
+        expect(result.mimeType).toBe(mimeType);
+        expect(result.blob.type).toBe(mimeType);
+        expect(normalizeCaptureMime(result.mimeType)).toBe(mimeType.split(';')[0]);
+        expect(await result.blob.text()).toBe('final');
+      } else {
+        expect(result).toMatchObject({ status: 'UNAVAILABLE', reason: expect.stringContaining('RECORDER_UNSUPPORTED') });
+      }
+      recorder.stopAndCleanup();
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it('consumes physical audio facts without subscribing to the borrowed track, while retaining clone health', async () => {

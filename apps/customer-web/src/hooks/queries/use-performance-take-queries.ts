@@ -11,6 +11,7 @@ import {
   type PerformanceTakeTempoPlan,
   type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
+import { normalizeCaptureMime, type CaptureMediaKind } from '@/lib/practice/recording/media-policy';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
@@ -54,7 +55,7 @@ export function useDeletePerformanceTake() {
 export interface SavePerformanceTakeInput {
   sourceId: string;
   clientRequestId: string;
-  mediaKind: 'AUDIO' | 'VIDEO';
+  mediaKind: CaptureMediaKind;
   mediaBlob: Blob;
   mimeType: string;
   durationMs: number;
@@ -88,7 +89,7 @@ export function useSavePerformanceTake() {
         media: {
           kind: input.mediaKind,
           byte_size: input.mediaBlob.size,
-          mime_type: input.mimeType,
+          mime_type: normalizeCaptureMime(input.mimeType),
           duration_ms: input.durationMs,
         },
         scope: input.scope.kind === 'RANGE'

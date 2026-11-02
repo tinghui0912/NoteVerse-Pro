@@ -20,11 +20,14 @@ export function recordingProbeFixture() {
   class Recorder {
     static isTypeSupported = () => true;
     state = 'inactive';
+    mimeType = 'audio/webm';
     completeOnStop = false;
     onstop: (() => void) | null = null;
     onerror: (() => void) | null = null;
     ondataavailable: (() => void) | null = null;
-    constructor(readonly stream: Stream) { instances.push(this); }
+    constructor(readonly stream: Stream, options?: MediaRecorderOptions) {
+      this.mimeType = options?.mimeType ?? 'audio/webm'; instances.push(this);
+    }
     start = vi.fn(() => { this.state = 'recording'; });
     stop = vi.fn(() => {
       if (!this.completeOnStop) return;

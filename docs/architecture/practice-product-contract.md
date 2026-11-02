@@ -1077,3 +1077,15 @@ Raw Take playback/download survive deletion; optional saved score-based export r
 current generic exact-source authorization. The
 [Practice Source contract](practice-source.md) defines authorization and retention.
 VideoExport distinguishes its sessionId from canonical sourceId.
+
+## Capture and archive media contract
+
+Capture is raw browser recording. READY capture has an archiveable media kind and
+container: VIDEO WebM/MP4, or AUDIO WebM/MP4/Ogg/WAV/x-WAV. The recording media policy
+owns normalization, Video Capture preferences and raw-download extensions.
+MediaRecorder's actual MIME is authoritative; unsupported output cannot become READY.
+
+PerformanceTake archives the exact Capture bytes without transcoding. Original
+media download returns those raw bytes. VideoExport composes a separate browser-local
+score/video derivative using its own output format policy; PerformanceTake does not
+archive that composed output.

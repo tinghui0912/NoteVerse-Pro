@@ -1,12 +1,13 @@
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures';
 import type { PracticeRecordingMode } from './recording-mode';
+import { isArchiveableCaptureMime, VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
 
 export function recordingOptions(mode: Exclude<PracticeRecordingMode, 'OFF'>): MediaRecorderOptions | undefined {
   if (typeof MediaRecorder === 'undefined') throw new RecordingFailure('MEDIA_RECORDER_UNSUPPORTED');
   if (mode === 'AUDIO') return undefined;
   if (typeof MediaRecorder.isTypeSupported !== 'function') throw new RecordingFailure('VIDEO_RECORDER_UNSUPPORTED');
-  const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
+  const mimeType = VIDEO_CAPTURE_MIME_CANDIDATES
     .find(candidate => MediaRecorder.isTypeSupported(candidate));
   if (!mimeType) throw new RecordingFailure('VIDEO_RECORDER_UNSUPPORTED');
   return { mimeType };
@@ -35,7 +36,8 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) { abort(); return; }
     recorder.onerror = () => finish(new RecordingFailure('RECORDING_PROBE_FAILED'));
-    recorder.onstop = () => finish();
+    recorder.onstop = () => finish(isArchiveableCaptureMime(mode, recorder.mimeType) ? undefined
+      : new RecordingFailure(mode === 'VIDEO' ? 'VIDEO_RECORDER_UNSUPPORTED' : 'MEDIA_RECORDER_UNSUPPORTED'));
     try { recorder.start(); recorder.stop(); } catch { finish(new RecordingFailure('RECORDING_PROBE_FAILED')); }
   });
 }

@@ -26,6 +26,16 @@ describe('video export session saved-take parsing', () => {
     }
   });
 
+  it('accepts the same raw MP4 Take as local composition input', () => {
+    const blob = new Blob(['raw mp4'], { type: 'video/mp4' });
+    const result = createVideoExportSessionFromSavedTake({ ...take, media_mime_type: 'video/mp4' }, blob,
+      { sourceId: take.source_id, artifact });
+    expect(result.status).toBe('supported');
+    if (result.status !== 'supported') throw new Error('Expected MP4 source');
+    expect(result.session.video.blob).toBe(blob);
+    expect(result.session.video.mimeType).toBe('video/mp4');
+  });
+
   it('classifies audio and deleting takes as unsupported', () => {
     expect(
       createVideoExportSessionFromSavedTake(

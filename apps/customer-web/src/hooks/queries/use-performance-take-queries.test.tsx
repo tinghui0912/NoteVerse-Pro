@@ -126,6 +126,20 @@ describe('useSavePerformanceTake', () => {
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
     expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
   });
+  it('archives MP4 capture bytes directly while normalizing only the request MIME', async () => {
+    const raw = new Blob(['raw captured mp4'], { type: 'video/mp4;codecs=avc1' });
+    const input = { ...createInput(), mediaKind: 'VIDEO' as const, mimeType: raw.type, mediaBlob: raw };
+    const reserved = reservation();
+    reserved.metadata.media = { kind: 'VIDEO', byte_size: raw.size, mime_type: 'video/mp4', duration_ms: input.durationMs };
+    reserved.upload_target = { url: '/uploads/staging.mp4', method: 'PUT', headers: { 'content-type': 'video/mp4' }, expires_in: 3600 };
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({ data: reserved } as never);
+    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({ data: { ...savedTake, media_kind: 'VIDEO', media_mime_type: 'video/mp4', media_byte_size: raw.size } } as never);
+    const { result } = renderHook(() => useSavePerformanceTake(), { wrapper: createWrapper() });
+    await act(async () => { await result.current.mutateAsync(input); });
+    expect(performanceTakesApi.reserveUpload).toHaveBeenCalledWith(expect.objectContaining({ media: reserved.metadata.media }));
+    expect(vi.mocked(uploadMediaToSignedUrl).mock.calls[0][3]).toBe(raw);
+    expect(uploadMediaToSignedUrl).toHaveBeenCalledWith('/uploads/staging.mp4', 'PUT', { 'content-type': 'video/mp4' }, raw);
+  });
   it('returns COMPLETED without another upload or finalize', async () => {
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({ data: reservation('COMPLETED') } as never);
     expect(await save()).toEqual(savedTake);

@@ -7,6 +7,26 @@ authorizes the exact Source, calls the Practice planner, orchestrates storage IO
 and executes explicit transition effects. `PerformanceTakeService` owns the durable
 Take library: reads, playback, download and deletion from its own durable snapshots.
 
+## Capture, archive and export
+
+Capture is the raw browser MediaRecorder artifact. Practice admits an archiveable
+browser-supported container and validates the recorder's actual MIME before producing
+READY capture. VIDEO supports WebM and MP4; AUDIO supports WebM, MP4, Ogg, WAV and
+x-WAV. Codec parameters may remain on the capture MIME; archive requests normalize
+the container MIME without introducing codec policy.
+
+Archive is an explicit Save of those exact capture bytes as a PerformanceTake.
+Signed upload, staging verification and the final object preserve the raw bytes and
+container; there is no transcoding or recomposition. WebM requires its EBML header;
+MP4 audio/video requires the ISO BMFF `ftyp` box signature at byte offset four.
+Media kind and storage Content-Type must agree with the admitted container.
+
+Original media download returns raw Capture/Take media with the corresponding file
+extension. VideoExport is a separate browser-local composition/download operation
+with its own encoder policy. Its composed score/video output is not the archive
+format and is not stored by PerformanceTake. The 100 MiB Take limit and upload
+reservation lifecycle remain independent of format selection.
+
 ## Lifecycle and persistence
 
 The domain owns `UploadReservationStatus`, `FinalizeLease`, orphan candidates,

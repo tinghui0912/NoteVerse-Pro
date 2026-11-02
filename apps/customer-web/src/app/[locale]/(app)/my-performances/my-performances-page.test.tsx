@@ -484,7 +484,7 @@ describe('MyPerformancesPage', () => {
     expect(mockPlaybackQuery.refetch).toHaveBeenCalled();
   });
 
-  it('offers raw video replay/download and the local video export route', () => {
+  it.each(['video/webm', 'video/mp4'])('offers %s raw video replay/download and the local video export route', async (mimeType) => {
     mockQueryOverride = {
       data: {
         data: {
@@ -495,7 +495,7 @@ describe('MyPerformancesPage', () => {
               source_score_id: 'score-uuid-1',
               score_title_snapshot: 'Score Title 1',
               media_kind: 'VIDEO',
-              media_mime_type: 'video/webm',
+              media_mime_type: mimeType,
               media_byte_size: 2048,
               duration_ms: 60000,
               scope_type: 'FULL',
@@ -520,7 +520,7 @@ describe('MyPerformancesPage', () => {
       refetch: vi.fn(),
     };
     mockPlaybackQuery.data.data.media_kind = 'VIDEO';
-    mockPlaybackQuery.data.data.media_mime_type = 'video/webm';
+    mockPlaybackQuery.data.data.media_mime_type = mimeType;
 
     render(<MyPerformancesPage />);
 
@@ -530,6 +530,17 @@ describe('MyPerformancesPage', () => {
     fireEvent.click(screen.getByTestId('play-take-take-video-1'));
 
     expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
+    const extension = mimeType === 'video/mp4' ? 'mp4' : 'webm';
+    mockApi.getPlaybackUrl.mockResolvedValueOnce({ data: {
+      playback_url: `https://oss.example.com/raw.${extension}`,
+      download_url: `https://oss.example.com/raw.${extension}`, media_kind: 'VIDEO', media_mime_type: mimeType,
+    } });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      fireEvent.click(screen.getByTestId('download-take-take-video-1'));
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      expect((click.mock.instances[0] as HTMLAnchorElement).download).toBe(`performance-take-video-1.${extension}`);
+    } finally { click.mockRestore(); }
   });
 
   it('triggers download and handles download failure with retry', async () => {

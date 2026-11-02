@@ -1,9 +1,10 @@
 import { assertRecordingTimebase, immutableRecordingTimebase, type RecordingTimebaseMapping } from './recording-timebase';
+import { isArchiveableCaptureMime, type CaptureMediaKind } from './media-policy';
 
 export type PerformanceRecording =
   | Readonly<{ status: 'NOT_RECORDED' }>
   | Readonly<{ status: 'UNAVAILABLE'; reason: string }>
-  | Readonly<{ status: 'READY'; kind: 'AUDIO' | 'VIDEO'; blob: Blob; mimeType: string; durationMs: number; timebase: RecordingTimebaseMapping }>;
+  | Readonly<{ status: 'READY'; kind: CaptureMediaKind; blob: Blob; mimeType: string; durationMs: number; timebase: RecordingTimebaseMapping }>;
 
 export function assertPerformanceRecording(recording: PerformanceRecording): void {
   if (recording.status === 'NOT_RECORDED' && Object.keys(recording).join() === 'status') return;
@@ -11,6 +12,7 @@ export function assertPerformanceRecording(recording: PerformanceRecording): voi
     && Object.keys(recording).sort().join() === 'reason,status') return;
   if (recording.status !== 'READY' || !['AUDIO', 'VIDEO'].includes(recording.kind) || !(recording.blob instanceof Blob)
     || recording.blob.size <= 0 || typeof recording.mimeType !== 'string' || !recording.mimeType
+    || !isArchiveableCaptureMime(recording.kind, recording.mimeType)
     || !Number.isFinite(recording.durationMs) || recording.durationMs < 0
     || Object.keys(recording).sort().join() !== 'blob,durationMs,kind,mimeType,status,timebase') {
     throw new Error('Performance recording is invalid.');

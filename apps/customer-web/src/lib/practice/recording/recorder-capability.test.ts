@@ -8,12 +8,13 @@ function rig() {
   class Recorder {
     static isTypeSupported = vi.fn((mime: string) => mime === 'video/webm');
     state = 'inactive';
+    mimeType: string;
     onstop: (() => void) | null = null;
     onerror: (() => void) | null = null;
     ondataavailable = null;
     start = vi.fn(() => { this.state = 'recording'; });
     stop = vi.fn(() => { this.state = 'inactive'; queueMicrotask(() => this.onstop?.()); });
-    constructor(readonly stream: MediaStream, readonly options?: MediaRecorderOptions) { instances.push(this); }
+    constructor(readonly stream: MediaStream, readonly options?: MediaRecorderOptions) { this.mimeType = options?.mimeType ?? 'audio/webm'; instances.push(this); }
   }
   vi.stubGlobal('MediaRecorder', Recorder);
   const stream = { getAudioTracks: () => [{ readyState: 'live' }], getVideoTracks: () => [{ readyState: 'live' }] } as unknown as MediaStream;
@@ -72,4 +73,25 @@ it.each([false,true])('abort settles a stalled probe without advancing time, eve
   expect(recorder).toMatchObject({onstop:null,onerror:null,ondataavailable:null});
   lateStop();lateError();expect(recorder.stop).toHaveBeenCalledTimes(2);
   expect(root.track.stop).not.toHaveBeenCalled();
+});
+
+
+it('prefers WebM when WebM and MP4 are supported, and admits an MP4-only browser', async () => {
+  const r = rig(); r.Recorder.isTypeSupported.mockReturnValue(true);
+  expect(recordingOptions('VIDEO')).toEqual({ mimeType: 'video/webm;codecs=vp9,opus' });
+  r.Recorder.isTypeSupported.mockImplementation(mime => mime === 'video/mp4');
+  expect(recordingOptions('VIDEO')).toEqual({ mimeType: 'video/mp4' });
+  await probeRecording('VIDEO', r.stream, new AbortController().signal);
+  expect(r.instances[0].mimeType).toBe('video/mp4');
+});
+
+it.each(['AUDIO', 'VIDEO'] as const)('rejects the actual unsupported %s recorder MIME during preflight', async mode => {
+  const r = rig();
+  vi.stubGlobal('MediaRecorder', class extends r.Recorder {
+    constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+      super(stream, options); this.mimeType = mode === 'AUDIO' ? 'audio/unknown' : 'video/quicktime';
+    }
+  });
+  await expect(probeRecording(mode, r.stream, new AbortController().signal)).rejects.toThrow('RECORDER_UNSUPPORTED');
+  expect(r.instances[0]).toMatchObject({ state: 'inactive', onstop: null, onerror: null });
 });

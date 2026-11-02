@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
+import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
@@ -60,14 +61,6 @@ const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
   return Array.isArray(id) ? id[0] ?? '' : id ?? '';
-}
-
-function extensionForMime(mimeType: string): string {
-  const cleaned = mimeType.split(';')[0]?.trim().toLowerCase();
-  if (cleaned === 'video/mp4' || cleaned === 'audio/mp4') return 'mp4';
-  if (cleaned === 'audio/ogg') return 'ogg';
-  if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
-  return 'webm';
 }
 
 function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): PerformanceTakeTempoPlan {
@@ -266,7 +259,7 @@ export default function PracticeReviewPage({
     const url = URL.createObjectURL(recording.blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `performance-video-${Date.now()}.${extensionForMime(recording.mimeType)}`;
+    a.download = `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -285,14 +278,6 @@ export default function PracticeReviewPage({
     }
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    }
-    if (
-      saveMedia.kind === 'VIDEO' &&
-      saveMedia.mimeType.split(';')[0]?.trim().toLowerCase() !== 'video/webm'
-    ) {
-      setSaveRecordingStatus('error');
-      setSaveRecordingErrorMessage(t('saveRecordingVideoFormatUnsupported'));
-      return;
     }
     if (saveMedia.blob.size > MAX_TAKE_MEDIA_BYTES) {
       setSaveRecordingStatus('error');

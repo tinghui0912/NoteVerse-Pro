@@ -81,6 +81,7 @@ SUPPORTED_AUDIO_MIMES = {
 }
 SUPPORTED_VIDEO_MIMES = {
     "video/webm",
+    "video/mp4",
 }
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
 MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
@@ -150,7 +151,7 @@ def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kin
         if len(header_bytes) < 12:
             return False
         return header_bytes.startswith(b"RIFF") and header_bytes[8:12] == b"WAVE"
-    if cleaned == "audio/mp4":
+    if cleaned in ("audio/mp4", "video/mp4"):
         if len(header_bytes) >= 8 and header_bytes[4:8] == b"ftyp":
             return True
         return False
@@ -498,9 +499,7 @@ class PerformanceTakeUploadService:
             now=now,
         )
         await db.commit()
-        return self._reservation_read(
-            reservation, upload_target=upload_target
-        )
+        return self._reservation_read(reservation, upload_target=upload_target)
 
     async def reserve_upload(
         self,
@@ -636,9 +635,7 @@ class PerformanceTakeUploadService:
             if winner is None:
                 raise
             return await self._replay_reservation(db, winner, metadata)
-        return self._reservation_read(
-            reservation, upload_target=upload_target
-        )
+        return self._reservation_read(reservation, upload_target=upload_target)
 
     async def cancel_upload_reservation(
         self,
@@ -734,7 +731,9 @@ class PerformanceTakeUploadService:
         except ReservationTransitionError as error:
             if error.code == "reservation_expired":
                 await self._expire_reservation(db, reservation)
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired") from error
+                raise ValidationException(
+                    ErrorCode.VALIDATION_ERROR, field="reservation_expired"
+                ) from error
             await db.commit()
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -789,8 +788,12 @@ class PerformanceTakeUploadService:
                 await self._apply(
                     db,
                     reservation,
-                    lifecycle_from_row(reservation).expire(now=current_now, unknown_outcome=False,
-                        token=finalizing_token, object_key=finalizing_object_key),
+                    lifecycle_from_row(reservation).expire(
+                        now=current_now,
+                        unknown_outcome=False,
+                        token=finalizing_token,
+                        object_key=finalizing_object_key,
+                    ),
                     now=current_now,
                 )
             await db.commit()
@@ -953,8 +956,12 @@ class PerformanceTakeUploadService:
             await self._apply(
                 db,
                 reservation,
-                lifecycle_from_row(reservation).expire(now=current_now, unknown_outcome=False,
-                        token=finalizing_token, object_key=finalizing_object_key),
+                lifecycle_from_row(reservation).expire(
+                    now=current_now,
+                    unknown_outcome=False,
+                    token=finalizing_token,
+                    object_key=finalizing_object_key,
+                ),
                 now=current_now,
             )
             await db.commit()

@@ -988,10 +988,15 @@ def test_score_access_and_validation(test_env):
     client = PerformanceTakeTestClient(app)
 
     try:
-        # Invalid mime type rejected
+        # The AUDIO media kind cannot admit a VIDEO container.
         req_bad_mime = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": 1024, "mime_type": "video/mp4", "duration_ms": 5000},
+            "media": {
+                "kind": "AUDIO",
+                "byte_size": 1024,
+                "mime_type": "video/mp4",
+                "duration_ms": 5000,
+            },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-mime",
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],

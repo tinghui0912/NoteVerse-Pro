@@ -1,9 +1,21 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { performanceTakesApi, type PerformanceTakeUploadReservationRequest } from './performance-takes';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { performanceTakesApi, uploadMediaToSignedUrl, type PerformanceTakeUploadReservationRequest } from './performance-takes';
 import { apiClient } from '@/lib/api-client';
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { post: vi.fn(), delete: vi.fn() }, apiUrl: (value: string) => value }));
 beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.unstubAllGlobals());
+
+it('sends raw MP4 capture as the signed PUT body without rebuilding its Blob', async () => {
+  const blob = new Blob(['raw MP4 capture'], { type: 'video/mp4' });
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 200 }));
+  vi.stubGlobal('fetch', fetch);
+  await uploadMediaToSignedUrl('https://storage.example/capture.mp4', 'PUT', { 'content-type': 'video/mp4' }, blob);
+  expect(fetch).toHaveBeenCalledExactlyOnceWith('https://storage.example/capture.mp4', {
+    method: 'PUT', headers: { 'content-type': 'video/mp4' }, body: blob,
+  });
+  expect(fetch.mock.calls[0][1]?.body).toBe(blob);
+});
 
 it('reserves one structured immutable save request', () => {
   const request: PerformanceTakeUploadReservationRequest = {

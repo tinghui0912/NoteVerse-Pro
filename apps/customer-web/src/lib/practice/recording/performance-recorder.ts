@@ -3,6 +3,7 @@ import type { RecordingActiveSegment } from './recording-timebase';
 
 import type { PracticeRecordingMode } from './recording-mode';
 import { recordingOptions } from './recorder-capability';
+import { isArchiveableCaptureMime } from './media-policy';
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures';
 import type { RecordingRuntimeFault, RecordingRuntimeInterruption, RecordingRuntimeFailureReason } from './recording-runtime-fault';
@@ -289,9 +290,12 @@ export class PerformanceRecorder {
       });
     }
 
+    const mimeType = this.recorder?.mimeType ?? '';
+    if (!isArchiveableCaptureMime(this.mediaKind, mimeType)) {
+      this.markUnavailable(this.mediaKind === 'VIDEO' ? 'VIDEO_RECORDER_UNSUPPORTED' : 'MEDIA_RECORDER_UNSUPPORTED');
+      return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason! });
+    }
     this.state = 'READY';
-    const fallbackMimeType = this.mediaKind === 'VIDEO' ? 'video/webm' : 'audio/webm';
-    const mimeType = this.recorder?.mimeType || fallbackMimeType;
     return createPerformanceRecording({
       status: 'READY',
       kind: this.mediaKind,

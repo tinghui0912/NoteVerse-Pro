@@ -1,5 +1,7 @@
 'use client';
 
+import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
+
 import React, { useState } from 'react';
 import { Calendar, Clock, Download, Music, Play, Radio, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -148,7 +150,7 @@ function PerformanceTakeCard({
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = take.media_mime_type.includes('mp4') ? 'mp4' : 'webm';
+      const ext = captureMediaExtension(take.media_mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();

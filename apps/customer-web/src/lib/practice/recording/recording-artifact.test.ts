@@ -16,6 +16,7 @@ describe('independent optional recording artifact', () => {
   it.each([
     { ...ready(), timebase: { activeSegments: [], nominalMediaDurationMs: 10 } },
     { ...ready(), blob: new Blob([]) }, { ...ready(), mimeType: '' }, { ...ready(), durationMs: NaN },
+    { ...ready(), mimeType: 'audio/unknown' }, { ...ready(), mimeType: 'video/mp4' },
     { status: 'NOT_RECORDED', timebase: ready().timebase },
     { status: 'UNAVAILABLE', reason: 'failed', timebase: ready().timebase },
     { ...ready(), scoreId: 'duplicate-result-identity' },

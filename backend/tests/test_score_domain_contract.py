@@ -27,6 +27,9 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
         "practice_snapshot": "revision_id",
     }
     assert invariants["revision_is_immutable"] is True
+    assert invariants["ready_capture_is_archiveable"] is True
+    assert invariants["performance_take_archives_raw_capture"] is True
+    assert invariants["capture_and_video_export_formats_are_independent"] is True
     assert invariants["revision_is_complete_snapshot"] is True
     assert invariants["score_presentation_is_head_exact"] is True
     assert invariants["derived_asset_retention_is_demand_owned"] is True
@@ -65,7 +68,9 @@ def test_metadata_fixture_characterizes_logical_measures_and_changes() -> None:
     assert len(reference_measures) == 4
     assert sum(len(part.findall("./measure")) for part in parts) == 8
     assert [node.text for node in root.findall(".//key/fifths")] == ["0", "1", "0", "1"]
-    assert [(node.findtext("beats"), node.findtext("beat-type")) for node in root.findall(".//time")] == [
+    assert [
+        (node.findtext("beats"), node.findtext("beat-type")) for node in root.findall(".//time")
+    ] == [
         ("4", "4"),
         ("3", "4"),
         ("4", "4"),
@@ -79,9 +84,7 @@ def test_metadata_fixture_characterizes_logical_measures_and_changes() -> None:
 
 
 def test_invalid_metadata_fixture_is_well_formed_but_semantically_invalid() -> None:
-    root = ElementTree.parse(
-        FIXTURE_ROOT / "score-domain-invalid-metadata.musicxml"
-    ).getroot()
+    root = ElementTree.parse(FIXTURE_ROOT / "score-domain-invalid-metadata.musicxml").getroot()
 
     assert root.findtext(".//key/fifths") == "invalid"
     assert root.findtext(".//time/beats") == "common"

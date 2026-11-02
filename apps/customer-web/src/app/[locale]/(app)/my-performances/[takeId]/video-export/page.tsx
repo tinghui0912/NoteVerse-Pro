@@ -1,5 +1,7 @@
 'use client';
 
+import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -285,7 +287,7 @@ export default function SavedPerformanceVideoExportPage() {
                 try {
                   const link = document.createElement('a');
                   link.href = url;
-                  link.download = `performance-${take.take_id}.${take.media_mime_type.includes('mp4') ? 'mp4' : 'webm'}`;
+                  link.download = `performance-${take.take_id}.${captureMediaExtension(take.media_mime_type)}`;
                   link.click();
                 } finally { URL.revokeObjectURL(url); }
               }}>{t('downloadVideo')}</Button>}

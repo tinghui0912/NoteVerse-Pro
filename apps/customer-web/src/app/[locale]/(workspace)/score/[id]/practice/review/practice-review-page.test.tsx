@@ -80,7 +80,6 @@ const translationMocks = vi.hoisted(() => {
     exportScoreVideoUnavailableSync: '缺少可靠的录像与乐谱时间映射，暂不能合成。',
     exportScoreVideoUnsupportedBrowser: '当前浏览器不支持本地视频合成导出。',
     saveRecordingMediaTooLarge: '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
-    saveRecordingVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
     retryPractice: '重弹一次',
     playback: '练习回放',
     videoExportEntryTitle: '导出乐谱视频',
@@ -884,7 +883,7 @@ describe('PracticeReviewPage', () => {
     await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
   });
 
-  it('explains unsupported MP4 cloud save before calling the backend while local exports remain available', async () => {
+  it('saves the same raw MP4 video and downloads it with its actual extension', async () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:mp4-video'),
@@ -893,9 +892,11 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
+    const rawMp4 = new Blob(['mp4-video'], { type: 'video/mp4' });
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     provideReview(
       createVideoCompletion({
-        videoBlob: new Blob(['mp4-video'], { type: 'video/mp4' }),
+        videoBlob: rawMp4,
         mimeType: 'video/mp4',
       })
     );
@@ -906,8 +907,13 @@ describe('PracticeReviewPage', () => {
     expect(URL.createObjectURL).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
-    expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
-    expect(screen.getByText('当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。')).toBeInTheDocument();
+    await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalledOnce());
+    const saved = saveMutationMock.mutateAsync.mock.calls[0][0];
+    expect(saved).toMatchObject({ mediaKind: 'VIDEO', mimeType: 'video/mp4' });
+    expect(saved.mediaBlob).toBe(rawMp4);
+    expect(URL.createObjectURL).toHaveBeenCalledWith(rawMp4);
+    expect((download.mock.instances[0] as HTMLAnchorElement).download).toMatch(/\.mp4$/);
+    download.mockRestore();
   });
 
   it('keeps video orientation and score presentation independent when deriving export configs', async () => {
