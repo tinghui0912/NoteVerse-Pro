@@ -4,6 +4,7 @@ import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadR
 import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
+import { acousticCaptureWitness, installAcousticCaptureFixture } from './support/acoustic-capture';
 import {
   mockAuthenticatedSession,
   mockRealtimeEvents,
@@ -501,39 +502,61 @@ test('first use requires explicit intent; full reload restores intent but requir
 });
 
 test('warm microphone engine survives STEP End, next Start, Continuous completion, Try Again and Review Retry', async ({ page }) => {
+  await installAcousticCaptureFixture(page);
   await setupContinuousPracticeMocks(page);
+  const engine = () => page.evaluate(() => {
+    const { loads, sessions, retiredSessions, terminations } = (window as unknown as {
+      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number };
+    }).__practiceAcousticEngineFixture;
+    return { loads, sessions, retiredSessions, terminations };
+  });
   let accessRequests = 0;
   page.on('request', request => { if (request.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access')) accessRequests++; });
   await openPreparedPractice(page, scoreId, revisionId);
   await configurePractice(page, 'STEP', 'MICROPHONE');
+  await expect.poll(engine).toEqual({ loads: 1, sessions: 1, retiredSessions: 1, terminations: 0 });
   const start = page.getByRole('button', { name: '开始', exact: true });
+  const dialog = page.getByRole('dialog');
   for (let i = 0; i < 2; i++) {
     await expect(start).toBeEnabled(); await start.click();
+    await expect.poll(async () => (await engine()).sessions).toBe(2 + i);
     await expect(start).toHaveCount(0);
-    await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
+    await expect(page.getByTestId('practice-status')).toContainText('弹奏当前高亮音');
     await page.getByRole('button', { name: '结束', exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect.poll(async () => (await engine()).retiredSessions).toBe(2 + i);
+    await expect(dialog).toHaveCount(0);
   }
   await configurePractice(page, 'CONTINUOUS', 'MICROPHONE');
   for (let i = 0; i < 2; i++) {
     if (i === 0) { await expect(start).toBeEnabled(); await start.click(); }
-    else await page.getByRole('button', { name: '重弹一次', exact: true }).click();
+    else {
+      await dialog.getByRole('button', { name: '重弹一次', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+    }
+    // BEGIN_SESSION proves this command started a new attempt, rather than observing
+    // the previous completion dialog or the empty status of a preparing controller.
+    await expect.poll(async () => (await engine()).sessions).toBe(4 + i);
+    await expect(page.getByTestId('practice-status')).toContainText('预备拍');
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByTestId('practice-status')).toHaveText('');
-    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(dialog.getByRole('button', { name: '查看报告', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect.poll(async () => (await engine()).retiredSessions).toBe(4 + i);
   }
-  await page.getByRole('button', { name: '查看报告', exact: true }).click();
+  await dialog.getByRole('button', { name: '查看报告', exact: true }).click();
   await page.waitForURL(`**/score/${scoreId}/practice/review`);
   await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
   await page.getByRole('button', { name: '重弹一次', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
   expect(await preparePracticeSetup(page)).toBe('READY');
   await expect(start).toBeEnabled(); await start.click();
-  await expect(page.getByRole('status')).toContainText('预备拍');
+  await expect.poll(async () => (await engine()).sessions).toBe(6);
+  await expect(page.getByTestId('practice-status')).toContainText('预备拍');
   await page.getByRole('button', { name: '结束', exact: true }).click();
+  await expect.poll(engine).toEqual({ loads: 1, sessions: 6, retiredSessions: 6, terminations: 0 });
   expect(accessRequests).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { loads: number; sessions: number; terminations: number } }).__practiceAcousticEngineFixture))
-    .toMatchObject({ loads: 1, sessions: 6, terminations: 0 });
+  const capture = await acousticCaptureWitness(page);
+  expect(capture.opened).toBe(8); expect(capture.closed).toBe(capture.opened);
+  expect(capture.acknowledgedBlocks).toBeGreaterThan(0); expect(capture.maxInFlight).toBe(1);
 });
 
 test('live feedback is off by default, toggles without restarting, and Review retains completed feedback', async ({ page }) => {

@@ -5,7 +5,7 @@ export async function installAcousticEngineFixture(page: Page) {
   await page.addInitScript(() => {
     const nativeWorker = window.Worker;
     const heldRetirements: Array<() => void> = [];
-    const stats = { loads: 0, sessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {},
+    const stats = { loads: 0, sessions: 0, retiredSessions: 0, inferences: 0, terminations: 0, pitches: [] as string[], fail: () => {},
       failNextInference: false, holdRetirement: false, pendingRetirements: 0, releaseRetirement: () => {} };
     stats.releaseRetirement = () => {
       stats.holdRetirement = false; const pending = heldRetirements.splice(0); stats.pendingRetirements = 0; pending.forEach(release => release());
@@ -50,12 +50,12 @@ export async function installAcousticEngineFixture(page: Page) {
               stats.pendingRetirements++;
               heldRetirements.push(() => {
                 if (this.closed) return;
-                this.token = null; this.job = 0;
+                this.token = null; this.job = 0; stats.retiredSessions++;
                 this.dispatchEvent(new MessageEvent('message', { data: { id: message.id, result: undefined } }));
               });
               return;
             }
-            this.token = null; this.job = 0;
+            this.token = null; this.job = 0; stats.retiredSessions++;
           }
           else if (message.type === 'DISPOSE') this.token = null;
           else error = 'INVALID_FIXTURE_ENGINE_PROTOCOL';
