@@ -2554,7 +2554,7 @@ export type MemberUpdateRequest = {
 /**
  * MembershipRole
  */
-export type MembershipRole = 'EDITOR' | 'VIEWER';
+export type MembershipRole = 'VIEWER' | 'PRACTITIONER' | 'EDITOR';
 
 /**
  * MetadataRead
@@ -6312,6 +6312,34 @@ export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors =
 export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetError = DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors];
 
 export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetData = {
+    body?: never;
+    path: {
+        /**
+         * Render Asset Id
+         */
+        render_asset_id: string;
+    };
+    query?: never;
+    url: '/api/v1/render-assets/{render_asset_id}/view';
+};
+
+export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetError = ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors[keyof ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors];
+
+export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetResponses = {
     /**
      * Successful Response
      */

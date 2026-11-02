@@ -197,9 +197,7 @@ export function NotificationCenterDialog({
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <Badge variant="secondary">
-                                {invite.role === 'EDITOR'
-                                  ? collaborationT('editor')
-                                  : collaborationT('viewer')}
+                                {collaborationT(invite.role.toLowerCase())}
                               </Badge>
                               {invite.expires_at ? (
                                 <span className="text-xs text-muted-foreground">

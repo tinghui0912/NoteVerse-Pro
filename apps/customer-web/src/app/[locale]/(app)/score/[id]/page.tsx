@@ -84,7 +84,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
       label: t('scoreInfo'),
       content: (
         <ScoreInfoPanel
-          canEditTitle
+          canEditTitle={score.capabilities.can_edit}
           createdAt={score.created_at}
           imageCount={resources.imageCount}
           imageCountStatus={previewAsset.status}
@@ -97,7 +97,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
         />
       ),
     },
-    {
+    score.capabilities.can_edit ? {
       value: 'versions',
       label: t('versionsAction'),
       content: (
@@ -107,7 +107,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           scoreId={score.score_id}
         />
       ),
-    },
+    } : null,
     score.capabilities.can_manage_guest_previews ? {
       value: 'guest-preview',
       label: t('guestPreviewAction'),

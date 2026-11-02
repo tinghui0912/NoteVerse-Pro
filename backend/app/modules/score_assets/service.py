@@ -62,7 +62,11 @@ class ScoreAssetService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        sources = await self.repository.list_sources(db, revision_id) if include_sources else []
+        sources = (
+            await self.repository.list_sources(db, revision_id)
+            if include_sources and access.capabilities.can_edit
+            else []
+        )
         render_assets = await self.repository.list_render_assets(db, revision_id)
         return ScoreRevisionAssetsRead(
             revision_sources=[self._source_read(source, revision) for source in sources],
@@ -125,7 +129,7 @@ class ScoreAssetService:
             db,
             render_asset_uuid,
             user_id,
-            ScoreAction.VIEW,
+            ScoreAction.DOWNLOAD,
         )
         return self._access_read(render_asset, render_asset.asset_uuid, "render-assets")
 

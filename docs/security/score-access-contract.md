@@ -4,6 +4,19 @@ ScoreAccessPolicy evaluates authenticated actions against owner and active membe
 facts. Library organization grants no access. Owner/member endpoints enforce their
 actions server-side; UI capability flags do not replace authorization.
 
+Membership roles are VIEWER, PRACTITIONER and EDITOR. VIEWER receives presentation
+only; PRACTITIONER can practice; EDITOR can practice and edit. Only the owner can use
+explicit source/render download, archive and access-URL operations. Raw input delivery,
+revision content and revision history require EDIT. Viewer/Practitioner receive empty
+revision_sources and input_assets projections. Inline rendered-image viewing remains
+VIEW access. Authenticated playback and exact PracticeSource admission require PRACTICE.
+
+Practice and editing necessarily disclose machine-readable source to trusted
+Practitioner/Editor browsers. They do not imply a product download action. Invites
+default to VIEWER. Acceptance preserves the stronger role, owner changes may upgrade
+or downgrade, and membership revocation denies subsequent operations immediately.
+Score membership never grants access to another user's personal practice data.
+
 Guest Preview is a separate anonymous bearer presentation channel. An owner-created
 ScoreGuestPreviewGrant pins exactly one ScoreRevision. Its composite revision foreign
 key prevents cross-score linkage. It expires at a future time within 30 days (seven by

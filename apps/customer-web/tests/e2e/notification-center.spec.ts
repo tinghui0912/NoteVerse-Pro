@@ -8,7 +8,7 @@ const pendingInvites = [
     score_title: 'Pending Collaboration',
     inviter: { display_name: 'Collaborator', email: 'collab@example.com', avatar_url: null },
     email: 'owner@example.com',
-    role: 'EDITOR',
+    role: 'PRACTITIONER',
     status: 'PENDING',
     expires_at: null,
     created_at: '2026-07-01T08:00:00Z',
@@ -141,6 +141,7 @@ test('notification center combines pending invites and update notifications', as
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Action required' })).toBeVisible();
   await expect(page.getByText('Pending Collaboration')).toBeVisible();
+  await expect(page.getByText('Practitioner', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
   await expect(page.getByText('Member accepted your invitation')).toBeVisible();
   await expect(page.getByText('Accepted Collaboration')).toBeVisible();

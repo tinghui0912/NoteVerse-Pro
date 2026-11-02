@@ -9,8 +9,8 @@
     "revision_source_format": ["MUSICXML"],
     "render_asset_kind": ["RENDERED_PAGE"],
     "playback_asset_kind": ["AUDIO"],
-    "membership_role": ["EDITOR", "VIEWER"],
-    "access_origin": ["OWNER", "MEMBERSHIP", "GUEST_PREVIEW"]
+    "membership_role": ["VIEWER", "PRACTITIONER", "EDITOR"],
+    "access_origin": ["OWNER", "MEMBERSHIP"]
   },
   "capabilities": [
     "can_view",

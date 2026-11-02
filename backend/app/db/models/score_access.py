@@ -25,8 +25,9 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class MembershipRole(str, enum.Enum):
-    EDITOR = "EDITOR"
     VIEWER = "VIEWER"
+    PRACTITIONER = "PRACTITIONER"
+    EDITOR = "EDITOR"
 
 
 class InviteStatus(str, enum.Enum):
@@ -40,7 +41,6 @@ class InviteStatus(str, enum.Enum):
 class AccessOrigin(str, enum.Enum):
     OWNER = "OWNER"
     MEMBERSHIP = "MEMBERSHIP"
-    GUEST_PREVIEW = "GUEST_PREVIEW"
 
 
 class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]

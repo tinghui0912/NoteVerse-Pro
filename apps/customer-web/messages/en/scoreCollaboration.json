@@ -9,8 +9,8 @@
   "emailInvalid": "Invalid email address",
   "emailInvalidDescription": "Enter a full email address, for example collaborator@example.com.",
   "role": "Role",
-  "editor": "Can edit",
-  "viewer": "View only",
+  "editor": "Editor",
+  "viewer": "Viewer",
   "createInvite": "Create invite",
   "inviteCreated": "Invite created",
   "inviteCreatedDescription": "The invite link is ready to send.",
@@ -63,5 +63,7 @@
     "revoked": "Revoked",
     "expired": "Expired",
     "declined": "Declined"
-  }
+  },
+  "practitioner": "Practitioner",
+  "roleDescription": "Viewer: view. Practitioner: view and practice. Editor: view, practice, and edit. Only the owner can use explicit download actions."
 }

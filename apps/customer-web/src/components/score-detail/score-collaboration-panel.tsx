@@ -50,7 +50,7 @@ export function ScoreCollaborationPanel({
   const locale = useLocale();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<MembershipRole>('EDITOR');
+  const [role, setRole] = useState<MembershipRole>('VIEWER');
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
   const invitesQuery = useScoreInvites(scoreId);
   const membersQuery = useScoreMembers(scoreId);
@@ -152,8 +152,9 @@ export function ScoreCollaborationPanel({
                 <Select value={role} onValueChange={(value) => setRole(value as MembershipRole)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="EDITOR">{t('editor')}</SelectItem>
                     <SelectItem value="VIEWER">{t('viewer')}</SelectItem>
+                    <SelectItem value="PRACTITIONER">{t('practitioner')}</SelectItem>
+                    <SelectItem value="EDITOR">{t('editor')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -166,6 +167,7 @@ export function ScoreCollaborationPanel({
             </div>
           </section>
 
+          <p className="text-sm text-muted-foreground">{t('roleDescription')}</p>
           <Separator />
 
           <section className="space-y-3">
@@ -190,8 +192,9 @@ export function ScoreCollaborationPanel({
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="EDITOR">{t('editor')}</SelectItem>
                         <SelectItem value="VIEWER">{t('viewer')}</SelectItem>
+                        <SelectItem value="PRACTITIONER">{t('practitioner')}</SelectItem>
+                        <SelectItem value="EDITOR">{t('editor')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button
@@ -225,7 +228,7 @@ export function ScoreCollaborationPanel({
                         <div className="min-w-0">
                           <p className="truncate font-medium">{invite.email}</p>
                           <p className="truncate text-sm text-muted-foreground">
-                            {t(`status.${invite.status.toLowerCase()}`)} · {t(invite.role === 'EDITOR' ? 'editor' : 'viewer')}
+                            {t(`status.${invite.status.toLowerCase()}`)} · {t(invite.role.toLowerCase())}
                             {invite.expires_at ? ` · ${formatApiDateTime(invite.expires_at, locale)}` : ''}
                           </p>
                         </div>

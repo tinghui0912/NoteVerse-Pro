@@ -6,14 +6,30 @@
 
 ## Decision
 
-Score access has three explicit origins: OWNER, MEMBERSHIP and GUEST_PREVIEW.
+Authenticated Score access has two origins: OWNER and MEMBERSHIP. Guest Preview
+is a separate presentation-only bearer authority.
 There is no public score publication channel. ScoreLibraryEntry organizes a user's
 library and does not grant access.
 
 ScoreAccessPolicy authorizes authenticated owner/member operations. The owner can
 view, edit, delete, download, practice and manage members and Guest Previews.
-Membership roles remain EDITOR and VIEWER. Both can view and practice; only EDITOR
-can edit and download. Neither role manages members or Guest Previews.
+Membership roles are VIEWER, PRACTITIONER and EDITOR, ranked 1, 2 and 3.
+Invites default to VIEWER. Accepting a stronger invite upgrades membership; a weaker
+invite does not downgrade it. Owner member-management commands can explicitly change
+roles in either direction. Revocation immediately removes subsequent access.
+
+VIEWER can view rendered presentation only. PRACTITIONER can also practice, which
+necessarily discloses exact machine-readable PracticeSource to that trusted browser.
+EDITOR can also edit, requiring revision MusicXML and original editing inputs in its
+browser. These disclosures are not DRM. Only the owner can use explicit MusicXML,
+render-page/archive download and download access-URL actions. Members cannot manage
+members or Guest Previews.
+
+Revision content, history, revision mutation and raw input material require EDIT.
+Viewer/Practitioner read models contain no source metadata or raw input identifiers.
+Authenticated generated playback requires PRACTICE. Presentation image viewing is
+inline VIEW access, separate from DOWNLOAD. Score membership confers no visibility
+into another user's personal practice data.
 
 ScoreGuestPreviewGrant is a separate bearer presentation authority. Only the owner
 creates it. Creation pins the resolved current ScoreRevision; later head changes do

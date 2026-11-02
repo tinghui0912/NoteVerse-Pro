@@ -4342,7 +4342,7 @@
           },
           "role": {
             "$ref": "#/components/schemas/MembershipRole",
-            "default": "EDITOR"
+            "default": "VIEWER"
           }
         },
         "required": [
@@ -5140,8 +5140,9 @@
       },
       "MembershipRole": {
         "enum": [
-          "EDITOR",
-          "VIEWER"
+          "VIEWER",
+          "PRACTITIONER",
+          "EDITOR"
         ],
         "title": "MembershipRole",
         "type": "string"
@@ -12331,6 +12332,62 @@
           }
         },
         "summary": "Download Render Asset",
+        "tags": [
+          "Score Render Assets"
+        ]
+      }
+    },
+    "/api/v1/render-assets/{render_asset_id}/view": {
+      "get": {
+        "operationId": "view_render_asset_api_v1_render_assets__render_asset_id__view_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "render_asset_id",
+            "required": true,
+            "schema": {
+              "title": "Render Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "View Render Asset",
         "tags": [
           "Score Render Assets"
         ]

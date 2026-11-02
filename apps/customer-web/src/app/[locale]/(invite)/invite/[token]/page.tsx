@@ -158,7 +158,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">{t('role')}</span>
-            <span className="font-medium">{invite.role === 'EDITOR' ? t('editor') : t('viewer')}</span>
+            <span className="font-medium">{t(invite.role.toLowerCase())}</span>
           </div>
           {invite.email ? (
             <div className="flex justify-between gap-4">

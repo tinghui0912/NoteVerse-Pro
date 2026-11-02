@@ -78,6 +78,9 @@ def test_only_matching_user_can_accept_pending_invite() -> None:
 
 def test_invite_role_label_is_locale_specific() -> None:
     assert invite_role_label(MembershipRole.EDITOR, "en") == "Can edit"
-    assert invite_role_label(MembershipRole.VIEWER, "en") == "View only"
+    assert invite_role_label(MembershipRole.VIEWER, "en") == "Can view"
     assert invite_role_label(MembershipRole.EDITOR, "zh") == "可编辑"
-    assert invite_role_label(MembershipRole.VIEWER, "zh") == "仅查看"
+    assert invite_role_label(MembershipRole.VIEWER, "zh") == "可查看"
+
+    assert invite_role_label(MembershipRole.PRACTITIONER, "en") == "Can practice"
+    assert invite_role_label(MembershipRole.PRACTITIONER, "zh") == "可练习"

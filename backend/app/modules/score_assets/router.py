@@ -56,7 +56,21 @@ async def download_render_asset(
     return _stream_asset(delivery, service, attachment=True)
 
 
-@render_asset_router.get("/{render_asset_id}/access-url", response_model=APIResponse[AssetAccessRead])
+@render_asset_router.get("/{render_asset_id}/view")
+async def view_render_asset(
+    render_asset_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreAssetService = Depends(get_score_asset_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    delivery = await service.render_asset_delivery(db, render_asset_id, user_id, download=False)
+    return _stream_asset(delivery, service, attachment=False)
+
+
+@render_asset_router.get(
+    "/{render_asset_id}/access-url", response_model=APIResponse[AssetAccessRead]
+)
 async def get_render_asset_access_url(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
@@ -68,7 +82,9 @@ async def get_render_asset_access_url(
     return success_response(data=result)
 
 
-@score_router.get("/{score_id}/revision-assets", response_model=APIResponse[ScoreRevisionAssetsRead])
+@score_router.get(
+    "/{score_id}/revision-assets", response_model=APIResponse[ScoreRevisionAssetsRead]
+)
 async def list_score_revision_assets(
     score_id: str,
     revision_id: str | None = Query(default=None),
@@ -77,9 +93,7 @@ async def list_score_revision_assets(
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_revision_assets(
-        db, score_id, user_id, revision_uuid=revision_id
-    )
+    result = await service.list_revision_assets(db, score_id, user_id, revision_uuid=revision_id)
     return success_response(data=result)
 
 

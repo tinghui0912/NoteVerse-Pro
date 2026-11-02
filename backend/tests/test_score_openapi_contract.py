@@ -51,7 +51,7 @@ def test_score_access_contract_exposes_current_channels_and_owned_score_filters(
     from app.db.models.score_access import AccessOrigin
     from app.modules.score_access.policy import ScoreAction
 
-    assert {origin.value for origin in AccessOrigin} == {"OWNER", "MEMBERSHIP", "GUEST_PREVIEW"}
+    assert {origin.value for origin in AccessOrigin} == {"OWNER", "MEMBERSHIP"}
     assert {action.value for action in ScoreAction} == {
         "VIEW",
         "EDIT",
@@ -114,3 +114,9 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
         "expires_at",
         "revoked_at",
     }
+
+
+def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> None:
+    components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
+    assert components["MembershipRole"]["enum"] == ["VIEWER", "PRACTITIONER", "EDITOR"]
+    assert components["InviteCreateRequest"]["properties"]["role"]["default"] == "VIEWER"

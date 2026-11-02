@@ -1942,7 +1942,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
     member = await policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
     assert member.capabilities.can_edit is False
-    assert member.capabilities.can_practice is True
+    assert member.capabilities.can_practice is False
     assert member.capabilities.can_download is False
     assert member.capabilities.can_manage_guest_previews is False
     with pytest.raises(UnauthorizedException):

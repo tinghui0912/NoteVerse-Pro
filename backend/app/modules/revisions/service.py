@@ -239,7 +239,7 @@ class RevisionService:
         cursor: int | None = None,
     ) -> RevisionListRead:
         access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.VIEW, user_id=user_id
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         revisions, next_cursor = await self.repository.revisions(
@@ -270,14 +270,10 @@ class RevisionService:
         score_id = require_persisted_id(score.id, entity="score")
         target = await self.repository.revision(db, revision_uuid)
         if not target or target.score_id != score_id:
-            raise ResourceNotFoundException(
-                "revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
+            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
         head = await db.get(ScoreRevision, score.head_revision_id)
         if head is None:
-            raise ResourceNotFoundException(
-                "revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
+            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
         if head.id == target.id:
             return await self._read(db, head)
 
@@ -285,9 +281,7 @@ class RevisionService:
             db, require_persisted_id(target.id, entity="score revision")
         )
         if not source:
-            raise ResourceNotFoundException(
-                "source", revision_uuid, ErrorCode.FILE_NOT_FOUND
-            )
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
         content = self.storage.read_bytes(source.storage_key)
         validate_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
@@ -438,9 +432,7 @@ class RevisionService:
         score_id = require_persisted_id(access.score.id, entity="score")
         revision = await self.repository.revision(db, revision_uuid)
         if not revision or revision.score_id != score_id:
-            raise ResourceNotFoundException(
-                "revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
+            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
         revision_id = require_persisted_id(revision.id, entity="score revision")
         note_text = request.note.strip() if request.note else ""
         existing = (
@@ -476,7 +468,7 @@ class RevisionService:
         access = await self.access_policy.authorize(
             db,
             score_uuid,
-            ScoreAction.VIEW,
+            ScoreAction.EDIT,
             user_id=user_id,
             revision_uuid=revision_uuid,
         )

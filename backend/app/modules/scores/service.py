@@ -173,7 +173,7 @@ class ScoreService:
         user_id: int,
     ) -> ScoreInputAssetDelivery:
         access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.VIEW, user_id=user_id
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
@@ -245,14 +245,18 @@ class ScoreService:
                     )
                 ).first() is not None
         input_asset_rows = (
-            await db.execute(
-                select(ScoreInputAsset, Upload, StorageBlob)
-                .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ScoreInputAsset.score_id == score_id)
-                .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
-            )
-        ).all()
+            (
+                await db.execute(
+                    select(ScoreInputAsset, Upload, StorageBlob)
+                    .join(Upload, ScoreInputAsset.upload_id == Upload.id)
+                    .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                    .where(ScoreInputAsset.score_id == score_id)
+                    .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
+                )
+            ).all()
+            if capabilities.can_edit
+            else []
+        )
         return ScoreRead(
             score_id=score.score_uuid,
             title=score.title,

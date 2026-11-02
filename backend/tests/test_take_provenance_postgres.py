@@ -279,7 +279,8 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
 
 
 @pytest.mark.asyncio
-async def test_save_holds_current_authorization_facts_until_commit(postgres_source):
+@pytest.mark.parametrize("role", ["PRACTITIONER", "EDITOR"])
+async def test_save_holds_current_authorization_facts_until_commit(postgres_source, role):
     from sqlalchemy import update
     from app.core.exceptions import UnauthorizedException
     from app.db.models import User, ScoreMembership
@@ -295,7 +296,7 @@ async def test_save_holds_current_authorization_facts_until_commit(postgres_sour
         user_id = user.id
         score = await seed.scalar(select(Score))
         fact = ScoreMembership(
-            score_id=score.id, user_id=user_id, role=MembershipRole.VIEWER, created_by_user_id=1
+            score_id=score.id, user_id=user_id, role=MembershipRole(role), created_by_user_id=1
         )
         seed.add(fact)
         await seed.flush()

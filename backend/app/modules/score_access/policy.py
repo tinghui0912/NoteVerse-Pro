@@ -100,8 +100,9 @@ class ScoreAccessPolicy:
                         can_delete=False,
                         can_manage_guest_previews=False,
                         can_manage_members=False,
-                        can_download=editor,
-                        can_practice=True,
+                        can_download=False,
+                        can_practice=membership.role
+                        in {MembershipRole.PRACTITIONER, MembershipRole.EDITOR},
                     ),
                 )
 

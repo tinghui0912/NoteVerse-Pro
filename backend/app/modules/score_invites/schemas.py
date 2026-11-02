@@ -19,7 +19,7 @@ class InviteCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr = Field(max_length=255)
-    role: MembershipRole = MembershipRole.EDITOR
+    role: MembershipRole = MembershipRole.VIEWER
     expires_at: datetime | None = None
     locale: Literal["en", "zh"] = "zh"
 

@@ -2,10 +2,22 @@
 
 ## Access and lifecycle
 
-Score ownership and authenticated membership authorize editing. Guest Preview
-links authorize exact-revision images and listening only; they cannot grant
-editable membership. The owner manages members and targeted email invitations
-through the score collaboration surface.
+Score ownership and explicit authenticated membership define trusted collaboration.
+VIEWER can view rendered presentation. PRACTITIONER can view and practice. EDITOR
+can view, practice and edit. Owner is not a membership role. Only the owner can use
+explicit source/render download actions or manage members and Guest Previews.
+
+Invites default to VIEWER. Role rank is VIEWER < PRACTITIONER < EDITOR; acceptance
+upgrades weaker membership without downgrading stronger membership. Owner management
+supports explicit upgrade/downgrade. Revocation denies subsequent access immediately.
+
+Practice necessarily sends exact PracticeSource to the Practitioner/Editor browser;
+editing sends revision MusicXML and original input assets to Editor. These are trusted
+application disclosures, not DRM restrictions. Viewer gets no machine-readable source.
+Revision content and history require EDIT; authenticated audio requires PRACTICE.
+
+Guest Preview is a separate exact-revision image/listen bearer channel. It grants no
+Practice, editable membership, source download or persistent account access.
 
 An invite has a high-entropy opaque token returned once, with only its hash
 stored in the database. Its email, requested role, issuer, expiry and lifecycle

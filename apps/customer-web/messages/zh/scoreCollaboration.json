@@ -9,8 +9,8 @@
   "emailInvalid": "邮箱格式不正确",
   "emailInvalidDescription": "请输入完整邮箱地址，例如 collaborator@example.com。",
   "role": "角色",
-  "editor": "可编辑",
-  "viewer": "仅查看",
+  "editor": "编辑者",
+  "viewer": "查看者",
   "createInvite": "创建邀请",
   "inviteCreated": "邀请已创建",
   "inviteCreatedDescription": "邀请链接已经可以发送给协作者。",
@@ -63,5 +63,7 @@
     "revoked": "已撤销",
     "expired": "已过期",
     "declined": "已拒绝"
-  }
+  },
+  "practitioner": "练习者",
+  "roleDescription": "查看者可以查看；练习者可以查看和练习；编辑者可以查看、练习和编辑。仅所有者可使用显式下载操作。"
 }

@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FingeringRequest } from '@/generated/api';
+import type { FingeringRequest, MembershipRole } from '@/generated/api';
 
 export function useScoreDetail(scoreId: string, enabled = true) {
   return useQuery({
@@ -175,7 +175,7 @@ export function useScoreMembers(scoreId: string, enabled = true) {
 export function useUpdateScoreMember(scoreId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ membershipId, role }: { membershipId: number; role: 'EDITOR' | 'VIEWER' }) =>
+    mutationFn: ({ membershipId, role }: { membershipId: number; role: MembershipRole }) =>
       scoreInvitesApi.updateMember(scoreId, membershipId, { role }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.members(scoreId) });

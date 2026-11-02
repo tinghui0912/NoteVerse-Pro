@@ -11,7 +11,8 @@ from app.utils.timezone import utc_now_naive
 
 ROLE_RANK: dict[MembershipRole, int] = {
     MembershipRole.VIEWER: 1,
-    MembershipRole.EDITOR: 2,
+    MembershipRole.PRACTITIONER: 2,
+    MembershipRole.EDITOR: 3,
 }
 
 INVITE_TOKEN_BYTES = 32
@@ -25,9 +26,7 @@ def generate_invite_token() -> str:
     return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
 
 
-def display_invite_status(
-    invite: ScoreInvite, *, now: datetime | None = None
-) -> InviteStatus:
+def display_invite_status(invite: ScoreInvite, *, now: datetime | None = None) -> InviteStatus:
     effective_now = now or utc_now_naive()
     if (
         invite.status == InviteStatus.PENDING
@@ -47,6 +46,16 @@ def can_user_accept_invite(invite: ScoreInvite, user: User | None) -> bool:
 
 
 def invite_role_label(role: MembershipRole, locale: str) -> str:
-    if locale == "en":
-        return "Can edit" if role == MembershipRole.EDITOR else "View only"
-    return "可编辑" if role == MembershipRole.EDITOR else "仅查看"
+    labels = {
+        "en": {
+            MembershipRole.VIEWER: "Can view",
+            MembershipRole.PRACTITIONER: "Can practice",
+            MembershipRole.EDITOR: "Can edit",
+        },
+        "zh": {
+            MembershipRole.VIEWER: "可查看",
+            MembershipRole.PRACTITIONER: "可练习",
+            MembershipRole.EDITOR: "可编辑",
+        },
+    }
+    return labels["en" if locale == "en" else "zh"][role]
