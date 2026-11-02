@@ -3,7 +3,7 @@ import Dexie, { type Table } from 'dexie';
 export interface DraftEntry {
   draftId: string;
   scoreId: string;
-  baseRevisionId: string;
+  baselineRevisionId: string;
   xml: string;
   savedAt: number;
 }
@@ -13,9 +13,9 @@ class DraftDatabase extends Dexie {
 
   constructor() {
     super('NoteVerseEditorDrafts');
-    this.version(1).stores({
-      drafts: 'draftId, scoreId, baseRevisionId, savedAt',
-    });
+    this.version(2).stores({
+      drafts: 'draftId, scoreId, baselineRevisionId, savedAt',
+    }).upgrade((transaction) => transaction.table('drafts').clear());
   }
 }
 
@@ -27,8 +27,8 @@ function getDB(): DraftDatabase {
   return db;
 }
 
-function draftId(scoreId: string, baseRevisionId: string) {
-  return `${scoreId}:${baseRevisionId}`;
+function draftId(scoreId: string, baselineRevisionId: string) {
+  return `${scoreId}:${baselineRevisionId}`;
 }
 
 function draftTable() {
@@ -37,14 +37,14 @@ function draftTable() {
 
 export async function saveDraft(
   scoreId: string,
-  baseRevisionId: string,
+  baselineRevisionId: string,
   xml: string
 ): Promise<void> {
   try {
     await draftTable().put({
-      draftId: draftId(scoreId, baseRevisionId),
+      draftId: draftId(scoreId, baselineRevisionId),
       scoreId,
-      baseRevisionId,
+      baselineRevisionId,
       xml,
       savedAt: Date.now(),
     });
@@ -53,18 +53,18 @@ export async function saveDraft(
 
 export async function loadDraft(
   scoreId: string,
-  baseRevisionId: string
+  baselineRevisionId: string
 ): Promise<DraftEntry | undefined> {
   try {
-    return await draftTable().get(draftId(scoreId, baseRevisionId));
+    return await draftTable().get(draftId(scoreId, baselineRevisionId));
   } catch {
     return undefined;
   }
 }
 
-export async function deleteDraft(scoreId: string, baseRevisionId: string): Promise<void> {
+export async function deleteDraft(scoreId: string, baselineRevisionId: string): Promise<void> {
   try {
-    await draftTable().delete(draftId(scoreId, baseRevisionId));
+    await draftTable().delete(draftId(scoreId, baselineRevisionId));
   } catch {}
 }
 

@@ -27,8 +27,10 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
         "practice_snapshot": "revision_id",
     }
     assert invariants["revision_is_immutable"] is True
+    assert invariants["revision_is_complete_snapshot"] is True
+    assert invariants["restore_provenance_uses_revision_event"] is True
     assert invariants["revision_history_is_linear"] is True
-    assert invariants["revision_save_requires_base_revision"] is True
+    assert invariants["revision_save_requires_expected_head"] is True
     assert invariants["one_canonical_musicxml_per_revision"] is True
     assert invariants["practice_pins_revision"] is True
 

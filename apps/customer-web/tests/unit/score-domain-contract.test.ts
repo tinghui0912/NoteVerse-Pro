@@ -41,7 +41,7 @@ describe('score domain v1 contract', () => {
       revision_id: 'revision-uuid',
     });
     expect(contract.examples.create_revision_request).toHaveProperty(
-      'base_revision_id',
+      'expected_head_revision_id',
       'revision-uuid'
     );
   });

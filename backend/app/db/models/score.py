@@ -282,16 +282,6 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
             "idempotency_key",
             name="uq_score_revisions_score_idempotency_key",
         ),
-        ForeignKeyConstraint(
-            ["score_id", "parent_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_revisions_parent",
-        ),
-        ForeignKeyConstraint(
-            ["score_id", "base_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_revisions_base",
-        ),
         Index("idx_score_revisions_score_created", "score_id", "created_at"),
     )
 
@@ -308,8 +298,6 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     revision_number: int = Field(sa_column=Column(Integer, nullable=False))
-    parent_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    base_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     content_hash: str = Field(sa_column=Column(String(64), nullable=False))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     origin: RevisionOrigin = Field(

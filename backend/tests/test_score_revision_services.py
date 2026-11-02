@@ -256,8 +256,6 @@ async def test_revision_read_model_projects_actor_restore_and_note(
         revision_uuid="read-model-restored",
         score_id=3500,
         revision_number=2,
-        parent_revision_id=3501,
-        base_revision_id=3501,
         content_hash="a" * 64,
         origin=RevisionOrigin.EDIT,
         created_by_user_id=2,
@@ -336,7 +334,7 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
         2,
         RevisionCreateRequest(
             content=MUSICXML_2,
-            base_revision_id="base-revision",
+            expected_head_revision_id="base-revision",
             origin=RevisionOrigin.EDIT,
             idempotency_key="collab-edit-1",
         ),
@@ -344,12 +342,12 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
 
     created = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
     assert created.created_by_user_id == 2
-    owner_counter = (
-        one_row(session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.SOURCE)
+    owner_counter = one_row(
+        session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.SOURCE
     )
     assert owner_counter.used_bytes == len(MUSICXML_2.encode("utf-8"))
-    collaborator_counter = (
-        maybe_one_row(session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE)
+    collaborator_counter = maybe_one_row(
+        session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE
     )
     assert collaborator_counter is None or collaborator_counter.used_bytes == 0
 
@@ -990,8 +988,6 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
         revision_number=2,
         content_hash="2" * 64,
         origin=RevisionOrigin.EDIT,
-        parent_revision_id=21,
-        base_revision_id=21,
     )
     session.add_all([score, old_revision, new_revision])
     session.commit()
@@ -1042,7 +1038,7 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
 
 
 @pytest.mark.asyncio
-async def test_revision_save_deduplicates_and_rejects_stale_base(
+async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1093,13 +1089,40 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
         async_db,  # type: ignore[arg-type]
         "score-1",
         1,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id="revision-1"),
+        RevisionCreateRequest(
+            content=MUSICXML_2,
+            expected_head_revision_id="revision-1",
+            idempotency_key="snapshot-save-0001",
+        ),
+    )
+    assert created.revision_number == 2
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    counts = tuple(
+        count_rows(session, model)
+        for model in (ScoreRevision, ScoreRevisionSource, RenderOutbox, PlaybackOutbox)
     )
     duplicate = await service.create(
         async_db,  # type: ignore[arg-type]
         "score-1",
         1,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id=created.revision_id),
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=created.revision_id),
+    )
+    session.refresh(score)
+    assert duplicate.revision_id == created.revision_id
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    assert (
+        tuple(
+            count_rows(session, model)
+            for model in (ScoreRevision, ScoreRevisionSource, RenderOutbox, PlaybackOutbox)
+        )
+        == counts
     )
     reverted = await service.create(
         async_db,  # type: ignore[arg-type]
@@ -1107,7 +1130,7 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
         1,
         RevisionCreateRequest(
             content=MUSICXML_1.decode("utf-8"),
-            base_revision_id=created.revision_id,
+            expected_head_revision_id=created.revision_id,
         ),
     )
 
@@ -1123,10 +1146,40 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
             1,
             RevisionCreateRequest(
                 content=MUSICXML_2.replace("P1", "P2"),
-                base_revision_id="revision-1",
+                expected_head_revision_id="revision-1",
             ),
         )
     assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+    assert conflict.value.details == {
+        "score_id": "score-1",
+        "expected_head_revision_id": "revision-1",
+        "current_head_revision_id": reverted.revision_id,
+    }
+    replay = await service.create(
+        async_db,
+        "score-1",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_2,
+            expected_head_revision_id="revision-1",
+            idempotency_key="snapshot-save-0001",
+        ),
+    )
+    assert replay.revision_id == created.revision_id
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=reverted.revision_id).id
+    )
+    snapshots = all_rows(session, ScoreRevision, score_id=30)
+    assert sorted(revision.revision_number for revision in snapshots) == [1, 2, 3]
+    expected_bytes = [MUSICXML_1, MUSICXML_2.encode(), MUSICXML_1]
+    for revision, content in zip(
+        sorted(snapshots, key=lambda row: row.revision_number), expected_bytes
+    ):
+        source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
+        assert storage.read_bytes(source.storage_key) == content
+    assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 2
 
 
 @pytest.mark.asyncio
@@ -1164,8 +1217,6 @@ async def test_revision_restore_creates_new_head_from_target_revision(
         revision_uuid="revision-2",
         score_id=31,
         revision_number=2,
-        parent_revision_id=41,
-        base_revision_id=41,
         content_hash="ffbbab55af2ecf00497ab235508d9d3af816c1808458bd6bc88b3076f7f15cc3",
         origin=RevisionOrigin.EDIT,
     )
@@ -1204,39 +1255,61 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
+    third = await service.create(
+        async_db,
+        "score-restore",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_2.replace("<step>C</step>", "<step>D</step>"),
+            expected_head_revision_id="revision-2",
+        ),
+    )
+    fourth = await service.create(
+        async_db,
+        "score-restore",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_2.replace("<step>C</step>", "<step>E</step>"),
+            expected_head_revision_id=third.revision_id,
+        ),
+    )
     restored = await service.restore(  # type: ignore[arg-type]
         async_db,
         "score-restore",
-        "revision-1",
+        "revision-2",
         1,
-        RevisionRestoreRequest(note="Return to the imported baseline"),
+        RevisionRestoreRequest(note="Return to revision 2"),
     )
 
     session.refresh(score)
     new_revision = one_row(session, ScoreRevision, revision_uuid=restored.revision_id)
     new_artifact = one_row(session, ScoreRevisionSource, revision_id=new_revision.id)
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
-    assert restored.revision_number == 3
-    assert new_revision.parent_revision_id == revision_2.id
-    assert new_revision.base_revision_id == revision_1.id
+    assert restored.revision_number == 5
     assert restored.revision_id not in {"revision-1", "revision-2"}
     assert restored.created_by is not None
     assert restored.created_by.email == "owner@example.com"
     assert restored.restore is not None
-    assert restored.restore.restored_from_revision_id == "revision-1"
-    assert restored.restore.restored_from_revision_number == 1
-    assert restored.restore.note == "Return to the imported baseline"
+    assert restored.restore.restored_from_revision_id == "revision-2"
+    assert restored.restore.restored_from_revision_number == 2
+    assert restored.restore.note == "Return to revision 2"
     assert score.head_revision_id == new_revision.id
-    assert score.version == 3
-    assert storage.read_bytes(new_artifact.storage_key) == MUSICXML_1
+    assert score.version == 5
+    assert storage.read_bytes(new_artifact.storage_key) == MUSICXML_2.encode()
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
-    assert count_rows(session, RenderOutbox) == 1
-    assert count_rows(session, PlaybackOutbox) == 1
+    assert count_rows(session, RenderOutbox) == 3
+    assert count_rows(session, PlaybackOutbox) == 3
     event = one_row(session, ScoreRevisionEvent)
     assert event.revision_id == new_revision.id
-    assert event.target_revision_id == 41
-    assert event.note == "Return to the imported baseline"
+    assert event.target_revision_id == 42
+    assert event.note == "Return to revision 2"
+
+    assert count_rows(session, ScoreRevision, score_id=31) == 5
+    for read in (third, fourth):
+        assert one_row(session, ScoreRevision, revision_uuid=read.revision_id)
+    assert storage.read_bytes(first.storage_key) == MUSICXML_1
+    assert storage.read_bytes(second.storage_key) == MUSICXML_2.encode()
 
 
 @pytest.mark.asyncio
@@ -1424,8 +1497,6 @@ async def test_revision_list_uses_cursor_pagination(
             revision_uuid=f"revision-{number}",
             score_id=32,
             revision_number=number,
-            parent_revision_id=49 + number if number > 1 else None,
-            base_revision_id=49 + number if number > 1 else None,
             content_hash=f"{number:064x}",
             origin=RevisionOrigin.EDIT if number > 1 else RevisionOrigin.IMPORT,
         )
@@ -1807,17 +1878,15 @@ async def test_collaborator_revision_save_notifies_score_owner(
         db,  # type: ignore[arg-type]
         score.score_uuid,
         2,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id="collab-base-revision"),
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="collab-base-revision"),
     )
 
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SCORE_VERSION_CREATED,
-        )
+    notification = one_row(
+        session,
+        NotificationEvent,
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SCORE_VERSION_CREATED,
     )
     assert notification.score_id == "collab-revision-score"
     assert notification.resource_id == "collab-revision-score"
@@ -1914,8 +1983,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         revision_uuid="policy-revision-2",
         score_id=70,
         revision_number=2,
-        parent_revision_id=71,
-        base_revision_id=71,
         content_hash="8" * 64,
         origin=RevisionOrigin.EDIT,
     )
@@ -2378,3 +2445,93 @@ def test_realtime_maintenance_rejects_non_positive_retention(
 
     with pytest.raises(ValueError, match="realtime event retention days must be positive"):
         service.cleanup_expired_events(session, retention_days=0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("expected", ["missing-revision", "other-score-revision"])
+async def test_expected_head_must_resolve_within_the_score(score_service_session, expected):
+    session, storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=600,
+        revision_id=601,
+        score_uuid="expected-score",
+        revision_uuid="expected-head",
+        title="Expected",
+    )
+    add_active_score_with_head_revision(
+        session,
+        score_id=610,
+        revision_id=611,
+        score_uuid="other-score",
+        revision_uuid="other-score-revision",
+        title="Other",
+    )
+    with pytest.raises(ResourceNotFoundException) as rejected:
+        await RevisionService(storage=storage).create(
+            AsyncSessionAdapter(session),
+            "expected-score",
+            1,
+            RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=expected),
+        )
+    assert rejected.value.code == ErrorCode.REVISION_NOT_FOUND
+    assert count_rows(session, ScoreRevision, score_id=600) == 1
+    assert count_rows(session, ScoreRevisionSource) == 0
+    assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 0
+
+
+@pytest.mark.asyncio
+async def test_two_editors_cannot_branch_the_same_expected_head(score_service_session):
+    session, storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=620,
+        revision_id=621,
+        score_uuid="linear-score",
+        revision_uuid="revision-10",
+        title="Linear",
+    )
+    head = session.get(ScoreRevision, 621)
+    head.revision_number = 10
+    session.add(
+        User(id=3, email="editor-b@example.com", display_name="Editor B", password_hash="hash")
+    )
+    session.commit()
+    session.add_all(
+        [
+            ScoreMembership(
+                score_id=620, user_id=user_id, role=MembershipRole.EDITOR, created_by_user_id=1
+            )
+            for user_id in (2, 3)
+        ]
+    )
+    session.commit()
+    service = RevisionService(storage=storage)
+    db = AsyncSessionAdapter(session)
+    created = await service.create(
+        db,
+        "linear-score",
+        2,
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="revision-10"),
+    )
+    assert created.revision_number == 11
+    with pytest.raises(ConflictException) as rejected:
+        await service.create(
+            db,
+            "linear-score",
+            3,
+            RevisionCreateRequest(
+                content=MUSICXML_1.decode(), expected_head_revision_id="revision-10"
+            ),
+        )
+    assert rejected.value.details == {
+        "score_id": "linear-score",
+        "expected_head_revision_id": "revision-10",
+        "current_head_revision_id": created.revision_id,
+    }
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    assert count_rows(session, ScoreRevision, score_id=620) == 2

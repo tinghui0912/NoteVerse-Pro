@@ -517,7 +517,7 @@ async def test_revision_create_quota_exceeded_does_not_create_revision_or_source
             "score-storage-test",
             1,
             RevisionCreateRequest(
-                base_revision_id=base.revision_uuid,
+                expected_head_revision_id=base.revision_uuid,
                 content=MUSICXML_CHANGED,
                 origin=RevisionOrigin.EDIT,
             ),

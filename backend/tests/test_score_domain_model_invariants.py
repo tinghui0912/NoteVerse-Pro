@@ -139,7 +139,7 @@ def render_asset(*, asset_id: int, key: str) -> ScoreRenderAsset:
     )
 
 
-def test_revision_order_content_and_lineage_are_constrained(score_session: Session) -> None:
+def test_revision_numbers_are_positive_and_unique(score_session: Session) -> None:
     assert_commit_rejected(
         score_session,
         ScoreRevision(
@@ -155,10 +155,9 @@ def test_revision_order_content_and_lineage_are_constrained(score_session: Sessi
         score_session,
         ScoreRevision(
             id=104,
-            revision_uuid="cross-score-base",
+            revision_uuid="invalid-number",
             score_id=10,
-            revision_number=2,
-            base_revision_id=101,
+            revision_number=0,
             content_hash="d" * 64,
             origin=RevisionOrigin.EDIT,
         ),

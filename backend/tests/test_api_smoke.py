@@ -239,7 +239,7 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
             "/api/v1/scores/test-score/revisions",
             {
                 "content": "<score-partwise version='4.0'/>",
-                "base_revision_id": "revision-1",
+                "expected_head_revision_id": "revision-1",
             },
         ),
         ("get", "/api/v1/scores/test-score/revisions/revision-1/content", None),

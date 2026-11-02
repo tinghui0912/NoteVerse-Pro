@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 import { openPreparedPractice } from './support/practice-workspace';
+import type { RevisionRead } from '../../src/generated/api';
 import artifactFixture from '../../src/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 
 const musicXml = readFileSync(resolve('../../backend/tests/fixtures/musicxml/canonical-practice-score.musicxml'), 'utf8');
@@ -21,7 +22,7 @@ async function mockScore(page: Page, role: Role) {
   const score = { score_id: scoreId, title: 'Trusted Score', taxonomy_tags: [], version: 1, head_revision_id: revisionId,
     metadata: null, input_assets: [], in_library: false, created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
     derived_assets: { preview: { status: 'ready', asset_id: 'page-a', revision_id: revisionId, is_fallback: false }, audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false } } };
-  const revision = { revision_id: revisionId, revision_number: 1, parent_revision_id: null, base_revision_id: null, content_hash: 'a'.repeat(64), origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
+  const revision: RevisionRead = { revision_id: revisionId, revision_number: 1, origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
   await page.route(`**/api/v1/scores/${scoreId}`, route => route.fulfill({ json: { success: true, data: score } }));
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, route => route.fulfill({ json: { success: true, data: { revision_sources: [], render_assets: [] } } }));
   await page.route('**/api/v1/render-assets/page-a/view', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/></svg>' }));
@@ -76,7 +77,8 @@ test('Editor loads MusicXML and saves a revision without download permission', a
   let saved = false;
   await page.route(`**/api/v1/scores/${scoreId}/revisions`, async route => {
     const body = route.request().postDataJSON();
-    expect(body.base_revision_id).toBe(revisionId);
+    expect(body.expected_head_revision_id).toBe(revisionId);
+    expect(Object.keys(body).sort()).toEqual(['content', 'expected_head_revision_id', 'idempotency_key']);
     expect(body.content).toContain('<score-partwise');
     saved = true;
     score.head_revision_id = 'new-revision';
@@ -85,12 +87,40 @@ test('Editor loads MusicXML and saves a revision without download permission', a
   });
   await page.goto(`/en/score/${scoreId}/edit`);
   await expect(page.locator('svg .note').first()).toBeVisible();
+  await page.evaluate(async ({ scoreId, revisionId, xml }) => {
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('NoteVerseEditorDrafts');
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result;
+        const transaction = db.transaction('drafts', 'readwrite');
+        const drafts = transaction.objectStore('drafts');
+        if (!drafts.indexNames.contains('baselineRevisionId')) {
+          db.close(); reject(new Error('Draft baseline index missing')); return;
+        }
+        drafts.put({ draftId: `${scoreId}:${revisionId}`, scoreId, baselineRevisionId: revisionId, xml, savedAt: Date.now() });
+        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.onerror = () => { db.close(); reject(transaction.error); };
+      };
+    });
+  }, { scoreId, revisionId, xml: musicXml });
   const save = page.locator('button').filter({ has: page.locator('svg.lucide-save') });
   await save.click();
   await expect.poll(async () => saved || await page.getByRole('alertdialog').count() > 0).toBe(true);
   if (!saved) await page.getByRole('button', { name: 'Ignore & Save', exact: true }).click();
   await expect.poll(() => saved).toBe(true);
   await expect(page).toHaveURL(new RegExp(`/score/${scoreId}$`));
+  const draft = await page.evaluate(async (key) => new Promise<unknown>((resolve, reject) => {
+    const open = indexedDB.open('NoteVerseEditorDrafts');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const request = db.transaction('drafts').objectStore('drafts').get(key);
+      request.onsuccess = () => { db.close(); resolve(request.result); };
+      request.onerror = () => { db.close(); reject(request.error); };
+    };
+  }), `${scoreId}:${revisionId}`);
+  expect(draft).toBeUndefined();
 });
 
 test('Owner invites with default Viewer and can choose Practitioner or Editor and change member roles', async ({ page }) => {
@@ -140,4 +170,58 @@ test('Practitioner invitation renders and accepts the same role', async ({ page 
   await expect(page).toHaveURL(new RegExp(`/score/${scoreId}$`));
   expect(accepted).toBe(true);
   await expect(page.getByRole('link', { name: 'Practice', exact: true })).toBeVisible();
+});
+
+
+test('Editor keeps the document open when its expected head conflicts', async ({ page }) => {
+  await mockScore(page, 'EDITOR');
+  let rejected = false;
+  await page.route(`**/api/v1/scores/${scoreId}/revisions`, route => {
+    expect(route.request().postDataJSON().expected_head_revision_id).toBe(revisionId);
+    rejected = true;
+    return route.fulfill({ status: 409, json: { public_code: 'revision_conflict', details: {
+      expected_head_revision_id: revisionId, current_head_revision_id: 'concurrent-head',
+    } } });
+  });
+  await page.goto(`/en/score/${scoreId}/edit`);
+  await expect(page.locator('svg .note').first()).toBeVisible();
+  await page.locator('button').filter({ has: page.locator('svg.lucide-save') }).click();
+  await expect.poll(async () => rejected || await page.getByRole('alertdialog').count() > 0).toBe(true);
+  if (!rejected) await page.getByRole('button', { name: 'Ignore & Save', exact: true }).click();
+  await expect(page.getByText('This score was updated elsewhere. Please refresh and try again.', { exact: true }).first()).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/score/${scoreId}/edit$`));
+  await expect(page.locator('svg .note').first()).toBeVisible();
+});
+
+test('Version History restores a snapshot as a new head with event provenance', async ({ page }) => {
+  const { score, revision } = await mockScore(page, 'EDITOR');
+  const older = { ...revision, revision_id: 'revision-2', revision_number: 2 };
+  const current = { ...revision, revision_number: 4 };
+  let items: RevisionRead[] = [current, older];
+  await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { success: true, data: { items, next_cursor: null } } }));
+  let restored = false;
+  await page.route(`**/api/v1/scores/${scoreId}/revisions/revision-2/restore`, route => {
+    expect(route.request().postDataJSON()).toEqual({ note: 'Return to revision 2' });
+    const next = { ...revision, revision_id: 'revision-5', revision_number: 5, restore: {
+      restored_from_revision_id: 'revision-2', restored_from_revision_number: 2,
+      note: 'Return to revision 2', actor: null, created_at: revision.created_at,
+    } };
+    items = [next, current, older];
+    score.head_revision_id = next.revision_id;
+    score.version = 5;
+    restored = true;
+    return route.fulfill({ json: { success: true, data: next } });
+  });
+  await page.goto(`/en/score/${scoreId}?tab=versions`);
+  await expect(page.getByText('v4', { exact: true })).toBeVisible();
+  const target = page.locator('div.rounded-xl').filter({ has: page.getByText('v2', { exact: true }) });
+  await target.getByRole('button', { name: 'Version actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Restore this version', exact: true }).click();
+  await page.getByPlaceholder('Add a restore reason (optional)').fill('Return to revision 2');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Restore this version', exact: true }).click();
+  await expect.poll(() => restored).toBe(true);
+  await expect(page.getByText('v5', { exact: true })).toBeVisible();
+  await expect(page.getByText('Restored from v2', { exact: true })).toBeVisible();
+  await expect(page.getByText('v4', { exact: true })).toBeVisible();
+  await expect(page.getByText('v2', { exact: true })).toBeVisible();
 });

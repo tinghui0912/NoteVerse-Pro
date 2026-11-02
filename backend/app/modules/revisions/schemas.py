@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.score import RevisionOrigin
 from app.shared.pagination import CursorPage
 
 
 class RevisionCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     content: str = Field(min_length=1)
-    base_revision_id: str
+    expected_head_revision_id: str
     idempotency_key: str | None = Field(default=None, min_length=8, max_length=128)
     origin: RevisionOrigin = RevisionOrigin.EDIT
 

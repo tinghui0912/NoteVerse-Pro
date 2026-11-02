@@ -3787,13 +3787,13 @@ export type RevisionContentRead = {
  */
 export type RevisionCreateRequest = {
     /**
-     * Base Revision Id
-     */
-    base_revision_id: string;
-    /**
      * Content
      */
     content: string;
+    /**
+     * Expected Head Revision Id
+     */
+    expected_head_revision_id: string;
     /**
      * Idempotency Key
      */

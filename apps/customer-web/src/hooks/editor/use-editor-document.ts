@@ -36,8 +36,8 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const showSaveError = useEditorSaveErrorToast();
   const scoreQuery = useScoreDetail(scoreId);
   const score = scoreQuery.data?.data;
-  const [baseRevisionId, setBaseRevisionId] = useState('');
-  const revisionId = baseRevisionId || score?.head_revision_id || '';
+  const [baselineRevisionId, setBaselineRevisionId] = useState('');
+  const revisionId = baselineRevisionId || score?.head_revision_id || '';
   const revisionQuery = useRevisionContent(scoreId, revisionId);
   const createRevision = useCreateRevision();
   const generateFingeringMutation = useGenerateScoreFingering();
@@ -46,7 +46,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
   const [draftDialogOpen, setDraftDialogOpen] = useState(false);
   const { clearDraft, isSaving: isAutoSaving } = useAutoSave(scoreId, currentXml, {
-    baseRevisionId: revisionId,
+    baselineRevisionId: revisionId,
     debounceMs: 3000,
     enabled: Boolean(currentXml && revisionId),
   });
@@ -74,6 +74,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       try {
         const draft = await loadDraft(scoreId, revisionId);
         if (cancelled) return;
+        setBaselineRevisionId(revisionId);
         const serverWorkingXml = ensureGenericRenderMusicXmlIdsString(xmlContent);
         if (draft && stripAppOwnedGenericRenderMusicXmlIdsString(draft.xml) !== stripAppOwnedGenericRenderMusicXmlIdsString(serverWorkingXml)) {
           setPendingDraft(draft);
@@ -110,7 +111,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       {
         scoreId,
         content: sanitizedContent,
-        base_revision_id: revisionId,
+        expected_head_revision_id: revisionId,
         idempotency_key: crypto.randomUUID(),
       },
       {
@@ -125,7 +126,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
             returnUrl: returnUrl || `/score/${scoreId}`,
             beforeNavigate: async () => {
               await clearDraft();
-              if (nextRevision) setBaseRevisionId(nextRevision);
+              if (nextRevision) setBaselineRevisionId(nextRevision);
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) }),
                 queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(scoreId) }),

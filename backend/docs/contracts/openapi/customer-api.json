@@ -7303,14 +7303,15 @@
         "type": "object"
       },
       "RevisionCreateRequest": {
+        "additionalProperties": false,
         "properties": {
-          "base_revision_id": {
-            "title": "Base Revision Id",
-            "type": "string"
-          },
           "content": {
             "minLength": 1,
             "title": "Content",
+            "type": "string"
+          },
+          "expected_head_revision_id": {
+            "title": "Expected Head Revision Id",
             "type": "string"
           },
           "idempotency_key": {
@@ -7333,7 +7334,7 @@
         },
         "required": [
           "content",
-          "base_revision_id"
+          "expected_head_revision_id"
         ],
         "title": "RevisionCreateRequest",
         "type": "object"

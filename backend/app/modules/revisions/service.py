@@ -93,23 +93,25 @@ class RevisionService:
             if existing:
                 return await self._read(db, existing)
 
-        base = await self.repository.revision(db, request.base_revision_id)
-        if not base or base.score_id != score_id:
+        expected = await self.repository.revision(db, request.expected_head_revision_id)
+        if not expected or expected.score_id != score_id:
             raise ResourceNotFoundException(
-                "revision", request.base_revision_id, ErrorCode.REVISION_NOT_FOUND
+                "revision", request.expected_head_revision_id, ErrorCode.REVISION_NOT_FOUND
             )
-        if score.head_revision_id != base.id:
-            head = await db.get(ScoreRevision, score.head_revision_id)
+        head = await db.get(ScoreRevision, score.head_revision_id)
+        if head is None:
+            raise ResourceNotFoundException("revision", score_uuid, ErrorCode.REVISION_NOT_FOUND)
+        if head.id != expected.id:
             raise ConflictException(
                 ErrorCode.REVISION_CONFLICT,
                 {
                     "score_id": score_uuid,
-                    "base_revision_id": request.base_revision_id,
-                    "head_revision_id": head.revision_uuid if head else None,
+                    "expected_head_revision_id": request.expected_head_revision_id,
+                    "current_head_revision_id": head.revision_uuid,
                 },
             )
-        if base.content_hash == content_hash:
-            return await self._read(db, base)
+        if head.content_hash == content_hash:
+            return await self._read(db, head)
 
         storage_owner_user_id = score.owner_user_id
         revision_uuid = str(uuid.uuid4())
@@ -137,9 +139,7 @@ class RevisionService:
             revision = ScoreRevision(
                 revision_uuid=revision_uuid,
                 score_id=score_id,
-                revision_number=base.revision_number + 1,
-                parent_revision_id=base.id,
-                base_revision_id=base.id,
+                revision_number=head.revision_number + 1,
                 content_hash=content_hash,
                 idempotency_key=request.idempotency_key,
                 origin=request.origin,
@@ -312,8 +312,6 @@ class RevisionService:
                 revision_uuid=new_revision_uuid,
                 score_id=score_id,
                 revision_number=head.revision_number + 1,
-                parent_revision_id=head.id,
-                base_revision_id=target.id,
                 content_hash=content_hash,
                 origin=RevisionOrigin.EDIT,
                 created_by_user_id=user_id,

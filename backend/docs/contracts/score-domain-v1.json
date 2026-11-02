@@ -67,9 +67,13 @@
   },
   "invariants": {
     "revision_is_immutable": true,
+    "revision_is_complete_snapshot": true,
+    "revision_has_persistent_parent_link": false,
+    "revision_has_persistent_base_link": false,
+    "restore_provenance_uses_revision_event": true,
     "revision_history_is_linear": true,
-    "revision_save_requires_base_revision": true,
-    "same_base_unchanged_content_is_noop": true,
+    "revision_save_requires_expected_head": true,
+    "same_head_unchanged_content_is_noop": true,
     "one_canonical_musicxml_per_revision": true,
     "one_canonical_musicxml_source_per_revision": true,
     "render_assets_are_rebuildable": true,
@@ -104,7 +108,7 @@
       "taxonomy_tags": []
     },
     "create_revision_request": {
-      "base_revision_id": "revision-uuid",
+      "expected_head_revision_id": "revision-uuid",
       "content": "<score-partwise />",
       "idempotency_key": "client-generated-request-id"
     },

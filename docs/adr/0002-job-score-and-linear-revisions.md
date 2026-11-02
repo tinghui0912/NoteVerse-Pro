@@ -18,15 +18,20 @@ Import processing and stable user-owned scores have different identities and lif
    job enters `PENDING_REVIEW` and stores that output as a job artifact. It does not create
    a score yet.
 4. `ScoreRevision` is an immutable snapshot with a unique number per score, a content hash,
-   and an optional parent for provenance.
+   and a complete canonical MusicXML source. Revision numbers define history order;
+   snapshots need no traversal or patch replay.
 5. Revisions are linear. Branching and merging are not part of this model.
 6. `Score.head_revision_id` identifies the current editable document.
-7. Saving requires `base_revision_id`. A stale base returns `revision_conflict` instead of
-   silently overwriting the head.
-8. Saving unchanged content against the same base revision is a no-op success. Repeated
+7. Saving requires `expected_head_revision_id`. The Score row is locked; a stale expected
+   head returns `revision_conflict` with `expected_head_revision_id` and
+   `current_head_revision_id` instead of silently overwriting the head. A successful save
+   appends a complete snapshot numbered from the current head plus one.
+8. Saving unchanged content against the same current head is a no-op success. Repeated
    idempotency keys return the original save result. Returning to older content later still
    creates a new revision.
-9. Review confirmation creates the first stable score and revision. Score resources have no review-approval lifecycle.
+9. Restoring an older snapshot appends the next revision and preserves existing history.
+   `ScoreRevisionEvent(type="RESTORE")` owns target, actor, note and time provenance.
+10. Review confirmation creates the first stable score and revision. Score resources have no review-approval lifecycle.
 
 ## Lifecycle contract
 
@@ -53,7 +58,7 @@ recorded `score_id`.
 
 - Upload and review can continue to expose processing diagnostics without polluting score
   APIs.
-- Editor saves are append-only except for same-base unchanged-content no-ops and require
+- Editor saves are append-only except for same-head unchanged-content no-ops and require
   conflict handling.
 - Batch archive/delete must operate on score IDs, while job cancellation/deletion remains a
   separate operation.

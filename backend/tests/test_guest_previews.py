@@ -112,8 +112,6 @@ def add_head_b(session, score):
             revision_uuid="revision-b",
             score_id=score.id,
             revision_number=2,
-            parent_revision_id=901,
-            base_revision_id=901,
             content_hash="b" * 64,
             origin=RevisionOrigin.EDIT,
         )

@@ -32,8 +32,10 @@ last pitch does not silently create an explicit rest. Deleting an event creates
 empty musical time. Explicit-rest creation is a separate operation.
 
 Commands export MusicXML and refresh read/render projections through the editor
-hooks. Save uses the score's base revision for conflict detection. History owns
-undo/redo snapshots, and original-document navigation is separate from unsaved
+hooks. Save submits `expected_head_revision_id` for optimistic head conflict detection.
+The loaded snapshot fixes the document baseline; a refreshed Score query cannot replace
+that concurrency expectation. Local drafts use `baselineRevisionId` to identify this
+baseline. History owns undo/redo snapshots, and original-document navigation is separate from unsaved
 editing state. The player consumes the workbench playback state rather than
 owning score writes.
 

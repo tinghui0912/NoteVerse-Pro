@@ -226,7 +226,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 (
                     "/scores/trusted-score/revisions",
                     dict(
-                        base_revision_id="trusted-revision",
+                        expected_head_revision_id="trusted-revision",
                         content=MUSICXML_2,
                         idempotency_key="editing-noop",
                     ),

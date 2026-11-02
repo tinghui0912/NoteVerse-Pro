@@ -39,9 +39,9 @@ export function useReviewEditorDocument({
   const [draftDialogOpen, setDraftDialogOpen] = useState(false);
   const xmlContent = review?.musicxml?.content;
   const draftResourceId = `review:${jobId}`;
-  const draftBaseRevisionId = 'current';
+  const draftBaselineRevisionId = 'current';
   const { clearDraft, isSaving: isAutoSaving } = useAutoSave(draftResourceId, currentXml, {
-    baseRevisionId: draftBaseRevisionId,
+    baselineRevisionId: draftBaselineRevisionId,
     debounceMs: 3000,
     enabled: Boolean(currentXml && initialized),
   });
@@ -70,14 +70,14 @@ export function useReviewEditorDocument({
     let cancelled = false;
     void (async () => {
       try {
-        const draft = await loadDraft(draftResourceId, draftBaseRevisionId);
+        const draft = await loadDraft(draftResourceId, draftBaselineRevisionId);
         if (cancelled) return;
         const serverWorkingXml = ensureGenericRenderMusicXmlIdsString(xmlContent);
         if (draft && stripAppOwnedGenericRenderMusicXmlIdsString(draft.xml) !== stripAppOwnedGenericRenderMusicXmlIdsString(serverWorkingXml)) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
-          await deleteDraft(draftResourceId, draftBaseRevisionId);
+          await deleteDraft(draftResourceId, draftBaselineRevisionId);
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
@@ -98,7 +98,7 @@ export function useReviewEditorDocument({
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, common, draftBaseRevisionId, draftResourceId, initialized, jobId, xmlContent]);
+  }, [applyXml, clearXml, common, draftBaselineRevisionId, draftResourceId, initialized, jobId, xmlContent]);
 
   const performSave = () => {
     if (!currentXml) return;
@@ -124,7 +124,7 @@ export function useReviewEditorDocument({
     setPendingDraft(null);
   };
   const discardDraft = async () => {
-    await deleteDraft(draftResourceId, draftBaseRevisionId);
+    await deleteDraft(draftResourceId, draftBaselineRevisionId);
     setPendingDraft(null);
   };
 

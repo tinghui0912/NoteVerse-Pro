@@ -1,4 +1,4 @@
-"""Fresh PostgreSQL schema enforces immutable revision lineage and token identity."""
+"""Fresh PostgreSQL schema enforces exact revision pinning and token identity."""
 
 from datetime import timedelta
 

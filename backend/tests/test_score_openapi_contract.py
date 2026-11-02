@@ -120,3 +120,25 @@ def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> N
     components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
     assert components["MembershipRole"]["enum"] == ["VIEWER", "PRACTITIONER", "EDITOR"]
     assert components["InviteCreateRequest"]["properties"]["role"]["default"] == "VIEWER"
+
+
+def test_revision_create_contract_describes_snapshot_head_expectation(client: TestClient) -> None:
+    schemas = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
+    request = schemas["RevisionCreateRequest"]
+    assert set(request["properties"]) == {
+        "content",
+        "expected_head_revision_id",
+        "idempotency_key",
+        "origin",
+    }
+    assert set(request["required"]) == {"content", "expected_head_revision_id"}
+    assert request["additionalProperties"] is False
+    assert set(schemas["RevisionRead"]["properties"]) == {
+        "revision_id",
+        "revision_number",
+        "origin",
+        "created_at",
+        "created_by",
+        "restore",
+        "note",
+    }

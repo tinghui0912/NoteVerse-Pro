@@ -68,7 +68,7 @@ export function useUpdateScore() {
 export function useCreateRevision() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: { scoreId: string; content: string; base_revision_id: string; idempotency_key?: string }) =>
+    mutationFn: ({ scoreId, ...input }: { scoreId: string; content: string; expected_head_revision_id: string; idempotency_key?: string }) =>
       scoresApi.createRevision(scoreId, input),
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
