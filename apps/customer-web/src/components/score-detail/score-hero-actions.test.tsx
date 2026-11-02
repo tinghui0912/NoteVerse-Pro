@@ -8,7 +8,6 @@ import score from '../../../messages/en/score.json';
 import common from '../../../messages/en/common.json';
 vi.mock('@/i18n/routing', () => ({ Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a> }));
 vi.mock('@/components/score/score-capability-context', () => ({ useScoreCapabilities: () => ({ capabilities: { can_practice: true } }) }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScorePublication: () => ({}), usePublishScore: () => ({}), useUnpublishScore: () => ({}) }));
 vi.mock('@/hooks/use-download', () => ({ useDownload: () => ({ handleDownload: vi.fn() }) }));
 const assets = { render_assets: [], revision_sources: [] } as unknown as ComponentProps<typeof ScoreHeroActions>['revisionAssets'];
 it('Score Detail Practice enters pinned Setup', () => {

@@ -30,7 +30,7 @@ src/app/[locale]/
   (auth)/        login, register, password recovery, email verification
   (app)/         authenticated product pages
   (workspace)/   focused editor, practice, and review-edit surfaces
-  (external)/    share, public score, and invite entry points
+  (external)/    share and invite entry points
 ```
 
 Rules:
@@ -41,11 +41,11 @@ Rules:
   but does not turn them into AppShell pages.
 - Auth pages use a low-distraction Auth shell.
 - External pages are not AppShell pages. They expose only the actions allowed by the share,
-  publication, or invite contract.
+  or invite contract.
 
 ## Score Detail Model
 
-Score detail, share detail, and public score pages are lightweight detail pages, not full
+Score detail and share detail pages are lightweight detail pages, not full
 browser score-player pages.
 
 They use:
@@ -92,7 +92,7 @@ ScoreRevisionAssets
 ```
 
 Playback audio is delivered through playback endpoints rather than by exposing MusicXML to
-external visitors. External share/public payloads only include revision sources when the
+external visitors. External share payloads only include revision sources when the
 server-side policy allows download. Import-job review artifacts are a separate pipeline
 concept and should not be modeled as score revision assets.
 
@@ -147,7 +147,7 @@ components/score-detail score detail tabs, actions, metadata, versions
 components/review       import review UI
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
-components/external     share/public/invite surfaces
+components/external     share/invite surfaces
 components/loading      loading primitives
 components/error        error primitives
 ```
@@ -177,7 +177,7 @@ downloads, realtime invalidation, score editing, shell layout, or user-visible s
 
 - Keep route and API ownership explicit through their domain interfaces.
 - Do not add fallback URLs or default backend origins for required runtime config.
-- Do not expose MusicXML in external share/public flows unless the backend explicitly grants
+- Do not expose MusicXML in external share flows unless the backend explicitly grants
   download permission.
 - Do not put import-job review artifacts into score revision asset APIs.
 - Do not split domains only by page names; split by ownership and lifecycle.

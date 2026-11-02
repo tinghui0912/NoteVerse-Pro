@@ -196,7 +196,7 @@ async function setupPracticeMocks(
         input_assets: [],
         taxonomy_tags: [],
         metadata: null,
-        publication: null,
+
         derived_assets: {
           preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
           audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
@@ -208,7 +208,7 @@ async function setupPracticeMocks(
           can_manage_sharing: true,
           can_download: true,
           can_practice: true,
-          can_publish: true,
+
           can_manage_members: true,
         },
       }),
@@ -897,4 +897,3 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     }
   });
 });
-

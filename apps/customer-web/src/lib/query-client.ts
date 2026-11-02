@@ -28,7 +28,6 @@ export interface LibraryEntryQueryFilters {
 }
 
 export interface MyScoresQueryFilters {
-    view?: string;
     search?: string;
     sort?: string;
     page: number;
@@ -61,8 +60,6 @@ export const queryKeys = {
         invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,
         inviteAccess: (token: string) => ['scores', 'invite-access', { token }] as const,
         members: (scoreId: string) => ['scores', 'member', { scoreId }] as const,
-        publication: (slug: string) => ['scores', 'publication', { slug }] as const,
-        scorePublication: (scoreId: string) => ['scores', 'score-publication', { scoreId }] as const,
     },
     library: {
         all: ['library'] as const,

@@ -10,8 +10,7 @@
     "render_asset_kind": ["RENDERED_PAGE"],
     "playback_asset_kind": ["AUDIO"],
     "membership_role": ["EDITOR", "VIEWER"],
-    "publication_status": ["PUBLISHED", "UNPUBLISHED"],
-    "access_origin": ["OWNER", "MEMBERSHIP", "SHARE", "PUBLICATION"]
+    "access_origin": ["OWNER", "MEMBERSHIP", "SHARE"]
   },
   "capabilities": [
     "can_view",
@@ -20,8 +19,7 @@
     "can_download",
     "can_practice",
     "can_manage_sharing",
-    "can_manage_members",
-    "can_publish"
+    "can_manage_members"
   ],
   "policy_actions": [
     "VIEW_SCORE",
@@ -33,7 +31,6 @@
     "START_PRACTICE",
     "CREATE_SHARE",
     "MANAGE_MEMBERS",
-    "PUBLISH_SCORE",
     "MANAGE_SCORE"
   ],
   "error_codes": [
@@ -53,8 +50,6 @@
     "share_grant_expired",
     "share_grant_login_required",
     "membership_not_found",
-    "publication_not_found",
-    "publication_revision_invalid",
     "score_access_denied"
   ],
   "identities": {
@@ -62,7 +57,7 @@
     "review": "job_id",
     "review_editor": "job_id",
     "score_detail_editor_history_sharing": "score_id",
-    "practice_and_publication_snapshot": "revision_id"
+    "practice_snapshot": "revision_id"
   },
   "review_contract": {
     "detail": "GET /api/v1/review/{job_id}",
@@ -81,12 +76,10 @@
     "render_assets_are_rebuildable": true,
     "playback_assets_are_rebuildable": true,
     "metadata_is_rebuildable_projection": true,
-    "publication_pins_revision": true,
     "anonymous_edit_is_forbidden": true,
     "bookmark_grants_access": false,
     "raw_share_token_is_persisted": false,
     "practice_pins_revision": true,
-    "public_access_is_read_only": true,
     "score_exists_only_after_review_confirm": true,
     "review_editor_updates_job_artifact_only": true,
     "review_artifacts_are_not_shareable": true,
@@ -100,8 +93,7 @@
       "can_download": true,
       "can_practice": true,
       "can_manage_sharing": false,
-      "can_manage_members": false,
-      "can_publish": false
+      "can_manage_members": false
     },
     "review_update_request": {
       "content": "<score-partwise />"

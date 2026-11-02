@@ -18,7 +18,6 @@ describe('queryKeys', () => {
     expect(queryKeys.myScores.all).toEqual(['my-scores']);
     expect(queryKeys.myScores.lists()).toEqual(['my-scores', 'list']);
     expect(queryKeys.myScores.list({
-      view: 'private',
       search: 'bach',
       sort: 'updated_desc',
       page: 2,
@@ -27,7 +26,6 @@ describe('queryKeys', () => {
       'my-scores',
       'list',
       {
-        view: 'private',
         search: 'bach',
         sort: 'updated_desc',
         page: 2,
@@ -36,7 +34,7 @@ describe('queryKeys', () => {
     ]);
   });
 
-  it('keeps revision, artifact, grant, and publication identities in score keys', () => {
+  it('keeps revision, artifact, grant and invite identities in score keys', () => {
     expect(queryKeys.scores.revisions('score-1')).toEqual([
       'scores',
       'revision',
@@ -76,11 +74,6 @@ describe('queryKeys', () => {
       'scores',
       'member',
       { scoreId: 'score-1' },
-    ]);
-    expect(queryKeys.scores.publication('slug-1')).toEqual([
-      'scores',
-      'publication',
-      { slug: 'slug-1' },
     ]);
     expect(queryKeys.notifications.list()).toEqual(['notifications', 'list']);
     expect(queryKeys.notifications.unreadCount()).toEqual([

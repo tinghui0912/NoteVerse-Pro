@@ -10,7 +10,7 @@ export const READONLY_SCORE_CAPABILITIES: ScoreCapabilitySet = {
   can_manage_members: false,
   can_download: false,
   can_practice: false,
-  can_publish: false,
+
 };
 
 export function resolveScoreCapabilities(

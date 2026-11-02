@@ -20,9 +20,7 @@ from app.db.models.score import (
 )
 from app.db.models.score_access import (
     MembershipRole,
-    PublicationStatus,
     ScoreMembership,
-    ScorePublication,
     ScoreShareGrant,
 )
 from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
@@ -258,18 +256,4 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(score_sessi
     assert_commit_rejected(
         score_session,
         ScoreLibraryEntry(id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
-    )
-
-
-def test_publication_must_pin_a_revision_from_its_score(score_session: Session) -> None:
-    assert_commit_rejected(
-        score_session,
-        ScorePublication(
-            id=600,
-            score_id=10,
-            public_slug="cross-score-revision",
-            published_revision_id=101,
-            status=PublicationStatus.PUBLISHED,
-            published_by_user_id=1,
-        ),
     )

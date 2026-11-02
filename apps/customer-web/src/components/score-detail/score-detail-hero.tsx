@@ -12,7 +12,6 @@ interface ScoreDetailHeroProps {
   title: string;
   subtitle?: string | null;
   thumbnailUrl?: string | null;
-  status?: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
   playbackAudioSrc?: string;
@@ -28,7 +27,6 @@ export function ScoreDetailHero({
   playbackEnabled = true,
   playbackLoading = false,
   playbackVisible,
-  status,
   subtitle,
   thumbnailUrl,
   title,
@@ -76,7 +74,6 @@ export function ScoreDetailHero({
             {subtitle ? (
               <p className="mt-2 truncate text-base text-muted-foreground">{subtitle}</p>
             ) : null}
-            {status ? <div className="mt-4 flex flex-wrap gap-2">{status}</div> : null}
           </div>
           {actions ? (
             <div className={cn('mt-6 flex flex-wrap items-center gap-3')}>

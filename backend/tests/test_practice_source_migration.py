@@ -90,6 +90,19 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
         command.upgrade(config, "head")
         assert_current_source_schema(engine)
         inspector = sa.inspect(engine)
+        assert set(inspector.get_table_names()) == set(SQLModel.metadata.tables) | {
+            "alembic_version"
+        }
+        for name in (
+            "score_memberships",
+            "score_share_grants",
+            "score_invites",
+            "share_grant_redemptions",
+        ):
+            table = SQLModel.metadata.tables[name]
+            assert {column["name"] for column in inspector.get_columns(name)} == set(
+                table.columns.keys()
+            )
         for name in ("performance_takes", "performance_take_upload_reservations"):
             table = SQLModel.metadata.tables[name]
             provenance = {

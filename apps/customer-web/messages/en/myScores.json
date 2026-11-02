@@ -1,13 +1,11 @@
 {
   "title": "My Scores",
-  "subtitle": "Manage the scores you upload, edit, publish, and share.",
+  "subtitle": "Manage the scores you upload, edit, and share.",
   "views": {
     "all": "All works",
     "importing": "Processing",
     "review": "Pending review",
-    "failed": "Failed",
-    "private": "Private",
-    "published": "Published"
+    "failed": "Failed"
   },
   "totalScores": "{count} items",
   "uploadScore": "Upload score",
@@ -24,8 +22,6 @@
   "selectScore": "Select {title}",
   "selectJob": "Select failed upload {title}",
   "addToLibrary": "Add to library",
-  "publishSelected": "Publish selected",
-  "unpublishSelected": "Unpublish selected",
   "delete": "Delete work",
   "deleteDialogTitle": "Delete works",
   "deleteDialogDescription": "Delete {count} item(s)? Related files and storage usage will be cleaned up. This cannot be undone.",
@@ -45,12 +41,8 @@
     "all": "You have not uploaded any scores yet",
     "importing": "No scores are being processed",
     "review": "No scores are waiting for review",
-    "failed": "No failed uploads",
-    "private": "No private scores",
-    "published": "No published scores"
+    "failed": "No failed uploads"
   },
-  "privateStatus": "Private",
-  "publishedStatus": "Published",
   "jobStatus": {
     "PENDING": "Queued",
     "RUNNING": "Processing",

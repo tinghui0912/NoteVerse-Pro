@@ -43,7 +43,6 @@ from app.db.models import (
     ScoreLibraryEntry,
     ScoreInvite,
     ScoreMembership,
-    ScorePublication,
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
@@ -59,7 +58,6 @@ from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
     InviteStatus,
     MembershipRole,
-    PublicationStatus,
     ScoreAudienceAccessMode,
 )
 from app.modules.revisions.schemas import (
@@ -80,7 +78,6 @@ from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.review.thumbnail_service import ReviewThumbnailService
 from app.modules.scores.service import ScoreService
-from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
@@ -93,8 +90,6 @@ from app.modules.score_invites.service import ScoreInviteService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
 from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
-from app.modules.publications.schemas import PublicationUpsertRequest
-from app.modules.publications.service import PublicationService
 from app.modules.playback.delivery import PlaybackDeliveryService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -1953,15 +1948,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 expires_at=utc_now_naive() - timedelta(minutes=1),
                 created_by_user_id=1,
             ),
-            ScorePublication(
-                score_id=70,
-                public_slug="public-policy-score",
-                published_revision_id=71,
-                status=PublicationStatus.PUBLISHED,
-                allow_download=False,
-                access_mode="PRACTICE",
-                published_by_user_id=1,
-            ),
         ]
     )
     session.commit()
@@ -1970,7 +1956,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
 
     owner = await policy.resolve(db, "policy-score", user_id=1)  # type: ignore[arg-type]
     assert owner.capabilities.can_edit is True
-    assert owner.capabilities.can_publish is True
 
     member = await policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
@@ -1992,15 +1977,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
     assert shared.capabilities.can_download is True
     assert shared.capabilities.can_edit is False
 
-    published = await policy.resolve(
-        db,
-        "policy-score",
-        public_slug="public-policy-score",  # type: ignore[arg-type]
-    )
-    assert published.revision.revision_uuid == "policy-revision-1"
-    assert published.capabilities.can_practice is True
-    assert published.capabilities.can_download is False
-
     with pytest.raises(UnauthorizedException):
         await policy.resolve(db, "policy-score")  # type: ignore[arg-type]
     with pytest.raises(UnauthorizedException):
@@ -2008,13 +1984,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             db,
             "policy-score",
             share_token="expired-token",  # type: ignore[arg-type]
-        )
-    with pytest.raises(UnauthorizedException):
-        await policy.resolve(
-            db,  # type: ignore[arg-type]
-            "policy-score",
-            public_slug="public-policy-score",
-            revision_uuid="policy-revision-2",
         )
 
 
@@ -2694,174 +2663,3 @@ def test_realtime_maintenance_rejects_non_positive_retention(
 
     with pytest.raises(ValueError, match="realtime event retention days must be positive"):
         service.cleanup_expired_events(session, retention_days=0)
-
-
-@pytest.mark.asyncio
-async def test_publication_pins_revision_until_explicit_republish(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    score = Score(
-        id=90,
-        score_uuid="publication-score",
-        owner_user_id=1,
-        title="Public Score",
-    )
-    session.add(score)
-    session.commit()
-    first = ScoreRevision(
-        id=91,
-        revision_uuid="publication-revision-1",
-        score_id=90,
-        revision_number=1,
-        content_hash="a1" * 32,
-        origin=RevisionOrigin.IMPORT,
-    )
-    second = ScoreRevision(
-        id=92,
-        revision_uuid="publication-revision-2",
-        score_id=90,
-        revision_number=2,
-        parent_revision_id=91,
-        base_revision_id=91,
-        content_hash="a2" * 32,
-        origin=RevisionOrigin.EDIT,
-    )
-    session.add_all([first, second])
-    session.commit()
-    score.head_revision_id = 92
-    session.commit()
-    db = AsyncSessionAdapter(session)
-    policy = ScoreAccessPolicy()
-    asset_service = ScoreAssetService(storage=storage, access_policy=policy)
-    service = PublicationService(access_policy=policy, asset_service=asset_service)
-
-    published = await service.publish(
-        db,  # type: ignore[arg-type]
-        "publication-score",
-        1,
-        PublicationUpsertRequest(revision_id="publication-revision-1"),
-    )
-    public_detail = await service.public_detail(
-        db,
-        published.public_slug,  # type: ignore[arg-type]
-    )
-    assert public_detail.publication.revision_id == "publication-revision-1"
-
-    republished = await service.publish(
-        db,  # type: ignore[arg-type]
-        "publication-score",
-        1,
-        PublicationUpsertRequest(revision_id="publication-revision-2"),
-    )
-    assert republished.revision_id == "publication-revision-2"
-
-    await service.unpublish(db, "publication-score", 1)  # type: ignore[arg-type]
-    with pytest.raises(ResourceNotFoundException):
-        await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
-
-
-@pytest.mark.asyncio
-async def test_public_detail_exposes_derived_fallback_without_musicxml_when_download_blocked(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    score = Score(
-        id=220,
-        score_uuid="public-derived-score",
-        owner_user_id=1,
-        title="Public Derived Score",
-    )
-    old_revision = ScoreRevision(
-        id=221,
-        revision_uuid="public-derived-revision-1",
-        score_id=220,
-        revision_number=1,
-        content_hash="e1" * 32,
-        origin=RevisionOrigin.IMPORT,
-    )
-    new_revision = ScoreRevision(
-        id=222,
-        revision_uuid="public-derived-revision-2",
-        score_id=220,
-        revision_number=2,
-        content_hash="e2" * 32,
-        origin=RevisionOrigin.EDIT,
-        parent_revision_id=221,
-        base_revision_id=221,
-    )
-    session.add_all([score, old_revision, new_revision])
-    session.commit()
-    score.head_revision_id = 222
-    old_thumbnail = storage.put_bytes(
-        key="scores/public-derived/revisions/old/render.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
-    new_xml = storage.put_bytes(
-        key="scores/public-derived/revisions/new/score.musicxml",
-        content=MUSICXML_2.encode("utf-8"),
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
-    session.add_all(
-        [
-            ScoreRenderAsset(
-                asset_uuid="public-old-preview",
-                revision_id=221,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
-                storage_key=old_thumbnail.storage_key,
-                filename=old_thumbnail.filename,
-                mime_type="image/svg+xml",
-                size_bytes=old_thumbnail.size_bytes,
-                sha256="e" * 64,
-                page_number=1,
-                render_profile="default",
-                generator="test",
-                generator_version="1",
-            ),
-            ScoreRevisionSource(
-                source_uuid="public-new-musicxml",
-                revision_id=222,
-                format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=new_xml.storage_key,
-                filename=new_xml.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=new_xml.size_bytes,
-                sha256="f" * 64,
-                generator="test",
-                generator_version="1",
-            ),
-        ]
-    )
-    session.commit()
-
-    db = AsyncSessionAdapter(session)
-    service = PublicationService(
-        asset_service=ScoreAssetService(storage=storage),
-        score_repository=ScoreRepository(),
-    )
-    published = await service.publish(
-        db,  # type: ignore[arg-type]
-        "public-derived-score",
-        1,
-        PublicationUpsertRequest(
-            revision_id="public-derived-revision-2",
-            public_slug="public-derived-score",
-            allow_download=False,
-            access_mode="PRACTICE",
-        ),
-    )
-
-    detail = await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
-    assert detail.revision_assets.revision_sources == []
-    assert detail.derived_assets.preview.asset_id == "public-old-preview"
-    assert detail.derived_assets.preview.is_fallback is True
-
-    with pytest.raises(UnauthorizedException):
-        await service.public_revision_source_delivery(
-            db,  # type: ignore[arg-type]
-            published.public_slug,
-            "public-new-musicxml",
-        )

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api';
+import { filesApi, scoresApi, scoreSharingApi } from '@/lib/api';
 import type { ScoreRevisionAssetsRead } from '@/generated/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -9,7 +9,7 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 
 interface UseDownloadOptions {
-    mode: 'score' | 'grant' | 'publication';
+    mode: 'score' | 'grant';
     id: string;
     assets?: ScoreRevisionAssetsRead;
 }
@@ -52,13 +52,6 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
                     filesApi.triggerDownload(blob, `score_${id}.musicxml`);
                     return;
                 }
-                if (mode === 'publication') {
-                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
-                    if (!source) throw new Error('FILE_NOT_FOUND');
-                    const blob = await publicationsApi.downloadRevisionSource(id, source.source_id);
-                    filesApi.triggerDownload(blob, source.filename);
-                    return;
-                }
             } else {
                 if (mode === 'grant') {
                     const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
@@ -79,15 +72,6 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
                         blob,
                         pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
                     );
-                    return;
-                }
-                if (mode === 'publication') {
-                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
-                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
-                    for (const page of pages) {
-                        const blob = await publicationsApi.downloadRenderAsset(id, page.render_asset_id);
-                        filesApi.triggerDownload(blob, page.filename);
-                    }
                     return;
                 }
             }

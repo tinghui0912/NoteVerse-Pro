@@ -13,7 +13,6 @@ from sqlalchemy import (
     DateTime,
     Enum as SAEnum,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -39,11 +38,6 @@ class InviteStatus(str, enum.Enum):
     DECLINED = "DECLINED"
 
 
-class PublicationStatus(str, enum.Enum):
-    PUBLISHED = "PUBLISHED"
-    UNPUBLISHED = "UNPUBLISHED"
-
-
 class ScoreAudienceAccessMode(str, enum.Enum):
     VIEW = "VIEW"
     PRACTICE = "PRACTICE"
@@ -53,7 +47,6 @@ class AccessOrigin(str, enum.Enum):
     OWNER = "OWNER"
     MEMBERSHIP = "MEMBERSHIP"
     SHARE = "SHARE"
-    PUBLICATION = "PUBLICATION"
 
 
 class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
@@ -187,7 +180,6 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
 
-
 class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "share_grant_redemptions"
     __table_args__ = (
@@ -210,66 +202,4 @@ class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
-
-class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_publications"
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["score_id", "published_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_publications_revision",
-        ),
-        Index("idx_score_publications_status", "status"),
-        CheckConstraint(
-            "access_mode IN ('VIEW', 'PRACTICE')",
-            name="ck_score_publications_access_mode",
-        ),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    score_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("scores.id", ondelete="CASCADE"),
-            unique=True,
-            nullable=False,
-        )
-    )
-    public_slug: str = Field(sa_column=Column(String(128), unique=True, nullable=False))
-    published_revision_id: int = Field(sa_column=Column(BigInteger, nullable=False))
-    status: PublicationStatus = Field(
-        sa_column=Column(SAEnum(PublicationStatus, name="publicationstatus"), nullable=False)
-    )
-    allow_download: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
-    )
-    access_mode: str = Field(
-        default=ScoreAudienceAccessMode.PRACTICE.value,
-        sa_column=Column(
-            String(16),
-            default=ScoreAudienceAccessMode.PRACTICE.value,
-            nullable=False,
-        ),
-    )
-    published_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
-    published_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
-            nullable=False,
-        ),
     )

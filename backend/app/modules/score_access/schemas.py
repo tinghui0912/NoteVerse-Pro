@@ -11,7 +11,6 @@ class ScoreCapabilities(BaseModel):
     can_manage_members: bool
     can_download: bool
     can_practice: bool
-    can_publish: bool
 
 
 class ScoreAccessRead(BaseModel):

@@ -44,7 +44,6 @@ app/modules/
 |-- ops
 |-- playback
 |-- practice
-|-- publications
 |-- realtime
 |-- revisions
 |-- review
@@ -72,7 +71,6 @@ ImportJob ---- ImportJobStep
 Score ---- ScoreMembership
   |  \----- ScoreLibraryEntry
   |  \----- ScoreShareGrant ---- ShareGrantRedemption
-  |  `----- ScorePublication
   |
   v
 ScoreRevision ---- ScoreRevisionMetadata
@@ -95,8 +93,7 @@ Core rules:
 - `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
-- `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, `ShareGrantRedemption`, and
-  `ScorePublication` have distinct authorization and product semantics.
+- `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, and `ShareGrantRedemption` have distinct authorization and product semantics.
 - `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
   score content, and target/source delivery for Customer Web.
 - Active Practice state, STEP/Continuous execution, the local clock, MIDI input,
@@ -107,7 +104,7 @@ Job identity and score identity are deliberately separate:
 
 - upload and review polling use job IDs;
 - review correction uses job IDs and updates temporary review artifacts;
-- score detail, editor, history, share, public, and practice score surfaces use score IDs and
+- score detail, editor, history, share and practice score surfaces use score IDs and
   revision IDs;
 - a failed job must remain diagnosable without creating a fake score;
 - once review confirmation creates a score, score-facing navigation should use the returned
@@ -128,7 +125,7 @@ Owns import lifecycle:
 - import artifact registration;
 - upload linkage and orphan-upload protection.
 
-Do not put durable score editing, publication, or sharing rules here.
+Do not put durable score editing or sharing rules here.
 
 ### `app.pipeline` and `app.processing`
 
@@ -164,7 +161,7 @@ Owns the pre-Score human review boundary:
 - attaching the created `score_id` back to the import job and import notification.
 
 Do not expose review as a Score route. Do not create Score revisions when editing review
-artifacts. Do not allow sharing, invites, publication, or practice to target unconfirmed
+artifacts. Do not allow sharing, invites or practice to target unconfirmed
 review output.
 
 ### `modules/scores` and `modules/revisions`
@@ -215,7 +212,6 @@ Access decisions must account for:
 - owner;
 - membership;
 - share grant;
-- publication;
 - requested score;
 - requested revision;
 - requested action.
@@ -233,18 +229,6 @@ Owns view-only share grants, bookmark creation, and grant redemption:
 - share grants never authorize editing.
 
 Bookmarks organize the user's library and do not grant access by themselves.
-
-### `modules/publications`
-
-Owns public score publication:
-
-- owner-only publish, republish, and unpublish;
-- pinned published revision;
-- public slug;
-- public capabilities;
-- download/practice policy.
-
-Editing a score head must not change public content until explicit republish.
 
 ### `modules/practice`
 
@@ -448,9 +432,8 @@ For score-domain changes, add focused coverage for the relevant behavior:
 
 - revision ordering, conflict, approval, immutable sources, and restore semantics;
 - metadata extraction, rebuild, and failure states;
-- authorization matrix for owner, member, share, public, and anonymous paths;
+- authorization matrix for owner, member, share, and anonymous paths;
 - share token hashing, expiry, revocation, redemption, and bookmark separation;
-- publication pin, republish, and unpublish;
 - revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source
   delivery;
 - browser-local active Practice state remains outside backend session authority;
@@ -476,7 +459,6 @@ Before finalizing backend work, check:
 - no canonical MusicXML mutation that overwrites an existing revision source;
 - no endpoint reconstructs score permissions outside `modules/score_access`;
 - no raw share token persistence beyond one-time token return;
-- no public access follows mutable head revision without explicit republish;
 - revision-bound PracticeScoreArtifact/source delivery preserves immutable revision
   identity while active Practice execution remains browser-local;
 - no direct durable file path construction outside `app/storage`;

@@ -371,54 +371,32 @@ def assert_external_access(
     score: dict[str, Any],
 ) -> dict[str, str]:
     score_id = str(score["score_id"])
-    revision_id = str(score["head_revision_id"])
     headers = csrf_headers(cookie_jar)
     grant = request_json(
         opener,
         f"{api_base}/scores/{score_id}/grants",
         method="POST",
-        data=json.dumps({"allow_download": False, "allow_practice": True, "expires_at": None}).encode("utf-8"),
+        data=json.dumps({"allow_download": False, "access_mode": "PRACTICE", "expires_at": None}).encode("utf-8"),
         headers=headers,
         timeout=30,
     )
     token = grant["data"]["token"]
 
-    slug = f"k8s-smoke-{score_id[:8]}"
-    request_json(
-        opener,
-        f"{api_base}/scores/{score_id}/publication",
-        method="PUT",
-        data=json.dumps({
-            "revision_id": revision_id,
-            "public_slug": slug,
-            "allow_download": False,
-            "allow_practice": True,
-        }).encode("utf-8"),
-        headers=headers,
-        timeout=30,
-    )
-
     anonymous = request.build_opener()
     share_data = request_json(anonymous, f"{api_base}/score-grants/{token}", timeout=30)["data"]
-    public_data = request_json(anonymous, f"{api_base}/publications/{slug}", timeout=30)["data"]
-    for label, payload in (("share", share_data), ("public", public_data)):
-        assets = payload["derived_assets"]
-        if assets["preview"]["status"] != "ready" or assets["audio"]["status"] != "ready":
-            raise AssertionError(f"{label} derived assets are not ready: {assets}")
-        if payload["capabilities"]["can_download"]:
-            raise AssertionError(f"{label} can_download leaked as true")
-        sources = payload["revision_assets"].get("revision_sources") or []
-        if sources:
-            raise AssertionError(f"{label} exposed revision sources when downloads are disabled")
+    assets = share_data["derived_assets"]
+    if assets["preview"]["status"] != "ready" or assets["audio"]["status"] != "ready":
+        raise AssertionError(f"Share derived assets are not ready: {assets}")
+    if share_data["capabilities"]["can_download"]:
+        raise AssertionError("Share can_download leaked as true")
+    if share_data["revision_assets"].get("revision_sources"):
+        raise AssertionError("Share exposed revision sources when downloads are disabled")
 
-    for url in (
-        f"{api_base}/score-grants/{token}/playback",
-        f"{api_base}/publications/{slug}/playback",
-    ):
-        status_code = request_status(anonymous, url, timeout=30)
-        if status_code not in {200, 302, 307}:
-            raise AssertionError(f"Playback endpoint failed: {url} -> {status_code}")
-    return {"share_token": token, "public_slug": slug}
+    url = f"{api_base}/score-grants/{token}/playback"
+    status_code = request_status(anonymous, url, timeout=30)
+    if status_code not in {200, 302, 307}:
+        raise AssertionError(f"Playback endpoint failed: {url} -> {status_code}")
+    return {"share_token": token}
 
 
 def delete_score(

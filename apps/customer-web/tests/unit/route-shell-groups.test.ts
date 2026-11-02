@@ -100,16 +100,13 @@ describe('route shell groups', () => {
   });
 
   it('keeps external viewer components in the external component directory', () => {
-    expect(existsSync(projectPath('src/components/external/public-score-page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/score-detail/score-detail-hero.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/score-detail/external-score-actions.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/public'))).toBe(false);
     expect(existsSync(projectPath('src/components/share'))).toBe(false);
 
-    const publicEntry = readSource('src/app/[locale]/(external)/public/[slug]/page.tsx');
     const shareEntry = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
 
-    expect(publicEntry).toContain('@/components/external/public-score-page');
     expect(shareEntry).toContain('@/components/score-detail/score-detail-hero');
     expect(shareEntry).toContain('@/components/score-detail/external-score-actions');
   });
@@ -156,7 +153,6 @@ describe('route shell groups', () => {
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const publicScorePage = readSource('src/components/external/public-score-page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
@@ -203,13 +199,10 @@ describe('route shell groups', () => {
     expect(securityPanel).toContain('SectionErrorState');
     expect(sessionsPanel).toContain('SectionErrorState');
 
-    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, publicScorePage, invitePage]) {
+    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, invitePage]) {
       expect(source).toContain('ResourceLoadError');
     }
 
-    expect(publicScorePage).toContain('publication.error');
-    expect(publicScorePage).toContain('userFacingErrorMessage');
-    expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
 
     expect(practicePage).toContain('workspace.preparedPractice');
     expect(practicePage).toContain("t('setupRequired')");
@@ -236,7 +229,6 @@ describe('route shell groups', () => {
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
-    const publicScorePage = readSource('src/components/external/public-score-page.tsx');
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
@@ -256,7 +248,6 @@ describe('route shell groups', () => {
     expect(scorePage).toContain("common('loadingScoreData')");
     expect(reviewPage).toContain("common('loadingReviewData')");
     expect(editorWorkspace).toContain("common('loadingScoreData')");
-    expect(publicScorePage).toContain("common('loadingPublicScore')");
     expect(sharePage).toContain("common('loadingShareData')");
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain('PracticeScoreViewer');
@@ -270,7 +261,7 @@ describe('route shell groups', () => {
     expect(practiceScoreViewer).toContain('PreviewLoading');
     expect(reviewScoreComparison).toContain('PreviewLoading');
 
-    for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage]) {
+    for (const source of [scorePage, reviewPage, editorWorkspace, sharePage, invitePage]) {
       expect(source).toContain('ResourceLoading');
     }
 

@@ -1,6 +1,5 @@
 {
   "title": "乐谱详情",
-  "publicScore": "公开乐谱",
   "subtitle": "现在你可以播放、练习、分享、下载或继续编辑你的作品。",
   "scoreFallbackTitle": "乐谱 {id}",
   "playScore": "播放乐谱",
@@ -69,7 +68,6 @@
   "restoreSuccessDesc": "已基于所选版本创建新的当前版本。",
   "restoreFailed": "恢复失败",
   "restoreFailedDesc": "暂时无法恢复此版本，请稍后重试。",
-  "publishScore": "发布",
   "practiceScore": "练习",
   "savedPerformances": "已保存演奏",
   "savedPerformancesEmptyTitle": "还没有保存的演奏",
@@ -89,7 +87,6 @@
   "savedPerformanceDeletedDesc": "这次保存的演奏已从列表中移除。",
   "savedPerformanceDeleteFailed": "删除失败",
   "savedPerformanceDeleteFailedDesc": "暂时无法删除这次已保存演奏，请稍后重试。",
-  "unpublishScore": "取消公开",
   "downloadImage": "下载图片",
   "downloadMusicXML": "下载 MusicXML",
   "saveSuccess": "保存成功",
@@ -99,12 +96,9 @@
   "nameEmptyDesc": "乐谱名称不能为空。",
   "scoreInfoUpdated": "乐谱信息已更新。",
   "backToLibrary": "返回我的乐谱库",
-  "publishedStatus": "已发布",
   "versionLabel": "版本 v{version}",
   "sharedInfo": "分享信息",
-  "publicInfo": "公开信息",
   "sharedBy": "分享者",
-  "publishedAt": "发布时间",
   "allowed": "允许",
   "notAllowed": "不允许"
 }

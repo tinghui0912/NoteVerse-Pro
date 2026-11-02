@@ -22,7 +22,7 @@ Canonical source content, visual render output, playable output and queryable me
    are produced asynchronously after revision creation.
 7. Score detail and list read models may expose the latest available derived assets, including
    fallback assets from a previous revision when the current revision is still generating.
-8. External share and public score APIs expose only presentation-safe derived assets by
+8. External share APIs expose only presentation-safe derived assets by
    default. Revision source download is included only when policy grants download permission.
 9. Import-job review artifacts remain job-scoped pipeline artifacts until the user confirms
    the review and creates a score revision.

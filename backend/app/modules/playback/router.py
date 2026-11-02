@@ -41,19 +41,6 @@ async def stream_score_grant_playback(
     return _stream(delivery, service, request)
 
 
-@router.get("/publications/{slug}/playback")
-async def stream_public_score_playback(
-    slug: str,
-    request: Request,
-    current_user: User | None = Depends(get_optional_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PlaybackDeliveryService = Depends(get_playback_delivery_service),
-):
-    user_id = current_user.id if current_user else None
-    delivery = await service.public_delivery(db, slug, user_id)
-    return _stream(delivery, service, request)
-
-
 def _stream(delivery, service: PlaybackDeliveryService, request: Request):
     return stream_storage_object(
         storage=service.storage,

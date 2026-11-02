@@ -149,11 +149,6 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             playbackEnabled={Boolean(playbackAudioSrc)}
             playbackLoading={audioPreparing}
             playbackVisible={score.capabilities.can_practice}
-            status={score.publication?.status === 'PUBLISHED' ? (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                {t('publishedStatus')}
-              </span>
-            ) : null}
             actions={(
               <ScoreHeroActions
                 imagePreparing={imagePreparing}

@@ -77,11 +77,9 @@ def test_external_musicxml_content_routes_are_absent(client: TestClient) -> None
     paths = schema["paths"]
 
     assert "/api/v1/score-grants/{token}/content" not in paths
-    assert "/api/v1/publications/{slug}/content" not in paths
 
     for path in (
         "/api/v1/score-grants/share-token/content",
-        "/api/v1/publications/public-score/content",
     ):
         response = client.get(path)
         assert response.status_code == 404, path
@@ -94,11 +92,11 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
 
     class FakePlaybackStorage:
         def read_bytes(self, key: str) -> bytes:
-            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            assert key in {"playback/share-token.wav"}
             return audio_bytes
 
         def size_bytes(self, key: str) -> int:
-            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            assert key in {"playback/share-token.wav"}
             return len(audio_bytes)
 
         def iter_bytes(
@@ -109,7 +107,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
             start: int | None = None,
             end: int | None = None,
         ) -> Iterator[bytes]:
-            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            assert key in {"playback/share-token.wav"}
             content = audio_bytes[start : end + 1 if end is not None else None]
             for index in range(0, len(content), chunk_size):
                 yield content[index : index + chunk_size]
@@ -124,12 +122,6 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
                 storage_key=f"playback/{token}.wav",
             )
 
-        async def public_delivery(self, db, slug: str, user_id: int | None):
-            return PlaybackDelivery(
-                filename=f"{slug}.wav",
-                media_type="audio/wav",
-                storage_key=f"playback/{slug}.wav",
-            )
 
     async def fake_get_db():
         yield object()
@@ -142,7 +134,6 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
             "/api/v1/score-grants/share-token/playback",
             headers={"Range": "bytes=5-8"},
         )
-        public_response = client.get("/api/v1/publications/public-score/playback")
     finally:
         app.dependency_overrides.pop(get_playback_delivery_service, None)
         app.dependency_overrides.pop(get_db, None)
@@ -153,9 +144,6 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
     assert grant_range_response.status_code == 206
     assert grant_range_response.headers["content-range"] == f"bytes 5-8/{len(audio_bytes)}"
     assert grant_range_response.content == audio_bytes[5:9]
-    assert public_response.status_code == 200
-    assert public_response.headers["content-type"].startswith("audio/wav")
-    assert public_response.content == audio_bytes
 
 
 @pytest.mark.parametrize("include_notation", [False, True])
@@ -262,8 +250,6 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ("patch", "/api/v1/scores/test-score/members/1", {"role": "EDITOR"}),
         ("delete", "/api/v1/scores/test-score/members/1", None),
         ("post", "/api/v1/invites/invite-token/accept", None),
-        ("put", "/api/v1/scores/test-score/publication", {}),
-        ("delete", "/api/v1/scores/test-score/publication", None),
     ]
 
     for method, path, payload in protected_requests:

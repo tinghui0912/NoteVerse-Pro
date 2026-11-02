@@ -3,12 +3,6 @@ from __future__ import annotations
 from enum import Enum
 
 
-class MyScoresView(str, Enum):
-    ALL = "all"
-    PRIVATE = "private"
-    PUBLISHED = "published"
-
-
 class MyScoresSort(str, Enum):
     UPDATED_DESC = "updated_desc"
     UPDATED_ASC = "updated_asc"

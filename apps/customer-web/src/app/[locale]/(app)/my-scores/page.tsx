@@ -4,7 +4,7 @@ import React from 'react';
 import { Music, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { SectionLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { SectionErrorState } from '@/components/states';
@@ -31,20 +31,15 @@ import {
   useAddMyScoresToLibrary,
   useDeleteMyScores,
   useMyScores,
-  usePublishMyScores,
-  useUnpublishMyScores,
 } from '@/hooks/queries/use-my-scores-queries';
 import {
   buildMyScoresHref,
-  isMyScoreView,
   MY_SCORE_PAGE_VIEWS,
   type MyScoresPageView,
-  myScoresBulkVisibility,
   myScoresTotal,
   normalizeMyScoresSort,
   normalizeMyScoresView,
   normalizePage,
-  scoreBackedView,
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -62,17 +57,19 @@ type MyScoresSelectionState = {
   selectedJobIds: Set<string>;
 };
 
-export default function MyScoresPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    view?: string;
-    search?: string;
-    sort?: string;
-    page?: string;
-  }>;
-}) {
-  const params = React.use(searchParams);
+export default function MyScoresPage() {
+  const t = useTranslations('myScores');
+  return <React.Suspense fallback={<SectionLoading label={t('loading')} />}><MyScoresContent /></React.Suspense>;
+}
+
+function MyScoresContent() {
+  const searchParams = useSearchParams();
+  const params = {
+    view: searchParams.get('view') ?? undefined,
+    search: searchParams.get('search') ?? undefined,
+    sort: searchParams.get('sort') ?? undefined,
+    page: searchParams.get('page') ?? undefined,
+  };
   const t = useTranslations('myScores');
   const common = useTranslations('common');
   const errors = useTranslations('errors');
@@ -82,23 +79,18 @@ export default function MyScoresPage({
   const [searchInput, setSearchInput] = React.useState(params.search ?? '');
   const page = normalizePage(params.page);
   const pageSize = 20;
-  const scoreView = scoreBackedView(view);
-  const showScores = isMyScoreView(view);
+  const showScores = view === 'all';
   const scoresQuery = useMyScores({
-    view: scoreView,
     search: params.search,
     sort,
     page,
     pageSize,
     enabled: showScores,
   });
-  const showJobs = view === 'all' || view === 'importing' || view === 'review' || view === 'failed';
-  const jobsQuery = useImportJobList(1, 20, showJobs);
+  const jobsQuery = useImportJobList(1, 20);
   const deleteJob = useDeleteImportJob();
   const addScoresToLibrary = useAddMyScoresToLibrary();
   const deleteScores = useDeleteMyScores();
-  const publishScores = usePublishMyScores();
-  const unpublishScores = useUnpublishMyScores();
   const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
   const jobs = React.useMemo(() => jobsQuery.data?.data ?? [], [jobsQuery.data?.data]);
   const selectionScopeKey = [view, params.search ?? '', sort, page].join('\u0000');
@@ -141,12 +133,10 @@ export default function MyScoresPage({
     scoreIds.every((scoreId) => selectedScoreIds.has(scoreId)) &&
     visibleSelectableJobIds.every((jobId) => selectedJobIds.has(jobId));
   const total = myScoresTotal({
-    showScores,
     scoreTotal: scoresQuery.data?.pagination.total ?? 0,
     view,
     visibleJobCount: visibleJobs.length,
   });
-  const bulkVisibility = myScoresBulkVisibility(view);
   const scorePagination = scoresQuery.data?.pagination;
   const canGoPrevious = showScores && scorePagination ? scorePagination.page > 1 : false;
   const canGoNext = showScores && scorePagination
@@ -253,12 +243,6 @@ export default function MyScoresPage({
   const deleteSingleScore = (scoreId: string) => {
     setDeleteTarget({ scoreIds: [scoreId], jobIds: [] });
   };
-  const handlePublishSelected = () => {
-    publishScores.mutate(selectedIds(), { onSuccess: clearSelection });
-  };
-  const handleUnpublishSelected = () => {
-    unpublishScores.mutate(selectedIds(), { onSuccess: clearSelection });
-  };
   const goToPage = (nextPage: number) => {
     navigate({ page: nextPage });
   };
@@ -331,17 +315,11 @@ export default function MyScoresPage({
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
               allSelected={allVisibleSelected}
-              publishPending={publishScores.isPending}
-              unpublishPending={unpublishScores.isPending}
               addToLibraryPending={addScoresToLibrary.isPending}
               deletePending={deleteScores.isPending || deleteJob.isPending}
               addToLibraryCount={selectedScoresNotInLibrary.length}
-              showPublishAction={bulkVisibility.publish}
-              showUnpublishAction={bulkVisibility.unpublish}
               onToggleSelectAll={toggleVisibleSelection}
               onAddToLibrarySelected={handleAddToLibrarySelected}
-              onPublishSelected={handlePublishSelected}
-              onUnpublishSelected={handleUnpublishSelected}
               onDeleteSelected={handleDeleteSelected}
               t={t}
             />
@@ -376,7 +354,6 @@ export default function MyScoresPage({
                 <MyScoreCard
                   key={score.score_id}
                   score={score}
-                  view={scoreView}
                   batchMode={batchMode}
                   selected={selectedScoreIds.has(score.score_id)}
                   onOpen={() =>
@@ -443,4 +420,3 @@ export default function MyScoresPage({
     </div>
   );
 }
-

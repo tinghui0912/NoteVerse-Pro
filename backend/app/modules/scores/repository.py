@@ -8,7 +8,6 @@ from app.db.models import (
     ImportJob,
     Score,
     ScoreDeletionStatus,
-    ScorePublication,
     ScoreRevision,
     ScoreTaxonomyTag,
     TaxonomyCategory,
@@ -16,8 +15,7 @@ from app.db.models import (
     LibraryEntrySourceType,
     ScoreLibraryEntry,
 )
-from app.db.models.score_access import PublicationStatus
-from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
+from app.modules.my_scores.schemas import MyScoresSort
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
@@ -34,35 +32,12 @@ class ScoreRepository:
         page: int,
         page_size: int,
         search: str | None = None,
-        view: MyScoresView = MyScoresView.ALL,
         sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
     ) -> tuple[list[Score], int]:
         filters = [Score.owner_user_id == user_id, active_score_filter]
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
-        if view == MyScoresView.PUBLISHED:
-            filters.append(
-                select(ScorePublication.id)
-                .where(
-                    ScorePublication.score_id == Score.id,
-                    ScorePublication.status == PublicationStatus.PUBLISHED,
-                )
-                .exists()
-            )
-        elif view == MyScoresView.PRIVATE:
-            filters.append(
-                ~select(ScorePublication.id)
-                .where(
-                    ScorePublication.score_id == Score.id,
-                    ScorePublication.status == PublicationStatus.PUBLISHED,
-                )
-                .exists()
-            )
-        total = int(
-            (
-                await db.execute(select(func.count(Score.id)).where(*filters))
-            ).scalar_one()
-        )
+        total = int((await db.execute(select(func.count(Score.id)).where(*filters))).scalar_one())
         order_by = {
             MyScoresSort.UPDATED_DESC: [score_updated_col.desc()],
             MyScoresSort.UPDATED_ASC: [score_updated_col.asc()],
@@ -134,7 +109,9 @@ class ScoreRepository:
                 await db.execute(
                     statement.order_by(col(ScoreRevision.revision_number).desc()).limit(limit + 1)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         items = rows[:limit]
         next_cursor = items[-1].revision_number if len(rows) > limit and items else None
@@ -148,24 +125,15 @@ class ScoreRepository:
                     .where(ScoreRevision.score_id == score_id)
                     .order_by(col(ScoreRevision.revision_number).desc())
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
-    async def originating_job(
-        self, db: AsyncSession, job_id: int | None
-    ) -> ImportJob | None:
+    async def originating_job(self, db: AsyncSession, job_id: int | None) -> ImportJob | None:
         if job_id is None:
             return None
         return await db.get(ImportJob, job_id)
-
-    async def publication(
-        self, db: AsyncSession, score_id: int
-    ) -> ScorePublication | None:
-        return (
-            await db.execute(
-                select(ScorePublication).where(ScorePublication.score_id == score_id)
-            )
-        ).scalar_one_or_none()
 
     async def taxonomy_tags(
         self, db: AsyncSession, score_id: int
@@ -199,14 +167,9 @@ class ScoreRepository:
             .where(tuple_(TaxonomyCategory.code, TaxonomyTag.code).in_(tags))
             .where(col(TaxonomyCategory.is_active).is_(True), col(TaxonomyTag.is_active).is_(True))
         )
-        tag_ids = {
-            (category, code): tag_id
-            for category, code, tag_id in rows.all()
-        }
+        tag_ids = {(category, code): tag_id for category, code, tag_id in rows.all()}
         missing = [
-            f"{category}:{code}"
-            for category, code in tags
-            if (category, code) not in tag_ids
+            f"{category}:{code}" for category, code in tags if (category, code) not in tag_ids
         ]
         if missing:
             raise ValueError(f"Taxonomy tags are not seeded: {', '.join(missing)}")

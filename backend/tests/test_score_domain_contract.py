@@ -24,13 +24,12 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
         "review": "job_id",
         "review_editor": "job_id",
         "score_detail_editor_history_sharing": "score_id",
-        "practice_and_publication_snapshot": "revision_id",
+        "practice_snapshot": "revision_id",
     }
     assert invariants["revision_is_immutable"] is True
     assert invariants["revision_history_is_linear"] is True
     assert invariants["revision_save_requires_base_revision"] is True
     assert invariants["one_canonical_musicxml_per_revision"] is True
-    assert invariants["publication_pins_revision"] is True
     assert invariants["practice_pins_revision"] is True
 
 
@@ -49,7 +48,6 @@ def test_score_domain_contract_freezes_access_and_error_vocabulary() -> None:
         "artifact_not_found",
         "metadata_not_ready",
         "share_grant_login_required",
-        "publication_revision_invalid",
         "score_access_denied",
     }.issubset(contract["error_codes"])
 

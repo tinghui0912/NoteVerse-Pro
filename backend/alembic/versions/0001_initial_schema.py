@@ -1,7 +1,7 @@
 """initial schema
 
 Revision ID: 0001_initial_schema
-Revises: 
+Revises:
 Create Date: 2026-07-03 07:19:22.733366
 
 """
@@ -42,7 +42,6 @@ ENUM_TYPES = (
     "practicesessionstate",
     "importjobstate",
     "importjobstepstatus",
-    "publicationstatus",
     "revisionorigin",
     "userrole",
 )
@@ -461,25 +460,6 @@ def upgrade() -> None:
     )
     op.create_index('idx_score_artifacts_revision_kind', 'score_artifacts', ['revision_id', 'kind'], unique=False)
     op.create_index('uq_score_artifacts_canonical_musicxml', 'score_artifacts', ['revision_id'], unique=True, postgresql_where=sa.text("kind = 'MUSICXML'"), sqlite_where=sa.text("kind = 'MUSICXML'"))
-    op.create_table('score_publications',
-    sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
-    sa.Column('score_id', sa.BigInteger(), nullable=False),
-    sa.Column('public_slug', sa.String(length=128), nullable=False),
-    sa.Column('published_revision_id', sa.BigInteger(), nullable=False),
-    sa.Column('status', sa.Enum('PUBLISHED', 'UNPUBLISHED', name='publicationstatus'), nullable=False),
-    sa.Column('allow_download', sa.Boolean(), nullable=False),
-    sa.Column('allow_practice', sa.Boolean(), nullable=False),
-    sa.Column('published_by_user_id', sa.BigInteger(), nullable=False),
-    sa.Column('published_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['published_by_user_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['score_id', 'published_revision_id'], ['score_revisions.score_id', 'score_revisions.id'], name='fk_score_publications_revision'),
-    sa.ForeignKeyConstraint(['score_id'], ['scores.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('public_slug'),
-    sa.UniqueConstraint('score_id')
-    )
-    op.create_index('idx_score_publications_status', 'score_publications', ['status'], unique=False)
     op.create_table('score_revision_metadata',
     sa.Column('revision_id', sa.BigInteger(), nullable=False),
     sa.Column('status', sa.Enum('PENDING', 'READY', 'FAILED', name='metadatastatus'), nullable=False),
@@ -524,7 +504,7 @@ def upgrade() -> None:
     sa.Column('session_uuid', sa.String(length=36), nullable=False),
     sa.Column('score_id', sa.BigInteger(), nullable=False),
     sa.Column('revision_id', sa.BigInteger(), nullable=False),
-    sa.Column('access_origin', sa.Enum('OWNER', 'MEMBERSHIP', 'SHARE', 'PUBLICATION', name='accessorigin'), nullable=False),
+    sa.Column('access_origin', sa.Enum('OWNER', 'MEMBERSHIP', 'SHARE', name='accessorigin'), nullable=False),
     sa.Column('share_grant_id', sa.BigInteger(), nullable=True),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('state', sa.Enum('CREATED', 'STREAMING', 'PAUSED', 'FINISHED', 'FAILED', name='practicesessionstate'), nullable=False),
@@ -581,8 +561,6 @@ def downgrade() -> None:
     op.drop_index('idx_score_revision_metadata_status', table_name='score_revision_metadata')
     op.drop_index('idx_score_revision_metadata_measure_count', table_name='score_revision_metadata')
     op.drop_table('score_revision_metadata')
-    op.drop_index('idx_score_publications_status', table_name='score_publications')
-    op.drop_table('score_publications')
     op.drop_index('uq_score_artifacts_canonical_musicxml', table_name='score_artifacts', postgresql_where=sa.text("kind = 'MUSICXML'"), sqlite_where=sa.text("kind = 'MUSICXML'"))
     op.drop_index('idx_score_artifacts_revision_kind', table_name='score_artifacts')
     op.drop_table('score_artifacts')

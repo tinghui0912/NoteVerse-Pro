@@ -23,17 +23,6 @@ describe('Verovio listen surfaces', () => {
     expect(playback).not.toContain('ScorePlaybackDock');
   });
 
-  it('renders public score access through the external score surface and capability model', () => {
-    const page = readSource('src/components/external/public-score-page.tsx');
-
-    expect(page).toContain('<ScoreSurface');
-    expect(page).toContain('<ScoreCapabilityProvider');
-    expect(page).toContain('<ScoreDetailHero');
-    expect(page).toContain('<ScoreDetailTabs');
-    expect(page).toContain('resolveScoreCapabilities');
-    expect(page).toContain('playbackUrl(slug)');
-    expect(page).not.toContain('<Footer');
-  });
 
   it('removes the old listen modal preview path', () => {
     expect(existsSync(projectPath('src/components/score/listen-modal.tsx'))).toBe(false);

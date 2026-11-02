@@ -12,7 +12,7 @@ const capabilities = {
   can_manage_sharing: true,
   can_download: true,
   can_practice: true,
-  can_publish: true,
+
 };
 
 test.beforeEach(async ({ page }) => {
@@ -44,7 +44,7 @@ test('anonymous users can access public and external shells without AppShell sid
             audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
           },
           revision_assets: { revision_sources: [], render_assets: [] },
-          capabilities: { ...capabilities, can_edit: false, can_manage_sharing: false, can_publish: false },
+          capabilities: { ...capabilities, can_edit: false, can_manage_sharing: false, },
         },
       }),
     })
@@ -59,46 +59,14 @@ test('anonymous users can access public and external shells without AppShell sid
       }),
     })
   );
-  await page.route('**/api/v1/publications/shell-public', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          title: 'Public Shell Score',
-          taxonomy_tags: [],
-          publication: { score_id: scoreId, public_slug: 'shell-public', status: 'PUBLISHED' },
-          metadata: null,
-          derived_assets: {
-            preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-            audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-          },
-          revision_assets: { revision_sources: [], render_assets: [] },
-          capabilities: { ...capabilities, can_edit: false, can_manage_sharing: false, can_publish: false },
-        },
-      }),
-    })
-  );
-  await page.route('**/api/v1/publications/shell-public/content', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { revision_id: revisionId, mime_type: 'application/xml', content: musicXml },
-      }),
-    })
-  );
-
-  for (const path of ['/en/subscriptions', '/en/help', '/en/share/shell-share', '/en/public/shell-public']) {
+  for (const path of ['/en/subscriptions', '/en/help', '/en/share/shell-share']) {
     await page.goto(path);
     await expect(page).not.toHaveURL(/\/auth\/login/);
     await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
   }
 
-  await expect(page.getByRole('heading', { name: 'Public Shell Score' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Shared Shell Score' })).toBeVisible();
 });
 
 test('invite routes use InviteShell instead of public marketing navigation', async ({ page }) => {

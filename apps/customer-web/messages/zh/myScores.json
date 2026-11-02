@@ -1,13 +1,11 @@
 {
   "title": "我的作品",
-  "subtitle": "管理你上传、编辑、发布和分享的乐谱作品。",
+  "subtitle": "管理你上传、编辑和分享的乐谱。",
   "views": {
     "all": "全部作品",
     "importing": "处理中",
     "review": "待审核",
-    "failed": "处理失败",
-    "private": "私有",
-    "published": "已发布"
+    "failed": "处理失败"
   },
   "totalScores": "{count} 项",
   "uploadScore": "上传乐谱",
@@ -24,8 +22,6 @@
   "selectScore": "选择 {title}",
   "selectJob": "选择失败上传 {title}",
   "addToLibrary": "加入乐谱库",
-  "publishSelected": "发布所选",
-  "unpublishSelected": "取消发布所选",
   "delete": "删除作品",
   "deleteDialogTitle": "删除作品",
   "deleteDialogDescription": "确定删除 {count} 个项目吗？相关文件和存储用量将一并清理，此操作不可撤销。",
@@ -45,12 +41,8 @@
     "all": "你还没有上传作品",
     "importing": "当前没有正在处理的乐谱",
     "review": "暂无待审核乐谱",
-    "failed": "没有处理失败的上传",
-    "private": "暂无私有作品",
-    "published": "暂无已发布作品"
+    "failed": "没有处理失败的上传"
   },
-  "privateStatus": "私有",
-  "publishedStatus": "已发布",
   "jobStatus": {
     "PENDING": "排队中",
     "RUNNING": "处理中",

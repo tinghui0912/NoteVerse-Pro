@@ -16,8 +16,14 @@ management surfaces.
 
 - scores owned by the current user;
 - import/review state;
-- publish, share, collaboration, edit, delete, and restore-oriented actions;
+- share, collaboration, edit, delete, and restore-oriented actions;
 - owner-level lifecycle management.
+
+My Scores exposes All works, Processing, Pending review and Failed views. The client
+reads these workflow filters from the current URL. The owned-score API accepts
+page, page_size, search and sort; workflow views select which import jobs and owned
+scores the browser presents. Bulk actions add owned scores to the library or delete
+selected scores/jobs.
 
 ## Deletion Semantics
 
@@ -37,5 +43,5 @@ transfer.
 
 ## Authority
 
-[Score access policy](../adr/0004-score-access-sharing-and-publication.md) defines authorization.
+[Score access policy](../adr/0004-score-access-and-sharing.md) defines authorization.
 Library entries organize access without granting it.

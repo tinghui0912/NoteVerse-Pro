@@ -1071,62 +1071,6 @@ export type ApiResponseProfileUpdateRead = {
 };
 
 /**
- * APIResponse[PublicScoreRead]
- */
-export type ApiResponsePublicScoreRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PublicScoreRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PublicationRead]
- */
-export type ApiResponsePublicationRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PublicationRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[ReviewConfirmRead]
  */
 export type ApiResponseReviewConfirmRead = {
@@ -2782,11 +2726,6 @@ export type MetadataStatus = 'PENDING' | 'READY' | 'FAILED';
 export type MyScoresSort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
 
 /**
- * MyScoresView
- */
-export type MyScoresView = 'all' | 'private' | 'published';
-
-/**
  * NotificationActorRead
  */
 export type NotificationActorRead = {
@@ -3668,81 +3607,6 @@ export type ProfileUserRead = {
 };
 
 /**
- * PublicScoreRead
- */
-export type PublicScoreRead = {
-    capabilities: ScoreCapabilities;
-    derived_assets: ScoreDerivedAssetsRead;
-    metadata: MetadataRead | null;
-    publication: PublicationRead;
-    revision_assets: ScoreRevisionAssetsRead;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
-    /**
-     * Title
-     */
-    title: string;
-};
-
-/**
- * PublicationRead
- */
-export type PublicationRead = {
-    access_mode: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download: boolean;
-    /**
-     * Public Slug
-     */
-    public_slug: string;
-    /**
-     * Published At
-     */
-    published_at: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    status: PublicationStatus;
-    /**
-     * Updated At
-     */
-    updated_at: string;
-};
-
-/**
- * PublicationStatus
- */
-export type PublicationStatus = 'PUBLISHED' | 'UNPUBLISHED';
-
-/**
- * PublicationUpsertRequest
- */
-export type PublicationUpsertRequest = {
-    access_mode?: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download?: boolean;
-    /**
-     * Public Slug
-     */
-    public_slug?: string | null;
-    /**
-     * Revision Id
-     */
-    revision_id?: string | null;
-};
-
-/**
  * RecordingTimebase
  */
 export type RecordingTimebase = {
@@ -4226,10 +4090,6 @@ export type ScoreCapabilities = {
      */
     can_practice: boolean;
     /**
-     * Can Publish
-     */
-    can_publish: boolean;
-    /**
      * Can View
      */
     can_view: boolean;
@@ -4292,21 +4152,6 @@ export type ScoreInputAssetRead = {
 };
 
 /**
- * ScorePublicationSummaryRead
- */
-export type ScorePublicationSummaryRead = {
-    /**
-     * Public Slug
-     */
-    public_slug: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    status: PublicationStatus;
-};
-
-/**
  * ScoreRead
  */
 export type ScoreRead = {
@@ -4329,7 +4174,6 @@ export type ScoreRead = {
      */
     input_assets: Array<ScoreInputAssetRead>;
     metadata: MetadataRead | null;
-    publication: ScorePublicationSummaryRead | null;
     /**
      * Score Id
      */
@@ -6080,7 +5924,6 @@ export type ListMyScoresApiV1MyScoresGetData = {
          * Page Size
          */
         page_size?: number;
-        view?: MyScoresView;
         /**
          * Search
          */
@@ -6422,160 +6265,6 @@ export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses = {
 };
 
 export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponse = ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses[keyof ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses];
-
-export type GetPublicScoreApiV1PublicationsSlugGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}';
-};
-
-export type GetPublicScoreApiV1PublicationsSlugGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPublicScoreApiV1PublicationsSlugGetError = GetPublicScoreApiV1PublicationsSlugGetErrors[keyof GetPublicScoreApiV1PublicationsSlugGetErrors];
-
-export type GetPublicScoreApiV1PublicationsSlugGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicScoreRead;
-};
-
-export type GetPublicScoreApiV1PublicationsSlugGetResponse = GetPublicScoreApiV1PublicationsSlugGetResponses[keyof GetPublicScoreApiV1PublicationsSlugGetResponses];
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/playback';
-};
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetError = StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors[keyof StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors];
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/render-assets/{render_asset_id}/download';
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetError = DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors];
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/render-assets/{render_asset_id}/view';
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetError = ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors[keyof ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors];
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Source Id
-         */
-        source_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/revision-sources/{source_id}/download';
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetError = DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors[keyof DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors];
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
 
 export type RealtimeEventsApiV1RealtimeEventsGetData = {
     body?: never;
@@ -7563,96 +7252,6 @@ export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses
 };
 
 export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponse = UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses[keyof UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses];
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteError = UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors[keyof UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors];
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicationRead;
-};
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponse = UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses[keyof UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses];
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetError = GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors[keyof GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors];
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicationRead;
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetResponse = GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses[keyof GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses];
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutData = {
-    body: PublicationUpsertRequest;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutError = PublishScoreApiV1ScoresScoreIdPublicationPutErrors[keyof PublishScoreApiV1ScoresScoreIdPublicationPutErrors];
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicationRead;
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutResponse = PublishScoreApiV1ScoresScoreIdPublicationPutResponses[keyof PublishScoreApiV1ScoresScoreIdPublicationPutResponses];
 
 export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData = {
     body?: never;

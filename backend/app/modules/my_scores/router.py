@@ -1,11 +1,11 @@
-﻿from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.my_scores.dependencies import get_my_scores_service
-from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
+from app.modules.my_scores.schemas import MyScoresSort
 from app.modules.scores.schemas import ScoreRead
 from app.modules.scores.service import ScoreService
 from app.shared.responses import PaginatedResponse, paginated_response
@@ -17,7 +17,6 @@ router = APIRouter()
 async def list_my_scores(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    view: MyScoresView = Query(MyScoresView.ALL),
     search: str | None = Query(default=None),
     sort: MyScoresSort = Query(MyScoresSort.UPDATED_DESC),
     current_user: User = Depends(get_current_user),
@@ -31,8 +30,6 @@ async def list_my_scores(
         page=page,
         page_size=page_size,
         search=search,
-        view=view,
         sort=sort,
     )
     return paginated_response(items, page, page_size, total)
-

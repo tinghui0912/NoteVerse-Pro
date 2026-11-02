@@ -8,7 +8,7 @@
   "libraryTitle": "My Library",
   "libraryDescription": "Organize the scores you save, practice, and want to learn.",
   "myScoresTitle": "My Scores",
-  "myScoresDescription": "Manage the scores you upload, edit, and publish.",
+  "myScoresDescription": "Manage the scores you upload and edit.",
   "uploadTitle": "Upload Score",
   "uploadDescription": "Upload sheet music images and AI will automatically recognize and convert them to editable formats.",
   "practiceTitle": "Practice Mode",

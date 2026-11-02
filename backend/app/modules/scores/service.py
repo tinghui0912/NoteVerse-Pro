@@ -27,12 +27,11 @@ from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
+from app.modules.my_scores.schemas import MyScoresSort
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.schemas import (
     ScoreInputAssetRead,
     ScoreRead,
-    ScorePublicationSummaryRead,
     ScoreTaxonomyTagRead,
     ScoreUpdateRequest,
 )
@@ -90,7 +89,6 @@ class ScoreService:
         page: int,
         page_size: int,
         search: str | None = None,
-        view: MyScoresView = MyScoresView.ALL,
         sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
     ) -> tuple[list[ScoreRead], int]:
         rows, total = await self.repository.list_owned(
@@ -99,16 +97,12 @@ class ScoreService:
             page=page,
             page_size=page_size,
             search=search,
-            view=view,
             sort=sort,
         )
         library_score_ids = await self.repository.active_library_score_ids(
             db,
             user_id,
-            [
-                require_persisted_id(score.id, entity="score")
-                for score in rows
-            ],
+            [require_persisted_id(score.id, entity="score") for score in rows],
         )
         result: list[ScoreRead] = []
         for score in rows:
@@ -126,9 +120,7 @@ class ScoreService:
             )
         return result, total
 
-    async def batch_delete(
-        self, db: AsyncSession, score_uuids: list[str], user_id: int
-    ) -> int:
+    async def batch_delete(self, db: AsyncSession, score_uuids: list[str], user_id: int) -> int:
         removed = 0
         for score_uuid in score_uuids:
             try:
@@ -196,7 +188,9 @@ class ScoreService:
             )
         ).first()
         if row is None:
-            raise ResourceNotFoundException("score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
+            )
         _asset, upload, blob = row
         if not self.storage.exists(blob.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
@@ -216,7 +210,9 @@ class ScoreService:
         user_id: int | None = None,
         in_library: bool | None = None,
     ) -> ScoreRead:
-        head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
+        head = (
+            await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
+        )
         projection = (
             await db.get(ScoreRevisionMetadata, score.head_revision_id)
             if score.head_revision_id
@@ -224,9 +220,7 @@ class ScoreService:
         )
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
-            await score_derived_assets(
-                db, self.asset_repository, score_id=score_id, revision=head
-            )
+            await score_derived_assets(db, self.asset_repository, score_id=score_id, revision=head)
             if head
             else ScoreDerivedAssetsRead(
                 preview=ScoreDerivedAssetRead(
@@ -237,7 +231,6 @@ class ScoreService:
                 ),
             )
         )
-        publication = await self.repository.publication(db, score_id)
         if in_library is None:
             in_library = False
             if user_id is not None:
@@ -260,11 +253,6 @@ class ScoreService:
                 .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
             )
         ).all()
-        published_revision = (
-            await db.get(ScoreRevision, publication.published_revision_id)
-            if publication
-            else None
-        )
         return ScoreRead(
             score_id=score.score_uuid,
             title=score.title,
@@ -275,7 +263,9 @@ class ScoreService:
                     source=source,
                     confidence=confidence,
                 )
-                for category, code, source, confidence in await self.repository.taxonomy_tags(db, score_id)
+                for category, code, source, confidence in await self.repository.taxonomy_tags(
+                    db, score_id
+                )
             ],
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,
@@ -290,20 +280,9 @@ class ScoreService:
                 )
                 for asset, upload, blob in input_asset_rows
             ],
-            publication=(
-                ScorePublicationSummaryRead(
-                    public_slug=publication.public_slug,
-                    revision_id=published_revision.revision_uuid,
-                    status=publication.status,
-                )
-                if publication and published_revision
-                else None
-            ),
             in_library=in_library,
             metadata=(
-                MetadataProjectionService.to_read(head, projection)
-                if head and projection
-                else None
+                MetadataProjectionService.to_read(head, projection) if head and projection else None
             ),
             capabilities=capabilities,
             created_at=score.created_at,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { publicationsApi, scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
+import { scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringRequest } from '@/generated/api';
 
@@ -306,42 +306,5 @@ export function useDeclineMyPendingScoreInvite() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
     },
-  });
-}
-
-
-export function usePublicScore(slug: string) {
-  return useQuery({
-    queryKey: queryKeys.scores.publication(slug),
-    queryFn: ({ signal }) => publicationsApi.detail(slug, signal),
-    enabled: Boolean(slug),
-  });
-}
-
-export function useScorePublication(scoreId: string) {
-  return useQuery({
-    queryKey: queryKeys.scores.scorePublication(scoreId),
-    queryFn: ({ signal }) => publicationsApi.forScore(scoreId, signal),
-    enabled: Boolean(scoreId),
-  });
-}
-
-export function usePublishScore(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (revisionId: string) => publicationsApi.publish(scoreId, {
-      revision_id: revisionId,
-      allow_download: false,
-      access_mode: 'PRACTICE',
-    }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.scores.scorePublication(scoreId) }),
-  });
-}
-
-export function useUnpublishScore(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => publicationsApi.unpublish(scoreId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.scores.scorePublication(scoreId) }),
   });
 }

@@ -13,7 +13,6 @@ from app.db.models import (
     Score,
     ScoreDeletionStatus,
     ScoreMembership,
-    ScorePublication,
     ScoreRevision,
     ScoreShareGrant,
     ShareGrantRedemption,
@@ -21,7 +20,6 @@ from app.db.models import (
 from app.db.models.score_access import (
     AccessOrigin,
     MembershipRole,
-    PublicationStatus,
     ScoreAudienceAccessMode,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
@@ -37,7 +35,6 @@ class ScoreAction(str, enum.Enum):
     MANAGE_MEMBERS = "MANAGE_MEMBERS"
     DOWNLOAD = "DOWNLOAD"
     PRACTICE = "PRACTICE"
-    PUBLISH = "PUBLISH"
 
 
 @dataclass(frozen=True)
@@ -48,7 +45,6 @@ class ScoreAccessContext:
     capabilities: ScoreCapabilities
     membership: ScoreMembership | None = None
     grant: ScoreShareGrant | None = None
-    publication: ScorePublication | None = None
 
 
 class ScoreAccessPolicy:
@@ -60,7 +56,6 @@ class ScoreAccessPolicy:
         user_id: int | None = None,
         revision_uuid: str | None = None,
         share_token: str | None = None,
-        public_slug: str | None = None,
         now: datetime | None = None,
     ) -> ScoreAccessContext:
         score = (
@@ -88,7 +83,6 @@ class ScoreAccessPolicy:
                     can_manage_members=True,
                     can_download=True,
                     can_practice=True,
-                    can_publish=True,
                 ),
             )
 
@@ -117,15 +111,12 @@ class ScoreAccessPolicy:
                         can_manage_members=False,
                         can_download=editor,
                         can_practice=True,
-                        can_publish=False,
                     ),
                 )
 
         current_time = now or utc_now_naive()
         if user_id is not None:
-            redeemed = await self._valid_redeemed_grant(
-                db, score, user_id, current_time
-            )
+            redeemed = await self._valid_redeemed_grant(db, score, user_id, current_time)
             if redeemed:
                 target_revision = await self._grant_revision(db, score, redeemed)
                 if revision_uuid is None or target_revision.id == requested_revision.id:
@@ -143,7 +134,6 @@ class ScoreAccessPolicy:
                             can_download=redeemed.allow_download,
                             can_practice=redeemed.access_mode
                             == ScoreAudienceAccessMode.PRACTICE.value,
-                            can_publish=False,
                         ),
                     )
         if share_token:
@@ -165,46 +155,8 @@ class ScoreAccessPolicy:
                             can_download=grant.allow_download,
                             can_practice=grant.access_mode
                             == ScoreAudienceAccessMode.PRACTICE.value,
-                            can_publish=False,
                         ),
                     )
-
-        if public_slug:
-            publication = (
-                await db.execute(
-                    select(ScorePublication).where(
-                        ScorePublication.score_id == score.id,
-                        ScorePublication.public_slug == public_slug,
-                        ScorePublication.status == PublicationStatus.PUBLISHED,
-                    )
-                )
-            ).scalar_one_or_none()
-            if publication and (
-                revision_uuid is None
-                or publication.published_revision_id == requested_revision.id
-            ):
-                published_revision = await db.get(
-                    ScoreRevision, publication.published_revision_id
-                )
-                if not published_revision:
-                    raise UnauthorizedException(ErrorCode.NO_ACCESS)
-                return ScoreAccessContext(
-                    score=score,
-                    revision=published_revision,
-                    origin=AccessOrigin.PUBLICATION,
-                    publication=publication,
-                    capabilities=ScoreCapabilities(
-                        can_view=True,
-                        can_edit=False,
-                        can_delete=False,
-                        can_manage_sharing=False,
-                        can_manage_members=False,
-                        can_download=publication.allow_download,
-                        can_practice=publication.access_mode
-                        == ScoreAudienceAccessMode.PRACTICE.value,
-                        can_publish=False,
-                    ),
-                )
 
         raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
 
@@ -221,7 +173,6 @@ class ScoreAccessPolicy:
             user_id=_optional_int(context.get("user_id")),
             revision_uuid=_optional_str(context.get("revision_uuid")),
             share_token=_optional_str(context.get("share_token")),
-            public_slug=_optional_str(context.get("public_slug")),
         )
         allowed = {
             ScoreAction.VIEW: access.capabilities.can_view,
@@ -231,7 +182,6 @@ class ScoreAccessPolicy:
             ScoreAction.MANAGE_MEMBERS: access.capabilities.can_manage_members,
             ScoreAction.DOWNLOAD: access.capabilities.can_download,
             ScoreAction.PRACTICE: access.capabilities.can_practice,
-            ScoreAction.PUBLISH: access.capabilities.can_publish,
         }[action]
         if not allowed:
             raise UnauthorizedException(

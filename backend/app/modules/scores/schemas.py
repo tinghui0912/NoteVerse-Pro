@@ -4,7 +4,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.db.models.score_access import PublicationStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
@@ -57,12 +56,6 @@ class ScoreBatchDeleteRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
 
 
-class ScorePublicationSummaryRead(BaseModel):
-    public_slug: str
-    revision_id: str
-    status: PublicationStatus
-
-
 class ScoreInputAssetRead(BaseModel):
     asset_id: str
     filename: str
@@ -79,7 +72,6 @@ class ScoreRead(BaseModel):
     head_revision_id: str | None
     derived_assets: ScoreDerivedAssetsRead
     input_assets: list[ScoreInputAssetRead]
-    publication: ScorePublicationSummaryRead | None
     in_library: bool
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities

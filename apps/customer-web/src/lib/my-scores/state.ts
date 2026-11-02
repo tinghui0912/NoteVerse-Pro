@@ -1,20 +1,12 @@
-import type { ImportJobRead, MyScoresSort, MyScoresView } from '@/generated/api';
+import type { ImportJobRead, MyScoresSort } from '@/generated/api';
 
-export type MyScoresPageView = MyScoresView | 'importing' | 'review' | 'failed';
-
-export const MY_SCORE_VIEWS: MyScoresView[] = [
-  'all',
-  'private',
-  'published',
-];
+export type MyScoresPageView = 'all' | 'importing' | 'review' | 'failed';
 
 export const MY_SCORE_PAGE_VIEWS: MyScoresPageView[] = [
   'all',
   'importing',
   'review',
   'failed',
-  'private',
-  'published',
 ];
 
 export function normalizeMyScoresView(value?: string): MyScoresPageView {
@@ -32,14 +24,6 @@ export function normalizePage(value?: string): number {
   return Number.isFinite(page) ? Math.max(1, page) : 1;
 }
 
-export function isMyScoreView(view: MyScoresPageView): view is MyScoresView {
-  return MY_SCORE_VIEWS.includes(view as MyScoresView);
-}
-
-export function scoreBackedView(view: MyScoresPageView): MyScoresView {
-  return isMyScoreView(view) ? view : 'all';
-}
-
 export function isImportJob(job: ImportJobRead) {
   return job.state === 'PENDING' || job.state === 'RUNNING';
 }
@@ -55,20 +39,11 @@ export function visibleMyScoreJobs(jobs: ImportJobRead[], view: MyScoresPageView
 }
 
 export function myScoresTotal(params: {
-  showScores: boolean;
   scoreTotal: number;
   view: MyScoresPageView;
   visibleJobCount: number;
 }) {
-  if (!params.showScores) return params.visibleJobCount;
-  return params.scoreTotal + (params.view === 'all' ? params.visibleJobCount : 0);
-}
-
-export function myScoresBulkVisibility(view: MyScoresPageView) {
-  return {
-    publish: view === 'private',
-    unpublish: view === 'published',
-  };
+  return params.visibleJobCount + (params.view === 'all' ? params.scoreTotal : 0);
 }
 
 export function buildMyScoresHref(

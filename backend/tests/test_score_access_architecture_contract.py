@@ -10,14 +10,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 # These services accept a caller identity and act on an existing score or one
 # of its revisions. Authorization must be delegated to ScoreAccessPolicy rather
-# than reconstructed from owner, membership, grant, or publication tables.
+# than reconstructed from owner, membership or grant tables.
 PROTECTED_SERVICE_MODULES = (
     "app/modules/fingering/service.py",
     "app/modules/library/service.py",
     "app/modules/metadata/service.py",
     "app/modules/playback/delivery.py",
     "app/modules/practice/source/service.py",
-    "app/modules/publications/service.py",
     "app/modules/revisions/service.py",
     "app/modules/score_assets/render_service.py",
     "app/modules/score_assets/service.py",

@@ -16,7 +16,6 @@ describe('score workspace routes', () => {
     expect(existsSync(projectPath('src/app/[locale]/(app)/review/[jobId]/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(external)/share/[shareId]/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(external)/public/[slug]/page.tsx'))).toBe(true);
 
     expect(existsSync(projectPath('src/app/[locale]/results'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/editor'))).toBe(false);
@@ -29,7 +28,6 @@ describe('score workspace routes', () => {
     expect(proxy).toContain("'/score'");
     expect(proxy).toContain("'/review'");
     expect(proxy).not.toContain("'/share'");
-    expect(proxy).not.toContain("'/public'");
     expect(proxy).not.toContain("'/results'");
     expect(proxy).not.toContain("'/editor'");
     expect(proxy).not.toContain("'/practice'");
@@ -52,9 +50,8 @@ describe('score workspace routes', () => {
     expect(actions).not.toContain('/practice/${scoreId}');
   });
 
-  it('keeps share and public routes as score access entries', () => {
+  it('keeps bearer Share routes as score access entries', () => {
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const publicPage = readSource('src/components/external/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreSurface');
     expect(sharePage).toContain("router.push(practiceLocation(response.data.score_id, 'setup'))");
@@ -63,11 +60,6 @@ describe('score workspace routes', () => {
     expect(sharePage).toContain('capabilities={data.capabilities}');
     expect(sharePage).toContain('playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}');
     expect(sharePage).not.toContain('/score/${data.score_id}/practice?shareToken=${shareId}');
-    expect(publicPage).toContain('<ScoreSurface');
-    expect(publicPage).toContain('<ScoreCapabilityProvider');
-    expect(publicPage).toContain('capabilities={capabilities}');
-    expect(publicPage).toContain('playbackAudioSrc={publicationsApi.playbackUrl(slug)}');
-    expect(publicPage).not.toContain('/score/${scoreId}/practice?publicSlug=${slug}');
   });
 
   it('centralizes view/share capabilities without a score shell wrapper', () => {

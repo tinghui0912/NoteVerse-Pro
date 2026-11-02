@@ -15,8 +15,6 @@ from app.modules.notifications.router import router as notifications
 from app.modules.playback.router import router as playback
 from app.modules.model_assets.router import router as model_assets
 from app.modules.realtime.router import router as realtime
-from app.modules.publications.router import public_router as publications
-from app.modules.publications.router import score_router as score_publications
 from app.modules.review.router import router as review
 from app.modules.performance_takes.router import router as performance_takes
 from app.modules.practice.source.router import router as practice_sources
@@ -55,8 +53,6 @@ api_router.include_router(score_invite_entries, prefix="/invites", tags=["Score 
 api_router.include_router(score_invite_me, prefix="/me", tags=["Score Collaboration"])
 api_router.include_router(notifications, prefix="/me", tags=["Notifications"])
 api_router.include_router(storage_usage, prefix="/me", tags=["Storage Usage"])
-api_router.include_router(score_publications, prefix="/scores", tags=["Publications"])
-api_router.include_router(publications, prefix="/publications", tags=["Publications"])
 api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(model_assets, prefix="/model-assets", tags=["Model Assets"])
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])

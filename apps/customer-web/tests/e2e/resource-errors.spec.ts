@@ -11,28 +11,6 @@ test.beforeEach(async ({ page }) => {
   await mockAnonymousSession(page);
 });
 
-test('public score errors use the shared resource error state', async ({ page }) => {
-  await page.route('**/api/v1/publications/missing-public-score', (route) =>
-    route.fulfill({
-      status: 404,
-      contentType: 'application/json',
-      body: JSON.stringify(apiError('score_not_found', 'Score not found')),
-    })
-  );
-  await page.route('**/api/v1/publications/missing-public-score/content', (route) =>
-    route.fulfill({
-      status: 404,
-      contentType: 'application/json',
-      body: JSON.stringify(apiError('score_not_found', 'Score not found')),
-    })
-  );
-
-  await page.goto('/en/public/missing-public-score');
-
-  await expect(page.getByRole('heading', { name: 'Load Failed' })).toBeVisible();
-  await expect(page.getByText('The score does not exist or has been deleted.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
-});
 
 test('direct Practice requires Setup without reading unavailable Score or Source', async ({ page }) => {
   await mockAuthenticatedSession(page);

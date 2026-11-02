@@ -34,7 +34,7 @@ describe('score domain v1 contract', () => {
       review: 'job_id',
       review_editor: 'job_id',
       score_detail_editor_history_sharing: 'score_id',
-      practice_and_publication_snapshot: 'revision_id',
+      practice_snapshot: 'revision_id',
     });
     expect(contract.examples.create_practice_session_request).toEqual({
       score_id: 'score-uuid',
@@ -55,8 +55,6 @@ describe('score domain v1 contract', () => {
     expect(contract.invariants).toMatchObject({
       anonymous_edit_is_forbidden: true,
       bookmark_grants_access: false,
-      publication_pins_revision: true,
-      public_access_is_read_only: true,
       revision_history_is_linear: true,
     });
   });
