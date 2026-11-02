@@ -29,7 +29,7 @@ class AccessErrorCode:
     NO_ACCESS = "no_access"
     NO_EDIT_ACCESS = "no_edit_access"
     NO_DELETE_ACCESS = "no_delete_access"
-    NO_SHARE_ACCESS = "no_share_access"
+    NO_GUEST_PREVIEW_ACCESS = "no_guest_preview_access"
     NO_DOWNLOAD_ACCESS = "no_download_access"
 
 
@@ -71,10 +71,9 @@ class FileErrorCode:
 
 
 class SharingErrorCode:
-    SHARE_NOT_FOUND = "share_not_found"
-    SHARE_REVOKED = "share_revoked"
-    SHARE_EXPIRED = "share_expired"
-    SHARE_NO_DOWNLOAD = "share_no_download"
+    GUEST_PREVIEW_NOT_FOUND = "guest_preview_not_found"
+    GUEST_PREVIEW_REVOKED = "guest_preview_revoked"
+    GUEST_PREVIEW_EXPIRED = "guest_preview_expired"
     INVITE_NOT_FOUND = "invite_not_found"
     INVITE_EXPIRED = "invite_expired"
     INVITE_REVOKED = "invite_revoked"

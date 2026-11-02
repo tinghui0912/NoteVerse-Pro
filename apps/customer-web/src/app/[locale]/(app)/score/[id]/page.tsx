@@ -13,7 +13,7 @@ import { ScoreDetailHero } from '@/components/score-detail/score-detail-hero';
 import { ScoreDetailTabs } from '@/components/score-detail/score-detail-tabs';
 import { ScoreHeroActions } from '@/components/score-detail/score-hero-actions';
 import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
-import { ScoreSharePanel } from '@/components/score-detail/score-share-panel';
+import { ScoreGuestPreviewPanel } from '@/components/score-detail/score-guest-preview-panel';
 import { ScoreVersionsPanel } from '@/components/score-detail/score-versions-panel';
 import { ResourceLoadError } from '@/components/states';
 import { useScoreDetailSummary } from '@/hooks/score-detail/use-score-detail-summary';
@@ -24,7 +24,7 @@ import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
 import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
-function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
+function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | null }) {
   const t = useTranslations('score');
   const common = useTranslations('common');
   const errors = useTranslations('errors');
@@ -108,12 +108,12 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
         />
       ),
     },
-    score.capabilities.can_manage_sharing ? {
-      value: 'share',
-      label: t('createShareAction'),
+    score.capabilities.can_manage_guest_previews ? {
+      value: 'guest-preview',
+      label: t('guestPreviewAction'),
       content: (
         <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-          <ScoreSharePanel scoreId={score.score_id} scoreTitle={scoreTitle} />
+          <ScoreGuestPreviewPanel scoreId={score.score_id} />
         </div>
       ),
     } : null,

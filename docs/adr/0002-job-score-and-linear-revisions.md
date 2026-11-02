@@ -45,7 +45,7 @@ recorded `score_id`.
 
 - upload submission and polling use `job_id`;
 - review routes use `job_id`; confirming review returns the created `score_id`;
-- results, editor, history, sharing and practice use `score_id`;
+- results, editor, history, Guest Preview management and practice use `score_id`;
 - Practice admissions pin `revision_id`;
 - score-facing DTOs do not expose processing progress as score state.
 

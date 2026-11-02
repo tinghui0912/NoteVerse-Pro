@@ -55,8 +55,7 @@ from .score_access import (
     MembershipRole,
     ScoreInvite,
     ScoreMembership,
-    ScoreShareGrant,
-    ShareGrantRedemption,
+    ScoreGuestPreviewGrant,
 )
 from .render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
 from .mail_outbox import MailOutbox, MailOutboxStatus
@@ -147,8 +146,7 @@ __all__ = [
     "MembershipRole",
     "ScoreInvite",
     "ScoreMembership",
-    "ScoreShareGrant",
-    "ShareGrantRedemption",
+    "ScoreGuestPreviewGrant",
     "RenderOutboxStatus",
     "RenderTargetType",
     "RenderOutbox",

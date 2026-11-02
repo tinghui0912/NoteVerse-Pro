@@ -296,7 +296,7 @@
         "title": "APIResponse[FingeringResultRead]",
         "type": "object"
       },
-      "APIResponse_GrantAccessRead_": {
+      "APIResponse_GuestPreviewCreatedRead_": {
         "examples": [
           {
             "data": {
@@ -323,7 +323,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/GrantAccessRead"
+                "$ref": "#/components/schemas/GuestPreviewCreatedRead"
               },
               {
                 "type": "null"
@@ -352,10 +352,10 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[GrantAccessRead]",
+        "title": "APIResponse[GuestPreviewCreatedRead]",
         "type": "object"
       },
-      "APIResponse_GrantBookmarkRead_": {
+      "APIResponse_GuestPreviewListItem_": {
         "examples": [
           {
             "data": {
@@ -382,7 +382,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/GrantBookmarkRead"
+                "$ref": "#/components/schemas/GuestPreviewListItem"
               },
               {
                 "type": "null"
@@ -411,10 +411,10 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[GrantBookmarkRead]",
+        "title": "APIResponse[GuestPreviewListItem]",
         "type": "object"
       },
-      "APIResponse_GrantCreatedRead_": {
+      "APIResponse_GuestPreviewRead_": {
         "examples": [
           {
             "data": {
@@ -441,7 +441,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/GrantCreatedRead"
+                "$ref": "#/components/schemas/GuestPreviewRead"
               },
               {
                 "type": "null"
@@ -470,125 +470,7 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[GrantCreatedRead]",
-        "type": "object"
-      },
-      "APIResponse_GrantRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GrantRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GrantRead]",
-        "type": "object"
-      },
-      "APIResponse_GrantRedeemRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GrantRedeemRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GrantRedeemRead]",
+        "title": "APIResponse[GuestPreviewRead]",
         "type": "object"
       },
       "APIResponse_ImportJobBatchStatusRead_": {
@@ -2953,7 +2835,7 @@
         "title": "APIResponse[dict[str, int]]",
         "type": "object"
       },
-      "APIResponse_list_GrantRead__": {
+      "APIResponse_list_GuestPreviewListItem__": {
         "examples": [
           {
             "data": {
@@ -2981,7 +2863,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/GrantRead"
+                  "$ref": "#/components/schemas/GuestPreviewListItem"
                 },
                 "type": "array"
               },
@@ -3013,7 +2895,7 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[list[GrantRead]]",
+        "title": "APIResponse[list[GuestPreviewListItem]]",
         "type": "object"
       },
       "APIResponse_list_InviteRead__": {
@@ -3653,134 +3535,9 @@
         "title": "ForgotPasswordRequest",
         "type": "object"
       },
-      "GrantAccessRead": {
+      "GuestPreviewCreateRequest": {
+        "additionalProperties": false,
         "properties": {
-          "capabilities": {
-            "$ref": "#/components/schemas/ScoreCapabilities"
-          },
-          "derived_assets": {
-            "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MetadataRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "revision_assets": {
-            "$ref": "#/components/schemas/ScoreRevisionAssetsRead"
-          },
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          },
-          "shared_at": {
-            "format": "date-time",
-            "title": "Shared At",
-            "type": "string"
-          },
-          "shared_by": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShareActorRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "taxonomy_tags": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreTaxonomyTagRead"
-            },
-            "title": "Taxonomy Tags",
-            "type": "array"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "score_id",
-          "revision_id",
-          "title",
-          "taxonomy_tags",
-          "shared_by",
-          "shared_at",
-          "capabilities",
-          "metadata",
-          "derived_assets",
-          "revision_assets"
-        ],
-        "title": "GrantAccessRead",
-        "type": "object"
-      },
-      "GrantBookmarkRead": {
-        "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "entry_id": {
-            "title": "Entry Id",
-            "type": "string"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "unavailable_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unavailable Reason"
-          }
-        },
-        "required": [
-          "entry_id",
-          "score_id",
-          "title",
-          "available",
-          "unavailable_reason",
-          "created_at"
-        ],
-        "title": "GrantBookmarkRead",
-        "type": "object"
-      },
-      "GrantCreateRequest": {
-        "properties": {
-          "access_mode": {
-            "$ref": "#/components/schemas/ScoreAudienceAccessMode",
-            "default": "PRACTICE"
-          },
-          "allow_download": {
-            "default": false,
-            "title": "Allow Download",
-            "type": "boolean"
-          },
           "expires_at": {
             "anyOf": [
               {
@@ -3794,83 +3551,23 @@
             "title": "Expires At"
           }
         },
-        "title": "GrantCreateRequest",
+        "title": "GuestPreviewCreateRequest",
         "type": "object"
       },
-      "GrantCreatedRead": {
+      "GuestPreviewCreatedRead": {
         "properties": {
-          "access_mode": {
-            "$ref": "#/components/schemas/ScoreAudienceAccessMode"
-          },
-          "allow_download": {
-            "title": "Allow Download",
-            "type": "boolean"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "expires_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At"
-          },
-          "grant_id": {
-            "title": "Grant Id",
-            "type": "string"
-          },
-          "token": {
-            "title": "Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "grant_id",
-          "token",
-          "access_mode",
-          "allow_download",
-          "expires_at",
-          "created_at"
-        ],
-        "title": "GrantCreatedRead",
-        "type": "object"
-      },
-      "GrantRead": {
-        "properties": {
-          "access_mode": {
-            "$ref": "#/components/schemas/ScoreAudienceAccessMode"
-          },
-          "allow_download": {
-            "title": "Allow Download",
-            "type": "boolean"
-          },
-          "created_at": {
             "format": "date-time",
-            "title": "Created At",
+            "title": "Expires At",
             "type": "string"
           },
-          "expires_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At"
-          },
-          "grant_id": {
-            "title": "Grant Id",
+          "preview_id": {
+            "title": "Preview Id",
             "type": "string"
           },
           "revoked_at": {
@@ -3886,36 +3583,101 @@
             "title": "Revoked At"
           },
           "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_id",
+          "expires_at",
+          "revoked_at",
+          "created_at",
+          "token"
+        ],
+        "title": "GuestPreviewCreatedRead",
+        "type": "object"
+      },
+      "GuestPreviewListItem": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "preview_id": {
+            "title": "Preview Id",
+            "type": "string"
+          },
+          "revoked_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Token"
+            "title": "Revoked At"
           }
         },
         "required": [
-          "grant_id",
-          "access_mode",
-          "allow_download",
+          "preview_id",
           "expires_at",
           "revoked_at",
           "created_at"
         ],
-        "title": "GrantRead",
+        "title": "GuestPreviewListItem",
         "type": "object"
       },
-      "GrantRedeemRead": {
+      "GuestPreviewPageRead": {
         "properties": {
-          "can_practice": {
-            "title": "Can Practice",
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_id",
+          "page_number"
+        ],
+        "title": "GuestPreviewPageRead",
+        "type": "object"
+      },
+      "GuestPreviewRead": {
+        "properties": {
+          "audio_available": {
+            "title": "Audio Available",
             "type": "boolean"
           },
-          "score_id": {
-            "title": "Score Id",
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "render_assets": {
+            "items": {
+              "$ref": "#/components/schemas/GuestPreviewPageRead"
+            },
+            "title": "Render Assets",
+            "type": "array"
+          },
+          "shared_by": {
+            "title": "Shared By",
             "type": "string"
           },
           "title": {
@@ -3924,11 +3686,14 @@
           }
         },
         "required": [
-          "score_id",
           "title",
-          "can_practice"
+          "shared_by",
+          "created_at",
+          "expires_at",
+          "render_assets",
+          "audio_available"
         ],
-        "title": "GrantRedeemRead",
+        "title": "GuestPreviewRead",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -5035,8 +4800,7 @@
       },
       "LibraryEntrySourceType": {
         "enum": [
-          "SELF_ADDED",
-          "BOOKMARK"
+          "SELF_ADDED"
         ],
         "title": "LibraryEntrySourceType",
         "type": "string"
@@ -5291,7 +5055,6 @@
           "recent_practice",
           "to_practice",
           "mastered",
-          "bookmarks",
           "trash"
         ],
         "title": "LibraryView",
@@ -7864,14 +7627,6 @@
         "title": "RevisionSourceRead",
         "type": "object"
       },
-      "ScoreAudienceAccessMode": {
-        "enum": [
-          "VIEW",
-          "PRACTICE"
-        ],
-        "title": "ScoreAudienceAccessMode",
-        "type": "string"
-      },
       "ScoreBatchDeleteRequest": {
         "properties": {
           "score_ids": {
@@ -7903,12 +7658,12 @@
             "title": "Can Edit",
             "type": "boolean"
           },
-          "can_manage_members": {
-            "title": "Can Manage Members",
+          "can_manage_guest_previews": {
+            "title": "Can Manage Guest Previews",
             "type": "boolean"
           },
-          "can_manage_sharing": {
-            "title": "Can Manage Sharing",
+          "can_manage_members": {
+            "title": "Can Manage Members",
             "type": "boolean"
           },
           "can_practice": {
@@ -7924,7 +7679,7 @@
           "can_view",
           "can_edit",
           "can_delete",
-          "can_manage_sharing",
+          "can_manage_guest_previews",
           "can_manage_members",
           "can_download",
           "can_practice"
@@ -8408,38 +8163,6 @@
           "sessions"
         ],
         "title": "SessionsRead",
-        "type": "object"
-      },
-      "ShareActorRead": {
-        "properties": {
-          "avatar_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar Url"
-          },
-          "display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          }
-        },
-        "required": [
-          "display_name",
-          "avatar_url"
-        ],
-        "title": "ShareActorRead",
         "type": "object"
       },
       "StorageUsageBreakdownRead": {
@@ -9230,6 +8953,137 @@
         "summary": "Delete File",
         "tags": [
           "File Operations"
+        ]
+      }
+    },
+    "/api/v1/guest-previews/{token}": {
+      "get": {
+        "operationId": "read_guest_preview_api_v1_guest_previews__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_GuestPreviewRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Guest Preview",
+        "tags": [
+          "Guest Previews"
+        ]
+      }
+    },
+    "/api/v1/guest-previews/{token}/playback": {
+      "get": {
+        "operationId": "listen_guest_preview_api_v1_guest_previews__token__playback_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listen Guest Preview",
+        "tags": [
+          "Guest Previews"
+        ]
+      }
+    },
+    "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view": {
+      "get": {
+        "operationId": "view_guest_preview_page_api_v1_guest_previews__token__render_assets__asset_id__view_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "View Guest Preview Page",
+        "tags": [
+          "Guest Previews"
         ]
       }
     },
@@ -12788,431 +12642,6 @@
         ]
       }
     },
-    "/api/v1/score-grants/{token}": {
-      "get": {
-        "operationId": "access_score_grant_api_v1_score_grants__token__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantAccessRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Access Score Grant",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/bookmark": {
-      "post": {
-        "operationId": "bookmark_score_grant_api_v1_score_grants__token__bookmark_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantBookmarkRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Bookmark Score Grant",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/playback": {
-      "get": {
-        "operationId": "stream_score_grant_playback_api_v1_score_grants__token__playback_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Stream Score Grant Playback",
-        "tags": [
-          "Playback"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/redeem": {
-      "post": {
-        "operationId": "redeem_score_grant_api_v1_score_grants__token__redeem_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantRedeemRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Redeem Score Grant",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/render-assets/{render_asset_id}/download": {
-      "get": {
-        "operationId": "download_score_grant_render_asset_api_v1_score_grants__token__render_assets__render_asset_id__download_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "render_asset_id",
-            "required": true,
-            "schema": {
-              "title": "Render Asset Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Download Score Grant Render Asset",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/render-assets/{render_asset_id}/view": {
-      "get": {
-        "operationId": "view_score_grant_render_asset_api_v1_score_grants__token__render_assets__render_asset_id__view_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "render_asset_id",
-            "required": true,
-            "schema": {
-              "title": "Render Asset Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "View Score Grant Render Asset",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/score-grants/{token}/revision-sources/{source_id}/download": {
-      "get": {
-        "operationId": "download_score_grant_revision_source_api_v1_score_grants__token__revision_sources__source_id__download_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "source_id",
-            "required": true,
-            "schema": {
-              "title": "Source Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Download Score Grant Revision Source",
-        "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
     "/api/v1/scores/batch-delete": {
       "post": {
         "operationId": "batch_delete_scores_api_v1_scores_batch_delete_post",
@@ -13272,16 +12701,16 @@
         ]
       }
     },
-    "/api/v1/scores/grants/{grant_id}": {
+    "/api/v1/scores/guest-previews/{preview_id}": {
       "delete": {
-        "operationId": "delete_score_grant_api_v1_scores_grants__grant_id__delete",
+        "operationId": "delete_guest_preview_api_v1_scores_guest_previews__preview_id__delete",
         "parameters": [
           {
             "in": "path",
-            "name": "grant_id",
+            "name": "preview_id",
             "required": true,
             "schema": {
-              "title": "Grant Id",
+              "title": "Preview Id",
               "type": "string"
             }
           },
@@ -13324,22 +12753,22 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Delete Score Grant",
+        "summary": "Delete Guest Preview",
         "tags": [
-          "Score Sharing"
+          "Guest Previews"
         ]
       }
     },
-    "/api/v1/scores/grants/{grant_id}/restore": {
+    "/api/v1/scores/guest-previews/{preview_id}/revoke": {
       "post": {
-        "operationId": "restore_score_grant_api_v1_scores_grants__grant_id__restore_post",
+        "operationId": "revoke_guest_preview_api_v1_scores_guest_previews__preview_id__revoke_post",
         "parameters": [
           {
             "in": "path",
-            "name": "grant_id",
+            "name": "preview_id",
             "required": true,
             "schema": {
-              "title": "Grant Id",
+              "title": "Preview Id",
               "type": "string"
             }
           },
@@ -13365,7 +12794,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantRead_"
+                  "$ref": "#/components/schemas/APIResponse_GuestPreviewListItem_"
                 }
               }
             },
@@ -13382,67 +12811,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Restore Score Grant",
+        "summary": "Revoke Guest Preview",
         "tags": [
-          "Score Sharing"
-        ]
-      }
-    },
-    "/api/v1/scores/grants/{grant_id}/revoke": {
-      "post": {
-        "operationId": "revoke_score_grant_api_v1_scores_grants__grant_id__revoke_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grant_id",
-            "required": true,
-            "schema": {
-              "title": "Grant Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Revoke Score Grant",
-        "tags": [
-          "Score Sharing"
+          "Guest Previews"
         ]
       }
     },
@@ -13638,9 +13009,9 @@
         ]
       }
     },
-    "/api/v1/scores/{score_id}/grants": {
+    "/api/v1/scores/{score_id}/guest-previews": {
       "get": {
-        "operationId": "list_score_grants_api_v1_scores__score_id__grants_get",
+        "operationId": "list_guest_previews_api_v1_scores__score_id__guest_previews_get",
         "parameters": [
           {
             "in": "path",
@@ -13685,7 +13056,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_GrantRead__"
+                  "$ref": "#/components/schemas/APIResponse_list_GuestPreviewListItem__"
                 }
               }
             },
@@ -13702,13 +13073,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Score Grants",
+        "summary": "List Guest Previews",
         "tags": [
-          "Score Sharing"
+          "Guest Previews"
         ]
       },
       "post": {
-        "operationId": "create_score_grant_api_v1_scores__score_id__grants_post",
+        "operationId": "create_guest_preview_api_v1_scores__score_id__guest_previews_post",
         "parameters": [
           {
             "in": "path",
@@ -13740,7 +13111,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GrantCreateRequest"
+                "$ref": "#/components/schemas/GuestPreviewCreateRequest"
               }
             }
           },
@@ -13751,7 +13122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GrantCreatedRead_"
+                  "$ref": "#/components/schemas/APIResponse_GuestPreviewCreatedRead_"
                 }
               }
             },
@@ -13768,9 +13139,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Score Grant",
+        "summary": "Create Guest Preview",
         "tags": [
-          "Score Sharing"
+          "Guest Previews"
         ]
       }
     },

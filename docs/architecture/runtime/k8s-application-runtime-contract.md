@@ -18,7 +18,7 @@ defined by contract, not by tribal knowledge.
 Purpose:
 
 - FastAPI HTTP API;
-- authentication, score, review, sharing, realtime SSE, ops endpoints, and
+- authentication, score, review, Guest Preview, realtime SSE, ops endpoints, and
   score fingering generation;
 - Prometheus metrics endpoint.
 

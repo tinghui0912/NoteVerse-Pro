@@ -228,8 +228,6 @@ class LibraryRepository:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE)
         elif view == LibraryView.MASTERED:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED)
-        elif view == LibraryView.BOOKMARKS:
-            filters.append(ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK)
         if folder_ids is not None:
             filters.append(col(ScoreLibraryEntry.folder_id).in_(folder_ids))
         if search:

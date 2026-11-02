@@ -86,7 +86,7 @@ export function LibraryEntryCard({
           </span>
         </div>
         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>{entry.source_type === 'BOOKMARK' ? t('bookmark') : t('libraryEntry')}</span>
+          <span>{t('libraryEntry')}</span>
           {!entry.available ? <span>{t('unavailable')}</span> : null}
         </div>
         {!batchMode ? (

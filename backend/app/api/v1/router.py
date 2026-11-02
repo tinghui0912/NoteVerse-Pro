@@ -23,8 +23,8 @@ from app.modules.storage_usage.router import router as storage_usage
 from app.modules.score_assets.router import render_asset_router
 from app.modules.score_assets.router import score_router as score_assets
 from app.modules.score_assets.router import source_router as revision_sources
-from app.modules.score_sharing.router import grant_router as score_grants
-from app.modules.score_sharing.router import score_router as score_sharing
+from app.modules.guest_previews.router import preview_router as guest_preview_entries
+from app.modules.guest_previews.router import score_router as guest_previews
 from app.modules.score_invites.router import invite_router as score_invite_entries
 from app.modules.score_invites.router import me_router as score_invite_me
 from app.modules.score_invites.router import score_router as score_invites
@@ -46,9 +46,9 @@ api_router.include_router(library, prefix="/library", tags=["Library"])
 api_router.include_router(my_scores, prefix="/my-scores", tags=["My Scores"])
 api_router.include_router(scores, prefix="/scores", tags=["Scores"])
 api_router.include_router(score_assets, prefix="/scores", tags=["Score Assets"])
-api_router.include_router(score_sharing, prefix="/scores", tags=["Score Sharing"])
+api_router.include_router(guest_previews, prefix="/scores", tags=["Guest Previews"])
 api_router.include_router(score_invites, prefix="/scores", tags=["Score Collaboration"])
-api_router.include_router(score_grants, prefix="/score-grants", tags=["Score Sharing"])
+api_router.include_router(guest_preview_entries, prefix="/guest-previews", tags=["Guest Previews"])
 api_router.include_router(score_invite_entries, prefix="/invites", tags=["Score Collaboration"])
 api_router.include_router(score_invite_me, prefix="/me", tags=["Score Collaboration"])
 api_router.include_router(notifications, prefix="/me", tags=["Notifications"])

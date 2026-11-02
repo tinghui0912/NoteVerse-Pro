@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 import enum
-import hashlib
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,24 +12,20 @@ from app.db.models import (
     ScoreDeletionStatus,
     ScoreMembership,
     ScoreRevision,
-    ScoreShareGrant,
-    ShareGrantRedemption,
 )
 from app.db.models.score_access import (
     AccessOrigin,
     MembershipRole,
-    ScoreAudienceAccessMode,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
 
 
 class ScoreAction(str, enum.Enum):
     VIEW = "VIEW"
     EDIT = "EDIT"
     DELETE = "DELETE"
-    MANAGE_SHARING = "MANAGE_SHARING"
+    MANAGE_GUEST_PREVIEWS = "MANAGE_GUEST_PREVIEWS"
     MANAGE_MEMBERS = "MANAGE_MEMBERS"
     DOWNLOAD = "DOWNLOAD"
     PRACTICE = "PRACTICE"
@@ -44,7 +38,6 @@ class ScoreAccessContext:
     origin: AccessOrigin
     capabilities: ScoreCapabilities
     membership: ScoreMembership | None = None
-    grant: ScoreShareGrant | None = None
 
 
 class ScoreAccessPolicy:
@@ -55,8 +48,6 @@ class ScoreAccessPolicy:
         *,
         user_id: int | None = None,
         revision_uuid: str | None = None,
-        share_token: str | None = None,
-        now: datetime | None = None,
     ) -> ScoreAccessContext:
         score = (
             await db.execute(
@@ -79,7 +70,7 @@ class ScoreAccessPolicy:
                     can_view=True,
                     can_edit=True,
                     can_delete=True,
-                    can_manage_sharing=True,
+                    can_manage_guest_previews=True,
                     can_manage_members=True,
                     can_download=True,
                     can_practice=True,
@@ -107,56 +98,12 @@ class ScoreAccessPolicy:
                         can_view=True,
                         can_edit=editor,
                         can_delete=False,
-                        can_manage_sharing=False,
+                        can_manage_guest_previews=False,
                         can_manage_members=False,
                         can_download=editor,
                         can_practice=True,
                     ),
                 )
-
-        current_time = now or utc_now_naive()
-        if user_id is not None:
-            redeemed = await self._valid_redeemed_grant(db, score, user_id, current_time)
-            if redeemed:
-                target_revision = await self._grant_revision(db, score, redeemed)
-                if revision_uuid is None or target_revision.id == requested_revision.id:
-                    return ScoreAccessContext(
-                        score=score,
-                        revision=target_revision,
-                        origin=AccessOrigin.SHARE,
-                        grant=redeemed,
-                        capabilities=ScoreCapabilities(
-                            can_view=True,
-                            can_edit=False,
-                            can_delete=False,
-                            can_manage_sharing=False,
-                            can_manage_members=False,
-                            can_download=redeemed.allow_download,
-                            can_practice=redeemed.access_mode
-                            == ScoreAudienceAccessMode.PRACTICE.value,
-                        ),
-                    )
-        if share_token:
-            grant = await self._valid_grant(db, score, share_token, current_time)
-            if grant:
-                target_revision = await self._grant_revision(db, score, grant)
-                if revision_uuid is None or target_revision.id == requested_revision.id:
-                    return ScoreAccessContext(
-                        score=score,
-                        revision=target_revision,
-                        origin=AccessOrigin.SHARE,
-                        grant=grant,
-                        capabilities=ScoreCapabilities(
-                            can_view=True,
-                            can_edit=False,
-                            can_delete=False,
-                            can_manage_sharing=False,
-                            can_manage_members=False,
-                            can_download=grant.allow_download,
-                            can_practice=grant.access_mode
-                            == ScoreAudienceAccessMode.PRACTICE.value,
-                        ),
-                    )
 
         raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
 
@@ -172,13 +119,12 @@ class ScoreAccessPolicy:
             score_uuid,
             user_id=_optional_int(context.get("user_id")),
             revision_uuid=_optional_str(context.get("revision_uuid")),
-            share_token=_optional_str(context.get("share_token")),
         )
         allowed = {
             ScoreAction.VIEW: access.capabilities.can_view,
             ScoreAction.EDIT: access.capabilities.can_edit,
             ScoreAction.DELETE: access.capabilities.can_delete,
-            ScoreAction.MANAGE_SHARING: access.capabilities.can_manage_sharing,
+            ScoreAction.MANAGE_GUEST_PREVIEWS: access.capabilities.can_manage_guest_previews,
             ScoreAction.MANAGE_MEMBERS: access.capabilities.can_manage_members,
             ScoreAction.DOWNLOAD: access.capabilities.can_download,
             ScoreAction.PRACTICE: access.capabilities.can_practice,
@@ -210,73 +156,14 @@ class ScoreAccessPolicy:
             )
         return revision
 
-    async def _valid_grant(
-        self,
-        db: AsyncSession,
-        score: Score,
-        token: str,
-        now: datetime,
-    ) -> ScoreShareGrant | None:
-        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-        grant = (
-            await db.execute(
-                select(ScoreShareGrant).where(
-                    ScoreShareGrant.score_id == score.id,
-                    ScoreShareGrant.token_hash == token_hash,
-                )
-            )
-        ).scalar_one_or_none()
-        if not grant or grant.revoked_at is not None:
-            return None
-        if grant.expires_at is not None and grant.expires_at <= now:
-            return None
-        return grant
-
-    async def _valid_redeemed_grant(
-        self,
-        db: AsyncSession,
-        score: Score,
-        user_id: int,
-        now: datetime,
-    ) -> ScoreShareGrant | None:
-        rows = await db.execute(
-            select(ScoreShareGrant)
-            .join(
-                ShareGrantRedemption,
-                ShareGrantRedemption.grant_id == ScoreShareGrant.id,
-            )
-            .where(
-                ScoreShareGrant.score_id == score.id,
-                ShareGrantRedemption.user_id == user_id,
-                ScoreShareGrant.__table__.c.revoked_at.is_(None),
-            )
-            .order_by(ShareGrantRedemption.__table__.c.created_at.desc())
-        )
-        for grant in rows.scalars().all():
-            if grant.expires_at is None or grant.expires_at > now:
-                return grant
-        return None
-
-    async def _grant_revision(
-        self, db: AsyncSession, score: Score, grant: ScoreShareGrant
-    ) -> ScoreRevision:
-        revision = await db.get(ScoreRevision, score.head_revision_id)
-        if not revision or revision.score_id != score.id:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        return revision
-
-
-def hash_share_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
 
 def _denial_code(action: ScoreAction) -> str:
     if action == ScoreAction.EDIT:
         return ErrorCode.NO_EDIT_ACCESS
     if action == ScoreAction.DELETE:
         return ErrorCode.NO_DELETE_ACCESS
-    if action == ScoreAction.MANAGE_SHARING:
-        return ErrorCode.NO_SHARE_ACCESS
+    if action == ScoreAction.MANAGE_GUEST_PREVIEWS:
+        return ErrorCode.NO_GUEST_PREVIEW_ACCESS
     if action == ScoreAction.DOWNLOAD:
         return ErrorCode.NO_DOWNLOAD_ACCESS
     if action == ScoreAction.PRACTICE:

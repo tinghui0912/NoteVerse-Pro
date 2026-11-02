@@ -8,7 +8,6 @@ const LIBRARY_VIEWS = [
   'recent_practice',
   'to_practice',
   'mastered',
-  'bookmarks',
   'trash',
 ] as const satisfies readonly LibraryView[];
 

@@ -12,6 +12,7 @@ from app.core.logger import logger
 from app.db.models import (
     Score,
     ScoreDeletionStatus,
+    ScoreGuestPreviewGrant,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -20,6 +21,16 @@ from app.db.models import (
 from app.db.models.score import RenderAssetKind
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
+from app.utils.timezone import utc_now_naive
+
+
+def _active_preview_revisions(score_id: int):
+    """Presentation pins protect derived assets within the owning Score lifetime."""
+    return select(ScoreGuestPreviewGrant.revision_id).where(
+        ScoreGuestPreviewGrant.score_id == score_id,
+        col(ScoreGuestPreviewGrant.revoked_at).is_(None),
+        ScoreGuestPreviewGrant.expires_at > utc_now_naive(),
+    )
 
 
 @dataclass(frozen=True)
@@ -89,12 +100,10 @@ class DerivedAssetRetentionService:
         score = await db.get(Score, score_id)
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in rendered_pages
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
         ]
         audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in playback_assets
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in playback_assets
         ]
         storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
         for asset in rendered_pages:
@@ -149,8 +158,10 @@ class DerivedAssetRetentionService:
             )
             total = DerivedAssetRetentionResult(
                 rendered_pages_deleted=total.rendered_pages_deleted + result.rendered_pages_deleted,
-                playback_assets_deleted=total.playback_assets_deleted + result.playback_assets_deleted,
-                storage_objects_deleted=total.storage_objects_deleted + result.storage_objects_deleted,
+                playback_assets_deleted=total.playback_assets_deleted
+                + result.playback_assets_deleted,
+                storage_objects_deleted=total.storage_objects_deleted
+                + result.storage_objects_deleted,
             )
         return total
 
@@ -181,12 +192,10 @@ class DerivedAssetRetentionService:
         score = db.get(Score, score_id)
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in rendered_pages
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
         ]
         audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in playback_assets
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in playback_assets
         ]
         storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
         for asset in rendered_pages:
@@ -297,6 +306,7 @@ class DerivedAssetRetentionService:
             .where(
                 ScoreRevision.score_id == score_id,
                 ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                col(ScoreRenderAsset.revision_id).not_in(_active_preview_revisions(score_id)),
             )
         )
         if keep_ids:
@@ -308,7 +318,10 @@ class DerivedAssetRetentionService:
         statement = (
             select(ScorePlaybackAsset)
             .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-            .where(ScoreRevision.score_id == score_id)
+            .where(
+                ScoreRevision.score_id == score_id,
+                col(ScorePlaybackAsset.revision_id).not_in(_active_preview_revisions(score_id)),
+            )
         )
         if keep_ids:
             statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(keep_ids))

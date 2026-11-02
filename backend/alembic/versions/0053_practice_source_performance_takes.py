@@ -9,6 +9,7 @@ branch_labels = None
 depends_on = None
 
 RETIRED_PRACTICE_ENUMS = (
+    "accessorigin",
     "practicereplayobjectdeletionstatus",
     "practicereplayartifactkind",
     "practiceattemptresolutionreason",
@@ -418,21 +419,6 @@ def upgrade() -> None:
         "practice_source_delete_outbox",
         ["status", "next_attempt_at"],
         unique=False,
-    )
-    op.add_column(
-        "score_share_grants",
-        sa.Column("access_mode", sa.String(16), nullable=False, server_default="PRACTICE"),
-    )
-    op.execute(
-        sa.text(
-            "UPDATE score_share_grants SET access_mode = CASE WHEN allow_practice THEN 'PRACTICE' ELSE 'VIEW' END"
-        )
-    )
-    op.drop_column("score_share_grants", "allow_practice")
-    op.create_check_constraint(
-        "ck_score_share_grants_access_mode",
-        "score_share_grants",
-        "access_mode IN ('VIEW', 'PRACTICE')",
     )
 
 

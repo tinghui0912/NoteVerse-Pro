@@ -347,7 +347,7 @@ def upgrade() -> None:
     sa.Column('entry_uuid', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('score_id', sa.BigInteger(), nullable=False),
-    sa.Column('source_type', sa.Enum('SELF_ADDED', 'BOOKMARK', name='libraryentrysourcetype'), nullable=False),
+    sa.Column('source_type', sa.Enum('SELF_ADDED', name='libraryentrysourcetype'), nullable=False),
     sa.Column('folder_id', sa.BigInteger(), nullable=True),
     sa.Column('is_favorite', sa.Boolean(), nullable=False),
     sa.Column('practice_state', sa.Enum('TO_PRACTICE', 'IN_PROGRESS', 'MASTERED', name='librarypracticestate'), nullable=False),
@@ -481,31 +481,29 @@ def upgrade() -> None:
     )
     op.create_index('idx_score_revision_metadata_measure_count', 'score_revision_metadata', ['measure_count'], unique=False)
     op.create_index('idx_score_revision_metadata_status', 'score_revision_metadata', ['status'], unique=False)
-    op.create_table('score_share_grants',
-    sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
-    sa.Column('grant_uuid', sa.String(length=36), nullable=False),
+    op.create_table('score_guest_preview_grants',
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
+    sa.Column('preview_uuid', sa.String(length=36), nullable=False),
     sa.Column('score_id', sa.BigInteger(), nullable=False),
+    sa.Column('revision_id', sa.BigInteger(), nullable=False),
     sa.Column('token_hash', sa.String(length=64), nullable=False),
-    sa.Column('allow_download', sa.Boolean(), nullable=False),
-    sa.Column('allow_practice', sa.Boolean(), nullable=False),
-    sa.Column('expires_at', sa.DateTime(), nullable=True),
+    sa.Column('expires_at', sa.DateTime(), nullable=False),
     sa.Column('revoked_at', sa.DateTime(), nullable=True),
     sa.Column('created_by_user_id', sa.BigInteger(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['created_by_user_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['score_id'], ['scores.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('grant_uuid')
+    sa.ForeignKeyConstraint(['score_id', 'revision_id'], ['score_revisions.score_id', 'score_revisions.id'], name='fk_guest_preview_score_revision', ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['created_by_user_id'], ['users.id']),
+    sa.PrimaryKeyConstraint('id'), sa.UniqueConstraint('preview_uuid')
     )
-    op.create_index('idx_score_share_grants_score_created', 'score_share_grants', ['score_id', 'created_at'], unique=False)
-    op.create_index('idx_score_share_grants_token_hash', 'score_share_grants', ['token_hash'], unique=True)
+    op.create_index('idx_score_guest_previews_score_created', 'score_guest_preview_grants', ['score_id', 'created_at'], unique=False)
+    op.create_index('idx_score_guest_previews_token_hash', 'score_guest_preview_grants', ['token_hash'], unique=True)
     op.create_table('practice_sessions',
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('session_uuid', sa.String(length=36), nullable=False),
     sa.Column('score_id', sa.BigInteger(), nullable=False),
     sa.Column('revision_id', sa.BigInteger(), nullable=False),
     sa.Column('access_origin', sa.Enum('OWNER', 'MEMBERSHIP', 'SHARE', name='accessorigin'), nullable=False),
-    sa.Column('share_grant_id', sa.BigInteger(), nullable=True),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('state', sa.Enum('CREATED', 'STREAMING', 'PAUSED', 'FINISHED', 'FAILED', name='practicesessionstate'), nullable=False),
     sa.Column('sample_rate', sa.BigInteger(), nullable=False),
@@ -523,7 +521,6 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['revision_id'], ['score_revisions.id'], ),
     sa.ForeignKeyConstraint(['score_id'], ['scores.id'], ),
-    sa.ForeignKeyConstraint(['share_grant_id'], ['score_share_grants.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('session_uuid')
@@ -531,17 +528,6 @@ def upgrade() -> None:
     op.create_index('idx_practice_sessions_revision_created', 'practice_sessions', ['revision_id', 'created_at'], unique=False)
     op.create_index('idx_practice_sessions_state', 'practice_sessions', ['state'], unique=False)
     op.create_index('idx_practice_sessions_user_created', 'practice_sessions', ['user_id', 'created_at'], unique=False)
-    op.create_table('share_grant_redemptions',
-    sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
-    sa.Column('grant_id', sa.BigInteger(), nullable=False),
-    sa.Column('user_id', sa.BigInteger(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['grant_id'], ['score_share_grants.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('grant_id', 'user_id', name='uq_share_grant_redemptions_grant_user')
-    )
-    op.create_index('idx_share_grant_redemptions_user_created', 'share_grant_redemptions', ['user_id', 'created_at'], unique=False)
     _seed_taxonomy_baseline()
 
 
@@ -549,15 +535,11 @@ def downgrade() -> None:
     # Drop the current pre-release schema baseline.
     op.drop_constraint('fk_scores_head_revision', 'scores', type_='foreignkey')
     op.drop_constraint('fk_import_jobs_score_id', 'import_jobs', type_='foreignkey')
-    op.drop_index('idx_share_grant_redemptions_user_created', table_name='share_grant_redemptions')
-    op.drop_table('share_grant_redemptions')
     op.drop_index('idx_practice_sessions_user_created', table_name='practice_sessions')
     op.drop_index('idx_practice_sessions_state', table_name='practice_sessions')
     op.drop_index('idx_practice_sessions_revision_created', table_name='practice_sessions')
     op.drop_table('practice_sessions')
-    op.drop_index('idx_score_share_grants_token_hash', table_name='score_share_grants')
-    op.drop_index('idx_score_share_grants_score_created', table_name='score_share_grants')
-    op.drop_table('score_share_grants')
+    op.drop_table('score_guest_preview_grants')
     op.drop_index('idx_score_revision_metadata_status', table_name='score_revision_metadata')
     op.drop_index('idx_score_revision_metadata_measure_count', table_name='score_revision_metadata')
     op.drop_table('score_revision_metadata')

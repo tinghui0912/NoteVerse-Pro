@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import timedelta
+from app.utils.timezone import utc_now_naive
 
 import pytest
 from sqlalchemy import event
@@ -21,7 +23,7 @@ from app.db.models.score import (
 from app.db.models.score_access import (
     MembershipRole,
     ScoreMembership,
-    ScoreShareGrant,
+    ScoreGuestPreviewGrant,
 )
 from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
 from app.db.models.user import User
@@ -175,9 +177,7 @@ def test_score_revision_pointer_cannot_cross_scores(score_session: Session) -> N
 def test_artifact_constraints_protect_canonical_and_rendered_payloads(
     score_session: Session,
 ) -> None:
-    score_session.add(
-        revision_source(source_id=200, key="scores/10/revisions/100/musicxml.xml")
-    )
+    score_session.add(revision_source(source_id=200, key="scores/10/revisions/100/musicxml.xml"))
     score_session.commit()
 
     assert_commit_rejected(
@@ -207,11 +207,13 @@ def test_metadata_status_requires_a_classified_failure(score_session: Session) -
     )
 
 
-def test_share_token_hash_is_unique(score_session: Session) -> None:
+def test_guest_preview_token_hash_is_unique(score_session: Session) -> None:
     score_session.add(
-        ScoreShareGrant(
+        ScoreGuestPreviewGrant(
             id=300,
             score_id=10,
+            revision_id=100,
+            expires_at=utc_now_naive() + timedelta(days=7),
             token_hash="3" * 64,
             created_by_user_id=1,
         )
@@ -219,16 +221,20 @@ def test_share_token_hash_is_unique(score_session: Session) -> None:
     score_session.commit()
     assert_commit_rejected(
         score_session,
-        ScoreShareGrant(
+        ScoreGuestPreviewGrant(
             id=301,
             score_id=10,
+            revision_id=100,
+            expires_at=utc_now_naive() + timedelta(days=7),
             token_hash="3" * 64,
             created_by_user_id=1,
         ),
     )
 
 
-def test_membership_and_library_entry_are_unique_per_user_and_source(score_session: Session) -> None:
+def test_membership_and_library_entry_are_unique_per_user_and_source(
+    score_session: Session,
+) -> None:
     score_session.add_all(
         [
             ScoreMembership(
@@ -238,7 +244,9 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(score_sessi
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreLibraryEntry(id=500, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
+            ScoreLibraryEntry(
+                id=500, score_id=10, user_id=2, source_type=LibraryEntrySourceType.SELF_ADDED
+            ),
         ]
     )
     score_session.commit()
@@ -255,5 +263,7 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(score_sessi
     )
     assert_commit_rejected(
         score_session,
-        ScoreLibraryEntry(id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
+        ScoreLibraryEntry(
+            id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.SELF_ADDED
+        ),
     )

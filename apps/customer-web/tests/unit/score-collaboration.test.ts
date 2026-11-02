@@ -18,7 +18,7 @@ describe('score collaboration invite architecture', () => {
     expect(proxy).not.toContain("'/invite'");
   });
 
-  it('uses invite/member APIs for collaboration instead of share grant APIs', () => {
+  it('uses invite/member APIs for collaboration for authenticated collaboration', () => {
     const panel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
     const api = readSource('src/lib/api/score-invites.ts');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
@@ -27,8 +27,6 @@ describe('score collaboration invite architecture', () => {
     expect(panel).toContain('useScoreMembers');
     expect(panel).toContain('useCreateScoreInvite');
     expect(panel).toContain('useUpdateScoreMember');
-    expect(panel).not.toContain('useScoreGrants');
-    expect(panel).not.toContain('scoreSharingApi');
 
     expect(api).toContain('/scores/${scoreId}/invites');
     expect(api).toContain('/scores/${scoreId}/members');
@@ -39,14 +37,14 @@ describe('score collaboration invite architecture', () => {
     expect(scorePage).toContain('ScoreCollaborationPanel');
   });
 
-  it('keeps share and invite semantics separate', () => {
-    const sharePanel = readSource('src/components/score-detail/score-share-panel.tsx');
+  it('keeps preview and invite semantics separate', () => {
+    const previewPanel = readSource('src/components/score-detail/score-guest-preview-panel.tsx');
     const collaborationPanel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
 
-    expect(sharePanel).not.toContain('MembershipRole');
-    expect(sharePanel).not.toContain('EDITOR');
-    expect(sharePanel).not.toContain('VIEWER');
+    expect(previewPanel).not.toContain('MembershipRole');
+    expect(previewPanel).not.toContain('EDITOR');
+    expect(previewPanel).not.toContain('VIEWER');
     expect(collaborationPanel).toContain('MembershipRole');
     expect(collaborationPanel).toContain('EDITOR');
     expect(collaborationPanel).toContain('VIEWER');

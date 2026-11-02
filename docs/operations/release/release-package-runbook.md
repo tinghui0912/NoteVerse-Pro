@@ -259,7 +259,7 @@ After applying:
   smoke test in the Cilium-backed staging cluster;
 - frontend is reachable through Gateway/TLS;
 - API health passes;
-- upload/import/review/score/share smoke path passes;
+- upload/import/review/score/preview smoke path passes;
 - realtime events are received;
 - practice score/source/artifact delivery endpoints pass through the backend API;
 - logs, metrics, and traces are visible in Grafana.

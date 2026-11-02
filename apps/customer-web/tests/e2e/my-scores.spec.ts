@@ -12,7 +12,7 @@ test('My Scores keeps owned scores, processing, review and failed views with lib
       preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
       audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
     },
-    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true,
+    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_guest_previews: true,
       can_manage_members: true, can_download: true, can_practice: true },
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z',
   };

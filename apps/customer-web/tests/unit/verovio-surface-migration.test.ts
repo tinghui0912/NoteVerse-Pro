@@ -7,22 +7,12 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 const projectPath = (path: string) => resolve(process.cwd(), path);
 
 describe('Verovio listen surfaces', () => {
-  it('renders share access through the external score surface and lightweight detail hero', () => {
-    const page = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const hero = readSource('src/components/score-detail/score-detail-hero.tsx');
-    const playback = readSource('src/components/score-detail/score-cover-playback-button.tsx');
-
-    expect(page).toContain('<ScoreSurface');
-    expect(page).toContain('<ScoreCapabilityProvider');
-    expect(page).toContain('<ScoreDetailHero');
-    expect(page).toContain('<ScoreDetailTabs');
-    expect(page).not.toContain('<Footer');
-    expect(hero).toContain('<ScoreCoverPlaybackButton');
-    expect(playback).toContain('new Audio(audioSrc)');
-    expect(playback).not.toContain('useScorePreviewPlayback');
-    expect(playback).not.toContain('ScorePlaybackDock');
+  it('renders Guest Preview as server-rendered images and dedicated audio', () => {
+    const page = readSource('src/components/external/guest-preview-page.tsx');
+    expect(page).toContain('<Image unoptimized');
+    expect(page).toContain('guestPreviewsApi.pageUrl');
+    expect(page).toContain('guestPreviewsApi.playbackUrl');
   });
-
 
   it('removes the old listen modal preview path', () => {
     expect(existsSync(projectPath('src/components/score/listen-modal.tsx'))).toBe(false);

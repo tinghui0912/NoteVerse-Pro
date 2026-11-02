@@ -10,7 +10,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 # These services accept a caller identity and act on an existing score or one
 # of its revisions. Authorization must be delegated to ScoreAccessPolicy rather
-# than reconstructed from owner, membership or grant tables.
+# than reconstructed from owner or membership tables.
 PROTECTED_SERVICE_MODULES = (
     "app/modules/fingering/service.py",
     "app/modules/library/service.py",
@@ -21,7 +21,7 @@ PROTECTED_SERVICE_MODULES = (
     "app/modules/score_assets/render_service.py",
     "app/modules/score_assets/service.py",
     "app/modules/score_invites/service.py",
-    "app/modules/score_sharing/service.py",
+    "app/modules/guest_previews/service.py",
     "app/modules/scores/lifecycle_service.py",
     "app/modules/scores/service.py",
 )
@@ -51,7 +51,20 @@ def test_score_authorization_services_depend_on_the_central_policy() -> None:
         path = BACKEND_ROOT / relative_path
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         if not _imports_score_access_policy(tree):
-            violations.append(
-                f"{relative_path} must import ScoreAccessPolicy")
+            violations.append(f"{relative_path} must import ScoreAccessPolicy")
 
     assert not violations, "Score access architecture violations:\n" + "\n".join(violations)
+
+
+def test_guest_preview_dependencies_are_presentation_and_authorization_only() -> None:
+    allowed_contexts = {"guest_previews", "score_access", "score_assets", "playback"}
+    for path in (BACKEND_ROOT / "app/modules/guest_previews").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        contexts = {
+            node.module.split(".")[2]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("app.modules.")
+        }
+        assert contexts <= allowed_contexts, (path.name, contexts)

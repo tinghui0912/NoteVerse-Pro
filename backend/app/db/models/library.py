@@ -28,7 +28,6 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 class LibraryEntrySourceType(str, enum.Enum):
     SELF_ADDED = "SELF_ADDED"
-    BOOKMARK = "BOOKMARK"
 
 
 class LibraryPracticeState(str, enum.Enum):

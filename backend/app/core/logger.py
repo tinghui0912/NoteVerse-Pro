@@ -88,6 +88,7 @@ class SensitiveDataFilter:
     }
 
     PATTERNS = [
+        (re.compile(r"(/guest-previews/)[^/\s?\"\']+"), "guest_preview_path"),
         (re.compile(r'password["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "password"),
         (re.compile(r'token["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "token"),
         (re.compile(r'key["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "key"),
@@ -108,9 +109,10 @@ class SensitiveDataFilter:
                 filtered[key] = cls.filter_dict(value)
             elif isinstance(value, list):
                 filtered[key] = [
-                    cls.filter_dict(item) if isinstance(item, dict) else item
-                    for item in value
+                    cls.filter_dict(item) if isinstance(item, dict) else item for item in value
                 ]
+            elif isinstance(value, str):
+                filtered[key] = cls.filter_string(value)
             else:
                 filtered[key] = value
         return filtered
@@ -120,7 +122,11 @@ class SensitiveDataFilter:
         """Redact secret-like fragments inside a plain string."""
 
         for pattern, field_type in cls.PATTERNS:
-            text = pattern.sub(f"{field_type}=***FILTERED***", text)
+            text = (
+                pattern.sub(r"\1***FILTERED***", text)
+                if field_type == "guest_preview_path"
+                else pattern.sub(f"{field_type}=***FILTERED***", text)
+            )
         return text
 
 

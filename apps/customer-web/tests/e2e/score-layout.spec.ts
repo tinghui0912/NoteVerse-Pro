@@ -14,18 +14,18 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
       preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
       audio: { status: 'ready', asset_id: 'audio-1', revision_id: revisionId, is_fallback: false },
     },
-    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true, can_manage_members: true, can_download: true, can_practice: true },
+    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_guest_previews: true, can_manage_members: true, can_download: true, can_practice: true },
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z' };
   await page.route(`**/api/v1/scores/${scoreId}`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: score }) }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions/${revisionId}/content`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { revision_id: revisionId, revision_number: 1, parent_revision_id: null, base_revision_id: null, content_hash: 'hash', origin: 'OMR', created_at: score.created_at, content: musicXml, mime_type: 'application/xml' } }) }));
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { revision_sources: [], render_assets: [] } }) }));
-  await page.route(`**/api/v1/scores/${scoreId}/grants`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) }));
+  await page.route(`**/api/v1/scores/${scoreId}/guest-previews`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) }));
   await page.goto(`/en/score/${scoreId}`);
   await expect(page.getByRole('heading', { name: 'Layout Score' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play Score' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Score Information' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Version History' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Create Share' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Guest Preview' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Collaborators', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Publish', exact: true })).toHaveCount(0);
   await expect(page.getByText('Published', { exact: true })).toHaveCount(0);

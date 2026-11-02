@@ -374,7 +374,6 @@ export default function LibraryPage({
     recent_practice: t('recentPractice'),
     to_practice: t('toPractice'),
     mastered: t('mastered'),
-    bookmarks: t('bookmarks'),
     trash: t('trash'),
   }[view];
   const practiceStateLabel = (practiceState: LibraryPracticeState) =>
@@ -516,7 +515,7 @@ export default function LibraryPage({
                     onOpen={() =>
                       router.push(
                         `/score/${entry.score_id}?from=${
-                          entry.source_type === 'BOOKMARK' ? 'shares' : 'my-scores'
+                          'my-scores'
                         }`
                       )
                     }

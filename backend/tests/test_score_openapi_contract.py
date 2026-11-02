@@ -13,7 +13,7 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
             "can_download",
             "can_edit",
             "can_delete",
-            "can_manage_sharing",
+            "can_manage_guest_previews",
             "can_manage_members",
             "can_practice",
         },
@@ -51,12 +51,12 @@ def test_score_access_contract_exposes_current_channels_and_owned_score_filters(
     from app.db.models.score_access import AccessOrigin
     from app.modules.score_access.policy import ScoreAction
 
-    assert {origin.value for origin in AccessOrigin} == {"OWNER", "MEMBERSHIP", "SHARE"}
+    assert {origin.value for origin in AccessOrigin} == {"OWNER", "MEMBERSHIP", "GUEST_PREVIEW"}
     assert {action.value for action in ScoreAction} == {
         "VIEW",
         "EDIT",
         "DELETE",
-        "MANAGE_SHARING",
+        "MANAGE_GUEST_PREVIEWS",
         "MANAGE_MEMBERS",
         "DOWNLOAD",
         "PRACTICE",
@@ -74,7 +74,43 @@ def test_score_access_contract_exposes_current_channels_and_owned_score_filters(
     }
     assert {
         "/api/v1/scores/{score_id}",
-        "/api/v1/score-grants/{token}",
+        "/api/v1/guest-previews/{token}",
         "/api/v1/invites/{token}",
         "/api/v1/scores/{score_id}/members",
     } <= paths.keys()
+
+
+def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None:
+    schema = client.get("/api/v1/openapi.json").json()
+    operations = {
+        (method, path)
+        for path, methods in schema["paths"].items()
+        for method, operation in methods.items()
+        if "Guest Previews" in operation.get("tags", [])
+    }
+    assert operations == {
+        ("post", "/api/v1/scores/{score_id}/guest-previews"),
+        ("get", "/api/v1/scores/{score_id}/guest-previews"),
+        ("post", "/api/v1/scores/guest-previews/{preview_id}/revoke"),
+        ("delete", "/api/v1/scores/guest-previews/{preview_id}"),
+        ("get", "/api/v1/guest-previews/{token}"),
+        ("get", "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view"),
+        ("get", "/api/v1/guest-previews/{token}/playback"),
+    }
+    components = schema["components"]["schemas"]
+    assert set(components["GuestPreviewRead"]["properties"]) == {
+        "title",
+        "shared_by",
+        "created_at",
+        "expires_at",
+        "render_assets",
+        "audio_available",
+    }
+    assert set(components["GuestPreviewCreateRequest"]["properties"]) == {"expires_at"}
+    assert components["GuestPreviewCreateRequest"]["additionalProperties"] is False
+    assert set(components["GuestPreviewListItem"]["properties"]) == {
+        "preview_id",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+    }

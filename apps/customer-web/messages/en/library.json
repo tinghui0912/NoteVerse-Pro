@@ -22,7 +22,6 @@
   "favorites": "Favorites",
   "toPractice": "To practice",
   "mastered": "Mastered",
-  "bookmarks": "Saved shares",
   "trash": "Trash",
   "quickViews": "Quick views",
   "practiceStatus": "Practice status",
@@ -57,7 +56,6 @@
   "retry": "Retry",
   "moreActions": "More actions",
   "libraryEntry": "Library",
-  "bookmark": "Saved",
   "renameFolder": "Rename",
   "moveFolder": "Move folder",
   "moveToFolder": "Move to folder",
@@ -88,5 +86,5 @@
   "moveToTitle": "Move to folder",
   "moveToDescription": "Choose a destination folder for {count} selected score(s).",
   "deleteEntriesTitle": "Remove from library",
-  "deleteEntriesDescription": "Remove {count} selected score(s) from your library? This will not delete the score itself or affect shares, collaborators, or storage usage."
+  "deleteEntriesDescription": "Remove {count} selected score(s) from your library? This will not delete the score itself or affect Guest Previews, collaborators, or storage usage."
 }

@@ -72,19 +72,6 @@ def test_legacy_task_as_score_routes_are_absent(client: TestClient) -> None:
     assert not any(path.startswith("/api/v1/shares") for path in paths)
 
 
-def test_external_musicxml_content_routes_are_absent(client: TestClient) -> None:
-    schema = client.get("/api/v1/openapi.json").json()
-    paths = schema["paths"]
-
-    assert "/api/v1/score-grants/{token}/content" not in paths
-
-    for path in (
-        "/api/v1/score-grants/share-token/content",
-    ):
-        response = client.get(path)
-        assert response.status_code == 404, path
-
-
 def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> None:
     audio_bytes = b"RIFF\x24\x00\x00\x00WAVEfmt "
     audio_path = tmp_path / "playback.wav"
@@ -92,11 +79,11 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
 
     class FakePlaybackStorage:
         def read_bytes(self, key: str) -> bytes:
-            assert key in {"playback/share-token.wav"}
+            assert key in {"playback/score-audio.wav"}
             return audio_bytes
 
         def size_bytes(self, key: str) -> int:
-            assert key in {"playback/share-token.wav"}
+            assert key in {"playback/score-audio.wav"}
             return len(audio_bytes)
 
         def iter_bytes(
@@ -107,7 +94,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
             start: int | None = None,
             end: int | None = None,
         ) -> Iterator[bytes]:
-            assert key in {"playback/share-token.wav"}
+            assert key in {"playback/score-audio.wav"}
             content = audio_bytes[start : end + 1 if end is not None else None]
             for index in range(0, len(content), chunk_size):
                 yield content[index : index + chunk_size]
@@ -115,35 +102,39 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
     class FakePlaybackService:
         storage = FakePlaybackStorage()
 
-        async def grant_delivery(self, db, token: str, user_id: int | None):
+        async def score_revision_delivery(
+            self, db, score_uuid: str, revision_uuid: str, user_id: int
+        ):
+            token = "score-audio"
             return PlaybackDelivery(
                 filename=f"{token}.wav",
                 media_type="audio/wav",
                 storage_key=f"playback/{token}.wav",
             )
 
-
     async def fake_get_db():
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db
     app.dependency_overrides[get_playback_delivery_service] = lambda: FakePlaybackService()
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
     try:
-        grant_response = client.get("/api/v1/score-grants/share-token/playback")
-        grant_range_response = client.get(
-            "/api/v1/score-grants/share-token/playback",
+        audio_response = client.get("/api/v1/scores/score/revisions/revision/playback")
+        audio_range_response = client.get(
+            "/api/v1/scores/score/revisions/revision/playback",
             headers={"Range": "bytes=5-8"},
         )
     finally:
+        app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_playback_delivery_service, None)
         app.dependency_overrides.pop(get_db, None)
 
-    assert grant_response.status_code == 200
-    assert grant_response.headers["content-type"].startswith("audio/wav")
-    assert grant_response.content == audio_bytes
-    assert grant_range_response.status_code == 206
-    assert grant_range_response.headers["content-range"] == f"bytes 5-8/{len(audio_bytes)}"
-    assert grant_range_response.content == audio_bytes[5:9]
+    assert audio_response.status_code == 200
+    assert audio_response.headers["content-type"].startswith("audio/wav")
+    assert audio_response.content == audio_bytes
+    assert audio_range_response.status_code == 206
+    assert audio_range_response.headers["content-range"] == f"bytes 5-8/{len(audio_bytes)}"
+    assert audio_range_response.content == audio_bytes[5:9]
 
 
 @pytest.mark.parametrize("include_notation", [False, True])
@@ -151,18 +142,32 @@ def test_main_api_serves_one_practice_source(client: TestClient, include_notatio
     calls = []
 
     class FakePracticeSourceService:
-        async def read_source(self, db, score_uuid, user_id, revision_uuid, *, include_notation=False):
+        async def read_source(
+            self, db, score_uuid, user_id, revision_uuid, *, include_notation=False
+        ):
             import json
             import os
             from pathlib import Path
+
             calls.append((score_uuid, revision_uuid, include_notation))
             root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
-            artifact = json.loads((root / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json").read_text())
+            artifact = json.loads(
+                (
+                    root
+                    / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
+                ).read_text()
+            )
             artifact.update(scoreId=score_uuid, revisionId=revision_uuid)
-            return {"source_id": "source-1", "artifact": artifact, "notation": {
-                "musicxml": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
-                "mime_type": "application/vnd.recordare.musicxml+xml",
-            } if include_notation else None}
+            return {
+                "source_id": "source-1",
+                "artifact": artifact,
+                "notation": {
+                    "musicxml": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
+                    "mime_type": "application/vnd.recordare.musicxml+xml",
+                }
+                if include_notation
+                else None,
+            }
 
     async def fake_get_db():
         yield object()
@@ -171,7 +176,10 @@ def test_main_api_serves_one_practice_source(client: TestClient, include_notatio
     app.dependency_overrides[get_db] = fake_get_db
     app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
     try:
-        response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/source", params={"include_notation": include_notation})
+        response = client.get(
+            "/api/v1/practice/scores/score-1/revisions/revision-1/source",
+            params={"include_notation": include_notation},
+        )
     finally:
         app.dependency_overrides.pop(get_practice_source_service, None)
         app.dependency_overrides.pop(get_current_user, None)
@@ -240,8 +248,8 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ("get", "/api/v1/revision-sources/source-1/access-url", None),
         ("get", "/api/v1/render-assets/render-asset-1/download", None),
         ("get", "/api/v1/render-assets/render-asset-1/access-url", None),
-        ("post", "/api/v1/scores/test-score/grants", {}),
-        ("get", "/api/v1/scores/test-score/grants", None),
+        ("post", "/api/v1/scores/test-score/guest-previews", {}),
+        ("get", "/api/v1/scores/test-score/guest-previews", None),
         ("post", "/api/v1/scores/test-score/invites", {}),
         ("get", "/api/v1/scores/test-score/invites", None),
         ("post", "/api/v1/scores/test-score/invites/invite-1/revoke", None),
@@ -408,7 +416,9 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
 
 
 def test_origin_normalization_collapses_default_ports() -> None:
-    assert normalize_origin("https://staging.johnabc.ccwu.cc:443") == "https://staging.johnabc.ccwu.cc"
+    assert (
+        normalize_origin("https://staging.johnabc.ccwu.cc:443") == "https://staging.johnabc.ccwu.cc"
+    )
     assert normalize_origin("http://localhost:80") == "http://localhost"
     assert normalize_origin("http://localhost:3000") == "http://localhost:3000"
     assert normalize_origin("not-a-url") is None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any, TypeVar
 from unittest.mock import patch
 
@@ -46,19 +46,15 @@ from app.db.models import (
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
-    ScoreShareGrant,
-    ShareGrantRedemption,
     User,
     Upload,
 )
-from app.db.models.library import LibraryEntrySourceType
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RenderAssetKind, RevisionOrigin, RevisionSourceFormat
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
     InviteStatus,
     MembershipRole,
-    ScoreAudienceAccessMode,
 )
 from app.modules.revisions.schemas import (
     RevisionCreateRequest,
@@ -81,16 +77,13 @@ from app.modules.scores.service import ScoreService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
-from app.modules.score_sharing.schemas import GrantCreateRequest
-from app.modules.score_sharing.service import ScoreSharingService
+from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.rules import hash_invite_token
 from app.modules.score_invites.service import ScoreInviteService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
 from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
-from app.modules.playback.delivery import PlaybackDeliveryService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import LocalFileStorage
@@ -120,6 +113,7 @@ def test_derived_asset_status_uses_public_product_states() -> None:
         has_current_asset=True,
         outbox_status=RenderOutboxStatus.FAILED,
     ) == "ready"
+
 
 T = TypeVar("T")
 
@@ -1893,6 +1887,7 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
             2,  # type: ignore[arg-type]
         )
 
+
 @pytest.mark.asyncio
 async def test_score_access_policy_is_deny_by_default_and_context_aware(
     score_service_session: tuple[Session, LocalFileStorage],
@@ -1935,19 +1930,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreShareGrant(
-                score_id=70,
-                token_hash=hash_share_token("view-token"),
-                allow_download=True,
-                access_mode="VIEW",
-                created_by_user_id=1,
-            ),
-            ScoreShareGrant(
-                score_id=70,
-                token_hash=hash_share_token("expired-token"),
-                expires_at=utc_now_naive() - timedelta(minutes=1),
-                created_by_user_id=1,
-            ),
         ]
     )
     session.commit()
@@ -1960,6 +1942,9 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
     member = await policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
     assert member.capabilities.can_edit is False
+    assert member.capabilities.can_practice is True
+    assert member.capabilities.can_download is False
+    assert member.capabilities.can_manage_guest_previews is False
     with pytest.raises(UnauthorizedException):
         await policy.authorize(
             db,
@@ -1968,278 +1953,8 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             user_id=2,  # type: ignore[arg-type]
         )
 
-    shared = await policy.resolve(
-        db,
-        "policy-score",
-        share_token="view-token",  # type: ignore[arg-type]
-    )
-    assert shared.revision.revision_uuid == "policy-revision-2"
-    assert shared.capabilities.can_download is True
-    assert shared.capabilities.can_edit is False
-
     with pytest.raises(UnauthorizedException):
         await policy.resolve(db, "policy-score")  # type: ignore[arg-type]
-    with pytest.raises(UnauthorizedException):
-        await policy.resolve(
-            db,
-            "policy-score",
-            share_token="expired-token",  # type: ignore[arg-type]
-        )
-
-
-@pytest.mark.asyncio
-async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    score = Score(
-        id=80,
-        score_uuid="sharing-score",
-        owner_user_id=1,
-        title="Sharing score",
-    )
-    session.add(score)
-    session.commit()
-    revision = ScoreRevision(
-        id=81,
-        revision_uuid="sharing-revision",
-        score_id=80,
-        revision_number=1,
-        content_hash="9" * 64,
-        origin=RevisionOrigin.IMPORT,
-    )
-    session.add(revision)
-    session.commit()
-    score.head_revision_id = 81
-    session.commit()
-    db = AsyncSessionAdapter(session)
-    service = ScoreSharingService()
-
-    created = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-score",
-        1,
-        GrantCreateRequest(),
-    )
-    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
-    assert "." not in created.token
-    assert created.grant_id not in created.token
-    assert stored_grant.token_hash == hash_share_token(created.token)
-    assert created.token not in stored_grant.token_hash
-    listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
-    assert listed_grants[0].token is None
-
-    redeemed = await service.redeem_grant(
-        db,
-        created.token,
-        2,  # type: ignore[arg-type]
-    )
-    assert redeemed.score_id == "sharing-score"
-    assert redeemed.can_practice is True
-    assert count_rows(session, ShareGrantRedemption) == 1
-    assert count_rows(session, ScoreLibraryEntry) == 0
-
-    bookmarked = await service.bookmark_grant(
-        db,
-        created.token,
-        2,  # type: ignore[arg-type]
-    )
-    assert bookmarked.available is True
-    assert count_rows(session, ShareGrantRedemption) == 1
-    access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
-    assert access.shared_by is not None
-    assert access.shared_by.display_name == "owner"
-    assert access.shared_at == stored_grant.created_at
-
-    await service.revoke_grant(db, created.grant_id, 1)  # type: ignore[arg-type]
-    assert count_rows(session, ShareGrantRedemption) == 1
-    library_entry = one_row(session, ScoreLibraryEntry)
-    assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
-    assert library_entry.is_favorite is True
-    assert library_entry.deleted_at is None
-
-    view_only = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-score",
-        1,
-        GrantCreateRequest(access_mode=ScoreAudienceAccessMode.VIEW),
-    )
-    with pytest.raises(ValidationException):
-        await service.redeem_grant(
-            db,
-            view_only.token,
-            3,  # type: ignore[arg-type]
-        )
-
-
-@pytest.mark.asyncio
-async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    score = Score(
-        id=85,
-        score_uuid="sharing-expiration-score",
-        owner_user_id=1,
-        title="Sharing expiration score",
-    )
-    revision = ScoreRevision(
-        id=86,
-        revision_uuid="sharing-expiration-revision",
-        score_id=85,
-        revision_number=1,
-        content_hash="8" * 64,
-        origin=RevisionOrigin.IMPORT,
-    )
-    session.add_all([score, revision])
-    session.commit()
-    score.head_revision_id = 86
-    session.commit()
-
-    db = AsyncSessionAdapter(session)
-    service = ScoreSharingService()
-    expires_at = datetime(2026, 6, 30, 13, 41, 35, tzinfo=timezone.utc)
-
-    created = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-expiration-score",
-        1,
-        GrantCreateRequest(expires_at=expires_at),
-    )
-
-    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
-    assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
-    assert stored_grant.expires_at.tzinfo is None
-
-
-@pytest.mark.asyncio
-async def test_share_detail_exposes_display_assets_without_musicxml_when_download_blocked(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    score = Score(
-        id=210,
-        score_uuid="share-derived-score",
-        owner_user_id=1,
-        title="Share Derived Score",
-    )
-    old_revision = ScoreRevision(
-        id=211,
-        revision_uuid="share-derived-revision-1",
-        score_id=210,
-        revision_number=1,
-        content_hash="b1" * 32,
-        origin=RevisionOrigin.IMPORT,
-    )
-    new_revision = ScoreRevision(
-        id=212,
-        revision_uuid="share-derived-revision-2",
-        score_id=210,
-        revision_number=2,
-        content_hash="b2" * 32,
-        origin=RevisionOrigin.EDIT,
-        parent_revision_id=211,
-        base_revision_id=211,
-    )
-    session.add_all([score, old_revision, new_revision])
-    session.commit()
-    score.head_revision_id = 212
-    old_thumbnail = storage.put_bytes(
-        key="scores/share-derived/revisions/old/render.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
-    old_audio = storage.put_bytes(
-        key="scores/share-derived/revisions/old/playback.wav",
-        content=b"RIFF....WAVE",
-        content_type="audio/wav",
-    )
-    new_xml = storage.put_bytes(
-        key="scores/share-derived/revisions/new/score.musicxml",
-        content=MUSICXML_2.encode("utf-8"),
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
-    session.add_all(
-        [
-            ScoreRenderAsset(
-                asset_uuid="share-old-preview",
-                revision_id=211,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
-                storage_key=old_thumbnail.storage_key,
-                filename=old_thumbnail.filename,
-                mime_type="image/svg+xml",
-                size_bytes=old_thumbnail.size_bytes,
-                sha256="b" * 64,
-                page_number=1,
-                render_profile="default",
-                generator="test",
-                generator_version="1",
-            ),
-            ScorePlaybackAsset(
-                asset_uuid="share-old-audio",
-                revision_id=211,
-                kind=PlaybackAssetKind.AUDIO,
-                storage_backend="local",
-                storage_key=old_audio.storage_key,
-                filename=old_audio.filename,
-                mime_type="audio/wav",
-                size_bytes=old_audio.size_bytes,
-                sha256="c" * 64,
-                duration_ms=1000,
-                source_fingerprint="b1" * 32,
-                generator="test",
-                generator_version="1",
-            ),
-            ScoreRevisionSource(
-                source_uuid="share-new-musicxml",
-                revision_id=212,
-                format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=new_xml.storage_key,
-                filename=new_xml.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=new_xml.size_bytes,
-                sha256="d" * 64,
-                generator="test",
-                generator_version="1",
-            ),
-        ]
-    )
-    session.commit()
-
-    db = AsyncSessionAdapter(session)
-    sharing_service = ScoreSharingService()
-    created = await sharing_service.create_grant(
-        db,  # type: ignore[arg-type]
-        "share-derived-score",
-        1,
-        GrantCreateRequest(
-            allow_download=False,
-            access_mode=ScoreAudienceAccessMode.PRACTICE,
-        ),
-    )
-
-    detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
-    assert detail.revision_assets.revision_sources == []
-    assert detail.derived_assets.preview.asset_id == "share-old-preview"
-    assert detail.derived_assets.preview.is_fallback is True
-    assert detail.derived_assets.audio.asset_id == "share-old-audio"
-    assert detail.derived_assets.audio.is_fallback is True
-
-    playback = await PlaybackDeliveryService(storage=storage).grant_delivery(
-        db, created.token, None  # type: ignore[arg-type]
-    )
-    assert playback.storage_key == old_audio.storage_key
-    assert storage.read_bytes(playback.storage_key) == b"RIFF....WAVE"
-
-    with pytest.raises(UnauthorizedException):
-        await sharing_service.grant_revision_source_delivery(
-            db,  # type: ignore[arg-type]
-            created.token,
-            "share-new-musicxml",
-            None,
-        )
 
 
 @pytest.mark.asyncio

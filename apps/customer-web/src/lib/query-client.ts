@@ -54,8 +54,8 @@ export const queryKeys = {
             ['scores', 'revision', { scoreId, revisionId }] as const,
         revisionAssets: (scoreId: string, revisionId?: string) =>
             ['scores', 'revision-assets', { scoreId, revisionId: revisionId ?? null }] as const,
-        grants: (scoreId: string) => ['scores', 'grant', { scoreId }] as const,
-        grantAccess: (token: string) => ['scores', 'grant-access', { token }] as const,
+        guestPreviews: (scoreId: string) => ['scores', 'guest-previews', { scoreId }] as const,
+        guestPreview: (token: string) => ['guest-preview', { token }] as const,
         myInvites: () => ['scores', 'my-invites'] as const,
         invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,
         inviteAccess: (token: string) => ['scores', 'invite-access', { token }] as const,

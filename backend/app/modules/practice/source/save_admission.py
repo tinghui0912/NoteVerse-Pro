@@ -9,8 +9,6 @@ from app.db.models import (
     ScoreDeletionStatus,
     ScoreRevision,
     ScoreMembership,
-    ScoreShareGrant,
-    ShareGrantRedemption,
 )
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
@@ -61,7 +59,6 @@ async def lock_live_save_access(
     authority = (
         access.origin,
         access.membership.id if access.membership else None,
-        access.grant.id if access.grant else None,
     )
     if access.membership is not None:
         membership = (
@@ -74,37 +71,12 @@ async def lock_live_save_access(
         ).scalar_one_or_none()
         if membership is None:
             raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
-    if access.grant is not None:
-        grant = (
-            await db.execute(
-                select(ScoreShareGrant)
-                .where(ScoreShareGrant.id == access.grant.id)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one_or_none()
-        if grant is None:
-            raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
-        redemption = (
-            await db.execute(
-                select(ShareGrantRedemption)
-                .where(
-                    ShareGrantRedemption.grant_id == access.grant.id,
-                    ShareGrantRedemption.user_id == user_id,
-                )
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one_or_none()
-        if redemption is None:
-            raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
     current = await policy.authorize(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
     if authority != (
         current.origin,
         current.membership.id if current.membership else None,
-        current.grant.id if current.grant else None,
     ):
         raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
     return current

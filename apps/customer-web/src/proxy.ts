@@ -60,9 +60,9 @@ export default function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/share/:path*',
-    '/zh/share/:path*',
-    '/en/share/:path*',
+    '/preview/:path*',
+    '/zh/preview/:path*',
+    '/en/preview/:path*',
     '/invite/:path*',
     '/zh/invite/:path*',
     '/en/invite/:path*',

@@ -278,12 +278,11 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
             assert storage.read_bytes(key) == MEDIA
 
 
-@pytest.mark.parametrize("authority", ["membership", "grant"])
 @pytest.mark.asyncio
-async def test_save_holds_current_authorization_facts_until_commit(postgres_source, authority):
+async def test_save_holds_current_authorization_facts_until_commit(postgres_source):
     from sqlalchemy import update
     from app.core.exceptions import UnauthorizedException
-    from app.db.models import User, ScoreMembership, ScoreShareGrant, ShareGrantRedemption
+    from app.db.models import User, ScoreMembership
     from app.db.models.score_access import MembershipRole
 
     sessions, source, _, request = await setup_source(postgres_source)
@@ -295,25 +294,18 @@ async def test_save_holds_current_authorization_facts_until_commit(postgres_sour
         await seed.flush()
         user_id = user.id
         score = await seed.scalar(select(Score))
-        if authority == "membership":
-            fact = ScoreMembership(
-                score_id=score.id, user_id=user_id, role=MembershipRole.VIEWER, created_by_user_id=1
-            )
-        else:
-            fact = ScoreShareGrant(
-                score_id=score.id, token_hash="a" * 64, created_by_user_id=1, access_mode="PRACTICE"
-            )
+        fact = ScoreMembership(
+            score_id=score.id, user_id=user_id, role=MembershipRole.VIEWER, created_by_user_id=1
+        )
         seed.add(fact)
         await seed.flush()
-        if authority == "grant":
-            seed.add(ShareGrantRedemption(grant_id=fact.id, user_id=user_id))
         fact_id = fact.id
         await seed.commit()
     async with sessions() as a, sessions() as b, sessions() as observer:
         admitted = await source.authorize_source_for_save(a, user_id, request.source.source_id)
         assert admitted.source.source_id == request.source.source_id
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
-        fact_model = ScoreMembership if authority == "membership" else ScoreShareGrant
+        fact_model = ScoreMembership
         revocation = asyncio.create_task(
             b.execute(
                 update(fact_model)

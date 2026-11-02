@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { filesApi, scoresApi, scoreSharingApi } from '@/lib/api';
+import { filesApi, scoresApi } from '@/lib/api';
 import type { ScoreRevisionAssetsRead } from '@/generated/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -9,7 +9,6 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 
 interface UseDownloadOptions {
-    mode: 'score' | 'grant';
     id: string;
     assets?: ScoreRevisionAssetsRead;
 }
@@ -30,7 +29,7 @@ function extensionFromBlob(blob: Blob): string {
 
 const emptyAssets: ScoreRevisionAssetsRead = { revision_sources: [], render_assets: [] };
 
-export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptions): UseDownloadReturn {
+export function useDownload({ id, assets = emptyAssets }: UseDownloadOptions): UseDownloadReturn {
     const { toast } = useToast();
     const t = useTranslations('download');
     const tErrors = useTranslations('errors');
@@ -38,48 +37,27 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
     const handleDownload = useCallback(async (type: 'image' | 'xml') => {
         try {
             if (type === 'xml') {
-                if (mode === 'grant') {
-                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
-                    if (!source) throw new Error('FILE_NOT_FOUND');
-                    const blob = await scoreSharingApi.downloadRevisionSource(id, source.source_id);
-                    filesApi.triggerDownload(blob, `score_${source.revision_id}.musicxml`);
-                    return;
-                }
-                if (mode === 'score') {
-                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
-                    if (!source) throw new Error('FILE_NOT_FOUND');
-                    const blob = await scoresApi.downloadRevisionSource(source.source_id);
-                    filesApi.triggerDownload(blob, `score_${id}.musicxml`);
-                    return;
-                }
+                const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
+                if (!source) throw new Error('FILE_NOT_FOUND');
+                const blob = await scoresApi.downloadRevisionSource(source.source_id);
+                filesApi.triggerDownload(blob, `score_${id}.musicxml`);
+                return;
             } else {
-                if (mode === 'grant') {
-                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
-                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
-                    for (const page of pages) {
-                        const blob = await scoreSharingApi.downloadRenderAsset(id, page.render_asset_id);
-                        filesApi.triggerDownload(blob, page.filename);
-                    }
-                    return;
-                }
-                if (mode === 'score') {
-                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
-                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
-                    const blob = pages.length === 1
-                        ? await scoresApi.downloadRenderAsset(pages[0].render_asset_id)
-                        : await scoresApi.downloadRenderAssetArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
-                    filesApi.triggerDownload(
-                        blob,
-                        pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
-                    );
-                    return;
-                }
+                const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
+                if (!pages.length) throw new Error('FILE_NOT_FOUND');
+                const blob = pages.length === 1
+                    ? await scoresApi.downloadRenderAsset(pages[0].render_asset_id)
+                    : await scoresApi.downloadRenderAssetArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
+                filesApi.triggerDownload(
+                    blob,
+                    pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
+                );
+                return;
             }
         } catch (error: unknown) {
             reportUnexpectedClientError(error, {
                 area: 'download',
                 action: 'download_asset',
-                mode,
                 id,
                 type,
             });
@@ -89,7 +67,7 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
                 variant: 'destructive',
             });
         }
-    }, [mode, id, assets, toast, t, tErrors]);
+    }, [id, assets, toast, t, tErrors]);
 
     return { handleDownload };
 }

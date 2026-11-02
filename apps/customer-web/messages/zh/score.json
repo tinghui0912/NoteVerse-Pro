@@ -1,6 +1,6 @@
 {
   "title": "乐谱详情",
-  "subtitle": "现在你可以播放、练习、分享、下载或继续编辑你的作品。",
+  "subtitle": "试听、练习、创建访客预览、下载或编辑你的乐谱。",
   "scoreFallbackTitle": "乐谱 {id}",
   "playScore": "播放乐谱",
   "pauseScore": "暂停播放",
@@ -25,7 +25,6 @@
   "breadcrumbLabel": "面包屑导航",
   "libraryBreadcrumb": "我的乐谱库",
   "actionsTitle": "功能操作",
-  "createShareAction": "创建分享",
   "collaborationAction": "协作者",
   "versionsAction": "版本记录",
   "loadingVersions": "正在加载版本记录...",
@@ -97,8 +96,7 @@
   "scoreInfoUpdated": "乐谱信息已更新。",
   "backToLibrary": "返回我的乐谱库",
   "versionLabel": "版本 v{version}",
-  "sharedInfo": "分享信息",
-  "sharedBy": "分享者",
   "allowed": "允许",
-  "notAllowed": "不允许"
+  "notAllowed": "不允许",
+  "guestPreviewAction": "访客预览"
 }

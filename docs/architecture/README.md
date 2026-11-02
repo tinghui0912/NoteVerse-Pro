@@ -37,7 +37,7 @@ accepted current decisions and their rationale.
 
 - [ADR 0002: Jobs, Scores and Linear Revisions](../adr/0002-job-score-and-linear-revisions.md)
 - [ADR 0003: Sources, Assets and Metadata](../adr/0003-score-artifacts-and-metadata-projection.md)
-- [ADR 0004: Access and Sharing](../adr/0004-score-access-and-sharing.md)
+- [ADR 0004: Access, Collaboration and Guest Preview](../adr/0004-score-access-collaboration-and-guest-preview.md)
 - [ADR 0005: Review Before Score Creation](../adr/0005-review-pipeline-before-score.md)
 - [ADR 0006: Control-Plane API Boundary](../adr/0006-control-plane-api-boundary.md)
 - [ADR 0007: Editor Domain Model](../adr/0007-editor-domain-model.md)

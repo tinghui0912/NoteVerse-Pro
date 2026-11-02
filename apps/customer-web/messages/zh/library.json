@@ -22,7 +22,6 @@
   "favorites": "收藏",
   "toPractice": "待练习",
   "mastered": "已掌握",
-  "bookmarks": "已保存分享",
   "trash": "回收站",
   "quickViews": "快捷视图",
   "practiceStatus": "练习状态",
@@ -57,7 +56,6 @@
   "retry": "重试",
   "moreActions": "更多操作",
   "libraryEntry": "乐谱库",
-  "bookmark": "收藏",
   "renameFolder": "重命名",
   "moveFolder": "移动目录",
   "moveToFolder": "移动到目录",
@@ -88,5 +86,5 @@
   "moveToTitle": "移动至目录",
   "moveToDescription": "为已选择的 {count} 份乐谱选择目标目录。",
   "deleteEntriesTitle": "从乐谱库移除",
-  "deleteEntriesDescription": "确定从乐谱库移除已选择的 {count} 份乐谱吗？这不会删除乐谱本身，也不会影响分享、协作者或存储用量。"
+  "deleteEntriesDescription": "确定从乐谱库移除已选择的 {count} 份乐谱吗？这不会删除乐谱本身，也不会影响访客预览、协作者或存储用量。"
 }

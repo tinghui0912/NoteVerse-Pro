@@ -145,9 +145,9 @@ export type ApiResponseFingeringResultRead = {
 };
 
 /**
- * APIResponse[GrantAccessRead]
+ * APIResponse[GuestPreviewCreatedRead]
  */
-export type ApiResponseGrantAccessRead = {
+export type ApiResponseGuestPreviewCreatedRead = {
     /**
      * Code
      *
@@ -157,7 +157,7 @@ export type ApiResponseGrantAccessRead = {
     /**
      * Response payload
      */
-    data?: GrantAccessRead | null;
+    data?: GuestPreviewCreatedRead | null;
     /**
      * Message
      *
@@ -173,9 +173,9 @@ export type ApiResponseGrantAccessRead = {
 };
 
 /**
- * APIResponse[GrantBookmarkRead]
+ * APIResponse[GuestPreviewListItem]
  */
-export type ApiResponseGrantBookmarkRead = {
+export type ApiResponseGuestPreviewListItem = {
     /**
      * Code
      *
@@ -185,7 +185,7 @@ export type ApiResponseGrantBookmarkRead = {
     /**
      * Response payload
      */
-    data?: GrantBookmarkRead | null;
+    data?: GuestPreviewListItem | null;
     /**
      * Message
      *
@@ -201,9 +201,9 @@ export type ApiResponseGrantBookmarkRead = {
 };
 
 /**
- * APIResponse[GrantCreatedRead]
+ * APIResponse[GuestPreviewRead]
  */
-export type ApiResponseGrantCreatedRead = {
+export type ApiResponseGuestPreviewRead = {
     /**
      * Code
      *
@@ -213,63 +213,7 @@ export type ApiResponseGrantCreatedRead = {
     /**
      * Response payload
      */
-    data?: GrantCreatedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantRead]
- */
-export type ApiResponseGrantRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantRedeemRead]
- */
-export type ApiResponseGrantRedeemRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantRedeemRead | null;
+    data?: GuestPreviewRead | null;
     /**
      * Message
      *
@@ -1415,9 +1359,9 @@ export type ApiResponseDictStrInt = {
 };
 
 /**
- * APIResponse[list[GrantRead]]
+ * APIResponse[list[GuestPreviewListItem]]
  */
-export type ApiResponseListGrantRead = {
+export type ApiResponseListGuestPreviewListItem = {
     /**
      * Code
      *
@@ -1429,7 +1373,7 @@ export type ApiResponseListGrantRead = {
      *
      * Response payload
      */
-    data?: Array<GrantRead> | null;
+    data?: Array<GuestPreviewListItem> | null;
     /**
      * Message
      *
@@ -1808,75 +1752,9 @@ export type ForgotPasswordRequest = {
 };
 
 /**
- * GrantAccessRead
+ * GuestPreviewCreateRequest
  */
-export type GrantAccessRead = {
-    capabilities: ScoreCapabilities;
-    derived_assets: ScoreDerivedAssetsRead;
-    metadata: MetadataRead | null;
-    revision_assets: ScoreRevisionAssetsRead;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Shared At
-     */
-    shared_at: string;
-    shared_by: ShareActorRead | null;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
-    /**
-     * Title
-     */
-    title: string;
-};
-
-/**
- * GrantBookmarkRead
- */
-export type GrantBookmarkRead = {
-    /**
-     * Available
-     */
-    available: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Entry Id
-     */
-    entry_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Unavailable Reason
-     */
-    unavailable_reason: string | null;
-};
-
-/**
- * GrantCreateRequest
- */
-export type GrantCreateRequest = {
-    access_mode?: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download?: boolean;
+export type GuestPreviewCreateRequest = {
     /**
      * Expires At
      */
@@ -1884,14 +1762,9 @@ export type GrantCreateRequest = {
 };
 
 /**
- * GrantCreatedRead
+ * GuestPreviewCreatedRead
  */
-export type GrantCreatedRead = {
-    access_mode: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download: boolean;
+export type GuestPreviewCreatedRead = {
     /**
      * Created At
      */
@@ -1899,38 +1772,11 @@ export type GrantCreatedRead = {
     /**
      * Expires At
      */
-    expires_at: string | null;
+    expires_at: string;
     /**
-     * Grant Id
+     * Preview Id
      */
-    grant_id: string;
-    /**
-     * Token
-     */
-    token: string;
-};
-
-/**
- * GrantRead
- */
-export type GrantRead = {
-    access_mode: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string | null;
-    /**
-     * Grant Id
-     */
-    grant_id: string;
+    preview_id: string;
     /**
      * Revoked At
      */
@@ -1938,21 +1784,69 @@ export type GrantRead = {
     /**
      * Token
      */
-    token?: string | null;
+    token: string;
 };
 
 /**
- * GrantRedeemRead
+ * GuestPreviewListItem
  */
-export type GrantRedeemRead = {
+export type GuestPreviewListItem = {
     /**
-     * Can Practice
+     * Created At
      */
-    can_practice: boolean;
+    created_at: string;
     /**
-     * Score Id
+     * Expires At
      */
-    score_id: string;
+    expires_at: string;
+    /**
+     * Preview Id
+     */
+    preview_id: string;
+    /**
+     * Revoked At
+     */
+    revoked_at: string | null;
+};
+
+/**
+ * GuestPreviewPageRead
+ */
+export type GuestPreviewPageRead = {
+    /**
+     * Asset Id
+     */
+    asset_id: string;
+    /**
+     * Page Number
+     */
+    page_number: number;
+};
+
+/**
+ * GuestPreviewRead
+ */
+export type GuestPreviewRead = {
+    /**
+     * Audio Available
+     */
+    audio_available: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Render Assets
+     */
+    render_assets: Array<GuestPreviewPageRead>;
+    /**
+     * Shared By
+     */
+    shared_by: string;
     /**
      * Title
      */
@@ -2471,7 +2365,7 @@ export type LibraryEntryRead = {
 /**
  * LibraryEntrySourceType
  */
-export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
+export type LibraryEntrySourceType = 'SELF_ADDED';
 
 /**
  * LibraryEntryUpdateRequest
@@ -2617,7 +2511,7 @@ export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_de
 /**
  * LibraryView
  */
-export type LibraryView = 'all' | 'favorites' | 'recent_practice' | 'to_practice' | 'mastered' | 'bookmarks' | 'trash';
+export type LibraryView = 'all' | 'favorites' | 'recent_practice' | 'to_practice' | 'mastered' | 'trash';
 
 /**
  * MemberRead
@@ -4047,11 +3941,6 @@ export type RevisionSourceRead = {
 };
 
 /**
- * ScoreAudienceAccessMode
- */
-export type ScoreAudienceAccessMode = 'VIEW' | 'PRACTICE';
-
-/**
  * ScoreBatchDeleteRequest
  */
 export type ScoreBatchDeleteRequest = {
@@ -4078,13 +3967,13 @@ export type ScoreCapabilities = {
      */
     can_edit: boolean;
     /**
+     * Can Manage Guest Previews
+     */
+    can_manage_guest_previews: boolean;
+    /**
      * Can Manage Members
      */
     can_manage_members: boolean;
-    /**
-     * Can Manage Sharing
-     */
-    can_manage_sharing: boolean;
     /**
      * Can Practice
      */
@@ -4353,20 +4242,6 @@ export type SessionsRead = {
      * Sessions
      */
     sessions: Array<SessionSummary>;
-};
-
-/**
- * ShareActorRead
- */
-export type ShareActorRead = {
-    /**
-     * Avatar Url
-     */
-    avatar_url: string | null;
-    /**
-     * Display Name
-     */
-    display_name: string | null;
 };
 
 /**
@@ -4829,6 +4704,96 @@ export type DeleteFileApiV1FilesFilenameDeleteResponses = {
 };
 
 export type DeleteFileApiV1FilesFilenameDeleteResponse = DeleteFileApiV1FilesFilenameDeleteResponses[keyof DeleteFileApiV1FilesFilenameDeleteResponses];
+
+export type ReadGuestPreviewApiV1GuestPreviewsTokenGetData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/v1/guest-previews/{token}';
+};
+
+export type ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReadGuestPreviewApiV1GuestPreviewsTokenGetError = ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors[keyof ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors];
+
+export type ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseGuestPreviewRead;
+};
+
+export type ReadGuestPreviewApiV1GuestPreviewsTokenGetResponse = ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses[keyof ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses];
+
+export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/v1/guest-previews/{token}/playback';
+};
+
+export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetError = ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors[keyof ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors];
+
+export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/api/v1/guest-previews/{token}/render-assets/{asset_id}/view';
+};
+
+export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetError = ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors[keyof ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors];
+
+export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListJobsApiV1ImportJobsGetData = {
     body?: never;
@@ -6501,220 +6466,6 @@ export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetRespons
     200: unknown;
 };
 
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}';
-};
-
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetError = AccessScoreGrantApiV1ScoreGrantsTokenGetErrors[keyof AccessScoreGrantApiV1ScoreGrantsTokenGetErrors];
-
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantAccessRead;
-};
-
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetResponse = AccessScoreGrantApiV1ScoreGrantsTokenGetResponses[keyof AccessScoreGrantApiV1ScoreGrantsTokenGetResponses];
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/bookmark';
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostError = BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors[keyof BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors];
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantBookmarkRead;
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponse = BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses[keyof BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses];
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/playback';
-};
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetError = StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors[keyof StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors];
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/redeem';
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostError = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors];
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantRedeemRead;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponse = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses];
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/render-assets/{render_asset_id}/download';
-};
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetError = DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors];
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/render-assets/{render_asset_id}/view';
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetError = ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors[keyof ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors];
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Source Id
-         */
-        source_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/revision-sources/{source_id}/download';
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetError = DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors[keyof DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors];
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
 export type BatchDeleteScoresApiV1ScoresBatchDeletePostData = {
     body: ScoreBatchDeleteRequest;
     path?: never;
@@ -6740,95 +6491,65 @@ export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponses = {
 
 export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponse = BatchDeleteScoresApiV1ScoresBatchDeletePostResponses[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostResponses];
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteData = {
+export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteData = {
     body?: never;
     path: {
         /**
-         * Grant Id
+         * Preview Id
          */
-        grant_id: string;
+        preview_id: string;
     };
     query?: never;
-    url: '/api/v1/scores/grants/{grant_id}';
+    url: '/api/v1/scores/guest-previews/{preview_id}';
 };
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors = {
+export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteError = DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors[keyof DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors];
+export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteError = DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors[keyof DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors];
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses = {
+export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseDictStrBool;
 };
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponse = DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses[keyof DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses];
+export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponse = DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses[keyof DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses];
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostData = {
+export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostData = {
     body?: never;
     path: {
         /**
-         * Grant Id
+         * Preview Id
          */
-        grant_id: string;
+        preview_id: string;
     };
     query?: never;
-    url: '/api/v1/scores/grants/{grant_id}/restore';
+    url: '/api/v1/scores/guest-previews/{preview_id}/revoke';
 };
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors = {
+export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostError = RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors[keyof RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors];
+export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostError = RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors[keyof RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors];
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses = {
+export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGrantRead;
+    200: ApiResponseGuestPreviewListItem;
 };
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponse = RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses[keyof RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses];
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostData = {
-    body?: never;
-    path: {
-        /**
-         * Grant Id
-         */
-        grant_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/grants/{grant_id}/revoke';
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostError = RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors[keyof RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors];
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantRead;
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponse = RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses[keyof RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses];
+export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponse = RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses[keyof RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses];
 
 export type GetScoreApiV1ScoresScoreIdGetData = {
     body?: never;
@@ -6920,7 +6641,7 @@ export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses = {
 
 export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponse = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses];
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetData = {
+export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetData = {
     body?: never;
     path: {
         /**
@@ -6934,29 +6655,29 @@ export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetData = {
          */
         limit?: number;
     };
-    url: '/api/v1/scores/{score_id}/grants';
+    url: '/api/v1/scores/{score_id}/guest-previews';
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors = {
+export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetError = ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors[keyof ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors];
+export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetError = ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors[keyof ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors];
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses = {
+export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListGrantRead;
+    200: ApiResponseListGuestPreviewListItem;
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponse = ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses[keyof ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses];
+export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponse = ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses[keyof ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses];
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostData = {
-    body: GrantCreateRequest;
+export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostData = {
+    body: GuestPreviewCreateRequest;
     path: {
         /**
          * Score Id
@@ -6964,26 +6685,26 @@ export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostData = {
         score_id: string;
     };
     query?: never;
-    url: '/api/v1/scores/{score_id}/grants';
+    url: '/api/v1/scores/{score_id}/guest-previews';
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors = {
+export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostError = CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors[keyof CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors];
+export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostError = CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors[keyof CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors];
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses = {
+export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGrantCreatedRead;
+    200: ApiResponseGuestPreviewCreatedRead;
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponse = CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses[keyof CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses];
+export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponse = CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses[keyof CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses];
 
 export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetData = {
     body?: never;

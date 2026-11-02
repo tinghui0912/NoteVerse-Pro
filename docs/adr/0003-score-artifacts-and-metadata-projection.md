@@ -22,8 +22,9 @@ Canonical source content, visual render output, playable output and queryable me
    are produced asynchronously after revision creation.
 7. Score detail and list read models may expose the latest available derived assets, including
    fallback assets from a previous revision when the current revision is still generating.
-8. External share APIs expose only presentation-safe derived assets by
-   default. Revision source download is included only when policy grants download permission.
+8. Guest Preview exposes only its pinned revision’s rendered pages and generated audio.
+   It delivers no revision sources and never falls back to another revision. Active
+   previews retain their pinned presentation assets within the Score lifetime.
 9. Import-job review artifacts remain job-scoped pipeline artifacts until the user confirms
    the review and creates a score revision.
 10. Verovio page count is render/layout information. UI may display unknown while render and
@@ -59,7 +60,7 @@ jobs/{job_uuid}/{kind}/...
 ## Consequences
 
 - Canonical MusicXML is stored separately from derived images.
-- External sharing can play audio and show thumbnails without exposing score structure.
+- Guest Preview displays exact pinned rendered pages and audio without exposing score structure.
 - Render and playback retention can delete stale derived assets without deleting source
   history.
 - Metadata stays efficient to query and can be rebuilt independently.

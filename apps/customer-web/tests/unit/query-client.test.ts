@@ -34,7 +34,7 @@ describe('queryKeys', () => {
     ]);
   });
 
-  it('keeps revision, artifact, grant and invite identities in score keys', () => {
+  it('keeps revision, asset, preview and invite identities in score keys', () => {
     expect(queryKeys.scores.revisions('score-1')).toEqual([
       'scores',
       'revision',
@@ -50,14 +50,13 @@ describe('queryKeys', () => {
       'revision-assets',
       { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.scores.grants('score-1')).toEqual([
+    expect(queryKeys.scores.guestPreviews('score-1')).toEqual([
       'scores',
-      'grant',
+      'guest-previews',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.scores.grantAccess('token-1')).toEqual([
-      'scores',
-      'grant-access',
+    expect(queryKeys.scores.guestPreview('token-1')).toEqual([
+      'guest-preview',
       { token: 'token-1' },
     ]);
     expect(queryKeys.scores.invites('score-1')).toEqual([

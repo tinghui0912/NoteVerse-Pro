@@ -33,7 +33,7 @@ export function ScoreHeroActions({
   const t = useTranslations('score');
   const common = useTranslations('common');
   const { capabilities } = useScoreCapabilities();
-  const { handleDownload } = useDownload({ mode: 'score', id: scoreId, assets: revisionAssets });
+  const { handleDownload } = useDownload({  id: scoreId, assets: revisionAssets });
   const downloads = scoreDownloadAvailability(revisionAssets);
   const downloadAvailable = capabilities.can_download;
 

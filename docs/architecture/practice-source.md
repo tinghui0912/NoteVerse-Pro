@@ -189,7 +189,7 @@ access. If unavailable, raw Take playback and download remain usable.
 
 An upload request submits source: { source_id }, scope/tempo selections and recording/media
 evidence. `PracticeSourceService.authorize_source_for_save` owns lock-bearing admission.
-It obtains locks in Score -> Revision -> selected membership/grant/redemption -> Source
+It obtains locks in Score -> Revision -> selected membership -> Source
 order. The ordinary read-only ScoreAccessPolicy remains unchanged. Authorization facts
 and READY representation verification stay protected until the reservation commits.
 

@@ -129,11 +129,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
-  it('separates local video export routes and adapters from external Score Sharing', () => {
+  it('separates local video export routes and adapters from Guest Preview presentation', () => {
     const saved = path.join(sourceRoot, 'app/[locale]/(app)/my-performances/[takeId]/video-export/page.tsx');
-    const externalShare = path.join(sourceRoot, 'app/[locale]/(external)/share/[shareId]/page.tsx');
+    const guestPreview = path.join(sourceRoot, 'app/[locale]/(guest-preview)/preview/[token]/page.tsx');
     expect(existsSync(saved)).toBe(true);
-    expect(existsSync(externalShare)).toBe(true);
+    expect(existsSync(guestPreview)).toBe(true);
     const savedBindings = imports(saved).flatMap(edge => edge.bindings);
     expect(savedBindings).toEqual(expect.arrayContaining([
       'VideoExportStudio', 'createVideoExportSessionFromSavedTake', 'useSavedTakeExportSource',
@@ -146,7 +146,7 @@ describe('Practice bounded domain dependencies', () => {
       for (const edge of imports(file)) {
         if (edge.typeOnly) continue;
         expect(edge.target?.startsWith(normalize(path.join(sourceRoot, 'lib/api')) + '/')).toBeFalsy();
-        expect(edge.target?.startsWith(normalize(path.join(sourceRoot, 'hooks/share')) + '/')).toBeFalsy();
+        expect(edge.target?.startsWith(normalize(path.join(sourceRoot, 'hooks/guest-preview')) + '/')).toBeFalsy();
       }
     }
   });

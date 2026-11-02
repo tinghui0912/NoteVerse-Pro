@@ -1,6 +1,6 @@
 # NoteVerse Pro Backend
 
-FastAPI backend for task processing, MusicXML editing, file management, sharing,
+FastAPI backend for task processing, MusicXML editing, file management, Guest Preview,
 profile management, and Celery-based background workflows.
 
 ## Stack
@@ -41,7 +41,7 @@ Main feature modules:
 - `revisions`
 - `score_assets`
 - `score_invites`
-- `score_sharing`
+- `guest_previews`
 - `scores`
 - `storage_usage`
 

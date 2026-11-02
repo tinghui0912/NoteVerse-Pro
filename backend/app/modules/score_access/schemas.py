@@ -7,7 +7,7 @@ class ScoreCapabilities(BaseModel):
     can_view: bool
     can_edit: bool
     can_delete: bool
-    can_manage_sharing: bool
+    can_manage_guest_previews: bool
     can_manage_members: bool
     can_download: bool
     can_practice: bool

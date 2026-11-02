@@ -23,7 +23,7 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
         "submission_and_polling": "job_id",
         "review": "job_id",
         "review_editor": "job_id",
-        "score_detail_editor_history_sharing": "score_id",
+        "score_detail_editor_history_guest_previews": "score_id",
         "practice_snapshot": "revision_id",
     }
     assert invariants["revision_is_immutable"] is True
@@ -38,8 +38,7 @@ def test_score_domain_contract_freezes_access_and_error_vocabulary() -> None:
 
     assert contract["enums"]["membership_role"] == ["EDITOR", "VIEWER"]
     assert contract["invariants"]["anonymous_edit_is_forbidden"] is True
-    assert contract["invariants"]["bookmark_grants_access"] is False
-    assert contract["invariants"]["raw_share_token_is_persisted"] is False
+    assert contract["invariants"]["raw_guest_preview_token_is_persisted"] is False
     assert set(contract["capabilities"]) == set(contract["examples"]["score_capabilities"])
     assert {
         "score_not_found",
@@ -47,7 +46,7 @@ def test_score_domain_contract_freezes_access_and_error_vocabulary() -> None:
         "revision_conflict",
         "artifact_not_found",
         "metadata_not_ready",
-        "share_grant_login_required",
+        "guest_preview_not_found",
         "score_access_denied",
     }.issubset(contract["error_codes"])
 

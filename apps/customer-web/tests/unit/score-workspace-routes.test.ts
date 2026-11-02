@@ -15,7 +15,7 @@ describe('score workspace routes', () => {
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/summary/page.tsx'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/(app)/review/[jobId]/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(external)/share/[shareId]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(guest-preview)/preview/[token]/page.tsx'))).toBe(true);
 
     expect(existsSync(projectPath('src/app/[locale]/results'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/editor'))).toBe(false);
@@ -27,7 +27,7 @@ describe('score workspace routes', () => {
 
     expect(proxy).toContain("'/score'");
     expect(proxy).toContain("'/review'");
-    expect(proxy).not.toContain("'/share'");
+    expect(proxy).not.toContain("'/preview'");
     expect(proxy).not.toContain("'/results'");
     expect(proxy).not.toContain("'/editor'");
     expect(proxy).not.toContain("'/practice'");
@@ -50,16 +50,12 @@ describe('score workspace routes', () => {
     expect(actions).not.toContain('/practice/${scoreId}');
   });
 
-  it('keeps bearer Share routes as score access entries', () => {
-    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-
-    expect(sharePage).toContain('<ScoreSurface');
-    expect(sharePage).toContain("router.push(practiceLocation(response.data.score_id, 'setup'))");
-    expect(sharePage).toContain("router.replace(practiceLocation(response.data.score_id, 'setup'))");
-    expect(sharePage).toContain('<ScoreCapabilityProvider');
-    expect(sharePage).toContain('capabilities={data.capabilities}');
-    expect(sharePage).toContain('playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}');
-    expect(sharePage).not.toContain('/score/${data.score_id}/practice?shareToken=${shareId}');
+  it('places preview presentation in its dedicated route and shell', () => {
+    const page = readSource('src/app/[locale]/(guest-preview)/preview/[token]/page.tsx');
+    const layout = readSource('src/app/[locale]/(guest-preview)/layout.tsx');
+    expect(page).toContain('<GuestPreviewPage token={token}');
+    expect(page).toContain('noarchive: true');
+    expect(layout).toContain('<LanguageSwitcher');
   });
 
   it('centralizes view/share capabilities without a score shell wrapper', () => {
@@ -67,7 +63,6 @@ describe('score workspace routes', () => {
     const capabilityContext = readSource('src/components/score/score-capability-context.tsx');
     const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
     const metadata = readSource('src/components/score-detail/score-info-panel.tsx');
-    const externalActions = readSource('src/components/score-detail/external-score-actions.tsx');
 
     expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
     expect(surface).toContain('ScoreSurface');
@@ -76,8 +71,6 @@ describe('score workspace routes', () => {
     expect(capabilityContext).toContain('useScoreCapabilities');
     expect(actions).toContain('useScoreCapabilities');
     expect(metadata).toContain('useScoreCapabilities');
-    expect(externalActions).toContain('useScoreCapabilities');
     expect(actions).not.toContain('capabilities?:');
-    expect(externalActions).not.toContain('capabilities?:');
   });
 });

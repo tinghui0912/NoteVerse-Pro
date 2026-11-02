@@ -10,7 +10,7 @@
     "render_asset_kind": ["RENDERED_PAGE"],
     "playback_asset_kind": ["AUDIO"],
     "membership_role": ["EDITOR", "VIEWER"],
-    "access_origin": ["OWNER", "MEMBERSHIP", "SHARE"]
+    "access_origin": ["OWNER", "MEMBERSHIP", "GUEST_PREVIEW"]
   },
   "capabilities": [
     "can_view",
@@ -18,7 +18,7 @@
     "can_delete",
     "can_download",
     "can_practice",
-    "can_manage_sharing",
+    "can_manage_guest_previews",
     "can_manage_members"
   ],
   "policy_actions": [
@@ -29,7 +29,7 @@
     "DOWNLOAD_RENDER_ASSET",
     "PLAY_AUDIO",
     "START_PRACTICE",
-    "CREATE_SHARE",
+    "CREATE_GUEST_PREVIEW",
     "MANAGE_MEMBERS",
     "MANAGE_SCORE"
   ],
@@ -45,10 +45,9 @@
     "playback_asset_not_found",
     "metadata_not_ready",
     "metadata_extraction_failed",
-    "share_grant_not_found",
-    "share_grant_revoked",
-    "share_grant_expired",
-    "share_grant_login_required",
+    "guest_preview_not_found",
+    "guest_preview_revoked",
+    "guest_preview_expired",
     "membership_not_found",
     "score_access_denied"
   ],
@@ -56,7 +55,7 @@
     "submission_and_polling": "job_id",
     "review": "job_id",
     "review_editor": "job_id",
-    "score_detail_editor_history_sharing": "score_id",
+    "score_detail_editor_history_guest_previews": "score_id",
     "practice_snapshot": "revision_id"
   },
   "review_contract": {
@@ -77,23 +76,24 @@
     "playback_assets_are_rebuildable": true,
     "metadata_is_rebuildable_projection": true,
     "anonymous_edit_is_forbidden": true,
-    "bookmark_grants_access": false,
-    "raw_share_token_is_persisted": false,
     "practice_pins_revision": true,
     "score_exists_only_after_review_confirm": true,
     "review_editor_updates_job_artifact_only": true,
     "review_artifacts_are_not_shareable": true,
-    "external_musicxml_requires_download_permission": true
+    "guest_preview_exposes_machine_readable_source": false,
+    "raw_guest_preview_token_is_persisted": false,
+    "guest_preview_pins_revision": true,
+    "guest_preview_is_presentation_only": true
   },
   "examples": {
     "score_capabilities": {
       "can_view": true,
       "can_edit": false,
       "can_delete": false,
-      "can_download": true,
+      "can_download": false,
       "can_practice": true,
-      "can_manage_sharing": false,
-      "can_manage_members": false
+      "can_manage_members": false,
+      "can_manage_guest_previews": false
     },
     "review_update_request": {
       "content": "<score-partwise />"

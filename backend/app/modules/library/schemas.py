@@ -17,7 +17,6 @@ class LibraryView(str, Enum):
     RECENT_PRACTICE = "recent_practice"
     TO_PRACTICE = "to_practice"
     MASTERED = "mastered"
-    BOOKMARKS = "bookmarks"
     TRASH = "trash"
 
 

@@ -1,20 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { mockGuestPreview } from './support/guest-preview';
 
 const scoreId = 'shell-score';
-const revisionId = 'shell-revision';
-const musicXml =
-  '<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part></score-partwise>';
-
-const capabilities = {
-  can_view: true,
-  can_edit: true,
-  can_delete: true,
-  can_manage_sharing: true,
-  can_download: true,
-  can_practice: true,
-
-};
-
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/auth/refresh', (route) =>
     route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
@@ -25,48 +12,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('anonymous users can access public and external shells without AppShell sidebar', async ({ page }) => {
-  await page.route('**/api/v1/score-grants/shell-share', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          score_id: scoreId,
-          revision_id: revisionId,
-          title: 'Shared Shell Score',
-          taxonomy_tags: [],
-          shared_by: { display_name: 'Sharer', avatar_url: null },
-          shared_at: '2026-06-23T00:00:00Z',
-          metadata: null,
-          derived_assets: {
-            preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-            audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-          },
-          revision_assets: { revision_sources: [], render_assets: [] },
-          capabilities: { ...capabilities, can_edit: false, can_manage_sharing: false, },
-        },
-      }),
-    })
-  );
-  await page.route('**/api/v1/score-grants/shell-share/content', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { score_id: scoreId, revision_id: revisionId, mime_type: 'application/xml', content: musicXml },
-      }),
-    })
-  );
-  for (const path of ['/en/subscriptions', '/en/help', '/en/share/shell-share']) {
+  await mockGuestPreview(page, 'shell-preview');
+  for (const path of ['/en/subscriptions', '/en/help', '/en/preview/shell-preview']) {
     await page.goto(path);
     await expect(page).not.toHaveURL(/\/auth\/login/);
     await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
   }
 
-  await expect(page.getByRole('heading', { name: 'Shared Shell Score' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Guest Score' })).toBeVisible();
 });
 
 test('invite routes use InviteShell instead of public marketing navigation', async ({ page }) => {

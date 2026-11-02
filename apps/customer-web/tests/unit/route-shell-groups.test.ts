@@ -32,7 +32,6 @@ describe('route shell groups', () => {
     for (const shellName of [
       'app-shell',
       'auth-shell',
-      'external-viewer-shell',
       'invite-shell',
       'public-shell',
       'workspace-shell',
@@ -99,22 +98,10 @@ describe('route shell groups', () => {
     }
   });
 
-  it('keeps external viewer components in the external component directory', () => {
-    expect(existsSync(projectPath('src/components/score-detail/score-detail-hero.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/components/score-detail/external-score-actions.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/components/public'))).toBe(false);
-    expect(existsSync(projectPath('src/components/share'))).toBe(false);
 
-    const shareEntry = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-
-    expect(shareEntry).toContain('@/components/score-detail/score-detail-hero');
-    expect(shareEntry).toContain('@/components/score-detail/external-score-actions');
-  });
-
-  it('uses one authenticated nav action pattern across public, external, and workspace shells', () => {
+  it('uses one authenticated nav action pattern across public, invite, and workspace shells', () => {
     const actions = readSource('src/components/navigation/nav-actions.tsx');
     const publicNav = readSource('src/components/navigation/public-nav.tsx');
-    const externalShell = readSource('src/components/shell/external-viewer-shell.tsx');
     const inviteShell = readSource('src/components/shell/invite-shell.tsx');
     const workspaceShell = readSource('src/components/shell/workspace-shell.tsx');
 
@@ -129,9 +116,7 @@ describe('route shell groups', () => {
 
     expect(publicNav).toContain('<AuthenticatedNavActions />');
     expect(workspaceShell).toContain('<AuthenticatedNavActions showNotifications');
-    expect(externalShell).toContain('<AuthenticatedNavActions showNotifications');
     expect(inviteShell).toContain('<AuthenticatedNavActions showNotifications');
-    expect(externalShell).not.toContain("t('openApp')");
   });
 
   it('keeps resource load errors explicit and visually consistent', () => {
@@ -152,7 +137,7 @@ describe('route shell groups', () => {
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
-    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
+    const previewPage = readSource('src/components/external/guest-preview-page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
@@ -199,7 +184,7 @@ describe('route shell groups', () => {
     expect(securityPanel).toContain('SectionErrorState');
     expect(sessionsPanel).toContain('SectionErrorState');
 
-    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, invitePage]) {
+    for (const source of [reviewPage, scorePage, editorWorkspace, previewPage, invitePage]) {
       expect(source).toContain('ResourceLoadError');
     }
 
@@ -229,7 +214,7 @@ describe('route shell groups', () => {
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
-    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
+    const previewPage = readSource('src/components/external/guest-preview-page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const myScoresPage = readSource('src/app/[locale]/(app)/my-scores/page.tsx');
@@ -248,7 +233,7 @@ describe('route shell groups', () => {
     expect(scorePage).toContain("common('loadingScoreData')");
     expect(reviewPage).toContain("common('loadingReviewData')");
     expect(editorWorkspace).toContain("common('loadingScoreData')");
-    expect(sharePage).toContain("common('loadingShareData')");
+    expect(previewPage).toContain("t('loading')");
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain('PracticeScoreViewer');
     expect(myScoresPage).toContain("t('loading')");
@@ -261,7 +246,7 @@ describe('route shell groups', () => {
     expect(practiceScoreViewer).toContain('PreviewLoading');
     expect(reviewScoreComparison).toContain('PreviewLoading');
 
-    for (const source of [scorePage, reviewPage, editorWorkspace, sharePage, invitePage]) {
+    for (const source of [scorePage, reviewPage, editorWorkspace, previewPage, invitePage]) {
       expect(source).toContain('ResourceLoading');
     }
 

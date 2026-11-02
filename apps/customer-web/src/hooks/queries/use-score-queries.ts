@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
+import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringRequest } from '@/generated/api';
 
@@ -122,63 +122,6 @@ export function useGenerateScoreFingering() {
       content: string;
       hand_size?: FingeringRequest['hand_size'];
     }) => scoresApi.generateFingering(scoreId, input),
-  });
-}
-
-export function useScoreGrants(scoreId: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.scores.grants(scoreId),
-    queryFn: ({ signal }) => scoreSharingApi.listGrants(scoreId, { signal }),
-    enabled: enabled && Boolean(scoreId),
-  });
-}
-
-export function useCreateScoreGrant(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Parameters<typeof scoreSharingApi.createGrant>[1]) =>
-      scoreSharingApi.createGrant(scoreId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
-    },
-  });
-}
-
-export function useRevokeScoreGrant(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (grantId: string) => scoreSharingApi.revokeGrant(grantId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
-    },
-  });
-}
-
-export function useRestoreScoreGrant(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (grantId: string) => scoreSharingApi.restoreGrant(grantId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
-    },
-  });
-}
-
-export function useDeleteScoreGrant(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (grantId: string) => scoreSharingApi.deleteGrant(grantId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
-    },
-  });
-}
-
-export function useGrantAccess(token: string) {
-  return useQuery({
-    queryKey: queryKeys.scores.grantAccess(token),
-    queryFn: ({ signal }) => scoreSharingApi.access(token, signal),
-    enabled: Boolean(token),
   });
 }
 

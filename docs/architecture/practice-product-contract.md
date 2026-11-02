@@ -1003,7 +1003,7 @@ second client payload.
 
 VideoExport is a browser-local composition/download capability. Its transient output
 is downloaded to the user's device. It owns no durable server asset and grants no
-sharing access. PerformanceTake owns the raw recording; Score Sharing is a separate
+sharing access. PerformanceTake owns the raw recording; Guest Preview is a separate
 authorization domain. Saved exports use `/my-performances/{takeId}/video-export`.
 
 Review annotations remain ephemeral presentation of result.evaluation, with the

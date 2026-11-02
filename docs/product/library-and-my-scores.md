@@ -16,7 +16,7 @@ management surfaces.
 
 - scores owned by the current user;
 - import/review state;
-- share, collaboration, edit, delete, and restore-oriented actions;
+- Guest Preview, collaboration, edit, delete, and restore-oriented actions;
 - owner-level lifecycle management.
 
 My Scores exposes All works, Processing, Pending review and Failed views. The client
@@ -43,5 +43,5 @@ transfer.
 
 ## Authority
 
-[Score access policy](../adr/0004-score-access-and-sharing.md) defines authorization.
+[Score access policy](../adr/0004-score-access-collaboration-and-guest-preview.md) defines authorization.
 Library entries organize access without granting it.

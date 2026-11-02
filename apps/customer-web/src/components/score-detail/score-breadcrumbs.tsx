@@ -10,10 +10,8 @@ export function ScoreBreadcrumbs({
   scoreTitle: string;
   source: ScoreDetailSource | null;
 }) {
-  const library = useTranslations('library');
   const common = useTranslations('common');
   const scoreText = useTranslations('score');
-  const sourceLabel = source === 'shares' ? library('favorites') : common('nav.myScores');
   const rootLabel = source === 'my-scores' ? common('nav.myScores') : scoreText('libraryBreadcrumb');
   const rootHref = source === 'my-scores' ? '/my-scores' : '/library';
 
@@ -25,19 +23,6 @@ export function ScoreBreadcrumbs({
             {rootLabel}
           </Link>
         </li>
-        {source === 'shares' ? (
-          <>
-            <li aria-hidden="true"><ChevronRight className="h-4 w-4" /></li>
-            <li className="shrink-0">
-              <Link
-                href="/library?view=favorites"
-                className="transition-colors hover:text-foreground"
-              >
-                {sourceLabel}
-              </Link>
-            </li>
-          </>
-        ) : null}
         <li aria-hidden="true"><ChevronRight className="h-4 w-4" /></li>
         <li aria-current="page" className="min-w-0 truncate font-medium text-foreground">
           {scoreTitle}

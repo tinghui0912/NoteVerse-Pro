@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, apiClient } from '@/lib/api-client';
+import { reportClientError } from '@/lib/observability';
+
+vi.mock('@/lib/observability', () => ({ reportClientError: vi.fn() }));
 
 describe('api client error contract', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('redacts Guest Preview bearer material from transport error context', async () => {
+    const failure = new TypeError('Failed to fetch');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));
+    await expect(apiClient.get('/guest-previews/private-token')).rejects.toBe(failure);
+    expect(reportClientError).toHaveBeenLastCalledWith(failure, {
+      area: 'api_client', action: 'fetch', method: 'GET',
+      path: '/api/v1/guest-previews/[redacted]',
+    });
   });
 
   it('uses a stable error code for non-json server failures', async () => {

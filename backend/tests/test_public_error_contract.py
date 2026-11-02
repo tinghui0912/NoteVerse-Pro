@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_db
 from app.core.config import settings
 from app.main import app
-from app.modules.playback.router import get_playback_delivery_service
+from app.modules.guest_previews.dependencies import get_guest_preview_service
 from app.shared.constants import ErrorCode
 
 
@@ -64,22 +64,22 @@ def test_ordinary_csrf_errors_do_not_expose_security_details(client: TestClient)
 
 def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
     class FailingPlaybackService:
-        async def grant_delivery(self, db, token: str, user_id: int | None):
+        async def audio(self, db, token: str):
             raise RuntimeError("redis worker failed while reading /internal/storage/path")
 
     async def fake_get_db() -> AsyncGenerator[object, None]:
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db
-    app.dependency_overrides[get_playback_delivery_service] = lambda: FailingPlaybackService()
+    app.dependency_overrides[get_guest_preview_service] = lambda: FailingPlaybackService()
     try:
         with TestClient(app, raise_server_exceptions=False) as client:
             response = client.get(
-                "/api/v1/score-grants/share-token/playback",
+                "/api/v1/guest-previews/preview-token/playback",
                 headers={"X-Request-ID": "public-500-contract"},
             )
     finally:
-        app.dependency_overrides.pop(get_playback_delivery_service, None)
+        app.dependency_overrides.pop(get_guest_preview_service, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 500

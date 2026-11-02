@@ -1,6 +1,6 @@
 {
   "title": "Score Details",
-  "subtitle": "You can now listen, practice, share, download, or continue editing your work.",
+  "subtitle": "Listen, practice, create a Guest Preview, download, or edit your score.",
   "scoreFallbackTitle": "Score {id}",
   "playScore": "Play Score",
   "pauseScore": "Pause Score",
@@ -25,7 +25,6 @@
   "breadcrumbLabel": "Breadcrumb",
   "libraryBreadcrumb": "My Library",
   "actionsTitle": "Actions",
-  "createShareAction": "Create Share",
   "collaborationAction": "Collaborators",
   "versionsAction": "Version History",
   "loadingVersions": "Loading version history...",
@@ -97,8 +96,7 @@
   "scoreInfoUpdated": "Score info has been updated.",
   "backToLibrary": "Back to My Library",
   "versionLabel": "Version v{version}",
-  "sharedInfo": "Share Info",
-  "sharedBy": "Shared by",
   "allowed": "Allowed",
-  "notAllowed": "Not allowed"
+  "notAllowed": "Not allowed",
+  "guestPreviewAction": "Guest Preview"
 }

@@ -12,6 +12,7 @@ import argparse
 import base64
 import http.cookiejar
 import json
+import re
 import subprocess
 import sys
 import time
@@ -271,7 +272,8 @@ with SessionLocal() as db:
 
 class HttpError(RuntimeError):
     def __init__(self, method: str, url: str, status_code: int, body: str) -> None:
-        super().__init__(f"{method} {url} failed with HTTP {status_code}: {body}")
+        safe_url = re.sub(r"(/guest-previews/)[^/?]+", r"\1[redacted]", url)
+        super().__init__(f"{method} {safe_url} failed with HTTP {status_code}: {body}")
         self.status_code = status_code
         self.body = body
 
@@ -372,31 +374,25 @@ def assert_external_access(
 ) -> dict[str, str]:
     score_id = str(score["score_id"])
     headers = csrf_headers(cookie_jar)
-    grant = request_json(
+    preview = request_json(
         opener,
-        f"{api_base}/scores/{score_id}/grants",
+        f"{api_base}/scores/{score_id}/guest-previews",
         method="POST",
-        data=json.dumps({"allow_download": False, "access_mode": "PRACTICE", "expires_at": None}).encode("utf-8"),
+        data=b"{}",
         headers=headers,
         timeout=30,
     )
-    token = grant["data"]["token"]
+    token = preview["data"]["token"]
 
     anonymous = request.build_opener()
-    share_data = request_json(anonymous, f"{api_base}/score-grants/{token}", timeout=30)["data"]
-    assets = share_data["derived_assets"]
-    if assets["preview"]["status"] != "ready" or assets["audio"]["status"] != "ready":
-        raise AssertionError(f"Share derived assets are not ready: {assets}")
-    if share_data["capabilities"]["can_download"]:
-        raise AssertionError("Share can_download leaked as true")
-    if share_data["revision_assets"].get("revision_sources"):
-        raise AssertionError("Share exposed revision sources when downloads are disabled")
-
-    url = f"{api_base}/score-grants/{token}/playback"
+    preview_data = request_json(anonymous, f"{api_base}/guest-previews/{token}", timeout=30)["data"]
+    if not preview_data["render_assets"] or not preview_data["audio_available"]:
+        raise AssertionError("Exact Guest Preview presentation is not ready")
+    url = f"{api_base}/guest-previews/{token}/playback"
     status_code = request_status(anonymous, url, timeout=30)
     if status_code not in {200, 302, 307}:
-        raise AssertionError(f"Playback endpoint failed: {url} -> {status_code}")
-    return {"share_token": token}
+        raise AssertionError(f"Guest Preview playback failed with HTTP {status_code}")
+    return {"guest_preview": "verified"}
 
 
 def delete_score(

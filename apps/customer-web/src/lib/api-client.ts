@@ -91,11 +91,13 @@ function shouldSkipRefresh(url: string): boolean {
 }
 
 function safeRequestPath(url: string): string {
+  let path: string;
   try {
-    return new URL(url, window.location.origin).pathname;
+    path = new URL(url, window.location.origin).pathname;
   } catch {
-    return url.split('?')[0] ?? url;
+    path = url.split('?')[0] ?? url;
   }
+  return path.replace(/(\/guest-previews\/)[^/]+/, '$1[redacted]');
 }
 
 function redirectToLoginIfNeeded(options?: RequestOptions): void {

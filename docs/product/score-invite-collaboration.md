@@ -2,8 +2,8 @@
 
 ## Access and lifecycle
 
-Score ownership and authenticated membership authorize editing. Bearer share
-links authorize view/download according to their policy; they cannot grant
+Score ownership and authenticated membership authorize editing. Guest Preview
+links authorize exact-revision images and listening only; they cannot grant
 editable membership. The owner manages members and targeted email invitations
 through the score collaboration surface.
 
@@ -19,7 +19,7 @@ stronger existing role, then opens `/score/:id`. Inactive invitations cannot
 authorize acceptance. Pending invite APIs also support account-scoped accept
 and decline by invite identifier.
 
-The owner's score UI separates collaboration management from view-only sharing.
+The owner's score UI separates collaboration management from Guest Preview.
 Capability flags control presentation, while backend action policy authorizes
 every request. An editor member does not become the quota/storage owner.
 

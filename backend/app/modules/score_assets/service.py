@@ -52,7 +52,6 @@ class ScoreAssetService:
         *,
         revision_uuid: str | None = None,
         include_sources: bool = True,
-        share_token: str | None = None,
     ) -> ScoreRevisionAssetsRead:
         access = await self.access_policy.authorize(
             db,
@@ -60,7 +59,6 @@ class ScoreAssetService:
             ScoreAction.VIEW,
             user_id=user_id,
             revision_uuid=revision_uuid,
-            share_token=share_token,
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
@@ -78,15 +76,12 @@ class ScoreAssetService:
         db: AsyncSession,
         source_uuid: str,
         user_id: int | None,
-        *,
-        share_token: str | None = None,
     ) -> ScoreAssetDelivery:
         source, _revision = await self._authorized_source(
             db,
             source_uuid,
             user_id,
             ScoreAction.DOWNLOAD,
-            share_token=share_token,
         )
         return self._delivery(source)
 
@@ -96,7 +91,6 @@ class ScoreAssetService:
         render_asset_uuid: str,
         user_id: int | None,
         *,
-        share_token: str | None = None,
         download: bool = True,
     ) -> ScoreAssetDelivery:
         render_asset, _revision = await self._authorized_render_asset(
@@ -104,7 +98,6 @@ class ScoreAssetService:
             render_asset_uuid,
             user_id,
             ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
-            share_token=share_token,
         )
         return self._delivery(render_asset)
 
@@ -144,7 +137,6 @@ class ScoreAssetService:
         *,
         revision_uuid: str | None = None,
         kind: RenderAssetKind,
-        share_token: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         access = await self.access_policy.authorize(
             db,
@@ -152,7 +144,6 @@ class ScoreAssetService:
             ScoreAction.DOWNLOAD,
             user_id=user_id,
             revision_uuid=revision_uuid,
-            share_token=share_token,
         )
         render_assets = await self.repository.list_render_assets(
             db,
@@ -178,8 +169,6 @@ class ScoreAssetService:
         source_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None = None,
     ) -> tuple[ScoreRevisionSource, ScoreRevision]:
         source = await self.repository.get_source(db, source_uuid)
         if not source:
@@ -194,7 +183,6 @@ class ScoreAssetService:
             revision,
             user_id,
             action,
-            share_token=share_token,
         )
         return source, revision
 
@@ -204,8 +192,6 @@ class ScoreAssetService:
         render_asset_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None = None,
     ) -> tuple[ScoreRenderAsset, ScoreRevision]:
         render_asset = await self.repository.get_render_asset(db, render_asset_uuid)
         if not render_asset:
@@ -222,7 +208,6 @@ class ScoreAssetService:
             revision,
             user_id,
             action,
-            share_token=share_token,
         )
         return render_asset, revision
 
@@ -232,8 +217,6 @@ class ScoreAssetService:
         revision: ScoreRevision,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None,
     ) -> None:
         score = await db.get(Score, revision.score_id)
         if not score:
@@ -246,7 +229,6 @@ class ScoreAssetService:
             action,
             user_id=user_id,
             revision_uuid=revision.revision_uuid,
-            share_token=share_token,
         )
 
     def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:

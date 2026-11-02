@@ -26,7 +26,7 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
    revision source, metadata projection, and a library entry. Render assets and playback
    assets are generated asynchronously as rebuildable derived outputs.
 10. Score routes and capabilities start after confirm:
-    `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, sharing, invites,
+    `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, Guest Preview, invites,
     and collaboration all require a confirmed Score.
 
 ## Route Contract
@@ -55,7 +55,7 @@ POST  /api/v1/review/{job_id}/confirm
 
 ## Consequences
 
-- Sharing, invites, practice, and collaboration cannot target unconfirmed OCR output.
+- Guest Preview, invites, practice, and collaboration cannot target unconfirmed OCR output.
 - Review correction can still happen before Score creation through a job-scoped editor.
 - My Scores may show pending reviews, but they must render as job cards, not Score cards.
 - Score has no review lifecycle state column.
