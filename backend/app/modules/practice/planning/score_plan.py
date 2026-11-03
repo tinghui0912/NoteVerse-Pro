@@ -8,7 +8,8 @@ from typing import Literal
 
 from app.modules.practice.score.domain import PracticeTempoSegment, canonical_beat
 
-DEFAULT_PRACTICE_TEMPO_BPM = 80
+from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
+
 MIN_PRACTICE_TEMPO_BPM = 40
 MAX_PRACTICE_TEMPO_BPM = 240
 
@@ -136,13 +137,21 @@ def _resolve_tempo(
         return ResolvedPracticeTempoPlan(selection, (ResolvedTempoSegment(0, rounded, "CUSTOM"),))
     if not isinstance(selection, ScoreTempoSelection):
         raise PracticePlanningError("tempo_selection", "Invalid tempo selection")
+    if any(
+        not math.isfinite(segment.start_beat)
+        or segment.start_beat < 0
+        or not math.isfinite(segment.bpm)
+        or segment.bpm <= 0
+        for segment in score.score_tempo_segments
+    ):
+        raise PracticePlanningError("tempo_selection", "Invalid explicit score tempo")
     segments = tuple(
         ResolvedTempoSegment(segment.start_beat, segment.bpm, "MUSICXML")
         for segment in sorted(score.score_tempo_segments, key=lambda value: value.start_beat)
     )
     if not segments or canonical_beat(segments[0].start_beat) > 0:
         segments = (
-            ResolvedTempoSegment(0, DEFAULT_PRACTICE_TEMPO_BPM, "PRODUCT_DEFAULT"),
+            ResolvedTempoSegment(0, DEFAULT_SCORE_TEMPO_BPM, "PRODUCT_DEFAULT"),
             *segments,
         )
     return ResolvedPracticeTempoPlan(selection, segments)

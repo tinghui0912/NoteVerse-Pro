@@ -17,7 +17,7 @@ from app.modules.fingering.execution import (
 from app.modules.fingering.schemas import FingeringRequest, FingeringResultRead
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.engines.fingering import PianoplayerFingeringEngine
-from app.processing.musicxml.validation import validate_musicxml_document
+from app.processing.musicxml.validation import prepare_musicxml_document
 from app.shared.constants import ErrorCode
 
 
@@ -27,7 +27,9 @@ class FingeringGeneration(TypedDict):
 
 
 class FingeringEngine(Protocol):
-    def generate(self, score_id: str, xml_content: str, hand_size: str = "M") -> FingeringGeneration: ...
+    def generate(
+        self, score_id: str, xml_content: str, hand_size: str = "M"
+    ) -> FingeringGeneration: ...
 
 
 class FingeringService:
@@ -55,13 +57,13 @@ class FingeringService:
         content = request.content.encode("utf-8")
         if len(content) > settings.FINGERING_MAX_CONTENT_BYTES:
             raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID, field="content")
-        validate_musicxml_document(content)
+        content = prepare_musicxml_document(content)
 
         try:
             generated = await self._execution.run(
                 self._engine.generate,
                 score_uuid,
-                request.content,
+                content.decode("utf-8"),
                 hand_size=request.hand_size,
             )
         except FingeringExecutionCapacityExceeded as exc:
@@ -73,7 +75,9 @@ class FingeringService:
         if not isinstance(generated_content, str):
             self._raise_invalid_engine_result(score_uuid)
         try:
-            validate_musicxml_document(generated_content.encode("utf-8"))
+            generated_content = prepare_musicxml_document(generated_content.encode("utf-8")).decode(
+                "utf-8"
+            )
         except ValidationException:
             self._raise_invalid_engine_result(score_uuid)
         return FingeringResultRead(content=generated_content)

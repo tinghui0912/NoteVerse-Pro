@@ -44,7 +44,7 @@ from app.modules.review.schemas import (
     ReviewUpdateRequest,
 )
 from app.modules.scores.repository import ScoreRepository
-from app.processing.musicxml.validation import validate_musicxml_document
+from app.processing.musicxml.validation import prepare_musicxml_document
 from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -106,7 +106,7 @@ class ReviewService:
             )
 
         content = request.content.encode("utf-8")
-        validate_musicxml_document(content)
+        content = prepare_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
@@ -300,7 +300,7 @@ class ReviewService:
             )
 
         content = request.content.encode("utf-8")
-        validate_musicxml_document(content)
+        content = prepare_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         job_id = require_persisted_id(job.id, entity="import job")
         artifact = (

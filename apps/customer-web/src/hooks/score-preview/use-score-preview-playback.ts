@@ -2,21 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { DEFAULT_TEMPO_BPM } from '@/lib/constants/audio';
-import { extractTempoBpm } from '@/lib/musicxml';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import type { ScoreCursorScrollTarget, ScorePreviewController } from '@/lib/score-preview/contracts';
 
 export type ScorePreviewControllerFactory = (
-  container: HTMLDivElement,
-  bpm: number
+  container: HTMLDivElement
 ) => Promise<ScorePreviewController>;
 
-const createVerovioController: ScorePreviewControllerFactory = async (container, bpm) => {
+const createVerovioController: ScorePreviewControllerFactory = async (container) => {
   const { VerovioScorePreviewController } = await import(
     '@/lib/score-preview/verovio-score-preview-controller'
   );
-  return new VerovioScorePreviewController({ container, bpm });
+  return new VerovioScorePreviewController({ container });
 };
 
 interface UseScorePreviewPlaybackOptions {
@@ -135,10 +132,7 @@ export function useScorePreviewPlayback({
     let controller: ScorePreviewController | null = null;
 
     try {
-      controller = await createController(
-        container,
-        extractTempoBpm(xmlString, DEFAULT_TEMPO_BPM)
-      );
+      controller = await createController(container);
       if (generation !== loadGenerationRef.current) {
         controller.dispose();
         return;

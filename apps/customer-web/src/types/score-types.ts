@@ -137,7 +137,7 @@ export type ScoreData = {
   copyright?: string;
   keySignature?: string;
   timeSignature?: string;
-  tempo?: string;
+  tempoNotation?: { perMinute: string; beatUnit: string; dots: number; visible: boolean };
   measureCount?: number;
   noteCount?: number;
   connections?: ConnectionData;

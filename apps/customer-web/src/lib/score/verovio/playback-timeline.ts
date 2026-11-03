@@ -1,3 +1,4 @@
+import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 import { Midi } from '@tonejs/midi';
 
 import { readNumericTimemapValue } from './sanitize';
@@ -40,6 +41,14 @@ export function createVerovioPlaybackTimeline(
   timemap: Array<Record<string, unknown>>
 ): VerovioPlaybackTimeline {
   const midi = new Midi(decodeBase64(midiBase64));
+  if (midi.header.tempos.some(tempo => !Number.isFinite(tempo.bpm) || tempo.bpm <= 0)) {
+    throw new Error('Invalid explicit MIDI tempo.');
+  }
+  midi.header.tempos.sort((a, b) => a.ticks - b.ticks);
+  if (!midi.header.tempos.length || midi.header.tempos[0].ticks > 0) {
+    midi.header.tempos.unshift({ ticks: 0, bpm: DEFAULT_SCORE_TEMPO_BPM });
+    midi.header.update();
+  }
   const notes = midi.tracks
     .flatMap((track) => {
       const instrument = normalizeInstrumentName(track.instrument.name || 'acoustic_grand_piano');
@@ -62,9 +71,7 @@ export function createVerovioPlaybackTimeline(
     }))
     .filter((entry) => entry.noteIds.length > 0)
     .map((entry, index) => ({ ...entry, index }));
-  const sourceTempo =
-    midi.header.tempos.find((tempo) => Number.isFinite(tempo.bpm) && tempo.bpm > 0)?.bpm ??
-    120;
+  const sourceTempo = midi.header.tempos[0].bpm;
 
   return {
     sourceTempo,

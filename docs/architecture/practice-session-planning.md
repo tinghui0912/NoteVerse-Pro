@@ -376,7 +376,7 @@ verified exact Source artifact. FULL spans the first moment onset to scoreEndBea
 RANGE spans its selected start onset to its selected end canonicalEndBeat.
 
 The server resolves a score-wide tempo plan: missing initial MusicXML tempo uses
-PRODUCT_DEFAULT 80 BPM; explicit segments remain MUSICXML. CUSTOM_FIXED_BPM accepts
+PRODUCT_DEFAULT 120 quarter-note BPM; explicit segments remain MUSICXML. CUSTOM_FIXED_BPM accepts
 finite 40–240 BPM, retains the raw selection and rounds the segment BPM upward at
 positive half-integers, matching browser Math.round. Scope does not trim tempo.
 
@@ -410,3 +410,6 @@ uses the transient admitted representation; it initiates no Source read. The sav
 Take adapter uses generic exact-source authorization for optional score-based export.
 Both feed the same clean-score preview/render pipeline and browser Blob download.
 Export creates no server asset and grants no sharing access.
+
+Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to
+[Score tempo semantics](score-tempo.md).

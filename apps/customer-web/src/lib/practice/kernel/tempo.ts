@@ -1,6 +1,6 @@
 import { PracticeScoreArtifact, roundBeat, TempoSegment } from '@/lib/practice/kernel/artifact';
 
-export const DEFAULT_PRACTICE_TEMPO_BPM = 80;
+import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 export const MIN_PRACTICE_TEMPO_BPM = 40;
 export const MAX_PRACTICE_TEMPO_BPM = 240;
 
@@ -27,7 +27,7 @@ export function isCustomTempoValid(bpm: number): boolean {
 
 export function clampCustomTempo(bpm: number): number {
   if (!Number.isFinite(bpm)) {
-    return DEFAULT_PRACTICE_TEMPO_BPM;
+    throw new Error('Custom tempo editing requires a finite number.');
   }
   return Math.min(MAX_PRACTICE_TEMPO_BPM, Math.max(MIN_PRACTICE_TEMPO_BPM, Math.round(bpm)));
 }
@@ -52,11 +52,7 @@ export function hasExplicitScoreTempo(input: ScoreTempoInput): boolean {
 }
 
 export function initialScoreTempoBpm(input: ScoreTempoInput): number {
-  const segments = extractTempoSegments(input);
-  if (Array.isArray(segments) && segments.length > 0) {
-    return segments[0].bpm;
-  }
-  return DEFAULT_PRACTICE_TEMPO_BPM;
+  return effectiveScoreTempoAtBeat(input, 0).bpm;
 }
 
 export function hasScoreTempoChanges(input: ScoreTempoInput): boolean {
@@ -81,7 +77,7 @@ export function effectiveScoreTempoAtBeat(
   const segments = extractTempoSegments(input);
   if (!segments || segments.length === 0) {
     return {
-      bpm: DEFAULT_PRACTICE_TEMPO_BPM,
+      bpm: DEFAULT_SCORE_TEMPO_BPM,
       source: 'PRODUCT_DEFAULT',
       hasSubsequentScoreTempoChanges: false,
       isDefault: true,
@@ -98,7 +94,7 @@ export function effectiveScoreTempoAtBeat(
   if (atOrBefore.length === 0) {
     // Explicit tempo markings exist, but the first one starts after scopeStartBeat
     return {
-      bpm: DEFAULT_PRACTICE_TEMPO_BPM,
+      bpm: DEFAULT_SCORE_TEMPO_BPM,
       source: 'PRODUCT_DEFAULT',
       hasSubsequentScoreTempoChanges: true,
       nextScoreTempoBeat: sorted[0].startBeat,
@@ -142,10 +138,13 @@ export function resolvePracticeTempoPlan(
   if (!rawSegments || rawSegments.length === 0) {
     return {
       selection: tempoSelection,
-      segments: [{ startBeat: 0, bpm: DEFAULT_PRACTICE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' }],
+      segments: [{ startBeat: 0, bpm: DEFAULT_SCORE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' }],
     };
   }
 
+  if (rawSegments.some(s => !Number.isFinite(s.startBeat) || s.startBeat < 0 || !Number.isFinite(s.bpm) || s.bpm <= 0)) {
+    throw new Error('Invalid explicit score tempo.');
+  }
   const sortedSegments = [...rawSegments].sort((a, b) => a.startBeat - b.startBeat);
   const first = sortedSegments[0];
 
@@ -153,7 +152,7 @@ export function resolvePracticeTempoPlan(
     return {
       selection: tempoSelection,
       segments: [
-        { startBeat: 0, bpm: DEFAULT_PRACTICE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' },
+        { startBeat: 0, bpm: DEFAULT_SCORE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' },
         ...sortedSegments.map((s) => ({ startBeat: s.startBeat, bpm: s.bpm, source: 'MUSICXML' as const })),
       ],
     };
@@ -263,6 +262,8 @@ function buildTimelineSegments(
       segment.bpm > 0
     ) {
       byBeat.set(roundBeat(segment.startBeat), { startBeat: roundBeat(segment.startBeat), bpm: segment.bpm });
+    } else {
+      throw new Error('Invalid explicit tempo timeline segment.');
     }
   }
   if (!byBeat.has(0)) {

@@ -110,6 +110,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
       || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/recording-sink.ts', 'score-view/verovio-adapter.ts',
         'score-view/playhead-cursor.ts', 'score-view/scope-timing.ts', 'score-view/decorations.ts', 'score-view/cursor-scope.ts'].includes(target)));
   }
+  if (source === 'kernel/tempo.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/score/tempo-policy.ts'))) return true;
   const owner = domain(source);
   const targetOwner = target ? domain(target) : null;
   if (source === 'continuous/domain/performance-clock.ts') return targetOwner === 'kernel';
@@ -132,6 +133,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
 }
 
 describe('Practice bounded domain dependencies', () => {
+  it('consumes the infrastructure-free Score tempo policy from Practice planning', () => {
+    const policy = path.join(sourceRoot, 'lib/score/tempo-policy.ts');
+    expect(imports(policy)).toEqual([]);
+    expect(imports(path.join(practiceRoot, 'kernel/tempo.ts')).some(edge => edge.target === normalize(policy) && edge.bindings.includes('DEFAULT_SCORE_TEMPO_BPM'))).toBe(true);
+  });
   it('separates local video export routes and adapters from Guest Preview presentation', () => {
     const saved = path.join(sourceRoot, 'app/[locale]/(app)/my-performances/[takeId]/video-export/page.tsx');
     const guestPreview = path.join(sourceRoot, 'app/[locale]/(guest-preview)/preview/[token]/page.tsx');

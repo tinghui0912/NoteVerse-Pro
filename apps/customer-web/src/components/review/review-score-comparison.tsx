@@ -16,13 +16,12 @@ import type { ScorePreviewControllerFactory } from '@/hooks/score-preview/use-sc
 
 const A4_HEIGHT_TO_WIDTH_RATIO = 297 / 210;
 
-const createReviewScoreController: ScorePreviewControllerFactory = async (container, bpm) => {
+const createReviewScoreController: ScorePreviewControllerFactory = async (container) => {
   const { VerovioScorePreviewController } = await import(
     '@/lib/score-preview/verovio-score-preview-controller'
   );
   return new VerovioScorePreviewController({
     container,
-    bpm,
     toolkitOptions: {
       pageWidth: 2100,
       pageHeight: 2970,

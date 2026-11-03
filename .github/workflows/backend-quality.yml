@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
       - "!backend/research/**"
       - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
@@ -16,6 +18,8 @@ on:
       - ".github/scripts/*.py"
   pull_request:
     paths:
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
       - "!backend/research/**"
       - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
@@ -152,6 +156,7 @@ jobs:
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
+          python scripts/generate_score_tempo_policy.py --check &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
 

@@ -1,3 +1,4 @@
+import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 import type {
   ScorePlaybackController,
   ScorePlaybackSnapshot,
@@ -32,7 +33,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
   private state: ScorePlaybackState = 'IDLE';
   private position = 0;
   private anchorTime = 0;
-  private tempo = 120;
+  private tempo: number = DEFAULT_SCORE_TEMPO_BPM;
   private disposed = false;
   private eventTimers: Array<ReturnType<typeof setTimeout>> = [];
   private iterationListeners = new Set<(notes: unknown[]) => void>();

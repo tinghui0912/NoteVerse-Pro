@@ -292,7 +292,6 @@ describe('VerovioScorePreviewController', () => {
       container,
       adapter,
       audioEngine: audio,
-      bpm: 120,
     });
 
     await controller.loadScore('<score-partwise />');

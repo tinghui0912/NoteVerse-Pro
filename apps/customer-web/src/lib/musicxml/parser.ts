@@ -1,5 +1,4 @@
 import type { AccidentalValue, ScoreData, ParsedScoreEvent, Note, Chord, Rest, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
-import { DEFAULT_TEMPO_BPM } from '../constants/audio';
 import { extractPitch, parseArticulations, parseDuration } from './parser-values';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
@@ -120,8 +119,17 @@ export class MusicXMLParser {
       ? `${timeSignatureBeatsNode.textContent}/${timeSignatureBeatTypeNode.textContent}`
       : '4/4';
 
-    const tempoNode = this.xmlDoc.querySelector('sound[tempo]') || this.xmlDoc.querySelector('metronome per-minute');
-    const tempo = tempoNode ? (tempoNode.getAttribute('tempo') || tempoNode.textContent || String(DEFAULT_TEMPO_BPM)) : String(DEFAULT_TEMPO_BPM);
+    // Editable notation fields are lexical values, not interpreted quarter-note BPM.
+    const marking = this.xmlDoc.querySelector('metronome');
+    const soundTempo = this.xmlDoc.querySelector('sound[tempo]')?.getAttribute('tempo');
+    const tempoNotation = marking ? {
+      perMinute: marking.querySelector('per-minute')?.textContent ?? '',
+      beatUnit: marking.querySelector('beat-unit')?.textContent ?? '',
+      dots: marking.querySelectorAll('beat-unit-dot').length,
+      visible: marking.closest('direction')?.getAttribute('print-object') !== 'no',
+    } : soundTempo !== null && soundTempo !== undefined ? {
+      perMinute: soundTempo, beatUnit: 'quarter', dots: 0, visible: false,
+    } : undefined;
 
     const noteCount = measures.reduce((acc, measure) =>
       measure.staves.reduce((staveAcc, stave) =>
@@ -146,7 +154,7 @@ export class MusicXMLParser {
       copyright,
       keySignature,
       timeSignature,
-      tempo,
+      tempoNotation,
       measureCount: measures.length,
       noteCount,
       connections,

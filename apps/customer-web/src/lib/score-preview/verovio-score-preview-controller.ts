@@ -17,7 +17,6 @@ import {
 
 type VerovioScorePreviewControllerOptions = {
   container: HTMLElement;
-  bpm?: number;
   adapter?: VerovioScoreAdapter;
   audioEngine?: VerovioAudioEngine;
   toolkitOptions?: Record<string, unknown>;
@@ -59,7 +58,6 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   private activeEventIndex: number | null = null;
   private activeCursorMode: 'measure-start' | 'note' | null = null;
   private disposed = false;
-  private readonly initialBpm: number | null;
   private readonly fitToContainerOptions: (pageWidth: number) => Record<string, unknown>;
 
   constructor(options: VerovioScorePreviewControllerOptions) {
@@ -68,7 +66,6 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     }
     this.container = options.container;
     this.adapter = options.adapter ?? new VerovioScoreAdapter(undefined, options.toolkitOptions);
-    this.initialBpm = options.bpm && options.bpm > 0 ? options.bpm : null;
     this.fitToContainerOptions = options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
     this.playback = new VerovioPlaybackController(
       this.adapter,
@@ -82,9 +79,6 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       throw new Error('No playable score (MusicXML is empty)');
     }
     await this.playback.loadScore(xmlString);
-    if (this.initialBpm) {
-      this.playback.setTempo(this.initialBpm);
-    }
     this.renderPages(this.adapter.renderAllPages());
   }
 

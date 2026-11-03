@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/app/shared/error_codes.py"
@@ -16,6 +18,8 @@ on:
       - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/app/shared/error_codes.py"

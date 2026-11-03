@@ -15,12 +15,15 @@ def imports(relative):
 
 
 def test_take_library_reads_its_own_provenance_without_source_persistence():
-    dependencies = {node.module for node in imports("modules/performance_takes/service.py") if node.module}
+    dependencies = {
+        node.module for node in imports("modules/performance_takes/service.py") if node.module
+    }
     assert "app.modules.performance_takes.repository" in dependencies
     assert not any(module.startswith("app.modules.practice.source") for module in dependencies)
-    retention = {node.module for node in imports("modules/practice/source/retention.py") if node.module}
+    retention = {
+        node.module for node in imports("modules/practice/source/retention.py") if node.module
+    }
     assert not any(module.startswith("app.modules.performance_takes") for module in retention)
-
 
 
 def test_source_builder_consumes_compiler_and_score_projections():
@@ -44,7 +47,10 @@ def test_score_compiler_dependency_direction():
             if node.level:
                 assert node.module in {"domain", "piano_key", "timeline"}
             elif node.module and node.module.startswith("app."):
-                assert node.module.startswith("app.modules.practice.score.")
+                assert node.module.startswith("app.modules.practice.score.") or node.module in {
+                    "app.score_semantics.musicxml_tempo",
+                    "app.score_semantics.tempo_policy",
+                }
 
 
 def test_source_domain_is_independent_of_transport_and_persistence():
@@ -71,10 +77,44 @@ def test_durable_planning_depends_only_on_score_domain_and_standard_library():
         for node in imports(path.relative_to(ROOT)):
             assert not node.level
             if node.module and node.module.startswith("app."):
-                assert node.module.startswith("app.modules.practice.score.")
+                assert node.module.startswith("app.modules.practice.score.") or node.module in {
+                    "app.score_semantics.musicxml_tempo",
+                    "app.score_semantics.tempo_policy",
+                }
             else:
                 assert node.module in {"__future__", "dataclasses", "typing"}
-    service = ast.parse((ROOT / "modules/performance_takes/upload_reservation/service.py").read_text())
-    calls = [node for node in ast.walk(service) if isinstance(node, ast.Call)
-             and isinstance(node.func, ast.Name) and node.func.id == "resolve_practice_score_plan"]
+    service = ast.parse(
+        (ROOT / "modules/performance_takes/upload_reservation/service.py").read_text()
+    )
+    calls = [
+        node
+        for node in ast.walk(service)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "resolve_practice_score_plan"
+    ]
     assert len(calls) == 1
+
+
+def test_shared_score_tempo_semantics_are_pure_and_consumed_by_both_projections():
+    import sys
+
+    semantics = ROOT / "score_semantics"
+    for path in semantics.glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                assert all(
+                    alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names
+                )
+            elif isinstance(node, ast.ImportFrom):
+                assert not node.level
+                assert node.module.split(".")[0] in sys.stdlib_module_names
+    for consumer in [
+        "modules/practice/score/compiler/musicxml.py",
+        "processing/musicxml/metadata.py",
+    ]:
+        assert any(
+            node.module == "app.score_semantics.musicxml_tempo"
+            and any(name.name == "parse_tempo_directive" for name in node.names)
+            for node in imports(consumer)
+        )

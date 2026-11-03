@@ -193,48 +193,40 @@ export function useMetadataEditor() {
         }, t('updateTimeSignature'));
     }, [updateMusicXML, t]);
 
-    const updateTempo = useCallback((newTempo: string, options?: { beatUnit?: string; showMark?: boolean }) => {
+    const updateTempo = useCallback((newTempo: string, options?: { beatUnit?: string; dots?: number; showMark?: boolean }) => {
         updateMusicXML(xmlDoc => {
             const m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
             if (!m1) return;
-            let sound = m1.querySelector('sound');
-            if (!sound) {
-                sound = xmlDoc.createElement('sound');
-                const attrs = m1.querySelector('attributes');
-                if (attrs && attrs.nextSibling) {
-                    m1.insertBefore(sound, attrs.nextSibling);
-                } else if (attrs) {
-                    m1.appendChild(sound);
-                } else {
-                    m1.insertBefore(sound, m1.firstChild);
-                }
-            }
-            sound.setAttribute('tempo', newTempo);
-
+            // Write notation only. Quarter-BPM interpretation belongs to Score semantics.
+            m1.querySelectorAll('sound[tempo]').forEach(sound => {
+                sound.removeAttribute('tempo');
+                if (!sound.attributes.length && !sound.children.length) sound.remove();
+            });
             m1.querySelectorAll('direction').forEach((direction) => {
                 if (direction.querySelector('metronome')) {
                     direction.parentNode?.removeChild(direction);
                 }
             });
 
-            if (options?.showMark) {
-                const direction = xmlDoc.createElement('direction');
-                direction.setAttribute('placement', 'above');
+            const direction = xmlDoc.createElement('direction');
+            direction.setAttribute('placement', 'above');
+            if (!options?.showMark) direction.setAttribute('print-object', 'no');
 
-                const directionType = xmlDoc.createElement('direction-type');
-                const metronome = xmlDoc.createElement('metronome');
-                const beatUnit = xmlDoc.createElement('beat-unit');
-                beatUnit.textContent = options.beatUnit || 'quarter';
-                const perMinute = xmlDoc.createElement('per-minute');
-                perMinute.textContent = newTempo;
+            const directionType = xmlDoc.createElement('direction-type');
+            const metronome = xmlDoc.createElement('metronome');
+            const beatUnit = xmlDoc.createElement('beat-unit');
+            beatUnit.textContent = options?.beatUnit || 'quarter';
+            const perMinute = xmlDoc.createElement('per-minute');
+            perMinute.textContent = newTempo;
 
-                metronome.appendChild(beatUnit);
-                metronome.appendChild(perMinute);
-                directionType.appendChild(metronome);
-                direction.appendChild(directionType);
+            metronome.appendChild(beatUnit);
+            for (let dot = 0; dot < (options?.dots ?? 0); dot++) metronome.appendChild(xmlDoc.createElement('beat-unit-dot'));
+            metronome.appendChild(perMinute);
+            directionType.appendChild(metronome);
+            direction.appendChild(directionType);
 
-                m1.insertBefore(direction, sound);
-            }
+            const firstContent = Array.from(m1.children).find(element => !['attributes', 'print'].includes(element.localName));
+            m1.insertBefore(direction, firstContent ?? null);
         }, t('updateTempo'));
     }, [updateMusicXML, t]);
 

@@ -672,6 +672,7 @@ it('ACTIVE STEP worker INFER silence retains target under terminal analysis inte
 });
 
 it('owns a physical-health subscription without observing borrowed track events and detaches on disposal', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(1000);
   const r = rig(), listen = vi.spyOn(r.track, 'addEventListener');
   await r.controller.start(); const before = r.controller.snapshot().sessionSnapshot!;
   expect(listen).not.toHaveBeenCalled(); expect(r.health.listenerCount()).toBe(1);

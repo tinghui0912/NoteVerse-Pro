@@ -1059,7 +1059,7 @@ without aggregate barrels or forwarding paths.
 Practice requires an explicit valid initial meter and supports inherited meter and
 meter changes. Missing, malformed or unsupported unmetered notation is INVALID_SCORE.
 A key signature is not required. Explicit tempo is optional: SCORE selection uses
-PRODUCT_DEFAULT 80 BPM before any explicit MUSICXML tempo. The detailed score
+PRODUCT_DEFAULT 120 quarter-note BPM before any explicit MUSICXML tempo. The detailed score
 admission and timing contract belongs to the [Practice score compiler](practice-score-compiler.md).
 Continuous PerformanceClock owns count-in: the current policy gives 3/4 three beats
 and three pulses, 6/8 three beats and six pulses, and 2/2 four beats and two pulses.
@@ -1133,3 +1133,6 @@ Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
 VideoExport output encoding and saved Take download buffering have separate lifetimes
 and retain their existing memory strategies. No Capture bytes are streamed to the
 server while the user plays.
+
+Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to
+[Score tempo semantics](score-tempo.md).

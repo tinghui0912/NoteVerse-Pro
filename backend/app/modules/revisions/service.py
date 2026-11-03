@@ -40,7 +40,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.processing.musicxml.validation import validate_musicxml_document
+from app.processing.musicxml.validation import prepare_musicxml_document
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -79,7 +79,7 @@ class RevisionService:
 
         score_id = require_persisted_id(score.id, entity="score")
         content = request.content.encode("utf-8")
-        validate_musicxml_document(content)
+        content = prepare_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
 
         if request.idempotency_key:
@@ -284,7 +284,7 @@ class RevisionService:
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
         content = self.storage.read_bytes(source.storage_key)
-        validate_musicxml_document(content)
+        content = prepare_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         storage_owner_user_id = score.owner_user_id
         new_revision_uuid = str(uuid.uuid4())

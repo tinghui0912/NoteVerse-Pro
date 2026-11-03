@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronRight, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMetadataEditor, useScoreData } from '@/contexts/editor-provider';
-import { parseXml } from '@/lib/musicxml/core';
+import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 import { cn } from '@/lib/utils';
 
 const TIME_SIGNATURES = ['2/4', '3/4', '4/4', '5/4', '6/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8', '2/2', '3/2'];
@@ -237,34 +237,36 @@ function TempoPicker({
   onChange,
   showTempoMarkLabel,
   initialShowMark,
+  beatUnit,
+  dots,
 }: {
   value: string;
-  onChange: (tempo: string, options?: { beatUnit?: string; showMark?: boolean }) => void;
+  onChange: (tempo: string, options?: { beatUnit?: string; dots?: number; showMark?: boolean }) => void;
   showTempoMarkLabel: string;
   initialShowMark: boolean;
+  beatUnit: string;
+  dots: number;
 }) {
-  const [beatUnit, setBeatUnit] = useState('quarter');
   const [showMarkState, setShowMarkState] = useState(() => ({
     initialShowMark,
     value: initialShowMark,
   }));
   const showMark =
     showMarkState.initialShowMark === initialShowMark ? showMarkState.value : initialShowMark;
-  const tempo = Number.parseInt(value || '120', 10);
-  const safeTempo = Number.isFinite(tempo) && tempo > 0 ? tempo : 120;
+
   const setShowMark = (value: boolean) => {
     setShowMarkState({ initialShowMark, value });
   };
 
-  const commit = (nextTempo = safeTempo, nextBeatUnit = beatUnit, nextShowMark = showMark) => {
-    onChange(String(Math.max(1, nextTempo)), { beatUnit: nextBeatUnit, showMark: nextShowMark });
+  const commit = (nextTempo = value, nextBeatUnit = beatUnit, nextShowMark = showMark) => {
+    onChange(nextTempo, { beatUnit: nextBeatUnit, dots, showMark: nextShowMark });
   };
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="w-full justify-between">
-          <span className="font-mono">1/4 = {safeTempo}</span>
+          <span className="font-mono">{TEMPO_UNITS.find(unit => unit.value === beatUnit)?.symbol ?? beatUnit}{".".repeat(dots)} = {value}</span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -274,7 +276,7 @@ function TempoPicker({
             checked={showMark}
             onCheckedChange={(checked) => {
               setShowMark(checked);
-              commit(safeTempo, beatUnit, checked);
+              commit(value, beatUnit, checked);
             }}
           />
           <span className="text-sm text-muted-foreground">{showTempoMarkLabel}</span>
@@ -289,8 +291,7 @@ function TempoPicker({
                 beatUnit === unit.value && 'border-primary bg-primary/10 text-primary'
               )}
               onClick={() => {
-                setBeatUnit(unit.value);
-                commit(safeTempo, unit.value, showMark);
+                commit(value, unit.value, showMark);
               }}
             >
               {unit.symbol}
@@ -303,8 +304,8 @@ function TempoPicker({
             className="h-10 w-28 text-center font-mono"
             min={1}
             type="number"
-            value={safeTempo}
-            onChange={(event) => commit(Number.parseInt(event.currentTarget.value || '1', 10), beatUnit, showMark)}
+            value={value}
+            onChange={(event) => commit(event.currentTarget.value, beatUnit, showMark)}
           />
         </div>
       </PopoverContent>
@@ -315,7 +316,7 @@ function TempoPicker({
 export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
   const t = useTranslations('editor');
   const scoreText = useTranslations('score');
-  const { currentXml, scoreData } = useScoreData();
+  const { scoreData } = useScoreData();
   const {
     updateKeySignature,
     updateTimeSignature,
@@ -326,10 +327,7 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
     updateScoreComposer,
     updateScoreLyricist,
   } = useMetadataEditor();
-  const hasTempoMark = useMemo(() => {
-    if (!currentXml) return false;
-    return Boolean(parseXml(currentXml).querySelector('direction metronome'));
-  }, [currentXml]);
+
 
   return (
     <aside className="sticky top-24 hidden h-[calc(100vh-8.5rem)] w-80 shrink-0 xl:block">
@@ -420,10 +418,12 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label>{t('tempoLabel')}</Label>
                 <TempoPicker
-                  value={scoreData?.tempo || '120'}
+                  value={scoreData?.tempoNotation?.perMinute ?? String(DEFAULT_SCORE_TEMPO_BPM)}
+                  beatUnit={scoreData?.tempoNotation?.beatUnit ?? 'quarter'}
+                  dots={scoreData?.tempoNotation?.dots ?? 0}
                   onChange={updateTempo}
                   showTempoMarkLabel={t('showTempoMark')}
-                  initialShowMark={hasTempoMark}
+                  initialShowMark={scoreData?.tempoNotation?.visible ?? false}
                 />
               </div>
             </section>

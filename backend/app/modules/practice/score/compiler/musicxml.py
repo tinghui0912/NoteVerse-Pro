@@ -22,24 +22,14 @@ from ..domain import (
 )
 from ..piano_key import PracticeScoreInvalidError, practice_piano_key
 
+from app.score_semantics.musicxml_tempo import (
+    MusicXMLTempoError,
+    parse_tempo_directive,
+    put_tempo_fact,
+)
+
 T = TypeVar("T")
 
-BEAT_UNITS = {
-    "1024th": Fraction(1, 256),
-    "512th": Fraction(1, 128),
-    "256th": Fraction(1, 64),
-    "128th": Fraction(1, 32),
-    "64th": Fraction(1, 16),
-    "32nd": Fraction(1, 8),
-    "16th": Fraction(1, 4),
-    "eighth": Fraction(1, 2),
-    "quarter": Fraction(1),
-    "half": Fraction(2),
-    "whole": Fraction(4),
-    "breve": Fraction(8),
-    "long": Fraction(16),
-    "maxima": Fraction(32),
-}
 PITCH_STEPS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
 
@@ -108,18 +98,14 @@ def compile_practice_score(prepared_musicxml: bytes | str) -> CompiledPracticeSc
                             put(meters, position, (numerator, denominator), "meter")
                     continue
                 if tag in {"direction", "sound"}:
-                    offset = Fraction(0)
-                    offset_node = child(element, "offset") if tag == "direction" else None
-                    if offset_node is not None:
-                        offset = number(offset_node.text, "direction offset") / require_divisions(
-                            divisions[part_index]
-                        )
-                    tempo_position = position + offset
-                    if tempo_position < 0:
-                        invalid("Direction precedes the canonical score origin.")
-                    bpm = tempo(element)
-                    if bpm is not None:
-                        put(tempos, tempo_position, bpm, "tempo")
+                    try:
+                        directive = parse_tempo_directive(element, divisions[part_index])
+                        if directive is not None:
+                            put_tempo_fact(
+                                tempos, position + directive.offset_quarters, directive.quarter_bpm
+                            )
+                    except MusicXMLTempoError as error:
+                        raise PracticeScoreInvalidError(str(error)) from error
                     continue
                 if tag not in {"note", "forward", "backup"}:
                     continue
@@ -229,25 +215,6 @@ def compile_practice_score(prepared_musicxml: bytes | str) -> CompiledPracticeSc
     return CompiledPracticeScore(
         tuple(notes), meter_segments, tempo_segments, tuple(compiled_measures)
     )
-
-
-def tempo(element: ET.Element) -> Fraction | None:
-    sound = element if local(element.tag) == "sound" else child(element, "sound")
-    if sound is not None and "tempo" in sound.attrib:
-        return positive(sound.get("tempo"), "tempo")
-    for direction_type in children(element, "direction-type"):
-        metronome = child(direction_type, "metronome")
-        if metronome is not None:
-            unit = text(metronome, "beat-unit")
-            if unit not in BEAT_UNITS:
-                invalid("Unsupported metronome beat unit.")
-            dots = len(children(metronome, "beat-unit-dot"))
-            return (
-                positive(text(metronome, "per-minute"), "tempo")
-                * BEAT_UNITS[unit]
-                * sum((Fraction(1, 2**i) for i in range(dots + 1)), Fraction(0))
-            )
-    return None
 
 
 def active_meter(meters: dict[Fraction, tuple[int, int]], position: Fraction) -> tuple[int, int]:
