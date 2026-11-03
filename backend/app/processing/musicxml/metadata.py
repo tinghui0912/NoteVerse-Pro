@@ -44,17 +44,24 @@ def extract_musicxml_metadata(content: bytes | str) -> MusicXMLMetadata:
 
 def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetadata:
     # Public event lists retain part/written-source order and their existing DTO.
-    key_events: list[dict[str, object]] = [
-        {
-            "part": key.part_index + 1,
-            "measure": key.measure_number or str(key.measure_index + 1),
-            "fifths": key.fifths,
-            "mode": key.mode,
-        }
-        for key in sorted(model.keys, key=lambda k: (k.part_index, k.measure_index))
-    ]
+    key_events: list[dict[str, object]] = []
+    for key in sorted(model.keys, key=lambda k: (k.part_index, k.measure_index)):
+        if key.staff_number is not None:
+            raise MetadataExtractionError("unsupported_staff_key")
+        if key.fifths is None:
+            raise MetadataExtractionError("unsupported_nontraditional_key")
+        key_events.append(
+            {
+                "part": key.part_index + 1,
+                "measure": key.measure_number or str(key.measure_index + 1),
+                "fifths": key.fifths,
+                "mode": key.mode if key.mode is not None else "major",
+            }
+        )
     time_events: list[dict[str, object]] = []
     for meter in sorted(model.meters, key=lambda m: (m.part_index, m.measure_index)):
+        if meter.staff_number is not None:
+            raise MetadataExtractionError("unsupported_staff_meter")
         if len(meter.groups) != 1 or len(meter.groups[0][0]) != 1:
             raise MetadataExtractionError("invalid_time_beats")
         beats, denominator = meter.groups[0]

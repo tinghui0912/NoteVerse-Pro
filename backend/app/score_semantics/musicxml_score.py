@@ -67,6 +67,7 @@ class WrittenNote(WrittenPosition):
 
 @dataclass(frozen=True)
 class WrittenMeter(WrittenPosition):
+    staff_number: int | None
     # Each beats/beat-type pair retains additive beats and its own denominator.
     # An empty tuple denotes explicitly unmetered notation.
     groups: tuple[tuple[tuple[int, ...], int], ...]
@@ -87,9 +88,18 @@ class WrittenTempo(WrittenPosition):
 
 
 @dataclass(frozen=True)
+class WrittenKeyAlteration:
+    step: str
+    alter: Fraction
+    accidental: str | None
+
+
+@dataclass(frozen=True)
 class WrittenKey(WrittenPosition):
-    fifths: int
-    mode: str
+    staff_number: int | None
+    fifths: int | None
+    mode: str | None
+    alterations: tuple[WrittenKeyAlteration, ...]
 
 
 @dataclass(frozen=True)
@@ -142,7 +152,8 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
     repeats: list[WrittenRepeat] = []
     transpositions: list[WrittenPosition] = []
     measures: list[WrittenMeasure] = []
-    meter_facts: dict[Fraction, WrittenMeter] = {}
+    meter_facts: dict[tuple[int, int | None, Fraction], WrittenMeter] = {}
+    staff_counts = [1] * len(parts)
     tempo_facts: dict[Fraction, Fraction] = {}
     start = Fraction(0)
     for index in range(measure_count):
@@ -165,32 +176,38 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                     division = _one(element, "divisions")
                     if division is not None:
                         divisions[part_index] = _positive(division.text, "invalid_divisions")
+                    staves = _one(element, "staves")
+                    if staves is not None:
+                        staff_counts[part_index] = _positive_integer(staves.text, "invalid_staves")
                     for attribute in element:
                         kind = _name(attribute)
                         if kind == "transpose":
                             transpositions.append(location)
                         elif kind == "key":
-                            keys.append(
-                                WrittenKey(
-                                    part_index,
-                                    index,
-                                    number,
-                                    position,
-                                    _integer(_text(attribute, "fifths"), "invalid_key_fifths"),
-                                    (_text(attribute, "mode") or "major").lower(),
+                            key = _key_fact(attribute, location)
+                            keys.append(key)
+                            if key.staff_number is not None:
+                                staff_counts[part_index] = max(
+                                    staff_counts[part_index], key.staff_number
                                 )
-                            )
                         elif kind == "time":
                             meter = WrittenMeter(
-                                part_index, index, number, position, _meter_groups(attribute)
+                                part_index,
+                                index,
+                                number,
+                                position,
+                                _staff_number(attribute),
+                                _meter_groups(attribute),
                             )
-                            if (
-                                position in meter_facts
-                                and meter_facts[position].groups != meter.groups
-                            ):
+                            slot = (part_index, meter.staff_number, position)
+                            if slot in meter_facts and meter_facts[slot].groups != meter.groups:
                                 raise MusicXMLSemanticError("conflicting_meter")
-                            meter_facts[position] = meter
+                            meter_facts[slot] = meter
                             meters.append(meter)
+                            if meter.staff_number is not None:
+                                staff_counts[part_index] = max(
+                                    staff_counts[part_index], meter.staff_number
+                                )
                     continue
                 if name in {"direction", "sound"}:
                     try:
@@ -285,10 +302,7 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         extent = max((e for e in extents if e is not None), default=Fraction(0))
         empty = extent == 0
         if empty:
-            established = [p for p in meter_facts if p <= start]
-            if not established:
-                raise MusicXMLSemanticError("empty_measure_requires_meter")
-            extent = meter_facts[max(established)].duration_quarters
+            extent = _empty_measure_duration(meter_facts, staff_counts, extents, start)
         measures.append(WrittenMeasure(index, start, start + extent, empty, tuple(extents)))
         start += extent
     if any(t.position > start for t in tempos):
@@ -303,6 +317,100 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         tuple(repeats),
         tuple(transpositions),
     )
+
+
+def _empty_measure_duration(
+    facts: dict[tuple[int, int | None, Fraction], WrittenMeter],
+    staff_counts: list[int],
+    extents: list[Fraction | None],
+    position: Fraction,
+) -> Fraction:
+    durations: set[Fraction] = set()
+    for part_index, extent in enumerate(extents):
+        if extent is None:
+            continue
+        part_facts = [
+            m for m in facts.values() if m.part_index == part_index and m.position <= position
+        ]
+        staffs = {
+            m.staff_number
+            for m in part_facts
+            if m.staff_number is not None and m.staff_number <= staff_counts[part_index]
+        }
+        relevant_scopes: list[int | None] = list(staffs)
+        if len(staffs) < staff_counts[part_index]:
+            relevant_scopes.append(None)  # Staves without any individual meter fact.
+        for staff in relevant_scopes:
+            relevant = [m for m in part_facts if m.staff_number in (None, staff)]
+            if not relevant:
+                raise MusicXMLSemanticError("empty_measure_requires_meter")
+            # A part-wide change applies to all staves; a simultaneous staff fact
+            # specializes that staff. Older overrides do not outlive a newer part-wide fact.
+            active = max(relevant, key=lambda m: (m.position, m.staff_number is not None))
+            durations.add(active.duration_quarters)
+    if len(durations) != 1:
+        raise MusicXMLSemanticError("ambiguous_empty_measure_duration")
+    return durations.pop()
+
+
+def _staff_number(element: ET.Element) -> int | None:
+    value = element.get("number")
+    return _positive_integer(value, "invalid_staff_number") if value is not None else None
+
+
+def _key_fact(element: ET.Element, location: WrittenPosition) -> WrittenKey:
+    fifths = _one(element, "fifths")
+    alterations = _key_alterations(element)
+    if fifths is not None and alterations:
+        raise MusicXMLSemanticError("conflicting_key_representation")
+    mode = _text(element, "mode")
+    if _one(element, "mode") is not None and not mode:
+        raise MusicXMLSemanticError("invalid_key_mode")
+    return WrittenKey(
+        location.part_index,
+        location.measure_index,
+        location.measure_number,
+        location.position,
+        _staff_number(element),
+        _integer(fifths.text, "invalid_key_fifths") if fifths is not None else None,
+        mode.lower() if mode is not None else None,
+        alterations,
+    )
+
+
+def _key_alterations(element: ET.Element) -> tuple[WrittenKeyAlteration, ...]:
+    alterations: list[WrittenKeyAlteration] = []
+    step: str | None = None
+    alter: Fraction | None = None
+    accidental: str | None = None
+
+    def append() -> None:
+        if step is not None:
+            if alter is None:
+                raise MusicXMLSemanticError("invalid_key_alter")
+            alterations.append(WrittenKeyAlteration(step, alter, accidental))
+
+    for child in element:
+        name = _name(child)
+        if name == "key-step":
+            append()
+            step = (child.text or "").strip()
+            if step not in {"A", "B", "C", "D", "E", "F", "G"}:
+                raise MusicXMLSemanticError("invalid_key_step")
+            alter = None
+            accidental = None
+        elif name == "key-alter":
+            if step is None or alter is not None:
+                raise MusicXMLSemanticError("invalid_key_alter")
+            alter = _number(child.text, "invalid_key_alter")
+        elif name == "key-accidental":
+            if step is None or alter is None or accidental is not None or not child.text:
+                raise MusicXMLSemanticError("invalid_key_accidental")
+            accidental = child.text.strip()
+            if not accidental:
+                raise MusicXMLSemanticError("invalid_key_accidental")
+    append()
+    return tuple(alterations)
 
 
 def _meter_groups(time: ET.Element) -> tuple[tuple[tuple[int, ...], int], ...]:

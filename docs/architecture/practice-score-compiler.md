@@ -27,8 +27,12 @@ endpoint and must remain positive. All XML divisions, note/rest/chord onsets,
 backup/forward movement, shared measure starts and positioned meter/tempo facts
 are supplied by canonical semantics, not recalculated by this projection.
 
-Parts must have aligned written measure sequences. Practice requires an explicit
-initial simple meter at beat zero, with changes at measure origins. Numerators and
+Parts must have aligned written measure sequences. Practice requires one compatible
+score-wide meter timeline: an explicit initial simple meter at beat zero, with changes
+at measure origins. Staff-scoped meter facts and divergent active part signatures are
+unsupported; identical part facts collapse into one timeline. The Practice projection
+imposes no additional key-representation restriction: valid canonical scoped/nontraditional
+keys are accepted when the other score facts are supported. Numerators and
 denominators are positive JSON-safe integers (`1..9007199254740991`), and the
 projected nominal duration must be finite and positive. Unmetered notation, composite
 meter groupings, grace timing and transposing notation are unsupported for Practice.

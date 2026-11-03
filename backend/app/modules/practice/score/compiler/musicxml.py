@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from itertools import groupby
 import math
 from typing import NoReturn
 
@@ -49,15 +50,24 @@ def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracti
         return result
 
     meters: dict[Fraction, tuple[int, int]] = {}
-    for meter in model.meters:
-        if (
-            meter.position != model.measures[meter.measure_index].start
-            or len(meter.groups) != 1
-            or len(meter.groups[0][0]) != 1
-        ):
-            invalid("Unsupported Practice meter placement or grouping.")
-        beats, denominator = meter.groups[0]
-        meters[meter.position] = (beats[0], denominator)
+    active_parts: dict[int, tuple[int, int]] = {}
+    for position, facts in groupby(
+        sorted(model.meters, key=lambda m: m.position), key=lambda m: m.position
+    ):
+        for meter in facts:
+            if (
+                meter.staff_number is not None
+                or meter.position != model.measures[meter.measure_index].start
+                or len(meter.groups) != 1
+                or len(meter.groups[0][0]) != 1
+            ):
+                invalid("Unsupported Practice meter scope, placement or grouping.")
+            beats, denominator = meter.groups[0]
+            active_parts[meter.part_index] = (beats[0], denominator)
+        compatible = set(active_parts.values())
+        if len(compatible) != 1:
+            invalid("Practice requires one compatible score-wide meter timeline.")
+        meters[position] = compatible.pop()
     if not meters or min(meters) != 0:
         invalid("Practice requires explicit initial meter timing.")
     meter_segments = tuple(

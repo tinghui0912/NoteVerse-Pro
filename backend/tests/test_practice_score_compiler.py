@@ -158,10 +158,10 @@ def test_inherited_meter_sound_and_dotted_direction_tempo():
     assert [(t.start_beat, t.bpm) for t in compiled.tempo_segments] == [(0, 80), (3, 90)]
 
 
-def test_multiple_parts_share_measure_extent_and_conflicts_fail_closed():
+def test_multiple_parts_share_measure_extent_with_one_supported_meter_timeline():
     one = attributes() + note(duration="4")
     two = attributes() + note("b", "2")
-    xml = f'<score-partwise><part id="P1"><measure>{one}</measure><measure>{NEXT}{note("c")}</measure></part><part id="P2"><measure>{two}</measure><measure>{note("d")}</measure></part></score-partwise>'
+    xml = f'<score-partwise><part id="P1"><measure>{one}</measure><measure>{NEXT}{note("c")}</measure></part><part id="P2"><measure>{two}</measure><measure><attributes>{meter(3, 4)}</attributes>{note("d")}</measure></part></score-partwise>'
     compiled = compile_practice_score(xml)
     assert [n.onset_beat for n in compiled.notes] == [0, 0, 4, 4]
     assert compiled.tempo_segments[0].start_beat == compiled.meter_segments[-1].start_beat == 4

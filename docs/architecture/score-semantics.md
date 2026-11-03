@@ -29,9 +29,15 @@ and forward end that anchor relationship. Note endpoints, including longer chord
 members, contribute to the part extent. All parts at one written measure ordinal
 share the maximum extent and the next measure start.
 
-Pickup and partial measures advance by actual extent. A measure with no timed
-extent in any part advances by the established meter's nominal quarter duration.
-Without a determinate meter it is invalid; the parser does not assume 4/4.
+Pickup and partial measures advance by actual extent, independently of meter scope.
+For a measure with no timed extent, the parser resolves the active meter for each
+relevant part/staff. Staff availability follows declared staves and numbered facts.
+A part-wide meter applies to all staves; a simultaneous staff-specific fact takes
+precedence for that staff, while a newer part-wide change applies to all staves.
+Every relevant scope must have a determinate nominal duration, and those durations
+must agree before they supply one shared empty-measure extent. Missing coverage or
+unmetered notation raises `empty_measure_requires_meter`; disagreeing durations raise
+`ambiguous_empty_measure_duration`. No first-part, maximum-meter or 4/4 choice is made.
 
 `WrittenNote` supplies exact onset/duration, part/measure identity, voice, staff,
 source/render note ID, pitch/rest distinction, grace/chord observations and tie
@@ -41,13 +47,34 @@ the Practice projection.
 
 ## Positioned notation
 
-`WrittenMeter`, `WrittenKey` and `WrittenTempo` carry their part/measure identity
-and absolute written Fraction position. Meter groups retain additive beats and
-beat-type pairs; explicitly unmetered notation has no nominal measure duration.
-Conflicting meter facts at one position are invalid. Practice supports an explicit
-simple initial meter and changes at measure origins; metadata projects the simple
-signatures its public DTO represents. Those consumer restrictions do not define
-canonical note chronology.
+`WrittenMeter`, `WrittenKey` and `WrittenTempo` carry part/measure identity and
+absolute written Fraction position. Meter and key retain `staff_number`: `None`
+means part-wide, while a positive number identifies one staff. Meter conflict
+identity is `(part_index, staff_number, position)`. Contradictory facts in that same
+slot are invalid; different parts or staff scopes can carry different meter facts.
+Meter groups retain additive beats and beat-type pairs; explicitly unmetered
+notation has no nominal measure duration. Timed polymetric measures retain their
+actual shared extent. Ambiguous nominal inference for an empty measure is a
+chronology failure, not a prohibition on scoped meter facts.
+
+`WrittenKey` distinguishes traditional `fifths` from nontraditional alterations.
+Each `WrittenKeyAlteration` preserves its step, exact Fraction alter and optional
+accidental. Optional mode remains `None` when absent. Canonical facts do not infer
+major mode, and they preserve staff-scoped and nontraditional keys.
+
+Canonical validity, Practice support and metadata DTO support are separate boundaries.
+Practice requires one compatible score-wide simple meter timeline: an explicit initial
+meter, supported measure-origin placement, no staff-scoped meters and no divergent
+active part signatures. Identical part facts collapse into its one timeline. Practice
+uses explicit note pitches, not key signatures, so scoped/nontraditional keys remain
+Practice-compatible when the other score facts are supported.
+
+Metadata's current event DTO can retain part identity but has no staff scope or
+nontraditional key representation. Its projection rejects staff-scoped meter/key
+facts and nontraditional keys rather than dropping their meaning. Unscoped different
+part meters remain separate time events. For traditional unscoped keys only, metadata
+projects an absent mode as `major`; that is metadata presentation policy, not a
+canonical source fact. These projections do not reinterpret XML chronology.
 
 `musicxml_tempo.py` interprets explicit tempo directives, including beat units, dots
 and division-relative direction offsets. The written parser positions those facts
