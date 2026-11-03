@@ -87,7 +87,7 @@ def test_divisions_changes_and_direction_offsets_share_quarter_note_axis():
     xml = score(
         attributes("2") + note(duration="6"),
         "<attributes><divisions>4</divisions>" + meter(6, 8) + "</attributes>"
-        '<direction><offset>4</offset><sound tempo="90"/></direction>'
+        '<direction><offset sound="yes">4</offset><sound tempo="90"/></direction>'
         + note("b", "4")
         + note("c", "8"),
         NEXT + note("d", "12"),
@@ -149,7 +149,7 @@ def test_inherited_meter_sound_and_dotted_direction_tempo():
     compiled = compile_practice_score(
         score(
             attributes(time=meter(3, 4)) + '<sound tempo="80"/>' + note(duration="3"),
-            note("b", "3") + "<direction><offset>-3</offset><direction-type><metronome>"
+            note("b", "3") + '<direction><offset sound="yes">-3</offset><direction-type><metronome>'
             "<beat-unit>eighth</beat-unit><beat-unit-dot/><per-minute>120</per-minute>"
             "</metronome></direction-type></direction>",
         )
@@ -180,8 +180,12 @@ BAD = [
     attributes() + note(duration="-1"),
     attributes() + note(duration="0"),
     attributes() + note().replace("<duration>4</duration>", ""),
-    attributes() + '<direction><offset>bad</offset><sound tempo="100"/></direction>' + note(),
-    attributes() + '<direction><offset>-1</offset><sound tempo="100"/></direction>' + note(),
+    attributes()
+    + '<direction><offset sound="yes">bad</offset><sound tempo="100"/></direction>'
+    + note(),
+    attributes()
+    + '<direction><offset sound="yes">-1</offset><sound tempo="100"/></direction>'
+    + note(),
     attributes() + "<backup><duration>1</duration></backup>" + note(),
     attributes() + note(chord=True),
     attributes() + note().replace("</note>", '<tie type="start"/><tie type="start"/></note>'),

@@ -83,4 +83,31 @@ describe('standalone sound renderer adaptation', () => {
       adapter.dispose();
     }
   });
+
+  it('keeps the complete original sound and copies only tempo positioning into its renderer aid', () => {
+    const source = '<sound id="original" tempo="90" dacapo="yes" dynamics="70"><offset>2</offset><play><other-play type="tuning-mei">equal</other-play></play></sound>';
+    const xml = `<score-partwise><part><measure>${source}</measure></part></score-partwise>`;
+    const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
+    const original = document.querySelector('measure > sound')!;
+    expect(new XMLSerializer().serializeToString(original).replace(/>\s+</g, '><')).toBe(source);
+    const aid = original.nextElementSibling!;
+    expect(aid.outerHTML.replace(/>\s+</g, '><')).toBe('<direction><offset sound="yes">2</offset><sound tempo="90"><offset>2</offset></sound></direction>');
+  });
+
+  it.each(['', ' sound="no"', ' sound="yes"'])('projects a direction sound position without interpreting its tempo number: %s', flag => {
+    const xml = `<score-partwise><part><measure><direction><offset${flag}>2</offset><sound tempo="90.0"/></direction></measure></part></score-partwise>`;
+    const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
+    expect(document.querySelector('direction > sound')?.getAttribute('tempo')).toBe('90.0');
+    expect(document.querySelector('direction > offset')?.textContent ?? null).toBe(flag.includes('yes') ? '2' : null);
+  });
+
+  it('rejects ambiguous or invalid renderer positioning structure', () => {
+    for (const content of [
+      '<offset sound="maybe">2</offset><sound tempo="90"/>',
+      '<offset>2</offset><offset>3</offset><sound tempo="90"/>',
+      '<sound tempo="90"><offset>2</offset><offset>3</offset></sound>',
+    ]) {
+      expect(() => sanitizeMusicXmlForVerovio(`<score-partwise><part><measure><direction>${content}</direction></measure></part></score-partwise>`)).toThrow();
+    }
+  });
 });

@@ -5,7 +5,7 @@
       <attributes><divisions>3</divisions><key><fifths>0</fifths><mode>major</mode></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
       <barline location="left"><repeat direction="forward"/></barline>
       <note id="a"><pitch><step>C</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>
-      <direction><offset>3</offset><sound tempo="90"/></direction>
+      <direction><offset sound="yes">3</offset><sound tempo="90"/></direction>
       <forward><duration>3</duration></forward>
       <note id="b"><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>
       <backup><duration>9</duration></backup>

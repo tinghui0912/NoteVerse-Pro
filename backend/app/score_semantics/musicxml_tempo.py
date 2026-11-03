@@ -11,6 +11,8 @@ import math
 import re
 import xml.etree.ElementTree as ET
 
+from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+
 
 class MusicXMLTempoError(ValueError):
     pass
@@ -19,7 +21,7 @@ class MusicXMLTempoError(ValueError):
 @dataclass(frozen=True)
 class TempoDirective:
     quarter_bpm: Fraction
-    offset_quarters: Fraction
+    playback_offset_quarters: Fraction
 
 
 _BEAT_UNITS = {
@@ -107,13 +109,11 @@ def parse_tempo_directive(element: ET.Element, divisions: Fraction | None) -> Te
     bpm = sound_bpm if sound_bpm is not None else marked_bpm
     if bpm is None:
         return None
-    offset = _one(element, "offset") if _name(element) == "direction" else None
-    offset_quarters = Fraction(0)
-    if offset is not None:
-        if divisions is None or divisions <= 0:
-            raise MusicXMLTempoError("Tempo offset requires positive divisions")
-        offset_quarters = _number(offset.text) / divisions
-    return TempoDirective(bpm, offset_quarters)
+    try:
+        offset = resolve_sound_offset_quarters(element, divisions)
+    except MusicXMLSoundPositionError as error:
+        raise MusicXMLTempoError("Invalid tempo playback position") from error
+    return TempoDirective(bpm, offset)
 
 
 def put_tempo_fact(facts: dict[Fraction, Fraction], position: Fraction, bpm: Fraction) -> None:

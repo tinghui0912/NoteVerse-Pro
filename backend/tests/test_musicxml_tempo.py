@@ -33,11 +33,13 @@ def metronome(unit="quarter", rate="90", dots=0):
 )
 def test_explicit_tempo_is_namespace_agnostic_and_exact(notation, bpm):
     for namespace in ("", ' xmlns="http://www.musicxml.org/ns/musicxml"'):
-        element = ET.fromstring(f"<direction{namespace}>{notation}<offset>-3</offset></direction>")
+        element = ET.fromstring(
+            f'<direction{namespace}>{notation}<offset sound="yes">-3</offset></direction>'
+        )
         directive = parse_tempo_directive(element, Fraction(2))
         assert directive is not None
         assert directive.quarter_bpm == bpm
-        assert directive.offset_quarters == Fraction(-3, 2)
+        assert directive.playback_offset_quarters == Fraction(-3, 2)
 
 
 @pytest.mark.parametrize(
@@ -95,11 +97,114 @@ def rest(duration):
     return f"<note><rest/><duration>{duration}</duration></note>"
 
 
+@pytest.mark.parametrize(
+    "notation, expected",
+    [
+        ('<direction><offset>2</offset><sound tempo="90"/></direction>', 0),
+        ('<direction><offset sound="no">2</offset><sound tempo="90"/></direction>', 0),
+        ('<direction><offset sound="yes">2</offset><sound tempo="90"/></direction>', 1),
+        ('<sound tempo="90"><offset>2</offset></sound>', 1),
+        (
+            '<direction><offset sound="yes">4</offset><sound tempo="90"><offset>2</offset></sound></direction>',
+            1,
+        ),
+        (
+            '<direction><offset sound="no">4</offset><sound tempo="90"><offset>2</offset></sound></direction>',
+            1,
+        ),
+    ],
+)
+def test_directive_uses_effective_sound_playback_position(notation, expected):
+    directive = parse_tempo_directive(ET.fromstring(notation), Fraction(2))
+    assert directive.playback_offset_quarters == expected
+
+
+def test_visual_offset_does_not_require_divisions_but_invalid_sound_flag_fails():
+    directive = parse_tempo_directive(
+        ET.fromstring('<direction><offset>4</offset><sound tempo="90"/></direction>'), None
+    )
+    assert directive.playback_offset_quarters == 0
+    with pytest.raises(MusicXMLTempoError):
+        parse_tempo_directive(
+            ET.fromstring(
+                '<direction><offset sound="maybe">4</offset><sound tempo="90"/></direction>'
+            ),
+            Fraction(2),
+        )
+
+
+@pytest.mark.parametrize(
+    "notation, position",
+    [
+        ('<direction><offset>2</offset><sound tempo="60"/></direction>', 1),
+        ('<direction><offset sound="no">2</offset><sound tempo="60"/></direction>', 1),
+        ('<direction><offset sound="yes">2</offset><sound tempo="60"/></direction>', 2),
+        ('<sound tempo="60"><offset>2</offset></sound>', 2),
+        (
+            '<direction><offset sound="yes">4</offset><sound tempo="60"><offset>2</offset></sound></direction>',
+            2,
+        ),
+    ],
+)
+def test_canonical_practice_and_metadata_share_sound_playback_position(notation, position):
+    from app.score_semantics.musicxml_score import parse_score_semantics
+
+    xml = score(rest(2) + notation + rest(6))
+    assert [(t.position, t.quarter_bpm) for t in parse_score_semantics(xml).tempos] == [
+        (Fraction(position), Fraction(60))
+    ]
+    assert [(t.start_beat, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [
+        (position, 60)
+    ]
+    metadata = extract_musicxml_metadata(xml)
+    assert metadata.tempo_events == [
+        {"part": 1, "measure": "1", "offset_quarters": position, "bpm": 60}
+    ]
+    assert metadata.playback_duration_ms == position * 750 + (4 - position) * 1000
+
+
+@pytest.mark.parametrize("flag, position", [("", 1), (' sound="no"', 1), (' sound="yes"', 2)])
+def test_admission_materialization_preserves_effective_playback_offset(flag, position):
+    from app.score_semantics.musicxml_score import parse_score_semantics
+
+    raw = score(
+        rest(2) + f"<direction><offset{flag}>2</offset>" + metronome() + "</direction>" + rest(6)
+    ).encode()
+    admitted = admit_musicxml_document(raw)
+    assert admitted != raw
+    assert parse_score_semantics(raw).tempos == parse_score_semantics(admitted).tempos
+    assert parse_score_semantics(admitted).tempos[0].position == position
+    assert admit_musicxml_document(admitted) == admitted
+
+
+@pytest.mark.parametrize(
+    "notation",
+    [
+        '<direction><offset sound="maybe">2</offset><sound tempo="90"/></direction>',
+        '<sound tempo="90"><offset>NaN</offset></sound>',
+        '<sound tempo="90"><offset>-1</offset></sound>',
+    ],
+)
+def test_admission_rejects_invalid_sound_positions_before_returning_trusted_bytes(notation):
+    from app.shared.constants import ErrorCode
+
+    with pytest.raises(ValidationException) as caught:
+        admit_musicxml_document(score(notation + rest(8)).encode())
+    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+
+
+@pytest.mark.parametrize("flag", ["", ' sound="no"'])
+def test_visual_metronome_offset_without_divisions_remains_admissible(flag):
+    xml = f"<score-partwise><part><measure><attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><offset{flag}>4</offset>{metronome()}</direction></measure></part></score-partwise>"
+    admitted = admit_musicxml_document(xml.encode())
+    assert extract_musicxml_metadata(admitted).tempo_events[0]["offset_quarters"] == 0
+
+
 @pytest.mark.parametrize("before, offset, after", [(0, 4, 8), (6, -2, 2)])
 def test_offset_position_agrees_in_practice_metadata_and_duration(before, offset, after):
     xml = score(
         (rest(before) if before else "")
-        + f"<direction><offset>{offset}</offset>{metronome(rate='60')}</direction>"
+        + f'<direction><offset sound="yes">{offset}</offset>{metronome(rate="60")}</direction>'
         + rest(after)
     )
     compiled = compile_practice_score(xml)
@@ -139,7 +244,10 @@ def test_ingestion_boundaries_preserve_invalid_tempo_failure(value):
 )
 def test_canonical_document_materializes_same_exact_playback_fact(unit, rate, dots, bpm):
     raw = score(
-        "<direction><offset>2</offset>" + metronome(unit, rate, dots) + "</direction>" + rest(8)
+        '<direction><offset sound="yes">2</offset>'
+        + metronome(unit, rate, dots)
+        + "</direction>"
+        + rest(8)
     ).encode()
     prepared = admit_musicxml_document(raw)
     root = ET.fromstring(prepared)

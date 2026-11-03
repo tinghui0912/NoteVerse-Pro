@@ -59,9 +59,9 @@ INVALID_WRITTEN = [
             "</attributes>", "<time><beats>3</beats><beat-type>4</beat-type></time></attributes>"
         )
     ),
-    score('<direction><offset>-1</offset><sound tempo="90"/></direction>' + NOTE),
+    score('<direction><offset sound="yes">-1</offset><sound tempo="90"/></direction>' + NOTE),
     score('<sound tempo="90"/><sound tempo="100"/>' + NOTE),
-    score('<direction><offset>5</offset><sound tempo="90"/></direction>' + NOTE),
+    score('<direction><offset sound="yes">5</offset><sound tempo="90"/></direction>' + NOTE),
     score(NOTE.replace("<duration>4</duration>", "<duration>NaN</duration>")),
     score("", attributes=""),
     b'<score-partwise><part id="P1"><measure>'

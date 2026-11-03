@@ -152,7 +152,11 @@ def test_renderer_unfolded_explicit_tempos_keep_their_repeat_positions():
 
 
 def test_renderer_owns_measure_cursor_offset_and_meter_conversion():
-    body = note() + '<direction><offset>-1</offset><sound tempo="90"/></direction>' + note()
+    body = (
+        note()
+        + '<direction><offset sound="yes">-1</offset><sound tempo="90"/></direction>'
+        + note()
+    )
     content = (
         score(body)
         .decode()
@@ -182,3 +186,24 @@ def test_backend_audio_timing_follows_product_policy(tmp_path, monkeypatch):
     explicit = renderer.render(score(direction(120) + note() + note()))
     # Identical notes/releases; only the four-quarter musical interval differs.
     assert default.duration_ms - explicit.duration_ms == pytest.approx(1000, abs=20)
+
+
+@pytest.mark.parametrize(
+    "notation, position",
+    [
+        ('<direction><offset>2</offset><sound tempo="90"/></direction>', 0),
+        ('<direction><offset sound="no">2</offset><sound tempo="90"/></direction>', 0),
+        ('<direction><offset sound="yes">2</offset><sound tempo="90"/></direction>', 2),
+        ('<sound tempo="90"><offset>2</offset></sound>', 2),
+        (
+            '<direction><offset sound="yes">1</offset><sound tempo="90"><offset>2</offset></sound></direction>',
+            2,
+        ),
+    ],
+)
+def test_real_renderer_effective_sound_offset(notation, position):
+    content = score(notation + note(1) + note(1) + note(1) + note(1))
+    events = conductor_events(VerovioMidiCompiler().compile(content).content)
+    expected = [(0, 80), (position, 90)] if position else [(0, 90)]
+    assert [e[0] for e in events] == [e[0] for e in expected]
+    assert [e[1] for e in events] == pytest.approx([e[1] for e in expected], rel=1e-6)

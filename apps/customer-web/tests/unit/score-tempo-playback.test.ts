@@ -21,6 +21,29 @@ async function render(xml: string) {
 
 describe('real Verovio Score Preview performance chronology', () => {
   it.each([
+    ['<direction><offset>2</offset><sound tempo="90"/></direction>', 0],
+    ['<direction><offset sound="no">2</offset><sound tempo="90"/></direction>', 0],
+    ['<direction><offset sound="yes">2</offset><sound tempo="90"/></direction>', 2],
+    ['<sound tempo="90"><offset>2</offset></sound>', 2],
+    ['<direction><offset sound="yes">1</offset><sound tempo="90"><offset>2</offset></sound></direction>', 2],
+  ] as const)('positions effective sound playback in real renderer MEI, audio and cursor: %s', async (notation, quarter) => {
+    const adapter = new VerovioScoreAdapter();
+    try {
+      await adapter.loadMusicXml(score(notation + note('one') + note('two') + note('three') + note('four')));
+      const renderer = adapter.renderPerformanceTiming();
+      const mei = new DOMParser().parseFromString(renderer.mei, 'application/xml');
+      expect(mei.querySelector('tempo[midi\\.bpm]')?.getAttribute('tstamp')).toBe(String(quarter + 1));
+      const timeline = createVerovioPlaybackTimeline(adapter.renderMidi(), renderer);
+      expect(timeline.tempoEvents).toEqual(quarter ? [{ quarter: 0, bpm: 80 }, { quarter, bpm: 90 }] : [{ quarter: 0, bpm: 90 }]);
+      const onsets = quarter ? [0, .75, 1.5, 1.5 + 2 / 3] : [0, 2 / 3, 4 / 3, 2];
+      timeline.notes.forEach((event, index) => expect(event.time).toBeCloseTo(onsets[index], 6));
+      timeline.visualEvents.forEach((event, index) => expect(event.time).toBeCloseTo(onsets[index], 6));
+      expect(timeline.duration).toBeCloseTo(quarter ? 1.5 + 4 / 3 : 8 / 3, 6);
+    } finally {
+      adapter.dispose();
+    }
+  });
+  it.each([
     ['', 80],
     [direction(90), 90],
     [direction(120, metronome('half', 60)), 120],

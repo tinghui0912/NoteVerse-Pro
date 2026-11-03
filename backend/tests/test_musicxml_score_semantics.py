@@ -136,7 +136,7 @@ def test_cross_projection_written_witness(monkeypatch):
 def test_namespace_and_late_tempo_offset():
     xml = score(
         note("a", "6")
-        + '<direction><offset>-3</offset><sound tempo="90"/></direction>'
+        + '<direction><offset sound="yes">-3</offset><sound tempo="90"/></direction>'
         + note("b", "6")
     )
     plain = parse_score_semantics(xml)
@@ -227,7 +227,7 @@ def test_negative_direction_offset_can_place_a_fact_in_the_previous_measure():
     model = parse_score_semantics(
         score(
             note("a", "6"),
-            '<measure number="2"><direction><offset>-3</offset><sound tempo="60"/></direction>'
+            '<measure number="2"><direction><offset sound="yes">-3</offset><sound tempo="60"/></direction>'
             + note("b", "6")
             + "</measure>",
         )

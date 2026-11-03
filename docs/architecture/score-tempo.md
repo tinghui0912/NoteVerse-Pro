@@ -15,8 +15,16 @@ eighth = 120 means 60 quarter BPM.
 `sound@tempo` supplies the playback fact. A metronome in the same direction must
 describe that same rate. Conflicting rates, multiple ambiguous directives, unsupported
 metronome forms and nonpositive, malformed or nonfinite explicit numbers fail closed.
-A direction offset is divided by the divisions active at that direction and added to
-the canonical written parser's current part/measure cursor. Conflicting facts at one score position and
+Sound playback positioning belongs to `app/score_semantics/musicxml_sound_position.py`.
+`resolve_sound_offset_quarters` returns an exact `Fraction` in quarters, without
+interpreting tempo or navigation and without computing a score cursor. A direction
+offset affects sound only with `sound="yes"`; absent `sound` means `"no"` and is
+visual-only. A sound-owned child offset overrides the direction offset, including
+for standalone sound. Only effective playback offsets require positive divisions;
+their exact division-unit value is divided by current divisions.
+
+The tempo owner consumes this effective playback offset. The canonical written
+parser adds it to its current part/measure cursor. Conflicting facts at one score position and
 positions before the score origin are invalid.
 
 [Canonical document admission](score-semantics.md#document-admission) requires partwise
@@ -69,8 +77,14 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   resolves no repeat/ending/jump structure itself. Renderer input preserves each
   standalone sound element in place, including its navigation, tuning and other
   semantics. A tempo-bearing standalone sound additionally receives a sibling
-  direction containing only a copy of its literal tempo attribute. This renderer-only
-  aid exposes a positioned MEI tempo without interpreting its numeric meaning.
+  direction containing its literal tempo attribute and any sound-owned offset.
+  Renderer input projects the effective sound offset into Verovio's direction-offset
+  slot: a sound-owned offset wins, otherwise only a direction offset with `sound="yes"`
+  affects playback. Visual-only direction offsets do not shift the playback fact.
+  The backend adapter selects the positioning fact through the canonical sound-position
+  owner; browser integration copies the same literal positioning structure without
+  parsing BPM, divisions or score chronology. This renderer-only aid exposes a
+  positioned MEI tempo without changing canonical source bytes.
   Positioned MEI tempo facts define chronology; an unpositioned scoreDef MIDI rate
   does not establish an origin tempo. Stored source is unchanged.
 - Practice uses its notation-order artifact quarter axis. Its own Verovio adapter

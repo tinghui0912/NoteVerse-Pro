@@ -76,8 +76,12 @@ part meters remain separate time events. For traditional unscoped keys only, met
 projects an absent mode as `major`; that is metadata presentation policy, not a
 canonical source fact. These projections do not reinterpret XML chronology.
 
-`musicxml_tempo.py` interprets explicit tempo directives, including beat units, dots
-and division-relative direction offsets. The written parser positions those facts
+`musicxml_sound_position.py` resolves exact sound playback offsets: sound-owned
+offsets override direction offsets, and direction offsets affect sound only with
+`sound="yes"`. The owner supports standalone sound and requires positive divisions
+only for an effective playback offset. It computes no cursor or tempo meaning.
+`musicxml_tempo.py` interprets explicit tempo directives, including beat units and
+dots, and consumes that playback offset. The written parser positions those facts
 once, using its current cursor and shared measure start, and validates positional
 conflicts. Missing tempo produces no fact. Consumers needing effective timing apply
 `contracts/score/tempo-policy.json`: 80 quarter notes per minute until an explicit

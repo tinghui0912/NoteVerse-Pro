@@ -14,7 +14,7 @@ def test_score_semantics_has_only_standard_library_and_local_semantic_dependenci
             if isinstance(node, ast.ImportFrom):
                 if node.level:
                     assert node.level == 1
-                    assert node.module == "musicxml_tempo"
+                    assert node.module in {"musicxml_tempo", "musicxml_sound_position"}
                 else:
                     assert node.module.split(".")[0] in sys.stdlib_module_names
             elif isinstance(node, ast.Import):

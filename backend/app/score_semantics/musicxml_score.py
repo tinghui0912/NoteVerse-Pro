@@ -213,7 +213,7 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                     try:
                         directive = parse_tempo_directive(element, divisions[part_index])
                         if directive is not None:
-                            tempo_position = position + directive.offset_quarters
+                            tempo_position = position + directive.playback_offset_quarters
                             put_tempo_fact(tempo_facts, tempo_position, directive.quarter_bpm)
                             tempos.append(
                                 WrittenTempo(

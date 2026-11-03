@@ -5,6 +5,7 @@ repeat unfolding and MEI timestamps. midi.bpm is an already canonical quarter ra
 """
 
 from fractions import Fraction
+from copy import deepcopy
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
@@ -12,6 +13,7 @@ import xml.etree.ElementTree as ET
 
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_tempo import put_tempo_fact
+from app.score_semantics.musicxml_sound_position import select_sound_playback_offset
 
 _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 
@@ -30,6 +32,24 @@ def playback_musicxml(content: bytes) -> str:
                 parent.remove(element)
                 parent.insert(index, direction)
                 direction.append(element)
+    # Verovio uses direction offsets even when visual-only, and ignores offsets
+    # owned by sound. Project the selected playback fact to its supported slot.
+    for direction in list(root.iter()):
+        if direction.tag.rsplit("}", 1)[-1] != "direction":
+            continue
+        sound = next(
+            (child for child in direction if child.tag.rsplit("}", 1)[-1] == "sound"), None
+        )
+        if sound is None or "tempo" not in sound.attrib:
+            continue
+        selected = select_sound_playback_offset(direction)
+        offset = deepcopy(selected) if selected is not None else None
+        for child in list(direction):
+            if child.tag.rsplit("}", 1)[-1] == "offset":
+                direction.remove(child)
+        if offset is not None:
+            offset.set("sound", "yes")
+            direction.insert(list(direction).index(sound), offset)
     # Namespace prefixes are presentation syntax; renderer input uses local names.
     for element in root.iter():
         element.tag = element.tag.rsplit("}", 1)[-1]
