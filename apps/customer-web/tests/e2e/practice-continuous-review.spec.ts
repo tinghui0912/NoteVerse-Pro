@@ -64,6 +64,21 @@ function apiResponse(data: unknown) {
   return JSON.stringify({ success: true, data });
 }
 
+/** Advance fake time through count-in, then observe the application publishing RUNNING. */
+async function finishContinuousCountIn(page: Page, remainingMs: number) {
+  const status = page.getByTestId('practice-status');
+  // Recorder/OPFS preparation must finish before the count-in clock starts.
+  await expect(status).toContainText('预备拍');
+  await page.clock.runFor(remainingMs);
+  // Reaching the deadline alone need not run the next controller heartbeat or React
+  // publication. Advance one controller refresh interval (10ms) per poll until the
+  // real count-in UI clears, rather than waiting at a frozen boundary.
+  await expect.poll(async () => {
+    await page.clock.runFor(10);
+    return status.innerText();
+  }, { message: 'Continuous count-in transitions to the published RUNNING view' }).toBe('');
+}
+
 type MockOptions = {
   denyMicrophone?: boolean;
   camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'PENDING';
@@ -568,7 +583,7 @@ test('live feedback is off by default, toggles without restarting, and Review re
   await page.keyboard.press('Escape');
   await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
   await page.getByRole('button', { name: '开始', exact: true }).click();
-  await page.clock.runFor(2000);
+  await finishContinuousCountIn(page, 2000);
   await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByTestId('practice-status')).toHaveText('');
   await page.evaluate(() => (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100));
@@ -872,9 +887,9 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(startButton).toBeEnabled();
     await startButton.click();
 
-    // Advance exactly the four count-in beats at 120 BPM, leaving performance time at 0.
+    // Cross the four count-in beats at 120 BPM and observe RUNNING before MIDI input.
     await expect(page.getByRole('status')).toContainText('预备拍');
-    await page.clock.runFor(2000);
+    await finishContinuousCountIn(page, 2000);
     await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
     await expect(page.getByTestId('practice-status')).toHaveText('');
 
@@ -930,9 +945,13 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(startButton).toBeEnabled();
     await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
     await startButton.click();
-    await page.clock.runFor(2000);
+    await expect(page.getByTestId('practice-status')).toContainText('预备拍');
+    await page.clock.runFor(1999);
+    await expect(page.getByTestId('practice-status')).toContainText('预备拍');
+    await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
+    await finishContinuousCountIn(page, 1);
 
-    // Wait until running
+    // Recording starts only after the application processes RUNNING.
     await expect(page.getByTestId('recording-indicator')).toBeVisible();
     await expect(page.getByTestId('practice-status')).toHaveText('');
 
@@ -950,7 +969,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByRole('status')).toContainText('预备拍');
     const frozen = await page.getByTestId('recording-indicator').innerText();
     await page.clock.runFor(1999); await expect(page.getByTestId('recording-indicator')).toHaveText(frozen);
-    await page.clock.runFor(1);
+    await finishContinuousCountIn(page, 1);
     await expect(page.getByTestId('practice-status')).toHaveText('');
 
     await page.clock.runFor(2200);
@@ -998,7 +1017,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await start.click();
     await expect(page.getByRole('status')).toContainText('预备拍');
     if (state === 'PAUSED') {
-      await page.clock.runFor(2000);
+      await finishContinuousCountIn(page, 2000);
       await page.getByRole('button', { name: '暂停', exact: true }).click();
       await expect(page.getByRole('status')).toContainText('练习已暂停');
     }
@@ -1183,7 +1202,7 @@ test('runtime AUDIO interruption pauses until explicit no-recording continuation
   await dialog.getByRole('button', { name: '不录制并继续', exact: true }).click();
   await expect(dialog).toHaveCount(0); await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
   await expect(page.getByRole('status')).toContainText('预备拍');
-  await page.clock.runFor(2000);
+  await finishContinuousCountIn(page, 2000);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('noteverse.practice.preferences.v1')!).continuous.recordingMode)).toBe('AUDIO');
   await page.clock.runFor(2000); await page.clock.resume();
   await page.getByRole('button', { name: '查看报告', exact: true }).click();

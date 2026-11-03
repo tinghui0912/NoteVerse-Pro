@@ -11,10 +11,17 @@ Canonical Practice Source (sourceId + parsed artifact)
        -> Continuous execution
 ```
 
-Canonical Practice Source resolution returns a verified READY durable source. Live
-revision ownership retains it for Setup/Practice; Take and active reservation references
-retain that same source independently of revision deletion. [Practice Source](practice-source.md)
-owns persistence and verification. Session planning consumes its identity and artifact.
+Canonical Practice Source resolution returns a verified READY durable source. Its only
+representation lifecycle owner is a live ScoreRevision. PerformanceTake and
+UploadReservation store source provenance and fingerprints without retaining the
+representation. [Practice Source](practice-source.md) owns persistence and verification.
+Session planning consumes its identity and artifact.
+
+Historical Take raw media playback/download remain available after Score/Revision
+deletion, copyright takedown or other loss of source access. PracticeSource is not
+guaranteed to exist or remain accessible. Saved Take score-based VideoExport requires
+current exact-source authorization; an unavailable Source makes that export unavailable.
+It neither selects another revision/source nor reconstructs notation from Take snapshots.
 
 ## Intent and Plan
 
