@@ -35,6 +35,8 @@ class FakeToolkit implements VerovioToolkitLike {
 
   getMEI() { return '<mei/>'; }
 
+  renderToExpansionMap() { return {}; }
+
   renderToMIDI() {
     return '';
   }

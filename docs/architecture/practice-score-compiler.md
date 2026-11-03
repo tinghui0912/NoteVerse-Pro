@@ -87,3 +87,11 @@ both artifact behavior tests and the repository contract checker. The committed
 browser fixture verifies the compiled notation/event/moment projection against that
 transport contract. Canonical source identity and durable verification
 are described by [Practice Source](practice-source.md).
+
+## Renderer coordinate contract
+
+The artifact uses notation-order quarter positions. The Practice Verovio adapter
+sets `expandNever: true` for its toolkit instance; its qstamp-based visual timeline
+therefore shares the artifact's written beat axis, including scores with repeat
+barlines. Score Preview uses a separate unfolded performance projection and its
+renderer expansion does not define Practice artifact positions.

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "scoreId": "repeat-alignment-score",
+  "revisionId": "repeat-alignment-revision",
+  "artifactId": "practice-score-artifact:c8f75a1b84b0bb7d",
+  "notes": [
+    {
+      "noteId": "event-0.0-4.0-p1-m1-e1:written-1",
+      "eventId": "event-0.0-4.0-p1-m1-e1",
+      "pianoKey": 60,
+      "renderNoteId": "written-1",
+      "measureNumber": "1",
+      "staffId": "",
+      "voiceId": "",
+      "tieTypes": []
+    },
+    {
+      "noteId": "event-4.0-4.0-p1-m2-e1:written-2",
+      "eventId": "event-4.0-4.0-p1-m2-e1",
+      "pianoKey": 62,
+      "renderNoteId": "written-2",
+      "measureNumber": "2",
+      "staffId": "",
+      "voiceId": "",
+      "tieTypes": []
+    },
+    {
+      "noteId": "event-8.0-4.0-p1-m3-e1:written-3",
+      "eventId": "event-8.0-4.0-p1-m3-e1",
+      "pianoKey": 64,
+      "renderNoteId": "written-3",
+      "measureNumber": "3",
+      "staffId": "",
+      "voiceId": "",
+      "tieTypes": []
+    },
+    {
+      "noteId": "event-12.0-4.0-p1-m4-e1:written-4",
+      "eventId": "event-12.0-4.0-p1-m4-e1",
+      "pianoKey": 65,
+      "renderNoteId": "written-4",
+      "measureNumber": "4",
+      "staffId": "",
+      "voiceId": "",
+      "tieTypes": []
+    }
+  ],
+  "events": [
+    {
+      "eventId": "event-0.0-4.0-p1-m1-e1",
+      "onsetBeat": 0.0,
+      "durationBeats": 4.0
+    },
+    {
+      "eventId": "event-4.0-4.0-p1-m2-e1",
+      "onsetBeat": 4.0,
+      "durationBeats": 4.0
+    },
+    {
+      "eventId": "event-8.0-4.0-p1-m3-e1",
+      "onsetBeat": 8.0,
+      "durationBeats": 4.0
+    },
+    {
+      "eventId": "event-12.0-4.0-p1-m4-e1",
+      "onsetBeat": 12.0,
+      "durationBeats": 4.0
+    }
+  ],
+  "moments": [
+    {
+      "groupId": "entry-0.0-be2477ec943c",
+      "onsetBeat": 0.0,
+      "canonicalEndBeat": 4.0,
+      "attacks": [
+        {
+          "attackId": "entry-0.0-be2477ec943c:strike:60",
+          "pianoKey": 60,
+          "noteIds": [
+            "event-0.0-4.0-p1-m1-e1:written-1"
+          ]
+        }
+      ],
+      "continuationNoteIds": []
+    },
+    {
+      "groupId": "entry-4.0-62443838cac7",
+      "onsetBeat": 4.0,
+      "canonicalEndBeat": 8.0,
+      "attacks": [
+        {
+          "attackId": "entry-4.0-62443838cac7:strike:62",
+          "pianoKey": 62,
+          "noteIds": [
+            "event-4.0-4.0-p1-m2-e1:written-2"
+          ]
+        }
+      ],
+      "continuationNoteIds": []
+    },
+    {
+      "groupId": "entry-8.0-1833c65136f5",
+      "onsetBeat": 8.0,
+      "canonicalEndBeat": 12.0,
+      "attacks": [
+        {
+          "attackId": "entry-8.0-1833c65136f5:strike:64",
+          "pianoKey": 64,
+          "noteIds": [
+            "event-8.0-4.0-p1-m3-e1:written-3"
+          ]
+        }
+      ],
+      "continuationNoteIds": []
+    },
+    {
+      "groupId": "entry-12.0-713e066b1272",
+      "onsetBeat": 12.0,
+      "canonicalEndBeat": 16.0,
+      "attacks": [
+        {
+          "attackId": "entry-12.0-713e066b1272:strike:65",
+          "pianoKey": 65,
+          "noteIds": [
+            "event-12.0-4.0-p1-m4-e1:written-4"
+          ]
+        }
+      ],
+      "continuationNoteIds": []
+    }
+  ],
+  "meterSegments": [
+    {
+      "startBeat": 0.0,
+      "numerator": 4,
+      "denominator": 4
+    }
+  ],
+  "scoreTempoSegments": [],
+  "scoreEndBeat": 16.0
+}

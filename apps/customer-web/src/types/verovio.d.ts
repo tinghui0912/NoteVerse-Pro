@@ -10,6 +10,7 @@ declare module 'verovio/esm' {
     renderToSVG(pageNo?: number, xmlDeclaration?: boolean): string;
     renderToMIDI(): string;
     getMEI(): string;
+    renderToExpansionMap(): Record<string, string[]>;
     renderToTimemap(options?: Record<string, unknown>): Array<Record<string, unknown>>;
     getPageCount(): number;
     getPageWithElement(xmlId: string): number;

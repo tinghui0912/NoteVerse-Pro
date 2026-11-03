@@ -52,12 +52,25 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   explicit tempo is active at origin and retains later explicit changes. FluidSynth
   consumes that MIDI. Stored MusicXML and revision hashes contain no missing-tempo
   default fact. The adapter computes no MusicXML note/forward/backup chronology.
-- Score Preview consumes the Verovio MIDI tempo chronology directly. Its controller
-  begins at the timeline's natural rate and does not replace it with a separate XML
-  tempo read. Renderer MEI distinguishes explicit tempo from an engine-generated
-  implicit rate. An implicit rate is projected to the product policy in both audio
-  and cursor coordinates; explicit MIDI chronology is preserved. A MIDI timeline
-  without an initial tempo uses the product default before later tempo events.
+- Score Preview owns a performance projection in
+  `lib/score/verovio/tempo-projection.ts`. It consumes renderer MEI quarter-BPM facts,
+  one-based tempo timestamps, staff meter units, Timemap measure quarter-positions
+  and Expansionmap occurrence identities. Explicit facts occur on the renderer's
+  unfolded performance axis. The effective chronology supplies the product default
+  at origin only when an explicit fact is absent there. It replaces the MIDI tempo
+  track before ToneJS derives note times and durations. Cursor time is integrated
+  from Timemap qstamp through that same chronology; renderer millisecond timestamps
+  are diagnostic data. Expansionmap maps each cursor occurrence to its written SVG
+  identity while preserving the unfolded performance time. The browser interprets
+  no raw MusicXML tempo notation and
+  resolves no repeat/ending/jump structure itself. Ephemeral renderer input wraps
+  standalone measure sound elements in directions without reading or changing
+  their attributes, so their positions remain visible in MEI. Stored source is
+  unchanged.
+- Practice uses its notation-order artifact quarter axis. Its own Verovio adapter
+  sets `expandNever: true` on that toolkit instance, so the visual cursor remains on
+  the written beat axis shared with the artifact. Score Preview keeps renderer
+  performance expansion enabled. These consumer coordinate contracts are distinct.
 - CUSTOM_FIXED_BPM is validated against the finite Practice product range before
   rounding. UI editing clamping is separate from domain admission and rejects
   nonfinite values.

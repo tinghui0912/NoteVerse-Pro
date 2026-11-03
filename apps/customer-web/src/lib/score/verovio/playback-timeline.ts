@@ -1,7 +1,6 @@
-import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 import { Midi } from '@tonejs/midi';
 
-import { readNumericTimemapValue } from './sanitize';
+import { performanceQuarter, projectPerformanceTempos, type PerformanceTempoEvent, type VerovioPerformanceTiming } from './tempo-projection';
 
 export type VerovioPlaybackNote = {
   midi: number;
@@ -19,6 +18,7 @@ export type VerovioVisualEvent = {
 
 export type VerovioPlaybackTimeline = {
   sourceTempo: number;
+  tempoEvents: PerformanceTempoEvent[];
   duration: number;
   notes: VerovioPlaybackNote[];
   visualEvents: VerovioVisualEvent[];
@@ -38,25 +38,20 @@ function normalizeInstrumentName(name: string) {
 
 export function createVerovioPlaybackTimeline(
   midiBase64: string,
-  timemap: Array<Record<string, unknown>>,
-  tempoAuthority: 'SCORE' | 'ENGINE_DEFAULT'
+  renderer: VerovioPerformanceTiming
 ): VerovioPlaybackTimeline {
   const midi = new Midi(decodeBase64(midiBase64));
-  if (midi.header.tempos.some(tempo => !Number.isFinite(tempo.bpm) || tempo.bpm <= 0)) {
-    throw new Error('Invalid explicit MIDI tempo.');
+  const tempoEvents = projectPerformanceTempos(renderer);
+  midi.header.tempos = tempoEvents.map(({ quarter, bpm }) => ({ ticks: Math.round(quarter * midi.header.ppq), bpm }));
+  for (let index = 1; index < midi.header.tempos.length; index++) {
+    const previous = midi.header.tempos[index - 1], current = midi.header.tempos[index];
+    if (previous.ticks === current.ticks && previous.bpm !== current.bpm) {
+      throw new Error('Conflicting projected MIDI tempos.');
+    }
   }
-  let visualTimeScale = 1;
-  if (tempoAuthority === 'ENGINE_DEFAULT') {
-    const engineBpm = midi.header.tempos[0]?.bpm;
-    if (!engineBpm) throw new Error('Missing renderer implicit tempo.');
-    visualTimeScale = engineBpm / DEFAULT_SCORE_TEMPO_BPM;
-    midi.header.tempos = [];
-  }
-  midi.header.tempos.sort((a, b) => a.ticks - b.ticks);
-  if (!midi.header.tempos.length || midi.header.tempos[0].ticks > 0) {
-    midi.header.tempos.unshift({ ticks: 0, bpm: DEFAULT_SCORE_TEMPO_BPM });
-    midi.header.update();
-  }
+  // ToneJS note.time/duration are derived only after the conductor is authoritative.
+  midi.header.update();
+  const seconds = renderer.timemap.map(entry => midi.header.ticksToSeconds(performanceQuarter(entry) * midi.header.ppq));
   const notes = midi.tracks
     .flatMap((track) => {
       const instrument = normalizeInstrumentName(track.instrument.name || 'acoustic_grand_piano');
@@ -70,11 +65,13 @@ export function createVerovioPlaybackTimeline(
     })
     .sort((left, right) => left.time - right.time || left.midi - right.midi);
 
-  const visualEvents = timemap
-    .map((entry) => ({
-      time: (readNumericTimemapValue(entry, ['tstamp']) ?? 0) / 1000 * visualTimeScale,
+  const visualEvents = renderer.timemap
+    .map((entry, index) => ({
+      time: seconds[index],
       noteIds: Array.isArray(entry.on)
         ? entry.on.filter((value): value is string => typeof value === 'string')
+          // Occurrences keep performance time but target the written SVG identity.
+          .map(identity => renderer.expansionMap[identity]?.[0] ?? identity)
         : [],
     }))
     .filter((entry) => entry.noteIds.length > 0)
@@ -83,8 +80,10 @@ export function createVerovioPlaybackTimeline(
 
   return {
     sourceTempo,
+    tempoEvents,
     duration: Math.max(
       midi.duration,
+      ...seconds,
       ...notes.map((note) => note.time + note.duration),
       ...visualEvents.map((event) => event.time),
       0

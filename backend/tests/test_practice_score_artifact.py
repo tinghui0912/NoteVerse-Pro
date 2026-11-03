@@ -296,3 +296,22 @@ def test_semantic_score_fact_changes_artifact_content_identity():
     assert first.artifact.artifact_id == same.artifact.artifact_id
     assert changed.artifact.artifact_id != first.artifact.artifact_id
     assert changed.source_id != first.source_id
+
+
+def test_repeat_notation_artifact_matches_browser_alignment_fixture() -> None:
+    import json
+    import os
+
+    xml = Path(__file__).parent / "fixtures/musicxml/practice-simple-repeat.musicxml"
+    compiled = compile_practice_score(xml.read_bytes())
+    artifact = practice_score_artifact_from_timeline(
+        practice_timeline_from_compiled(compiled),
+        score_id="repeat-alignment-score",
+        revision_id="repeat-alignment-revision",
+        score_tempo_segments=compiled.tempo_segments,
+    )
+    root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
+    fixture = root / "apps/customer-web/tests/fixtures/musicxml/practice-simple-repeat.artifact.json"
+    assert artifact == json.loads(fixture.read_text())
+    assert [event["onsetBeat"] for event in artifact["events"]] == [0, 4, 8, 12]
+    assert artifact["scoreEndBeat"] == 16

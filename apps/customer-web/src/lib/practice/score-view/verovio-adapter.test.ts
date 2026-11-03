@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { parsePracticeScoreArtifact } from '../kernel/artifact';
+import repeatArtifact from '../../../../tests/fixtures/musicxml/practice-simple-repeat.artifact.json';
 
 import { PracticeVerovioAdapter } from './verovio-adapter';
 import type { Mock } from 'vitest';
@@ -13,6 +17,7 @@ function mockToolkit(timemap: Array<Record<string, unknown>> = []) {
     renderToSVG: vi.fn(() => '<svg />'),
     renderToMIDI: vi.fn(() => ''),
     getMEI: vi.fn(() => '<mei/>'),
+    renderToExpansionMap: vi.fn(() => ({})),
     renderToTimemap: vi.fn(() => timemap),
     getPageCount: vi.fn(() => 1),
     getPageWithElement: vi.fn(() => 1),
@@ -29,6 +34,7 @@ describe('PracticeVerovioAdapter', () => {
 
     const loadData = toolkit.loadData as Mock<(data: string) => boolean>;
     expect(loadData).toHaveBeenCalledOnce();
+    expect(toolkit.setOptions).toHaveBeenCalledWith(expect.objectContaining({ expandNever: true }));
     expect(loadData.mock.calls[0]?.[0]).not.toContain('nv-p1-m1-note1');
   });
 
@@ -49,4 +55,26 @@ describe('PracticeVerovioAdapter', () => {
     expect(adapter.getCursorTimelineEntryForBeatRange(3.5, 1, 4)?.noteIds).toEqual(['n2']);
   });
 
+});
+
+
+it('real Practice simple-repeat visual chronology aligns with the notation-order artifact', async () => {
+  const artifact = parsePracticeScoreArtifact(repeatArtifact);
+  const xml = readFileSync(resolve(process.cwd(), '../../backend/tests/fixtures/musicxml/practice-simple-repeat.musicxml'), 'utf8');
+  const adapter = new PracticeVerovioAdapter();
+  try {
+    await adapter.loadMusicXml(xml);
+    const written = artifact.events.map(event => event.onsetBeat);
+    expect(written).toEqual([0, 4, 8, 12]);
+    const entries = written.map(beat => adapter.getTimelineEntryForBeat(beat)!);
+    expect(entries.map(entry => entry.beat)).toEqual(written);
+    expect(entries.map(entry => entry.noteIds)).toEqual(artifact.notes.map(note => [note.renderNoteId]));
+    const m4 = artifact.notes.find(note => note.measureNumber === '4')!;
+    const m4Event = artifact.events.find(event => event.eventId === m4.eventId)!;
+    expect(adapter.getTimelineEntryForBeat(m4Event.onsetBeat)?.noteIds).toContain(m4.renderNoteId);
+    expect(adapter.getNextTimelineEntryAfterBeat(12)?.beat).toBe(12);
+    expect(adapter.renderTimemap().flatMap(entry => entry.on ?? [])).toEqual(artifact.notes.map(note => note.renderNoteId));
+  } finally {
+    adapter.dispose();
+  }
 });

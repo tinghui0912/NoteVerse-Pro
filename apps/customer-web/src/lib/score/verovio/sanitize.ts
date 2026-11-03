@@ -8,6 +8,14 @@ export function sanitizeMusicXmlForVerovio(xml: string) {
     const anchorByVoiceStaff = new Map<string, Element>();
 
     for (const child of Array.from(measure.children)) {
+      if (child.localName === 'sound') {
+        // Anchor standalone directives in renderer MEI instead of a global scoreDef.
+        // Preserve every attribute; numeric tempo meaning belongs to ingestion.
+        const direction = xmlDoc.createElementNS(child.namespaceURI, 'direction');
+        measure.replaceChild(direction, child);
+        direction.append(child);
+        continue;
+      }
       if (child.tagName !== 'note') {
         continue;
       }

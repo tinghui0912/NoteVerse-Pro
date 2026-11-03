@@ -30,7 +30,9 @@ class StubAdapter extends VerovioScoreAdapter {
 
   override async loadMusicXml() {}
 
-  override hasExplicitTempo() { return true; }
+  override renderPerformanceTiming() {
+    return { mei: '<mei><scoreDef midi.bpm="120"/></mei>', timemap: this.renderTimemap(), expansionMap: {} };
+  }
 
   override renderMidi() {
     return encodeMidi();
@@ -38,10 +40,10 @@ class StubAdapter extends VerovioScoreAdapter {
 
   override renderTimemap() {
     return [
-      { on: ['note-1'], tstamp: 0, tempo: 120 },
-      { off: ['note-1'], tstamp: 500 },
-      { on: ['note-2'], tstamp: 1000 },
-      { off: ['note-2'], tstamp: 1500 },
+      { on: ['note-1'], qstamp: 0, tstamp: 0, tempo: 120 },
+      { off: ['note-1'], qstamp: 1, tstamp: 500 },
+      { on: ['note-2'], qstamp: 2, tstamp: 1000 },
+      { off: ['note-2'], qstamp: 3, tstamp: 1500 },
     ];
   }
 
@@ -74,8 +76,8 @@ class StubAdapter extends VerovioScoreAdapter {
 class OpeningRestAdapter extends StubAdapter {
   override renderTimemap() {
     return [
-      { on: ['note-1'], tstamp: 1000, tempo: 120 },
-      { off: ['note-1'], tstamp: 1500 },
+      { on: ['note-1'], qstamp: 2, tstamp: 1000, tempo: 120 },
+      { off: ['note-1'], qstamp: 3, tstamp: 1500 },
     ];
   }
 
@@ -141,16 +143,14 @@ describe('Verovio playback timeline', () => {
       await adapter.loadMusicXml(xml);
       const timeline = createVerovioPlaybackTimeline(
         adapter.renderMidi(),
-        adapter.renderTimemap(),
-        adapter.hasExplicitTempo() ? 'SCORE' : 'ENGINE_DEFAULT'
+        adapter.renderPerformanceTiming()
       );
 
       expect(timeline.notes).toHaveLength(3);
       expect(timeline.visualEvents).toHaveLength(1);
       expect(timeline.visualEvents[0]?.noteIds).toHaveLength(3);
       expect(timeline.sourceTempo).toBe(80);
-      const natural = createVerovioPlaybackTimeline(adapter.renderMidi(), adapter.renderTimemap(), 'SCORE');
-      expect(timeline.duration).toBeCloseTo(natural.duration * natural.sourceTempo / 80, 6);
+      expect(timeline.duration).toBeCloseTo(.75, 6);
       expect(adapter.getPageWithElement(timeline.visualEvents[0]?.noteIds[0] ?? '')).toBe(1);
       adapter.dispose();
     },

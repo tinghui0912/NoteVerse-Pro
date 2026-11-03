@@ -49,8 +49,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
     await this.adapter.loadMusicXml(xml);
     const timeline = createVerovioPlaybackTimeline(
       this.adapter.renderMidi(),
-      this.adapter.renderTimemap(),
-      this.adapter.hasExplicitTempo() ? 'SCORE' : 'ENGINE_DEFAULT'
+      this.adapter.renderPerformanceTiming()
     );
     await this.audioEngine.prepare(timeline.instruments);
     this.timeline = timeline;
