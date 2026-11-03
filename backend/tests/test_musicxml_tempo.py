@@ -11,7 +11,7 @@ from app.score_semantics.musicxml_tempo import (
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
-from app.processing.musicxml.validation import prepare_musicxml_document
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.core.exceptions import ValidationException
 
 
@@ -124,7 +124,7 @@ def test_ingestion_boundaries_preserve_invalid_tempo_failure(value):
     with pytest.raises(MetadataExtractionError, match="invalid_tempo"):
         extract_musicxml_metadata(xml)
     with pytest.raises(ValidationException):
-        prepare_musicxml_document(xml.encode())
+        admit_musicxml_document(xml.encode())
 
 
 @pytest.mark.parametrize(
@@ -141,12 +141,12 @@ def test_canonical_document_materializes_same_exact_playback_fact(unit, rate, do
     raw = score(
         "<direction><offset>2</offset>" + metronome(unit, rate, dots) + "</direction>" + rest(8)
     ).encode()
-    prepared = prepare_musicxml_document(raw)
+    prepared = admit_musicxml_document(raw)
     root = ET.fromstring(prepared)
     assert root.find(".//sound").get("tempo") == bpm
     assert root.find(".//metronome/beat-unit").text == unit
     assert len(root.findall(".//metronome/beat-unit-dot")) == dots
-    assert prepare_musicxml_document(prepared) == prepared
+    assert admit_musicxml_document(prepared) == prepared
     assert (
         compile_practice_score(raw).tempo_segments
         == compile_practice_score(prepared).tempo_segments
@@ -156,13 +156,13 @@ def test_canonical_document_materializes_same_exact_playback_fact(unit, rate, do
 
 def test_missing_tempo_document_remains_byte_identical():
     raw = score(rest(8)).encode()
-    assert prepare_musicxml_document(raw) == raw
+    assert admit_musicxml_document(raw) == raw
 
 
 def test_namespaced_canonical_playback_projection():
     raw = score("<direction>" + metronome("half", "60") + "</direction>" + rest(8)).replace(
         "<score-partwise>", '<score-partwise xmlns="urn:musicxml">'
     )
-    prepared = prepare_musicxml_document(raw.encode())
+    prepared = admit_musicxml_document(raw.encode())
     root = ET.fromstring(prepared)
     assert next(e for e in root.iter() if e.tag.endswith("}sound")).get("tempo") == "120"

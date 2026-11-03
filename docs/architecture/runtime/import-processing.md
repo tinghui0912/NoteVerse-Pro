@@ -26,3 +26,15 @@ dispatch/tasks, storage adapters and the import-job database model. Their tests
 cover idempotency, competing claims, retry/terminal transitions and review
 confirmation. Review API and score identity are defined in
 [ADR 0005](../../adr/0005-review-pipeline-before-score.md).
+
+
+## Review candidates and canonical sources
+
+The pipeline records raw OMR/intermediate XML as job-scoped review candidates; those
+artifacts are not trusted canonical revision sources. User Review MusicXML updates
+and confirmation use [canonical document admission](../score-semantics.md#document-admission)
+before storing the trusted editable document or revision source. The synchronous
+confirmed-score creation entry point enforces the same boundary. Admission requires
+partwise representation, materializes explicit tempo facts and validates the exact
+stored bytes with canonical written semantics. Pipeline artifact recording remains
+independent of downstream Practice and metadata projection support.

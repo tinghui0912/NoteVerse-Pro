@@ -11,7 +11,9 @@ Canonical source content, visual render output, playable output and queryable me
 ## Decision
 
 1. `ScoreRevisionSource` stores canonical source content for a revision. The current source
-   format is `MUSICXML`.
+   format is `MUSICXML`, with `score-partwise` bytes accepted by
+   [canonical document admission](../architecture/score-semantics.md#document-admission).
+   The source checksum and revision content hash describe those exact admitted bytes.
 2. `ScoreRenderAsset` stores visual derived assets for a revision. The current render kind is
    `RENDERED_PAGE`.
 3. `ScorePlaybackAsset` stores playable derived assets for a revision. The current playback

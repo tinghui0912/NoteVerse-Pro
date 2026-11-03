@@ -104,12 +104,47 @@ written chronology.
 `PracticeScoreInvalidError`; metadata maps it to `MetadataExtractionError`.
 Neither consumer performs an independent XML cursor or measure-start traversal.
 Canonical parsing does not modify source bytes or materialize a product default.
-Basic ingestion remains responsible for root admission and explicit tempo
-validation/materialization, independently of these consumer projections.
+The written parser and trusted canonical document representation are `score-partwise`.
+`score-timewise` is not an admitted canonical source representation; no timewise
+normalization is performed.
 
-The written parser supports `score-partwise`. Basic ingestion also admits the
-`score-timewise` root, but Practice and metadata written projections do not support
-that representation. No timewise normalization is performed.
+## Document admission
+
+`app/processing/musicxml/admission.py` owns `admit_musicxml_document(content)`:
+
+1. Parse XML and require the partwise representation.
+2. Delegate explicit tempo validation/playback materialization to `musicxml_tempo`.
+3. Serialize only if materialization changed the document.
+4. Run `parse_score_semantics` on the exact final bytes.
+5. Return those admitted bytes to hashing, storage or the trusted document consumer.
+
+Valid input with no materialization change is returned byte-for-byte. Re-admitting
+materialized content is idempotent. Missing tempo is legal and inserts no 80 BPM fact.
+XML, tempo and written-semantic errors become the existing public
+`REVISION_CONTENT_INVALID` validation error, with internal causes retained for diagnosis.
+This is canonical semantic admission, not full MusicXML XSD conformance validation.
+
+Revision create/restore, Review confirm and user MusicXML update, and the synchronous
+confirmed-score creation entry point all admit content before storage reservation or
+durable put. Revision content hashes and source checksums describe exactly the admitted
+bytes. Fingering admits editor input before execution and generated output before
+returning its unsaved suggestion; invalid generated output is `SCORE_FINGERING_FAILED`.
+Backend playback also uses the same document boundary before its ephemeral renderer
+adaptation. There is no persisted serialized semantic-model cache: downstream consumers
+parse trusted bytes when they need written facts.
+
+Canonical admission calls neither Practice nor metadata projection. A valid timed
+polymetric/scoped-meter score, nontraditional/scoped key, fractional alteration or
+absent traditional key mode remains admissible when its written semantics are valid.
+Practice still applies its support restrictions. Metadata can mark its projection
+FAILED for an unsupported DTO shape or a storage problem; new source writes cannot
+store malformed written chronology and defer its discovery to metadata.
+
+Raw OMR output, pipeline intermediates and job-scoped `REVIEW_MUSICXML` candidates
+recorded by the import pipeline remain temporary upstream artifacts. Their storage
+is not a claim of canonical semantic admission. Explicit Review update/confirm and
+confirmed-score creation enforce the trusted boundary. Pipeline recording and review
+thumbnail generation do not turn raw intermediates into canonical revision sources.
 
 The cross-projection fixture `backend/tests/fixtures/musicxml/written-semantics.musicxml`
 combines multiple parts, divisions changes, voices/backup, forward, an empty measure,

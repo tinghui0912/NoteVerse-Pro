@@ -19,8 +19,10 @@ A direction offset is divided by the divisions active at that direction and adde
 the canonical written parser's current part/measure cursor. Conflicting facts at one score position and
 positions before the score origin are invalid.
 
-Score ingestion validates these facts and materializes an equivalent `sound@tempo`
-when a metronome has no playback attribute. It preserves beat-unit/dot presentation
+[Canonical document admission](score-semantics.md#document-admission) requires partwise
+MusicXML, validates these facts and materializes an equivalent `sound@tempo` when a
+metronome has no playback attribute. It validates written semantics on the final
+admitted bytes before they enter trusted storage or document consumers. It preserves beat-unit/dot presentation
 and inserts no tempo when notation is absent. Canonical MusicXML therefore carries
 the explicit quarter-BPM playback fact used by renderer consumers. Editor tempo
 controls edit literal notation fields; they do not interpret them as playback BPM.

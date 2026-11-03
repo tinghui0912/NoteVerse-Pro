@@ -163,12 +163,15 @@ def test_meter_placement_is_written_fact_but_practice_support_is_separate():
         compile_practice_score(xml)
 
 
-def test_timewise_boundary_is_explicit_without_changing_root_admission():
-    from app.processing.musicxml.validation import prepare_musicxml_document
+def test_timewise_is_outside_canonical_and_document_admission_boundaries():
+    from app.processing.musicxml.admission import admit_musicxml_document
     from app.processing.musicxml.metadata import extract_musicxml_metadata, MetadataExtractionError
 
     xml = b'<score-timewise><measure number="1"><part id="P1"/></measure></score-timewise>'
-    assert prepare_musicxml_document(xml) == xml
+    from app.core.exceptions import ValidationException
+
+    with pytest.raises(ValidationException):
+        admit_musicxml_document(xml)
     with pytest.raises(MusicXMLSemanticError, match="unsupported_root"):
         parse_score_semantics(xml)
     with pytest.raises(MetadataExtractionError):

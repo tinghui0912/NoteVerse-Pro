@@ -18,7 +18,7 @@ from app.processing.engines.fingering.pianoplayer import (
 MUSICXML = """<?xml version="1.0"?>
 <score-partwise version="4.0">
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-  <part id="P1"><measure number="1"><note><rest/><duration>1</duration></note></measure></part>
+  <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><rest/><duration>1</duration></note></measure></part>
 </score-partwise>"""
 
 
@@ -26,7 +26,9 @@ class AllowEditAccessPolicy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object, int]] = []
 
-    async def authorize(self, _db: object, score_id: str, action: object, **context: object) -> object:
+    async def authorize(
+        self, _db: object, score_id: str, action: object, **context: object
+    ) -> object:
         self.calls.append((score_id, action, int(context["user_id"])))
         return object()
 
@@ -44,7 +46,9 @@ class FakeEngine:
 
 
 class InlineExecution:
-    async def run(self, operation: Callable[..., object], /, *args: object, **kwargs: object) -> object:
+    async def run(
+        self, operation: Callable[..., object], /, *args: object, **kwargs: object
+    ) -> object:
         return operation(*args, **kwargs)
 
 
@@ -114,7 +118,7 @@ def test_pianoplayer_engine_uses_a_unique_cleaned_temporary_directory(
 def test_strip_existing_fingerings_before_generation() -> None:
     xml = """<?xml version="1.0"?>
 <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-  <part id="P1"><measure number="1"><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+  <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
     <notations><technical><fingering>5</fingering></technical></notations></note>
     <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration>
     <notations><technical><fingering>3</fingering></technical><slur type="start" number="1"/></notations></note>
@@ -125,3 +129,33 @@ def test_strip_existing_fingerings_before_generation() -> None:
     assert "<fingering>" not in stripped
     assert "<technical" not in stripped
     assert "slur" in stripped
+
+
+@pytest.mark.asyncio
+async def test_semantically_invalid_input_is_rejected_before_fingering_execution():
+    from app.shared.constants import ErrorCode
+
+    engine = FakeEngine()
+    service = FingeringService(
+        access_policy=AllowEditAccessPolicy(), engine=engine, execution=InlineExecution()
+    )
+    invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
+    with pytest.raises(ValidationException) as caught:
+        await service.generate(object(), "score-1", 9, FingeringRequest(content=invalid))
+    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert engine.calls == []
+
+
+@pytest.mark.asyncio
+async def test_semantically_invalid_generated_output_is_fingering_failure():
+    from app.shared.constants import ErrorCode
+
+    invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
+    engine = FakeEngine(content=invalid)
+    service = FingeringService(
+        access_policy=AllowEditAccessPolicy(), engine=engine, execution=InlineExecution()
+    )
+    with pytest.raises(ExternalServiceException) as caught:
+        await service.generate(object(), "score-1", 9, FingeringRequest(content=MUSICXML))
+    assert caught.value.code == ErrorCode.SCORE_FINGERING_FAILED
+    assert len(engine.calls) == 1

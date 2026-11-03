@@ -25,7 +25,7 @@ from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
-from app.processing.musicxml.validation import prepare_musicxml_document
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.utils.timezone import utc_now_naive
 
 
@@ -56,10 +56,7 @@ class SyncConfirmedScoreCreationService:
 
         with open(musicxml_path, "rb") as source:
             content = source.read()
-        if not content.strip():
-            raise ValueError("Canonical MusicXML is empty")
-
-        content = prepare_musicxml_document(content)
+        content = admit_musicxml_document(content)
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
         storage_key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"

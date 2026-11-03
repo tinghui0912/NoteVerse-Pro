@@ -14,7 +14,7 @@ from app.processing.engines.playback.tempo_projection import (
     project_midi_tempos,
     renderer_tempo_events,
 )
-from app.processing.musicxml.validation import prepare_musicxml_document
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 
 
@@ -125,7 +125,7 @@ def test_engine_implicit_tempo_cannot_become_product_authority():
 
 def test_missing_tempo_is_only_a_consumer_projection_not_a_source_fact():
     content = score(note() + note())
-    assert prepare_musicxml_document(content) == content
+    assert admit_musicxml_document(content) == content
     VerovioMidiCompiler().compile(content)
     assert not any("tempo" in element.attrib for element in ET.fromstring(content).iter())
 

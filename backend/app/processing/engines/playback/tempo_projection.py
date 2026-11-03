@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 import xml.etree.ElementTree as ET
 
-from app.processing.musicxml.validation import prepare_musicxml_document
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_tempo import put_tempo_fact
 
 _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
@@ -18,7 +18,7 @@ _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 
 def playback_musicxml(content: bytes) -> str:
     """Ephemeral renderer input; make standalone sound placement direction-scoped."""
-    root = ET.fromstring(prepare_musicxml_document(content))
+    root = ET.fromstring(admit_musicxml_document(content))
     for parent in root.iter():
         for index, element in enumerate(list(parent)):
             if (
