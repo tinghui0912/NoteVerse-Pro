@@ -57,7 +57,7 @@ supported by this compiler. Physical pitch is computed from explicit pitch facts
 and admitted through the Practice piano-key domain. Key signatures are not required.
 
 Tempo markings are optional. An empty tempo projection represents the absence of
-explicit score tempo; execution's SCORE selection uses the product 120 BPM policy
+explicit score tempo; execution's SCORE selection uses the product 80 BPM policy
 before any explicit tempo. The compiler does not insert a tempo segment for that
 policy. Count-in and metronome consumers use admitted meter timing directly.
 

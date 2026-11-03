@@ -1,3 +1,4 @@
+import { parseXml } from '@/lib/musicxml/core';
 import { sanitizeMusicXmlForVerovio } from './sanitize';
 import { createVerovioToolkit } from './toolkit';
 import { prepareMusicXmlIdsForGenericVerovioRender } from '@/lib/musicxml/generic-render-ids';
@@ -83,6 +84,12 @@ export class VerovioScoreAdapter {
 
   renderTimemap(options: Record<string, unknown> = {}) {
     return this.ensureReady().renderToTimemap(options);
+  }
+
+  hasExplicitTempo() {
+    const mei = parseXml(this.ensureReady().getMEI());
+    return Array.from(mei.getElementsByTagName('*')).some(element =>
+      ['tempo', 'scoreDef'].includes(element.localName) && (element.hasAttribute('midi.bpm') || element.hasAttribute('mm')));
   }
 
   renderMidi() {

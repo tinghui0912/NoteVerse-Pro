@@ -9,6 +9,7 @@ declare module 'verovio/esm' {
     loadData(data: string): boolean;
     renderToSVG(pageNo?: number, xmlDeclaration?: boolean): string;
     renderToMIDI(): string;
+    getMEI(): string;
     renderToTimemap(options?: Record<string, unknown>): Array<Record<string, unknown>>;
     getPageCount(): number;
     getPageWithElement(xmlId: string): number;

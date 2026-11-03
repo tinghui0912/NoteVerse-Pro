@@ -33,6 +33,8 @@ class FakeToolkit implements VerovioToolkitLike {
     return `<svg aria-label="score-page-${pageNumber}"><g id="note-${pageNumber}" /></svg>`;
   }
 
+  getMEI() { return '<mei/>'; }
+
   renderToMIDI() {
     return '';
   }

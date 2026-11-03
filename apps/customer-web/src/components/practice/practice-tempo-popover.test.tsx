@@ -22,7 +22,7 @@ describe('PracticeTempoPopover', () => {
     expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent(/Score Tempo/);
   });
 
-  it('renders trigger button showing Default 120 BPM when score has no explicit tempo', () => {
+  it('renders trigger button showing Default 80 BPM when score has no explicit tempo', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
@@ -33,7 +33,7 @@ describe('PracticeTempoPopover', () => {
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('120 BPM');
+    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('80 BPM');
   });
 
   it('renders trigger button showing exact custom BPM in CUSTOM mode', () => {

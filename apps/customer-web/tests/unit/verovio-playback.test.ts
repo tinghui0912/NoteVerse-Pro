@@ -30,6 +30,8 @@ class StubAdapter extends VerovioScoreAdapter {
 
   override async loadMusicXml() {}
 
+  override hasExplicitTempo() { return true; }
+
   override renderMidi() {
     return encodeMidi();
   }
@@ -139,14 +141,16 @@ describe('Verovio playback timeline', () => {
       await adapter.loadMusicXml(xml);
       const timeline = createVerovioPlaybackTimeline(
         adapter.renderMidi(),
-        adapter.renderTimemap()
+        adapter.renderTimemap(),
+        adapter.hasExplicitTempo() ? 'SCORE' : 'ENGINE_DEFAULT'
       );
 
       expect(timeline.notes).toHaveLength(3);
       expect(timeline.visualEvents).toHaveLength(1);
       expect(timeline.visualEvents[0]?.noteIds).toHaveLength(3);
-      expect(timeline.sourceTempo).toBe(120);
-      expect(timeline.duration).toBeCloseTo(0.5, 2);
+      expect(timeline.sourceTempo).toBe(80);
+      const natural = createVerovioPlaybackTimeline(adapter.renderMidi(), adapter.renderTimemap(), 'SCORE');
+      expect(timeline.duration).toBeCloseTo(natural.duration * natural.sourceTempo / 80, 6);
       expect(adapter.getPageWithElement(timeline.visualEvents[0]?.noteIds[0] ?? '')).toBe(1);
       adapter.dispose();
     },

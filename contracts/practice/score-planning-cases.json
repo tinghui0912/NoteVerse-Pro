@@ -42,7 +42,7 @@
           "segments": [
             {
               "startBeat": 0,
-              "bpm": 120,
+              "bpm": 80,
               "source": "PRODUCT_DEFAULT"
             }
           ]
@@ -95,7 +95,7 @@
           "segments": [
             {
               "startBeat": 0,
-              "bpm": 120,
+              "bpm": 80,
               "source": "PRODUCT_DEFAULT"
             }
           ]
@@ -148,7 +148,7 @@
           "segments": [
             {
               "startBeat": 0,
-              "bpm": 120,
+              "bpm": 80,
               "source": "PRODUCT_DEFAULT"
             }
           ]
@@ -301,7 +301,7 @@
           "segments": [
             {
               "startBeat": 0,
-              "bpm": 120,
+              "bpm": 80,
               "source": "PRODUCT_DEFAULT"
             },
             {

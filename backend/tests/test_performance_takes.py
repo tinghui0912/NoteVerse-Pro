@@ -4488,9 +4488,9 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
         if tempo_case == "CUSTOM":
             segments = [{"startBeat": 0, "bpm": 81, "source": "CUSTOM"}]
         elif tempo_case == "NO_TEMPO":
-            segments = [{"startBeat": 0, "bpm": 120, "source": "PRODUCT_DEFAULT"}]
+            segments = [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}]
         elif tempo_case == "DELAYED_TEMPO":
-            segments = [{"startBeat": 0, "bpm": 120, "source": "PRODUCT_DEFAULT"}, {"startBeat": 3, "bpm": 90, "source": "MUSICXML"}]
+            segments = [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}, {"startBeat": 3, "bpm": 90, "source": "MUSICXML"}]
         else:
             segments = [{"startBeat": 0, "bpm": 120, "source": "MUSICXML"}, {"startBeat": 3, "bpm": 90, "source": "MUSICXML"}]
         expected_tempo = {"selection": selection, "segments": segments}

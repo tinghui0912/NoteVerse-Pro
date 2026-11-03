@@ -12,6 +12,7 @@ function mockToolkit(timemap: Array<Record<string, unknown>> = []) {
     loadData: vi.fn(() => true),
     renderToSVG: vi.fn(() => '<svg />'),
     renderToMIDI: vi.fn(() => ''),
+    getMEI: vi.fn(() => '<mei/>'),
     renderToTimemap: vi.fn(() => timemap),
     getPageCount: vi.fn(() => 1),
     getPageWithElement: vi.fn(() => 1),

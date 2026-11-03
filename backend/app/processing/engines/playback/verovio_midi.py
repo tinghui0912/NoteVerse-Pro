@@ -4,6 +4,8 @@ import base64
 from dataclasses import dataclass
 
 from app.shared.constants import ErrorCode
+from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
+from .tempo_projection import playback_musicxml, project_midi_tempos, renderer_tempo_events
 
 
 @dataclass(frozen=True)
@@ -27,7 +29,7 @@ class VerovioMidiCompiler:
 
         toolkit = verovio.toolkit()
         toolkit.setOptions({"inputFrom": "xml"})
-        loaded = toolkit.loadData(content.decode("utf-8"))
+        loaded = toolkit.loadData(playback_musicxml(content))
         if loaded is False:
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: failed to load MusicXML")
 
@@ -40,6 +42,18 @@ class VerovioMidiCompiler:
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid MIDI output") from exc
         if not midi.startswith(b"MThd"):
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid MIDI header")
+        try:
+            tempos = renderer_tempo_events(
+                toolkit.getMEI(),
+                toolkit.renderToTimemap({"includeMeasures": True}),
+                DEFAULT_SCORE_TEMPO_BPM,
+                toolkit.renderToExpansionMap(),
+            )
+            midi = project_midi_tempos(midi, tempos)
+        except (ValueError, KeyError, IndexError) as exc:
+            raise RuntimeError(
+                f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid tempo projection"
+            ) from exc
         return CompiledMidi(
             content=midi,
             generator=self.generator,

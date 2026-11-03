@@ -390,7 +390,7 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
     assert metadata.measure_count == 1
-    assert metadata.playback_duration_ms == 2000
+    assert metadata.playback_duration_ms == 3000
 
 
 def test_completed_job_notifies_owner_when_ready_for_review(

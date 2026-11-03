@@ -38,11 +38,19 @@ function normalizeInstrumentName(name: string) {
 
 export function createVerovioPlaybackTimeline(
   midiBase64: string,
-  timemap: Array<Record<string, unknown>>
+  timemap: Array<Record<string, unknown>>,
+  tempoAuthority: 'SCORE' | 'ENGINE_DEFAULT'
 ): VerovioPlaybackTimeline {
   const midi = new Midi(decodeBase64(midiBase64));
   if (midi.header.tempos.some(tempo => !Number.isFinite(tempo.bpm) || tempo.bpm <= 0)) {
     throw new Error('Invalid explicit MIDI tempo.');
+  }
+  let visualTimeScale = 1;
+  if (tempoAuthority === 'ENGINE_DEFAULT') {
+    const engineBpm = midi.header.tempos[0]?.bpm;
+    if (!engineBpm) throw new Error('Missing renderer implicit tempo.');
+    visualTimeScale = engineBpm / DEFAULT_SCORE_TEMPO_BPM;
+    midi.header.tempos = [];
   }
   midi.header.tempos.sort((a, b) => a.ticks - b.ticks);
   if (!midi.header.tempos.length || midi.header.tempos[0].ticks > 0) {
@@ -64,7 +72,7 @@ export function createVerovioPlaybackTimeline(
 
   const visualEvents = timemap
     .map((entry) => ({
-      time: (readNumericTimemapValue(entry, ['tstamp']) ?? 0) / 1000,
+      time: (readNumericTimemapValue(entry, ['tstamp']) ?? 0) / 1000 * visualTimeScale,
       noteIds: Array.isArray(entry.on)
         ? entry.on.filter((value): value is string => typeof value === 'string')
         : [],

@@ -56,7 +56,7 @@ export function PracticeTempoPopover({
   const currentBpm =
     tempoSelection.mode === 'CUSTOM_FIXED_BPM' ? tempoSelection.bpm : initialBpm;
 
-  // Single trigger label: [速度 · 原速] or [速度 · 120 BPM]
+  // Single trigger label: [速度 · 原速] or [速度 · 80 BPM]
   const triggerLabel =
     tempoSelection.mode === 'CUSTOM_FIXED_BPM'
       ? `${t('tempoButton')} · ${tempoSelection.bpm} BPM`
