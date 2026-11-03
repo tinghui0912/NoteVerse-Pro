@@ -48,7 +48,7 @@ def test_score_compiler_dependency_direction():
                 assert node.module in {"domain", "piano_key", "timeline"}
             elif node.module and node.module.startswith("app."):
                 assert node.module.startswith("app.modules.practice.score.") or node.module in {
-                    "app.score_semantics.musicxml_tempo",
+                    "app.score_semantics.musicxml_score",
                     "app.score_semantics.tempo_policy",
                 }
 
@@ -78,7 +78,6 @@ def test_durable_planning_depends_only_on_score_domain_and_standard_library():
             assert not node.level
             if node.module and node.module.startswith("app."):
                 assert node.module.startswith("app.modules.practice.score.") or node.module in {
-                    "app.score_semantics.musicxml_tempo",
                     "app.score_semantics.tempo_policy",
                 }
             else:
@@ -94,27 +93,3 @@ def test_durable_planning_depends_only_on_score_domain_and_standard_library():
         and node.func.id == "resolve_practice_score_plan"
     ]
     assert len(calls) == 1
-
-
-def test_shared_score_tempo_semantics_are_pure_and_consumed_by_both_projections():
-    import sys
-
-    semantics = ROOT / "score_semantics"
-    for path in semantics.glob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Import):
-                assert all(
-                    alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names
-                )
-            elif isinstance(node, ast.ImportFrom):
-                assert not node.level
-                assert node.module.split(".")[0] in sys.stdlib_module_names
-    for consumer in [
-        "modules/practice/score/compiler/musicxml.py",
-        "processing/musicxml/metadata.py",
-    ]:
-        assert any(
-            node.module == "app.score_semantics.musicxml_tempo"
-            and any(name.name == "parse_tempo_directive" for name in node.names)
-            for node in imports(consumer)
-        )

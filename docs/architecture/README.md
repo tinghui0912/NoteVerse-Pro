@@ -11,6 +11,11 @@ accepted current decisions and their rationale.
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
 - [External Dependencies](integrations/external-dependencies.md)
 
+## Score
+
+- [Written Score Semantics](score-semantics.md)
+- [Score Tempo Semantics](score-tempo.md)
+
 ## Practice
 
 - [Product Contract](practice-product-contract.md)

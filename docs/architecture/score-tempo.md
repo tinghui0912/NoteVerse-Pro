@@ -16,7 +16,7 @@ eighth = 120 means 60 quarter BPM.
 describe that same rate. Conflicting rates, multiple ambiguous directives, unsupported
 metronome forms and nonpositive, malformed or nonfinite explicit numbers fail closed.
 A direction offset is divided by the divisions active at that direction and added to
-the consumer's current score cursor. Conflicting facts at one score position and
+the canonical written parser's current part/measure cursor. Conflicting facts at one score position and
 positions before the score origin are invalid.
 
 Score ingestion validates these facts and materializes an equivalent `sound@tempo`
@@ -39,12 +39,13 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
 
 ## Consumers
 
-- Practice compilation consumes explicit rational directives and places them on its
-  score chronology. Practice planning applies the missing-tempo policy; the artifact
-  contains only explicit tempo segments.
-- Metadata consumes the same directive meanings and offsets. Its own repeat expansion
-  and duration projection integrate the resulting tempo changes, starting at the
-  product default where no explicit tempo is active.
+- The [canonical written model](score-semantics.md) positions explicit directives on
+  its exact Fraction quarter axis. Practice compilation projects those positioned
+  facts; Practice planning applies the missing-tempo policy. The artifact contains
+  only explicit tempo segments.
+- Metadata consumes canonical written measure boundaries and tempo positions. Its
+  own simple-repeat playback order and duration projection integrate those facts,
+  starting at the product default where no explicit tempo is active.
 - Backend playback uses an ephemeral renderer input and projects its MIDI conductor.
   Verovio supplies MEI timestamps, measure quarter-positions and expansion IDs; the
   adapter converts those renderer coordinates to MIDI ticks, preserving the other
