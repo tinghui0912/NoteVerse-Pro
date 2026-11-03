@@ -1,4 +1,6 @@
 'use client';
+import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
+
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -260,6 +262,7 @@ export function VideoExportStudio({
       return;
     }
 
+    const mediaLease = session.captureResource?.retain();
     const abortController = new AbortController();
     splitExportAbortRef.current = abortController;
     setSplitExportStatus('exporting');
@@ -296,6 +299,7 @@ export function VideoExportStudio({
       setSplitExportStatus('error');
       setSplitExportError(cause instanceof Error ? cause.message : t('exportScoreVideoFailedDesc'));
     } finally {
+      if (mediaLease) await releaseRecordingMedia(mediaLease);
       splitExportAbortRef.current = null;
       onExportingChange?.(false);
     }

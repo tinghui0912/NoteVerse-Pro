@@ -1719,3 +1719,101 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   await expect(page.getByText('本次临时报告已失效', { exact: true })).toBeVisible();
   expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);
 });
+
+
+async function captureFileNames(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    try {
+      const directory = await root.getDirectoryHandle('noteverse-practice-captures');
+      const names: string[] = [];
+      for await (const entry of (directory as unknown as { values(): AsyncIterable<{ name: string }> }).values()) names.push(entry.name);
+      return names.sort();
+    } catch (error) { if (error instanceof DOMException && error.name === 'NotFoundError') return []; throw error; }
+  });
+}
+
+test('real OPFS capture survives Review replay/save/raw download and reclaims only unlocked orphan files', async ({ page, context }, testInfo) => {
+  const protocol = await setupContinuousPracticeMocks(page, { camera: 'READY' });
+  await page.route(`**/api/v1/scores/${scoreId}/revision-assets?**`, route => {
+    expect(new URL(route.request().url()).searchParams.get('revision_id')).toBe(revisionId);
+    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({ revision_sources: [], render_assets: [] }) });
+  });
+  await page.addInitScript(() => {
+    const writes: Array<{ name: string; bytes: number }> = [];
+    (window as unknown as { __captureWrites: typeof writes }).__captureWrites = writes;
+    const create = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function (options) {
+      const writer = await create.call(this, options), write = writer.write.bind(writer), name = this.name;
+      writer.write = async chunk => {
+        if (chunk instanceof Blob) writes.push({ name, bytes: chunk.size });
+        return write(chunk);
+      };
+      return writer;
+    };
+  });
+  await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
+  const orphan = await page.evaluate(async () => {
+    const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-practice-captures', { create: true });
+    const id = crypto.randomUUID(), writer = await (await directory.getFileHandle(id, { create: true })).createWritable();
+    await writer.write(new Blob(['crashed-owner'])); await writer.close(); return id;
+  });
+  const peer = await context.newPage();
+  await mockAuthenticatedSession(peer); await mockRealtimeEvents(peer);
+  await peer.goto(new URL('/en', page.url()).href);
+  const live = await peer.evaluate(async () => {
+    const id = crypto.randomUUID(); let acquired!: () => void, release!: () => void;
+    const ready = new Promise<void>(resolve => { acquired = resolve; });
+    const retired = new Promise<void>(resolve => { release = resolve; });
+    const held = navigator.locks.request(`noteverse-practice-capture:${id}`, async () => {
+      const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-practice-captures', { create: true });
+      const writer = await (await directory.getFileHandle(id, { create: true })).createWritable();
+      await writer.write(new Blob(['live-other-tab'])); await writer.close(); acquired(); await retired;
+    });
+    (window as unknown as { __capturePeer: { release(): void; held: Promise<void> } }).__capturePeer = { release, held };
+    await ready; return id;
+  });
+  await page.bringToFront();
+  await selectPracticeConfiguration(page, 'CONTINUOUS', 'MIDI', 'VIDEO');
+  expect(await preparePracticeSetup(page)).toBe('READY');
+  expect(await captureFileNames(page)).toEqual([live]); // The crashed file and probe are gone; the other tab remains.
+  expect(await captureFileNames(page)).not.toContain(orphan);
+  await page.getByRole('button', { name: '开始', exact: true }).click();
+  await expect(page.getByTestId('recording-indicator')).toBeVisible();
+  const names = await captureFileNames(page), capture = names.find(name => name !== live)!;
+  expect(capture).toBeTruthy();
+  const written = () => page.evaluate(id => (window as unknown as { __captureWrites: Array<{ name: string; bytes: number }> }).__captureWrites
+    .filter(write => write.name === id).reduce((sum, write) => sum + write.bytes, 0), capture);
+  await expect.poll(written).toBeGreaterThan(0);
+  await page.getByRole('button', { name: '查看报告', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
+  expect(await captureFileNames(page)).toEqual([live, capture].sort());
+  const size = await page.evaluate(async id => {
+    const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-practice-captures');
+    return (await (await directory.getFileHandle(id)).getFile()).size;
+  }, capture);
+  expect(size).toBe(await written()); expect(size).toBeGreaterThan(0);
+  await page.getByRole('button', { name: '回放', exact: true }).click();
+  await expect.poll(() => page.locator('video').first().evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: '暂停', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: '导出原始视频', exact: true }).click();
+  expect(await (await download).failure()).toBeNull();
+  await page.getByRole('button', { name: '保存录制', exact: true }).click();
+  await expect(page.getByRole('button', { name: '已保存', exact: true })).toBeVisible();
+  expect(protocol.request?.media.byte_size).toBe(size);
+  expect(protocol.events).toEqual(['RESERVATION', 'MEDIA_PUT', 'FINALIZE']);
+  await page.getByRole('button', { name: '返回乐谱', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Continuous Review Score', exact: true })).toBeVisible();
+  await expect.poll(() => captureFileNames(page)).toEqual([live]);
+  await peer.evaluate(async () => {
+    const owner = (window as unknown as { __capturePeer: { release(): void; held: Promise<void> } }).__capturePeer;
+    owner.release(); await owner.held;
+  });
+  await peer.close();
+  await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
+  await selectPracticeConfiguration(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+  expect(await preparePracticeSetup(page)).toBe('READY');
+  expect(await captureFileNames(page)).toEqual([]);
+  await testInfo.attach('opfs-capture-lifetime', { body: JSON.stringify({ capture, size, orphan, protectedPeer: live, save: protocol.events, remaining: [] }), contentType: 'application/json' });
+});

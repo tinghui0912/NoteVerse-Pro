@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { recordingSinkFixture, recordingResourceFixture } from '@/lib/practice/__fixtures__/recording-sink';
 
 import React, { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -50,7 +51,7 @@ const recordingTimebase: RecordingTimebase = {
 };
 
 function createInput() {
-  return {
+  return { mediaResource: recordingResourceFixture(),
     sourceId: 'source-1',
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
@@ -119,6 +120,24 @@ async function save() {
 }
 
 describe('useSavePerformanceTake', () => {
+  it.each(['success', 'upload-error', 'finalize-error'] as const)('holds media after Review clear until Save %s settles', async outcome => {
+    const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw capture']));
+    const media = await capture.sink.seal('audio/wav');
+    let finish!: () => void, fail!: (error: Error) => void;
+    vi.mocked(uploadMediaToSignedUrl).mockImplementation(() => new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; }));
+    if (outcome === 'finalize-error') vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValueOnce(new Error('finalize failed'));
+    const { result } = renderHook(() => useSavePerformanceTake(), { wrapper: createWrapper() });
+    let pending!: Promise<unknown>;
+    act(() => { pending = result.current.mutateAsync({ ...createInput(), mediaBlob: media.blob, mediaResource: media.resource }); });
+    await media.resource.release(); expect(capture.exists()).toBe(true);
+    await vi.waitFor(() => expect(uploadMediaToSignedUrl).toHaveBeenCalled());
+    await act(async () => {
+      if (outcome === 'upload-error') fail(new Error('upload failed')); else finish();
+      if (outcome === 'success') await pending; else await expect(pending).rejects.toThrow('failed');
+    });
+    expect(capture.exists()).toBe(false); expect(capture.remove).toHaveBeenCalledOnce();
+  });
+
   it('sends metadata once to reserve, uploads to the target, and finalizes only its public identity', async () => {
     expect(await save()).toEqual(savedTake);
     expect(performanceTakesApi.reserveUpload).toHaveBeenCalledExactlyOnceWith({ client_request_id: 'request-1', ...reservation().metadata });

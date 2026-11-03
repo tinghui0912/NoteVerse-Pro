@@ -1,3 +1,4 @@
+import { memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
@@ -23,7 +24,7 @@ function rig() {
   const midi = { start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }, createMidi = vi.fn(() => midi);
   const step = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
   const continuous = vi.spyOn(continuousPlatform, 'browserContinuousPlatform').mockReturnValue({ midiClock: clock, createMidi,
-    createMetronomeAudio: () => metronomeAudioFixture(), createRecorder: () => new PerformanceRecorder('OFF') } as never);
+    createMetronomeAudio: () => metronomeAudioFixture(), createRecorder: () => new PerformanceRecorder('OFF', memoryRecordingSinkFactory) } as never);
   const completion = vi.fn();
   return { health, clock, meter, midi, step, continuous, options: { plan: stepSessionPlan(artifact), admitted: true,
     compositionId: 'score/revision', borrowRoots, rootHealth: health.port, onNaturalCompletion: completion }, completion };

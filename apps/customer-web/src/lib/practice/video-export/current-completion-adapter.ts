@@ -12,6 +12,7 @@ export function createVideoExportSessionFromCompletion(session: TransientReviewS
     resolvePracticeScopeCursorNoteIds(artifact, result.scope)
   );
   return {
+    captureResource: recording.resource,
     sessionId: result.localSessionId,
     sourceId: result.sourceId,
     scoreIdentity: {

@@ -72,6 +72,9 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const presentationOwners = ['score-view/', 'review/', 'video-export/'];
   if (source.startsWith('failure/')) return Boolean(target?.startsWith('failure/'));
   if (target?.startsWith('failure/')) return !domain(source) && !source.startsWith('planning/') && !source.startsWith('result/');
+  if (edge.target === normalize(path.join(sourceRoot, 'lib/observability/index.ts'))) {
+    return ['recording/opfs-recording-sink.ts', 'recording/recording-media-resource.ts'].includes(source);
+  }
   if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'kernel/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
     || target.startsWith('kernel/') || target === 'metronome/metronome-plan.ts' || edge.typeOnly && target === 'recording/recording-mode.ts'));
@@ -97,14 +100,14 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
       && edge.bindings.every(name => name === 'ContinuousTargetFeedback');
   }
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'kernel/', 'score-view/'].some(owner => target.startsWith(owner))
-    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)
+    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts', 'recording/recording-media-resource.ts'].includes(target)
     || edge.typeOnly && ['source/admitted-practice-source.ts','continuous/completion.ts'].includes(target)));
   if (source.startsWith('video-export/')) {
     if (source === 'video-export/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
     if (['react', 'next-intl'].includes(edge.specifier)) return source === 'video-export/preview.tsx';
     if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'video-export/saved-take-adapter.ts' && edge.typeOnly;
     return Boolean(target && (target.startsWith('video-export/') || target.startsWith('kernel/')
-      || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'score-view/verovio-adapter.ts',
+      || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/recording-sink.ts', 'score-view/verovio-adapter.ts',
         'score-view/playhead-cursor.ts', 'score-view/scope-timing.ts', 'score-view/decorations.ts', 'score-view/cursor-scope.ts'].includes(target)));
   }
   const owner = domain(source);
@@ -988,4 +991,14 @@ it('browser execution and Review consume workspace-owned representations rather 
   const prepared=path.join(practiceRoot,'preparation/prepared-practice.ts');
   expect(imports(prepared).some(edge=>edge.typeOnly&&edge.bindings.includes('AdmittedPracticeSource'))).toBe(true);
   expect(imports(path.join(practiceRoot,'video-export/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
+});
+
+it('Capture storage and Review ownership use explicit recording infrastructure ports', () => {
+  const recorder = imports(path.join(practiceRoot, 'recording/performance-recorder.ts'));
+  expect(recorder.some(edge => edge.typeOnly && edge.bindings.includes('RecordingSink'))).toBe(true);
+  expect(recorder.some(edge => edge.bindings.includes('openOpfsRecordingSink'))).toBe(true);
+  const review = imports(path.join(practiceRoot, 'review/transient-review-session.ts'));
+  expect(review.some(edge => edge.bindings.includes('releaseRecordingMedia'))).toBe(true);
+  const storage = imports(path.join(practiceRoot, 'recording/opfs-recording-sink.ts'));
+  expect(storage.some(edge => edge.bindings.includes('createRecordingMediaResource'))).toBe(true);
 });

@@ -1,3 +1,4 @@
+import * as opfs from '../recording/opfs-recording-sink';
 import { recordingProbeFixture } from '../__fixtures__/recording-probe';
 import { PracticeResourceBinding } from '../device/practice-resource-binding';
 import { midiDeviceFixture } from '../__fixtures__/device-roots';
@@ -50,4 +51,12 @@ it('abort releases recording clones immediately; retained roots are released onl
   expect(binding.snapshot().state).toBe('READY');const calls=ready.mock.calls.length;lateStop();lateError();expect(ready).toHaveBeenCalledTimes(calls);
   binding.close();for(const root of [microphone,camera])expect(root.track.stop).toHaveBeenCalledOnce();
   await environment.dispose();
+});
+
+it('recording OFF requires neither OPFS nor a recording capability probe', async () => {
+  const storage = vi.spyOn(opfs, 'openOpfsRecordingSink');
+  const probe = vi.spyOn(recording, 'probeRecording'); const environment = new PracticeEnvironment();
+  await validatePracticeResources({ plan: planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' }),
+    roots: borrowedDevices(), environment, signal: new AbortController().signal, onComponent: vi.fn() });
+  expect(storage).not.toHaveBeenCalled(); expect(probe).not.toHaveBeenCalled(); await environment.dispose();
 });

@@ -772,14 +772,14 @@ NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind
 Blob, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
 VIDEO requires successful recording admission before transport/count-in begins.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
-or dead required tracks, permission/device loss, unsupported recorder/MIME and
-initialization failure reject with stable recording preparation codes. Admission
+or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
+OPFS/Web Locks and storage initialization failure reject with stable recording preparation codes. Admission
 is rechecked immediately before transport starts. Failure releases this Start's
 owned resources and inference lease, preserves recording intent and remains an
 Attempt admission failure, without invalidating Environment. It creates no Result, dialog or recording
 artifact, and does not classify recording faults as acoustic-analysis faults.
-Setup success does not promise immutable permissions; Resource Binding binding acquires
-roots and recorder admission checks its fresh attempt clones. Start never acquires
+Setup owns the retained physical roots and probes writable OPFS; recorder admission
+checks fresh attempt clones and its new sink. Start never acquires
 browser devices or repeats cold model preparation.
 
 Post-start recording faults are actively published once per unresolved incident by
@@ -887,7 +887,7 @@ Replay preserves pause/resume mapping, actual decoded-duration scaling, gap-to-n
 behavior and bounds clamping.
 
 Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
-stream; MIDI+AUDIO owns a separate microphone acquisition. VIDEO uses camera video
+stream; MIDI+AUDIO borrows a clone of the retained recording-microphone root. VIDEO uses camera video
 and the appropriate audio clone. Each owner releases only its own resources.
 
 Saved Performance Take archives AUDIO/VIDEO media with durable source identity,
@@ -900,8 +900,8 @@ Completion, Review mount and Review exit never create a PerformanceTake.
 
 `continuous/completion.ts` composes `{ result, recording }` without flattening either
 artifact. The controller terminates transport, freezes recording, drains acoustic
-tail work, finalizes evaluation/media, creates the result and completes resource
-cleanup before publishing the atomic completion and notifying completion listeners.
+tail work, finalizes evaluation/media, creates the result and completes
+input/recorder cleanup while retaining sealed media before publishing the atomic completion and notifying completion listeners.
 PracticeExecutionOwner exposes that exact payload only for the current completed
 Continuous attempt; STEP exposes no Continuous completion.
 
@@ -926,7 +926,7 @@ report navigation. Continuous additionally offers View Report.
 STOPPED_BY_USER is abandonment. End calls abandon(), cancels pending work and
 releases attempt input bindings, metronome, inference lease, capture/recording clones
 and AudioContext ownership. Page Resource Binding roots and the warm Environment remain. It discards
-unfinished session state and recording chunks without draining the acoustic tail,
+unfinished session state and retires unsealed Capture storage without draining the acoustic tail,
 finalizing a recording or creating result/completion handoff. No dialog or
 report appears. The presentation returns to its pre-start ready state; preferences
 may remain, but the next explicit Start creates fresh session/resource ownership.
@@ -1080,7 +1080,8 @@ VideoExport distinguishes its sessionId from canonical sourceId.
 
 ## Capture and archive media contract
 
-Capture is raw browser recording. READY capture has an archiveable media kind and
+Capture is raw browser recording, incrementally written through RecordingSink to OPFS.
+READY capture has an archiveable media kind and
 container: VIDEO WebM/MP4, or AUDIO WebM/MP4/Ogg/WAV/x-WAV. The recording media policy
 owns normalization, Video Capture preferences and raw-download extensions.
 MediaRecorder's actual MIME is authoritative; unsupported output cannot become READY.
@@ -1089,3 +1090,46 @@ PerformanceTake archives the exact Capture bytes without transcoding. Original
 media download returns those raw bytes. VideoExport composes a separate browser-local
 score/video derivative using its own output format policy; PerformanceTake does not
 archive that composed output.
+
+## Transient Capture Storage and Ownership
+
+Production Capture requires OPFS and Web Locks. Selected AUDIO/VIDEO preparation
+probes MediaRecorder and opens, writes, seals and removes a small temporary file.
+Recording OFF requires neither API. There is no runtime memory or alternate-storage
+fallback. RecordingSink serializes Blob writes in MediaRecorder event order without
+materializing their bytes into JavaScript arrays. Musical timebase and pause/resume
+mapping are independent of storage latency; disk backpressure does not pause music.
+
+Finalization keeps requestData/stop ordering, then drains all writes and seals the
+file before READY. The raw file snapshot is a file-backed Blob view with actual
+MediaRecorder MIME metadata, not a full-file read into heap. Sink byte accounting
+matches the final Blob size. Empty capture, stop timeout, unsupported MIME, accepted
+recording loss and failed writes cannot publish READY media. Untransferred storage
+is aborted and removed by awaited recorder/controller cleanup.
+
+The controller owns the first sealed-media reference. Successful completion keeps
+that owner beyond recorder/input cleanup. Review handoff validates identity before
+retaining a separate owner and never copies media bytes. Controller retirement
+releases its completion owner; clearing, replacing or leaving Review releases the
+Review owner. Save, original raw download and current-completion VideoExport retain
+independent temporary leases and release in finally. Original download revokes its
+object URL before release. The last owner removes the OPFS file. Saved Take export
+uses its downloaded archive Blob and has no Capture resource owner.
+
+Preparation storage failures are recording preparation facts. Active write failure
+is a recording-only RESTART_REQUIRED intervention; Continue without recording retires
+its storage before continuing. Active sink cleanup failure uses RESOURCE_CLEANUP_FAILED.
+Deletion failure after publication is reported through client observability without
+retroactively failing a completed performance; the orphan remains recoverable.
+
+The dedicated `noteverse-practice-captures` namespace uses random UUID identities.
+A per-capture Web Lock spans file creation, recording and all sealed-media references.
+Each later capture initialization reclaims files only when an exclusive ifAvailable
+lock succeeds. Other tabs' live captures are protected; crashed owners lose their
+locks and their files become reclaimable. No age heuristic or cross-namespace sweep
+is used. OPFS is temporary storage, not Review recovery: reload still expires Review.
+
+Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
+VideoExport output encoding and saved Take download buffering have separate lifetimes
+and retain their existing memory strategies. No Capture bytes are streamed to the
+server while the user plays.

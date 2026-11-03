@@ -6,7 +6,7 @@ import { readPracticePreferences, writePracticePreferences } from '@/lib/practic
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { matchesPreparationConfiguration, type PreparedPractice } from '@/lib/practice/preparation/prepared-practice';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
-import { createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
+import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import type { PracticeScope } from '@/lib/practice/kernel/scope';
 import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
@@ -21,7 +21,11 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [preparedPractice, setPreparedPractice] = useState<PreparedPractice | null>(null);
   const [reviewSession, setReviewSession] = useState<TransientReviewSession | null>(null);
-  const clearReviewSession = useCallback(() => setReviewSession(null), []);
+  const review = useRef<TransientReviewSession | null>(null);
+  const clearReviewSession = useCallback(() => {
+    const previous = review.current; review.current = null; setReviewSession(null);
+    return releaseTransientReviewSession(previous);
+  }, []);
   const prepared = useRef<PreparedPractice | null>(null);
   const preparation = useRef<AbortController | null>(null);
   const configurationRef = useRef<ReturnType<typeof resolvePracticeConfiguration>>(resolvePracticeConfiguration(profile));
@@ -65,14 +69,15 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
     }
     const session = createTransientReviewSession(completion, prepared.current.admission.source);
     clearPreparedPractice();
-    setReviewSession(session);
+    const previous = review.current; review.current = session;
+    setReviewSession(session); void releaseTransientReviewSession(previous);
     return session;
   }, [clearPreparedPractice]);
   const lifetime = useRef(0);
   const releaseEnvironment = useCallback(() => {
     const retiring = ++lifetime.current;
-    queueMicrotask(() => { if (retiring === lifetime.current) { clearPreparedPractice(); void environment.dispose(); } });
-  }, [environment, clearPreparedPractice]);
+    queueMicrotask(() => { if (retiring === lifetime.current) { clearPreparedPractice(); void clearReviewSession(); void environment.dispose(); } });
+  }, [environment, clearPreparedPractice, clearReviewSession]);
   useEffect(() => {
     const epoch = ++lifetime.current;
     queueMicrotask(() => {

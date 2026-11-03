@@ -9,7 +9,8 @@ Take library: reads, playback, download and deletion from its own durable snapsh
 
 ## Capture, archive and export
 
-Capture is the raw browser MediaRecorder artifact. Practice admits an archiveable
+Capture is the raw browser MediaRecorder artifact, incrementally written to a temporary
+OPFS file under explicit browser-local ownership. Practice admits an archiveable
 browser-supported container and validates the recorder's actual MIME before producing
 READY capture. VIDEO supports WebM and MP4; AUDIO supports WebM, MP4, Ogg, WAV and
 x-WAV. Codec parameters may remain on the capture MIME; archive requests normalize
@@ -20,6 +21,9 @@ Signed upload, staging verification and the final object preserve the raw bytes 
 container; there is no transcoding or recomposition. WebM requires its EBML header;
 MP4 audio/video requires the ISO BMFF `ftyp` box signature at byte offset four.
 Media kind and storage Content-Type must agree with the admitted container.
+
+Save retains a temporary media lease before scheduling reserve/PUT/finalize and releases
+it in finally, so leaving Review cannot remove an in-flight upload source.
 
 Original media download returns raw Capture/Take media with the corresponding file
 extension. VideoExport is a separate browser-local composition/download operation

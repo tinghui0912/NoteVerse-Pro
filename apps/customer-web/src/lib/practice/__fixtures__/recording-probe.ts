@@ -1,7 +1,10 @@
+import * as opfs from '../recording/opfs-recording-sink';
+import { memoryRecordingSinkFactory } from './recording-sink';
 import { vi } from 'vitest';
 
 /** A stalled browser probe; completion is an explicit test-controlled fact. */
 export function recordingProbeFixture() {
+  vi.spyOn(opfs, 'openOpfsRecordingSink').mockImplementation(memoryRecordingSinkFactory);
   class Track extends EventTarget {
     readyState = 'live';
     muted = false;

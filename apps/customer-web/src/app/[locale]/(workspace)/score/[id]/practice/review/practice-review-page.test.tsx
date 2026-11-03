@@ -1,9 +1,10 @@
-import { createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
+import { recordingSinkFixture, recordingResourceFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import englishPractice from '../../../../../../../../messages/en/practice.json';
 import chinesePractice from '../../../../../../../../messages/zh/practice.json';
@@ -195,7 +196,7 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
 
 let currentMockArtifact = createMockArtifact();
 
-const reviewWorkspace = { reviewSession: null as TransientReviewSession | null, clearReviewSession: vi.fn(() => { reviewWorkspace.reviewSession = null; }) };
+const reviewWorkspace = { reviewSession: null as TransientReviewSession | null, clearReviewSession: vi.fn(() => { const session = reviewWorkspace.reviewSession; reviewWorkspace.reviewSession = null; return releaseTransientReviewSession(session); }) };
 vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => reviewWorkspace }));
 function provideReview(completion: ContinuousPracticeCompletion) {
   reviewWorkspace.reviewSession = createTransientReviewSession(completion, {
@@ -438,7 +439,7 @@ describe('PracticeReviewPage', () => {
           },
         ]),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: {
+      }), recording: { resource: recordingResourceFixture(),
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
@@ -564,7 +565,7 @@ describe('PracticeReviewPage', () => {
           },
         ], inputSource),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: {
+      }), recording: { resource: recordingResourceFixture(),
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
@@ -613,7 +614,7 @@ describe('PracticeReviewPage', () => {
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
       evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
-    provideReview({ result, recording: { status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
+    provideReview({ result, recording: { resource: recordingResourceFixture(), status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
@@ -680,7 +681,7 @@ describe('PracticeReviewPage', () => {
         activeElapsedMs: 3000,
         evaluation: completeEvaluation([], 'MIDI'),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: {
+      }), recording: { resource: recordingResourceFixture(),
         status: 'READY',
         kind: 'AUDIO',
         blob: new Blob(['audio'], { type: 'audio/webm' }),
@@ -745,7 +746,7 @@ describe('PracticeReviewPage', () => {
         activeElapsedMs: 3000,
         evaluation: completeEvaluation(),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: {
+      }), recording: { resource: recordingResourceFixture(),
         status: 'READY',
         kind: 'VIDEO',
         blob: videoBlob,
@@ -816,6 +817,27 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
     expect(saveMutationMock.mutateAsync.mock.calls[0][0].mediaKind).toBe('VIDEO');
+  });
+
+  it.each(['success', 'error', 'abort'] as const)('keeps its source after Review clear until VideoExport %s settles', async outcome => {
+    const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw video'])); const media = await capture.sink.seal('video/webm');
+    provideReview(createVideoCompletion({ videoBlob: media.blob, resource: media.resource }));
+    await media.resource.release();
+    let resolve!: (output: { blob: Blob; mimeType: string; durationMs: number }) => void, reject!: (error: Error) => void;
+    videoExportMocks.exportVideo.mockImplementation(() => new Promise((yes, no) => { resolve = yes; reject = no; }));
+    const view = render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId('generate-video-export'));
+    await waitFor(() => expect(videoExportMocks.exportVideo).toHaveBeenCalledOnce());
+    await act(async () => { await reviewWorkspace.clearReviewSession(); });
+    view.unmount(); expect(capture.exists()).toBe(true);
+    const signal = videoExportMocks.exportVideo.mock.calls[0][0].signal as AbortSignal;
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      if (outcome === 'success') resolve({ blob: new Blob(['output'], { type: 'video/webm' }), mimeType: 'video/webm', durationMs: 100 });
+      else reject(outcome === 'abort' ? new DOMException('cancelled', 'AbortError') : new Error('encoder failed'));
+    });
+    await waitFor(() => expect(capture.exists()).toBe(false)); expect(capture.remove).toHaveBeenCalledOnce();
   });
 
   it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
@@ -978,9 +1000,11 @@ describe('PracticeReviewPage', () => {
 function createVideoCompletion({
   videoBlob = new Blob(['video'], { type: 'video/webm' }),
   mimeType = videoBlob.type || 'video/webm',
+  resource = recordingResourceFixture(),
 }: {
   videoBlob?: Blob;
   mimeType?: string;
+  resource?: import('@/lib/practice/recording/recording-sink').RecordingMediaResource;
 } = {}): ContinuousPracticeCompletion {
   return {
     result: continuousResultFixture({ sourceId: 'source-fixture',
@@ -997,7 +1021,7 @@ function createVideoCompletion({
       activeElapsedMs: 3000,
       evaluation: completeEvaluation(),
       completedAt: '2026-09-20T12:00:00.000Z'
-    }), recording: {
+    }), recording: { resource,
       status: 'READY',
       kind: 'VIDEO',
       blob: videoBlob,

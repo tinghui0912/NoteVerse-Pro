@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PracticeWorkspaceProvider, usePracticeWorkspace } from './practice-workspace-context';
@@ -24,7 +25,9 @@ async function rig() {
   act(() => current.updateProfile(profile));
   const prepare = async () => {
     let transaction!: AbortController; act(() => { transaction = current.beginPreparation(); });
-    const midi = midiDeviceFixture(), binding = new PracticeResourceBinding(planPracticeResources(current.configuration!), { acquireMidi: async () => midi.access, acquireStream: vi.fn() });
+    const track = Object.assign(new EventTarget(), { kind: 'audio', readyState: 'live', muted: false, stop: vi.fn() });
+    const microphone = { getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [] } as unknown as MediaStream;
+    const midi = midiDeviceFixture(), binding = new PracticeResourceBinding(planPracticeResources(current.configuration!), { acquireMidi: async () => midi.access, acquireStream: vi.fn(async () => microphone) });
     await binding.open();
     const admission = Object.freeze({ source: Object.freeze({ sourceId:'source-fixture', artifact:{...(fixture as PracticeScoreArtifact), scoreId:'s', revisionId:'r'}, musicXml:'<score />' }), configuration: Object.freeze({mode:current.configuration!.mode, inputSource:current.configuration!.inputSource, recordingMode:current.configuration!.recordingMode}) });
     return { transaction, value: Object.freeze({ admission, binding }), midi };
@@ -85,5 +88,28 @@ it('invalid handoff preserves the prepared transaction; explicit clear drops onl
   expect(()=>r.current.handoffToReview({result:{...result,sourceId:'wrong'},recording})).toThrow();
   expect(r.current.preparedPractice).toBe(p.value);expect(p.value.binding.borrowRoots()).not.toBeNull();expect(r.current.reviewSession).toBeNull();
   act(()=>{r.current.handoffToReview({result,recording});});expect(r.current.reviewSession).not.toBeNull();
-  act(()=>r.current.clearReviewSession());expect(r.current.reviewSession).toBeNull();
+  await act(async()=>{await r.current.clearReviewSession();});expect(r.current.reviewSession).toBeNull();
+});
+
+it.each(['clear', 'route', 'provider', 'new-preparation'] as const)('releases the explicit Review media owner on %s', async ending => {
+  route.path = '/score/s/practice'; const r = await rig();
+  act(() => r.current.updateProfile({ ...profile, mode: 'CONTINUOUS_PLAY', continuous: { ...profile.continuous, recordingMode: 'AUDIO' } }));
+  const prepared = await r.prepare(); act(() => { r.current.commitPreparedPractice(prepared.value, prepared.transaction); });
+  const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw capture'])); const media = await capture.sink.seal('audio/webm');
+  const result = { ...canonicalContinuousResultFixture(), scoreId: 's', revisionId: 'r' };
+  const recording = { status: 'READY' as const, kind: 'AUDIO' as const, blob: media.blob, resource: media.resource,
+    mimeType: 'audio/webm', durationMs: 10000, timebase: { nominalMediaDurationMs: 10000,
+      activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }] } };
+  expect(() => r.current.handoffToReview({ result: { ...result, sourceId: 'wrong' }, recording })).toThrow();
+  act(() => { r.current.handoffToReview({ result, recording }); });
+  expect(prepared.value.binding.snapshot().state).toBe('CLOSED');
+  await media.resource.release(); expect(capture.exists()).toBe(true);
+  expect(r.current.reviewSession?.recording.status === 'READY' && r.current.reviewSession.recording.blob).toBe(media.blob);
+  route.path = '/score/s/practice/review'; r.view.rerender(r.tree()); await act(async () => {});
+  if (ending === 'clear') await act(async () => { await r.current.clearReviewSession(); await r.current.clearReviewSession(); });
+  if (ending === 'route') { route.path = '/score/s/practice'; r.view.rerender(r.tree()); }
+  if (ending === 'provider') r.view.unmount();
+  if (ending === 'new-preparation') act(() => { r.current.beginPreparation(); });
+  await waitFor(() => expect(capture.exists()).toBe(false));
+  expect(capture.remove).toHaveBeenCalledOnce();
 });

@@ -27,6 +27,7 @@ export class InferenceFailure extends CausalFailure<'INFERENCE', InferenceFailur
   constructor(code: InferenceFailureCode, options?: ErrorOptions) { super('INFERENCE', code, options); }
 }
 export type RecordingFailureCode = 'RECORDING_PERMISSION_DENIED' | 'RECORDING_AUDIO_UNAVAILABLE' | 'RECORDING_VIDEO_UNAVAILABLE'
+  | 'RECORDING_STORAGE_UNAVAILABLE' | 'RECORDING_STORAGE_FAILED'
   | 'MEDIA_RECORDER_UNSUPPORTED' | 'VIDEO_RECORDER_UNSUPPORTED' | 'RECORDER_INIT_FAILED' | 'RECORDING_PREPARATION_CANCELLED'
   | 'RECORDING_DISCARDED' | 'RECORDING_DECISION_REQUIRED' | 'RECORDING_TRACKS_UNAVAILABLE' | 'RECORDING_PROBE_TIMEOUT' | 'RECORDING_PROBE_FAILED';
 export class RecordingFailure extends CausalFailure<'RECORDING', RecordingFailureCode> {

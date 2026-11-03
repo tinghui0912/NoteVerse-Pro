@@ -1,3 +1,4 @@
+import { memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 // @vitest-environment jsdom
 import { Suspense } from 'react';
@@ -57,7 +58,7 @@ beforeEach(() => {
   const createMidi = vi.fn(() => ({ start: vi.fn(async () => {}), refreshInputs: vi.fn(), dispose: vi.fn() }));
   fake.step.mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
   fake.continuous.mockReturnValue({ midiClock: clock, createMidi, createMetronomeAudio: () => metronomeAudioFixture(),
-    createRecorder: () => new PerformanceRecorder('OFF'), acquireInference: vi.fn(), createAudioContext: vi.fn() });
+    createRecorder: () => new PerformanceRecorder('OFF', memoryRecordingSinkFactory), acquireInference: vi.fn(), createAudioContext: vi.fn() });
 });
 afterEach(cleanup);
 const pageTree = () => <NextIntlClientProvider locale="en" messages={{ practice, common, errors }}>

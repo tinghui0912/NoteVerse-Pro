@@ -1,7 +1,8 @@
+import { recordingResourceFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 
-const ready = () => ({ status: 'READY' as const, kind: 'AUDIO' as const, blob: new Blob(['audio']), mimeType: 'audio/webm', durationMs: 100,
+const ready = () => ({ resource: recordingResourceFixture(), status: 'READY' as const, kind: 'AUDIO' as const, blob: new Blob(['audio']), mimeType: 'audio/webm', durationMs: 100,
   timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 100, mediaStartMs: 0, mediaEndMs: 100 }], nominalMediaDurationMs: 100 } });
 describe('independent optional recording artifact', () => {
   it('only READY has a timebase and media payload', () => {
@@ -11,7 +12,7 @@ describe('independent optional recording artifact', () => {
     expect(createPerformanceRecording({ status: 'UNAVAILABLE', reason: 'NotAllowedError' })).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
     const value = ready();
     expect(createPerformanceRecording(value)).toEqual(value);
-    expect(Object.keys(createPerformanceRecording(value)).sort()).toEqual(['blob', 'durationMs', 'kind', 'mimeType', 'status', 'timebase']);
+    expect(Object.keys(createPerformanceRecording(value)).sort()).toEqual(['blob', 'durationMs', 'kind', 'mimeType', 'resource', 'status', 'timebase']);
   });
   it.each([
     { ...ready(), timebase: { activeSegments: [], nominalMediaDurationMs: 10 } },

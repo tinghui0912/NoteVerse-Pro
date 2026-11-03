@@ -68,6 +68,10 @@
   "invariants": {
     "revision_is_immutable": true,
     "ready_capture_is_archiveable": true,
+    "practice_capture_is_disk_backed": true,
+    "transient_capture_has_explicit_lifetime_ownership": true,
+    "review_handoff_retains_capture_without_copying_bytes": true,
+    "performance_recorder_does_not_accumulate_full_capture_in_js_heap": true,
     "performance_take_archives_raw_capture": true,
     "capture_and_video_export_formats_are_independent": true,
     "revision_is_complete_snapshot": true,

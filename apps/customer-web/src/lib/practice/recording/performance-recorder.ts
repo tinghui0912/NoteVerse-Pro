@@ -1,7 +1,10 @@
+import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 import type { RecordingActiveSegment } from './recording-timebase';
 
 import type { PracticeRecordingMode } from './recording-mode';
+import { openOpfsRecordingSink } from './opfs-recording-sink';
+import type { RecordingSink, RecordingSinkFactory } from './recording-sink';
 import { recordingOptions } from './recorder-capability';
 import { isArchiveableCaptureMime } from './media-policy';
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
@@ -46,7 +49,11 @@ function createEmptyTimebase(): { activeSegments: RecordingActiveSegment[]; nomi
 export class PerformanceRecorder {
   private readonly mode: PracticeRecordingMode;
   private recorder: MediaRecorder | null = null;
-  private readonly chunks: Blob[] = [];
+  private sink: RecordingSink | null = null;
+  private openingSink: Promise<void> | null = null;
+  private finalization: Promise<PerformanceRecording> | null = null;
+  private sinkRetirement: Promise<void> | null = null;
+  private cleanupPromise: Promise<void> | null = null;
   private readonly sourceHealth = new Map<'AUDIO' | 'VIDEO', 'HEALTHY' | 'INTERRUPTED' | 'LOST'>();
   private ownedStream: MediaStream | null = null;
   private sourceOwnership: 'NONE' | 'OWNED_CLONE' = 'NONE';
@@ -67,7 +74,7 @@ export class PerformanceRecorder {
   private currentSegmentStartMediaMs = 0;
   private cumulativeMediaMs = 0;
 
-  constructor(mode: PracticeRecordingMode) {
+  constructor(mode: PracticeRecordingMode, private readonly openSink: RecordingSinkFactory = openOpfsRecordingSink) {
     this.mode = mode;
   }
 
@@ -78,6 +85,9 @@ export class PerformanceRecorder {
     try {
       if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
       const recorderOptions = recordingOptions(this.mode);
+      this.openingSink = this.openSink().then(sink => { this.sink = sink; });
+      await this.openingSink; this.openingSink = null;
+      if (this.disposed) throw new RecordingFailure('RECORDING_PREPARATION_CANCELLED');
       if (this.mode === 'AUDIO') {
         const stream = await this.resolveAudioStream(options);
         this.assertTracks(stream, 'AUDIO');
@@ -95,7 +105,7 @@ export class PerformanceRecorder {
       this.assertPrepared();
     } catch (error) {
       this.admitted = false;
-      this.stopAndCleanup();
+      await this.stopAndCleanup();
       this.state = 'PREPARATION_FAILED';
       throw recordingBrowserFailure(error);
     }
@@ -150,10 +160,12 @@ export class PerformanceRecorder {
     this.state = this.recorder!.state === 'paused' ? 'PAUSED' : this.recorder!.state === 'recording' ? 'RECORDING' : 'NOT_STARTED';
     return true;
   }
-  continueWithoutRecording(): void {
+  async continueWithoutRecording(): Promise<void> {
+    if (this.acceptedLoss) { await this.retireSink(); return; }
     if (!this.fault || this.disposed) return;
     this.unavailableReason = this.fault.reason; this.acceptedLoss = true; this.runtimeActive = false;
     this.state = 'UNAVAILABLE'; this.discardPipeline(); this.fault = null;
+    await this.retireSink();
   }
 
   startIfReady(performanceTimeMs: number): void {
@@ -220,7 +232,7 @@ export class PerformanceRecorder {
     if (this.fault) {
       // freeze belongs to the already-latched natural terminal transaction.
       this.unavailableReason ??= this.fault.reason; this.fault = null; this.discardPipeline();
-      this.stopPromise = Promise.resolve('FAILED'); return this.stopPromise;
+      this.stopPromise = this.retireSink().then(() => 'FAILED' as const); return this.stopPromise;
     }
 
     const recorder = this.recorder;
@@ -257,7 +269,14 @@ export class PerformanceRecorder {
     return this.stopPromise;
   }
 
-  async finalize(): Promise<PerformanceRecording> {
+  finalize(): Promise<PerformanceRecording> {
+    if (this.disposed) return Promise.reject(new RecordingFailure('RECORDING_DISCARDED'));
+    if (this.mode !== 'OFF' && !this.admitted) return Promise.reject(new RecordingFailure('RECORDER_INIT_FAILED'));
+    if (this.fault) return Promise.reject(new RecordingFailure('RECORDING_DECISION_REQUIRED'));
+    return this.finalization ??= this.finalizeRecording();
+  }
+
+  private async finalizeRecording(): Promise<PerformanceRecording> {
     if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
     if (this.mode !== 'OFF' && !this.admitted) throw new RecordingFailure('RECORDER_INIT_FAILED');
     if (this.fault) throw new RecordingFailure('RECORDING_DECISION_REQUIRED');
@@ -271,7 +290,7 @@ export class PerformanceRecorder {
       return createPerformanceRecording({ status: 'NOT_RECORDED' });
     }
 
-    const totalBytes = this.chunks.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
+    const totalBytes = this.sink?.byteSize ?? 0;
     if (
       stopResult !== 'STOPPED'
       || totalBytes === 0
@@ -279,6 +298,7 @@ export class PerformanceRecorder {
       || this.state === 'UNAVAILABLE'
     ) {
       this.state = 'UNAVAILABLE';
+      await this.retireSink();
       return createPerformanceRecording({
         status: 'UNAVAILABLE',
         reason: this.unavailableReason
@@ -293,25 +313,53 @@ export class PerformanceRecorder {
     const mimeType = this.recorder?.mimeType ?? '';
     if (!isArchiveableCaptureMime(this.mediaKind, mimeType)) {
       this.markUnavailable(this.mediaKind === 'VIDEO' ? 'VIDEO_RECORDER_UNSUPPORTED' : 'MEDIA_RECORDER_UNSUPPORTED');
+      await this.retireSink();
       return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason! });
     }
-    this.state = 'READY';
-    return createPerformanceRecording({
-      status: 'READY',
-      kind: this.mediaKind,
-      blob: new Blob(this.chunks, { type: mimeType }),
-      mimeType,
-      durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)),
-      timebase: this.timebase,
-    });
+    let media: Awaited<ReturnType<RecordingSink['seal']>>;
+    try { media = await this.sink!.seal(mimeType); }
+    catch {
+      this.markUnavailable('RECORDING_STORAGE_FAILED'); await this.retireSink();
+      return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason! });
+    }
+    try {
+      if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
+      if (this.unavailableReason) {
+        this.sink = null; await releaseRecordingMedia(media.resource);
+        return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason });
+      }
+      const recording = createPerformanceRecording({
+        status: 'READY', kind: this.mediaKind, blob: media.blob, resource: media.resource,
+        mimeType, durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)), timebase: this.timebase,
+      });
+      this.sink = null; // The returned completion now owns the sealed file's first reference.
+      this.state = 'READY';
+      return recording;
+    } catch (error) { await releaseRecordingMedia(media.resource); throw error; }
   }
 
-  stopAndCleanup(): void {
+  stopAndCleanup(): Promise<void> {
+    if (this.cleanupPromise) return this.cleanupPromise;
     this.disposed = true;
     this.runtimeActive = false; this.fault = null; this.faultListeners.clear();
     this.discardPipeline();
-    this.chunks.length = 0; this.timebase = createEmptyTimebase();
+    this.timebase = createEmptyTimebase();
     this.currentSegmentStartPerfMs = null; this.cumulativeMediaMs = 0;
+    this.cleanupPromise = (async () => {
+      if (this.openingSink) await Promise.allSettled([this.openingSink]);
+      await this.retireSink();
+      // The completion caller owns finalization failure; retirement waits for its media cleanup.
+      if (this.finalization) await Promise.allSettled([this.finalization]);
+    })();
+    return this.cleanupPromise;
+  }
+
+  private retireSink(): Promise<void> {
+    if (!this.sinkRetirement) {
+      const sink = this.sink; this.sink = null;
+      this.sinkRetirement = sink?.abort() ?? Promise.resolve();
+    }
+    return this.sinkRetirement;
   }
 
   private discardPipeline(): void {
@@ -326,7 +374,6 @@ export class PerformanceRecorder {
       }
     }
 
-    this.chunks.length = 0;
     this.releaseStream();
   }
 
@@ -366,7 +413,9 @@ export class PerformanceRecorder {
     this.mediaKind = mediaKind;
     recorder.ondataavailable = (event) => {
       if (!this.disposed && event.data && event.data.size > 0) {
-        this.chunks.push(event.data);
+        this.sink?.append(event.data).catch(() => {
+          if (!this.disposed && !this.acceptedLoss) this.interrupt('RECORDING_STORAGE_FAILED', 'RESTART_REQUIRED');
+        });
       }
     };
     recorder.onerror = () => {

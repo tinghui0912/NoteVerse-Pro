@@ -28,6 +28,10 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
     }
     assert invariants["revision_is_immutable"] is True
     assert invariants["ready_capture_is_archiveable"] is True
+    assert invariants["practice_capture_is_disk_backed"] is True
+    assert invariants["transient_capture_has_explicit_lifetime_ownership"] is True
+    assert invariants["review_handoff_retains_capture_without_copying_bytes"] is True
+    assert invariants["performance_recorder_does_not_accumulate_full_capture_in_js_heap"] is True
     assert invariants["performance_take_archives_raw_capture"] is True
     assert invariants["capture_and_video_export_formats_are_independent"] is True
     assert invariants["revision_is_complete_snapshot"] is True

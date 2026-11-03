@@ -1,5 +1,8 @@
 'use client';
 
+import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
+import type { RecordingMediaResource } from '@/lib/practice/recording/recording-sink';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -57,6 +60,7 @@ export interface SavePerformanceTakeInput {
   clientRequestId: string;
   mediaKind: CaptureMediaKind;
   mediaBlob: Blob;
+  mediaResource: RecordingMediaResource;
   mimeType: string;
   durationMs: number;
   scope:
@@ -79,7 +83,7 @@ export interface SavePerformanceTakeInput {
 export function useSavePerformanceTake() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (input: SavePerformanceTakeInput) => {
       const request: PerformanceTakeUploadReservationRequest = {
         client_request_id: input.clientRequestId,
@@ -146,6 +150,14 @@ export function useSavePerformanceTake() {
       queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.all });
     },
   });
+  return {
+    async mutateAsync(input: SavePerformanceTakeInput) {
+      // Retain synchronously with the command, before React Query can schedule transport.
+      const lease = input.mediaResource.retain();
+      try { return await mutation.mutateAsync(input); }
+      finally { await releaseRecordingMedia(lease); }
+    },
+  };
 }
 
 function tempoMatchesExecution(

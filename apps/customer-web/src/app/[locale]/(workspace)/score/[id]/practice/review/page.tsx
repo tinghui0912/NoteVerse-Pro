@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
+import { downloadRecordingMedia } from '@/lib/practice/recording/download-recording-media';
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
@@ -235,6 +236,7 @@ export default function PracticeReviewPage({
       return {
         kind: recording.kind,
         blob: recording.blob,
+        resource: recording.resource,
         mimeType: recording.mimeType,
         durationMs: recording.durationMs,
         timebase: recording.timebase,
@@ -248,7 +250,7 @@ export default function PracticeReviewPage({
   const [saveRecordingErrorMessage, setSaveRecordingErrorMessage] = useState<string | null>(null);
   const saveRecordingMutation = useSavePerformanceTake();
 
-  const handleExportOriginalVideo = useCallback(() => {
+  const handleExportOriginalVideo = useCallback(async () => {
     if (
       recording?.status !== 'READY' ||
       recording.kind !== 'VIDEO' ||
@@ -256,15 +258,8 @@ export default function PracticeReviewPage({
     ) {
       return;
     }
-    const url = URL.createObjectURL(recording.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    await downloadRecordingMedia(recording, `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`);
     setHasExportedOriginalMedia(true);
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [recording]);
 
   const handleSaveRecording = useCallback(async () => {
@@ -293,6 +288,7 @@ export default function PracticeReviewPage({
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         mediaBlob: saveMedia.blob,
+        mediaResource: saveMedia.resource,
         mimeType: saveMedia.mimeType,
         durationMs: saveMedia.durationMs,
         scope:
