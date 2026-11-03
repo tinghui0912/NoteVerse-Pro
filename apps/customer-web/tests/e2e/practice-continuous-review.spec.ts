@@ -89,6 +89,7 @@ type MediaMock = {
   audioStreams: MediaStream[];
   cameraStreams: MediaStream[];
   captureRoots: MediaStream[];
+  captureGraphs: Array<{ context: AudioContext; root: MediaStream; source: MediaStreamAudioSourceNode }>;
   requests: MediaStreamConstraints[];
   tracks: Array<{ track: MediaStreamTrack; stopCalls: number }>;
   resolveCamera: (() => void) | null;
@@ -217,7 +218,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       }
     }
     // Camera controls apply only to video requests; existing audio-only mocks stay intact.
-    const media: MediaMock = { audioStreams: [], cameraStreams: [], captureRoots: [], requests: [], tracks: [], resolveCamera: null };
+    const media: MediaMock = { audioStreams: [], cameraStreams: [], captureRoots: [], captureGraphs: [], requests: [], tracks: [], resolveCamera: null };
     (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia = media;
     // Capture owns an analysis clone. Trace that clone to the exact retained root object,
     // rather than mistaking a processing clone for another physical acquisition.
@@ -227,7 +228,12 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       const clone = nativeClone.call(this); origin.set(clone, origin.get(this) ?? this); return clone;
     };
     const nativeSource = AudioCtx.prototype.createMediaStreamSource;
-    AudioCtx.prototype.createMediaStreamSource = function(stream: MediaStream) { media.captureRoots.push(origin.get(stream) ?? stream); return nativeSource.call(this, stream); };
+    AudioCtx.prototype.createMediaStreamSource = function(stream: MediaStream) {
+      const root = origin.get(stream) ?? stream, source = nativeSource.call(this, stream);
+      media.captureRoots.push(root);
+      media.captureGraphs.push({ context: this, root, source });
+      return source;
+    };
     const audioOnly = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     let cameraRequests = 0;
     const canvases: HTMLCanvasElement[] = [];
@@ -1298,26 +1304,74 @@ test('shared microphone interruption requires input recovery and never offers no
 });
 
 test('temporary session AudioContext suspension retains the capture graph and waits for explicit Continue', async ({ page }) => {
-  await page.addInitScript(() => {
-    const NativeContext = window.AudioContext, contexts: AudioContext[] = [];
-    (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts = contexts;
-    window.AudioContext = class extends NativeContext { constructor(options?: AudioContextOptions) { super(options); contexts.push(this); } };
+  // Native AudioContext owns the graph lifecycle; the ACK-driven PCM double keeps
+  // this engine-fixture test independent of native worklet callback/ACK scheduling.
+  await installAcousticCaptureFixture(page);
+  await setupContinuousPracticeMocks(page);
+  const modelAccess: number[] = [];
+  page.on('response', response => {
+    if (response.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access')) modelAccess.push(response.status());
   });
-  await setupContinuousPracticeMocks(page); await openPreparedPractice(page, scoreId, revisionId);
-  await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'OFF');
-  await page.getByRole('button', { name: '开始', exact: true }).click(); await expect(page.getByRole('status')).toContainText('预备拍');
-  const identity = await page.evaluate(async () => {
-    const contexts = (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts;
-    const context = contexts.findLast(c => c.state === 'running')!; await context.suspend(); return contexts.indexOf(context);
+  const engine = () => page.evaluate(() => {
+    const { loads, sessions, retiredSessions, terminations } = (window as unknown as {
+      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number };
+    }).__practiceAcousticEngineFixture;
+    return { loads, sessions, retiredSessions, terminations };
   });
-  const dialog = page.getByRole('alertdialog'); await expect(dialog.getByRole('heading', { name: '输入暂时中断' })).toBeVisible();
+  await openPreparedPractice(page, scoreId, revisionId);
+  expect(await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'OFF')).toBe('READY');
+  const start = page.getByRole('button', { name: '开始', exact: true });
+  // Successful smoke-session retirement and enabled Start witness READY_IDLE.
+  await expect(start).toBeEnabled();
+  expect(await engine()).toEqual({ loads: 1, sessions: 1, retiredSessions: 1, terminations: 0 });
+  const beforeStart = await page.evaluate(() => {
+    const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
+    return media.captureGraphs.map(graph => graph.context.state);
+  });
+  expect(beforeStart).toEqual(['closed']); // Setup qualification owns and closes its own context.
+  await start.click();
+  await expect(page.getByTestId('practice-status')).toContainText('预备拍');
+  expect(await engine()).toEqual({ loads: 1, sessions: 2, retiredSessions: 1, terminations: 0 });
+  const identity = beforeStart.length;
+  const graph = () => page.evaluate(index => {
+    const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
+    const graph = media.captureGraphs[index];
+    return { graphs: media.captureGraphs.length, state: graph.context.state,
+      sourceUsesContext: graph.source.context === graph.context,
+      borrowsPreparedRoot: graph.root === media.audioStreams[0],
+      rootLive: graph.root.getAudioTracks().every(track => track.readyState === 'live') };
+  }, identity);
+  expect(await graph()).toEqual({ graphs: 2, state: 'running', sourceUsesContext: true, borrowsPreparedRoot: true, rootLive: true });
+  const capture = await acousticCaptureWitness(page);
+  expect(capture.opened).toBe(2); expect(capture.closed).toBe(1);
+  // This is the newly connected session graph, not a generator or qualification context.
+  await page.evaluate(async index => {
+    await (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.captureGraphs[index].context.suspend();
+  }, identity);
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByRole('heading', { name: '输入暂时中断' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
-  await page.evaluate(async index => { await (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts[index].resume(); }, identity);
+  expect(await graph()).toEqual({ graphs: 2, state: 'suspended', sourceUsesContext: true, borrowsPreparedRoot: true, rootLive: true });
+  expect((await acousticCaptureWitness(page)).closed).toBe(1);
+  await page.evaluate(async index => {
+    await (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.captureGraphs[index].context.resume();
+  }, identity);
   await expect(dialog.getByRole('heading', { name: '输入设备已恢复' })).toBeVisible();
-  await dialog.getByRole('button', { name: '继续', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId('practice-status')).toContainText('输入已中断，练习已暂停');
+  expect(await graph()).toEqual({ graphs: 2, state: 'running', sourceUsesContext: true, borrowsPreparedRoot: true, rootLive: true });
+  expect((await acousticCaptureWitness(page)).opened).toBe(2);
+  // Resuming the same context restores health, but only the user resumes transport.
+  await dialog.getByRole('button', { name: '继续', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId('practice-status')).toHaveText(/^(预备拍.*)?$/);
   await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-  await page.getByRole('button', { name: '结束', exact: true }).click(); await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
-  expect(await page.evaluate(index => (window as unknown as { __sessionContexts: AudioContext[] }).__sessionContexts[index].state, identity)).toBe('closed');
+  await page.getByRole('button', { name: '结束', exact: true }).click();
+  await expect(start).toBeEnabled();
+  expect((await graph()).state).toBe('closed');
+  expect(await engine()).toEqual({ loads: 1, sessions: 2, retiredSessions: 2, terminations: 0 });
+  const closed = await acousticCaptureWitness(page);
+  expect(closed.closed).toBe(closed.opened); expect(closed.maxInFlight).toBe(1);
+  expect(modelAccess).toEqual([200]);
 });
 
 test('same-page VIDEO attempts reuse device roots; Review departure closes them and Retry reacquires only devices', async ({ page }) => {
