@@ -31,7 +31,11 @@ class StubAdapter extends VerovioScoreAdapter {
   override async loadMusicXml() {}
 
   override renderPerformanceTiming() {
-    return { mei: '<mei><scoreDef midi.bpm="120"/></mei>', timemap: this.renderTimemap(), expansionMap: {} };
+    return {
+      mei: '<mei><measure xml:id="measure"><tempo tstamp="1" midi.bpm="120"/></measure></mei>',
+      timemap: [{ measureOn: 'measure', qstamp: 0 }, ...this.renderTimemap()],
+      expansionMap: {},
+    };
   }
 
   override renderMidi() {

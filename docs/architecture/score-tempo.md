@@ -63,10 +63,13 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   are diagnostic data. Expansionmap maps each cursor occurrence to its written SVG
   identity while preserving the unfolded performance time. The browser interprets
   no raw MusicXML tempo notation and
-  resolves no repeat/ending/jump structure itself. Ephemeral renderer input wraps
-  standalone measure sound elements in directions without reading or changing
-  their attributes, so their positions remain visible in MEI. Stored source is
-  unchanged.
+  resolves no repeat/ending/jump structure itself. Renderer input preserves each
+  standalone sound element in place, including its navigation, tuning and other
+  semantics. A tempo-bearing standalone sound additionally receives a sibling
+  direction containing only a copy of its literal tempo attribute. This renderer-only
+  aid exposes a positioned MEI tempo without interpreting its numeric meaning.
+  Positioned MEI tempo facts define chronology; an unpositioned scoreDef MIDI rate
+  does not establish an origin tempo. Stored source is unchanged.
 - Practice uses its notation-order artifact quarter axis. Its own Verovio adapter
   sets `expandNever: true` on that toolkit instance, so the visual cursor remains on
   the written beat axis shared with the artifact. Score Preview keeps renderer

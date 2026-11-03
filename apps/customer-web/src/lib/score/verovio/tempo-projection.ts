@@ -46,19 +46,15 @@ export function projectPerformanceTempos(input: VerovioPerformanceTiming): Perfo
     facts.set(quarter, bpm);
   };
   const units = new Map<string, number>();
-  let seenMeasure = false;
+  // scoreDef midi.bpm can promote a late standalone sound to a global engine rate.
+  // Only positioned MEI tempo elements supply performance chronology facts.
   const elements = Array.from(parseXml(input.mei).getElementsByTagName('*'));
   for (const element of elements) {
     if (element.localName === 'staffDef') {
       const signature = Array.from(element.children).find(child => child.localName === 'meterSig');
       if (signature) units.set(element.getAttribute('n')!, numeric(signature.getAttribute('unit'), 'meter unit'));
     }
-    if (element.localName === 'scoreDef' && element.hasAttribute('midi.bpm')) {
-      if (seenMeasure) throw new Error('Unpositioned renderer tempo.');
-      put(0, numeric(element.getAttribute('midi.bpm'), 'quarter BPM'));
-    }
     if (element.localName !== 'measure') continue;
-    seenMeasure = true;
     for (const staff of Array.from(element.children).filter(child => child.localName === 'staff')) {
       for (const signature of Array.from(staff.getElementsByTagName('*')).filter(child => child.localName === 'meterSig')) {
         units.set(staff.getAttribute('n')!, numeric(signature.getAttribute('unit'), 'meter unit'));

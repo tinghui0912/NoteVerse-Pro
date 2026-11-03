@@ -14,6 +14,14 @@ function timing(tempos: string): VerovioPerformanceTiming {
 const tempo = (bpm: string, timestamp = '5') => `<tempo staff="1" tstamp="${timestamp}" midi.bpm="${bpm}"/>`;
 
 describe('renderer performance tempo projection', () => {
+  it('uses positioned facts while the renderer scoreDef scalar cannot establish an origin tempo', () => {
+    const input = timing(tempo('90'));
+    input.mei = input.mei.replace('<staffDef', '<scoreDef midi.bpm="90"/><staffDef');
+    expect(projectPerformanceTempos(input)).toEqual([
+      { quarter: 0, bpm: 80 }, { quarter: 2, bpm: 90 },
+    ]);
+  });
+
   it('uses renderer meter units, timestamps and expanded measure starts', () => {
     const input = timing(tempo('90'));
     input.timemap.push({ measureOn: 'm1-rend2', qstamp: 4 });
