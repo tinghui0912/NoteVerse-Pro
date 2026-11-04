@@ -7,15 +7,33 @@ from written positions to their occurrences, independently of product timing.
 from dataclasses import dataclass
 from fractions import Fraction
 from collections.abc import Sequence
-from typing import TypeVar
+from typing import TypeVar, Generic
 
 from .musicxml_score import CanonicalScoreSemanticModel
+from .written_point import WrittenPoint, WrittenPointError, resolve_written_point
 
 T = TypeVar("T")
 
 
 class PerformanceNavigationError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class WrittenPerformanceFact(Generic[T]):
+    point: WrittenPoint
+    value: T
+
+
+@dataclass(frozen=True)
+class ProjectedPerformanceFact(Generic[T]):
+    occurrence_ordinal: int
+    position: Fraction
+    source: WrittenPerformanceFact[T]
+
+    @property
+    def value(self) -> T:
+        return self.source.value
 
 
 @dataclass(frozen=True)
@@ -42,26 +60,37 @@ class PerformanceProjection:
     def end(self) -> Fraction:
         return self.occurrences[-1].performance_end
 
-    def project_position(self, position: Fraction) -> tuple[Fraction, ...]:
-        return tuple(p for p, _ in self.project_facts([(position, None)]))
+    def project_position(self, point: WrittenPoint) -> tuple[Fraction, ...]:
+        return tuple(f.position for f in self.project_facts([WrittenPerformanceFact(point, None)]))
 
-    def project_facts(self, facts: Sequence[tuple[Fraction, T]]) -> tuple[tuple[Fraction, T], ...]:
-        """Encounter facts in traversal order; boundaries belong to the next measure.
+    def project_facts(
+        self, facts: Sequence[WrittenPerformanceFact[T]]
+    ) -> tuple[ProjectedPerformanceFact[T], ...]:
+        """Encounter owned start/interior/end facts in traversal order.
 
-        The written score's final endpoint belongs to its final measure. At a
-        repeat jump an endpoint fact executes before any destination-start fact.
-        No state or default is synthesized at that jump.
+        Stable sorting retains source ordering and duplicate values within a
+        slot. Source endpoints precede destination starts at a jump. Every
+        output retains its original written identity and occurrence identity.
         """
-        written_end = max(o.written_end for o in self.occurrences)
-        if any(position < 0 or position > written_end for position, _ in facts):
-            raise PerformanceNavigationError("written_position_outside_score")
-        ordered = sorted(facts, key=lambda fact: fact[0])
+        spans_by_measure = {
+            o.measure_index: (o.written_start, o.written_end) for o in self.occurrences
+        }
+        spans = [spans_by_measure[i] for i in range(len(spans_by_measure))]
+        grouped: dict[int, list[WrittenPerformanceFact[T]]] = {}
+        for fact in facts:
+            try:
+                owner = resolve_written_point(fact.point, spans)
+            except WrittenPointError as error:
+                raise PerformanceNavigationError(str(error)) from error
+            grouped.setdefault(owner.measure_index, []).append(fact)
         return tuple(
-            (occurrence.project_position(position), value)
+            ProjectedPerformanceFact(
+                occurrence.ordinal, occurrence.project_position(fact.point.position), fact
+            )
             for occurrence in self.occurrences
-            for position, value in ordered
-            if occurrence.written_start <= position < occurrence.written_end
-            or position == written_end == occurrence.written_end
+            for fact in sorted(
+                grouped.get(occurrence.measure_index, ()), key=lambda f: f.point.position
+            )
         )
 
 

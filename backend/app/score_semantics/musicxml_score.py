@@ -14,6 +14,12 @@ import xml.etree.ElementTree as ET
 
 from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_tempo_fact
 from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+from .written_point import (
+    WrittenPoint,
+    WrittenPointError,
+    AmbiguousWrittenPointError,
+    resolve_written_point,
+)
 
 
 class MusicXMLSemanticError(ValueError):
@@ -42,6 +48,10 @@ class WrittenPosition:
     measure_index: int
     measure_number: str
     position: Fraction
+
+    @property
+    def point(self) -> WrittenPoint:
+        return WrittenPoint(self.measure_index, self.position)
 
 
 @dataclass(frozen=True)
@@ -185,7 +195,6 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
     measures: list[WrittenMeasure] = []
     meter_facts: dict[tuple[int, int | None, Fraction], WrittenMeter] = {}
     staff_counts = [1] * len(parts)
-    tempo_facts: dict[Fraction, Fraction] = {}
     start = Fraction(0)
     for index in range(measure_count):
         extents: list[Fraction | None] = []
@@ -283,7 +292,6 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                         directive = parse_tempo_directive(element, divisions[part_index])
                         if directive is not None:
                             tempo_position = position + directive.playback_offset_quarters
-                            put_tempo_fact(tempo_facts, tempo_position, directive.quarter_bpm)
                             tempos.append(
                                 WrittenTempo(
                                     part_index, index, number, tempo_position, directive.quarter_bpm
@@ -411,6 +419,19 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         start += extent
     if any(t.position > start for t in tempos):
         raise MusicXMLSemanticError("invalid_tempo_position")
+    tempo_facts: dict[WrittenPoint, Fraction] = {}
+    spans = [(m.start, m.end) for m in measures]
+    for tempo in tempos:
+        try:
+            try:
+                tempo_slot = resolve_written_point(tempo.point, spans)
+            except AmbiguousWrittenPointError:
+                # Written notation can retain an offset whose traversal side is
+                # unresolved. It still cannot contradict its own source slot.
+                tempo_slot = tempo.point
+            put_tempo_fact(tempo_facts, tempo_slot, tempo.quarter_bpm)
+        except (WrittenPointError, MusicXMLTempoError) as error:
+            raise MusicXMLSemanticError("invalid_tempo") from error
     if any(f.position < 0 or f.position > start for f in sound_navigation):
         raise MusicXMLSemanticError("invalid_sound_navigation_position")
     return CanonicalScoreSemanticModel(

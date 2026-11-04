@@ -18,6 +18,7 @@ def test_score_semantics_has_only_standard_library_and_local_semantic_dependenci
                         "musicxml_tempo",
                         "musicxml_sound_position",
                         "musicxml_score",
+                        "written_point",
                     }
                 else:
                     assert node.module.split(".")[0] in sys.stdlib_module_names
@@ -79,7 +80,7 @@ def test_navigation_projection_depends_on_written_facts_and_standard_library():
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             if node.level:
-                assert node.level == 1 and node.module == "musicxml_score"
+                assert node.level == 1 and node.module in {"musicxml_score", "written_point"}
             else:
                 assert node.module.split(".")[0] in sys.stdlib_module_names
         elif isinstance(node, ast.Import):

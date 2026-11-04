@@ -25,8 +25,12 @@ for standalone sound. Only effective playback offsets require positive divisions
 their exact division-unit value is divided by current divisions.
 
 The tempo owner consumes this effective playback offset. The canonical written
-parser adds it to its current part/measure cursor. Conflicting facts at one score position and
-positions before the score origin are invalid.
+parser adds it to its current part/measure cursor and retains source measure identity.
+A tempo at one measure's right endpoint and another at the next measure's start
+are distinct slots even when their absolute quarters match. Truly matching written
+slots require agreement across parts. Cross-measure interior offsets resolve to
+their unique playback owner; unresolved cross-measure boundary sides remain
+unsupported for performance projection. Positions before score origin are invalid.
 
 [Canonical document admission](score-semantics.md#document-admission) requires partwise
 MusicXML, validates these facts and materializes an equivalent `sound@tempo` when a
@@ -55,7 +59,9 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   facts; Practice planning applies the missing-tempo policy. The artifact contains
   only explicit tempo segments.
 - Metadata consumes [canonical performance occurrences](performance-navigation.md)
-  and their projected tempo positions. It integrates exact duration with one tempo
+  and their projected tempo facts, preserving source points and encounter order.
+  Source endpoints execute before jumps; destination-start markings execute on
+  actual entry. It integrates exact duration with one tempo
   state initialized at performance origin. A repeat jump retains the active tempo;
   an explicit marking changes it again whenever encountered on a repeated visit.
 - Backend playback uses an ephemeral renderer input and projects its MIDI conductor.

@@ -10,8 +10,12 @@ from fractions import Fraction
 import math
 import re
 import xml.etree.ElementTree as ET
+from typing import TypeVar
 
 from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+from .written_point import WrittenPoint
+
+TempoSlot = TypeVar("TempoSlot", Fraction, WrittenPoint)
 
 
 class MusicXMLTempoError(ValueError):
@@ -116,8 +120,10 @@ def parse_tempo_directive(element: ET.Element, divisions: Fraction | None) -> Te
     return TempoDirective(bpm, offset)
 
 
-def put_tempo_fact(facts: dict[Fraction, Fraction], position: Fraction, bpm: Fraction) -> None:
-    if position < 0:
+def put_tempo_fact(facts: dict[TempoSlot, Fraction], position: TempoSlot, bpm: Fraction) -> None:
+    """Check one semantic slot: a written point or an already performed coordinate."""
+    quarter = position.position if isinstance(position, WrittenPoint) else position
+    if quarter < 0:
         raise MusicXMLTempoError("Tempo precedes the score origin")
     if position in facts and facts[position] != bpm:
         raise MusicXMLTempoError("Conflicting tempos at one score position")

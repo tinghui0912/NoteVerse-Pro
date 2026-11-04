@@ -124,7 +124,11 @@ def test_cross_projection_written_witness(monkeypatch):
         assert [(o.written_start, o.written_end) for o in performance.occurrences] == [
             (model.measures[i].start, model.measures[i].end) for i in [0, 1, 0, 1, 2, 3]
         ]
-        assert tempos == ((Fraction(2), Fraction(90)), (Fraction(10), Fraction(90)))
+        assert tuple((f.position, f.value.quarter_bpm) for f in tempos) == (
+            (Fraction(2), Fraction(90)),
+            (Fraction(10), Fraction(90)),
+        )
+        assert all(f.source.value == model.tempos[0] for f in tempos)
         return original(performance, tempos)
 
     monkeypatch.setattr(metadata, "_playback_duration_ms", witness)

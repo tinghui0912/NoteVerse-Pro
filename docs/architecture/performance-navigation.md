@@ -12,12 +12,28 @@ and `written_start`, `written_end`, `performance_start`, `performance_end`.
 Every position is a `Fraction` measured in quarters. Occurrence identity is domain
 identity; renderer occurrence suffixes carry no domain meaning.
 
-`PerformanceProjection.project_position` maps a written position to all its
-performance visits. `project_facts` maps positioned values in traversal order,
-without interpreting the values. A boundary belongs to the following written
-measure, while the score's final endpoint belongs to its final measure. Endpoint
-facts execute before destination-start facts at a repeat jump. Consumers do not
-recompute occurrence offset arithmetic.
+An absolute quarter alone is not a complete fact identity at a measure boundary.
+`WrittenPoint(measure_index, position)` retains source measure/edge ownership;
+the same quarter can be one measure's endpoint and another measure's start.
+`WrittenPerformanceFact[T]` pairs that point with an uninterpreted value.
+`PerformanceProjection.project_position` accepts a written point, and
+`project_facts` returns ordered `ProjectedPerformanceFact[T]` values retaining
+their source fact, occurrence ordinal and exact performance position. Stable
+source order and duplicate same-value facts are preserved. No BPM/value sorting
+or set-based coalescing defines encounter order.
+
+`written_point.resolve_written_point` keeps an in-source-measure point owned by
+that measure, including both endpoints. A sound offset crossing into another
+measure's strict interior has that unique playback owner; score origin and final
+endpoint also have unique owners. An offset outside its source measure that lands
+on a shared boundary lacks a unique side and fails performance projection with
+`ambiguous_cross_measure_boundary`. Canonical admission can retain that notation.
+
+Source-measure endpoint facts execute at the end of every source occurrence,
+before its jump. Destination-start facts execute only on entry to that destination.
+At one performance quarter an endpoint fact therefore precedes a destination-start
+fact, even when the destination changes the same state again. Consumers do not
+recompute measure ownership or occurrence offset arithmetic.
 
 ## Supported traversal
 

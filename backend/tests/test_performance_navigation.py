@@ -13,8 +13,10 @@ from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
+    WrittenPerformanceFact,
     project_performance_occurrences,
 )
+from app.score_semantics.written_point import WrittenPoint
 
 
 def bar(direction, *, location=None, times=None, after_jump=None):
@@ -249,14 +251,19 @@ def test_occurrence_mapping_owns_late_tempo_positions_and_boundary_selection():
     )
     model = parse_score_semantics(xml)
     projection = project_performance_occurrences(model)
-    assert projection.project_position(Fraction(2)) == (Fraction(2), Fraction(10))
-    assert projection.project_position(Fraction(4)) == (Fraction(4), Fraction(12))
-    assert projection.project_facts([(t.position, t.quarter_bpm) for t in model.tempos]) == (
+    assert projection.project_position(WrittenPoint(0, Fraction(2))) == (Fraction(2), Fraction(10))
+    assert projection.project_position(WrittenPoint(1, Fraction(4))) == (Fraction(4), Fraction(12))
+    assert tuple(
+        (f.position, f.value)
+        for f in projection.project_facts(
+            [WrittenPerformanceFact(t.point, t.quarter_bpm) for t in model.tempos]
+        )
+    ) == (
         (Fraction(2), Fraction(90)),
         (Fraction(10), Fraction(90)),
     )
     with pytest.raises(PerformanceNavigationError):
-        projection.project_position(Fraction(-1))
+        projection.project_position(WrittenPoint(0, Fraction(-1)))
     assert len(compile_practice_score(xml).notes) == 2
 
 
@@ -336,8 +343,13 @@ def test_late_tempo_in_repeated_second_measure_executes_at_each_occurrence():
     )
     model = parse_score_semantics(xml)
     projection = project_performance_occurrences(model)
-    assert projection.project_position(Fraction(6)) == (Fraction(6), Fraction(14))
-    assert projection.project_facts([(t.position, t.quarter_bpm) for t in model.tempos]) == (
+    assert projection.project_position(WrittenPoint(1, Fraction(6))) == (Fraction(6), Fraction(14))
+    assert tuple(
+        (f.position, f.value)
+        for f in projection.project_facts(
+            [WrittenPerformanceFact(t.point, t.quarter_bpm) for t in model.tempos]
+        )
+    ) == (
         (Fraction(6), Fraction(90)),
         (Fraction(14), Fraction(90)),
     )
@@ -357,7 +369,15 @@ def test_projected_facts_at_end_execute_before_repeat_destination_facts():
     projection = project_performance_occurrences(
         parse_score_semantics(score(measure(0, bar("forward")), measure(1, after=bar("backward"))))
     )
-    assert projection.project_facts([(Fraction(0), "start"), (Fraction(8), "end")]) == (
+    assert tuple(
+        (f.position, f.value)
+        for f in projection.project_facts(
+            [
+                WrittenPerformanceFact(WrittenPoint(0, Fraction(0)), "start"),
+                WrittenPerformanceFact(WrittenPoint(1, Fraction(8)), "end"),
+            ]
+        )
+    ) == (
         (Fraction(0), "start"),
         (Fraction(8), "end"),
         (Fraction(8), "start"),

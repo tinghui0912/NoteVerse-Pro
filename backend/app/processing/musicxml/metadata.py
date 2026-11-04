@@ -9,11 +9,14 @@ from typing import cast
 from app.score_semantics.musicxml_score import (
     CanonicalScoreSemanticModel,
     MusicXMLSemanticError,
+    WrittenTempo,
     parse_score_semantics,
 )
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
     PerformanceProjection,
+    WrittenPerformanceFact,
+    ProjectedPerformanceFact,
     project_performance_occurrences,
 )
 from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
@@ -90,11 +93,11 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
     ]
     try:
         performance = project_performance_occurrences(model)
+        playback_tempos = performance.project_facts(
+            [WrittenPerformanceFact(t.point, t) for t in model.tempos]
+        )
     except PerformanceNavigationError as error:
         raise MetadataExtractionError(str(error)) from error
-    playback_tempos = performance.project_facts(
-        sorted({(t.position, t.quarter_bpm) for t in model.tempos})
-    )
     duration_ms = _playback_duration_ms(performance, playback_tempos)
     primary_key = next((event for event in key_events if event["part"] == 1), None)
     return MusicXMLMetadata(
@@ -111,12 +114,13 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
 
 def _playback_duration_ms(
     performance: PerformanceProjection,
-    tempos: tuple[tuple[Fraction, Fraction], ...],
+    tempos: tuple[ProjectedPerformanceFact[WrittenTempo], ...],
 ) -> int:
     tempo = Fraction(DEFAULT_SCORE_TEMPO_BPM)
     cursor = Fraction(0)
     total_seconds = Fraction(0)
-    for position, next_tempo in tempos:
+    for fact in tempos:
+        position, next_tempo = fact.position, fact.value.quarter_bpm
         total_seconds += (position - cursor) * 60 / tempo
         cursor = position
         tempo = next_tempo
