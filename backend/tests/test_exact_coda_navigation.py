@@ -455,17 +455,23 @@ def test_arbitrary_tocoda_predicates_are_not_generalized(predicate):
 
 
 @pytest.mark.parametrize(
-    "markup",
+    "markup,error",
     [
-        '<barline location="left"><repeat direction="forward"/></barline>',
-        '<barline><repeat direction="backward" after-jump="yes"/></barline>',
-        '<barline location="left"><ending number="1" type="start"/></barline>',
+        ('<barline location="left"><repeat direction="forward"/></barline>', "unclosed_repeat"),
+        ('<barline><repeat direction="backward" after-jump="yes"/></barline>', None),
+        (
+            '<barline location="left"><ending number="1" type="start"/></barline>',
+            "unsupported_jump_ending_interaction",
+        ),
     ],
 )
-def test_coda_does_not_enable_repeat_volta_or_after_jump_interaction(markup):
+def test_coda_repeat_program_validation_and_unreached_post_jump_context(markup, error):
     xml = score(ds_measures()).replace('<note id="n0_0">', markup + '<note id="n0_0">')
-    with pytest.raises(PerformanceNavigationError, match="unsupported_jump_repeat_interaction"):
-        projection(xml)
+    if error:
+        with pytest.raises(PerformanceNavigationError, match=error):
+            projection(xml)
+    else:
+        assert projection(xml).end == 26
 
 
 @pytest.mark.parametrize("kind", ["dc", "ds"])

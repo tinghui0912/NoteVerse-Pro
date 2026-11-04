@@ -424,15 +424,18 @@ def test_unsupported_programs_stay_admissible_but_fail_before_traversal(body, er
 
 
 @pytest.mark.parametrize(
-    "markup",
+    "markup,error",
     [
-        '<barline location="left"><repeat direction="forward"/></barline>',
-        '<barline><repeat direction="backward"/></barline>',
-        '<barline location="left"><ending number="1" type="start"/></barline>',
+        ('<barline location="left"><repeat direction="forward"/></barline>', "unclosed_repeat"),
+        ('<barline><repeat direction="backward"/></barline>', "ambiguous_repeat_after_jump"),
+        (
+            '<barline location="left"><ending number="1" type="start"/></barline>',
+            "unsupported_jump_ending_interaction",
+        ),
     ],
 )
-def test_jump_and_any_repeat_or_ending_fail_at_the_capability_boundary(markup):
-    with pytest.raises(PerformanceNavigationError, match="unsupported_jump_repeat_interaction"):
+def test_jump_requires_valid_repeat_structure_explicit_policy_and_no_endings(markup, error):
+    with pytest.raises(PerformanceNavigationError, match=error):
         projection(dc_score().replace('<note id="n0_0">', markup + '<note id="n0_0">'))
 
 

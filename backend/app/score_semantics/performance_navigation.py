@@ -6,6 +6,7 @@ from written positions to their occurrences, independently of product timing.
 
 from dataclasses import dataclass, field
 from fractions import Fraction
+from enum import Enum
 from collections.abc import Sequence
 from typing import TypeVar, Generic
 
@@ -13,6 +14,7 @@ from .musicxml_score import CanonicalScoreSemanticModel, WrittenEnding
 from .written_point import WrittenPoint, WrittenPointError, resolve_written_point
 
 T = TypeVar("T")
+_RepeatFact = tuple[int, str, str, int | None, bool | None]
 
 
 class PerformanceNavigationError(ValueError):
@@ -108,6 +110,7 @@ class _RepeatContext:
     start: int
     end: int
     total_plays: int
+    after_jump: bool | None
     repeat_back: EndingSpan | None = None
     final_exit: EndingSpan | None = None
 
@@ -143,12 +146,12 @@ def _normalize_ending_spans(markers: Sequence[WrittenEnding]) -> tuple[EndingSpa
 
 
 def _associate_endings(
-    repeat_ranges: Sequence[tuple[int, int, int | None]], spans: Sequence[EndingSpan]
+    repeat_ranges: Sequence[tuple[int, int, int | None, bool | None]], spans: Sequence[EndingSpan]
 ) -> tuple[_RepeatContext, ...]:
     associated = []
     span_index = 0
     previous_end = -1
-    for start, end, times in repeat_ranges:
+    for start, end, times, after_jump in repeat_ranges:
         if start <= previous_end:
             raise PerformanceNavigationError("overlapping_repeat_contexts")
         if span_index < len(spans) and spans[span_index].start_measure_index <= end:
@@ -166,10 +169,12 @@ def _associate_endings(
                 raise PerformanceNavigationError("unsupported_ending_group")
             if times is not None:
                 raise PerformanceNavigationError("repeat_times_with_ending")
-            context = _RepeatContext(start, end, final.passes[0], back, final)
+            if after_jump is not None:
+                raise PerformanceNavigationError("unsupported_performance_navigation")
+            context = _RepeatContext(start, end, final.passes[0], after_jump, back, final)
             span_index += 2
         else:
-            context = _RepeatContext(start, end, times if times is not None else 2)
+            context = _RepeatContext(start, end, times if times is not None else 2, after_jump)
         associated.append(context)
         previous_end = context.continuation - 1
     if span_index != len(spans):
@@ -203,12 +208,14 @@ def _point_order(point: WrittenPoint) -> tuple[int, Fraction]:
 
 
 def _compile_jump_program(
-    model: CanonicalScoreSemanticModel, spans: Sequence[tuple[Fraction, Fraction]]
+    model: CanonicalScoreSemanticModel,
+    spans: Sequence[tuple[Fraction, Fraction]],
+    repeat_programs: dict[int, tuple[_RepeatFact, ...]],
 ) -> _JumpProgram | None:
     has_primary = any(f.dacapo or f.dalsegno is not None for f in model.playback_navigation)
     has_tocoda = any(f.tocoda is not None for f in model.playback_navigation)
-    if has_primary and (model.repeats or model.endings):
-        raise PerformanceNavigationError("unsupported_jump_repeat_interaction")
+    if has_primary and model.endings:
+        raise PerformanceNavigationError("unsupported_jump_ending_interaction")
     programs: dict[int, set[_NavigationFact]] = {}
     for event in model.playback_navigation:
         roles = [
@@ -264,10 +271,15 @@ def _compile_jump_program(
                 program.add(_NavigationFact(destination_kind, point, label))
     if not has_primary:
         return None
-    normalized = list(programs.values())
+    # Compare complete annotated-part programs before compiling either control
+    # component. Jump-only and repeat-only opinions cannot be stitched together.
+    annotated = programs.keys() | repeat_programs.keys()
+    normalized = [
+        (programs.get(part, set()), repeat_programs.get(part, ())) for part in sorted(annotated)
+    ]
     if any(program != normalized[0] for program in normalized[1:]):
         raise PerformanceNavigationError("conflicting_part_navigation")
-    facts = normalized[0]
+    facts = normalized[0][0]
     primary = [f for f in facts if f.kind in {"dacapo", "dalsegno"}]
     if len(primary) != 1:
         raise PerformanceNavigationError("unsupported_multiple_primary_jumps")
@@ -312,24 +324,8 @@ def _compile_jump_program(
     return _JumpProgram(command.point, target, fines[0] if fines else None, coda_transfer)
 
 
-def _written_intervals(
-    model: CanonicalScoreSemanticModel, entry: WrittenPoint, exit: WrittenPoint
-) -> list[tuple[int, Fraction, Fraction]]:
-    # Inclusive owned endpoints create a point visit only at an actual entry/exit.
-    return [
-        (
-            index,
-            entry.position if index == entry.measure_index else model.measures[index].start,
-            exit.position if index == exit.measure_index else model.measures[index].end,
-        )
-        for index in range(entry.measure_index, exit.measure_index + 1)
-    ]
-
-
-def _repeat_measure_order(model: CanonicalScoreSemanticModel) -> list[int]:
-    # An unannotated part has no opinion. Annotated parts must each provide the
-    # same complete program; markers from different parts are never stitched.
-    programs: dict[int, list[tuple[int, str, str, int | None, bool | None]]] = {}
+def _repeat_programs(model: CanonicalScoreSemanticModel) -> dict[int, tuple[_RepeatFact, ...]]:
+    programs: dict[int, list[_RepeatFact]] = {}
     for repeat in model.repeats:
         programs.setdefault(repeat.part_index, []).append(
             (
@@ -340,21 +336,31 @@ def _repeat_measure_order(model: CanonicalScoreSemanticModel) -> list[int]:
                 repeat.after_jump,
             )
         )
-    for ending in model.endings:
-        programs.setdefault(ending.part_index, [])
+    return {
+        part: tuple(sorted(program, key=lambda f: (f[0], f[1], f[2])))
+        for part, program in programs.items()
+    }
+
+
+def _compile_repeat_contexts(
+    model: CanonicalScoreSemanticModel, programs: dict[int, tuple[_RepeatFact, ...]]
+) -> tuple[_RepeatContext, ...]:
+    annotated = programs.keys() | {ending.part_index for ending in model.endings}
     normalized = [
         (
-            tuple(sorted(program, key=lambda f: (f[0], f[1], f[2]))),
+            programs.get(part_index, ()),
             _normalize_ending_spans([e for e in model.endings if e.part_index == part_index]),
         )
-        for part_index, program in programs.items()
+        for part_index in sorted(annotated)
     ]
     if any(program != normalized[0] for program in normalized[1:]):
         raise PerformanceNavigationError("conflicting_part_navigation")
     program, ending_spans = normalized[0] if normalized else ((), ())
     boundaries: dict[tuple[int, str], tuple[int | None, bool | None]] = {}
     for index, location, direction, times, after_jump in program:
-        if location != ("left" if direction == "forward" else "right") or after_jump is not None:
+        if direction == "forward" and after_jump is not None:
+            raise PerformanceNavigationError("unsupported_repeat_after_jump_placement")
+        if location != ("left" if direction == "forward" else "right"):
             raise PerformanceNavigationError("unsupported_performance_navigation")
         slot = (index, direction)
         if slot in boundaries:
@@ -375,27 +381,79 @@ def _repeat_measure_order(model: CanonicalScoreSemanticModel) -> list[int]:
                 if closed_repeat:
                     raise PerformanceNavigationError("ambiguous_implicit_repeat_start")
                 repeat_start = 0
-            times = boundaries[(index, "backward")][0]
-            repeat_ranges.append((repeat_start, index, times))
+            times, after_jump = boundaries[(index, "backward")]
+            repeat_ranges.append((repeat_start, index, times, after_jump))
             repeat_start = None
             closed_repeat = True
     if repeat_start is not None:
         raise PerformanceNavigationError("unclosed_repeat")
 
-    by_start = {c.start: c for c in _associate_endings(repeat_ranges, ending_spans)}
-    order: list[int] = []
-    index = 0
-    while index < len(model.measures):
+    return _associate_endings(repeat_ranges, ending_spans)
+
+
+class _RepeatPhase(Enum):
+    INITIAL = "INITIAL"
+    AFTER_PRIMARY_JUMP = "AFTER_PRIMARY_JUMP"
+
+
+def _validate_repeat_control_points(
+    model: CanonicalScoreSemanticModel,
+    jump: _JumpProgram,
+    contexts: Sequence[_RepeatContext],
+) -> None:
+    points = [jump.source, jump.target]
+    if jump.fine is not None:
+        points.append(jump.fine)
+    if jump.tocoda is not None:
+        points.extend((jump.tocoda.source, jump.tocoda.target))
+    for context in contexts:
+        start = WrittenPoint(context.start, model.measures[context.start].start)
+        end = WrittenPoint(context.end, model.measures[context.end].end)
+        for point in points:
+            if point == end:
+                raise PerformanceNavigationError("ambiguous_jump_repeat_boundary")
+            if _point_order(start) < _point_order(point) < _point_order(end):
+                raise PerformanceNavigationError("unsupported_partial_repeat_jump_interaction")
+
+
+def _traverse_leg(
+    model: CanonicalScoreSemanticModel,
+    entry: WrittenPoint,
+    exit: WrittenPoint,
+    phase: _RepeatPhase,
+    contexts: Sequence[_RepeatContext],
+) -> list[tuple[int, Fraction, Fraction]]:
+    by_start = {c.start: c for c in contexts}
+    intervals: list[tuple[int, Fraction, Fraction]] = []
+    index = entry.measure_index
+    while index <= exit.measure_index:
         context = by_start.get(index)
-        if context is None:
-            order.append(index)
+        start = entry.position if index == entry.measure_index else model.measures[index].start
+        end = exit.position if index == exit.measure_index else model.measures[index].end
+        if (
+            context is None
+            or start != model.measures[context.start].start
+            or _point_order(
+                WrittenPoint(context.continuation - 1, model.measures[context.continuation - 1].end)
+            )
+            > _point_order(exit)
+        ):
+            # A leg ending exactly at a forward boundary owns its point once,
+            # but has not encountered that region's backward repeat.
+            intervals.append((index, start, end))
             index += 1
             continue
-        for current_pass in range(1, context.total_plays + 1):
+        plays = context.total_plays
+        if phase is _RepeatPhase.AFTER_PRIMARY_JUMP:
+            if context.after_jump is None:
+                raise PerformanceNavigationError("ambiguous_repeat_after_jump")
+            if not context.after_jump:
+                plays = 1
+        for current_pass in range(1, plays + 1):
             if context.repeat_back is None:
-                order.extend(range(context.start, context.end + 1))
+                order = list(range(context.start, context.end + 1))
             else:
-                order.extend(range(context.start, context.repeat_back.start_measure_index))
+                order = list(range(context.start, context.repeat_back.start_measure_index))
                 branch = (
                     context.repeat_back
                     if current_pass < context.total_plays
@@ -403,34 +461,52 @@ def _repeat_measure_order(model: CanonicalScoreSemanticModel) -> list[int]:
                 )
                 assert branch is not None
                 order.extend(range(branch.start_measure_index, branch.end_measure_index + 1))
+            intervals.extend((i, model.measures[i].start, model.measures[i].end) for i in order)
         index = context.continuation
 
-    return order
+    return intervals
 
 
 def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> PerformanceProjection:
     if any(tempo.time_only is not None for tempo in model.tempos):
         raise PerformanceNavigationError("unsupported_time_only_playback")
     spans = tuple((m.start, m.end) for m in model.measures)
-    jump = _compile_jump_program(model, spans)
+    repeat_programs = _repeat_programs(model)
+    jump = _compile_jump_program(model, spans, repeat_programs)
+    contexts = _compile_repeat_contexts(model, repeat_programs)
+    origin = WrittenPoint(0, model.measures[0].start)
+    end = WrittenPoint(len(model.measures) - 1, model.end)
     if jump is None:
-        intervals = [(index, *spans[index]) for index in _repeat_measure_order(model)]
+        intervals = _traverse_leg(model, origin, end, _RepeatPhase.INITIAL, contexts)
     else:
-        origin = WrittenPoint(0, model.measures[0].start)
-        end = WrittenPoint(len(model.measures) - 1, model.end)
+        _validate_repeat_control_points(model, jump, contexts)
         # Primary fires once on leg one. Only the supported post-primary transfer
         # or armed Fine can end leg two. A Coda leg cannot transfer again.
-        intervals = _written_intervals(model, origin, jump.source)
+        intervals = _traverse_leg(model, origin, jump.source, _RepeatPhase.INITIAL, contexts)
         if jump.tocoda is not None:
-            intervals.extend(_written_intervals(model, jump.target, jump.tocoda.source))
-            intervals.extend(_written_intervals(model, jump.tocoda.target, end))
+            intervals.extend(
+                _traverse_leg(
+                    model,
+                    jump.target,
+                    jump.tocoda.source,
+                    _RepeatPhase.AFTER_PRIMARY_JUMP,
+                    contexts,
+                )
+            )
+            intervals.extend(
+                _traverse_leg(
+                    model, jump.tocoda.target, end, _RepeatPhase.AFTER_PRIMARY_JUMP, contexts
+                )
+            )
         else:
             stop = (
                 jump.fine
                 if jump.fine is not None and _point_order(jump.fine) >= _point_order(jump.target)
                 else end
             )
-            intervals.extend(_written_intervals(model, jump.target, stop))
+            intervals.extend(
+                _traverse_leg(model, jump.target, stop, _RepeatPhase.AFTER_PRIMARY_JUMP, contexts)
+            )
     visits: dict[int, int] = {}
     cursor = Fraction(0)
     occurrences = []

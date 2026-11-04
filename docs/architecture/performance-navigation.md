@@ -152,6 +152,42 @@ at Fine execute before termination. Tempo state carries across transfer until an
 actually encountered marking changes it. A tempo before an exact D.S. target is
 not replayed. Metadata consumes the same generic fact projection without jump rules.
 
+## Explicit repeats across primary jumps
+
+Ordinary explicit repeat regions may coexist with D.C./D.S. A normalized context
+records its whole-measure start/end, total plays and optional backward-repeat
+`after_jump` policy. Sequential non-overlapping contexts retain independent policies.
+All annotated parts must provide the same complete jump-and-repeat program; a
+jump-only part and a repeat-only part cannot be combined into one program.
+Destination source representation remains irrelevant to semantic agreement.
+
+One phase-aware leg traversal emits the intervals for linear, repeat, volta and
+jump programs. Before the primary jump, ordinary repeats always use their normal
+total play count, regardless of `after-jump`. This also means a no-jump score
+plays a backward repeat normally with either `after-jump="yes"` or `"no"`.
+After the primary D.C./D.S. transfer, an encountered repeat uses its own policy:
+
+- `after-jump="yes"` executes the normal total plays (`times`, or two if absent).
+- `after-jump="no"` traverses the section once, without skipping it.
+- Missing `after-jump` fails with `ambiguous_repeat_after_jump`.
+
+A backward repeat never encountered after the primary jump needs no policy.
+The post-primary phase persists through a subsequent To Coda transfer, including
+repeat regions after the Coda destination. Phase is explicit control state, not
+an interpretation of occurrence visit count. Generic fact replay encounters
+tempo markings on every actual visit; tempo carries across repeat jumps until
+an encountered marking changes it.
+
+Control points (primary source/target, Fine and To Coda source/target) cannot cut
+through a repeat region. A point strictly inside its owned start/end range fails
+with `unsupported_partial_repeat_jump_interaction`. Entry at the exact forward
+start is supported. A control point owned by the backward-repeat endpoint fails
+with `ambiguous_jump_repeat_boundary`; a next-measure start at the same absolute
+quarter follows the completed repeat and retains its distinct ownership.
+An `after-jump` attribute on a forward barline repeat is unsupported. Jump programs
+with any ending remain unsupported; an ending-closing repeat with `after-jump`
+also remains outside the standalone volta subset.
+
 ## Exact To Coda
 
 A Coda program contains one primary D.C./D.S., one To Coda command and no Fine.
@@ -189,8 +225,9 @@ Unsupported programs fail before traversal: multiple primary commands/Fines or
 To Coda commands, orphan To Coda, any Fine plus To Coda, numeric Fine duration,
 primary predicates other than absent/`(1,)`, Fine or To Coda predicates other than
 absent/`(2,)`, gated destinations in executable programs,
-forward-repeat sound commands, and any jump combined with barline repeat or
-ending notation. Repeat `after-jump` remains unsupported. Canonical source admission
+forward-repeat sound commands, and any jump combined with ending notation.
+Repeat/jump programs must meet the complete-context and explicit post-jump policy
+rules above. Canonical source admission
 does not impose these performance capability limits.
 
 `time-only` is generic sound applicability, parsed by the shared canonical datatype
@@ -218,7 +255,10 @@ and volta. Its 6.3.0 MusicXML jump expansion rounds the tested mid-measure D.C./
 source/target/Fine paths to whole measures: both renderer paths contain 24 quarters,
 while the exact canonical paths contain 20 quarters (15000 ms at 80 BPM). The
 mid-measure Coda fixtures similarly expand to 28 renderer quarters, compared with
-23 exact D.C. quarters and 22 exact D.S. quarters. These renderer gaps do not change
+23 exact D.C. quarters and 22 exact D.S. quarters. In the explicit repeat plus
+D.C./Fine fixtures, Verovio agrees with the domain's measure order for both
+`after-jump="yes"` and `"no"`, while rounding the partial source/Fine spans to
+44/36 renderer quarters instead of the exact 40/32 quarters. These renderer gaps do not change
 domain coordinates or timing; renderer traversal is
 not the canonical domain authority.
 

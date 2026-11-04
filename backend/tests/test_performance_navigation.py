@@ -170,7 +170,6 @@ def test_repeat_markup_in_later_part_is_score_wide_authority_too():
         [measure(0, bar("forward", location="middle")), measure(1, after=bar("backward"))],
         [measure(0, bar("forward", location="right")), measure(1, after=bar("backward"))],
         [measure(0, bar("forward")), measure(1, after=bar("backward", location="left"))],
-        [measure(0, bar("forward")), measure(1, after=bar("backward", after_jump="yes"))],
         [measure(0, bar("forward") + bar("forward")), measure(1, after=bar("backward"))],
     ],
 )
@@ -318,8 +317,7 @@ def test_written_repeat_preserves_default_location_count_and_after_jump():
         ("left", "forward", None, None),
         ("right", "backward", None, False),
     ]
-    with pytest.raises(PerformanceNavigationError):
-        project_performance_occurrences(model)
+    assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [0, 0]
 
 
 @pytest.mark.parametrize(
