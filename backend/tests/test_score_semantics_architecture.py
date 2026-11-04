@@ -121,7 +121,9 @@ def test_midi_codec_and_projection_have_explicit_adapter_dependencies():
     allowed = {
         "standard_midi": set(),
         "midi_event_semantics": {"standard_midi"},
+        "written_midi_streams": {"standard_midi", "midi_event_semantics"},
         "performance_midi": {
+            "written_midi_streams",
             "standard_midi",
             "midi_event_semantics",
             "app.score_semantics.performance_plan",

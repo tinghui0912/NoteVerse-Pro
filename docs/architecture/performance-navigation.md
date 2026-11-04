@@ -283,7 +283,9 @@ The final MIDI notes and conductor share the same canonical performance axis,
 and every track ends at the plan's performance end before FluidSynth synthesis.
 
 `processing/engines/playback/standard_midi.py` owns SMF parsing and serialization.
-`performance_midi.py` owns written-event projection, without parsing MusicXML.
+`written_midi_streams.py` validates logical renderer stream identity and note
+lifecycles and owns deterministic final channel allocation.
+`performance_midi.py` projects those logical streams, without parsing MusicXML.
 `midi_event_semantics.py` classifies written metadata and validates its supported
 placement independently of traversal.
 `VerovioMidiCompiler` orchestrates admission, written semantics, plan construction,
@@ -304,8 +306,8 @@ cut termination and destination-entry events retain that encounter order.
 Metadata classification is explicit:
 
 - Structural: Sequence Number `0x00`, Copyright `0x02`, Track Name `0x03`,
-  Instrument Name `0x04`, Program Name `0x08`, Device Name `0x09`, Channel Prefix
-  `0x20` and Port `0x21`. The written-realization contract permits one descriptor
+  Instrument Name `0x04`, Program Name `0x08` and Device Name `0x09`.
+  The written-realization contract permits one descriptor
   of each kind per source track, at origin. Each remains once on its original
   track, independently of repeat or jump visits. Non-origin or ambiguous duplicate
   descriptors fail closed rather than being relocated or selected.
@@ -313,28 +315,34 @@ Metadata classification is explicit:
   `0x58` and Key Signature `0x59` replay through actual canonical occurrences.
 - Tempo `0x51` is owned by the plan; EOT `0x2F` is generated at final performance end.
 
-Real Verovio 6.3.0 two-part fixtures produce three tracks: track 0 contains tempo
-and EOT, and tracks 1/2 contain one origin Track Name and timeline Time Signature.
-Those fixtures emit origin program changes 0/40 and simultaneous C4/E4 notes,
-with no controller messages. With unspecified MusicXML channels, both parts use
-MIDI channel 0; explicit MusicXML 3/7 uses channels 2/6, and explicit 3/3 shares
-channel 2. Source assignment is preserved without rewriting MusicXML.
+Renderer `(source_track_index, source_channel)` pairs identify logical written
+MIDI sounding streams. Each stream independently owns its note lifecycles,
+program, controllers, pitch bend and pressure state. Same-pitch notes in different
+streams are independent. An onset and release must pair within the same stream.
+Source tracks retain their structural descriptors, timeline metadata and channel
+events; equal-quarter encounters retain local source order.
 
-MIDI channels are global across SMF tracks. The written-realization adapter merges
-equal-quarter input encounters by source track index, then source event index,
-preserving each track's local order. Note lifecycles validate globally by
-`(channel, pitch)`; a release may be in another source track. Each output channel
-stream is serialized in its lowest-index participating source track, including all
-its notes, program/controller/bend messages and cut releases. This preserves the
-complete encounter order at one performance position, even when source and
-destination messages originate in opposite track-index order. Original tracks
-retain their structural descriptors and timeline metadata organization.
+Final synthesis channels are allocated deterministically, with one independent
+physical channel per logical stream. Distinct requested melodic channels are
+reserved first in source track/channel order; colliding requests then receive the
+lowest free melodic channel. Every channel voice message, including synthetic cut
+releases, uses that stream's allocated channel. General MIDI channel 9 is reserved
+for one percussion stream and is never assigned to a melodic stream. Multiple
+independent percussion streams fail as `unsupported_multiple_percussion_streams`;
+more than 15 melodic streams fail as `insufficient_output_midi_channels`.
+
+Source/renderer channel numbers are realization input; final synthesis channels
+are allocated output state. Explicitly equal source channel assignments do not
+merge independently realized streams. This SMF is an internal FluidSynth synthesis
+artifact, not a source-faithful MIDI export contract. Structural Channel Prefix
+`0x20` and Port `0x21` are outside the written-realization adapter contract and fail
+as `unsupported_midi_routing_metadata`, so final SMF cannot retain stale routing.
 
 Channel voice events (note-on/off, program, controllers, bend and pressure) are
 supported. SMF format 0/1 requires positive PPQ division and balanced,
 positive-duration written note lifecycles. SysEx, SMPTE timing/offset, opaque
-sequencer metadata, nonzero ports, unsupported channel modes and overlapping
-same-channel/same-key note lifecycles fail closed. Shared channels alone are supported.
+sequencer metadata, routing metadata, unsupported channel modes and overlapping
+same-key note lifecycles within one logical stream fail closed.
 For non-note events at a shared measure boundary, SMF lacks source-side ownership;
 projection accepts only identical encounter mappings for the candidate sides,
 otherwise it reports `ambiguous_midi_boundary_state`. No event/layout fallback

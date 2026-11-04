@@ -25,8 +25,6 @@ STRUCTURAL = {
     0x04: b"Piano",
     0x08: b"Program",
     0x09: b"Device",
-    0x20: b"\x00",
-    0x21: b"\x00",
 }
 TIMELINE = {
     0x01: b"Text",
@@ -108,36 +106,20 @@ def test_active_jump_cut_generates_only_note_release_and_sustain_carries():
     ]
 
 
-def test_cross_track_note_lifecycle_and_state_share_one_channel_timeline():
-    result = final(
-        dc_score(),
-        midi(
-            [],
-            [ev(1, 192, b"\x05"), ev(2, 176, b"\x40\x7f"), ev(3, 144, b"\x3c\x50")],
-            [ev(4, 128, b"\x3c\x20"), ev(13, 224, b"\x01\x40")],
-        ),
-    )
-    assert channel_events(result) == [
-        (1, Fraction(1), 192, b"\x05"),
-        (1, Fraction(2), 176, b"\x40\x7f"),
-        (1, Fraction(3), 144, b"\x3c\x50"),
-        (1, Fraction(4), 128, b"\x3c\x20"),
-        (1, Fraction(13), 224, b"\x01\x40"),
-        (1, Fraction(15), 192, b"\x05"),
-        (1, Fraction(16), 176, b"\x40\x7f"),
-        (1, Fraction(17), 144, b"\x3c\x50"),
-        (1, Fraction(18), 128, b"\x3c\x20"),
-    ]
+def test_note_release_in_a_different_logical_stream_cannot_pair():
+    with pytest.raises(MidiRepresentationError, match="unterminated_written_midi_note"):
+        final(
+            dc_score(),
+            midi([], [ev(3, 144, b"\x3c\x50")], [ev(4, 128, b"\x3c\x20")]),
+        )
 
 
-def test_shared_channel_source_then_destination_order_survives_binary_serialization():
-    # Source state is in track 2, destination state in track 1. Canonical
-    # encounter order must survive even though raw track-index ordering reverses it.
+def test_different_streams_keep_source_and_destination_state_independent():
     result = final(dc_score(), midi([], [ev(0, 192, b"\x03")], [ev(14, 192, b"\x07")]))
     assert channel_events(result) == [
         (1, Fraction(0), 192, b"\x03"),
-        (1, Fraction(14), 192, b"\x07"),
         (1, Fraction(14), 192, b"\x03"),
+        (2, Fraction(14), 193, b"\x07"),
     ]
 
 
@@ -164,11 +146,19 @@ def test_file_descriptors_keep_origin_order_before_the_canonical_conductor():
     ]
 
 
-def test_cross_track_overlapping_same_key_is_a_specific_lifecycle_ambiguity():
+def test_cross_track_same_key_notes_have_independent_lifecycles():
     written = midi(
         [],
         [ev(1, 144, b"\x3c\x50"), ev(3, 128, b"\x3c\x00")],
         [ev(1, 144, b"\x3c\x60"), ev(3, 128, b"\x3c\x00")],
     )
-    with pytest.raises(MidiRepresentationError, match="ambiguous_overlapping_midi_note"):
-        final(dc_score(), written)
+    events = channel_events(final(dc_score(), written))
+    assert [
+        (track, q, status & 15) for track, q, status, data in events if status & 240 == 144
+    ] == [(1, 1, 0), (1, 15, 0), (2, 1, 1), (2, 15, 1)]
+
+
+@pytest.mark.parametrize("kind,payload", [(0x20, b"\x00"), (0x21, b"\x00"), (0x21, b"\x01")])
+def test_unmodeled_routing_metadata_fails_instead_of_retaining_stale_routing(kind, payload):
+    with pytest.raises(MidiRepresentationError, match="unsupported_midi_routing_metadata"):
+        final(dc_score(), midi([ev(0, 255, payload, kind)]))

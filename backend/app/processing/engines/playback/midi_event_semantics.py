@@ -23,10 +23,8 @@ def classify_meta_event(event: MidiEvent) -> MidiMetaRole:
         raise MidiRepresentationError("unsupported_midi_meta_event")
     if kind in _PAYLOAD_SIZES and len(event.data) != _PAYLOAD_SIZES[kind]:
         raise MidiRepresentationError("invalid_midi_meta_payload")
-    if kind == 0x21 and event.data != b"\x00":
-        raise MidiRepresentationError("unsupported_midi_port")
-    if kind == 0x20 and event.data[0] > 15:
-        raise MidiRepresentationError("invalid_midi_channel_prefix")
+    if kind in (0x20, 0x21):
+        raise MidiRepresentationError("unsupported_midi_routing_metadata")
     if kind in _STRUCTURAL:
         if event.position != 0:
             raise MidiRepresentationError("unsupported_structural_midi_position")
@@ -34,3 +32,11 @@ def classify_meta_event(event: MidiEvent) -> MidiMetaRole:
     if kind in _TIMELINE:
         return MidiMetaRole.TIMELINE
     return MidiMetaRole.CONDUCTOR if kind == 0x51 else MidiMetaRole.TERMINAL
+
+
+def is_note_on(event: MidiEvent) -> bool:
+    return event.status & 0xF0 == 0x90 and event.data[1] > 0
+
+
+def is_note_off(event: MidiEvent) -> bool:
+    return event.status & 0xF0 == 0x80 or (event.status & 0xF0 == 0x90 and event.data[1] == 0)

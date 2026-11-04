@@ -172,7 +172,7 @@ def test_unrepresentable_plan_boundary_fails_instead_of_rounding():
         ([event(0, 240, b"\x01")], "unsupported_midi_event"),
         ([event(0, 255, b"x", 127)], "unsupported_midi_meta_event"),
         ([event(0, 255, b"\0" * 5, 84)], "unsupported_midi_meta_event"),
-        ([event(0, 255, b"\x01", 33)], "unsupported_midi_port"),
+        ([event(0, 255, b"\x01", 33)], "unsupported_midi_routing_metadata"),
         ([event(0, 176, b"\x7c\x00")], "unsupported_midi_channel_mode"),
         ([event(1, 128, b"\x3c\0")], "unmatched_midi_note_off"),
         ([event(1, 144, b"\x3c\x50")], "unterminated_written_midi_note"),
@@ -188,14 +188,10 @@ def test_unsupported_or_ambiguous_input_is_not_dropped(events, error):
         project(dc_score(), source(*events))
 
 
-def test_shared_channel_programs_replay_in_one_ordered_stream():
+def test_source_channel_reuse_keeps_programs_on_independent_output_streams():
     result = project(dc_score(), source(event(1, 192, b"\x01"), second=[event(1, 192, b"\x02")]))
-    assert channels(result, 192) == [
-        (1, 1, b"\x01"),
-        (1, 1, b"\x02"),
-        (1, 15, b"\x01"),
-        (1, 15, b"\x02"),
-    ]
+    assert channels(result, 192) == [(1, 1, b"\x01"), (1, 15, b"\x01")]
+    assert channels(result, 193) == [(2, 1, b"\x02"), (2, 15, b"\x02")]
 
 
 def test_zero_duration_boundary_note_is_explicitly_unsupported():

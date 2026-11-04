@@ -84,8 +84,9 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   Verovio with `expandNever=true` provides written-axis MIDI realization only.
   NoteVerse projects notes, channel state and timeline metadata through canonical occurrences,
   while origin structural descriptors remain once per original track. Channel
-  state and note lifecycles are global across tracks; an ordered stream per channel
-  preserves source/cut/destination encounters in final SMF serialization. Cuts
+  state and note lifecycles belong to logical renderer track/channel streams.
+  Independent synthesis channels are allocated deterministically, preserving
+  each stream's source/cut/destination encounters in final SMF serialization. Cuts
   synthesize only necessary note-offs; controllers and pedal state follow actual
   source events, so sounding release under sustain remains the synth's responsibility.
   The conductor follows plan initial state and ordered tempo encounters.

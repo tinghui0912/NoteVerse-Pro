@@ -7,68 +7,13 @@ from app.score_semantics.performance_plan import CanonicalPerformancePlan
 from app.score_semantics.written_point import WrittenPoint
 
 from .standard_midi import MidiEvent, MidiRepresentationError, StandardMidiFile, exact_output_ppq
-from .midi_event_semantics import MidiMetaRole, classify_meta_event
-
-
-def _note_on(event: MidiEvent) -> bool:
-    return event.status & 0xF0 == 0x90 and event.data[1] > 0
-
-
-def _note_off(event: MidiEvent) -> bool:
-    return event.status & 0xF0 == 0x80 or (event.status & 0xF0 == 0x90 and event.data[1] == 0)
-
-
-def _validate_and_pair(
-    midi: StandardMidiFile,
-) -> tuple[dict[tuple[int, int], tuple[int, int]], dict[int, int]]:
-    pairs = {}
-    channel_stream_tracks: dict[int, int] = {}
-    ordered = []
-    for track_index, track in enumerate(midi.tracks):
-        descriptors = set()
-        for index, event in enumerate(track):
-            if event.status == 0xFF:
-                if classify_meta_event(event) is MidiMetaRole.STRUCTURAL:
-                    if event.meta_type in descriptors:
-                        raise MidiRepresentationError("ambiguous_structural_midi_descriptor")
-                    descriptors.add(event.meta_type)
-                continue
-            if not 0x80 <= event.status < 0xF0:
-                raise MidiRepresentationError("unsupported_midi_event")
-            channel = event.status & 15
-            # This is an output stream owner, not a restriction on input tracks.
-            channel_stream_tracks[channel] = min(
-                channel_stream_tracks.get(channel, track_index), track_index
-            )
-            if (
-                event.status & 0xF0 == 0xB0
-                and event.data[0] >= 120
-                and event.data[0] not in (120, 121, 123)
-            ):
-                raise MidiRepresentationError("unsupported_midi_channel_mode")
-            ordered.append((track_index, index, event))
-    active: dict[tuple[int, int], tuple[int, int]] = {}
-    # The written-realization adapter uses stable source track/event order for
-    # equal-quarter input. Channel state and note pairing are global across tracks.
-    for track_index, index, event in sorted(
-        ordered, key=lambda item: (item[2].position, item[0], item[1])
-    ):
-        key = event.status & 15, event.data[0]
-        if _note_on(event):
-            if key in active:
-                raise MidiRepresentationError("ambiguous_overlapping_midi_note")
-            active[key] = (track_index, index)
-            pairs[(track_index, index)] = (track_index, index)
-        elif _note_off(event):
-            if key not in active:
-                raise MidiRepresentationError("unmatched_midi_note_off")
-            onset_track, onset_index = active[key]
-            if event.position <= midi.tracks[onset_track][onset_index].position:
-                raise MidiRepresentationError("unsupported_zero_duration_midi_note")
-            pairs[(track_index, index)] = active.pop(key)
-    if active:
-        raise MidiRepresentationError("unterminated_written_midi_note")
-    return pairs, channel_stream_tracks
+from .midi_event_semantics import MidiMetaRole, classify_meta_event, is_note_on, is_note_off
+from .written_midi_streams import (
+    WrittenMidiStreamId,
+    read_written_midi_streams,
+    allocate_output_channels,
+    route_stream_event,
+)
 
 
 def _owner(event: MidiEvent, plan: CanonicalPerformancePlan) -> int:
@@ -76,9 +21,9 @@ def _owner(event: MidiEvent, plan: CanonicalPerformancePlan) -> int:
     candidates = [i for i, (start, end) in enumerate(spans) if start <= event.position <= end]
     if not candidates:
         raise MidiRepresentationError("midi_event_outside_written_score")
-    if _note_off(event):
+    if is_note_off(event):
         return candidates[0]
-    if _note_on(event):
+    if is_note_on(event):
         interiors = [i for i in candidates if event.position < spans[i][1]]
         if not interiors:
             raise MidiRepresentationError("midi_note_on_at_written_end")
@@ -97,7 +42,8 @@ def _owner(event: MidiEvent, plan: CanonicalPerformancePlan) -> int:
 def project_performance_midi(
     written: StandardMidiFile, plan: CanonicalPerformancePlan
 ) -> StandardMidiFile:
-    pairs, channel_stream_tracks = _validate_and_pair(written)
+    streams = read_written_midi_streams(written)
+    pairs = streams.note_pairs
     by_measure: dict[int, list[tuple[int, int, MidiEvent]]] = {}
     output: list[list[MidiEvent]] = [[] for _ in written.tracks]
     for track_index, written_track in enumerate(written.tracks):
@@ -117,35 +63,30 @@ def project_performance_midi(
 
     # State carries across transfers. Only notes are terminated at discontinuities;
     # program/controller/pitch state changes only on actual encounters.
-    active: dict[tuple[int, int], tuple[int, int]] = {}
+    active: dict[tuple[WrittenMidiStreamId, int], tuple[int, int]] = {}
     occurrences = plan.projection.occurrences
     for ordinal, occurrence in enumerate(occurrences):
         for track, index, event in by_measure.get(occurrence.measure_index, ()):
             if not occurrence.written_start <= event.position <= occurrence.written_end:
                 continue
-            if _note_on(event) and event.position == occurrence.written_end:
+            if is_note_on(event) and event.position == occurrence.written_end:
                 continue  # An onset needs performed duration, not just an endpoint.
-            key = (event.status & 15, event.data[0]) if event.status < 0xF0 else None
-            if _note_on(event):
+            stream = WrittenMidiStreamId(track, event.status & 15)
+            key = (stream, event.data[0]) if event.status < 0xF0 else None
+            if is_note_on(event):
                 assert key is not None
                 if key in active:
                     raise MidiRepresentationError("ambiguous_performed_midi_note")
                 active[key] = pairs[(track, index)]
-            elif _note_off(event):
+            elif is_note_off(event):
                 assert key is not None
                 if active.get(key) != pairs[(track, index)]:
                     continue  # Its onset was skipped by an entry or terminated at a cut.
                 del active[key]
             elif event.status & 0xF0 == 0xB0 and event.data[0] in (120, 123):
-                active = {k: v for k, v in active.items() if k[0] != event.status & 15}
-            # One serialized stream per channel keeps source/cut/destination
-            # ordering even when those events originally came from different tracks.
-            target_track = (
-                channel_stream_tracks[event.status & 15] if event.status < 0xF0 else track
-            )
-            output[target_track].append(
-                replace(event, position=occurrence.project_position(event.position))
-            )
+                active = {k: v for k, v in active.items() if k[0] != stream}
+            projected = replace(event, position=occurrence.project_position(event.position))
+            output[track].append(projected)
         next_occurrence = occurrences[ordinal + 1] if ordinal + 1 < len(occurrences) else None
         continuous = (
             next_occurrence is not None
@@ -153,11 +94,26 @@ def project_performance_midi(
             and occurrence.written_end == next_occurrence.written_start
         )
         if not continuous:
-            for channel, pitch in sorted(active):
-                output[channel_stream_tracks[channel]].append(
-                    MidiEvent(occurrence.performance_end, 0x80 | channel, bytes((pitch, 0)))
+            for stream, pitch in sorted(active):
+                release = MidiEvent(
+                    occurrence.performance_end, 0x80 | stream.source_channel, bytes((pitch, 0))
                 )
+                output[stream.source_track_index].append(release)
             active.clear()
+
+    assignments = allocate_output_channels(
+        WrittenMidiStreamId(track, event.status & 15)
+        for track, projected_track in enumerate(output)
+        for event in projected_track
+        if event.status < 0xF0
+    )
+    for track, projected_track in enumerate(output):
+        output[track] = [
+            route_stream_event(event, WrittenMidiStreamId(track, event.status & 15), assignments)
+            if event.status < 0xF0
+            else event
+            for event in projected_track
+        ]
 
     conductor = [MidiEvent(Fraction(0), 0xFF, meta_type=0x51, tempo_bpm=plan.initial_tempo_bpm)]
     conductor.extend(
