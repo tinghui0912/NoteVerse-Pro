@@ -12,9 +12,12 @@ multiplied by its beat-unit duration in quarters and the augmentation-dot multip
 Half = 60 therefore means 120 quarter BPM; dotted quarter = 60 means 90 quarter BPM;
 eighth = 120 means 60 quarter BPM.
 
-`sound@tempo` supplies the playback fact. A metronome in the same direction must
-describe that same rate. Conflicting rates, multiple ambiguous directives, unsupported
-metronome forms and nonpositive, malformed or nonfinite explicit numbers fail closed.
+`sound@tempo` supplies a playback fact with its owning sound's `time-only`
+applicability. Numeric metronome notation is independently ungated, including when
+an unrelated sound or a matching redundant sound tempo is pass-gated. A metronome
+in the same direction must describe that same rate. Conflicting rates, multiple
+ambiguous directives, unsupported metronome forms and nonpositive, malformed or
+nonfinite explicit numbers fail closed.
 Sound playback positioning belongs to `app/score_semantics/musicxml_sound_position.py`.
 `resolve_sound_offset_quarters` returns an exact `Fraction` in quarters, without
 interpreting tempo or navigation and without computing a score cursor. A direction
@@ -28,13 +31,23 @@ The tempo owner consumes this effective playback offset. The canonical written
 parser adds it to its current part/measure cursor and retains source measure identity.
 A tempo at one measure's right endpoint and another at the next measure's start
 are distinct slots even when their absolute quarters match. Truly matching written
-slots require agreement across parts. Cross-measure interior offsets resolve to
+slots require BPM agreement across parts wherever pass applicability overlaps.
+`put_written_tempo_fact` preserves disjoint gated rates at one resolved written
+point, while ungated applicability overlaps every pass. The performed-coordinate
+`put_tempo_fact` validates rate agreement at an already performed instant.
+Cross-measure interior offsets resolve to
 their unique playback owner; unresolved cross-measure boundary sides remain
 unsupported for performance projection. Positions before score origin are invalid.
 
 [Canonical document admission](score-semantics.md#document-admission) requires partwise
-MusicXML, validates these facts and materializes an equivalent `sound@tempo` when a
-metronome has no playback attribute. It validates written semantics on the final
+MusicXML, validates these facts and materializes equivalent ungated `sound@tempo`
+for numeric metronome notation. When a direction's existing sound is gated, its
+non-tempo event is preserved as an adjacent standalone sound, with its applicability
+and equivalent sound-owned playback offset. The metronome direction receives a
+separate ungated tempo sound at the same effective position. Existing non-tempo
+attributes/children, visual notation and namespace are preserved; raw and admitted
+canonical tempo facts agree, and repeated admission is byte-idempotent.
+Admission validates written semantics on the final
 admitted bytes before they enter trusted storage or document consumers. It preserves beat-unit/dot presentation
 and inserts no tempo when notation is absent. Canonical MusicXML therefore carries
 the explicit quarter-BPM playback fact used by renderer consumers. Editor tempo
@@ -57,9 +70,12 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
 - The [canonical written model](score-semantics.md) positions explicit directives on
   its exact Fraction quarter axis. Practice compilation projects those positioned
   facts; Practice planning applies the missing-tempo policy. The artifact contains
-  only explicit tempo segments.
+  only explicit ungated tempo segments. Practice rejects pass-gated tempo because
+  the artifact cannot represent its applicability.
 - Metadata consumes [canonical performance occurrences](performance-navigation.md)
   and their projected tempo facts, preserving source points and encounter order.
+  Pass-gated tempo currently fails closed as `unsupported_time_only_playback`;
+  no occurrence visit count is interpreted as a performance pass predicate.
   Source endpoints execute before jumps; destination-start markings execute on
   actual entry. It integrates exact duration with one tempo
   state initialized at performance origin. A repeat jump retains the active tempo;

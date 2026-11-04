@@ -134,11 +134,29 @@ duplicate/out-of-order values and malformed lists are rejected rather than repai
 `time-only` is not a navigation command. A sound containing only unmodeled playback
 fields such as dynamics and a valid applicability predicate creates no navigation
 fact. A navigation-bearing sound keeps the predicate on its combined event.
-`TempoDirective` and `WrittenTempo` retain sound `time_only` independently of
-navigation. Metronome materialization preserves an existing sound's applicability
-and does not invent one for a new sound. Gated tempo remains admitted written
-notation; current performance projection rejects it rather than inferring pass
-state from measure visit counts.
+`TempoDirective` and `WrittenTempo` retain sound-tempo `time_only` independently of
+navigation. A numeric metronome is itself an ungated explicit tempo source; it does
+not inherit an unrelated or redundant sound's predicate. A matching gated
+`sound@tempo` does not make the metronome conditional; differing rates still conflict.
+
+Materialization keeps ungated metronome tempo separate from an existing gated sound.
+The original non-tempo sound event is preserved as an adjacent standalone sound,
+including its attributes, children and applicability. Inherited direction playback
+offset becomes a sound-owned offset when needed. The direction retains its notation
+and an ungated tempo sound with the equivalent playback position. Namespace,
+canonical tempo facts and navigation positions are preserved, and admission is
+idempotent.
+
+`musicxml_tempo.put_written_tempo_fact` checks differing BPMs for overlapping
+applicability at the resolved `WrittenPoint`, across all parts. An ungated fact
+overlaps every pass; disjoint predicates may carry different rates. Identical rates
+and original source facts remain preserved. Measure-end and next-start slots remain
+distinct even when their absolute quarters agree.
+
+Gated tempo remains admitted written notation. Practice explicitly rejects
+pass-gated tempo because its written artifact has no pass-applicability
+representation. Current performance/metadata projection also rejects gated tempo,
+rather than inferring pass state from measure visit counts.
 
 ### Visual navigation markers
 

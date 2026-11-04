@@ -56,7 +56,7 @@ def test_written_chronology_consumes_the_explicit_tempo_semantic_owner():
         if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module == "musicxml_tempo"
         for alias in node.names
     }
-    assert {"MusicXMLTempoError", "parse_tempo_directive", "put_tempo_fact"} <= imported
+    assert {"MusicXMLTempoError", "parse_tempo_directive", "put_written_tempo_fact"} <= imported
 
 
 def test_written_markers_consume_independent_visual_and_playback_position_owners():

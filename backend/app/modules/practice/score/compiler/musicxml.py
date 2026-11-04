@@ -34,6 +34,8 @@ def compile_practice_score(prepared_musicxml: bytes | str) -> CompiledPracticeSc
 
 
 def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracticeScore:
+    if any(tempo.time_only is not None for tempo in model.tempos):
+        invalid("Practice does not support pass-gated tempo.")
     if len({len(p.measure_numbers) for p in model.parts}) != 1:
         invalid("Practice requires aligned part measure sequences.")
     if model.transpositions:

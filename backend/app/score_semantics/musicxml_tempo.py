@@ -5,6 +5,7 @@ same quarter-note rate. Missing notation produces no fact and no default.
 """
 
 from dataclasses import dataclass
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 import math
@@ -12,7 +13,11 @@ import re
 import xml.etree.ElementTree as ET
 from typing import TypeVar
 
-from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+from .musicxml_sound_position import (
+    MusicXMLSoundPositionError,
+    resolve_sound_offset_quarters,
+    select_sound_playback_offset,
+)
 from .musicxml_time_only import MusicXMLTimeOnlyError, parse_time_only
 from .written_point import WrittenPoint
 
@@ -123,7 +128,26 @@ def parse_tempo_directive(element: ET.Element, divisions: Fraction | None) -> Te
         time_only = parse_time_only(sound.get("time-only") if sound is not None else None)
     except MusicXMLTimeOnlyError as error:
         raise MusicXMLTempoError("Invalid tempo sound applicability") from error
-    return TempoDirective(bpm, offset, time_only)
+    # Numeric metronome notation is itself an ungated explicit tempo source.
+    return TempoDirective(bpm, offset, None if marked_bpm is not None else time_only)
+
+
+def put_written_tempo_fact(
+    facts: dict[WrittenPoint, list[tuple[Fraction, tuple[int, ...] | None]]],
+    point: WrittenPoint,
+    bpm: Fraction,
+    time_only: tuple[int, ...] | None,
+) -> None:
+    """Validate rates only where applicability overlaps at one resolved written slot."""
+    if point.position < 0:
+        raise MusicXMLTempoError("Tempo precedes the score origin")
+    for other_bpm, other_passes in facts.get(point, ()):
+        overlaps = (
+            time_only is None or other_passes is None or not set(time_only).isdisjoint(other_passes)
+        )
+        if bpm != other_bpm and overlaps:
+            raise MusicXMLTempoError("Conflicting tempos with overlapping applicability")
+    facts.setdefault(point, []).append((bpm, time_only))
 
 
 def put_tempo_fact(facts: dict[TempoSlot, Fraction], position: TempoSlot, bpm: Fraction) -> None:
@@ -155,7 +179,7 @@ def materialize_tempo_playback(root: ET.Element) -> bool:
     for measures in part_measures:
         divisions = None
         for measure in measures:
-            for element in measure:
+            for element in list(measure):
                 if _name(element) == "attributes":
                     value = _one(element, "divisions")
                     if value is not None:
@@ -165,6 +189,27 @@ def materialize_tempo_playback(root: ET.Element) -> bool:
                     if directive is None or _name(element) == "sound":
                         continue
                     sound = _one(element, "sound")
+                    if (
+                        sound is not None
+                        and sound.get("time-only") is not None
+                        and directive.time_only is None
+                    ):
+                        # The metronome is ungated. Preserve the original sound's
+                        # non-tempo event separately, including inherited positioning.
+                        selected = select_sound_playback_offset(element)
+                        effective_offset = deepcopy(selected) if selected is not None else None
+                        original = sound
+                        element.remove(original)
+                        original.attrib.pop("tempo", None)
+                        if _one(original, "offset") is None and effective_offset is not None:
+                            effective_offset.attrib.pop("sound", None)
+                            original.insert(0, effective_offset)
+                        measure.insert(list(measure).index(element) + 1, original)
+                        namespace = element.tag.removesuffix("direction")
+                        sound = ET.SubElement(element, namespace + "sound")
+                        own_offset = _one(original, "offset")
+                        if own_offset is not None:
+                            sound.append(deepcopy(own_offset))
                     if sound is not None and "tempo" in sound.attrib:
                         continue
                     if sound is None:

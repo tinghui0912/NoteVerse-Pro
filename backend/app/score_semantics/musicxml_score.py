@@ -12,7 +12,7 @@ from fractions import Fraction
 import re
 import xml.etree.ElementTree as ET
 
-from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_tempo_fact
+from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_written_tempo_fact
 from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
 from .musicxml_time_only import MusicXMLTimeOnlyError, parse_time_only
 from .musicxml_direction_position import (
@@ -486,7 +486,7 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         start += extent
     if any(t.position > start for t in tempos):
         raise MusicXMLSemanticError("invalid_tempo_position")
-    tempo_facts: dict[WrittenPoint, Fraction] = {}
+    tempo_facts: dict[WrittenPoint, list[tuple[Fraction, tuple[int, ...] | None]]] = {}
     spans = [(m.start, m.end) for m in measures]
     for tempo in tempos:
         try:
@@ -496,7 +496,7 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                 # Written notation can retain an offset whose traversal side is
                 # unresolved. It still cannot contradict its own source slot.
                 tempo_slot = tempo.point
-            put_tempo_fact(tempo_facts, tempo_slot, tempo.quarter_bpm)
+            put_written_tempo_fact(tempo_facts, tempo_slot, tempo.quarter_bpm, tempo.time_only)
         except (WrittenPointError, MusicXMLTempoError) as error:
             raise MusicXMLSemanticError("invalid_tempo") from error
     if any(f.position < 0 or f.position > start for f in playback_navigation):

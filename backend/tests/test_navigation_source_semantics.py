@@ -209,12 +209,16 @@ def test_metronome_materialization_preserves_sound_applicability_and_is_idempote
     trusted = admit_musicxml_document(content)
     assert admit_musicxml_document(trusted) == trusted
     sounds = list(ET.fromstring(trusted).iter("sound"))
-    assert len(sounds) == 1
-    assert sounds[0].get("tempo") == "100"
-    assert sounds[0].get("time-only") == ("2" if "time-only" in existing_sound else None)
-    assert sounds[0].get("dynamics") == ("70" if existing_sound else None)
+    assert len(sounds) == (2 if "time-only" in existing_sound else 1)
+    tempo_sound = next(s for s in sounds if "tempo" in s.attrib)
+    assert tempo_sound.get("tempo") == "100"
+    assert tempo_sound.get("time-only") is None
+    if existing_sound:
+        original = next(s for s in sounds if "dynamics" in s.attrib)
+        assert original.get("dynamics") == "70"
+        assert original.get("time-only") == ("2" if "time-only" in existing_sound else None)
     model = parse_score_semantics(trusted)
-    assert model.tempos[0].time_only == ((2,) if "time-only" in existing_sound else None)
+    assert model.tempos[0].time_only is None
     assert model.playback_navigation == ()
     assert model.tempos[0].position == (2 if "<offset>" in existing_sound else 0)
 
