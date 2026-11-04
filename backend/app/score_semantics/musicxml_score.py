@@ -129,7 +129,8 @@ class WrittenEnding:
     measure_index: int
     location: str
     type: str
-    number: str
+    raw_number: str
+    passes: tuple[int, ...] | None
 
 
 @dataclass(frozen=True)
@@ -337,9 +338,15 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                         kind = ending.get("type", "")
                         if kind not in {"start", "stop", "discontinue"}:
                             raise MusicXMLSemanticError("invalid_ending_type")
+                        raw_number = ending.get("number", "")
                         endings.append(
                             WrittenEnding(
-                                part_index, index, barline_location, kind, ending.get("number", "")
+                                part_index,
+                                index,
+                                barline_location,
+                                kind,
+                                raw_number,
+                                _ending_passes(raw_number),
                             )
                         )
                     continue
@@ -447,6 +454,15 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         tuple(navigation_markers),
         tuple(transpositions),
     )
+
+
+def _ending_passes(raw: str) -> tuple[int, ...] | None:
+    lexical = raw.strip()
+    if not lexical:
+        return None
+    if re.fullmatch(r"[1-9][0-9]*(?:\s*,\s*[1-9][0-9]*)*", lexical) is None:
+        raise MusicXMLSemanticError("invalid_ending_number")
+    return tuple(sorted({int(value.strip()) for value in lexical.split(",")}))
 
 
 def _empty_measure_duration(

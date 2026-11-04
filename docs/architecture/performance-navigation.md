@@ -3,7 +3,8 @@
 `app/score_semantics/performance_navigation.py` owns the domain-neutral
 `project_performance_occurrences(model)` projection. Its input is the immutable
 canonical written model. Its output is a frozen `PerformanceProjection` containing
-an ordered tuple of `PerformanceOccurrence` values and an exact `end`.
+an ordered tuple of `PerformanceOccurrence` values, the complete canonical
+`written_spans` table and an exact performance `end`.
 
 ## Occurrence coordinates
 
@@ -11,6 +12,8 @@ Each occurrence records zero-based `ordinal` and `measure_index`, one-based `vis
 and `written_start`, `written_end`, `performance_start`, `performance_end`.
 Every position is a `Fraction` measured in quarters. Occurrence identity is domain
 identity; renderer occurrence suffixes carry no domain meaning.
+Written spans remain available independently of which branch occurrences are
+visited. Fact ownership always resolves against that complete table.
 
 An absolute quarter alone is not a complete fact identity at a measure boundary.
 `WrittenPoint(measure_index, position)` retains source measure/edge ownership;
@@ -45,17 +48,45 @@ After a closed repeat, an unmatched backward repeat is ambiguous and rejected.
 Sequential explicit repeat pairs are supported. Nested, overlapping, duplicate,
 unclosed or middle/nonstandard-boundary repeats fail closed.
 
-All annotated parts must describe the same normalized repeat program. An entirely
+## Whole-measure volta
+
+The written model stores ending markers with their raw number and normalized set
+of positive pass numbers. Blank numbers have unknown passes. Lexically malformed
+numbers such as `0`, `01`, `1-2` or `1,,2` are invalid written facts; unknown or
+unsupported branch layouts remain valid canonical notation.
+
+The performance owner pairs a left-barline start with one right-barline stop or
+discontinue having the same pass set. `EndingSpan` records start/end measure
+indices, passes and close type. Stop and discontinue have identical performance
+close semantics; their engraving distinction remains preserved in the fact.
+Unclosed, nested, overlapping, duplicate or disagreeing spans fail closed.
+
+A supported repeat context has common measures, one repeat-back ending terminating
+at its backward repeat, and one immediately following final exit ending. For total
+plays N, repeat-back passes must be exactly `{1, ..., N-1}` and final exit passes
+exactly `{N}`. This includes `{1}/{2}` and `{1,2}/{3}`. Each non-final pass visits
+common measures and the repeat-back span; the final pass visits common measures
+and the final exit span, then continues after the group. Occurrence visit counts
+follow actual visits. Explicit and first-context implicit-origin repeats and
+sequential non-overlapping volta groups are supported.
+
+Unknown passes, missing/overlapping/out-of-count coverage, unassociated endings,
+non-whole-measure boundaries and complex multi-branch layouts fail closed. Ending
+markers define navigation structure; they are not replayed as ordinary positioned
+facts. Generic tempo facts replay only when their owning measure is visited,
+including source endpoints before a repeat jump and final-ending starts on entry.
+
+All annotated parts must describe the same normalized repeat-and-ending program. An entirely
 unannotated part has no additional opinion. A later part can provide the program;
 the first part has no privileged authority. Partial programs in different parts
 are never combined. Conflicting annotated programs raise
 `PerformanceNavigationError("conflicting_part_navigation")`.
 
-The written model preserves endings, sound navigation attributes, standalone
-Segno/Coda markers and repeat `after-jump` attributes. These facts are admissible
-canonical notation, but this projector does not execute them. Ending, D.C., D.S.,
-Segno, Coda, Fine, time-only restrictions and explicit after-jump behavior raise
-`PerformanceNavigationError` instead of producing a partial traversal.
+The written model preserves sound navigation attributes, standalone Segno/Coda
+markers and repeat `after-jump` attributes. These are admissible canonical notation,
+but D.C., D.S., Segno, Coda, Fine, time-only restrictions and explicit after-jump
+behavior raise `PerformanceNavigationError`. Jump markers currently retain structural
+identity without an exact `WrittenPoint` and are not executable.
 
 ## Consumer ownership
 
@@ -73,6 +104,7 @@ coordinates. Real Verovio tests witness conformance for the supported simple-rep
 subset; renderer traversal is not the canonical domain authority.
 
 Canonical document admission validates written semantics without calling this
-projector. A valid ending or jump score can be stored even when its performance
-projection is unsupported. See [written semantics](score-semantics.md) and
+projector. Unknown ending numbers, unsupported complex ending layouts and valid
+jump scores can be stored even when performance projection is unsupported.
+See [written semantics](score-semantics.md) and
 [tempo semantics](score-tempo.md).

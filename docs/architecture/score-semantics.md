@@ -93,7 +93,10 @@ fact takes effect. Metadata integrates exact Fraction durations to final millise
 `WrittenRepeat` records part, written measure index, barline location, direction,
 backward total plays and optional `after_jump`. Forward facts have no play count;
 backward facts default to two total plays. Missing barline location means right.
-`WrittenEnding` retains part, measure, barline location, type and raw number.
+`WrittenEnding` retains part, measure, barline location, type, `raw_number` and
+normalized `passes`. Passes are a sorted tuple of positive integers; `1,2` and
+`1, 2` represent the same set. A blank number has `passes=None`, preserving unknown
+pass semantics as a valid written fact. Malformed numeric lists are invalid facts.
 `WrittenSoundNavigation` retains part/measure identity, exact positioned playback
 location and literal navigation attributes. Its offset uses the same sound-position
 owner as tempo. `WrittenNavigationMarker` retains structural Segno/Coda glyphs in
@@ -103,11 +106,13 @@ measure and its notes occur exactly once in this model.
 Practice projects those written positions, canonicalizing only at its six-decimal
 artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
 artifact share the written axis. The [performance navigation owner](performance-navigation.md)
-projects linear and simple non-nested barline repeats into exact measure occurrences.
+projects linear playback, simple non-nested barline repeats and supported whole-measure
+volta groups into exact measure occurrences. Ending pass sets select actual visits;
+the written model itself never unfolds them.
 Metadata consumes those occurrences and their projected tempo facts for duration;
 tempo state persists across jumps until an encountered marking changes it. Ending
-and jump facts remain valid written notation but fail the unsupported performance
-capability boundary. Score Preview separately consumes Verovio's unfolded performance
+layouts outside that subset and jump facts remain valid written notation but fail
+the unsupported performance capability boundary. Score Preview separately consumes Verovio's unfolded performance
 coordinates and renderer tempo projection. Renderer expansion is a conformance
 witness, not canonical domain truth.
 

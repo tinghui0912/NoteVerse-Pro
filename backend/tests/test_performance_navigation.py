@@ -183,7 +183,7 @@ def test_unsupported_repeat_shapes_are_admitted_but_not_executed(measures):
         extract_musicxml_metadata(score(*measures))
 
 
-def test_ending_facts_survive_admission_but_fail_performance_projection():
+def test_ending_facts_survive_admission_and_select_whole_measure_visits():
     xml = score(
         measure(0, bar("forward")),
         measure(1),
@@ -200,15 +200,21 @@ def test_ending_facts_survive_admission_but_fail_performance_projection():
     )
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     assert [
-        (e.part_index, e.measure_index, e.location, e.type, e.number) for e in model.endings
+        (e.part_index, e.measure_index, e.location, e.type, e.raw_number) for e in model.endings
     ] == [
         (0, 2, "left", "start", "1"),
         (0, 2, "right", "stop", "1"),
         (0, 3, "left", "start", "2"),
         (0, 3, "right", "discontinue", "2"),
     ]
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-        project_performance_occurrences(model)
+    assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [
+        0,
+        1,
+        2,
+        0,
+        1,
+        3,
+    ]
 
 
 @pytest.mark.parametrize(
