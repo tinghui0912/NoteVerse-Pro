@@ -185,10 +185,17 @@ class _NavigationFact:
 
 
 @dataclass(frozen=True)
+class _CodaTransfer:
+    source: WrittenPoint
+    target: WrittenPoint
+
+
+@dataclass(frozen=True)
 class _JumpProgram:
     source: WrittenPoint
     target: WrittenPoint
     fine: WrittenPoint | None
+    tocoda: _CodaTransfer | None
 
 
 def _point_order(point: WrittenPoint) -> tuple[int, Fraction]:
@@ -199,6 +206,7 @@ def _compile_jump_program(
     model: CanonicalScoreSemanticModel, spans: Sequence[tuple[Fraction, Fraction]]
 ) -> _JumpProgram | None:
     has_primary = any(f.dacapo or f.dalsegno is not None for f in model.playback_navigation)
+    has_tocoda = any(f.tocoda is not None for f in model.playback_navigation)
     if has_primary and (model.repeats or model.endings):
         raise PerformanceNavigationError("unsupported_jump_repeat_interaction")
     programs: dict[int, set[_NavigationFact]] = {}
@@ -218,13 +226,16 @@ def _compile_jump_program(
             raise PerformanceNavigationError("unsupported_compound_navigation_event")
         if event.forward_repeat:
             raise PerformanceNavigationError("unsupported_performance_navigation")
-        if event.tocoda is not None:
-            raise PerformanceNavigationError("unsupported_tocoda")
+        if event.fine is not None and has_tocoda:
+            raise PerformanceNavigationError("unsupported_fine_coda_combination")
         if event.fine is not None and event.fine != "yes":
             raise PerformanceNavigationError("unsupported_numeric_fine_duration")
         if roles and roles[0][0] in {"dacapo", "dalsegno"}:
             if event.time_only not in (None, (1,)):
                 raise PerformanceNavigationError("unsupported_jump_time_only")
+        elif event.tocoda is not None:
+            if event.time_only not in (None, (2,)):
+                raise PerformanceNavigationError("unsupported_tocoda_time_only")
         elif event.fine is not None:
             if event.time_only not in (None, (2,)):
                 raise PerformanceNavigationError("unsupported_fine_time_only")
@@ -235,6 +246,8 @@ def _compile_jump_program(
         ):
             raise PerformanceNavigationError("unsupported_destination_time_only")
         if not has_primary:
+            if event.tocoda is not None:
+                raise PerformanceNavigationError("unsupported_orphan_tocoda")
             if event.fine is not None:
                 raise PerformanceNavigationError("unsupported_orphan_fine")
             # Destinations without commands do not alter traversal or need resolution.
@@ -261,6 +274,9 @@ def _compile_jump_program(
     fines = [f.point for f in facts if f.kind == "fine"]
     if len(fines) > 1:
         raise PerformanceNavigationError("unsupported_multiple_fines")
+    codas = [f for f in facts if f.kind == "tocoda"]
+    if len(codas) > 1:
+        raise PerformanceNavigationError("unsupported_multiple_tocoda")
     command = primary[0]
     if command.kind == "dacapo":
         target = WrittenPoint(0, model.measures[0].start)
@@ -277,7 +293,23 @@ def _compile_jump_program(
             raise PerformanceNavigationError("non_progressing_dalsegno")
         if target.position > command.point.position:
             raise PerformanceNavigationError("unsupported_non_backward_dalsegno")
-    return _JumpProgram(command.point, target, fines[0] if fines else None)
+    coda_transfer = None
+    if codas:
+        tocoda = codas[0]
+        destinations = {f.point for f in facts if f.kind == "coda" and f.value == tocoda.value}
+        if not destinations:
+            raise PerformanceNavigationError("unresolved_coda_destination")
+        if len(destinations) != 1:
+            raise PerformanceNavigationError("ambiguous_coda_destination")
+        coda_target = next(iter(destinations))
+        if coda_target.position == tocoda.point.position:
+            raise PerformanceNavigationError("non_progressing_tocoda")
+        if _point_order(coda_target) < _point_order(tocoda.point):
+            raise PerformanceNavigationError("unsupported_non_forward_tocoda")
+        if _point_order(tocoda.point) < _point_order(target):
+            raise PerformanceNavigationError("unreachable_tocoda_after_primary_jump")
+        coda_transfer = _CodaTransfer(tocoda.point, coda_target)
+    return _JumpProgram(command.point, target, fines[0] if fines else None, coda_transfer)
 
 
 def _written_intervals(
@@ -386,15 +418,19 @@ def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> Perfo
     else:
         origin = WrittenPoint(0, model.measures[0].start)
         end = WrittenPoint(len(model.measures) - 1, model.end)
-        # First encounter takes the one primary jump; the second leg cannot jump.
-        # Fine is armed only on this second leg, and stops only if encountered.
-        stop = (
-            jump.fine
-            if jump.fine is not None and _point_order(jump.fine) >= _point_order(jump.target)
-            else end
-        )
+        # Primary fires once on leg one. Only the supported post-primary transfer
+        # or armed Fine can end leg two. A Coda leg cannot transfer again.
         intervals = _written_intervals(model, origin, jump.source)
-        intervals.extend(_written_intervals(model, jump.target, stop))
+        if jump.tocoda is not None:
+            intervals.extend(_written_intervals(model, jump.target, jump.tocoda.source))
+            intervals.extend(_written_intervals(model, jump.tocoda.target, end))
+        else:
+            stop = (
+                jump.fine
+                if jump.fine is not None and _point_order(jump.fine) >= _point_order(jump.target)
+                else end
+            )
+            intervals.extend(_written_intervals(model, jump.target, stop))
     visits: dict[int, int] = {}
     cursor = Fraction(0)
     occurrences = []

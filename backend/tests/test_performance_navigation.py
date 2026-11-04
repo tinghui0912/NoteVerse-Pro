@@ -223,7 +223,7 @@ def test_ending_facts_survive_admission_and_select_whole_measure_visits():
         ('dalsegno="s"', "dalsegno", "s", "unresolved_jump_destination"),
         ('segno="s"', "segno", "s", None),
         ('coda="c"', "coda", "c", None),
-        ('tocoda="c"', "tocoda", "c", "unsupported_tocoda"),
+        ('tocoda="c"', "tocoda", "c", "unsupported_orphan_tocoda"),
         ('fine="yes"', "fine", "yes", "unsupported_orphan_fine"),
         ('forward-repeat="yes"', "forward_repeat", True, "unsupported_performance_navigation"),
     ],

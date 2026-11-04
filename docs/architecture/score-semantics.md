@@ -177,7 +177,8 @@ retained even when endpoint and next-start quarters are numerically equal.
 
 Visual-only markers do not alter linear, repeat or supported volta traversal.
 Playback navigation facts feed the performance navigation owner's supported
-exact D.C./D.S. and optional Fine projection; the written model never executes them.
+exact D.C./D.S. with optional Fine or one named To Coda transfer; the written model
+never executes them.
 
 ### Consumer projections
 
@@ -185,7 +186,8 @@ Practice projects those written positions, canonicalizing only at its six-decima
 artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
 artifact share the written axis. The [performance navigation owner](performance-navigation.md)
 projects linear playback, simple non-nested barline repeats, supported whole-measure
-volta groups and one exact D.C./D.S. with optional Fine into visited measure intervals.
+volta groups and one exact D.C./D.S. with optional Fine or one named To Coda transfer
+into visited measure intervals.
 Intervals may be partial; their full written measure identity remains intact.
 Ending pass sets select actual visits;
 the written model itself never unfolds them.

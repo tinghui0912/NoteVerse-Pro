@@ -120,8 +120,9 @@ supported volta scores. Visual glyphs never participate in destination resolutio
 
 ## Exact D.C./D.S. and Fine
 
-A jump program supports one primary D.C. or backward D.S. command and at most one
-Fine termination. D.C. targets the movement origin. D.S. resolves its case-sensitive
+A jump program supports one primary D.C. or backward D.S. command with either
+optional Fine termination or one named To Coda forward transfer. D.C. targets the
+movement origin. D.S. resolves its case-sensitive
 normalized label against playback segno destinations from sound or barline facts.
 Same-label duplicates at the same resolved `WrittenPoint` are one destination;
 different points, including opposite sides of a numerically equal boundary, are
@@ -140,19 +141,54 @@ The single primary jump executes on its first encounter, with default applicabil
 or explicit `time-only="1"`. Later encounters do not jump. Fine must be `"yes"`,
 with absent applicability or `time-only="2"`. It is ignored before the primary
 jump and armed after transfer; its next encounter stops exactly at its owned point.
-A Fine before the D.S. target is not encountered on the second leg. Without Fine,
-the second leg continues to score end. An orphan Fine is unsupported.
+A Fine before the D.S. target is not encountered on the second leg. In the form
+without To Coda, absent Fine means the second leg continues to score end. An orphan
+Fine is unsupported.
 
-Traversal is finite by construction: one origin-to-source leg and one
+The al-Fine form is finite by construction: one origin-to-source leg and one
 target-to-Fine/end leg. No step cap or timeout controls correctness. Ordinary facts
 at the source execute before transfer; destination facts execute on entry. Facts
 at Fine execute before termination. Tempo state carries across transfer until an
 actually encountered marking changes it. A tempo before an exact D.S. target is
 not replayed. Metadata consumes the same generic fact projection without jump rules.
 
-Unsupported programs fail before traversal: multiple primary commands/Fines,
-To Coda, numeric Fine duration, primary predicates other than absent/`(1,)`, Fine
-predicates other than absent/`(2,)`, gated destinations in executable programs,
+## Exact To Coda
+
+A Coda program contains one primary D.C./D.S., one To Coda command and no Fine.
+It has exactly three finite legs: origin to primary source, primary target to
+To Coda source, and Coda target to score end. The primary executes only on the
+first leg. To Coda is inactive before primary transfer and executes once on the
+second leg, with absent applicability or explicit `time-only="2"`. Primary
+applicability remains absent/`(1,)`. These are supported control phases, not a
+general pass evaluator or an interpretation of occurrence `visit`.
+
+To Coda resolves a case-sensitive named reference only against playback
+`sound@coda` or `barline@coda` facts. Visual coda glyphs do not resolve references.
+Same-point duplicate destinations may collapse; different resolved WrittenPoints
+are ambiguous and a missing destination is unresolved. Source XML representation
+does not affect complete multi-part semantic program agreement.
+
+The To Coda source must be reachable at or after the primary target in written
+point order. The Coda target must lie forward of To Coda. Equal absolute quarters
+are non-progressing even when source-end and next-start ownership differ. Backward
+targets and unreachable second-leg commands fail closed. Sources and targets may
+be mid-measure or in the same measure; only required entry/exit points generate
+zero-duration visits. The full canonical written span table is unchanged.
+
+Ordinary facts at To Coda execute before transfer, then destination facts execute
+on entry at the same performance quarter. Tempo state carries until an encountered
+marking changes it. Facts before a mid-measure Coda target are excluded from that
+visit. If leg two passes the primary source, that command remains inactive. Leg
+three cannot encounter the earlier To Coda source, so no cycle counter is needed.
+
+The exact D.C. path `0..14 → 0..6 → 17..20` contains 23 quarters, or 17250 ms at
+80 BPM. The D.S. path `0..15 → 5..9 → 17..20` contains 22 quarters, or 16500 ms.
+Destinations alone remain inert in linear, repeat, volta and al-Fine programs.
+
+Unsupported programs fail before traversal: multiple primary commands/Fines or
+To Coda commands, orphan To Coda, any Fine plus To Coda, numeric Fine duration,
+primary predicates other than absent/`(1,)`, Fine or To Coda predicates other than
+absent/`(2,)`, gated destinations in executable programs,
 forward-repeat sound commands, and any jump combined with barline repeat or
 ending notation. Repeat `after-jump` remains unsupported. Canonical source admission
 does not impose these performance capability limits.
@@ -162,7 +198,7 @@ owner. It alone creates no navigation command. Sound tempo facts retain their
 predicate; any gated tempo causes
 `PerformanceNavigationError("unsupported_time_only_playback")`. Pass-aware
 tempo applicability is not executed, and occurrence visit count is not used as a
-repeat pass counter. The restricted primary/Fine predicates above do not form a
+repeat pass counter. The restricted primary/Fine/To Coda predicates above do not form a
 general MusicXML pass-state model. Metadata maps errors without adding gating or jump logic.
 
 ## Consumer ownership
@@ -181,7 +217,9 @@ coordinates. Real Verovio tests witness conformance for supported simple repeats
 and volta. Its 6.3.0 MusicXML jump expansion rounds the tested mid-measure D.C./D.S.
 source/target/Fine paths to whole measures: both renderer paths contain 24 quarters,
 while the exact canonical paths contain 20 quarters (15000 ms at 80 BPM). The
-renderer gap does not change domain coordinates or timing; renderer traversal is
+mid-measure Coda fixtures similarly expand to 28 renderer quarters, compared with
+23 exact D.C. quarters and 22 exact D.S. quarters. These renderer gaps do not change
+domain coordinates or timing; renderer traversal is
 not the canonical domain authority.
 
 Canonical document admission validates written semantics without calling this
