@@ -175,8 +175,10 @@ def _associate_endings(
 
 
 def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> PerformanceProjection:
-    if model.playback_navigation or model.navigation_markers:
+    if model.playback_navigation:
         raise PerformanceNavigationError("unsupported_performance_navigation")
+    if any(tempo.time_only is not None for tempo in model.tempos):
+        raise PerformanceNavigationError("unsupported_time_only_playback")
 
     # An unannotated part has no opinion. Annotated parts must each provide the
     # same complete program; markers from different parts are never stitched.

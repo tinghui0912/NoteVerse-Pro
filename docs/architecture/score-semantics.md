@@ -102,22 +102,43 @@ A written measure and its notes occur exactly once in this model.
 
 ### Playback navigation facts
 
-`WrittenPlaybackNavigation` is one immutable event per navigation-bearing sound.
+`WrittenPlaybackNavigation` is one immutable event per navigation-bearing source.
 It inherits part, measure number/index, exact Fraction position and `WrittenPoint`.
 Typed fields are `dacapo`, `dalsegno`, `segno`, `coda`, `tocoda`, `fine`,
-`forward_repeat` and `time_only`. Attributes on one sound retain their common
-position and pass predicate. Its effective playback offset uses
+`forward_repeat`, `time_only`, `source` and `barline_location`.
+Sound events have `source="sound"` and no barline location. Attributes on one sound
+retain their common position and applicability. Its effective playback offset uses
 `musicxml_sound_position.resolve_sound_offset_quarters`, shared with tempo.
 
-`segno` and `coda` name playback destinations; `dalsegno` and `tocoda` preserve
-named references. XML whitespace collapses within tokens, empty tokens are rejected
+Playback destinations come from `sound@segno` / `sound@coda` or
+`barline@segno` / `barline@coda`; `dalsegno` and `tocoda` preserve named references.
+Barline events have `source="barline"` and the written barline location: left uses
+measure start, right waits for the shared measure end, and middle uses the exact
+source cursor. Playback and visual barline facts are separate even when their
+points agree. A destination attribute does not require a visual child.
+XML whitespace collapses within tokens, empty tokens are rejected
 and label identity is case-sensitive. Multiple destinations, duplicate labels,
 unresolved references and separate part facts are preserved without resolution.
 Absent `dacapo` / `forward-repeat` are false; only literal `yes` is accepted when
 present. `fine` retains a normalized, nonempty source token without interpreting
-termination or note duration. `time_only` is `None` when absent, otherwise a tuple
-of strictly ascending positive integers. Zero, leading zeros, duplicate/out-of-order
-values and malformed comma lists are rejected rather than repaired.
+termination or note duration.
+
+### Sound applicability
+
+`musicxml_time_only.parse_time_only` is the canonical sound applicability datatype
+owner. It returns `None` when absent or a strictly ascending tuple of positive
+integers. After XML token whitespace collapse, the lexical pattern is
+`[1-9][0-9]*(, ?[1-9][0-9]*)*`. Space before a comma, zero, leading zeros,
+duplicate/out-of-order values and malformed lists are rejected rather than repaired.
+
+`time-only` is not a navigation command. A sound containing only unmodeled playback
+fields such as dynamics and a valid applicability predicate creates no navigation
+fact. A navigation-bearing sound keeps the predicate on its combined event.
+`TempoDirective` and `WrittenTempo` retain sound `time_only` independently of
+navigation. Metronome materialization preserves an existing sound's applicability
+and does not invent one for a new sound. Gated tempo remains admitted written
+notation; current performance projection rejects it rather than inferring pass
+state from measure visit counts.
 
 ### Visual navigation markers
 
@@ -135,7 +156,8 @@ after all part extents or empty-measure duration are known. Middle barline marke
 use the exact written cursor at that source element. Source measure identity is
 retained even when endpoint and next-start quarters are numerically equal.
 
-These positioned navigation facts do not execute jumps.
+Visual-only markers do not alter linear, repeat or supported volta traversal.
+Playback navigation facts do not execute jumps.
 
 ### Consumer projections
 

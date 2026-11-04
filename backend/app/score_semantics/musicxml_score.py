@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_tempo_fact
 from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+from .musicxml_time_only import MusicXMLTimeOnlyError, parse_time_only
 from .musicxml_direction_position import (
     MusicXMLDirectionPositionError,
     resolve_direction_offset_quarters,
@@ -100,6 +101,7 @@ class WrittenMeter(WrittenPosition):
 @dataclass(frozen=True)
 class WrittenTempo(WrittenPosition):
     quarter_bpm: Fraction
+    time_only: tuple[int, ...] | None
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,17 @@ class WrittenPlaybackNavigation(WrittenPosition):
     fine: str | None
     forward_repeat: bool
     time_only: tuple[int, ...] | None
+    source: str
+    barline_location: str | None
+
+
+@dataclass(frozen=True)
+class _PendingBarlineDestination:
+    location: WrittenPosition
+    barline_location: str
+    position: Fraction | None
+    segno: str | None
+    coda: str | None
 
 
 @dataclass(frozen=True)
@@ -211,6 +224,7 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         extents: list[Fraction | None] = []
         # Right-barline positions wait for the shared measure end, not a part cursor.
         markers: list[tuple[int, str, Fraction | None, str, str, str | None]] = []
+        navigation_events: list[WrittenPlaybackNavigation | _PendingBarlineDestination] = []
         for part_index, part_measures in enumerate(measures_by_part):
             if index >= len(part_measures):
                 extents.append(None)
@@ -291,14 +305,19 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                         )
                     navigation = _playback_navigation_fact(element, location, divisions[part_index])
                     if navigation is not None:
-                        playback_navigation.append(navigation)
+                        navigation_events.append(navigation)
                     try:
                         directive = parse_tempo_directive(element, divisions[part_index])
                         if directive is not None:
                             tempo_position = position + directive.playback_offset_quarters
                             tempos.append(
                                 WrittenTempo(
-                                    part_index, index, number, tempo_position, directive.quarter_bpm
+                                    part_index,
+                                    index,
+                                    number,
+                                    tempo_position,
+                                    directive.quarter_bpm,
+                                    directive.time_only,
                                 )
                             )
                     except MusicXMLTempoError as error:
@@ -308,15 +327,23 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                     barline_location = element.get("location", "right")
                     if barline_location not in {"left", "right", "middle"}:
                         raise MusicXMLSemanticError("invalid_barline_location")
+                    marker_position = (
+                        None
+                        if barline_location == "right"
+                        else start
+                        if barline_location == "left"
+                        else position
+                    )
+                    segno = _optional_navigation_token(element, "segno")
+                    coda = _optional_navigation_token(element, "coda")
+                    if segno is not None or coda is not None:
+                        navigation_events.append(
+                            _PendingBarlineDestination(
+                                location, barline_location, marker_position, segno, coda
+                            )
+                        )
                     for marker in element:
                         if _name(marker) in {"segno", "coda"}:
-                            marker_position = (
-                                None
-                                if barline_location == "right"
-                                else start
-                                if barline_location == "left"
-                                else position
-                            )
                             markers.append(
                                 (
                                     part_index,
@@ -438,6 +465,12 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         if empty:
             extent = _empty_measure_duration(meter_facts, staff_counts, extents, start)
         measures.append(WrittenMeasure(index, start, start + extent, empty, tuple(extents)))
+        for navigation_event in navigation_events:
+            playback_navigation.append(
+                _barline_playback_navigation(navigation_event, start + extent)
+                if isinstance(navigation_event, _PendingBarlineDestination)
+                else navigation_event
+            )
         navigation_markers.extend(
             WrittenNavigationMarker(
                 part_index,
@@ -497,29 +530,44 @@ def _navigation_yes(sound: ET.Element, name: str) -> bool:
     return value == "yes"
 
 
-def _optional_navigation_token(sound: ET.Element, name: str) -> str | None:
-    value = sound.get(name)
+def _optional_navigation_token(element: ET.Element, name: str) -> str | None:
+    value = element.get(name)
     return _navigation_token(value, name) if value is not None else None
 
 
-def _navigation_time_only(sound: ET.Element) -> tuple[int, ...] | None:
-    raw = sound.get("time-only")
-    if raw is None:
-        return None
-    token = _navigation_token(raw, "time_only")
-    if re.fullmatch(r"[1-9][0-9]*(?: *, *[1-9][0-9]*)*", token) is None:
-        raise MusicXMLSemanticError("invalid_navigation_time_only")
-    passes = tuple(int(value.strip()) for value in token.split(","))
-    if any(left >= right for left, right in zip(passes, passes[1:])):
-        raise MusicXMLSemanticError("invalid_navigation_time_only")
-    return passes
+def _barline_playback_navigation(
+    destination: _PendingBarlineDestination, measure_end: Fraction
+) -> WrittenPlaybackNavigation:
+    location = destination.location
+    return WrittenPlaybackNavigation(
+        location.part_index,
+        location.measure_index,
+        location.measure_number,
+        measure_end if destination.position is None else destination.position,
+        dacapo=False,
+        dalsegno=None,
+        segno=destination.segno,
+        coda=destination.coda,
+        tocoda=None,
+        fine=None,
+        forward_repeat=False,
+        time_only=None,
+        source="barline",
+        barline_location=destination.barline_location,
+    )
 
 
 def _playback_navigation_fact(
     element: ET.Element, location: WrittenPosition, divisions: Fraction | None
 ) -> WrittenPlaybackNavigation | None:
     sound = element if _name(element) == "sound" else _one(element, "sound")
-    if sound is None or not any(
+    if sound is None:
+        return None
+    try:
+        time_only = parse_time_only(sound.get("time-only"))
+    except MusicXMLTimeOnlyError as error:
+        raise MusicXMLSemanticError("invalid_sound_time_only") from error
+    if not any(
         name in sound.attrib
         for name in (
             "dacapo",
@@ -529,7 +577,6 @@ def _playback_navigation_fact(
             "tocoda",
             "fine",
             "forward-repeat",
-            "time-only",
         )
     ):
         return None
@@ -549,7 +596,9 @@ def _playback_navigation_fact(
         tocoda=_optional_navigation_token(sound, "tocoda"),
         fine=_optional_navigation_token(sound, "fine"),
         forward_repeat=_navigation_yes(sound, "forward-repeat"),
-        time_only=_navigation_time_only(sound),
+        time_only=time_only,
+        source="sound",
+        barline_location=None,
     )
 
 

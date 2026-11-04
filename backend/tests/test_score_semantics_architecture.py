@@ -18,6 +18,7 @@ def test_score_semantics_has_only_standard_library_and_local_semantic_dependenci
                         "musicxml_tempo",
                         "musicxml_sound_position",
                         "musicxml_direction_position",
+                        "musicxml_time_only",
                         "musicxml_score",
                         "written_point",
                     }
@@ -67,6 +68,20 @@ def test_written_markers_consume_independent_visual_and_playback_position_owners
     }
     assert "resolve_direction_offset_quarters" in imports["musicxml_direction_position"]
     assert "resolve_sound_offset_quarters" in imports["musicxml_sound_position"]
+
+
+def test_sound_consumers_share_the_time_only_datatype_owner():
+    for name in ("musicxml_score", "musicxml_tempo"):
+        tree = ast.parse((ROOT / f"score_semantics/{name}.py").read_text(encoding="utf-8"))
+        imports = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.level == 1
+            and node.module == "musicxml_time_only"
+            for alias in node.names
+        }
+        assert {"MusicXMLTimeOnlyError", "parse_time_only"} <= imports
 
 
 def test_metadata_consumes_domain_performance_projection():

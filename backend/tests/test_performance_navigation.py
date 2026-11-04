@@ -226,7 +226,6 @@ def test_ending_facts_survive_admission_and_select_whole_measure_visits():
         ('tocoda="c"', "tocoda", "c"),
         ('fine="yes"', "fine", "yes"),
         ('forward-repeat="yes"', "forward_repeat", True),
-        ('time-only="1,2"', "time_only", (1, 2)),
     ],
 )
 @pytest.mark.parametrize("nested", [False, True])
@@ -328,12 +327,12 @@ def test_written_repeat_preserves_default_location_count_and_after_jump():
         "<barline><coda/></barline>",
     ],
 )
-def test_navigation_symbols_are_preserved_and_not_silently_played_linearly(markup):
+def test_visual_navigation_symbols_preserve_presentation_without_changing_traversal(markup):
     xml = score(measure(0, markup))
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     assert len(model.navigation_markers) == 1
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-        project_performance_occurrences(model)
+    assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [0]
+    assert extract_musicxml_metadata(xml).playback_duration_ms == 3000
 
 
 def test_late_tempo_in_repeated_second_measure_executes_at_each_occurrence():

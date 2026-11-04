@@ -143,7 +143,7 @@ def test_time_only_is_an_ordered_exact_pass_predicate(raw, expected):
 @pytest.mark.parametrize("raw", ["0", "01", "2,1", "1,1", "1,,2", "1-", "1-2", "", " ", "1,02"])
 def test_malformed_time_only_is_not_sorted_or_deduplicated(raw):
     xml = score(f'<sound time-only="{raw}"/>' + note())
-    with pytest.raises(MusicXMLSemanticError, match="invalid_navigation_time_only"):
+    with pytest.raises(MusicXMLSemanticError, match="invalid_sound_time_only"):
         parse_score_semantics(xml)
     with pytest.raises(ValidationException):
         admit_musicxml_document(xml.encode())
@@ -209,9 +209,9 @@ def test_visual_only_and_playback_only_markers_remain_distinct(kind):
     playback = admitted(score(f'<sound {kind}="destination"/>' + note()))
     assert len(visual.navigation_markers) == 1 and visual.playback_navigation == ()
     assert playback.navigation_markers == () and len(playback.playback_navigation) == 1
-    for model in (visual, playback):
-        with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-            project_performance_occurrences(model)
+    assert [o.measure_index for o in project_performance_occurrences(visual).occurrences] == [0]
+    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
+        project_performance_occurrences(playback)
 
 
 def test_duplicate_labels_unresolved_references_and_part_identity_remain_source_facts():

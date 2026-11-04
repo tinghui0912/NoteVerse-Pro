@@ -90,24 +90,34 @@ are never combined. Conflicting annotated programs raise
 ## Playback navigation facts
 
 The written model preserves typed `WrittenPlaybackNavigation` events with exact
-`WrittenPoint` identity. One sound event retains its named segno/coda destinations,
+`WrittenPoint` identity and explicit sound/barline provenance. One sound event
+retains its named segno/coda destinations,
 D.S./To Coda references, D.C./forward-repeat flags, Fine source token and optional
 strictly ascending `time_only` pass predicate together. Named tokens collapse XML
 whitespace and remain case-sensitive. Duplicate labels and unresolved references
-are preserved; this projection does not select or resolve a destination.
+are preserved; this projection does not select or resolve a destination. Barline
+segno/coda attributes also create playback destinations, with left/start,
+right/shared-end or middle/cursor ownership, independently of visual children.
 
 Visual `WrittenNavigationMarker` facts have independent exact presentation points.
 Direction offsets always move those glyphs, while playback uses sound-owned offset,
 then direction offset only with `sound="yes"`, then zero. A visual segno/coda alone
 is not a playback destination authority, and a playback destination needs no glyph.
 Barline glyphs retain left/start, right/shared-end or middle/cursor positioning.
+Visual-only markers do not alter linear, simple repeat or supported volta traversal.
 
 These facts and repeat `after-jump` attributes are admissible canonical notation,
-but any playback navigation event or visual navigation marker causes
+but any typed playback navigation event causes
 `PerformanceNavigationError("unsupported_performance_navigation")`. D.C., D.S.,
-To Coda, Fine, forward-repeat, time-only gating, reference resolution and explicit
-after-jump behavior are not executed. Linear, simple repeat and supported volta
-traversal remain separate from that unsupported capability.
+To Coda, Fine, forward-repeat, reference resolution and explicit after-jump behavior
+are not executed.
+
+`time-only` is generic sound applicability, parsed by the shared canonical datatype
+owner. It alone creates no navigation command. Sound tempo facts retain their
+predicate; any gated tempo causes
+`PerformanceNavigationError("unsupported_time_only_playback")`. Pass-aware
+applicability is not executed, and occurrence visit count is not used as a repeat
+pass counter. Metadata maps these errors without adding gating or jump logic.
 
 ## Consumer ownership
 

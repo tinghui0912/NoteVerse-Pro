@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from typing import TypeVar
 
 from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
+from .musicxml_time_only import MusicXMLTimeOnlyError, parse_time_only
 from .written_point import WrittenPoint
 
 TempoSlot = TypeVar("TempoSlot", Fraction, WrittenPoint)
@@ -26,6 +27,7 @@ class MusicXMLTempoError(ValueError):
 class TempoDirective:
     quarter_bpm: Fraction
     playback_offset_quarters: Fraction
+    time_only: tuple[int, ...] | None
 
 
 _BEAT_UNITS = {
@@ -117,7 +119,11 @@ def parse_tempo_directive(element: ET.Element, divisions: Fraction | None) -> Te
         offset = resolve_sound_offset_quarters(element, divisions)
     except MusicXMLSoundPositionError as error:
         raise MusicXMLTempoError("Invalid tempo playback position") from error
-    return TempoDirective(bpm, offset)
+    try:
+        time_only = parse_time_only(sound.get("time-only") if sound is not None else None)
+    except MusicXMLTimeOnlyError as error:
+        raise MusicXMLTempoError("Invalid tempo sound applicability") from error
+    return TempoDirective(bpm, offset, time_only)
 
 
 def put_tempo_fact(facts: dict[TempoSlot, Fraction], position: TempoSlot, bpm: Fraction) -> None:
