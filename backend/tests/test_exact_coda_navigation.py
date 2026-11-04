@@ -395,7 +395,7 @@ def test_semantically_duplicate_tocoda_command_at_one_point_fires_once():
         ("compound-ds", "unsupported_compound_navigation_event"),
         ("compound-dc", "unsupported_compound_navigation_event"),
         ("compound-fine", "unsupported_compound_navigation_event"),
-        ("forward-repeat", "unsupported_performance_navigation"),
+        ("forward-repeat", "unclosed_repeat"),
         ("gated-coda", "unsupported_destination_time_only"),
         ("gated-segno", "unsupported_destination_time_only"),
         ("gated-tempo", "unsupported_time_only_playback"),

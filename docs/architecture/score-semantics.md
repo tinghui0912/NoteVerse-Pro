@@ -123,6 +123,11 @@ Absent `dacapo` / `forward-repeat` are false; only literal `yes` is accepted whe
 present. `fine` retains a normalized, nonempty source token without interpreting
 termination or note duration.
 
+`forward_repeat` preserves the source's implied, undisplayed repeat-start sign.
+Performance normalization treats it and a visible forward barline as the same
+semantic start when their exact owned measure-start points agree. Source facts
+and provenance remain separate and unchanged in the written model.
+
 ### Sound applicability
 
 `musicxml_time_only.parse_time_only` is the canonical sound applicability datatype

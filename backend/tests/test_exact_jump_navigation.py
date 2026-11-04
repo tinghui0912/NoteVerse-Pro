@@ -398,7 +398,7 @@ def test_duplicate_primary_representation_at_one_semantic_point_is_one_command()
             "unsupported_multiple_fines",
         ),
         ({1: sound('tocoda="C1"')}, "unsupported_orphan_tocoda"),
-        ({1: sound('forward-repeat="yes"')}, "unsupported_performance_navigation"),
+        ({1: sound('forward-repeat="yes"')}, "unsupported_forward_repeat_position"),
         ({1: sound('dacapo="yes" dalsegno="S1"')}, "unsupported_compound_navigation_event"),
         ({1: sound('dacapo="yes" fine="yes"')}, "unsupported_compound_navigation_event"),
         ({1: sound('dalsegno="S1" tocoda="C1"')}, "unsupported_compound_navigation_event"),

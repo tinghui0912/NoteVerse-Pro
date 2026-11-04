@@ -224,7 +224,7 @@ def test_ending_facts_survive_admission_and_select_whole_measure_visits():
         ('coda="c"', "coda", "c", None),
         ('tocoda="c"', "tocoda", "c", "unsupported_orphan_tocoda"),
         ('fine="yes"', "fine", "yes", "unsupported_orphan_fine"),
-        ('forward-repeat="yes"', "forward_repeat", True, "unsupported_performance_navigation"),
+        ('forward-repeat="yes"', "forward_repeat", True, "unsupported_forward_repeat_position"),
     ],
 )
 @pytest.mark.parametrize("nested", [False, True])

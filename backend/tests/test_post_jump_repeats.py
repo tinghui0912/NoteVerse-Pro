@@ -381,14 +381,12 @@ def test_forward_barline_after_jump_is_preserved_but_not_executable(policy):
         project_performance_occurrences(model)
 
 
-def test_sound_forward_repeat_and_gated_tempo_remain_unsupported():
-    for markup, error in [
-        (sound('forward-repeat="yes"'), "unsupported_performance_navigation"),
-        (sound('tempo="100" time-only="2"'), "unsupported_time_only_playback"),
-    ]:
-        xml = score(jump_measures("yes")).replace('<note id="n0_0">', markup + '<note id="n0_0">')
-        with pytest.raises(PerformanceNavigationError, match=error):
-            projection(xml)
+def test_gated_tempo_remains_unsupported():
+    xml = score(jump_measures("yes")).replace(
+        '<note id="n0_0">', sound('tempo="100" time-only="2"') + '<note id="n0_0">'
+    )
+    with pytest.raises(PerformanceNavigationError, match="unsupported_time_only_playback"):
+        projection(xml)
 
 
 @pytest.mark.parametrize("policy", ["yes", "no"])

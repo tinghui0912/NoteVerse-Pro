@@ -49,14 +49,29 @@ recompute measure ownership or occurrence offset arithmetic.
 
 ## Supported traversal
 
-Linear scores visit each written measure once. Simple repeats require a forward
-repeat on a left barline and a backward repeat on a right barline. A backward
+Linear scores visit each written measure once. Repeat starts may come from a
+visible left-barline forward repeat or an invisible `sound@forward-repeat="yes"`.
+Both normalize to the same exact `WrittenPoint` at the owning measure start.
+An invisible start at an interior point or previous-measure endpoint is unsupported;
+an equal absolute quarter never remaps endpoint ownership to the next start.
+A forward-repeat sound with any `time-only` is unsupported, including `(1,)`.
+Destination metadata may share that sound, but a repeat start combined with an
+executable jump/Fine/To Coda command has no supported same-event ordering.
+
+Each annotated part independently pairs its starts with right-barline backward
+repeats. Normalized region identity contains start/end WrittenPoints, optional
+source `times` and `after_jump`; visible versus invisible provenance does not
+participate in agreement. Duplicate invisible starts and a visible/invisible pair
+at the same point collapse only in performance normalization; distinct starts
+before one close are nested and unsupported. A start-only part and backward-only
+part are never stitched together. A backward
 repeat outside an ending uses `times` as total plays: performance projection applies
 two when the attribute is absent; `times="3"` means three.
 The first unmatched backward repeat can use measure zero as its implicit start.
 After a closed repeat, an unmatched backward repeat is ambiguous and rejected.
-Sequential explicit repeat pairs are supported. Nested, overlapping, duplicate,
-unclosed or middle/nonstandard-boundary repeats fail closed.
+Sequential repeat pairs are supported. Nested, overlapping, ambiguous duplicate,
+unclosed or middle/nonstandard-boundary repeats fail closed. Simple standalone
+volta contexts also accept either start representation through this normalization.
 
 ## Whole-measure volta
 
@@ -152,9 +167,9 @@ at Fine execute before termination. Tempo state carries across transfer until an
 actually encountered marking changes it. A tempo before an exact D.S. target is
 not replayed. Metadata consumes the same generic fact projection without jump rules.
 
-## Explicit repeats across primary jumps
+## Ordinary repeats across primary jumps
 
-Ordinary explicit repeat regions may coexist with D.C./D.S. A normalized context
+Ordinary repeat regions may coexist with D.C./D.S. A normalized context
 records its whole-measure start/end, total plays and optional backward-repeat
 `after_jump` policy. Sequential non-overlapping contexts retain independent policies.
 All annotated parts must provide the same complete jump-and-repeat program; a
@@ -225,7 +240,8 @@ Unsupported programs fail before traversal: multiple primary commands/Fines or
 To Coda commands, orphan To Coda, any Fine plus To Coda, numeric Fine duration,
 primary predicates other than absent/`(1,)`, Fine or To Coda predicates other than
 absent/`(2,)`, gated destinations in executable programs,
-forward-repeat sound commands, and any jump combined with ending notation.
+pass-gated invisible repeat starts, same-event repeat-start/execution commands,
+and any jump combined with ending notation.
 Repeat/jump programs must meet the complete-context and explicit post-jump policy
 rules above. Canonical source admission
 does not impose these performance capability limits.
@@ -258,7 +274,13 @@ mid-measure Coda fixtures similarly expand to 28 renderer quarters, compared wit
 23 exact D.C. quarters and 22 exact D.S. quarters. In the explicit repeat plus
 D.C./Fine fixtures, Verovio agrees with the domain's measure order for both
 `after-jump="yes"` and `"no"`, while rounding the partial source/Fine spans to
-44/36 renderer quarters instead of the exact 40/32 quarters. These renderer gaps do not change
+44/36 renderer quarters instead of the exact 40/32 quarters.
+For a non-origin invisible repeat start, Verovio 6.3.0 uses an implicit origin
+instead: the no-jump witness visits `0,1,2,0,1,2` (24 quarters), while the domain
+visits `0,1,2,1,2` (20 quarters). In the corresponding D.C./Fine witnesses,
+renderer totals are 60/48 quarters for `after-jump="yes"`/`"no"`, versus exact
+domain totals 48/40. The invisible-start interpretation and partial-jump rounding
+are separate integration gaps. These renderer gaps do not change
 domain coordinates or timing; renderer traversal is
 not the canonical domain authority.
 
