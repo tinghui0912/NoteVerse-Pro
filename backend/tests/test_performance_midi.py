@@ -62,7 +62,7 @@ def test_active_source_note_terminates_at_exact_jump_and_no_source_onset_after_c
     output = project(dc_score(), raw)
     assert channels(output, 144) == [(1, 13, b"\x3c\x50")]
     assert channels(output, 128) == [(1, 14, b"\x3c\x00")]
-    assert channels(output, 176) == [(1, 14, b"\x78\x00")]
+    assert channels(output, 176) == []
     assert all(t[-1].position == 20 for t in output.tracks)
 
 
@@ -118,7 +118,7 @@ def test_destination_does_not_restore_historical_program_or_controller_state():
     )
     output = project(ds_score(), raw)
     assert channels(output, 192) == [(1, 1, b"\x03"), (1, 13, b"\x07")]
-    assert channels(output, 176) == [(1, 2, b"\x40\x7f"), (1, 15, b"\x78\x00")]
+    assert channels(output, 176) == [(1, 2, b"\x40\x7f")]
     assert channels(output, 128) == [(1, 15, b"\x3c\x00")]
 
 
@@ -188,9 +188,14 @@ def test_unsupported_or_ambiguous_input_is_not_dropped(events, error):
         project(dc_score(), source(*events))
 
 
-def test_same_channel_in_multiple_tracks_is_explicitly_ambiguous():
-    with pytest.raises(MidiRepresentationError, match="ambiguous_cross_track_midi_channel"):
-        project(dc_score(), source(event(1, 192, b"\x01"), second=[event(1, 192, b"\x02")]))
+def test_shared_channel_programs_replay_in_one_ordered_stream():
+    result = project(dc_score(), source(event(1, 192, b"\x01"), second=[event(1, 192, b"\x02")]))
+    assert channels(result, 192) == [
+        (1, 1, b"\x01"),
+        (1, 1, b"\x02"),
+        (1, 15, b"\x01"),
+        (1, 15, b"\x02"),
+    ]
 
 
 def test_zero_duration_boundary_note_is_explicitly_unsupported():

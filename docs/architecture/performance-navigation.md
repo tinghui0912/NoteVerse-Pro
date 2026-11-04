@@ -284,6 +284,8 @@ and every track ends at the plan's performance end before FluidSynth synthesis.
 
 `processing/engines/playback/standard_midi.py` owns SMF parsing and serialization.
 `performance_midi.py` owns written-event projection, without parsing MusicXML.
+`midi_event_semantics.py` classifies written metadata and validates its supported
+placement independently of traversal.
 `VerovioMidiCompiler` orchestrates admission, written semantics, plan construction,
 written realization, projection and serialization. Domain score semantics has no
 binary MIDI, renderer or processing dependency.
@@ -291,16 +293,48 @@ binary MIDI, renderer or processing dependency.
 Onsets replay only inside the performed interval `[start, end)`; an onset before
 an exact destination is never invented on entry. Matching releases at endpoints
 execute before transfer. Notes can continue across contiguous written measures;
-at a discontinuity or termination, active notes receive explicit note-offs and
-All Sound Off terminates pedal-held voices. Program/controller/pitch state carries
-until an actually encountered event changes it. Equal-position source events,
+at a discontinuity or termination, notes whose natural release lies beyond the cut
+receive explicit note-offs exactly at that cut. No controller event is synthesized.
+Natural releases retain their release envelope. Sustain, program, controller and
+pitch state carries until an actually encountered event changes it; a note-off
+under a held pedal may continue sounding according to that state and the synth.
+Equal-position source events,
 cut termination and destination-entry events retain that encounter order.
 
-Channel voice events (note-on/off, program, controllers, bend and pressure) and
-ordinary text/identity/meter/key metadata are supported. SMF format 0/1 requires
-positive PPQ division and balanced, positive-duration written note lifecycles. SysEx,
-SMPTE timing/offset, opaque sequencer metadata, nonzero ports, unsupported channel
-modes, overlapping same-key notes and channels shared across tracks fail closed.
+Metadata classification is explicit:
+
+- Structural: Sequence Number `0x00`, Copyright `0x02`, Track Name `0x03`,
+  Instrument Name `0x04`, Program Name `0x08`, Device Name `0x09`, Channel Prefix
+  `0x20` and Port `0x21`. The written-realization contract permits one descriptor
+  of each kind per source track, at origin. Each remains once on its original
+  track, independently of repeat or jump visits. Non-origin or ambiguous duplicate
+  descriptors fail closed rather than being relocated or selected.
+- Timeline: Text `0x01`, Lyric `0x05`, Marker `0x06`, Cue `0x07`, Time Signature
+  `0x58` and Key Signature `0x59` replay through actual canonical occurrences.
+- Tempo `0x51` is owned by the plan; EOT `0x2F` is generated at final performance end.
+
+Real Verovio 6.3.0 two-part fixtures produce three tracks: track 0 contains tempo
+and EOT, and tracks 1/2 contain one origin Track Name and timeline Time Signature.
+Those fixtures emit origin program changes 0/40 and simultaneous C4/E4 notes,
+with no controller messages. With unspecified MusicXML channels, both parts use
+MIDI channel 0; explicit MusicXML 3/7 uses channels 2/6, and explicit 3/3 shares
+channel 2. Source assignment is preserved without rewriting MusicXML.
+
+MIDI channels are global across SMF tracks. The written-realization adapter merges
+equal-quarter input encounters by source track index, then source event index,
+preserving each track's local order. Note lifecycles validate globally by
+`(channel, pitch)`; a release may be in another source track. Each output channel
+stream is serialized in its lowest-index participating source track, including all
+its notes, program/controller/bend messages and cut releases. This preserves the
+complete encounter order at one performance position, even when source and
+destination messages originate in opposite track-index order. Original tracks
+retain their structural descriptors and timeline metadata organization.
+
+Channel voice events (note-on/off, program, controllers, bend and pressure) are
+supported. SMF format 0/1 requires positive PPQ division and balanced,
+positive-duration written note lifecycles. SysEx, SMPTE timing/offset, opaque
+sequencer metadata, nonzero ports, unsupported channel modes and overlapping
+same-channel/same-key note lifecycles fail closed. Shared channels alone are supported.
 For non-note events at a shared measure boundary, SMF lacks source-side ownership;
 projection accepts only identical encounter mappings for the candidate sides,
 otherwise it reports `ambiguous_midi_boundary_state`. No event/layout fallback

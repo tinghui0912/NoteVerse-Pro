@@ -120,8 +120,10 @@ def test_navigation_projection_depends_on_written_facts_and_standard_library():
 def test_midi_codec_and_projection_have_explicit_adapter_dependencies():
     allowed = {
         "standard_midi": set(),
+        "midi_event_semantics": {"standard_midi"},
         "performance_midi": {
             "standard_midi",
+            "midi_event_semantics",
             "app.score_semantics.performance_plan",
             "app.score_semantics.written_point",
         },

@@ -82,8 +82,13 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   an explicit marking changes it again whenever encountered on a repeated visit.
 - Backend playback admits one canonical document and builds `CanonicalPerformancePlan`.
   Verovio with `expandNever=true` provides written-axis MIDI realization only.
-  NoteVerse projects its notes, state and metadata through canonical occurrences,
-  and writes the conductor from plan initial state and ordered tempo encounters.
+  NoteVerse projects notes, channel state and timeline metadata through canonical occurrences,
+  while origin structural descriptors remain once per original track. Channel
+  state and note lifecycles are global across tracks; an ordered stream per channel
+  preserves source/cut/destination encounters in final SMF serialization. Cuts
+  synthesize only necessary note-offs; controllers and pedal state follow actual
+  source events, so sounding release under sustain remains the synth's responsibility.
+  The conductor follows plan initial state and ordered tempo encounters.
   Explicit origin tempo overrides initial state. Same-quarter source/destination
   tempo encounters remain ordered in the plan and coalesce to the last state only
   at MIDI serialization. MIDI end equals canonical performance end on every track.
