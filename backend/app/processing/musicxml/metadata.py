@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from bisect import bisect_right
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import cast
@@ -11,6 +10,11 @@ from app.score_semantics.musicxml_score import (
     CanonicalScoreSemanticModel,
     MusicXMLSemanticError,
     parse_score_semantics,
+)
+from app.score_semantics.performance_navigation import (
+    PerformanceNavigationError,
+    PerformanceProjection,
+    project_performance_occurrences,
 )
 from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 
@@ -84,22 +88,14 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
         }
         for tempo in sorted(model.tempos, key=lambda t: (t.part_index, t.measure_index))
     ]
-    starts = [measure.start for measure in model.measures]
-    durations = [measure.end - measure.start for measure in model.measures]
-    playback_tempos: dict[int, list[tuple[Fraction, Fraction]]] = {}
-    for position, bpm in sorted({t.position: t.quarter_bpm for t in model.tempos}.items()):
-        index = min(bisect_right(starts, position) - 1, len(starts) - 1)
-        playback_tempos.setdefault(index, []).append((position - starts[index], bpm))
-    repeats = [(False, False, 2) for _ in model.measures]
-    for repeat in model.repeats:
-        if repeat.part_index == 0:
-            forward, backward, times = repeats[repeat.measure_index]
-            repeats[repeat.measure_index] = (
-                forward or repeat.direction == "forward",
-                backward or repeat.direction == "backward",
-                repeat.times if repeat.direction == "backward" else times,
-            )
-    duration_ms = _playback_duration_ms(_playback_order(repeats), durations, playback_tempos)
+    try:
+        performance = project_performance_occurrences(model)
+    except PerformanceNavigationError as error:
+        raise MetadataExtractionError(str(error)) from error
+    playback_tempos = performance.project_facts(
+        sorted({(t.position, t.quarter_bpm) for t in model.tempos})
+    )
+    duration_ms = _playback_duration_ms(performance, playback_tempos)
     primary_key = next((event for event in key_events if event["part"] == 1), None)
     return MusicXMLMetadata(
         len(model.measures),
@@ -113,43 +109,16 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
     )
 
 
-def _playback_order(repeats: list[tuple[bool, bool, int]]) -> list[int]:
-    """Expand one-level barline repeats; unsupported nesting remains deterministic."""
-    order: list[int] = []
-    repeat_start = 0
-    for index, (forward, backward, times) in enumerate(repeats):
-        if forward:
-            repeat_start = index
-        order.append(index)
-        if backward:
-            for _ in range(max(1, times) - 1):
-                order.extend(range(repeat_start, index + 1))
-            repeat_start = index + 1
-    return order
-
-
 def _playback_duration_ms(
-    order: list[int],
-    durations: list[Fraction],
-    tempos: dict[int, list[tuple[Fraction, Fraction]]],
+    performance: PerformanceProjection,
+    tempos: tuple[tuple[Fraction, Fraction], ...],
 ) -> int:
-    linear_start_tempos: list[Fraction] = []
     tempo = Fraction(DEFAULT_SCORE_TEMPO_BPM)
-    for index in range(len(durations)):
-        linear_start_tempos.append(tempo)
-        events = tempos.get(index) or []
-        if events:
-            tempo = events[-1][1]
-
+    cursor = Fraction(0)
     total_seconds = Fraction(0)
-    for index in order:
-        measure_duration = durations[index]
-        cursor = Fraction(0)
-        tempo = linear_start_tempos[index]
-        for offset, next_tempo in sorted(tempos.get(index) or []):
-            bounded = min(max(offset, cursor), measure_duration)
-            total_seconds += (bounded - cursor) * 60 / tempo
-            cursor = bounded
-            tempo = next_tempo
-        total_seconds += max(Fraction(0), measure_duration - cursor) * 60 / tempo
+    for position, next_tempo in tempos:
+        total_seconds += (position - cursor) * 60 / tempo
+        cursor = position
+        tempo = next_tempo
+    total_seconds += (performance.end - cursor) * 60 / tempo
     return round(total_seconds * 1000)

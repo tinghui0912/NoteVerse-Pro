@@ -108,7 +108,7 @@ def test_cross_projection_written_witness(monkeypatch):
         (Fraction(8), (((3,), 4),)),
     ]
     assert [(r.measure_index, r.direction, r.times) for r in model.repeats] == [
-        (0, "forward", 2),
+        (0, "forward", None),
         (1, "backward", 2),
     ]
     practice = project_practice_score(model)
@@ -118,18 +118,20 @@ def test_cross_projection_written_witness(monkeypatch):
     assert [t.start_beat for t in practice.tempo_segments] == [2]
     original = metadata._playback_duration_ms
 
-    def witness(order, durations, tempos):
-        assert order == [0, 1, 0, 1, 2, 3]
-        assert durations == [m.end - m.start for m in model.measures]
-        assert all(type(d) is Fraction for d in durations)
-        assert tempos == {0: [(Fraction(2), Fraction(90))]}
-        return original(order, durations, tempos)
+    def witness(performance, tempos):
+        assert [o.measure_index for o in performance.occurrences] == [0, 1, 0, 1, 2, 3]
+        assert all(type(o.performance_start) is Fraction for o in performance.occurrences)
+        assert [(o.written_start, o.written_end) for o in performance.occurrences] == [
+            (model.measures[i].start, model.measures[i].end) for i in [0, 1, 0, 1, 2, 3]
+        ]
+        assert tempos == ((Fraction(2), Fraction(90)), (Fraction(10), Fraction(90)))
+        return original(performance, tempos)
 
     monkeypatch.setattr(metadata, "_playback_duration_ms", witness)
     result = metadata.project_score_metadata(model)
     assert result == metadata.extract_musicxml_metadata(content)
     assert result.part_count == 2 and result.measure_count == 4
-    assert result.playback_duration_ms == 15000
+    assert result.playback_duration_ms == 14833
     assert result.tempo_events == [{"part": 1, "measure": "1", "offset_quarters": 2, "bpm": 90}]
 
 

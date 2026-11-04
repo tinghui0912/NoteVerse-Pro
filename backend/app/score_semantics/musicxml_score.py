@@ -13,6 +13,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_tempo_fact
+from .musicxml_sound_position import MusicXMLSoundPositionError, resolve_sound_offset_quarters
 
 
 class MusicXMLSemanticError(ValueError):
@@ -106,8 +107,32 @@ class WrittenKey(WrittenPosition):
 class WrittenRepeat:
     part_index: int
     measure_index: int
+    location: str
     direction: str
-    times: int
+    times: int | None
+    after_jump: bool | None
+
+
+@dataclass(frozen=True)
+class WrittenEnding:
+    part_index: int
+    measure_index: int
+    location: str
+    type: str
+    number: str
+
+
+@dataclass(frozen=True)
+class WrittenSoundNavigation(WrittenPosition):
+    attributes: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class WrittenNavigationMarker:
+    part_index: int
+    measure_index: int
+    source: str
+    kind: str
 
 
 @dataclass(frozen=True)
@@ -119,6 +144,9 @@ class CanonicalScoreSemanticModel:
     tempos: tuple[WrittenTempo, ...]
     keys: tuple[WrittenKey, ...]
     repeats: tuple[WrittenRepeat, ...]
+    endings: tuple[WrittenEnding, ...]
+    sound_navigation: tuple[WrittenSoundNavigation, ...]
+    navigation_markers: tuple[WrittenNavigationMarker, ...]
     transpositions: tuple[WrittenPosition, ...]
 
     @property
@@ -150,6 +178,9 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
     tempos: list[WrittenTempo] = []
     keys: list[WrittenKey] = []
     repeats: list[WrittenRepeat] = []
+    endings: list[WrittenEnding] = []
+    sound_navigation: list[WrittenSoundNavigation] = []
+    navigation_markers: list[WrittenNavigationMarker] = []
     transpositions: list[WrittenPosition] = []
     measures: list[WrittenMeasure] = []
     meter_facts: dict[tuple[int, int | None, Fraction], WrittenMeter] = {}
@@ -210,6 +241,44 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                                 )
                     continue
                 if name in {"direction", "sound"}:
+                    for direction_type in _children(element, "direction-type"):
+                        for marker in direction_type:
+                            if _name(marker) in {"segno", "coda"}:
+                                navigation_markers.append(
+                                    WrittenNavigationMarker(
+                                        part_index, index, "direction", _name(marker)
+                                    )
+                                )
+                    sound = element if name == "sound" else _one(element, "sound")
+                    if sound is not None:
+                        navigation = tuple(
+                            (key, sound.attrib[key])
+                            for key in (
+                                "dacapo",
+                                "dalsegno",
+                                "segno",
+                                "coda",
+                                "tocoda",
+                                "fine",
+                                "forward-repeat",
+                                "time-only",
+                            )
+                            if key in sound.attrib
+                        )
+                        if navigation:
+                            try:
+                                offset = resolve_sound_offset_quarters(
+                                    element, divisions[part_index]
+                                )
+                            except MusicXMLSoundPositionError as error:
+                                raise MusicXMLSemanticError(
+                                    "invalid_sound_navigation_position"
+                                ) from error
+                            sound_navigation.append(
+                                WrittenSoundNavigation(
+                                    part_index, index, number, position + offset, navigation
+                                )
+                            )
                     try:
                         directive = parse_tempo_directive(element, divisions[part_index])
                         if directive is not None:
@@ -224,12 +293,47 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                         raise MusicXMLSemanticError("invalid_tempo") from error
                     continue
                 if name == "barline":
+                    barline_location = element.get("location", "right")
+                    if barline_location not in {"left", "right", "middle"}:
+                        raise MusicXMLSemanticError("invalid_barline_location")
+                    for marker in element:
+                        if _name(marker) in {"segno", "coda"}:
+                            navigation_markers.append(
+                                WrittenNavigationMarker(
+                                    part_index, index, f"barline:{barline_location}", _name(marker)
+                                )
+                            )
                     for repeat in _children(element, "repeat"):
                         direction = repeat.get("direction", "")
                         if direction not in {"forward", "backward"}:
                             raise MusicXMLSemanticError("invalid_repeat_direction")
-                        times = _positive_integer(repeat.get("times", "2"), "invalid_repeat_times")
-                        repeats.append(WrittenRepeat(part_index, index, direction, times))
+                        times = (
+                            _positive_integer(repeat.get("times", "2"), "invalid_repeat_times")
+                            if direction == "backward"
+                            else None
+                        )
+                        after_jump = repeat.get("after-jump")
+                        if after_jump is not None and after_jump not in {"yes", "no"}:
+                            raise MusicXMLSemanticError("invalid_repeat_after_jump")
+                        repeats.append(
+                            WrittenRepeat(
+                                part_index,
+                                index,
+                                barline_location,
+                                direction,
+                                times,
+                                after_jump == "yes" if after_jump is not None else None,
+                            )
+                        )
+                    for ending in _children(element, "ending"):
+                        kind = ending.get("type", "")
+                        if kind not in {"start", "stop", "discontinue"}:
+                            raise MusicXMLSemanticError("invalid_ending_type")
+                        endings.append(
+                            WrittenEnding(
+                                part_index, index, barline_location, kind, ending.get("number", "")
+                            )
+                        )
                     continue
                 if name not in {"note", "backup", "forward"}:
                     continue
@@ -307,6 +411,8 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         start += extent
     if any(t.position > start for t in tempos):
         raise MusicXMLSemanticError("invalid_tempo_position")
+    if any(f.position < 0 or f.position > start for f in sound_navigation):
+        raise MusicXMLSemanticError("invalid_sound_navigation_position")
     return CanonicalScoreSemanticModel(
         parts,
         tuple(measures),
@@ -315,6 +421,9 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
         tuple(tempos),
         tuple(keys),
         tuple(repeats),
+        tuple(endings),
+        tuple(sound_navigation),
+        tuple(navigation_markers),
         tuple(transpositions),
     )
 

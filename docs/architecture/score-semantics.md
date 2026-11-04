@@ -10,7 +10,8 @@ MusicXML score-partwise
   -> parse_score_semantics
   -> immutable written facts (Fraction quarters)
        -> Practice support validation -> compiled score -> written artifact
-       -> metadata events + simple-repeat playback duration
+       -> metadata written events
+       -> performance navigation -> exact occurrences -> metadata playback duration
 ```
 
 ## Exact written facts
@@ -89,18 +90,26 @@ fact takes effect. Metadata integrates exact Fraction durations to final millise
 
 ## Written and performance axes
 
-`WrittenRepeat` records part, written measure index, forward/backward direction and
-repeat count. The canonical model does not unfold notation: a written measure and
-its notes occur exactly once. General navigation interpretation is outside this
-written model.
+`WrittenRepeat` records part, written measure index, barline location, direction,
+backward total plays and optional `after_jump`. Forward facts have no play count;
+backward facts default to two total plays. Missing barline location means right.
+`WrittenEnding` retains part, measure, barline location, type and raw number.
+`WrittenSoundNavigation` retains part/measure identity, exact positioned playback
+location and literal navigation attributes. Its offset uses the same sound-position
+owner as tempo. `WrittenNavigationMarker` retains structural Segno/Coda glyphs in
+directions or barlines. These observations do not execute navigation. A written
+measure and its notes occur exactly once in this model.
 
 Practice projects those written positions, canonicalizing only at its six-decimal
 artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
-artifact share the written axis. Metadata owns its currently supported one-level
-barline-repeat playback-order projection, using canonical measure durations and
-tempo positions. Score Preview separately consumes Verovio's unfolded performance
-coordinates and renderer tempo projection. Renderer expansion is not canonical
-written chronology.
+artifact share the written axis. The [performance navigation owner](performance-navigation.md)
+projects linear and simple non-nested barline repeats into exact measure occurrences.
+Metadata consumes those occurrences and their projected tempo facts for duration;
+tempo state persists across jumps until an encountered marking changes it. Ending
+and jump facts remain valid written notation but fail the unsupported performance
+capability boundary. Score Preview separately consumes Verovio's unfolded performance
+coordinates and renderer tempo projection. Renderer expansion is a conformance
+witness, not canonical domain truth.
 
 ## Boundaries
 

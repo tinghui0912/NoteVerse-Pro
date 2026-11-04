@@ -54,9 +54,10 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   its exact Fraction quarter axis. Practice compilation projects those positioned
   facts; Practice planning applies the missing-tempo policy. The artifact contains
   only explicit tempo segments.
-- Metadata consumes canonical written measure boundaries and tempo positions. Its
-  own simple-repeat playback order and duration projection integrate those facts,
-  starting at the product default where no explicit tempo is active.
+- Metadata consumes [canonical performance occurrences](performance-navigation.md)
+  and their projected tempo positions. It integrates exact duration with one tempo
+  state initialized at performance origin. A repeat jump retains the active tempo;
+  an explicit marking changes it again whenever encountered on a repeated visit.
 - Backend playback uses an ephemeral renderer input and projects its MIDI conductor.
   Verovio supplies MEI timestamps, measure quarter-positions and expansion IDs; the
   adapter converts those renderer coordinates to MIDI ticks, preserving the other

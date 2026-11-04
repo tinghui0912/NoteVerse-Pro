@@ -14,7 +14,11 @@ def test_score_semantics_has_only_standard_library_and_local_semantic_dependenci
             if isinstance(node, ast.ImportFrom):
                 if node.level:
                     assert node.level == 1
-                    assert node.module in {"musicxml_tempo", "musicxml_sound_position"}
+                    assert node.module in {
+                        "musicxml_tempo",
+                        "musicxml_sound_position",
+                        "musicxml_score",
+                    }
                 else:
                     assert node.module.split(".")[0] in sys.stdlib_module_names
             elif isinstance(node, ast.Import):
@@ -50,3 +54,33 @@ def test_written_chronology_consumes_the_explicit_tempo_semantic_owner():
         for alias in node.names
     }
     assert {"MusicXMLTempoError", "parse_tempo_directive", "put_tempo_fact"} <= imported
+
+
+def test_metadata_consumes_domain_performance_projection():
+    tree = ast.parse((ROOT / "processing/musicxml/metadata.py").read_text(encoding="utf-8"))
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module == "app.score_semantics.performance_navigation"
+        for alias in node.names
+    }
+    assert {
+        "PerformanceNavigationError",
+        "PerformanceProjection",
+        "project_performance_occurrences",
+    } <= imported
+
+
+def test_navigation_projection_depends_on_written_facts_and_standard_library():
+    tree = ast.parse(
+        (ROOT / "score_semantics/performance_navigation.py").read_text(encoding="utf-8")
+    )
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
+                assert node.level == 1 and node.module == "musicxml_score"
+            else:
+                assert node.module.split(".")[0] in sys.stdlib_module_names
+        elif isinstance(node, ast.Import):
+            assert all(alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names)
