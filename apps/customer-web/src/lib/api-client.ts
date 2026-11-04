@@ -266,6 +266,7 @@ async function post<T>(url: string, data?: unknown, options?: RequestOptions): P
     headers: addCsrfHeader(buildHeaders(options?.headers)),
     body: data ? JSON.stringify(data) : undefined,
     credentials: 'include',
+    signal: options?.signal,
   });
 
   return handleResponse<T>(response, options);

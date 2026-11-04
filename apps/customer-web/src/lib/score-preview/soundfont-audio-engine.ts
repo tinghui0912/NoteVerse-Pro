@@ -1,12 +1,12 @@
 import * as Soundfont from 'soundfont-player';
 
-import type { VerovioPlaybackNote } from './playback-timeline';
-import type { VerovioAudioEngine } from './playback-controller';
+import type { ScorePlaybackNote } from '@/lib/score/performance/timeline';
+import type { ScorePreviewAudioEngine } from './playback-controller';
 
 const LOCAL_INSTRUMENTS = new Set(['acoustic_grand_piano']);
 type SoundfontInstrumentName = Parameters<typeof Soundfont.instrument>[1];
 
-export class SoundfontAudioEngine implements VerovioAudioEngine {
+export class SoundfontAudioEngine implements ScorePreviewAudioEngine {
   private readonly context: AudioContext;
   private readonly players = new Map<string, Soundfont.Player>();
   private closed = false;
@@ -19,10 +19,12 @@ export class SoundfontAudioEngine implements VerovioAudioEngine {
     return this.context.currentTime;
   }
 
-  async prepare(instruments: string[]) {
+  async prepare(instruments: readonly string[]) {
     this.assertOpen();
     const resolvedInstruments = Array.from(
-      new Set(instruments.map((instrument) => this.resolveInstrument(instrument)))
+      new Set(
+        instruments.map((instrument) => this.resolveInstrument(instrument))
+      )
     );
     await Promise.all(
       resolvedInstruments.map(async (instrument) => {
@@ -46,7 +48,7 @@ export class SoundfontAudioEngine implements VerovioAudioEngine {
     }
   }
 
-  schedule(note: VerovioPlaybackNote, startTime: number, duration: number) {
+  schedule(note: ScorePlaybackNote, startTime: number, duration: number) {
     this.assertOpen();
     const instrument = this.resolveInstrument(note.instrument);
     const player = this.players.get(instrument);

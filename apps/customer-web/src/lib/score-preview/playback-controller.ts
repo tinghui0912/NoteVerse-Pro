@@ -1,39 +1,40 @@
-import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
+import { compilePerformancePlan } from '@/lib/api/performance-plan';
 import type {
   ScorePlaybackController,
   ScorePlaybackSnapshot,
   ScorePlaybackState,
 } from '@/lib/score-preview/contracts';
-import { VerovioScoreAdapter } from './adapter';
+import { VerovioScoreAdapter } from '@/lib/score/verovio/adapter';
 import {
-  createVerovioPlaybackTimeline,
+  createScorePerformanceTimeline,
   findVisualEventAtTime,
-  type VerovioPlaybackNote,
-  type VerovioPlaybackTimeline,
-} from './playback-timeline';
+  type ScorePlaybackNote,
+  type ScorePerformanceTimeline,
+} from '@/lib/score/performance/timeline';
 
-export interface VerovioAudioEngine {
+export interface ScorePreviewAudioEngine {
   readonly currentTime: number;
-  prepare(instruments: string[]): Promise<void>;
+  prepare(instruments: readonly string[]): Promise<void>;
   resume(): Promise<void>;
-  schedule(note: VerovioPlaybackNote, startTime: number, duration: number): void;
+  schedule(note: ScorePlaybackNote, startTime: number, duration: number): void;
   stopAll(): void;
   close(): Promise<void>;
 }
 
-export type VerovioPlaybackCursorSnapshot = {
+export type ScorePreviewPlaybackCursorSnapshot = {
   time: number;
   eventIndex: number | null;
-  noteIds: string[];
+  noteIds: readonly string[];
   pageNumbers: number[];
 };
 
-export class VerovioPlaybackController implements ScorePlaybackController {
-  private timeline: VerovioPlaybackTimeline | null = null;
+export class ScorePreviewPlaybackController implements ScorePlaybackController {
+  private timeline: ScorePerformanceTimeline | null = null;
   private state: ScorePlaybackState = 'IDLE';
   private position = 0;
   private anchorTime = 0;
-  private tempo: number = DEFAULT_SCORE_TEMPO_BPM;
+  private tempo = 0;
+  private loadAbort: AbortController | null = null;
   private disposed = false;
   private eventTimers: Array<ReturnType<typeof setTimeout>> = [];
   private iterationListeners = new Set<(notes: unknown[]) => void>();
@@ -41,19 +42,45 @@ export class VerovioPlaybackController implements ScorePlaybackController {
 
   constructor(
     private readonly adapter: VerovioScoreAdapter,
-    private readonly audioEngine: VerovioAudioEngine
+    private readonly audioEngine: ScorePreviewAudioEngine
   ) {}
 
   async loadScore(xml: string) {
     this.assertActive();
-    await this.adapter.loadMusicXml(xml);
-    const timeline = createVerovioPlaybackTimeline(
+    this.loadAbort?.abort();
+    const request = new AbortController();
+    this.loadAbort = request;
+    this.audioEngine.stopAll();
+    this.clearEventTimers();
+    this.timeline = null;
+    this.state = 'IDLE';
+    this.position = 0;
+    const plan = await compilePerformancePlan(xml, request.signal);
+    request.signal.throwIfAborted();
+    await this.adapter.loadMusicXml(plan.musicxml, {
+      toolkitOptions: { expandNever: true },
+    });
+    request.signal.throwIfAborted();
+    const timeline = createScorePerformanceTimeline(
+      plan,
       this.adapter.renderMidi(),
-      this.adapter.renderPerformanceTiming()
+      this.adapter.renderTimemap()
     );
+    if (timeline.notes.length && !timeline.visualEvents.length) {
+      throw new Error('Missing written visual realization.');
+    }
+    for (const id of new Set(
+      timeline.visualEvents.flatMap((event) => event.noteIds)
+    )) {
+      const page = this.adapter.getPageWithElement(id);
+      if (!Number.isSafeInteger(page) || page <= 0) {
+        throw new Error('Written visual note has no score page.');
+      }
+    }
     await this.audioEngine.prepare(timeline.instruments);
+    request.signal.throwIfAborted();
     this.timeline = timeline;
-    this.tempo = timeline.sourceTempo;
+    this.tempo = timeline.referenceTempoBpm;
     this.position = 0;
     this.state = 'STOPPED';
   }
@@ -103,7 +130,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
           Math.max(0, timeline.visualEvents.length - 1)
         )
       ];
-    const rate = this.tempo / timeline.sourceTempo;
+    const rate = this.tempo / timeline.referenceTempoBpm;
     await this.seek((event?.time ?? 0) / rate);
     await this.play();
   }
@@ -113,7 +140,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
     const wasPlaying = this.state === 'PLAYING';
     this.audioEngine.stopAll();
     this.clearEventTimers();
-    const rate = this.tempo / timeline.sourceTempo;
+    const rate = this.tempo / timeline.referenceTempoBpm;
     this.position = Math.min(Math.max(time * rate, 0), timeline.duration);
     if (wasPlaying) {
       this.anchorTime = this.audioEngine.currentTime;
@@ -151,28 +178,32 @@ export class VerovioPlaybackController implements ScorePlaybackController {
 
   getPlaybackSnapshot(): ScorePlaybackSnapshot {
     const timeline = this.timeline;
-    const sourcePosition = timeline ? Math.min(this.getCurrentPosition(), timeline.duration) : 0;
-    const rate = timeline ? this.tempo / timeline.sourceTempo : 1;
+    const sourcePosition = timeline
+      ? Math.min(this.getCurrentPosition(), timeline.duration)
+      : 0;
+    const rate = timeline ? this.tempo / timeline.referenceTempoBpm : 1;
     const eventIndex = timeline
-      ? findVisualEventAtTime(timeline, sourcePosition)?.index ?? 0
+      ? (findVisualEventAtTime(timeline, sourcePosition)?.index ?? 0)
       : 0;
     return {
       state: this.state,
       currentStep: eventIndex,
       totalSteps: timeline?.visualEvents.length ?? 0,
       currentTime: sourcePosition / rate,
-      duration: timeline ? timeline.duration * (timeline.sourceTempo / this.tempo) : 0,
+      duration: timeline
+        ? timeline.duration * (timeline.referenceTempoBpm / this.tempo)
+        : 0,
     };
   }
 
-  getCursorSnapshot(): VerovioPlaybackCursorSnapshot {
+  getCursorSnapshot(): ScorePreviewPlaybackCursorSnapshot {
     const timeline = this.ensureReady();
     const time = Math.min(this.getCurrentPosition(), timeline.duration);
     const event = findVisualEventAtTime(timeline, time);
     return this.createCursorSnapshot(event, time);
   }
 
-  getCursorSnapshotForStep(step: number): VerovioPlaybackCursorSnapshot {
+  getCursorSnapshotForStep(step: number): ScorePreviewPlaybackCursorSnapshot {
     const timeline = this.ensureReady();
     const event =
       timeline.visualEvents[
@@ -185,9 +216,9 @@ export class VerovioPlaybackController implements ScorePlaybackController {
   }
 
   private createCursorSnapshot(
-    event: VerovioPlaybackTimeline['visualEvents'][number] | null,
+    event: ScorePerformanceTimeline['visualEvents'][number] | null,
     time: number
-  ): VerovioPlaybackCursorSnapshot {
+  ): ScorePreviewPlaybackCursorSnapshot {
     const pageNumbers = event
       ? Array.from(
           new Set(
@@ -198,7 +229,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
         )
       : [];
     return {
-      time,
+      time: time / (this.tempo / this.ensureReady().referenceTempoBpm),
       eventIndex: event?.index ?? null,
       noteIds: event?.noteIds ?? [],
       pageNumbers,
@@ -210,6 +241,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
       return;
     }
     this.disposed = true;
+    this.loadAbort?.abort();
     this.audioEngine.stopAll();
     this.clearEventTimers();
     await this.audioEngine.close();
@@ -220,8 +252,11 @@ export class VerovioPlaybackController implements ScorePlaybackController {
     this.stateListeners.clear();
   }
 
-  private scheduleFromPosition(timeline: VerovioPlaybackTimeline, position: number) {
-    const rate = this.tempo / timeline.sourceTempo;
+  private scheduleFromPosition(
+    timeline: ScorePerformanceTimeline,
+    position: number
+  ) {
+    const rate = this.tempo / timeline.referenceTempoBpm;
     for (const note of timeline.notes) {
       const noteEnd = note.time + note.duration;
       if (noteEnd <= position) {
@@ -237,9 +272,12 @@ export class VerovioPlaybackController implements ScorePlaybackController {
     }
   }
 
-  private scheduleEventNotifications(timeline: VerovioPlaybackTimeline, position: number) {
+  private scheduleEventNotifications(
+    timeline: ScorePerformanceTimeline,
+    position: number
+  ) {
     this.clearEventTimers();
-    const rate = this.tempo / timeline.sourceTempo;
+    const rate = this.tempo / timeline.referenceTempoBpm;
     for (const event of timeline.visualEvents) {
       if (event.time < position) {
         continue;
@@ -249,7 +287,7 @@ export class VerovioPlaybackController implements ScorePlaybackController {
         setTimeout(() => {
           if (this.state === 'PLAYING' && !this.disposed) {
             for (const listener of this.iterationListeners) {
-              listener(event.noteIds);
+              listener([...event.noteIds]);
             }
           }
         }, delay)
@@ -291,21 +329,23 @@ export class VerovioPlaybackController implements ScorePlaybackController {
     if (this.state !== 'PLAYING' || !this.timeline) {
       return this.position;
     }
-    const rate = this.tempo / this.timeline.sourceTempo;
-    return this.position + (this.audioEngine.currentTime - this.anchorTime) * rate;
+    const rate = this.tempo / this.timeline.referenceTempoBpm;
+    return (
+      this.position + (this.audioEngine.currentTime - this.anchorTime) * rate
+    );
   }
 
   private ensureReady() {
     this.assertActive();
     if (!this.timeline) {
-      throw new Error('Verovio playback is not ready.');
+      throw new Error('Score Preview playback is not ready.');
     }
     return this.timeline;
   }
 
   private assertActive() {
     if (this.disposed) {
-      throw new Error('Verovio playback has been disposed.');
+      throw new Error('Score Preview playback has been disposed.');
     }
   }
 }

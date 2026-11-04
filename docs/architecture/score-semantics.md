@@ -202,10 +202,10 @@ the written model itself never unfolds them.
 ordered tempo encounters. Metadata consumes the plan for duration;
 tempo state persists across jumps until an encountered marking changes it. Ending
 layouts and jump programs outside that subset remain valid written notation but fail
-the performance capability boundary. Score Preview separately consumes Verovio's unfolded performance
-coordinates and renderer tempo projection. Backend playback instead obtains
-written MIDI with `expandNever` and projects its events through the canonical
-plan. Renderer expansion is not a backend performance input.
+the performance capability boundary. Browser Score Preview and backend playback both consume this plan. Verovio
+provides written-axis realization with `expandNever`: backend projects MIDI
+events for FluidSynth, and Browser projects written notes and Timemap IDs for
+audio scheduling and cursor time. The plan alone owns performance chronology.
 
 ## Boundaries
 

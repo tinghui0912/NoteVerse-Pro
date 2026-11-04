@@ -4,16 +4,24 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { Midi } from '@tonejs/midi';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
+import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
+import type { ScorePlaybackNote } from '@/lib/score/performance/timeline';
+import { apiClient } from '@/lib/api-client';
+import { decodePerformancePlan } from '@/lib/score/performance/plan';
+import { linearPlan, rational } from '../support/performance-plan';
 import {
-  createVerovioPlaybackTimeline,
-  VerovioPlaybackController,
-  type VerovioAudioEngine,
-  type VerovioPlaybackNote,
-} from '@/lib/score/verovio/playback';
+  ScorePreviewPlaybackController,
+  type ScorePreviewAudioEngine,
+} from '@/lib/score-preview/playback-controller';
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(apiClient, 'post').mockResolvedValue(linearPlan(3, 120));
+});
 
 function encodeMidi() {
   const midi = new Midi();
@@ -30,14 +38,6 @@ class StubAdapter extends VerovioScoreAdapter {
 
   override async loadMusicXml() {}
 
-  override renderPerformanceTiming() {
-    return {
-      mei: '<mei><measure xml:id="measure"><tempo tstamp="1" midi.bpm="120"/></measure></mei>',
-      timemap: [{ measureOn: 'measure', qstamp: 0 }, ...this.renderTimemap()],
-      expansionMap: {},
-    };
-  }
-
   override renderMidi() {
     return encodeMidi();
   }
@@ -51,7 +51,7 @@ class StubAdapter extends VerovioScoreAdapter {
     ];
   }
 
-  override getPageWithElement(xmlId: string) {
+  override getPageWithElement(xmlId: string): number {
     return xmlId === 'note-2' ? 2 : 1;
   }
 
@@ -105,15 +105,19 @@ class OpeningRestAdapter extends StubAdapter {
   }
 }
 
-class StubAudioEngine implements VerovioAudioEngine {
+class StubAudioEngine implements ScorePreviewAudioEngine {
   currentTime = 0;
-  prepared: string[] = [];
-  scheduled: Array<{ note: VerovioPlaybackNote; startTime: number; duration: number }> = [];
+  prepared: readonly string[] = [];
+  scheduled: Array<{
+    note: ScorePlaybackNote;
+    startTime: number;
+    duration: number;
+  }> = [];
   stopCount = 0;
   resumeCount = 0;
   closed = false;
 
-  async prepare(instruments: string[]) {
+  async prepare(instruments: readonly string[]) {
     this.prepared = instruments;
   }
 
@@ -121,7 +125,7 @@ class StubAudioEngine implements VerovioAudioEngine {
     this.resumeCount += 1;
   }
 
-  schedule(note: VerovioPlaybackNote, startTime: number, duration: number) {
+  schedule(note: ScorePlaybackNote, startTime: number, duration: number) {
     this.scheduled.push({ note, startTime, duration });
   }
 
@@ -135,38 +139,170 @@ class StubAudioEngine implements VerovioAudioEngine {
 }
 
 describe('Verovio playback timeline', () => {
-  it(
-    'extracts MIDI notes and visual events from a real MusicXML fixture through Verovio WASM',
-    async () => {
-      const xml = readFileSync(
-        resolve(process.cwd(), 'tests/fixtures/musicxml/chords-voices.musicxml'),
-        'utf8'
-      );
-      const adapter = new VerovioScoreAdapter();
+  it('extracts MIDI notes and visual events from a real MusicXML fixture through Verovio WASM', async () => {
+    const xml = readFileSync(
+      resolve(process.cwd(), 'tests/fixtures/musicxml/chords-voices.musicxml'),
+      'utf8'
+    );
+    const adapter = new VerovioScoreAdapter();
 
-      await adapter.loadMusicXml(xml);
-      const timeline = createVerovioPlaybackTimeline(
-        adapter.renderMidi(),
-        adapter.renderPerformanceTiming()
-      );
+    await adapter.loadMusicXml(xml);
+    const timeline = createScorePerformanceTimeline(
+      decodePerformancePlan(linearPlan(1)),
+      adapter.renderMidi(),
+      adapter.renderTimemap()
+    );
 
-      expect(timeline.notes).toHaveLength(3);
-      expect(timeline.visualEvents).toHaveLength(1);
-      expect(timeline.visualEvents[0]?.noteIds).toHaveLength(3);
-      expect(timeline.sourceTempo).toBe(80);
-      expect(timeline.duration).toBeCloseTo(.75, 6);
-      expect(adapter.getPageWithElement(timeline.visualEvents[0]?.noteIds[0] ?? '')).toBe(1);
-      adapter.dispose();
-    },
-    30_000
-  );
+    expect(timeline.notes).toHaveLength(3);
+    expect(timeline.visualEvents).toHaveLength(1);
+    expect(timeline.visualEvents[0]?.noteIds).toHaveLength(3);
+    expect(timeline.referenceTempoBpm).toBe(80);
+    expect(timeline.duration).toBeCloseTo(0.75, 6);
+    expect(
+      adapter.getPageWithElement(timeline.visualEvents[0]?.noteIds[0] ?? '')
+    ).toBe(1);
+    adapter.dispose();
+  }, 30_000);
 });
 
-describe('VerovioPlaybackController', () => {
+describe('ScorePreviewPlaybackController', () => {
+  it('exposes cursor event time in the same scaled UI seconds as the playback clock', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(linearPlan(4));
+    const audio = new StubAudioEngine();
+    const controller = new ScorePreviewPlaybackController(
+      new OpeningRestAdapter(),
+      audio
+    );
+    await controller.loadScore('<score/>');
+    controller.setTempo(160);
+    expect(controller.getCursorSnapshotForStep(0).time).toBe(0.75);
+    await controller.play();
+    audio.currentTime = 0.8;
+    expect(controller.getPlaybackSnapshot().currentTime).toBe(0.8);
+    expect(controller.getCursorSnapshot().time).toBe(0.8);
+    await controller.dispose();
+  });
+  it('fails load when written visual IDs cannot resolve to the rendered score', async () => {
+    const adapter = new StubAdapter();
+    vi.spyOn(adapter, 'getPageWithElement').mockReturnValue(0);
+    const audio = new StubAudioEngine();
+    const controller = new ScorePreviewPlaybackController(adapter, audio);
+    await expect(controller.loadScore('<score/>')).rejects.toThrow(
+      'no score page'
+    );
+    expect(audio.prepared).toEqual([]);
+    expect(controller.getPlaybackSnapshot()).toMatchObject({
+      state: 'IDLE',
+      duration: 0,
+    });
+    await controller.dispose();
+  });
+  it('scales source seconds by the origin reference while preserving internal tempo changes', async () => {
+    const dto = linearPlan(4);
+    dto.tempo_events = [
+      {
+        occurrence_ordinal: 0,
+        performance_position: rational(2),
+        bpm: rational(120),
+      },
+    ];
+    vi.mocked(apiClient.post).mockResolvedValue(dto);
+    const audio = new StubAudioEngine();
+    const controller = new ScorePreviewPlaybackController(
+      new StubAdapter(),
+      audio
+    );
+    await controller.loadScore('<score/>');
+    expect(controller.getPlaybackSnapshot().duration).toBe(2.5);
+    controller.setTempo(160);
+    expect(controller.getPlaybackSnapshot().duration).toBe(1.25);
+    await controller.play();
+    expect(audio.scheduled.map((e) => [e.startTime, e.duration])).toEqual([
+      [0, 0.375],
+      [0.75, 0.25],
+    ]);
+    await controller.dispose();
+  });
+  it('compiles input before rendering the exact admitted document with expansion disabled', async () => {
+    const input = '<score-partwise><input/></score-partwise>';
+    const admitted = '<score-partwise><admitted/></score-partwise>';
+    vi.mocked(apiClient.post).mockResolvedValue({
+      ...linearPlan(3, 120),
+      musicxml: admitted,
+    });
+    const adapter = new StubAdapter();
+    const load = vi.spyOn(adapter, 'loadMusicXml');
+    const controller = new ScorePreviewPlaybackController(
+      adapter,
+      new StubAudioEngine()
+    );
+    await controller.loadScore(input);
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/playback/performance-plan',
+      { musicxml: input },
+      { signal: expect.any(AbortSignal) }
+    );
+    expect(load).toHaveBeenCalledWith(admitted, {
+      toolkitOptions: { expandNever: true },
+    });
+    expect(vi.mocked(apiClient.post).mock.invocationCallOrder[0]).toBeLessThan(
+      load.mock.invocationCallOrder[0]
+    );
+    expect(controller.getPlaybackSnapshot().duration).toBe(1.5);
+    await controller.dispose();
+  });
+
+  it.each([
+    new Error('422 unsupported navigation'),
+    new TypeError('Network failure'),
+  ])(
+    'clears playback on compilation failure without rendering another source',
+    async (failure) => {
+      const adapter = new StubAdapter();
+      const load = vi.spyOn(adapter, 'loadMusicXml');
+      const audio = new StubAudioEngine();
+      const controller = new ScorePreviewPlaybackController(adapter, audio);
+      await controller.loadScore('<score-partwise/>');
+      vi.mocked(apiClient.post).mockRejectedValueOnce(failure);
+      await expect(controller.loadScore('<new-score/>')).rejects.toBe(failure);
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(controller.getPlaybackSnapshot()).toMatchObject({
+        state: 'IDLE',
+        duration: 0,
+        totalSteps: 0,
+      });
+      await expect(controller.play()).rejects.toThrow('not ready');
+      await controller.dispose();
+    }
+  );
+
+  it('aborts a pending compile on disposal and cannot install a late response', async () => {
+    let resolve!: (value: ReturnType<typeof linearPlan>) => void;
+    vi.mocked(apiClient.post).mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
+    );
+    const adapter = new StubAdapter();
+    const load = vi.spyOn(adapter, 'loadMusicXml');
+    const controller = new ScorePreviewPlaybackController(
+      adapter,
+      new StubAudioEngine()
+    );
+    const loading = controller.loadScore('<score/>');
+    const signal = vi.mocked(apiClient.post).mock.calls[0][2]?.signal;
+    await controller.dispose();
+    expect(signal?.aborted).toBe(true);
+    resolve(linearPlan());
+    await expect(loading).rejects.toMatchObject({ name: 'AbortError' });
+    expect(load).not.toHaveBeenCalled();
+  });
+
   it('supports playback, pause, seek, tempo, multi-page cursor lookup, and disposal', async () => {
     const adapter = new StubAdapter();
     const audio = new StubAudioEngine();
-    const controller = new VerovioPlaybackController(adapter, audio);
+    const controller = new ScorePreviewPlaybackController(adapter, audio);
 
     await controller.loadScore('<score-partwise />');
     expect(audio.prepared).toEqual(['acoustic_grand_piano']);
@@ -205,7 +341,10 @@ describe('VerovioPlaybackController', () => {
     await controller.play();
     expect(audio.scheduled.at(-1)?.duration).toBeCloseTo(0.25, 2);
     await controller.stop();
-    expect(controller.getPlaybackSnapshot()).toMatchObject({ state: 'STOPPED', currentTime: 0 });
+    expect(controller.getPlaybackSnapshot()).toMatchObject({
+      state: 'STOPPED',
+      currentTime: 0,
+    });
 
     await controller.dispose();
     expect(audio.closed).toBe(true);
@@ -216,7 +355,10 @@ describe('VerovioPlaybackController', () => {
   it('emits iteration and natural completion events without leaking timers', async () => {
     vi.useFakeTimers();
     try {
-      const controller = new VerovioPlaybackController(new StubAdapter(), new StubAudioEngine());
+      const controller = new ScorePreviewPlaybackController(
+        new StubAdapter(),
+        new StubAudioEngine()
+      );
       const states: string[] = [];
       const iterations: unknown[][] = [];
       controller.onPlaybackStateChange((state) => states.push(state));
@@ -229,7 +371,10 @@ describe('VerovioPlaybackController', () => {
       expect(states).toEqual(['PLAYING', 'STOPPED']);
       expect(iterations).toContainEqual(['note-2']);
       expect(iterations.at(-1)).toEqual([]);
-      expect(controller.getPlaybackSnapshot()).toMatchObject({ state: 'STOPPED', currentTime: 0 });
+      expect(controller.getPlaybackSnapshot()).toMatchObject({
+        state: 'STOPPED',
+        currentTime: 0,
+      });
       await controller.dispose();
       expect(vi.getTimerCount()).toBe(0);
     } finally {
@@ -256,14 +401,21 @@ describe('VerovioScorePreviewController', () => {
     const meterSignature = container.querySelector<HTMLElement>('.meterSig')!;
     const rest = container.querySelector<HTMLElement>('#rest-1')!;
     const note = container.querySelector<HTMLElement>('#note-1')!;
-    page.getBoundingClientRect = () => DOMRect.fromRect({ x: 20, y: 0, width: 500, height: 300 });
-    system.getBoundingClientRect = () => DOMRect.fromRect({ x: 40, y: 50, width: 440, height: 120 });
-    meterSignature.getBoundingClientRect = () => DOMRect.fromRect({ x: 70, y: 60, width: 30, height: 70 });
-    rest.getBoundingClientRect = () => DOMRect.fromRect({ x: 120, y: 70, width: 16, height: 30 });
-    note.getBoundingClientRect = () => DOMRect.fromRect({ x: 180, y: 70, width: 20, height: 30 });
+    page.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 20, y: 0, width: 500, height: 300 });
+    system.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 40, y: 50, width: 440, height: 120 });
+    meterSignature.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 70, y: 60, width: 30, height: 70 });
+    rest.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 120, y: 70, width: 16, height: 30 });
+    note.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 180, y: 70, width: 20, height: 30 });
 
     controller.resetCursor();
-    const cursor = container.querySelector<HTMLElement>('.score-playback-cursor')!;
+    const cursor = container.querySelector<HTMLElement>(
+      '.score-playback-cursor'
+    )!;
     expect(cursor.style.left).toBe('108px');
 
     await controller.play();
@@ -306,12 +458,18 @@ describe('VerovioScorePreviewController', () => {
     expect(container.querySelectorAll('[data-score-page]')).toHaveLength(2);
 
     controller.syncCursorToStep(1);
-    expect(container.querySelectorAll('.score-playback-cursor')).toHaveLength(1);
+    expect(container.querySelectorAll('.score-playback-cursor')).toHaveLength(
+      1
+    );
     expect(
       container.querySelector('[data-score-page="2"] .score-playback-cursor')
     ).not.toBeNull();
-    expect(container.querySelector('#note-2')).not.toHaveClass('score-playback-active');
-    const activeSystem = container.querySelector<HTMLElement>('[data-score-page="2"] .system');
+    expect(container.querySelector('#note-2')).not.toHaveClass(
+      'score-playback-active'
+    );
+    const activeSystem = container.querySelector<HTMLElement>(
+      '[data-score-page="2"] .system'
+    );
     expect(activeSystem).not.toBeNull();
     activeSystem!.getBoundingClientRect = () => ({
       bottom: 760,
@@ -342,10 +500,12 @@ describe('VerovioScorePreviewController', () => {
     const windowScrollTo = vi.fn();
     window.scrollTo = windowScrollTo;
     controller.ensureCursorVisible({ scrollTarget: 'window', force: true });
-    expect(windowScrollTo).toHaveBeenCalledWith(expect.objectContaining({
-      behavior: 'smooth',
-      top: expect.any(Number),
-    }));
+    expect(windowScrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        behavior: 'smooth',
+        top: expect.any(Number),
+      })
+    );
     expect(windowScrollTo.mock.calls[0][0].top).toBeGreaterThan(0);
 
     await controller.fitToContainer();

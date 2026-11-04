@@ -266,7 +266,7 @@ initial state 80 and no tempo events. Same-quarter source and destination encoun
 remain separate, in traversal order. Applying them in order makes the last
 encounter the active conductor state after that instant.
 
-Metadata consumes this plan.
+Metadata and Browser Score Preview consume this plan.
 It owns its public DTO and exact duration integration, mapping navigation errors
 to `MetadataExtractionError`. Tempo state starts at the generated score tempo
 policy, 80 quarter notes per minute, once at performance origin. It persists
@@ -367,12 +367,40 @@ the existing 422 `revision_content_invalid` policy; unsupported performance uses
 422 `score_playback_failed`, with the domain reason retained in the application
 exception. No renderer fallback, persistence or plan cache is involved.
 
+Browser Score Preview first compiles caller-supplied XML through the stateless
+performance-plan HTTP endpoint. It loads the returned admitted `musicxml` into
+Verovio with `expandNever: true`; engraving preparation preserves tempo and
+navigation facts. The renderer supplies SVG, written MIDI notes, written Timemap
+note IDs/qstamp and page lookup. `lib/score/performance` decodes the generated HTTP
+DTOs into immutable exact-rational runtime objects and projects written notes and
+visual onsets through canonical occurrences. It does not interpret MusicXML
+navigation. Timemap milliseconds and MIDI conductor tempos do not define timing.
+
+Browser note positions use exact integer MIDI ticks/PPQ. A numeric Timemap qstamp
+is accepted only when its IEEE rounding interval identifies one exact point on
+that written MIDI grid. Unrepresentable or ambiguous realization fails closed.
+Browser realization accepts origin program state per renderer stream; timed or
+conflicting program changes fail closed because per-note instruments do not
+represent channel-state replay. Onsets use `[written_start, written_end)`; entry
+never retriggers an earlier onset.
+Long notes continue through written-contiguous measures and end at discontinuity
+cuts. Repeated visits retain the same written SVG IDs with distinct occurrence
+identity. Simultaneous visual IDs are merged stably at each performed onset.
+
+The Browser time mapper integrates initial tempo and ordered plan encounters as
+rational values until the WebAudio/UI seconds boundary. Timeline duration is the
+integrated canonical performance end, including silence. The origin's final
+active tempo is `referenceTempoBpm`; choosing a preview BPM scales the complete
+source-seconds timeline by `selectedBpm / referenceTempoBpm` without replacing
+internal tempo changes. `ScorePreviewPlaybackController` owns scheduling, seeking,
+state and cursor snapshots. API or realization failure leaves playback unloaded.
+
 Practice uses written notes, events and moments and does not unfold repeats. Its
-Verovio instance uses `expandNever: true`. Score Preview retains its browser
-renderer integration. Backend realization tests verify written MIDI note positions
-and timemap identity with expansion disabled for repeat, jump and invisible-start
-notation. Final backend MIDI tests verify the performed pitch sequence and exact
-end against the canonical plan, including partial source and destination intervals.
+Verovio instance uses `expandNever: true`. Backend and Browser realization tests
+verify written note positions and Timemap identity with expansion disabled.
+Performance tests compare canonical pitch traversal, exact end and partial source
+and destination intervals. Verovio owns engraving and written realization;
+`CanonicalPerformancePlan` owns backend and Browser performance chronology.
 
 Canonical document admission validates written semantics without calling this
 projector. Unknown ending numbers, unsupported complex ending layouts and valid

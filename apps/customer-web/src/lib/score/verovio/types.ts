@@ -3,12 +3,9 @@ export type VerovioToolkitLike = {
   loadData(data: string): boolean;
   renderToSVG(pageNo?: number, xmlDeclaration?: boolean): string;
   renderToMIDI(): string;
-  getMEI(): string;
-  renderToExpansionMap(): Record<string, string[]>;
   renderToTimemap(options?: Record<string, unknown>): Array<Record<string, unknown>>;
   getPageCount(): number;
   getPageWithElement(xmlId: string): number;
-  getElementsAtTime?(milliseconds: number): Record<string, unknown>;
   redoLayout(options?: Record<string, unknown>): void;
 };
 

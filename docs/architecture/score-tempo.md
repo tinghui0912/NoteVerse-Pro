@@ -97,36 +97,23 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   without rounding; an unrepresentable grid fails closed. FluidSynth consumes this
   final performance MIDI. Stored MusicXML and revision hashes contain no default
   tempo fact. Renderer expansion is not a backend chronology input.
-- Score Preview owns a performance projection in
-  `lib/score/verovio/tempo-projection.ts`. It consumes renderer MEI quarter-BPM facts,
-  one-based tempo timestamps, staff meter units, Timemap measure quarter-positions
-  and Expansionmap occurrence identities. Explicit facts occur on the renderer's
-  unfolded performance axis. The effective chronology supplies the product default
-  at origin only when an explicit fact is absent there. It replaces the MIDI tempo
-  track before ToneJS derives note times and durations. Cursor time is integrated
-  from Timemap qstamp through that same chronology; renderer millisecond timestamps
-  are diagnostic data. Expansionmap maps each cursor occurrence to its written SVG
-  identity while preserving the unfolded performance time. The browser interprets
-  no raw MusicXML tempo notation and
-  resolves no repeat/ending/jump structure itself. One toolkit consumes a renderer
-  document with separate presentation and playback facts. Original directions retain
-  their notation, words, placement and direction offset. Original sound elements retain
-  their location, sound-owned offset and all non-tempo semantics, including navigation,
-  tuning, dynamics and time-only. Only the literal `tempo` attribute transfers into a
-  sibling playback-only direction containing `sound@tempo` and the effective offset
-  in Verovio's direction-offset slot (`sound="yes"`). A sound-owned offset wins;
-  otherwise only a direction offset with `sound="yes"` affects the playback aid.
-  The aid carries no notation or other sound semantics. Browser integration copies
-  this literal structure without parsing BPM, divisions or score chronology.
-  MEI `tempo` with `mm` but no `midi.bpm` is presentation-only and contributes no
-  playback rate. Positioned `midi.bpm` facts alone own browser playback chronology. Canonical
-  source bytes remain unchanged. Backend tempo placement comes directly from the canonical performance plan.
-  Positioned MEI tempo facts define browser chronology; an unpositioned scoreDef MIDI rate
-  does not establish an origin tempo. Stored source is unchanged.
+- Browser Score Preview requests the canonical performance plan and loads the
+  exact returned admitted XML into Verovio with `expandNever: true`. Written MIDI
+  note ticks/PPQ and written Timemap IDs/qstamp supply realization only. The
+  immutable Browser plan retains exact bigint rational coordinates and ordered
+  tempo encounters from generated HTTP DTOs. Its time mapper integrates source
+  tempo changes exactly until WebAudio/UI seconds conversion. Same-quarter events
+  retain API encounter order, and explicit q0 encounters override initial state.
+  Timeline duration is the integral through canonical `performance_end`.
+  `referenceTempoBpm` is the final active origin rate; the preview BPM control
+  applies one playback-rate multiplier to notes, cursor and duration, preserving
+  the relative internal tempo changes. Engraving preparation retains original
+  tempo, navigation and offset facts without synthesizing tempo playback aids.
+  Verovio supplies engraving and written realization, not tempo chronology.
 - Practice uses its notation-order artifact quarter axis. Its own Verovio adapter
   sets `expandNever: true` on that toolkit instance, so the visual cursor remains on
-  the written beat axis shared with the artifact. Score Preview keeps renderer
-  performance expansion enabled. These consumer coordinate contracts are distinct.
+  the written beat axis shared with the artifact. Score Preview projects written
+  realization through the canonical plan for its performance axis.
 - CUSTOM_FIXED_BPM is validated against the finite Practice product range before
   rounding. UI editing clamping is separate from domain admission and rejects
   nonfinite values.

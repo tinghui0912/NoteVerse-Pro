@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import {
-  sanitizeMusicXmlForVerovio,
+  prepareMusicXmlForVerovioRendering,
   VerovioScoreAdapter,
   type VerovioToolkitLike,
 } from '@/lib/score/verovio';
@@ -33,10 +33,6 @@ class FakeToolkit implements VerovioToolkitLike {
     return `<svg aria-label="score-page-${pageNumber}"><g id="note-${pageNumber}" /></svg>`;
   }
 
-  getMEI() { return '<mei/>'; }
-
-  renderToExpansionMap() { return {}; }
-
   renderToMIDI() {
     return '';
   }
@@ -53,10 +49,6 @@ class FakeToolkit implements VerovioToolkitLike {
     return xmlId === 'note-2' ? 2 : 1;
   }
 
-  getElementsAtTime(milliseconds: number) {
-    return { milliseconds, notes: ['note-1'] };
-  }
-
   redoLayout() {}
 }
 
@@ -66,6 +58,13 @@ const fixtureXml = readFileSync(
 );
 
 describe('VerovioScoreAdapter', () => {
+  it('fails load when the renderer rejects explicit written realization options', async () => {
+    const toolkit = new FakeToolkit();
+    toolkit.setOptions = () => false;
+    const adapter = new VerovioScoreAdapter(async () => toolkit);
+    await expect(adapter.loadMusicXml(fixtureXml, { toolkitOptions: { expandNever: true } })).rejects.toThrow('rejected written realization options');
+    expect(toolkit.loadedXml).toBe('');
+  });
   it('owns a separate toolkit instance for every adapter', async () => {
     const toolkits: FakeToolkit[] = [];
     const factory = async () => {
@@ -81,14 +80,11 @@ describe('VerovioScoreAdapter', () => {
     expect(toolkits).toHaveLength(2);
     expect(toolkits[0]).not.toBe(toolkits[1]);
     expect(first.renderAllPages()).toHaveLength(2);
-    expect(second.getElementsAtTime(250)).toEqual({
-      milliseconds: 250,
-      notes: ['note-1'],
-    });
+    expect(second.getPageWithElement('note-2')).toBe(2);
   });
 
   it('removes invalid chord state before Verovio receives the XML', () => {
-    const sanitized = sanitizeMusicXmlForVerovio(`
+    const sanitized = prepareMusicXmlForVerovioRendering(`
       <score-partwise><part><measure>
         <note><chord/><rest/><beam>begin</beam><voice>1</voice></note>
       </measure></part></score-partwise>

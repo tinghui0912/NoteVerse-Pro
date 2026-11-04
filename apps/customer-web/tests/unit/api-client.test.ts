@@ -9,6 +9,14 @@ describe('api client error contract', () => {
     vi.restoreAllMocks();
   });
 
+  it('passes POST cancellation to the existing fetch transport', async () => {
+    const signal = new AbortController().signal;
+    const fetch = vi.fn().mockResolvedValue(new Response('{}', { headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetch);
+    await apiClient.post('/playback/performance-plan', { musicxml: '<score-partwise/>' }, { signal });
+    expect(fetch).toHaveBeenCalledWith('/api/v1/playback/performance-plan', expect.objectContaining({ method: 'POST', signal }));
+  });
+
   it('redacts Guest Preview bearer material from transport error context', async () => {
     const failure = new TypeError('Failed to fetch');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));

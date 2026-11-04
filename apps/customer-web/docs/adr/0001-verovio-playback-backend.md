@@ -9,17 +9,22 @@ timeline without making rendering clients load the audio stack.
 
 ## Decision
 
-Verovio supplies SVG, Standard MIDI and XML-ID timemap data. `@tonejs/midi`
-parses the MIDI into normalized note events. The NoteVerse playback controller
-owns play, pause, stop, seek, tempo scaling and playback/cursor snapshots.
-It uses an injected `VerovioAudioEngine` for clock and sample scheduling.
+`CanonicalPerformancePlan` owns performance traversal, tempo encounters and end.
+Score Preview compiles input through the performance-plan endpoint and renders
+its returned admitted XML. Verovio with `expandNever: true` supplies SVG,
+written-axis MIDI and written XML-ID Timemap data. `@tonejs/midi` supplies note
+ticks and instrument realization. Exact rational projection maps those written
+notes and IDs through canonical occurrences; renderer tempo and navigation do
+not define performance timing. `ScorePreviewPlaybackController` owns play, pause,
+stop, seek, speed scaling and playback/cursor snapshots. It uses an injected
+`ScorePreviewAudioEngine` for clock and sample scheduling.
 
 `SoundfontAudioEngine` isolates `soundfont-player`, AudioContext resume,
 instrument preparation, scheduling, stop and close. The shipped local
 MusyngKite acoustic piano is the supported instrument. Other programs resolve
 to that piano; this does not establish original-instrument fidelity.
 
-Renderer exports and the `lib/score/verovio/playback` entry are separate so
+Renderer exports and `lib/score-preview` playback modules are separate so
 render-only callers do not load MIDI parsing or soundfont assets. Engine
 substitution must preserve the controller contracts rather than changing
 score or UI identity.

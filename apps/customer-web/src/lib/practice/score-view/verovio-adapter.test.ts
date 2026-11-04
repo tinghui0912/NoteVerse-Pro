@@ -12,12 +12,10 @@ import type { VerovioToolkitLike } from '@/lib/score/verovio';
 
 function mockToolkit(timemap: Array<Record<string, unknown>> = []) {
   return {
-    setOptions: vi.fn(),
+    setOptions: vi.fn(() => true),
     loadData: vi.fn(() => true),
     renderToSVG: vi.fn(() => '<svg />'),
     renderToMIDI: vi.fn(() => ''),
-    getMEI: vi.fn(() => '<mei/>'),
-    renderToExpansionMap: vi.fn(() => ({})),
     renderToTimemap: vi.fn(() => timemap),
     getPageCount: vi.fn(() => 1),
     getPageWithElement: vi.fn(() => 1),

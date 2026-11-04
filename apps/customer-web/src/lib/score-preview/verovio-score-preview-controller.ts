@@ -9,16 +9,16 @@ import type {
 } from './contracts';
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import {
-  SoundfontAudioEngine,
-  VerovioPlaybackController,
-  type VerovioAudioEngine,
-  type VerovioPlaybackCursorSnapshot,
-} from '@/lib/score/verovio/playback';
+  ScorePreviewPlaybackController,
+  type ScorePreviewAudioEngine,
+  type ScorePreviewPlaybackCursorSnapshot,
+} from './playback-controller';
+import { SoundfontAudioEngine } from './soundfont-audio-engine';
 
 type VerovioScorePreviewControllerOptions = {
   container: HTMLElement;
   adapter?: VerovioScoreAdapter;
-  audioEngine?: VerovioAudioEngine;
+  audioEngine?: ScorePreviewAudioEngine;
   toolkitOptions?: Record<string, unknown>;
   fitToContainerOptions?: (pageWidth: number) => Record<string, unknown>;
 };
@@ -52,7 +52,7 @@ function findScrollableAncestor(element: HTMLElement) {
 export class VerovioScorePreviewController implements ScorePreviewController {
   private readonly container: HTMLElement;
   private readonly adapter: VerovioScoreAdapter;
-  private readonly playback: VerovioPlaybackController;
+  private readonly playback: ScorePreviewPlaybackController;
   private activeCursor: HTMLElement | null = null;
   private activeSystem: Element | null = null;
   private activeEventIndex: number | null = null;
@@ -67,7 +67,7 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.container = options.container;
     this.adapter = options.adapter ?? new VerovioScoreAdapter(undefined, options.toolkitOptions);
     this.fitToContainerOptions = options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
-    this.playback = new VerovioPlaybackController(
+    this.playback = new ScorePreviewPlaybackController(
       this.adapter,
       options.audioEngine ?? new SoundfontAudioEngine()
     );
@@ -238,7 +238,7 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   }
 
   private applyCursor(
-    snapshot: VerovioPlaybackCursorSnapshot,
+    snapshot: ScorePreviewPlaybackCursorSnapshot,
     options?: CursorPlacementOptions
   ) {
     const playbackSnapshot = this.playback.getPlaybackSnapshot();
