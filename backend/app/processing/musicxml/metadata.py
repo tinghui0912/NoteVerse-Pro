@@ -1,4 +1,4 @@
-"""Public metadata and simple-repeat duration projections of written score facts."""
+"""Public written metadata and exact canonical performance-plan duration."""
 
 from __future__ import annotations
 
@@ -9,17 +9,12 @@ from typing import cast
 from app.score_semantics.musicxml_score import (
     CanonicalScoreSemanticModel,
     MusicXMLSemanticError,
-    WrittenTempo,
     parse_score_semantics,
 )
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
-    PerformanceProjection,
-    WrittenPerformanceFact,
-    ProjectedPerformanceFact,
-    project_performance_occurrences,
 )
-from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
+from app.score_semantics.performance_plan import CanonicalPerformancePlan, build_performance_plan
 
 EXTRACTOR_VERSION = "musicxml-metadata-v1"
 
@@ -92,13 +87,10 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
         for tempo in sorted(model.tempos, key=lambda t: (t.part_index, t.measure_index))
     ]
     try:
-        performance = project_performance_occurrences(model)
-        playback_tempos = performance.project_facts(
-            [WrittenPerformanceFact(t.point, t) for t in model.tempos]
-        )
+        plan = build_performance_plan(model)
     except PerformanceNavigationError as error:
         raise MetadataExtractionError(str(error)) from error
-    duration_ms = _playback_duration_ms(performance, playback_tempos)
+    duration_ms = _playback_duration_ms(plan)
     primary_key = next((event for event in key_events if event["part"] == 1), None)
     return MusicXMLMetadata(
         len(model.measures),
@@ -112,17 +104,14 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
     )
 
 
-def _playback_duration_ms(
-    performance: PerformanceProjection,
-    tempos: tuple[ProjectedPerformanceFact[WrittenTempo], ...],
-) -> int:
-    tempo = Fraction(DEFAULT_SCORE_TEMPO_BPM)
+def _playback_duration_ms(plan: CanonicalPerformancePlan) -> int:
+    tempo = plan.initial_tempo_bpm
     cursor = Fraction(0)
     total_seconds = Fraction(0)
-    for fact in tempos:
-        position, next_tempo = fact.position, fact.value.quarter_bpm
+    for fact in plan.tempo_events:
+        position, next_tempo = fact.position, fact.bpm
         total_seconds += (position - cursor) * 60 / tempo
         cursor = position
         tempo = next_tempo
-    total_seconds += (performance.end - cursor) * 60 / tempo
+    total_seconds += (plan.projection.end - cursor) * 60 / tempo
     return round(total_seconds * 1000)

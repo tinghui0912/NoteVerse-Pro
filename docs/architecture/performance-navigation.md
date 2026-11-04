@@ -256,13 +256,41 @@ general MusicXML pass-state model. Metadata maps errors without adding gating or
 
 ## Consumer ownership
 
-Metadata obtains occurrences and positioned tempo events from this projection.
+`score_semantics.performance_plan.build_performance_plan(model)` produces the
+immutable `CanonicalPerformancePlan`, the shared performance-axis contract derived
+from canonical written semantics. It contains the navigation `projection`, exact
+Fraction `initial_tempo_bpm` from the generated tempo policy, and ordered
+`PerformanceTempoEvent(occurrence_ordinal, position, bpm)` encounters. Only real
+encountered source facts enter `tempo_events`; a score without explicit tempo has
+initial state 80 and no tempo events. Same-quarter source and destination encounters
+remain separate, in traversal order. Applying them in order makes the last
+encounter the active conductor state after that instant.
+
+Metadata consumes this plan.
 It owns its public DTO and exact duration integration, mapping navigation errors
 to `MetadataExtractionError`. Tempo state starts at the generated score tempo
 policy, 80 quarter notes per minute, once at performance origin. It persists
 across every transition, including backward jumps, until an encountered explicit
 tempo changes it. An explicit marking is encountered again on each corresponding
 visit. Duration stays rational until the final millisecond rounding.
+
+The backend MIDI conductor consumes the same plan. It initializes tempo from plan
+policy, then applies the ordered encounters, coalescing only at the MIDI tick
+serialization boundary to the last state per tick. MEI, timemap and expansionMap
+do not define backend tempo chronology. Verovio still supplies MIDI note events;
+note traversal can differ from canonical intervals, and conductor correction alone
+does not correct that traversal. Other MIDI tracks remain byte-for-byte intact.
+
+`POST /api/v1/playback/performance-plan` accepts `{musicxml: string}` without score
+identity, authentication or database/storage access. It admits the supplied
+document, parses written semantics, builds the plan and returns the exact admitted
+UTF-8 MusicXML with `end`, `initial_tempo_bpm`, `occurrences` and `tempo_events`.
+All rational values use integer `{numerator, denominator}` pairs with positive
+denominators; no rounding or transient version field enters transport. OpenAPI
+owns this DTO and generates the customer-web types. Source-invalid input uses
+the existing 422 `revision_content_invalid` policy; unsupported performance uses
+422 `score_playback_failed`, with the domain reason retained in the application
+exception. No renderer fallback, persistence or plan cache is involved.
 
 Practice uses written notes, events and moments and does not unfold repeats. Its
 Verovio instance uses `expandNever: true`. Score Preview uses renderer performance
@@ -283,6 +311,11 @@ domain totals 48/40. The invisible-start interpretation and partial-jump roundin
 are separate integration gaps. These renderer gaps do not change
 domain coordinates or timing; renderer traversal is
 not the canonical domain authority.
+
+With `expandNever=true`, real Verovio 6.3.0 MIDI note-on positions and timemap
+note identities stay on written chronology for the ordinary-repeat, D.C. and
+non-origin invisible-repeat fixtures. This characterizes renderer note extraction;
+the canonical plan remains the performance contract.
 
 Canonical document admission validates written semantics without calling this
 projector. Unknown ending numbers, unsupported complex ending layouts and valid

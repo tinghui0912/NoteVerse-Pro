@@ -6,8 +6,23 @@ from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.playback.delivery import PlaybackDeliveryService
+from app.modules.playback.plan import compile_performance_plan
+from app.modules.playback.schemas import PerformancePlanRequest, PerformancePlanRead
 
 router = APIRouter()
+
+
+@router.post(
+    "/playback/performance-plan",
+    response_model=PerformancePlanRead,
+    responses={
+        422: {
+            "description": "Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed)."
+        }
+    },
+)
+def create_performance_plan(payload: PerformancePlanRequest) -> PerformancePlanRead:
+    return compile_performance_plan(payload.musicxml)
 
 
 def get_playback_delivery_service() -> PlaybackDeliveryService:

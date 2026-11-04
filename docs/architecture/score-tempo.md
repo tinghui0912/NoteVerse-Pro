@@ -72,19 +72,23 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   facts; Practice planning applies the missing-tempo policy. The artifact contains
   only explicit ungated tempo segments. Practice rejects pass-gated tempo because
   the artifact cannot represent its applicability.
-- Metadata consumes [canonical performance occurrences](performance-navigation.md)
-  and their projected tempo facts, preserving source points and encounter order.
+- Metadata consumes the [canonical performance plan](performance-navigation.md)
+  with exact occurrences, initial tempo state and ordered encountered tempo facts.
   Pass-gated tempo currently fails closed as `unsupported_time_only_playback`;
   no occurrence visit count is interpreted as a performance pass predicate.
   Source endpoints execute before jumps; destination-start markings execute on
   actual entry. It integrates exact duration with one tempo
   state initialized at performance origin. A repeat jump retains the active tempo;
   an explicit marking changes it again whenever encountered on a repeated visit.
-- Backend playback uses an ephemeral renderer input and projects its MIDI conductor.
-  Verovio supplies MEI timestamps, measure quarter-positions and expansion IDs; the
-  adapter converts those renderer coordinates to MIDI ticks, preserving the other
-  tracks byte-for-byte. The conductor starts at the product policy only when no
-  explicit tempo is active at origin and retains later explicit changes. FluidSynth
+- Backend playback admits one canonical document, parses its written model and
+  builds `CanonicalPerformancePlan`. Its MIDI conductor starts from plan initial
+  state and applies ordered plan tempo encounters. An explicit origin fact overrides
+  the initial state at the same tick; source/destination encounters at the same
+  quarter remain ordered in the plan and coalesce to their last state only when
+  writing MIDI ticks. Renderer MEI/timemap/expansionMap do not define backend tempo
+  chronology. Verovio still supplies note MIDI traversal, which can disagree with
+  canonical occurrences. The conductor adapter preserves other tracks byte-for-byte;
+  it does not fix note traversal. FluidSynth
   consumes that MIDI. Stored MusicXML and revision hashes contain no missing-tempo
   default fact. The adapter computes no MusicXML note/forward/backup chronology.
 - Score Preview owns a performance projection in
@@ -109,10 +113,10 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   The aid carries no notation or other sound semantics. Browser integration copies
   this literal structure without parsing BPM, divisions or score chronology.
   MEI `tempo` with `mm` but no `midi.bpm` is presentation-only and contributes no
-  playback rate. Positioned `midi.bpm` facts alone own playback chronology. Canonical
+  playback rate. Positioned `midi.bpm` facts alone own browser playback chronology. Canonical
   source bytes remain unchanged. Backend renderer input is playback-only and selects
   its positioning fact through the canonical sound-position owner.
-  Positioned MEI tempo facts define chronology; an unpositioned scoreDef MIDI rate
+  Positioned MEI tempo facts define browser chronology; an unpositioned scoreDef MIDI rate
   does not establish an origin tempo. Stored source is unchanged.
 - Practice uses its notation-order artifact quarter axis. Its own Verovio adapter
   sets `expandNever: true` on that toolkit instance, so the visual cursor remains on

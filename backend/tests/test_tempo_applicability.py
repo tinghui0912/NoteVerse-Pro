@@ -17,15 +17,15 @@ from app.processing.musicxml.admission import admit_musicxml_document
 from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
 from app.processing.engines.playback.tempo_projection import (
     playback_musicxml,
-    renderer_tempo_events,
 )
+from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
+from tests.test_playback_tempo_policy import conductor_events
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.musicxml_tempo import parse_tempo_directive, MusicXMLTempoError
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
     project_performance_occurrences,
 )
-from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 from app.score_semantics.written_point import WrittenPoint
 
 ATTR = "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
@@ -277,10 +277,5 @@ def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point
     toolkit.setOptions({"inputFrom": "xml"})
     assert toolkit.loadData(playback_musicxml(trusted))
     toolkit.renderToMIDI()
-    tempos = renderer_tempo_events(
-        toolkit.getMEI(),
-        toolkit.renderToTimemap({"includeMeasures": True}),
-        DEFAULT_SCORE_TEMPO_BPM,
-        toolkit.renderToExpansionMap(),
-    )
+    tempos = conductor_events(VerovioMidiCompiler().compile(trusted).content)
     assert tempos == [(Fraction(0), Fraction(80)), (Fraction(2), Fraction(100))]

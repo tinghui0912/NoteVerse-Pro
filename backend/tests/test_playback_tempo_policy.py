@@ -12,10 +12,10 @@ import verovio
 from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
 from app.processing.engines.playback.tempo_projection import (
     project_midi_tempos,
-    renderer_tempo_events,
 )
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
+from app.score_semantics.musicxml_score import parse_score_semantics
+from app.score_semantics.performance_plan import build_performance_plan
 
 
 def note(duration=2):
@@ -73,6 +73,7 @@ def conductor_events(midi):
     [
         (note() + note(), [(0, 80)]),
         (direction(90) + note() + note(), [(0, 90)]),
+        (direction(100) + note() + note(), [(0, 100)]),
         (note() + direction(90) + note(), [(0, 80), (2, 90)]),
         (note(1) + direction(90) + note(1) + direction(100) + note(), [(0, 80), (1, 90), (2, 100)]),
         (
@@ -110,12 +111,10 @@ def test_engine_implicit_tempo_cannot_become_product_authority():
     other_engine_default = 173
     foreign = project_midi_tempos(engine_midi, [(Fraction(0), Fraction(other_engine_default))])
     assert conductor_events(foreign)[0][1] == pytest.approx(other_engine_default, rel=1e-6)
-    tempos = renderer_tempo_events(
-        toolkit.getMEI(),
-        toolkit.renderToTimemap({"includeMeasures": True}),
-        DEFAULT_SCORE_TEMPO_BPM,
-        toolkit.renderToExpansionMap(),
-    )
+    plan = build_performance_plan(parse_score_semantics(score(note() + note())))
+    tempos = [(Fraction(0), plan.initial_tempo_bpm)] + [
+        (t.position, t.bpm) for t in plan.tempo_events
+    ]
     projected = project_midi_tempos(foreign, tempos)
     assert conductor_events(projected) == [(0, 80)]
     original_end = 22 + int.from_bytes(foreign[18:22], "big")
@@ -130,7 +129,7 @@ def test_missing_tempo_is_only_a_consumer_projection_not_a_source_fact():
     assert not any("tempo" in element.attrib for element in ET.fromstring(content).iter())
 
 
-def test_renderer_unfolded_explicit_tempos_keep_their_repeat_positions():
+def test_canonical_explicit_tempos_keep_their_repeat_positions():
     content = (
         score(direction(90) + note(4))
         .decode()
@@ -151,7 +150,7 @@ def test_renderer_unfolded_explicit_tempos_keep_their_repeat_positions():
     assert [e[1] for e in events] == pytest.approx([90, 100, 90, 100], rel=1e-6)
 
 
-def test_renderer_owns_measure_cursor_offset_and_meter_conversion():
+def test_canonical_tempo_position_owns_cursor_offset_and_meter_conversion():
     body = (
         note()
         + '<direction><offset sound="yes">-1</offset><sound tempo="90"/></direction>'
@@ -207,3 +206,49 @@ def test_real_renderer_effective_sound_offset(notation, position):
     expected = [(0, 80), (position, 90)] if position else [(0, 90)]
     assert [e[0] for e in events] == [e[0] for e in expected]
     assert [e[1] for e in events] == pytest.approx([e[1] for e in expected], rel=1e-6)
+
+
+def test_same_tick_conductor_uses_last_encounter_without_changing_plan_history():
+    from tests.test_performance_plan import boundary_tempos
+
+    content = boundary_tempos().encode()
+    plan = build_performance_plan(parse_score_semantics(content))
+    assert [t.bpm for t in plan.tempo_events if t.position == 8] == [100, 80]
+    events = conductor_events(VerovioMidiCompiler().compile(content).content)
+    assert [position for position, _ in events] == [0, 8, 16]
+    assert [bpm for _, bpm in events] == pytest.approx([80, 80, 100], rel=1e-6)
+
+
+def test_compiler_uses_canonical_plan_even_when_renderer_navigation_disagrees(monkeypatch):
+    from unittest.mock import Mock
+    from tests.test_exact_jump_navigation import dc_score
+    from app.processing.engines.playback import verovio_midi
+
+    content = (
+        dc_score()
+        .replace('<sound dacapo="yes"/>', '<sound tempo="100"/><sound dacapo="yes"/>')
+        .encode()
+    )
+    renderer = verovio.toolkit()
+    renderer.setOptions({"inputFrom": "xml"})
+    assert renderer.loadData(content.decode())
+    encoded = renderer.renderToMIDI()
+    # The engine's rounded jump path is 24 quarters; the source tempo belongs
+    # at exact canonical q14, not its renderer-owned measure position.
+    assert max(e["qstamp"] for e in renderer.renderToTimemap()) == 24
+    fake = Mock()
+    fake.loadData.return_value = True
+    fake.renderToMIDI.return_value = encoded
+    for name in ("getMEI", "renderToTimemap", "renderToExpansionMap"):
+        getattr(fake, name).side_effect = AssertionError("Renderer tempo coordinates are not input")
+    monkeypatch.setattr(verovio, "toolkit", lambda: fake)
+    admission = Mock(wraps=admit_musicxml_document)
+    monkeypatch.setattr(verovio_midi, "admit_musicxml_document", admission)
+    compiled = VerovioMidiCompiler().compile(content).content
+    admission.assert_called_once_with(content)
+    assert [p for p, _ in conductor_events(compiled)] == [0, 14]
+    assert [b for _, b in conductor_events(compiled)] == pytest.approx([80, 100], rel=1e-6)
+    original = base64.b64decode(encoded)
+    original_end = 22 + int.from_bytes(original[18:22], "big")
+    compiled_end = 22 + int.from_bytes(compiled[18:22], "big")
+    assert compiled[compiled_end:] == original[original_end:]

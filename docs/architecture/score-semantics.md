@@ -11,7 +11,9 @@ MusicXML score-partwise
   -> immutable written facts (Fraction quarters)
        -> Practice support validation -> compiled score -> written artifact
        -> metadata written events
-       -> performance navigation -> exact occurrences -> metadata playback duration
+       -> performance navigation -> CanonicalPerformancePlan
+            -> metadata playback duration
+            -> backend MIDI conductor / exact HTTP transport
 ```
 
 ## Exact written facts

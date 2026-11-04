@@ -21,6 +21,8 @@ def test_score_semantics_has_only_standard_library_and_local_semantic_dependenci
                         "musicxml_time_only",
                         "musicxml_score",
                         "written_point",
+                        "performance_navigation",
+                        "tempo_policy",
                     }
                 else:
                     assert node.module.split(".")[0] in sys.stdlib_module_names
@@ -84,20 +86,21 @@ def test_sound_consumers_share_the_time_only_datatype_owner():
         assert {"MusicXMLTimeOnlyError", "parse_time_only"} <= imports
 
 
-def test_metadata_consumes_domain_performance_projection():
-    tree = ast.parse((ROOT / "processing/musicxml/metadata.py").read_text(encoding="utf-8"))
-    imported = {
-        alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
-        and node.module == "app.score_semantics.performance_navigation"
-        for alias in node.names
-    }
-    assert {
-        "PerformanceNavigationError",
-        "PerformanceProjection",
-        "project_performance_occurrences",
-    } <= imported
+def test_performance_consumers_share_the_plan_entry_point():
+    for path in (
+        "processing/musicxml/metadata.py",
+        "processing/engines/playback/verovio_midi.py",
+        "modules/playback/plan.py",
+    ):
+        tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+        imported = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module == "app.score_semantics.performance_plan"
+            for alias in node.names
+        }
+        assert "build_performance_plan" in imported
 
 
 def test_navigation_projection_depends_on_written_facts_and_standard_library():

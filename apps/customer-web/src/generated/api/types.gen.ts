@@ -2800,6 +2800,58 @@ export type PendingInviteRead = {
 };
 
 /**
+ * PerformanceOccurrenceRead
+ */
+export type PerformanceOccurrenceRead = {
+    /**
+     * Measure Index
+     */
+    measure_index: number;
+    /**
+     * Ordinal
+     */
+    ordinal: number;
+    performance_end: RationalRead;
+    performance_start: RationalRead;
+    /**
+     * Visit
+     */
+    visit: number;
+    written_end: RationalRead;
+    written_start: RationalRead;
+};
+
+/**
+ * PerformancePlanRead
+ */
+export type PerformancePlanRead = {
+    end: RationalRead;
+    initial_tempo_bpm: RationalRead;
+    /**
+     * Musicxml
+     */
+    musicxml: string;
+    /**
+     * Occurrences
+     */
+    occurrences: Array<PerformanceOccurrenceRead>;
+    /**
+     * Tempo Events
+     */
+    tempo_events: Array<PerformanceTempoEventRead>;
+};
+
+/**
+ * PerformancePlanRequest
+ */
+export type PerformancePlanRequest = {
+    /**
+     * Musicxml
+     */
+    musicxml: string;
+};
+
+/**
  * PerformanceTakeDeleteResponse
  */
 export type PerformanceTakeDeleteResponse = {
@@ -3210,6 +3262,18 @@ export type PerformanceTakeUploadTarget = {
 };
 
 /**
+ * PerformanceTempoEventRead
+ */
+export type PerformanceTempoEventRead = {
+    bpm: RationalRead;
+    /**
+     * Occurrence Ordinal
+     */
+    occurrence_ordinal: number;
+    position: RationalRead;
+};
+
+/**
  * PracticeAcousticAccessRead
  *
  * The sole immutable browser Practice acoustic deployment.
@@ -3498,6 +3562,20 @@ export type ProfileUserRead = {
      * Is Active
      */
     is_active: boolean;
+};
+
+/**
+ * RationalRead
+ */
+export type RationalRead = {
+    /**
+     * Denominator
+     */
+    denominator: number;
+    /**
+     * Numerator
+     */
+    numerator: number;
 };
 
 /**
@@ -6148,6 +6226,29 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
 };
 
 export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
+
+export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostData = {
+    body: PerformancePlanRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/playback/performance-plan';
+};
+
+export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostErrors = {
+    /**
+     * Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed).
+     */
+    422: unknown;
+};
+
+export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PerformancePlanRead;
+};
+
+export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponse = CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses[keyof CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses];
 
 export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetData = {
     body?: never;

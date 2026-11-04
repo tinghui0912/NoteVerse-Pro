@@ -5653,6 +5653,96 @@
         "title": "PendingInviteRead",
         "type": "object"
       },
+      "PerformanceOccurrenceRead": {
+        "properties": {
+          "measure_index": {
+            "title": "Measure Index",
+            "type": "integer"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "performance_end": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "performance_start": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "visit": {
+            "title": "Visit",
+            "type": "integer"
+          },
+          "written_end": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "written_start": {
+            "$ref": "#/components/schemas/RationalRead"
+          }
+        },
+        "required": [
+          "ordinal",
+          "measure_index",
+          "visit",
+          "written_start",
+          "written_end",
+          "performance_start",
+          "performance_end"
+        ],
+        "title": "PerformanceOccurrenceRead",
+        "type": "object"
+      },
+      "PerformancePlanRead": {
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "initial_tempo_bpm": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "musicxml": {
+            "title": "Musicxml",
+            "type": "string"
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceOccurrenceRead"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "tempo_events": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceTempoEventRead"
+            },
+            "title": "Tempo Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "musicxml",
+          "end",
+          "initial_tempo_bpm",
+          "occurrences",
+          "tempo_events"
+        ],
+        "title": "PerformancePlanRead",
+        "type": "object"
+      },
+      "PerformancePlanRequest": {
+        "properties": {
+          "musicxml": {
+            "minLength": 1,
+            "title": "Musicxml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "musicxml"
+        ],
+        "title": "PerformancePlanRequest",
+        "type": "object"
+      },
       "PerformanceTakeDeleteResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6352,6 +6442,27 @@
         "title": "PerformanceTakeUploadTarget",
         "type": "object"
       },
+      "PerformanceTempoEventRead": {
+        "properties": {
+          "bpm": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
+          "occurrence_ordinal": {
+            "title": "Occurrence Ordinal",
+            "type": "integer"
+          },
+          "position": {
+            "$ref": "#/components/schemas/RationalRead"
+          }
+        },
+        "required": [
+          "occurrence_ordinal",
+          "position",
+          "bpm"
+        ],
+        "title": "PerformanceTempoEventRead",
+        "type": "object"
+      },
       "PracticeAcousticAccessRead": {
         "description": "The sole immutable browser Practice acoustic deployment.",
         "properties": {
@@ -6808,6 +6919,25 @@
           "is_active"
         ],
         "title": "ProfileUserRead",
+        "type": "object"
+      },
+      "RationalRead": {
+        "properties": {
+          "denominator": {
+            "exclusiveMinimum": 0.0,
+            "title": "Denominator",
+            "type": "integer"
+          },
+          "numerator": {
+            "title": "Numerator",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "numerator",
+          "denominator"
+        ],
+        "title": "RationalRead",
         "type": "object"
       },
       "RecordingTimebase": {
@@ -11996,6 +12126,40 @@
         "summary": "Get Playback Url",
         "tags": [
           "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/playback/performance-plan": {
+      "post": {
+        "operationId": "create_performance_plan_api_v1_playback_performance_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformancePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformancePlanRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed)."
+          }
+        },
+        "summary": "Create Performance Plan",
+        "tags": [
+          "Playback"
         ]
       }
     },
