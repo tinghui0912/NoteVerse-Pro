@@ -46,13 +46,13 @@ describe('standalone sound renderer adaptation', () => {
     expect(document.querySelector('direction')).toBeNull();
   });
 
-  it('keeps the original tempo/navigation/tuning element and projects only the literal tempo attribute', () => {
+  it('retains standalone navigation/tuning and transfers only literal tempo into the playback aid', () => {
     const source = '<sound id="original" tempo="90.0" dacapo="yes" dynamics="70" time-only="1"><play><other-play type="tuning-mei">equal</other-play></play></sound>';
     const xml = `<score-partwise><part><measure><note/>${source}<note/></measure></part></score-partwise>`;
     const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
     const original = document.querySelector('measure > sound')!;
     expect(original).not.toBeNull();
-    expect(Object.fromEntries(Array.from(original.attributes).map(attribute => [attribute.name, attribute.value]))).toEqual({ id: 'original', tempo: '90.0', dacapo: 'yes', dynamics: '70', 'time-only': '1' });
+    expect(Object.fromEntries(Array.from(original.attributes).map(attribute => [attribute.name, attribute.value]))).toEqual({ id: 'original', dacapo: 'yes', dynamics: '70', 'time-only': '1' });
     expect(original.querySelector('other-play')?.textContent).toBe('equal');
     const aid = original.nextElementSibling!;
     expect(aid.localName).toBe('direction');
@@ -62,8 +62,8 @@ describe('standalone sound renderer adaptation', () => {
     expect(aid.nextElementSibling?.localName).toBe('note');
   });
 
-  it('preserves real combined tempo + D.C. performance expansion and positioned tempo occurrences', async () => {
-    const xml = navigationScore(false, '90');
+  it.each([false, true])('preserves real combined tempo + D.C. expansion and positioned tempo with Fine=%s', async fine => {
+    const xml = navigationScore(fine, '90');
     const raw = await rawRender(xml);
     const adapter = new VerovioScoreAdapter();
     try {
@@ -73,32 +73,45 @@ describe('standalone sound renderer adaptation', () => {
       expect(renderer.timemap.filter(event => Array.isArray(event.on)).map(event => ({ quarter: event.qstamp, ids: event.on }))).toEqual(raw.onsets);
       expect(renderer.expansionMap.a).toEqual(raw.expansion.a);
       const timeline = createVerovioPlaybackTimeline(midi, renderer);
-      expect(timeline.notes).toHaveLength(4);
-      expect(timeline.tempoEvents).toEqual([{ quarter: 0, bpm: 80 }, { quarter: 4, bpm: 90 }, { quarter: 12, bpm: 90 }]);
+      expect(timeline.notes).toHaveLength(fine ? 3 : 4);
+      expect(timeline.tempoEvents).toEqual([{ quarter: 0, bpm: 80 }, { quarter: 4, bpm: 90 }, ...(fine ? [] : [{ quarter: 12, bpm: 90 }])]);
       const onsets = [0, 3, 3 + 8 / 3, 3 + 16 / 3];
       timeline.notes.forEach((note, index) => expect(note.time).toBeCloseTo(onsets[index], 6));
       timeline.visualEvents.forEach((event, index) => expect(event.time).toBeCloseTo(onsets[index], 6));
-      expect(timeline.duration).toBeCloseTo(11, 6);
+      expect(timeline.duration).toBeCloseTo(fine ? 3 + 16 / 3 : 11, 6);
     } finally {
       adapter.dispose();
     }
   });
 
-  it('keeps the complete original sound and copies only tempo positioning into its renderer aid', () => {
+  it('keeps standalone offset and play structure while transferring tempo into its positioned aid', () => {
     const source = '<sound id="original" tempo="90" dacapo="yes" dynamics="70"><offset>2</offset><play><other-play type="tuning-mei">equal</other-play></play></sound>';
     const xml = `<score-partwise><part><measure>${source}</measure></part></score-partwise>`;
     const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
     const original = document.querySelector('measure > sound')!;
-    expect(new XMLSerializer().serializeToString(original).replace(/>\s+</g, '><')).toBe(source);
+    expect(new XMLSerializer().serializeToString(original).replace(/>\s+</g, '><')).toBe(source.replace(' tempo="90"', ''));
     const aid = original.nextElementSibling!;
-    expect(aid.outerHTML.replace(/>\s+</g, '><')).toBe('<direction><offset sound="yes">2</offset><sound tempo="90"><offset>2</offset></sound></direction>');
+    expect(aid.outerHTML.replace(/>\s+</g, '><')).toBe('<direction><offset sound="yes">2</offset><sound tempo="90"/></direction>');
   });
 
   it.each(['', ' sound="no"', ' sound="yes"'])('projects a direction sound position without interpreting its tempo number: %s', flag => {
     const xml = `<score-partwise><part><measure><direction><offset${flag}>2</offset><sound tempo="90.0"/></direction></measure></part></score-partwise>`;
     const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
-    expect(document.querySelector('direction > sound')?.getAttribute('tempo')).toBe('90.0');
-    expect(document.querySelector('direction > offset')?.textContent ?? null).toBe(flag.includes('yes') ? '2' : null);
+    const original = document.querySelector('direction')!;
+    expect(original.querySelector('sound')?.hasAttribute('tempo')).toBe(false);
+    expect(original.querySelector('offset')?.outerHTML).toBe(`<offset${flag}>2</offset>`);
+    const aid = original.nextElementSibling!;
+    expect(aid.querySelector('sound')?.getAttribute('tempo')).toBe('90.0');
+    expect(aid.querySelector('offset')?.textContent ?? null).toBe(flag.includes('yes') ? '2' : null);
+  });
+
+  it('preserves the original visual direction and every non-tempo sound fact during an offset override', () => {
+    const original = '<direction id="mark" placement="above"><direction-type><words>Andante</words></direction-type><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>90</per-minute></metronome></direction-type><offset sound="yes">1</offset><sound tempo="90.0" dacapo="yes" dynamics="70" time-only="1"><offset>2</offset><play><other-play type="tuning-mei">equal</other-play></play></sound></direction>';
+    const xml = `<score-partwise><part><measure>${original}</measure></part></score-partwise>`;
+    const document = new DOMParser().parseFromString(sanitizeMusicXmlForVerovio(xml), 'application/xml');
+    const visual = document.querySelector('direction')!;
+    expect(visual.outerHTML.replace(/>\s+</g, '><')).toBe(original.replace(' tempo="90.0"', ''));
+    expect(visual.nextElementSibling?.outerHTML.replace(/>\s+</g, '><')).toBe('<direction><offset sound="yes">2</offset><sound tempo="90.0"/></direction>');
   });
 
   it('rejects ambiguous or invalid renderer positioning structure', () => {

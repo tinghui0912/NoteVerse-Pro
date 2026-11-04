@@ -52,8 +52,9 @@ describe('renderer performance tempo projection', () => {
     expect(() => projectPerformanceTempos(timing(tempo('90', '0')))).toThrow();
   });
 
-  it('requires canonical quarter BPM instead of interpreting MEI metronome notation', () => {
-    expect(() => projectPerformanceTempos(timing('<tempo tstamp="1" mm="60" mm.unit="2"/>'))).toThrow('canonical quarter BPM');
+  it('ignores presentation-only MEI metronome notation and consumes only playback midi.bpm', () => {
+    expect(projectPerformanceTempos(timing(tempo('90', '1') + '<tempo tstamp="5" mm="60" mm.unit="2"/>'))).toEqual([{ quarter: 0, bpm: 90 }]);
+    expect(projectPerformanceTempos(timing('<tempo tstamp="5" mm="60" mm.unit="2"/>'))).toEqual([{ quarter: 0, bpm: 80 }]);
   });
 
   it.each([120, 173])('rebuilds engine %i MIDI tempo before deriving notes, and uses qstamp for cursor time', engineBpm => {

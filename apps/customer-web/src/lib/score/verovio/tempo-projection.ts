@@ -62,7 +62,7 @@ export function projectPerformanceTempos(input: VerovioPerformanceTiming): Perfo
     }
     for (const tempo of Array.from(element.children).filter(child => child.localName === 'tempo')) {
       if (!tempo.hasAttribute('midi.bpm')) {
-        if (tempo.hasAttribute('mm')) throw new Error('Renderer tempo requires canonical quarter BPM.');
+        // mm-only tempo is presentation notation, not a quarter-BPM playback fact.
         continue;
       }
       const stamp = numeric(tempo.getAttribute('tstamp'), 'tempo timestamp') - 1;
