@@ -175,7 +175,7 @@ def _associate_endings(
 
 
 def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> PerformanceProjection:
-    if model.sound_navigation or model.navigation_markers:
+    if model.playback_navigation or model.navigation_markers:
         raise PerformanceNavigationError("unsupported_performance_navigation")
 
     # An unannotated part has no opinion. Annotated parts must each provide the

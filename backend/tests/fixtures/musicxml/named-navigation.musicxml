@@ -1,0 +1,19 @@
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <sound segno="S1"/>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <sound segno="S2" coda="C1"/>
+      <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>
+    </measure>
+    <measure number="2">
+      <sound dalsegno="S2" tocoda="C2" time-only="2"><offset>1</offset></sound>
+      <note id="n3"><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration></note>
+      <sound coda="C2"/>
+      <note id="n4"><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration></note>
+      <sound fine="1.5"/>
+    </measure>
+  </part>
+</score-partwise>

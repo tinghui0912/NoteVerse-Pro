@@ -87,11 +87,27 @@ the first part has no privileged authority. Partial programs in different parts
 are never combined. Conflicting annotated programs raise
 `PerformanceNavigationError("conflicting_part_navigation")`.
 
-The written model preserves sound navigation attributes, standalone Segno/Coda
-markers and repeat `after-jump` attributes. These are admissible canonical notation,
-but D.C., D.S., Segno, Coda, Fine, time-only restrictions and explicit after-jump
-behavior raise `PerformanceNavigationError`. Jump markers currently retain structural
-identity without an exact `WrittenPoint` and are not executable.
+## Playback navigation facts
+
+The written model preserves typed `WrittenPlaybackNavigation` events with exact
+`WrittenPoint` identity. One sound event retains its named segno/coda destinations,
+D.S./To Coda references, D.C./forward-repeat flags, Fine source token and optional
+strictly ascending `time_only` pass predicate together. Named tokens collapse XML
+whitespace and remain case-sensitive. Duplicate labels and unresolved references
+are preserved; this projection does not select or resolve a destination.
+
+Visual `WrittenNavigationMarker` facts have independent exact presentation points.
+Direction offsets always move those glyphs, while playback uses sound-owned offset,
+then direction offset only with `sound="yes"`, then zero. A visual segno/coda alone
+is not a playback destination authority, and a playback destination needs no glyph.
+Barline glyphs retain left/start, right/shared-end or middle/cursor positioning.
+
+These facts and repeat `after-jump` attributes are admissible canonical notation,
+but any playback navigation event or visual navigation marker causes
+`PerformanceNavigationError("unsupported_performance_navigation")`. D.C., D.S.,
+To Coda, Fine, forward-repeat, time-only gating, reference resolution and explicit
+after-jump behavior are not executed. Linear, simple repeat and supported volta
+traversal remain separate from that unsupported capability.
 
 ## Consumer ownership
 

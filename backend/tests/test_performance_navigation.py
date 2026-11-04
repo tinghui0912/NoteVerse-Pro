@@ -2,7 +2,6 @@
 
 from dataclasses import FrozenInstanceError
 from fractions import Fraction
-import xml.etree.ElementTree as ET
 
 import pytest
 import verovio
@@ -218,30 +217,30 @@ def test_ending_facts_survive_admission_and_select_whole_measure_visits():
 
 
 @pytest.mark.parametrize(
-    "attribute",
+    "attribute,field,expected",
     [
-        'dacapo="yes"',
-        'dalsegno="s"',
-        'segno="s"',
-        'coda="c"',
-        'tocoda="c"',
-        'fine="yes"',
-        'forward-repeat="yes"',
-        'time-only="1,2"',
+        ('dacapo="yes"', "dacapo", True),
+        ('dalsegno="s"', "dalsegno", "s"),
+        ('segno="s"', "segno", "s"),
+        ('coda="c"', "coda", "c"),
+        ('tocoda="c"', "tocoda", "c"),
+        ('fine="yes"', "fine", "yes"),
+        ('forward-repeat="yes"', "forward_repeat", True),
+        ('time-only="1,2"', "time_only", (1, 2)),
     ],
 )
 @pytest.mark.parametrize("nested", [False, True])
 def test_sound_navigation_preserves_effective_playback_position_without_executing(
-    attribute, nested
+    attribute, field, expected, nested
 ):
     sound = f"<sound {attribute}><offset>1</offset></sound>"
     markup = f'<direction><offset sound="yes">2</offset>{sound}</direction>' if nested else sound
     xml = score(measure(0, markup)).replace("<divisions>1", "<divisions>3")
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
-    fact = model.sound_navigation[0]
+    fact = model.playback_navigation[0]
     assert fact.position == Fraction(1, 3)
     assert fact.part_index == fact.measure_index == 0
-    assert dict(fact.attributes) == dict(ET.fromstring(f"<sound {attribute}/>").attrib)
+    assert getattr(fact, field) == expected
     with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
         project_performance_occurrences(model)
 

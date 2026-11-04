@@ -98,11 +98,46 @@ projection. Missing barline location means right.
 normalized `passes`. Passes are a sorted tuple of positive integers; `1,2` and
 `1, 2` represent the same set. A blank number has `passes=None`, preserving unknown
 pass semantics as a valid written fact. Malformed numeric lists are invalid facts.
-`WrittenSoundNavigation` retains part/measure identity, exact positioned playback
-location and literal navigation attributes. Its offset uses the same sound-position
-owner as tempo. `WrittenNavigationMarker` retains structural Segno/Coda glyphs in
-directions or barlines. These observations do not execute navigation. A written
-measure and its notes occur exactly once in this model.
+A written measure and its notes occur exactly once in this model.
+
+### Playback navigation facts
+
+`WrittenPlaybackNavigation` is one immutable event per navigation-bearing sound.
+It inherits part, measure number/index, exact Fraction position and `WrittenPoint`.
+Typed fields are `dacapo`, `dalsegno`, `segno`, `coda`, `tocoda`, `fine`,
+`forward_repeat` and `time_only`. Attributes on one sound retain their common
+position and pass predicate. Its effective playback offset uses
+`musicxml_sound_position.resolve_sound_offset_quarters`, shared with tempo.
+
+`segno` and `coda` name playback destinations; `dalsegno` and `tocoda` preserve
+named references. XML whitespace collapses within tokens, empty tokens are rejected
+and label identity is case-sensitive. Multiple destinations, duplicate labels,
+unresolved references and separate part facts are preserved without resolution.
+Absent `dacapo` / `forward-repeat` are false; only literal `yes` is accepted when
+present. `fine` retains a normalized, nonempty source token without interpreting
+termination or note duration. `time_only` is `None` when absent, otherwise a tuple
+of strictly ascending positive integers. Zero, leading zeros, duplicate/out-of-order
+values and malformed comma lists are rejected rather than repaired.
+
+### Visual navigation markers
+
+`WrittenNavigationMarker` independently inherits the exact `WrittenPoint`, part
+and measure identity. It records kind (`segno` / `coda`), source (`direction` /
+`barline`) and optional barline location. A visual glyph is not a named playback
+destination; playback-only destinations do not require a visual glyph.
+
+`musicxml_direction_position.resolve_direction_offset_quarters` owns presentation
+offsets as exact Fraction quarters. A direction offset always moves the visual
+marker; it moves associated sound only with `sound="yes"`. A sound-owned offset
+overrides direction playback placement without changing the visual point.
+Left barline markers use measure start; right markers use the shared measure end
+after all part extents or empty-measure duration are known. Middle barline markers
+use the exact written cursor at that source element. Source measure identity is
+retained even when endpoint and next-start quarters are numerically equal.
+
+These positioned navigation facts do not execute jumps.
+
+### Consumer projections
 
 Practice projects those written positions, canonicalizing only at its six-decimal
 artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
