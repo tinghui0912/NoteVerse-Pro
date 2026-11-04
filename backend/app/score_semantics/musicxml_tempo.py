@@ -203,7 +203,7 @@ def materialize_tempo_playback(root: ET.Element) -> bool:
                         original.attrib.pop("tempo", None)
                         if _one(original, "offset") is None and effective_offset is not None:
                             effective_offset.attrib.pop("sound", None)
-                            original.insert(0, effective_offset)
+                            original.append(effective_offset)
                         measure.insert(list(measure).index(element) + 1, original)
                         namespace = element.tag.removesuffix("direction")
                         sound = ET.SubElement(element, namespace + "sound")

@@ -142,7 +142,8 @@ not inherit an unrelated or redundant sound's predicate. A matching gated
 Materialization keeps ungated metronome tempo separate from an existing gated sound.
 The original non-tempo sound event is preserved as an adjacent standalone sound,
 including its attributes, children and applicability. Inherited direction playback
-offset becomes a sound-owned offset when needed. The direction retains its notation
+offset becomes a sound-owned offset in MusicXML's legal final sound-child position
+when needed. The direction retains its notation
 and an ungated tempo sound with the equivalent playback position. Namespace,
 canonical tempo facts and navigation positions are preserved, and admission is
 idempotent.

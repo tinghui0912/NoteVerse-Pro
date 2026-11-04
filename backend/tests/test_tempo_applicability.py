@@ -93,7 +93,7 @@ def test_tempo_directive_applicability_belongs_to_its_source(sound, marking, exp
         ('<sound dynamics="70" time-only="2"/>', ""),
         ('<sound dynamics="70" dalsegno="S1" time-only="2"/>', ""),
         (
-            '<sound dynamics="70" time-only="2"><offset>2</offset><play><mute>on</mute></play></sound>',
+            '<sound dynamics="70" time-only="2"><play><mute>on</mute></play><offset>2</offset></sound>',
             "",
         ),
         ('<sound dalsegno="S1" time-only="2"/>', '<offset sound="yes">2</offset>'),
@@ -218,9 +218,57 @@ def test_mismatching_metronome_and_sound_still_conflict():
         )
 
 
+@pytest.mark.parametrize("namespace", ["", "urn:musicxml"])
+@pytest.mark.parametrize("own_offset", [False, True])
+@pytest.mark.parametrize(
+    "children",
+    [
+        "<play><mute>on</mute></play>",
+        "<swing><first>2</first><second>1</second><swing-type>eighth</swing-type></swing>",
+        "<play><mute>on</mute></play><swing><first>2</first><second>1</second><swing-type>eighth</swing-type></swing>",
+    ],
+)
+def test_valid_sound_children_keep_order_before_owned_or_inherited_offset(
+    namespace, own_offset, children
+):
+    sound = (
+        f'<sound dynamics="70" dalsegno="S1" time-only="2">{children}'
+        + ("<offset>2</offset>" if own_offset else "")
+        + "</sound>"
+    )
+    content = score(f'<direction>{METRO}<offset sound="yes">2</offset>{sound}</direction>')
+    if namespace:
+        content = content.replace(
+            b"<score-partwise ", f'<score-partwise xmlns="{namespace}" '.encode()
+        )
+    before = parse_score_semantics(content)
+    trusted = admit_musicxml_document(content)
+    root = ET.fromstring(trusted)
+    measure = next(e for e in root.iter() if e.tag.rsplit("}", 1)[-1] == "measure")
+    original = next(e for e in measure if e.tag.rsplit("}", 1)[-1] == "sound")
+    expected = list(ET.fromstring(f"<sound>{children}<offset>2</offset></sound>"))
+    assert [e.tag.rsplit("}", 1)[-1] for e in original] == [e.tag for e in expected]
+    plain = deepcopy(original)
+    for element in plain.iter():
+        element.tag = element.tag.rsplit("}", 1)[-1]
+    assert [ET.tostring(e) for e in plain] == [ET.tostring(e) for e in expected]
+    assert original.attrib == {"dynamics": "70", "dalsegno": "S1", "time-only": "2"}
+    after = parse_score_semantics(trusted)
+    assert after.tempos == before.tempos
+    assert after.playback_navigation == before.playback_navigation
+    assert (after.tempos[0].position, after.tempos[0].time_only) == (2, None)
+    assert (after.playback_navigation[0].position, after.playback_navigation[0].time_only) == (
+        2,
+        (2,),
+    )
+    assert admit_musicxml_document(trusted) == trusted
+    if namespace:
+        assert all(e.tag.startswith("{" + namespace + "}") for e in root.iter())
+
+
 def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point():
     content = score(
-        f'<direction>{METRO}<sound dynamics="70" time-only="2"><offset>2</offset></sound></direction>'
+        f'<direction>{METRO}<offset sound="yes">2</offset><sound dynamics="70" time-only="2"><play><mute>on</mute></play></sound></direction>'
     )
     trusted = admit_musicxml_document(content)
     model = parse_score_semantics(trusted)
