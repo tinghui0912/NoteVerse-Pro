@@ -176,7 +176,7 @@ All annotated parts must provide the same complete jump-and-repeat program; a
 jump-only part and a repeat-only part cannot be combined into one program.
 Destination source representation remains irrelevant to semantic agreement.
 
-One phase-aware leg traversal emits the intervals for linear, repeat, volta and
+One state-aware leg traversal emits the intervals for linear, repeat, volta and
 jump programs. Before the primary jump, ordinary repeats always use their normal
 total play count, regardless of `after-jump`. This also means a no-jump score
 plays a backward repeat normally with either `after-jump="yes"` or `"no"`.
@@ -187,8 +187,8 @@ After the primary D.C./D.S. transfer, an encountered repeat uses its own policy:
 - Missing `after-jump` fails with `ambiguous_repeat_after_jump`.
 
 A backward repeat never encountered after the primary jump needs no policy.
-The post-primary phase persists through a subsequent To Coda transfer, including
-repeat regions after the Coda destination. Phase is explicit control state, not
+The post-primary state persists through a subsequent To Coda transfer, including
+repeat regions after the Coda destination. This is explicit control state, not
 an interpretation of occurrence visit count. Generic fact replay encounters
 tempo markings on every actual visit; tempo carries across repeat jumps until
 an encountered marking changes it.
@@ -210,7 +210,7 @@ It has exactly three finite legs: origin to primary source, primary target to
 To Coda source, and Coda target to score end. The primary executes only on the
 first leg. To Coda is inactive before primary transfer and executes once on the
 second leg, with absent applicability or explicit `time-only="2"`. Primary
-applicability remains absent/`(1,)`. These are supported control phases, not a
+applicability remains absent/`(1,)`. These are supported control states, not a
 general pass evaluator or an interpretation of occurrence `visit`.
 
 To Coda resolves a case-sensitive named reference only against playback
@@ -260,7 +260,7 @@ general MusicXML pass-state model. Metadata maps errors without adding gating or
 immutable `CanonicalPerformancePlan`, the shared performance-axis contract derived
 from canonical written semantics. It contains the navigation `projection`, exact
 Fraction `initial_tempo_bpm` from the generated tempo policy, and ordered
-`PerformanceTempoEvent(occurrence_ordinal, position, bpm)` encounters. Only real
+`PerformanceTempoEvent(occurrence_ordinal, performance_position, bpm)` encounters. Only real
 encountered source facts enter `tempo_events`; a score without explicit tempo has
 initial state 80 and no tempo events. Same-quarter source and destination encounters
 remain separate, in traversal order. Applying them in order makes the last
@@ -274,18 +274,51 @@ across every transition, including backward jumps, until an encountered explicit
 tempo changes it. An explicit marking is encountered again on each corresponding
 visit. Duration stays rational until the final millisecond rounding.
 
-The backend MIDI conductor consumes the same plan. It initializes tempo from plan
-policy, then applies the ordered encounters, coalescing only at the MIDI tick
-serialization boundary to the last state per tick. MEI, timemap and expansionMap
-do not define backend tempo chronology. Verovio still supplies MIDI note events;
-note traversal can differ from canonical intervals, and conductor correction alone
-does not correct that traversal. Other MIDI tracks remain byte-for-byte intact.
+Backend playback admits one document and builds this plan. Verovio runs with
+`expandNever=true` solely to realize written-axis MIDI events. The SMF decoder
+retains exact input tick fractions, track/channel identity and stable source order.
+The MIDI projector replays those events through canonical occurrence intervals;
+Verovio expansion, MEI navigation and timemap repeat order are not consumed.
+The final MIDI notes and conductor share the same canonical performance axis,
+and every track ends at the plan's performance end before FluidSynth synthesis.
+
+`processing/engines/playback/standard_midi.py` owns SMF parsing and serialization.
+`performance_midi.py` owns written-event projection, without parsing MusicXML.
+`VerovioMidiCompiler` orchestrates admission, written semantics, plan construction,
+written realization, projection and serialization. Domain score semantics has no
+binary MIDI, renderer or processing dependency.
+
+Onsets replay only inside the performed interval `[start, end)`; an onset before
+an exact destination is never invented on entry. Matching releases at endpoints
+execute before transfer. Notes can continue across contiguous written measures;
+at a discontinuity or termination, active notes receive explicit note-offs and
+All Sound Off terminates pedal-held voices. Program/controller/pitch state carries
+until an actually encountered event changes it. Equal-position source events,
+cut termination and destination-entry events retain that encounter order.
+
+Channel voice events (note-on/off, program, controllers, bend and pressure) and
+ordinary text/identity/meter/key metadata are supported. SMF format 0/1 requires
+positive PPQ division and balanced, positive-duration written note lifecycles. SysEx,
+SMPTE timing/offset, opaque sequencer metadata, nonzero ports, unsupported channel
+modes, overlapping same-key notes and channels shared across tracks fail closed.
+For non-note events at a shared measure boundary, SMF lacks source-side ownership;
+projection accepts only identical encounter mappings for the candidate sides,
+otherwise it reports `ambiguous_midi_boundary_state`. No event/layout fallback
+uses renderer expansion.
+
+Canonical tempo encounters alone supply conductor state. The serializer applies
+same-position tempos in encounter order and emits the last state at that tick.
+Quarter coordinates remain Fraction throughout projection. Output PPQ is the LCM
+of input PPQ and required canonical/event denominators, bounded by SMF's 32767
+limit; positions are never rounded to ticks. Unrepresentable grids fail closed.
+Only the MIDI microseconds-per-quarter encoding rounds the rational tempo rate
+at final serialization.
 
 `POST /api/v1/playback/performance-plan` accepts `{musicxml: string}` without score
 identity, authentication or database/storage access. It admits the supplied
 document, parses written semantics, builds the plan and returns the exact admitted
-UTF-8 MusicXML with `end`, `initial_tempo_bpm`, `occurrences` and `tempo_events`.
-All rational values use integer `{numerator, denominator}` pairs with positive
+UTF-8 MusicXML with `performance_end`, `initial_tempo_bpm`, `occurrences` and `tempo_events`.
+Tempo events name their coordinate `performance_position`. All rational values use integer `{numerator, denominator}` pairs with positive
 denominators; no rounding or transient version field enters transport. OpenAPI
 owns this DTO and generates the customer-web types. Source-invalid input uses
 the existing 422 `revision_content_invalid` policy; unsupported performance uses
@@ -293,29 +326,11 @@ the existing 422 `revision_content_invalid` policy; unsupported performance uses
 exception. No renderer fallback, persistence or plan cache is involved.
 
 Practice uses written notes, events and moments and does not unfold repeats. Its
-Verovio instance uses `expandNever: true`. Score Preview uses renderer performance
-coordinates. Real Verovio tests witness conformance for supported simple repeats
-and volta. Its 6.3.0 MusicXML jump expansion rounds the tested mid-measure D.C./D.S.
-source/target/Fine paths to whole measures: both renderer paths contain 24 quarters,
-while the exact canonical paths contain 20 quarters (15000 ms at 80 BPM). The
-mid-measure Coda fixtures similarly expand to 28 renderer quarters, compared with
-23 exact D.C. quarters and 22 exact D.S. quarters. In the explicit repeat plus
-D.C./Fine fixtures, Verovio agrees with the domain's measure order for both
-`after-jump="yes"` and `"no"`, while rounding the partial source/Fine spans to
-44/36 renderer quarters instead of the exact 40/32 quarters.
-For a non-origin invisible repeat start, Verovio 6.3.0 uses an implicit origin
-instead: the no-jump witness visits `0,1,2,0,1,2` (24 quarters), while the domain
-visits `0,1,2,1,2` (20 quarters). In the corresponding D.C./Fine witnesses,
-renderer totals are 60/48 quarters for `after-jump="yes"`/`"no"`, versus exact
-domain totals 48/40. The invisible-start interpretation and partial-jump rounding
-are separate integration gaps. These renderer gaps do not change
-domain coordinates or timing; renderer traversal is
-not the canonical domain authority.
-
-With `expandNever=true`, real Verovio 6.3.0 MIDI note-on positions and timemap
-note identities stay on written chronology for the ordinary-repeat, D.C. and
-non-origin invisible-repeat fixtures. This characterizes renderer note extraction;
-the canonical plan remains the performance contract.
+Verovio instance uses `expandNever: true`. Score Preview retains its browser
+renderer integration. Backend realization tests verify written MIDI note positions
+and timemap identity with expansion disabled for repeat, jump and invisible-start
+notation. Final backend MIDI tests verify the performed pitch sequence and exact
+end against the canonical plan, including partial source and destination intervals.
 
 Canonical document admission validates written semantics without calling this
 projector. Unknown ending numbers, unsupported complex ending layouts and valid

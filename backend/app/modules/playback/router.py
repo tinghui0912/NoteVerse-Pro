@@ -6,8 +6,11 @@ from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.playback.delivery import PlaybackDeliveryService
-from app.modules.playback.plan import compile_performance_plan
-from app.modules.playback.schemas import PerformancePlanRequest, PerformancePlanRead
+from app.modules.playback.performance_plan_service import compile_performance_plan
+from app.modules.playback.performance_plan_schemas import (
+    PerformancePlanRequest,
+    PerformancePlanRead,
+)
 
 router = APIRouter()
 

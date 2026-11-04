@@ -394,7 +394,7 @@ def test_volta_does_not_enable_after_jump_repeat_behavior():
 
 
 @pytest.mark.parametrize("times", [2, 3])
-def test_real_verovio_simple_volta_conformance(times):
+def test_real_verovio_realizes_volta_on_written_axis(times):
     back = "1" if times == 2 else "1,2"
     xml = score(
         [
@@ -407,13 +407,10 @@ def test_real_verovio_simple_volta_conformance(times):
     model = parse_score_semantics(xml)
     toolkit = verovio.toolkit()
     assert model.repeats[-1].times is None
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(xml)
     toolkit.renderToMIDI()
     events = [e for e in toolkit.renderToTimemap() if e.get("on")]
     rendered = [int(e["on"][0].split("-rend")[0][1:]) for e in events]
-    domain = [o.measure_index for o in project_performance_occurrences(model).occurrences]
-    assert rendered == domain
-    assert [Fraction(str(e["qstamp"])) for e in events] == [
-        o.performance_start for o in project_performance_occurrences(model).occurrences
-    ]
+    assert rendered == [0, 1, 2, 3]
+    assert [Fraction(str(e["qstamp"])) for e in events] == [0, 4, 8, 12]

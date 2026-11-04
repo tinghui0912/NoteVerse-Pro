@@ -90,7 +90,7 @@ def test_performance_consumers_share_the_plan_entry_point():
     for path in (
         "processing/musicxml/metadata.py",
         "processing/engines/playback/verovio_midi.py",
-        "modules/playback/plan.py",
+        "modules/playback/performance_plan_service.py",
     ):
         tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
         imported = {
@@ -115,3 +115,26 @@ def test_navigation_projection_depends_on_written_facts_and_standard_library():
                 assert node.module.split(".")[0] in sys.stdlib_module_names
         elif isinstance(node, ast.Import):
             assert all(alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names)
+
+
+def test_midi_codec_and_projection_have_explicit_adapter_dependencies():
+    allowed = {
+        "standard_midi": set(),
+        "performance_midi": {
+            "standard_midi",
+            "app.score_semantics.performance_plan",
+            "app.score_semantics.written_point",
+        },
+    }
+    for module, dependencies in allowed.items():
+        tree = ast.parse(
+            (ROOT / f"processing/engines/playback/{module}.py").read_text(encoding="utf-8")
+        )
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                assert (
+                    node.module in dependencies
+                    or node.module.split(".")[0] in sys.stdlib_module_names
+                )
+            elif isinstance(node, ast.Import):
+                assert all(a.name.split(".")[0] in sys.stdlib_module_names for a in node.names)

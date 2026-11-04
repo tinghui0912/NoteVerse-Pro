@@ -2825,7 +2825,6 @@ export type PerformanceOccurrenceRead = {
  * PerformancePlanRead
  */
 export type PerformancePlanRead = {
-    end: RationalRead;
     initial_tempo_bpm: RationalRead;
     /**
      * Musicxml
@@ -2835,6 +2834,7 @@ export type PerformancePlanRead = {
      * Occurrences
      */
     occurrences: Array<PerformanceOccurrenceRead>;
+    performance_end: RationalRead;
     /**
      * Tempo Events
      */
@@ -3270,7 +3270,7 @@ export type PerformanceTempoEventRead = {
      * Occurrence Ordinal
      */
     occurrence_ordinal: number;
-    position: RationalRead;
+    performance_position: RationalRead;
 };
 
 /**

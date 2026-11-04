@@ -109,7 +109,7 @@ def _playback_duration_ms(plan: CanonicalPerformancePlan) -> int:
     cursor = Fraction(0)
     total_seconds = Fraction(0)
     for fact in plan.tempo_events:
-        position, next_tempo = fact.position, fact.bpm
+        position, next_tempo = fact.performance_position, fact.bpm
         total_seconds += (position - cursor) * 60 / tempo
         cursor = position
         tempo = next_tempo

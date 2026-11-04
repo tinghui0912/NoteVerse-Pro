@@ -7,7 +7,7 @@ from app.score_semantics.performance_navigation import PerformanceNavigationErro
 from app.score_semantics.performance_plan import build_performance_plan
 from app.shared.constants import ErrorCode
 
-from .schemas import (
+from .performance_plan_schemas import (
     PerformanceOccurrenceRead,
     PerformancePlanRead,
     PerformanceTempoEventRead,
@@ -27,7 +27,7 @@ def compile_performance_plan(musicxml: str) -> PerformancePlanRead:
     rational = RationalRead.from_fraction
     return PerformancePlanRead(
         musicxml=admitted.decode("utf-8"),
-        end=rational(plan.projection.end),
+        performance_end=rational(plan.projection.end),
         initial_tempo_bpm=rational(plan.initial_tempo_bpm),
         occurrences=[
             PerformanceOccurrenceRead(
@@ -44,7 +44,7 @@ def compile_performance_plan(musicxml: str) -> PerformancePlanRead:
         tempo_events=[
             PerformanceTempoEventRead(
                 occurrence_ordinal=t.occurrence_ordinal,
-                position=rational(t.position),
+                performance_position=rational(t.performance_position),
                 bpm=rational(t.bpm),
             )
             for t in plan.tempo_events

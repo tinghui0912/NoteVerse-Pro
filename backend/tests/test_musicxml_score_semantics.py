@@ -126,7 +126,7 @@ def test_cross_projection_written_witness(monkeypatch):
         assert [(o.written_start, o.written_end) for o in performance.occurrences] == [
             (model.measures[i].start, model.measures[i].end) for i in [0, 1, 0, 1, 2, 3]
         ]
-        assert tuple((f.position, f.bpm) for f in plan.tempo_events) == (
+        assert tuple((f.performance_position, f.bpm) for f in plan.tempo_events) == (
             (Fraction(2), Fraction(90)),
             (Fraction(10), Fraction(90)),
         )

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from fractions import Fraction
 
 from app.shared.constants import ErrorCode
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
-from .tempo_projection import playback_musicxml, project_midi_tempos
+from .standard_midi import parse_standard_midi, serialize_standard_midi
+from .performance_midi import project_performance_midi
 
 
 @dataclass(frozen=True)
@@ -36,8 +36,11 @@ class VerovioMidiCompiler:
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: {exc}") from exc
 
         toolkit = verovio.toolkit()
-        toolkit.setOptions({"inputFrom": "xml"})
-        loaded = toolkit.loadData(playback_musicxml(admitted))
+        if toolkit.setOptions({"inputFrom": "xml", "expandNever": True}) is False:
+            raise RuntimeError(
+                f"{ErrorCode.SCORE_PLAYBACK_FAILED}: written realization options rejected"
+            )
+        loaded = toolkit.loadData(admitted.decode("utf-8"))
         if loaded is False:
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: failed to load MusicXML")
 
@@ -51,13 +54,11 @@ class VerovioMidiCompiler:
         if not midi.startswith(b"MThd"):
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid MIDI header")
         try:
-            tempos = [(Fraction(0), plan.initial_tempo_bpm)] + [
-                (t.position, t.bpm) for t in plan.tempo_events
-            ]
-            midi = project_midi_tempos(midi, tempos)
+            written = parse_standard_midi(midi)
+            midi = serialize_standard_midi(project_performance_midi(written, plan))
         except (ValueError, KeyError, IndexError) as exc:
             raise RuntimeError(
-                f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid tempo projection"
+                f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid canonical MIDI projection"
             ) from exc
         return CompiledMidi(
             content=midi,

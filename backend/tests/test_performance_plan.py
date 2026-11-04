@@ -8,10 +8,10 @@ import pytest
 from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
-from tests.test_exact_jump_navigation import dc_score, ds_score
-from tests.test_exact_coda_navigation import dc_measures, ds_measures
-from tests.test_invisible_forward_repeats import INVISIBLE, measure, score, backward
-from tests.test_post_jump_repeats import jump_measures, repeat, sound
+from tests.support.canonical_musicxml import dc_score, ds_score, boundary_tempos
+from tests.support.canonical_musicxml import dc_measures, ds_measures
+from tests.support.canonical_musicxml import INVISIBLE, measure, score, backward
+from tests.support.canonical_musicxml import jump_measures, repeat, sound
 
 
 def plan(xml):
@@ -77,19 +77,9 @@ def test_plan_preserves_official_volta_passes(back, final, order):
     assert [o.measure_index for o in plan(xml).projection.occurrences] == order
 
 
-def boundary_tempos():
-    return score(
-        [
-            measure(0, {0: repeat("forward") + sound('tempo="80"')}),
-            measure(1, {4: sound('tempo="100"') + backward()}),
-            measure(2),
-        ]
-    )
-
-
 def test_same_performance_quarter_preserves_source_then_destination_encounters():
     result = plan(boundary_tempos())
-    assert [(t.occurrence_ordinal, t.position, t.bpm) for t in result.tempo_events] == [
+    assert [(t.occurrence_ordinal, t.performance_position, t.bpm) for t in result.tempo_events] == [
         (0, 0, 80),
         (1, 8, 100),
         (2, 8, 80),
@@ -107,7 +97,9 @@ def test_default_is_initial_state_and_never_a_fake_encounter(explicit):
     xml = score([measure(0, {0: sound('tempo="100"')} if explicit else {})])
     result = plan(xml)
     assert result.initial_tempo_bpm == Fraction(80)
-    assert [(t.position, t.bpm) for t in result.tempo_events] == ([(0, 100)] if explicit else [])
+    assert [(t.performance_position, t.bpm) for t in result.tempo_events] == (
+        [(0, 100)] if explicit else []
+    )
 
 
 def test_dc_source_tempo_precedes_destination_tempo_at_one_performance_quarter():
@@ -117,19 +109,19 @@ def test_dc_source_tempo_precedes_destination_tempo_at_one_performance_quarter()
         .replace('<sound dacapo="yes"/>', sound('tempo="100"') + '<sound dacapo="yes"/>')
     )
     result = plan(xml)
-    assert [(t.occurrence_ordinal, t.position, t.bpm) for t in result.tempo_events] == [
+    assert [(t.occurrence_ordinal, t.performance_position, t.bpm) for t in result.tempo_events] == [
         (0, 0, 80),
         (3, 14, 100),
         (4, 14, 80),
     ]
-    assert all(type(t.position) is type(t.bpm) is Fraction for t in result.tempo_events)
+    assert all(type(t.performance_position) is type(t.bpm) is Fraction for t in result.tempo_events)
     assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
 
 
 def test_same_value_source_encounters_are_not_deduplicated():
     xml = score([measure(0, {0: sound('tempo="100"') * 2})])
     result = plan(xml)
-    assert [(t.occurrence_ordinal, t.position, t.bpm) for t in result.tempo_events] == [
+    assert [(t.occurrence_ordinal, t.performance_position, t.bpm) for t in result.tempo_events] == [
         (0, 0, 100),
         (0, 0, 100),
     ]

@@ -80,17 +80,17 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   actual entry. It integrates exact duration with one tempo
   state initialized at performance origin. A repeat jump retains the active tempo;
   an explicit marking changes it again whenever encountered on a repeated visit.
-- Backend playback admits one canonical document, parses its written model and
-  builds `CanonicalPerformancePlan`. Its MIDI conductor starts from plan initial
-  state and applies ordered plan tempo encounters. An explicit origin fact overrides
-  the initial state at the same tick; source/destination encounters at the same
-  quarter remain ordered in the plan and coalesce to their last state only when
-  writing MIDI ticks. Renderer MEI/timemap/expansionMap do not define backend tempo
-  chronology. Verovio still supplies note MIDI traversal, which can disagree with
-  canonical occurrences. The conductor adapter preserves other tracks byte-for-byte;
-  it does not fix note traversal. FluidSynth
-  consumes that MIDI. Stored MusicXML and revision hashes contain no missing-tempo
-  default fact. The adapter computes no MusicXML note/forward/backup chronology.
+- Backend playback admits one canonical document and builds `CanonicalPerformancePlan`.
+  Verovio with `expandNever=true` provides written-axis MIDI realization only.
+  NoteVerse projects its notes, state and metadata through canonical occurrences,
+  and writes the conductor from plan initial state and ordered tempo encounters.
+  Explicit origin tempo overrides initial state. Same-quarter source/destination
+  tempo encounters remain ordered in the plan and coalesce to the last state only
+  at MIDI serialization. MIDI end equals canonical performance end on every track.
+  Exact LCM PPQ selection represents input ticks and canonical rational boundaries
+  without rounding; an unrepresentable grid fails closed. FluidSynth consumes this
+  final performance MIDI. Stored MusicXML and revision hashes contain no default
+  tempo fact. Renderer expansion is not a backend chronology input.
 - Score Preview owns a performance projection in
   `lib/score/verovio/tempo-projection.ts`. It consumes renderer MEI quarter-BPM facts,
   one-based tempo timestamps, staff meter units, Timemap measure quarter-positions
@@ -114,8 +114,7 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   this literal structure without parsing BPM, divisions or score chronology.
   MEI `tempo` with `mm` but no `midi.bpm` is presentation-only and contributes no
   playback rate. Positioned `midi.bpm` facts alone own browser playback chronology. Canonical
-  source bytes remain unchanged. Backend renderer input is playback-only and selects
-  its positioning fact through the canonical sound-position owner.
+  source bytes remain unchanged. Backend tempo placement comes directly from the canonical performance plan.
   Positioned MEI tempo facts define browser chronology; an unpositioned scoreDef MIDI rate
   does not establish an origin tempo. Stored source is unchanged.
 - Practice uses its notation-order artifact quarter axis. Its own Verovio adapter

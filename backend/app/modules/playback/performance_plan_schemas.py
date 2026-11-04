@@ -30,13 +30,13 @@ class PerformanceOccurrenceRead(BaseModel):
 
 class PerformanceTempoEventRead(BaseModel):
     occurrence_ordinal: int
-    position: RationalRead
+    performance_position: RationalRead
     bpm: RationalRead
 
 
 class PerformancePlanRead(BaseModel):
     musicxml: str
-    end: RationalRead
+    performance_end: RationalRead
     initial_tempo_bpm: RationalRead
     occurrences: list[PerformanceOccurrenceRead]
     tempo_events: list[PerformanceTempoEventRead]

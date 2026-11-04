@@ -205,16 +205,13 @@ def test_true_cross_part_boundary_slot_conflicts_are_still_rejected(owner):
 
 
 def test_real_verovio_boundary_witness():
-    from app.processing.engines.playback.tempo_projection import (
-        playback_musicxml,
-    )
     from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
-    from tests.test_playback_tempo_policy import conductor_events
+    from tests.support.midi_observations import conductor_events
 
     xml = endpoint_score()
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
-    assert toolkit.loadData(playback_musicxml(admit_musicxml_document(xml.encode())))
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
+    assert toolkit.loadData(admit_musicxml_document(xml.encode()).decode())
     toolkit.renderToMIDI()
     timing = toolkit.renderToTimemap({"includeMeasures": True})
     endpoint = [e for e in ET.fromstring(toolkit.getMEI()).iter() if e.tag.endswith("}tempo")]
@@ -224,8 +221,6 @@ def test_real_verovio_boundary_witness():
     events = conductor_events(VerovioMidiCompiler().compile(xml.encode()).content)
     assert events == [(Fraction(0), Fraction(80))] + rates(parse_score_semantics(xml))
     assert [e["on"][0].split("-rend")[0] for e in timing if e.get("on")] == [
-        "n0",
-        "n1",
         "n0",
         "n1",
         "n2",

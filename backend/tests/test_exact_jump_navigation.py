@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 import pytest
+from tests.support.canonical_musicxml import sound, measure, score_measures, dc_score, ds_score
 import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
@@ -15,56 +16,6 @@ from app.score_semantics.performance_navigation import (
     project_performance_occurrences,
 )
 from app.score_semantics.written_point import WrittenPoint
-
-
-def sound(attributes):
-    return f"<sound {attributes}/>"
-
-
-def measure(index, events=None):
-    events = events or {}
-    attributes = (
-        "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
-        if index == 0
-        else ""
-    )
-    body = "".join(
-        events.get(q, "")
-        + f'<note id="n{index}_{q}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>'
-        for q in range(4)
-    ) + events.get(4, "")
-    return f'<measure id="m{index}" number="{index + 1}">{attributes}{body}</measure>'
-
-
-def score(*measures, other=None):
-    names = '<score-part id="P1"><part-name>Piano</part-name></score-part>'
-    parts = '<part id="P1">' + "".join(measures) + "</part>"
-    if other is not None:
-        names += '<score-part id="P2"><part-name>Piano</part-name></score-part>'
-        parts += (
-            '<part id="P2">'
-            + "".join(other).replace('id="n', 'id="p2n').replace('id="m', 'id="p2m')
-            + "</part>"
-        )
-    return f'<score-partwise version="4.0"><part-list>{names}</part-list>{parts}</score-partwise>'
-
-
-def dc_score(fine=True):
-    return score(
-        measure(0),
-        measure(1, {2: sound('fine="yes"')} if fine else {}),
-        measure(2),
-        measure(3, {2: sound('dacapo="yes"')}),
-    )
-
-
-def ds_score(fine=True):
-    return score(
-        measure(0),
-        measure(1, {1: sound('segno="S1"')}),
-        measure(2, {2: sound('fine="yes"')} if fine else {}),
-        measure(3, {3: sound('dalsegno="S1"')}),
-    )
 
 
 def projection(xml):
@@ -185,14 +136,14 @@ def test_fine_point_facts_execute_before_termination():
 
 
 def test_source_at_measure_start_has_one_point_visit_before_transfer():
-    result = projection(score(measure(0), measure(1, {0: sound('dacapo="yes"')})))
+    result = projection(score_measures(measure(0), measure(1, {0: sound('dacapo="yes"')})))
     assert intervals(result) == [(0, 1, 0, 4), (1, 1, 4, 4), (0, 2, 0, 4), (1, 2, 4, 8)]
     facts = result.project_facts([WrittenPerformanceFact(WrittenPoint(1, Fraction(4)), "source")])
     assert [(f.occurrence_ordinal, f.position) for f in facts] == [(1, 4), (3, 8)]
 
 
 def test_target_at_measure_end_has_one_point_visit_before_next_measure():
-    xml = score(
+    xml = score_measures(
         measure(0, {4: sound('segno="S1"')}), measure(1), measure(2, {2: sound('dalsegno="S1"')})
     )
     result = projection(xml)
@@ -219,7 +170,9 @@ def test_target_at_measure_end_has_one_point_visit_before_next_measure():
 
 
 def test_fine_at_destination_origin_stops_in_one_zero_duration_visit():
-    result = projection(score(measure(0, {0: sound('fine="yes"'), 2: sound('dacapo="yes"')})))
+    result = projection(
+        score_measures(measure(0, {0: sound('fine="yes"'), 2: sound('dacapo="yes"')}))
+    )
     assert intervals(result) == [(0, 1, 0, 2), (0, 2, 0, 0)]
     assert [
         (f.position, f.value)
@@ -230,7 +183,7 @@ def test_fine_at_destination_origin_stops_in_one_zero_duration_visit():
 
 
 def test_fine_at_next_measure_start_preserves_both_boundary_owners():
-    xml = score(
+    xml = score_measures(
         measure(0, {4: sound('segno="S1"')}),
         measure(1, {0: sound('fine="yes"')}),
         measure(2, {2: sound('dalsegno="S1"')}),
@@ -241,7 +194,7 @@ def test_fine_at_next_measure_start_preserves_both_boundary_owners():
 
 
 def test_same_measure_backward_jump_is_two_distinct_entries_without_artificial_splits():
-    xml = score(
+    xml = score_measures(
         measure(0, {1: sound('segno="S1"'), 2: sound('fine="yes"'), 3: sound('dalsegno="S1"')})
     )
     assert intervals(projection(xml)) == [(0, 1, 0, 3), (0, 2, 1, 2)]
@@ -269,7 +222,7 @@ def test_supported_default_and_explicit_jump_fine_predicates(primary, fine):
 
 @pytest.mark.parametrize("kind", ["segno", "coda"])
 def test_playback_destinations_without_commands_are_inert_in_repeated_scores(kind):
-    xml = score(
+    xml = score_measures(
         measure(
             0, {0: f'<barline location="left" {kind}="L"><repeat direction="forward"/></barline>'}
         ),
@@ -302,20 +255,20 @@ def test_multipart_program_agreement_is_semantic_and_complete(opinion):
             measure(2, {2: sound('dalsegno="S1"')}),
         ],
     }[opinion]
-    xml = score(*first, other=second)
+    xml = score_measures(*first, other=second)
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     if opinion in {"partial", "different"}:
         with pytest.raises(PerformanceNavigationError, match="conflicting_part_navigation"):
             project_performance_occurrences(model)
     else:
         assert intervals(project_performance_occurrences(model)) == intervals(
-            projection(score(*first))
+            projection(score_measures(*first))
         )
         assert extract_musicxml_metadata(xml).playback_duration_ms == 9000
 
 
 def test_same_point_sound_and_barline_destination_duplicates_collapse():
-    xml = score(
+    xml = score_measures(
         measure(0),
         measure(1, {0: sound('segno="S1"') + '<barline location="left" segno="S1"/>'}),
         measure(2, {2: sound('dalsegno="S1"')}),
@@ -330,7 +283,7 @@ def test_same_point_sound_and_barline_destination_duplicates_collapse():
 def test_ds_resolves_barline_playback_destinations_with_exact_boundary_ownership(
     location, measure_index, local, target
 ):
-    xml = score(
+    xml = score_measures(
         *[
             measure(
                 i,
@@ -415,7 +368,7 @@ def test_duplicate_primary_representation_at_one_semantic_point_is_one_command()
     ],
 )
 def test_unsupported_programs_stay_admissible_but_fail_before_traversal(body, error):
-    xml = score(measure(0, body))
+    xml = score_measures(measure(0, body))
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     with pytest.raises(PerformanceNavigationError, match=f"^{error}$"):
         project_performance_occurrences(model)
@@ -459,7 +412,7 @@ def test_fractional_navigation_positions_stay_exact(kind):
 
 
 def test_same_numeric_destination_at_different_measure_edges_is_ambiguous():
-    xml = score(
+    xml = score_measures(
         measure(0, {4: sound('segno="S1"')}),
         measure(1, {0: sound('segno="S1"')}),
         measure(2, {2: sound('dalsegno="S1"')}),
@@ -469,7 +422,7 @@ def test_same_numeric_destination_at_different_measure_edges_is_ambiguous():
 
 
 def test_canonical_sound_offsets_resolve_exact_jump_and_fine_points():
-    xml = score(
+    xml = score_measures(
         measure(0),
         measure(1, {0: '<sound segno="S1"><offset>1</offset></sound>'}),
         measure(
@@ -482,7 +435,7 @@ def test_canonical_sound_offsets_resolve_exact_jump_and_fine_points():
 
 
 def test_unresolved_cross_measure_boundary_jump_point_fails_without_guessing_side():
-    xml = score(
+    xml = score_measures(
         measure(0, {3: '<sound dacapo="yes"><offset>5</offset></sound>'}), measure(1), measure(2)
     )
     with pytest.raises(PerformanceNavigationError, match="ambiguous_cross_measure_boundary"):
@@ -501,26 +454,12 @@ def test_destination_metadata_can_share_one_unambiguous_command_event():
 
 
 @pytest.mark.parametrize("kind", ["dc", "ds"])
-def test_real_verovio_characterizes_measure_rounded_jump_gap(kind):
+def test_real_verovio_written_jump_realization(kind):
     xml = dc_score() if kind == "dc" else ds_score()
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(admit_musicxml_document(xml.encode()).decode())
     toolkit.renderToMIDI()
-    timing = toolkit.renderToTimemap({"includeMeasures": True})
-    events = [e for e in timing if e.get("on")]
-    rendered_notes = [e["on"][0].split("-rend")[0] for e in events]
-    renderer_written_quarters = list(range(16)) + (
-        list(range(8)) if kind == "dc" else list(range(4, 12))
-    )
-    assert rendered_notes == [f"n{q // 4}_{q % 4}" for q in renderer_written_quarters]
-    # Verovio 6.3.0 rounds these commands/targets/Fine to whole measures.
-    # The exact domain path remains 20 quarters, independently of that renderer gap.
-    assert max(Fraction(str(e["qstamp"])) for e in timing) == 24
-    result = projection(xml)
-    assert result.end == 20
-    domain_written_quarters = [
-        q for o in result.occurrences for q in range(int(o.written_start), int(o.written_end))
-    ]
-    assert len(domain_written_quarters) == 20
-    assert renderer_written_quarters != domain_written_quarters
+    timing = toolkit.renderToTimemap()
+    assert [e["on"][0] for e in timing if e.get("on")] == [f"n{q // 4}_{q % 4}" for q in range(16)]
+    assert max(e["qstamp"] for e in timing) == 16

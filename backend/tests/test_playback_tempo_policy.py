@@ -7,12 +7,16 @@ import base64
 import xml.etree.ElementTree as ET
 
 import pytest
+from tests.support.midi_observations import conductor_events
 import verovio
 
 from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
-from app.processing.engines.playback.tempo_projection import (
-    project_midi_tempos,
+from dataclasses import replace
+from app.processing.engines.playback.standard_midi import (
+    parse_standard_midi,
+    serialize_standard_midi,
 )
+from app.processing.engines.playback.performance_midi import project_performance_midi
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
@@ -33,39 +37,6 @@ def score(body):
         + body
         + "</measure></part></score-partwise>"
     ).encode()
-
-
-def conductor_events(midi):
-    ppq = int.from_bytes(midi[12:14], "big")
-    data = midi[22 : 22 + int.from_bytes(midi[18:22], "big")]
-    position = tick = 0
-    events = []
-
-    def vlq():
-        nonlocal position
-        result = 0
-        while True:
-            value = data[position]
-            position += 1
-            result = (result << 7) | (value & 127)
-            if value < 128:
-                return result
-
-    while position < len(data):
-        tick += vlq()
-        assert data[position] == 255
-        kind = data[position + 1]
-        position += 2
-        length = vlq()
-        if kind == 81:
-            events.append(
-                (
-                    Fraction(tick, ppq),
-                    60_000_000 / int.from_bytes(data[position : position + length], "big"),
-                )
-            )
-        position += length
-    return events
 
 
 @pytest.mark.parametrize(
@@ -105,21 +76,22 @@ def test_compiler_uses_effective_product_tempo_and_preserves_explicit_changes(bo
 
 def test_engine_implicit_tempo_cannot_become_product_authority():
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(score(note() + note()).decode())
     engine_midi = base64.b64decode(toolkit.renderToMIDI())
-    other_engine_default = 173
-    foreign = project_midi_tempos(engine_midi, [(Fraction(0), Fraction(other_engine_default))])
-    assert conductor_events(foreign)[0][1] == pytest.approx(other_engine_default, rel=1e-6)
+    written = parse_standard_midi(engine_midi)
+    foreign = replace(
+        written,
+        tracks=tuple(
+            tuple(
+                replace(e, tempo_bpm=Fraction(173)) if e.tempo_bpm is not None else e for e in track
+            )
+            for track in written.tracks
+        ),
+    )
     plan = build_performance_plan(parse_score_semantics(score(note() + note())))
-    tempos = [(Fraction(0), plan.initial_tempo_bpm)] + [
-        (t.position, t.bpm) for t in plan.tempo_events
-    ]
-    projected = project_midi_tempos(foreign, tempos)
+    projected = serialize_standard_midi(project_performance_midi(foreign, plan))
     assert conductor_events(projected) == [(0, 80)]
-    original_end = 22 + int.from_bytes(foreign[18:22], "big")
-    projected_end = 22 + int.from_bytes(projected[18:22], "big")
-    assert projected[projected_end:] == foreign[original_end:]
 
 
 def test_missing_tempo_is_only_a_consumer_projection_not_a_source_fact():
@@ -209,46 +181,11 @@ def test_real_renderer_effective_sound_offset(notation, position):
 
 
 def test_same_tick_conductor_uses_last_encounter_without_changing_plan_history():
-    from tests.test_performance_plan import boundary_tempos
+    from tests.support.canonical_musicxml import boundary_tempos
 
     content = boundary_tempos().encode()
     plan = build_performance_plan(parse_score_semantics(content))
-    assert [t.bpm for t in plan.tempo_events if t.position == 8] == [100, 80]
+    assert [t.bpm for t in plan.tempo_events if t.performance_position == 8] == [100, 80]
     events = conductor_events(VerovioMidiCompiler().compile(content).content)
     assert [position for position, _ in events] == [0, 8, 16]
     assert [bpm for _, bpm in events] == pytest.approx([80, 80, 100], rel=1e-6)
-
-
-def test_compiler_uses_canonical_plan_even_when_renderer_navigation_disagrees(monkeypatch):
-    from unittest.mock import Mock
-    from tests.test_exact_jump_navigation import dc_score
-    from app.processing.engines.playback import verovio_midi
-
-    content = (
-        dc_score()
-        .replace('<sound dacapo="yes"/>', '<sound tempo="100"/><sound dacapo="yes"/>')
-        .encode()
-    )
-    renderer = verovio.toolkit()
-    renderer.setOptions({"inputFrom": "xml"})
-    assert renderer.loadData(content.decode())
-    encoded = renderer.renderToMIDI()
-    # The engine's rounded jump path is 24 quarters; the source tempo belongs
-    # at exact canonical q14, not its renderer-owned measure position.
-    assert max(e["qstamp"] for e in renderer.renderToTimemap()) == 24
-    fake = Mock()
-    fake.loadData.return_value = True
-    fake.renderToMIDI.return_value = encoded
-    for name in ("getMEI", "renderToTimemap", "renderToExpansionMap"):
-        getattr(fake, name).side_effect = AssertionError("Renderer tempo coordinates are not input")
-    monkeypatch.setattr(verovio, "toolkit", lambda: fake)
-    admission = Mock(wraps=admit_musicxml_document)
-    monkeypatch.setattr(verovio_midi, "admit_musicxml_document", admission)
-    compiled = VerovioMidiCompiler().compile(content).content
-    admission.assert_called_once_with(content)
-    assert [p for p, _ in conductor_events(compiled)] == [0, 14]
-    assert [b for _, b in conductor_events(compiled)] == pytest.approx([80, 100], rel=1e-6)
-    original = base64.b64decode(encoded)
-    original_end = 22 + int.from_bytes(original[18:22], "big")
-    compiled_end = 22 + int.from_bytes(compiled[18:22], "big")
-    assert compiled[compiled_end:] == original[original_end:]

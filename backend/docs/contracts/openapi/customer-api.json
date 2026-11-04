@@ -5694,9 +5694,6 @@
       },
       "PerformancePlanRead": {
         "properties": {
-          "end": {
-            "$ref": "#/components/schemas/RationalRead"
-          },
           "initial_tempo_bpm": {
             "$ref": "#/components/schemas/RationalRead"
           },
@@ -5711,6 +5708,9 @@
             "title": "Occurrences",
             "type": "array"
           },
+          "performance_end": {
+            "$ref": "#/components/schemas/RationalRead"
+          },
           "tempo_events": {
             "items": {
               "$ref": "#/components/schemas/PerformanceTempoEventRead"
@@ -5721,7 +5721,7 @@
         },
         "required": [
           "musicxml",
-          "end",
+          "performance_end",
           "initial_tempo_bpm",
           "occurrences",
           "tempo_events"
@@ -6451,13 +6451,13 @@
             "title": "Occurrence Ordinal",
             "type": "integer"
           },
-          "position": {
+          "performance_position": {
             "$ref": "#/components/schemas/RationalRead"
           }
         },
         "required": [
           "occurrence_ordinal",
-          "position",
+          "performance_position",
           "bpm"
         ],
         "title": "PerformanceTempoEventRead",

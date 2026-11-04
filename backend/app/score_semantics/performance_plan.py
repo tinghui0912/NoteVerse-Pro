@@ -15,7 +15,7 @@ from .tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 @dataclass(frozen=True)
 class PerformanceTempoEvent:
     occurrence_ordinal: int
-    position: Fraction
+    performance_position: Fraction
     bpm: Fraction
 
 

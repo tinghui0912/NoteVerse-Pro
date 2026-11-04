@@ -8,12 +8,12 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_db, get_current_user
 from app.core.exceptions import ValidationException
 from app.main import create_app
-from app.modules.playback.plan import compile_performance_plan
-from app.modules.playback.schemas import PerformancePlanRead
+from app.modules.playback.performance_plan_service import compile_performance_plan
+from app.modules.playback.performance_plan_schemas import PerformancePlanRead
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
-from tests.test_invisible_forward_repeats import measure, score, sound
+from tests.support.canonical_musicxml import measure, score, sound
 
 PATH = "/api/v1/playback/performance-plan"
 
@@ -40,14 +40,20 @@ def test_unauthed_plan_has_exact_rationals_and_no_persistence_identity(client):
     assert response.status_code == 200
     body = response.json()
     assert body["musicxml"] == xml
-    assert set(body) == {"musicxml", "end", "initial_tempo_bpm", "occurrences", "tempo_events"}
-    assert body["end"] == {"numerator": 4, "denominator": 3}
-    assert body["tempo_events"][0]["position"] == {"numerator": 1, "denominator": 3}
+    assert set(body) == {
+        "musicxml",
+        "performance_end",
+        "initial_tempo_bpm",
+        "occurrences",
+        "tempo_events",
+    }
+    assert body["performance_end"] == {"numerator": 4, "denominator": 3}
+    assert body["tempo_events"][0]["performance_position"] == {"numerator": 1, "denominator": 3}
     assert body["tempo_events"][0]["bpm"] == {"numerator": 201, "denominator": 2}
     result = build_performance_plan(parse_score_semantics(body["musicxml"]))
-    assert fraction(body["end"]) == result.projection.end
+    assert fraction(body["performance_end"]) == result.projection.end
     for read, event in zip(body["tempo_events"], result.tempo_events, strict=True):
-        assert fraction(read["position"]) == event.position
+        assert fraction(read["performance_position"]) == event.performance_position
         assert fraction(read["bpm"]) == event.bpm
         assert read["occurrence_ordinal"] == event.occurrence_ordinal
     for read, occurrence in zip(body["occurrences"], result.projection.occurrences, strict=True):
@@ -71,9 +77,9 @@ def test_materialized_document_is_the_single_returned_semantic_source(client):
     assert body["musicxml"].encode() == admit_musicxml_document(xml.encode())
     assert client.post(PATH, json={"musicxml": body["musicxml"]}).json() == body
     plan = build_performance_plan(parse_score_semantics(body["musicxml"]))
-    assert [(fraction(t["position"]), fraction(t["bpm"])) for t in body["tempo_events"]] == [
-        (t.position, t.bpm) for t in plan.tempo_events
-    ]
+    assert [
+        (fraction(t["performance_position"]), fraction(t["bpm"])) for t in body["tempo_events"]
+    ] == [(t.performance_position, t.bpm) for t in plan.tempo_events]
 
 
 @pytest.mark.parametrize(

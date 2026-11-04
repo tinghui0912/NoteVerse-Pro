@@ -13,7 +13,7 @@ MusicXML score-partwise
        -> metadata written events
        -> performance navigation -> CanonicalPerformancePlan
             -> metadata playback duration
-            -> backend MIDI conductor / exact HTTP transport
+            -> backend performance MIDI / exact HTTP transport
 ```
 
 ## Exact written facts
@@ -198,12 +198,14 @@ into visited measure intervals.
 Intervals may be partial; their full written measure identity remains intact.
 Ending pass sets select actual visits;
 the written model itself never unfolds them.
-Metadata consumes those occurrences and their projected tempo facts for duration;
+`CanonicalPerformancePlan` combines those occurrences, initial tempo policy and
+ordered tempo encounters. Metadata consumes the plan for duration;
 tempo state persists across jumps until an encountered marking changes it. Ending
 layouts and jump programs outside that subset remain valid written notation but fail
 the performance capability boundary. Score Preview separately consumes Verovio's unfolded performance
-coordinates and renderer tempo projection. Renderer expansion is a conformance
-witness, not canonical domain truth.
+coordinates and renderer tempo projection. Backend playback instead obtains
+written MIDI with `expandNever` and projects its events through the canonical
+plan. Renderer expansion is not a backend performance input.
 
 ## Boundaries
 

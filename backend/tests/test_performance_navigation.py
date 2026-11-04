@@ -288,11 +288,10 @@ def test_metadata_carries_tempo_across_repeat_jump_until_a_mark_reexecutes(reset
 
 
 @pytest.mark.parametrize("times", [None, 3])
-def test_real_verovio_is_a_simple_repeat_order_conformance_witness(times):
+def test_real_verovio_realizes_simple_repeat_on_written_axis(times):
     xml = score(measure(0, bar("forward")), measure(1, after=bar("backward", times=times)))
-    model = parse_score_semantics(xml)
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(xml)
     toolkit.renderToMIDI()
     order = [
@@ -300,7 +299,7 @@ def test_real_verovio_is_a_simple_repeat_order_conformance_witness(times):
         for event in toolkit.renderToTimemap()
         if event.get("on")
     ]
-    assert order == [o.measure_index for o in project_performance_occurrences(model).occurrences]
+    assert order == [0, 1]
 
 
 def test_written_repeat_preserves_default_location_count_and_after_jump():

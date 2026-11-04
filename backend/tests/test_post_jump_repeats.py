@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 import pytest
+from tests.support.canonical_musicxml import jump_measures, measure, repeat, score, sound
 import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
@@ -15,55 +16,6 @@ from app.score_semantics.performance_navigation import (
     project_performance_occurrences,
 )
 from app.score_semantics.written_point import WrittenPoint
-
-
-def sound(attributes):
-    return f"<sound {attributes}/>"
-
-
-def repeat(direction, policy=None, times=None):
-    location = "left" if direction == "forward" else "right"
-    attrs = (f' after-jump="{policy}"' if policy is not None else "") + (
-        f' times="{times}"' if times is not None else ""
-    )
-    return f'<barline location="{location}"><repeat direction="{direction}"{attrs}/></barline>'
-
-
-def measure(index, events=None):
-    events = events or {}
-    attributes = (
-        "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
-        if index == 0
-        else ""
-    )
-    body = "".join(
-        events.get(q, "")
-        + f'<note id="n{index}_{q}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>'
-        for q in range(4)
-    ) + events.get(4, "")
-    return f'<measure id="m{index}" number="{index + 1}">{attributes}{body}</measure>'
-
-
-def score(measures, other=None):
-    names = '<score-part id="P1"><part-name>Piano</part-name></score-part>'
-    parts = '<part id="P1">' + "".join(measures) + "</part>"
-    if other is not None:
-        names += '<score-part id="P2"><part-name>Piano</part-name></score-part>'
-        parts += (
-            '<part id="P2">'
-            + "".join(other).replace('id="n', 'id="p2n').replace('id="m', 'id="p2m')
-            + "</part>"
-        )
-    return f'<score-partwise version="4.0"><part-list>{names}</part-list>{parts}</score-partwise>'
-
-
-def jump_measures(policy=None, times=None, kind="dc"):
-    return [
-        measure(0, {0: repeat("forward") + (sound('segno="S1"') if kind == "ds" else "")}),
-        measure(1, {4: repeat("backward", policy, times)}),
-        measure(2, {2: sound('fine="yes"')}),
-        measure(3, {2: sound('dacapo="yes"' if kind == "dc" else 'dalsegno="S1"')}),
-    ]
 
 
 def projection(xml):
@@ -390,21 +342,12 @@ def test_gated_tempo_remains_unsupported():
 
 
 @pytest.mark.parametrize("policy", ["yes", "no"])
-def test_real_verovio_post_jump_repeat_witness(policy):
+def test_real_verovio_written_post_jump_repeat_realization(policy):
     xml = score(jump_measures(policy))
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(admit_musicxml_document(xml.encode()).decode())
     toolkit.renderToMIDI()
-    timing = toolkit.renderToTimemap({"includeMeasures": True})
-    rendered = [
-        int(e["on"][0].split("-rend")[0][1:].split("_")[0])
-        for e in timing
-        if e.get("on") and e["on"][0].split("-rend")[0].endswith("_0")
-    ]
-    result = projection(xml)
-    assert rendered == [o.measure_index for o in result.occurrences]
-    # Verovio honors the per-repeat policy, but rounds these mid-measure
-    # D.C./Fine cutoffs to full measures. Domain coordinates remain exact.
-    assert max(e["qstamp"] for e in timing) == (44 if policy == "yes" else 36)
-    assert result.end == (40 if policy == "yes" else 32)
+    timing = toolkit.renderToTimemap()
+    assert [e["on"][0] for e in timing if e.get("on")] == [f"n{q // 4}_{q % 4}" for q in range(16)]
+    assert max(e["qstamp"] for e in timing) == 16

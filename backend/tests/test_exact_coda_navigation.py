@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 import pytest
+from tests.support.canonical_musicxml import dc_measures, ds_measures, measure, score, sound
 import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
@@ -15,58 +16,6 @@ from app.score_semantics.performance_navigation import (
     project_performance_occurrences,
 )
 from app.score_semantics.written_point import WrittenPoint
-
-
-def sound(attributes):
-    return f"<sound {attributes}/>"
-
-
-def measure(index, events=None):
-    events = events or {}
-    attributes = (
-        "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
-        if index == 0
-        else ""
-    )
-    body = "".join(
-        events.get(q, "")
-        + f'<note id="n{index}_{q}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>'
-        for q in range(4)
-    ) + events.get(4, "")
-    return f'<measure id="m{index}" number="{index + 1}">{attributes}{body}</measure>'
-
-
-def score(measures, other=None):
-    names = '<score-part id="P1"><part-name>Piano</part-name></score-part>'
-    parts = '<part id="P1">' + "".join(measures) + "</part>"
-    if other is not None:
-        names += '<score-part id="P2"><part-name>Piano</part-name></score-part>'
-        parts += (
-            '<part id="P2">'
-            + "".join(other).replace('id="n', 'id="p2n').replace('id="m', 'id="p2m')
-            + "</part>"
-        )
-    return f'<score-partwise version="4.0"><part-list>{names}</part-list>{parts}</score-partwise>'
-
-
-def dc_measures(coda_local=1):
-    return [
-        measure(0),
-        measure(1, {2: sound('tocoda="C1"')}),
-        measure(2),
-        measure(3, {2: sound('dacapo="yes"')}),
-        measure(4, {coda_local: sound('coda="C1"')}),
-    ]
-
-
-def ds_measures(coda_local=1):
-    return [
-        measure(0),
-        measure(1, {1: sound('segno="S1"')}),
-        measure(2, {1: sound('tocoda="C1"')}),
-        measure(3, {3: sound('dalsegno="S1"')}),
-        measure(4, {coda_local: sound('coda="C1"')}),
-    ]
 
 
 def projection(xml):
@@ -475,26 +424,12 @@ def test_coda_repeat_program_validation_and_unreached_post_jump_context(markup, 
 
 
 @pytest.mark.parametrize("kind", ["dc", "ds"])
-def test_real_verovio_characterizes_measure_rounded_coda_gap(kind):
+def test_real_verovio_written_jump_realization(kind):
     xml = score(dc_measures() if kind == "dc" else ds_measures())
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(admit_musicxml_document(xml.encode()).decode())
     toolkit.renderToMIDI()
-    timing = toolkit.renderToTimemap({"includeMeasures": True})
-    events = [e for e in timing if e.get("on")]
-    renderer_written_quarters = (
-        list(range(16))
-        + (list(range(8)) if kind == "dc" else list(range(4, 12)))
-        + list(range(16, 20))
-    )
-    assert [e["on"][0].split("-rend")[0] for e in events] == [
-        f"n{q // 4}_{q % 4}" for q in renderer_written_quarters
-    ]
-    assert max(Fraction(str(e["qstamp"])) for e in timing) == 28
-    result = projection(xml)
-    assert result.end == (23 if kind == "dc" else 22)
-    exact_written_quarters = [
-        q for o in result.occurrences for q in range(int(o.written_start), int(o.written_end))
-    ]
-    assert renderer_written_quarters != exact_written_quarters
+    timing = toolkit.renderToTimemap()
+    assert [e["on"][0] for e in timing if e.get("on")] == [f"n{q // 4}_{q % 4}" for q in range(20)]
+    assert max(e["qstamp"] for e in timing) == 20

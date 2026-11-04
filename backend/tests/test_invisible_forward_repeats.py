@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 import pytest
+from tests.support.canonical_musicxml import INVISIBLE, VISIBLE, backward, measure, score, sound
 import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
@@ -15,45 +16,6 @@ from app.score_semantics.performance_navigation import (
     project_performance_occurrences,
 )
 from app.score_semantics.written_point import WrittenPoint
-
-
-def sound(attrs):
-    return f"<sound {attrs}/>"
-
-
-VISIBLE = '<barline location="left"><repeat direction="forward"/></barline>'
-INVISIBLE = sound('forward-repeat="yes"')
-
-
-def backward(policy=None, times=None):
-    attrs = (f' after-jump="{policy}"' if policy is not None else "") + (
-        f' times="{times}"' if times is not None else ""
-    )
-    return f'<barline location="right"><repeat direction="backward"{attrs}/></barline>'
-
-
-def measure(index, events=None):
-    events = events or {}
-    attributes = (
-        "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
-        if index == 0
-        else ""
-    )
-    body = "".join(
-        events.get(q, "")
-        + f'<note id="n{index}_{q}"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>'
-        for q in range(4)
-    ) + events.get(4, "")
-    return f'<measure number="{index + 1}">{attributes}{body}</measure>'
-
-
-def score(measures, other=None):
-    names = '<score-part id="P1"><part-name>Piano</part-name></score-part>'
-    parts = '<part id="P1">' + "".join(measures) + "</part>"
-    if other is not None:
-        names += '<score-part id="P2"><part-name>Piano</part-name></score-part>'
-        parts += '<part id="P2">' + "".join(other).replace('id="n', 'id="p2n') + "</part>"
-    return f'<score-partwise version="4.0"><part-list>{names}</part-list>{parts}</score-partwise>'
 
 
 def admitted(xml):
@@ -347,42 +309,18 @@ def test_tempo_replay_is_independent_of_start_representation(reset, policy):
 
 
 @pytest.mark.parametrize("policy", [None, "yes", "no"])
-def test_real_verovio_invisible_start_witness(policy):
+def test_real_verovio_written_invisible_repeat_realization(policy):
     measures = [measure(0), measure(1, {0: INVISIBLE}), measure(2, {4: backward(policy)})]
     if policy is not None:
         measures += [measure(3, {2: sound('fine="yes"')}), measure(4, {2: sound('dacapo="yes"')})]
     xml = score(measures)
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(admit_musicxml_document(xml.encode()).decode())
     toolkit.renderToMIDI()
-    timing = toolkit.renderToTimemap({"includeMeasures": True})
-    order = [
-        int(e["on"][0].split("-rend")[0][1:].split("_")[0])
-        for e in timing
-        if e.get("on") and e["on"][0].split("-rend")[0].endswith("_0")
+    timing = toolkit.renderToTimemap()
+    count = len(measures) * 4
+    assert [e["on"][0] for e in timing if e.get("on")] == [
+        f"n{q // 4}_{q % 4}" for q in range(count)
     ]
-    # Verovio ignores this non-origin invisible start and uses the implicit
-    # movement-origin start instead. Post-jump source/Fine rounding is separate.
-    rendered_order, domain_order, rendered_end, domain_end = {
-        None: ([0, 1, 2, 0, 1, 2], [0, 1, 2, 1, 2], 24, 20),
-        "yes": (
-            [0, 1, 2, 0, 1, 2, 3, 4, 0, 1, 2, 0, 1, 2, 3],
-            [0, 1, 2, 1, 2, 3, 4, 0, 1, 2, 1, 2, 3],
-            60,
-            48,
-        ),
-        "no": (
-            [0, 1, 2, 0, 1, 2, 3, 4, 0, 1, 2, 3],
-            [0, 1, 2, 1, 2, 3, 4, 0, 1, 2, 3],
-            48,
-            40,
-        ),
-    }[policy]
-    assert order == rendered_order
-    assert max(e["qstamp"] for e in timing) == rendered_end
-    result = projection(xml)
-    assert [o.measure_index for o in result.occurrences] == domain_order
-    assert result.end == domain_end
-    assert result == projection(xml.replace(INVISIBLE, VISIBLE))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == domain_end * 750
+    assert max(e["qstamp"] for e in timing) == count

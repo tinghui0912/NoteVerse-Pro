@@ -15,11 +15,8 @@ from app.modules.practice.score.compiler.musicxml import (
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
-from app.processing.engines.playback.tempo_projection import (
-    playback_musicxml,
-)
 from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
-from tests.test_playback_tempo_policy import conductor_events
+from tests.support.midi_observations import conductor_events
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.musicxml_tempo import parse_tempo_directive, MusicXMLTempoError
 from app.score_semantics.performance_navigation import (
@@ -274,8 +271,8 @@ def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point
     model = parse_score_semantics(trusted)
     assert (model.tempos[0].position, model.tempos[0].time_only) == (2, None)
     toolkit = verovio.toolkit()
-    toolkit.setOptions({"inputFrom": "xml"})
-    assert toolkit.loadData(playback_musicxml(trusted))
+    toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
+    assert toolkit.loadData(trusted.decode())
     toolkit.renderToMIDI()
     tempos = conductor_events(VerovioMidiCompiler().compile(trusted).content)
     assert tempos == [(Fraction(0), Fraction(80)), (Fraction(2), Fraction(100))]
