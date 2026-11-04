@@ -176,20 +176,23 @@ use the exact written cursor at that source element. Source measure identity is
 retained even when endpoint and next-start quarters are numerically equal.
 
 Visual-only markers do not alter linear, repeat or supported volta traversal.
-Playback navigation facts do not execute jumps.
+Playback navigation facts feed the performance navigation owner's supported
+exact D.C./D.S. and optional Fine projection; the written model never executes them.
 
 ### Consumer projections
 
 Practice projects those written positions, canonicalizing only at its six-decimal
 artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
 artifact share the written axis. The [performance navigation owner](performance-navigation.md)
-projects linear playback, simple non-nested barline repeats and supported whole-measure
-volta groups into exact measure occurrences. Ending pass sets select actual visits;
+projects linear playback, simple non-nested barline repeats, supported whole-measure
+volta groups and one exact D.C./D.S. with optional Fine into visited measure intervals.
+Intervals may be partial; their full written measure identity remains intact.
+Ending pass sets select actual visits;
 the written model itself never unfolds them.
 Metadata consumes those occurrences and their projected tempo facts for duration;
 tempo state persists across jumps until an encountered marking changes it. Ending
-layouts outside that subset and jump facts remain valid written notation but fail
-the unsupported performance capability boundary. Score Preview separately consumes Verovio's unfolded performance
+layouts and jump programs outside that subset remain valid written notation but fail
+the performance capability boundary. Score Preview separately consumes Verovio's unfolded performance
 coordinates and renderer tempo projection. Renderer expansion is a conformance
 witness, not canonical domain truth.
 

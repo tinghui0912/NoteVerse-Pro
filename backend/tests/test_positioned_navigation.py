@@ -13,7 +13,6 @@ from app.processing.musicxml.admission import admit_musicxml_document
 from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.performance_navigation import (
-    PerformanceNavigationError,
     project_performance_occurrences,
 )
 from app.score_semantics.written_point import WrittenPoint
@@ -210,8 +209,7 @@ def test_visual_only_and_playback_only_markers_remain_distinct(kind):
     assert len(visual.navigation_markers) == 1 and visual.playback_navigation == ()
     assert playback.navigation_markers == () and len(playback.playback_navigation) == 1
     assert [o.measure_index for o in project_performance_occurrences(visual).occurrences] == [0]
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-        project_performance_occurrences(playback)
+    assert [o.measure_index for o in project_performance_occurrences(playback).occurrences] == [0]
 
 
 def test_duplicate_labels_unresolved_references_and_part_identity_remain_source_facts():

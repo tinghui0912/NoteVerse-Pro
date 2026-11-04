@@ -12,6 +12,12 @@ Each occurrence records zero-based `ordinal` and `measure_index`, one-based `vis
 and `written_start`, `written_end`, `performance_start`, `performance_end`.
 Every position is a `Fraction` measured in quarters. Occurrence identity is domain
 identity; renderer occurrence suffixes carry no domain meaning.
+An occurrence is one contiguous performed interval inside one written measure,
+not necessarily the whole measure. `visit` counts entries into that measure,
+including an entry at a mid-measure destination. Jump sources, targets and Fine
+may cut intervals at exact rational points. A zero-duration occurrence is emitted
+only when an entry/exit point requires an encounter without a nonzero interval;
+it is not paired with a duplicate interval at the same entry.
 Written spans remain available independently of which branch occurrences are
 visited. Fact ownership always resolves against that complete table.
 
@@ -24,6 +30,9 @@ the same quarter can be one measure's endpoint and another measure's start.
 their source fact, occurrence ordinal and exact performance position. Stable
 source order and duplicate same-value facts are preserved. No BPM/value sorting
 or set-based coalescing defines encounter order.
+Only facts inside the occurrence's inclusive owned interval are replayed. Facts
+before a mid-measure destination or after a jump/Fine cutoff are excluded from
+that visit. Complete canonical `written_spans` remain independent of partial visits.
 
 `written_point.resolve_written_point` keeps an in-source-measure point owned by
 that measure, including both endpoints. A sound offset crossing into another
@@ -95,7 +104,7 @@ retains its named segno/coda destinations,
 D.S./To Coda references, D.C./forward-repeat flags, Fine source token and optional
 strictly ascending `time_only` pass predicate together. Named tokens collapse XML
 whitespace and remain case-sensitive. Duplicate labels and unresolved references
-are preserved; this projection does not select or resolve a destination. Barline
+are preserved. Barline
 segno/coda attributes also create playback destinations, with left/start,
 right/shared-end or middle/cursor ownership, independently of visual children.
 
@@ -106,18 +115,55 @@ is not a playback destination authority, and a playback destination needs no gly
 Barline glyphs retain left/start, right/shared-end or middle/cursor positioning.
 Visual-only markers do not alter linear, simple repeat or supported volta traversal.
 
-These facts and repeat `after-jump` attributes are admissible canonical notation,
-but any typed playback navigation event causes
-`PerformanceNavigationError("unsupported_performance_navigation")`. D.C., D.S.,
-To Coda, Fine, forward-repeat, reference resolution and explicit after-jump behavior
-are not executed.
+Playback segno/coda destinations alone are inert, including in linear, repeat and
+supported volta scores. Visual glyphs never participate in destination resolution.
+
+## Exact D.C./D.S. and Fine
+
+A jump program supports one primary D.C. or backward D.S. command and at most one
+Fine termination. D.C. targets the movement origin. D.S. resolves its case-sensitive
+normalized label against playback segno destinations from sound or barline facts.
+Same-label duplicates at the same resolved `WrittenPoint` are one destination;
+different points, including opposite sides of a numerically equal boundary, are
+ambiguous. Missing labels and equal/forward D.S. targets fail closed. D.C. at origin
+is non-progressing and rejected.
+
+Unannotated parts have no additional opinion. For a jump-enabled score, annotated
+parts must provide the same complete semantic role/point/label program; source
+XML representation is irrelevant. Sound and barline destinations may agree at the
+same point. Partial or differing part programs are rejected, never stitched.
+Equivalent default and explicit supported predicates normalize consistently.
+Destination metadata may accompany one unambiguous command; compound execution
+roles, such as D.C. plus Fine on one sound, are unsupported.
+
+The single primary jump executes on its first encounter, with default applicability
+or explicit `time-only="1"`. Later encounters do not jump. Fine must be `"yes"`,
+with absent applicability or `time-only="2"`. It is ignored before the primary
+jump and armed after transfer; its next encounter stops exactly at its owned point.
+A Fine before the D.S. target is not encountered on the second leg. Without Fine,
+the second leg continues to score end. An orphan Fine is unsupported.
+
+Traversal is finite by construction: one origin-to-source leg and one
+target-to-Fine/end leg. No step cap or timeout controls correctness. Ordinary facts
+at the source execute before transfer; destination facts execute on entry. Facts
+at Fine execute before termination. Tempo state carries across transfer until an
+actually encountered marking changes it. A tempo before an exact D.S. target is
+not replayed. Metadata consumes the same generic fact projection without jump rules.
+
+Unsupported programs fail before traversal: multiple primary commands/Fines,
+To Coda, numeric Fine duration, primary predicates other than absent/`(1,)`, Fine
+predicates other than absent/`(2,)`, gated destinations in executable programs,
+forward-repeat sound commands, and any jump combined with barline repeat or
+ending notation. Repeat `after-jump` remains unsupported. Canonical source admission
+does not impose these performance capability limits.
 
 `time-only` is generic sound applicability, parsed by the shared canonical datatype
 owner. It alone creates no navigation command. Sound tempo facts retain their
 predicate; any gated tempo causes
 `PerformanceNavigationError("unsupported_time_only_playback")`. Pass-aware
-applicability is not executed, and occurrence visit count is not used as a repeat
-pass counter. Metadata maps these errors without adding gating or jump logic.
+tempo applicability is not executed, and occurrence visit count is not used as a
+repeat pass counter. The restricted primary/Fine predicates above do not form a
+general MusicXML pass-state model. Metadata maps errors without adding gating or jump logic.
 
 ## Consumer ownership
 
@@ -131,8 +177,12 @@ visit. Duration stays rational until the final millisecond rounding.
 
 Practice uses written notes, events and moments and does not unfold repeats. Its
 Verovio instance uses `expandNever: true`. Score Preview uses renderer performance
-coordinates. Real Verovio tests witness conformance for the supported simple-repeat
-subset; renderer traversal is not the canonical domain authority.
+coordinates. Real Verovio tests witness conformance for supported simple repeats
+and volta. Its 6.3.0 MusicXML jump expansion rounds the tested mid-measure D.C./D.S.
+source/target/Fine paths to whole measures: both renderer paths contain 24 quarters,
+while the exact canonical paths contain 20 quarters (15000 ms at 80 BPM). The
+renderer gap does not change domain coordinates or timing; renderer traversal is
+not the canonical domain authority.
 
 Canonical document admission validates written semantics without calling this
 projector. Unknown ending numbers, unsupported complex ending layouts and valid

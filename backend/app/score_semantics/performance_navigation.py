@@ -1,4 +1,4 @@
-"""Exact performance occurrences for linear and simple non-nested repeats.
+"""Exact performance intervals for supported written navigation programs.
 
 Written facts remain immutable. This projection owns traversal and the mapping
 from written positions to their occurrences, independently of product timing.
@@ -38,6 +38,8 @@ class ProjectedPerformanceFact(Generic[T]):
 
 @dataclass(frozen=True)
 class PerformanceOccurrence:
+    """One contiguous visit inside a written measure, including required point visits."""
+
     ordinal: int
     measure_index: int
     visit: int
@@ -88,6 +90,7 @@ class PerformanceProjection:
             for fact in sorted(
                 grouped.get(occurrence.measure_index, ()), key=lambda f: f.point.position
             )
+            if occurrence.written_start <= fact.point.position <= occurrence.written_end
         )
 
 
@@ -174,12 +177,124 @@ def _associate_endings(
     return tuple(associated)
 
 
-def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> PerformanceProjection:
-    if model.playback_navigation:
-        raise PerformanceNavigationError("unsupported_performance_navigation")
-    if any(tempo.time_only is not None for tempo in model.tempos):
-        raise PerformanceNavigationError("unsupported_time_only_playback")
+@dataclass(frozen=True)
+class _NavigationFact:
+    kind: str
+    point: WrittenPoint
+    value: str
 
+
+@dataclass(frozen=True)
+class _JumpProgram:
+    source: WrittenPoint
+    target: WrittenPoint
+    fine: WrittenPoint | None
+
+
+def _point_order(point: WrittenPoint) -> tuple[int, Fraction]:
+    return point.measure_index, point.position
+
+
+def _compile_jump_program(
+    model: CanonicalScoreSemanticModel, spans: Sequence[tuple[Fraction, Fraction]]
+) -> _JumpProgram | None:
+    has_primary = any(f.dacapo or f.dalsegno is not None for f in model.playback_navigation)
+    if has_primary and (model.repeats or model.endings):
+        raise PerformanceNavigationError("unsupported_jump_repeat_interaction")
+    programs: dict[int, set[_NavigationFact]] = {}
+    for event in model.playback_navigation:
+        roles = [
+            (kind, value)
+            for kind, value in (
+                ("dacapo", "yes" if event.dacapo else None),
+                ("dalsegno", event.dalsegno),
+                ("fine", event.fine),
+                ("tocoda", event.tocoda),
+                ("forward-repeat", "yes" if event.forward_repeat else None),
+            )
+            if value is not None
+        ]
+        if len(roles) > 1:
+            raise PerformanceNavigationError("unsupported_compound_navigation_event")
+        if event.forward_repeat:
+            raise PerformanceNavigationError("unsupported_performance_navigation")
+        if event.tocoda is not None:
+            raise PerformanceNavigationError("unsupported_tocoda")
+        if event.fine is not None and event.fine != "yes":
+            raise PerformanceNavigationError("unsupported_numeric_fine_duration")
+        if roles and roles[0][0] in {"dacapo", "dalsegno"}:
+            if event.time_only not in (None, (1,)):
+                raise PerformanceNavigationError("unsupported_jump_time_only")
+        elif event.fine is not None:
+            if event.time_only not in (None, (2,)):
+                raise PerformanceNavigationError("unsupported_fine_time_only")
+        if (
+            has_primary
+            and event.time_only is not None
+            and (event.segno is not None or event.coda is not None)
+        ):
+            raise PerformanceNavigationError("unsupported_destination_time_only")
+        if not has_primary:
+            if event.fine is not None:
+                raise PerformanceNavigationError("unsupported_orphan_fine")
+            # Destinations without commands do not alter traversal or need resolution.
+            continue
+        try:
+            point = resolve_written_point(event.point, spans)
+        except WrittenPointError as error:
+            raise PerformanceNavigationError(str(error)) from error
+        program = programs.setdefault(event.part_index, set())
+        for kind, value in roles:
+            program.add(_NavigationFact(kind, point, value))
+        for destination_kind, label in (("segno", event.segno), ("coda", event.coda)):
+            if label is not None:
+                program.add(_NavigationFact(destination_kind, point, label))
+    if not has_primary:
+        return None
+    normalized = list(programs.values())
+    if any(program != normalized[0] for program in normalized[1:]):
+        raise PerformanceNavigationError("conflicting_part_navigation")
+    facts = normalized[0]
+    primary = [f for f in facts if f.kind in {"dacapo", "dalsegno"}]
+    if len(primary) != 1:
+        raise PerformanceNavigationError("unsupported_multiple_primary_jumps")
+    fines = [f.point for f in facts if f.kind == "fine"]
+    if len(fines) > 1:
+        raise PerformanceNavigationError("unsupported_multiple_fines")
+    command = primary[0]
+    if command.kind == "dacapo":
+        target = WrittenPoint(0, model.measures[0].start)
+        if command.point.position <= target.position:
+            raise PerformanceNavigationError("non_progressing_dacapo")
+    else:
+        destinations = {f.point for f in facts if f.kind == "segno" and f.value == command.value}
+        if not destinations:
+            raise PerformanceNavigationError("unresolved_jump_destination")
+        if len(destinations) != 1:
+            raise PerformanceNavigationError("ambiguous_jump_destination")
+        target = next(iter(destinations))
+        if target.position == command.point.position:
+            raise PerformanceNavigationError("non_progressing_dalsegno")
+        if target.position > command.point.position:
+            raise PerformanceNavigationError("unsupported_non_backward_dalsegno")
+    return _JumpProgram(command.point, target, fines[0] if fines else None)
+
+
+def _written_intervals(
+    model: CanonicalScoreSemanticModel, entry: WrittenPoint, exit: WrittenPoint
+) -> list[tuple[int, Fraction, Fraction]]:
+    # Inclusive owned endpoints create a point visit only at an actual entry/exit.
+    return [
+        (
+            index,
+            entry.position if index == entry.measure_index else model.measures[index].start,
+            exit.position if index == exit.measure_index else model.measures[index].end,
+        )
+        for index in range(entry.measure_index, exit.measure_index + 1)
+    ]
+
+
+def _repeat_measure_order(model: CanonicalScoreSemanticModel) -> list[int]:
     # An unannotated part has no opinion. Annotated parts must each provide the
     # same complete program; markers from different parts are never stitched.
     programs: dict[int, list[tuple[int, str, str, int | None, bool | None]]] = {}
@@ -258,19 +373,38 @@ def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> Perfo
                 order.extend(range(branch.start_measure_index, branch.end_measure_index + 1))
         index = context.continuation
 
+    return order
+
+
+def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> PerformanceProjection:
+    if any(tempo.time_only is not None for tempo in model.tempos):
+        raise PerformanceNavigationError("unsupported_time_only_playback")
+    spans = tuple((m.start, m.end) for m in model.measures)
+    jump = _compile_jump_program(model, spans)
+    if jump is None:
+        intervals = [(index, *spans[index]) for index in _repeat_measure_order(model)]
+    else:
+        origin = WrittenPoint(0, model.measures[0].start)
+        end = WrittenPoint(len(model.measures) - 1, model.end)
+        # First encounter takes the one primary jump; the second leg cannot jump.
+        # Fine is armed only on this second leg, and stops only if encountered.
+        stop = (
+            jump.fine
+            if jump.fine is not None and _point_order(jump.fine) >= _point_order(jump.target)
+            else end
+        )
+        intervals = _written_intervals(model, origin, jump.source)
+        intervals.extend(_written_intervals(model, jump.target, stop))
     visits: dict[int, int] = {}
     cursor = Fraction(0)
     occurrences = []
-    for ordinal, index in enumerate(order):
-        measure = model.measures[index]
+    for ordinal, (index, written_start, written_end) in enumerate(intervals):
         visits[index] = visits.get(index, 0) + 1
-        end = cursor + measure.end - measure.start
+        performance_end = cursor + written_end - written_start
         occurrences.append(
             PerformanceOccurrence(
-                ordinal, index, visits[index], measure.start, measure.end, cursor, end
+                ordinal, index, visits[index], written_start, written_end, cursor, performance_end
             )
         )
-        cursor = end
-    return PerformanceProjection(
-        tuple(occurrences), tuple((m.start, m.end) for m in model.measures)
-    )
+        cursor = performance_end
+    return PerformanceProjection(tuple(occurrences), spans)

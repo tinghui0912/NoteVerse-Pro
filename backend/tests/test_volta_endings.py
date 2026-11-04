@@ -382,7 +382,7 @@ def test_practice_keeps_written_notes_once_without_selecting_volta_branches():
 def test_volta_does_not_enable_jump_execution(navigation):
     xml = score(volta(common_tempo=f"<sound {navigation}/>"))
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
+    with pytest.raises(PerformanceNavigationError, match="unsupported_jump_repeat_interaction"):
         project_performance_occurrences(model)
 
 

@@ -66,8 +66,7 @@ def test_barline_destinations_preserve_source_and_shared_exact_points(
         assert model.navigation_markers[0].kind == kind
     else:
         assert model.navigation_markers == ()
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-        project_performance_occurrences(model)
+    assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [0]
 
 
 @pytest.mark.parametrize(

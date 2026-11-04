@@ -217,20 +217,20 @@ def test_ending_facts_survive_admission_and_select_whole_measure_visits():
 
 
 @pytest.mark.parametrize(
-    "attribute,field,expected",
+    "attribute,field,expected,error",
     [
-        ('dacapo="yes"', "dacapo", True),
-        ('dalsegno="s"', "dalsegno", "s"),
-        ('segno="s"', "segno", "s"),
-        ('coda="c"', "coda", "c"),
-        ('tocoda="c"', "tocoda", "c"),
-        ('fine="yes"', "fine", "yes"),
-        ('forward-repeat="yes"', "forward_repeat", True),
+        ('dacapo="yes"', "dacapo", True, None),
+        ('dalsegno="s"', "dalsegno", "s", "unresolved_jump_destination"),
+        ('segno="s"', "segno", "s", None),
+        ('coda="c"', "coda", "c", None),
+        ('tocoda="c"', "tocoda", "c", "unsupported_tocoda"),
+        ('fine="yes"', "fine", "yes", "unsupported_orphan_fine"),
+        ('forward-repeat="yes"', "forward_repeat", True, "unsupported_performance_navigation"),
     ],
 )
 @pytest.mark.parametrize("nested", [False, True])
 def test_sound_navigation_preserves_effective_playback_position_without_executing(
-    attribute, field, expected, nested
+    attribute, field, expected, error, nested
 ):
     sound = f"<sound {attribute}><offset>1</offset></sound>"
     markup = f'<direction><offset sound="yes">2</offset>{sound}</direction>' if nested else sound
@@ -240,8 +240,12 @@ def test_sound_navigation_preserves_effective_playback_position_without_executin
     assert fact.position == Fraction(1, 3)
     assert fact.part_index == fact.measure_index == 0
     assert getattr(fact, field) == expected
-    with pytest.raises(PerformanceNavigationError, match="unsupported_performance_navigation"):
-        project_performance_occurrences(model)
+    if error:
+        with pytest.raises(PerformanceNavigationError, match=error):
+            project_performance_occurrences(model)
+    else:
+        result = project_performance_occurrences(model)
+        assert result.end == (Fraction(5, 3) if field == "dacapo" else Fraction(4, 3))
 
 
 def test_occurrence_mapping_owns_late_tempo_positions_and_boundary_selection():
